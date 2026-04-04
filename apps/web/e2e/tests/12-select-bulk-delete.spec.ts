@@ -3,7 +3,7 @@ import { loginViaAPI, authenticatePage, dismissOverlays } from '../helpers/auth'
 import { createAPIHelper, getDateRange } from '../helpers/api'
 
 test.describe.serial('Select Mode and Bulk Delete', () => {
-  let token: string
+  let token = ''
 
   test.beforeAll(async ({ request, testAccount }) => {
     token = await loginViaAPI(request, testAccount)

@@ -58,7 +58,7 @@ describe('habit server actions', () => {
       expect(result).toEqual({ id: 'new-habit' })
       expect(mockFetch).toHaveBeenCalledTimes(1)
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits')
       expect(init.method).toBe('POST')
       expect(JSON.parse(init.body)).toEqual({ title: 'Exercise' })
@@ -69,7 +69,7 @@ describe('habit server actions', () => {
 
       await createHabit({ title: 'Test' })
 
-      const [, init] = mockFetch.mock.calls[0]
+      const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
     })
 
@@ -93,7 +93,7 @@ describe('habit server actions', () => {
         isBadHabit: false,
       })
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1')
       expect(init.method).toBe('PUT')
     })
@@ -109,7 +109,7 @@ describe('habit server actions', () => {
 
       await deleteHabit('h-1')
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1')
       expect(init.method).toBe('DELETE')
     })
@@ -135,7 +135,7 @@ describe('habit server actions', () => {
 
       const result = await logHabit('h-1')
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/log')
       expect(init.method).toBe('POST')
       expect(result.logId).toBe('log-1')
@@ -150,7 +150,7 @@ describe('habit server actions', () => {
 
       await logHabit('h-1', { note: 'Great session!' })
 
-      const [, init] = mockFetch.mock.calls[0]
+      const [, init] = mockFetch.mock.calls[0]!
       const body = JSON.parse(init.body)
       expect(body.note).toBe('Great session!')
     })
@@ -164,7 +164,7 @@ describe('habit server actions', () => {
 
       await logHabit('h-1', { date: '2025-01-15' })
 
-      const [, init] = mockFetch.mock.calls[0]
+      const [, init] = mockFetch.mock.calls[0]!
       const body = JSON.parse(init.body)
       expect(body.date).toBe('2025-01-15')
     })
@@ -180,7 +180,7 @@ describe('habit server actions', () => {
 
       await skipHabit('h-1')
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/skip')
       expect(init.method).toBe('POST')
     })
@@ -190,7 +190,7 @@ describe('habit server actions', () => {
 
       await skipHabit('h-1', '2025-01-15')
 
-      const [, init] = mockFetch.mock.calls[0]
+      const [, init] = mockFetch.mock.calls[0]!
       const body = JSON.parse(init.body)
       expect(body.date).toBe('2025-01-15')
     })
@@ -211,7 +211,7 @@ describe('habit server actions', () => {
         ],
       })
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/reorder')
       expect(init.method).toBe('PUT')
     })
@@ -227,7 +227,7 @@ describe('habit server actions', () => {
 
       await duplicateHabit('h-1')
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/duplicate')
       expect(init.method).toBe('POST')
     })
@@ -249,7 +249,7 @@ describe('habit server actions', () => {
         habits: [{ title: 'New' }],
       })
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/bulk')
       expect(init.method).toBe('POST')
       expect(result.results).toHaveLength(1)
@@ -270,7 +270,7 @@ describe('habit server actions', () => {
 
       const result = await bulkDeleteHabits(['h-1'])
 
-      const [url, init] = mockFetch.mock.calls[0]
+      const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/bulk')
       expect(init.method).toBe('DELETE')
       expect(result.results).toHaveLength(1)

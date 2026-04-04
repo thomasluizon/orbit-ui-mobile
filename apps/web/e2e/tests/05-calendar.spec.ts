@@ -3,7 +3,7 @@ import { loginViaAPI, authenticatePage, dismissOverlays } from '../helpers/auth'
 import { createAPIHelper, getDateRange } from '../helpers/api'
 
 test.describe.serial('Calendar Page', () => {
-  let token: string
+  let token = ''
   let testHabitId: string
 
   test.beforeAll(async ({ request, testAccount }) => {

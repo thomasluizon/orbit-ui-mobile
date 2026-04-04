@@ -3,7 +3,7 @@ import { loginViaAPI, authenticatePage, dismissOverlays } from '../helpers/auth'
 import { createAPIHelper, getDateRange } from '../helpers/api'
 
 test.describe.serial('Skip Habit', () => {
-  let token: string
+  let token = ''
   const RECURRING_HABIT = 'E2E Skip Recurring'
   const ONETIME_HABIT = 'E2E Skip OneTime'
 

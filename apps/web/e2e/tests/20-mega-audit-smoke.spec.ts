@@ -9,7 +9,7 @@ import { createAPIHelper, getDateRange } from '../helpers/api'
 
 test.describe.serial('Critical Path Smoke Tests', () => {
   test.setTimeout(60_000)
-  let token: string
+  let token = ''
 
   test.beforeAll(async ({ request, testAccount }) => {
     token = await loginViaAPI(request, testAccount)

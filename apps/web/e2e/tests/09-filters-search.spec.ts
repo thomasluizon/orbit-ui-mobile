@@ -3,7 +3,7 @@ import { loginViaAPI, authenticatePage, dismissOverlays } from '../helpers/auth'
 import { createAPIHelper, getDateRange } from '../helpers/api'
 
 test.describe.serial('Filters and Search', () => {
-  let token: string
+  let token = ''
   const createdHabitIds: string[] = []
 
   test.beforeAll(async ({ request, testAccount }) => {

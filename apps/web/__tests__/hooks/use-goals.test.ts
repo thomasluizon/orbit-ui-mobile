@@ -91,9 +91,9 @@ describe('useGoals', () => {
 
     expect(result.current.data!.allGoals).toHaveLength(3)
     // Should be sorted by position
-    expect(result.current.data!.allGoals[0].id).toBe('g-2')
-    expect(result.current.data!.allGoals[1].id).toBe('g-3')
-    expect(result.current.data!.allGoals[2].id).toBe('g-1')
+    expect(result.current.data!.allGoals[0]!.id).toBe('g-2')
+    expect(result.current.data!.allGoals[1]!.id).toBe('g-3')
+    expect(result.current.data!.allGoals[2]!.id).toBe('g-1')
   })
 
   it('populates goalsById map', async () => {
@@ -133,7 +133,7 @@ describe('useGoals', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Check the URL includes status param
-    const calledUrl = mockFetch.mock.calls[0][0] as string
+    const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('status=Completed')
   })
 

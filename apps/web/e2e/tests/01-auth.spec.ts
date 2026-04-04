@@ -57,7 +57,7 @@ test.describe.serial('Authentication Flow', () => {
     // Enter the 6-digit code
     const codeDigits = testAccount.code.split('')
     for (let i = 0; i < codeDigits.length; i++) {
-      await page.locator(`[data-testid="code-input-${i}"]`).fill(codeDigits[i])
+      await page.locator(`[data-testid="code-input-${i}"]`).fill(codeDigits[i]!)
     }
 
     // Submit verification
@@ -82,7 +82,7 @@ test.describe.serial('Authentication Flow', () => {
 
     const codeDigits = testAccount.code.split('')
     for (let i = 0; i < codeDigits.length; i++) {
-      await page.locator(`[data-testid="code-input-${i}"]`).fill(codeDigits[i])
+      await page.locator(`[data-testid="code-input-${i}"]`).fill(codeDigits[i]!)
     }
     await page.locator('[data-testid="verify-code-button"]').click()
     await page.waitForURL('/', { timeout: 15000 })

@@ -3,7 +3,7 @@ import { loginViaAPI, authenticatePage, dismissOverlays } from '../helpers/auth'
 import { createAPIHelper, getDateRange } from '../helpers/api'
 
 test.describe.serial('Reminders', () => {
-  let token: string
+  let token = ''
   const HABIT_NAME = 'E2E Reminder Habit'
 
   test.beforeAll(async ({ request, testAccount }) => {

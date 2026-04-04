@@ -109,7 +109,7 @@ describe('middleware', () => {
       middleware(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL
+      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
       expect(redirectUrl.pathname).toBe('/login')
     })
 
@@ -118,7 +118,7 @@ describe('middleware', () => {
       middleware(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL
+      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
       expect(redirectUrl.pathname).toBe('/login')
       expect(redirectUrl.searchParams.get('returnUrl')).toBe('/habits')
     })
@@ -128,7 +128,7 @@ describe('middleware', () => {
       middleware(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL
+      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
       expect(redirectUrl.searchParams.get('returnUrl')).toBe('/settings')
     })
   })
@@ -155,7 +155,7 @@ describe('middleware', () => {
       middleware(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0][0] as URL
+      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
       expect(redirectUrl.pathname).toBe('/')
       expect(redirectUrl.search).toBe('')
     })

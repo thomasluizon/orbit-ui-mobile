@@ -7,8 +7,8 @@ export function getDateRange() {
   const from = new Date(now.getFullYear(), now.getMonth() - 6, 1)
   const to = new Date(now.getFullYear(), now.getMonth() + 6, 0)
   return {
-    dateFrom: from.toISOString().split('T')[0],
-    dateTo: to.toISOString().split('T')[0],
+    dateFrom: from.toISOString().split('T')[0]!,
+    dateTo: to.toISOString().split('T')[0]!,
   }
 }
 

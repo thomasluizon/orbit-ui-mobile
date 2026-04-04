@@ -49,8 +49,8 @@ describe('chat store', () => {
 
       const state = useChatStore.getState()
       expect(state.messages).toHaveLength(1)
-      expect(state.messages[0].role).toBe('user')
-      expect(state.messages[0].content).toBe('Hi')
+      expect(state.messages[0]!.role).toBe('user')
+      expect(state.messages[0]!.content).toBe('Hi')
     })
 
     it('adds an AI message', () => {
@@ -59,7 +59,7 @@ describe('chat store', () => {
 
       const state = useChatStore.getState()
       expect(state.messages).toHaveLength(1)
-      expect(state.messages[0].role).toBe('ai')
+      expect(state.messages[0]!.role).toBe('ai')
     })
 
     it('appends messages in order', () => {
@@ -70,9 +70,9 @@ describe('chat store', () => {
 
       const state = useChatStore.getState()
       expect(state.messages).toHaveLength(3)
-      expect(state.messages[0].content).toBe('First')
-      expect(state.messages[1].content).toBe('Second')
-      expect(state.messages[2].content).toBe('Third')
+      expect(state.messages[0]!.content).toBe('First')
+      expect(state.messages[1]!.content).toBe('Second')
+      expect(state.messages[2]!.content).toBe('Third')
     })
 
     it('preserves message actions', () => {
@@ -98,8 +98,8 @@ describe('chat store', () => {
       )
 
       const state = useChatStore.getState()
-      expect(state.messages[0].actions).toHaveLength(1)
-      expect(state.messages[0].actions![0].type).toBe('CreateHabit')
+      expect(state.messages[0]!.actions).toHaveLength(1)
+      expect(state.messages[0]!.actions![0]!.type).toBe('CreateHabit')
     })
   })
 

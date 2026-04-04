@@ -134,8 +134,8 @@ describe('useHabits', () => {
     expect(result.current.data).toBeDefined()
     expect(result.current.data!.habitsById.size).toBe(2)
     // Top-level should be sorted by position
-    expect(result.current.data!.topLevelHabits[0].id).toBe('h-2')
-    expect(result.current.data!.topLevelHabits[1].id).toBe('h-1')
+    expect(result.current.data!.topLevelHabits[0]!.id).toBe('h-2')
+    expect(result.current.data!.topLevelHabits[1]!.id).toBe('h-1')
   })
 
   it('normalizes children into flat map', async () => {

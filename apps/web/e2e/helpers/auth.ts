@@ -15,14 +15,14 @@ export function parseTestAccounts(): TestAccount[] {
   if (!raw) return [{ email: 'qa@useorbit.org', code: '742891' }]
   return raw.split(',').map((pair) => {
     const [email, code] = pair.split(':', 2)
-    return { email: email.trim(), code: code.trim() }
+    return { email: email!.trim(), code: code!.trim() }
   })
 }
 
 /** Get a test account by worker index (wraps around if more workers than accounts) */
 export function getTestAccount(workerIndex: number): TestAccount {
   const accounts = parseTestAccounts()
-  return accounts[workerIndex % accounts.length]
+  return accounts[workerIndex % accounts.length]!
 }
 
 export async function loginViaAPI(request: APIRequestContext, account: TestAccount): Promise<string> {

@@ -5,7 +5,7 @@ import { createAPIHelper, getDateRange } from '../helpers/api'
 const API_URL = process.env.E2E_API_URL || 'http://localhost:5000'
 
 test.describe.serial('Tag Management', () => {
-  let token: string
+  let token = ''
   let testHabitId: string
 
   test.beforeAll(async ({ request, testAccount }) => {
