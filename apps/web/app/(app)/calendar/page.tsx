@@ -97,9 +97,11 @@ export default function CalendarPage() {
       )}
 
       {/* Calendar grid */}
-      {!isLoading && (
+      {(!isLoading || isFetching) && (
         <div
-          className={`py-2 transition-opacity duration-200 bg-surface rounded-[var(--radius-xl)] border border-border-muted p-3 shadow-[var(--shadow-sm)] ${isFetching ? 'opacity-40 pointer-events-none' : ''}`}
+          className={`py-2 transition-opacity duration-200 bg-surface rounded-[var(--radius-xl)] border border-border-muted p-3 shadow-[var(--shadow-sm)] ${
+            isFetching ? 'opacity-40 pointer-events-none' : ''
+          }`}
         >
           <CalendarGrid
             currentMonth={currentMonth}

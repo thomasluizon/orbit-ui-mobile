@@ -16,15 +16,15 @@ export function TypingIndicator() {
         <div className="bg-surface-elevated rounded-tl-[var(--radius-lg)] rounded-tr-[var(--radius-lg)] rounded-br-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
           <div className="flex gap-1.5 items-center">
             <span
-              className="size-2 bg-text-secondary rounded-full animate-pulse"
+              className="size-2 bg-text-secondary rounded-full animate-gentle-pulse"
               style={{ animationDelay: '0ms' }}
             />
             <span
-              className="size-2 bg-text-secondary rounded-full animate-pulse"
+              className="size-2 bg-text-secondary rounded-full animate-gentle-pulse"
               style={{ animationDelay: '200ms' }}
             />
             <span
-              className="size-2 bg-text-secondary rounded-full animate-pulse"
+              className="size-2 bg-text-secondary rounded-full animate-gentle-pulse"
               style={{ animationDelay: '400ms' }}
             />
           </div>

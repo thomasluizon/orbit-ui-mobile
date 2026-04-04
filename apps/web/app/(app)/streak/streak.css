@@ -21,7 +21,7 @@
 
 .streak-hero__flame {
   filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.5));
-  animation: streak-detail-flame 2s ease-in-out infinite;
+  animation: detail-flame 2s ease-in-out infinite;
 }
 
 .streak-hero__count {
@@ -46,7 +46,7 @@
   color: #fbbf24;
 }
 
-@keyframes streak-detail-flame {
+@keyframes detail-flame {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
 }

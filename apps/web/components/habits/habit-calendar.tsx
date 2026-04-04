@@ -138,7 +138,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: HabitCalendarProp
   }
 
   return (
-    <div className="bg-surface-ground border border-border-muted rounded-xl p-4 shadow-sm">
+    <div className="bg-surface-ground border border-border-muted rounded-xl p-4 shadow-[var(--shadow-sm)]">
       {/* Header: nav + month label */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -212,7 +212,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: HabitCalendarProp
 
       {/* Selected day logs */}
       {selectedDate && selectedDayLogs.length > 0 && (
-        <div className="mt-3 bg-surface-ground border border-border-muted rounded-lg p-3 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+        <div className="mt-3 bg-surface-ground border border-border-muted rounded-lg p-3 overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-text-primary">
               {format(parseISO(selectedDate), 'PPP', {

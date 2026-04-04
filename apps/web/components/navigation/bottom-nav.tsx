@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, MessageCircle, CalendarDays, User, Plus } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { LucideIcon } from 'lucide-react'
 
 interface NavItem {
@@ -11,20 +12,21 @@ interface NavItem {
   icon: LucideIcon
 }
 
-const navItems: NavItem[] = [
-  { name: 'Today', path: '/', icon: Home },
-  { name: 'Chat', path: '/chat', icon: MessageCircle },
-  // FAB placeholder handled separately
-  { name: 'Calendar', path: '/calendar', icon: CalendarDays },
-  { name: 'Profile', path: '/profile', icon: User },
-]
-
 interface BottomNavProps {
   onCreate?: () => void
 }
 
 export function BottomNav({ onCreate }: BottomNavProps) {
+  const t = useTranslations()
   const pathname = usePathname()
+
+  const navItems: NavItem[] = [
+    { name: t('nav.habits'), path: '/', icon: Home },
+    { name: t('nav.chat'), path: '/chat', icon: MessageCircle },
+    // FAB placeholder handled separately
+    { name: t('nav.calendar'), path: '/calendar', icon: CalendarDays },
+    { name: t('nav.profile'), path: '/profile', icon: User },
+  ]
 
   function isActive(path: string) {
     if (!path) return false
@@ -43,7 +45,7 @@ export function BottomNav({ onCreate }: BottomNavProps) {
           {/* Central FAB button */}
           <div className="flex flex-col items-center -mt-8">
             <button
-              aria-label="Create habit"
+              aria-label={t('nav.createHabit')}
               className="bg-primary rounded-full size-14 flex items-center justify-center ring-4 ring-background shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:scale-105 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
               onClick={onCreate}
             >

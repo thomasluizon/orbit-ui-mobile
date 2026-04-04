@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertTriangle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { ConflictWarning as ConflictWarningType } from '@orbit/shared/types/chat'
 
 // ---------------------------------------------------------------------------
@@ -33,13 +34,15 @@ function severityStyle(severity: ConflictWarningType['severity']): string {
 // ---------------------------------------------------------------------------
 
 export function ConflictWarning({ warning }: ConflictWarningProps) {
+  const t = useTranslations()
+
   return (
     <div
       className={`rounded-[var(--radius-lg)] border px-4 py-3 text-xs mt-2 shadow-[var(--shadow-sm)] ${severityStyle(warning.severity)}`}
     >
       <p className="font-bold mb-1 flex items-center gap-1.5">
         <AlertTriangle className="size-3.5" />
-        Scheduling Conflict
+        {t('chat.conflict.title')}
       </p>
       {warning.conflictingHabits.length > 0 && (
         <ul className="space-y-0.5 mb-1.5">

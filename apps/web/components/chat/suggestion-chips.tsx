@@ -1,5 +1,8 @@
 'use client'
 
+import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -9,23 +12,21 @@ interface SuggestionChipsProps {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const SUGGESTIONS = [
-  'I just meditated for 10 minutes',
-  'Log my exercise for today',
-  'Help me buy groceries',
-]
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function SuggestionChips({ onSelect }: SuggestionChipsProps) {
+  const t = useTranslations()
+
+  const suggestions = useMemo(() => [
+    t('chat.suggestion.meditated'),
+    t('chat.suggestion.exercise'),
+    t('chat.suggestion.groceries'),
+  ], [t])
+
   return (
     <div className="flex gap-2 flex-wrap justify-center">
-      {SUGGESTIONS.map((suggestion, index) => (
+      {suggestions.map((suggestion, index) => (
         <button
           key={index}
           className="px-4 py-2 rounded-full text-xs font-medium bg-surface-elevated border border-border-muted text-text-primary hover:border-border hover:scale-[1.02] transition-all duration-150 active:scale-95"

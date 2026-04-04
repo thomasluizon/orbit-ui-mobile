@@ -87,6 +87,7 @@ export function HabitChecklist({
 
   const handleToggle = useCallback(
     (index: number) => {
+      // Trigger pop animation when checking (not unchecking)
       if (!items[index]?.isChecked) {
         if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
         setJustCheckedIndex(index)
@@ -202,6 +203,7 @@ export function HabitChecklist({
                 </label>
               ) : null}
 
+              {/* Text */}
               <span
                 className={`flex-1 min-w-0 text-sm transition-all ${
                   item.isChecked

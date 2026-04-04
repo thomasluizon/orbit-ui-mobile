@@ -28,8 +28,6 @@ export default function AppLayout({
 
         {/* Bottom navigation */}
         <BottomNav />
-
-        {/* Placeholder slots for celebrations, modals, etc. (filled in later phases) */}
       </div>
     </Providers>
   )

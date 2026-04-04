@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Check, X, Plus, Loader2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BulkHabitItem } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -29,25 +30,6 @@ interface BreakdownSuggestionProps {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const FREQUENCY_OPTIONS = [
-  { value: '', label: 'One-time' },
-  { value: 'Day', label: 'Daily' },
-  { value: 'Week', label: 'Weekly' },
-  { value: 'Month', label: 'Monthly' },
-  { value: 'Year', label: 'Yearly' },
-]
-
-const FREQUENCY_UNIT_LABELS: Record<string, string> = {
-  Day: 'day(s)',
-  Week: 'week(s)',
-  Month: 'month(s)',
-  Year: 'year(s)',
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -57,6 +39,7 @@ export function BreakdownSuggestion({
   onConfirmed,
   onCancelled,
 }: BreakdownSuggestionProps) {
+  const t = useTranslations()
   const bulkCreate = useBulkCreateHabits()
 
   const [habits, setHabits] = useState<EditableHabit[]>(
@@ -76,6 +59,14 @@ export function BreakdownSuggestion({
   const [createdCount, setCreatedCount] = useState(0)
   const [createAsParent, setCreateAsParent] = useState(false)
   const [createError, setCreateError] = useState('')
+
+  const frequencyOptions = useMemo(() => [
+    { value: '', label: t('habits.filter.oneTime') },
+    { value: 'Day', label: t('habits.filter.daily') },
+    { value: 'Week', label: t('habits.filter.weekly') },
+    { value: 'Month', label: t('habits.filter.monthly') },
+    { value: 'Year', label: t('habits.filter.yearly') },
+  ], [t])
 
   const validHabits = useMemo(
     () => habits.filter((h) => h.title.trim().length > 0),
@@ -165,7 +156,7 @@ export function BreakdownSuggestion({
       onConfirmed()
     } catch (err: unknown) {
       setCreateError(
-        err instanceof Error ? err.message : 'Failed to create habits',
+        err instanceof Error ? err.message : t('errors.bulkCreateHabits'),
       )
     }
   }
@@ -185,8 +176,8 @@ export function BreakdownSuggestion({
           </div>
           <p className="text-sm font-semibold text-emerald-400">
             {createAsParent
-              ? `Created "${parentName}" with ${createdCount} sub-habits`
-              : `Created ${createdCount} habits`}
+              ? t('habits.breakdown.createAsParentSuccess', { name: parentName, n: createdCount })
+              : t('habits.breakdown.createdSuccess', { n: createdCount })}
           </p>
         </div>
       </div>
@@ -200,7 +191,9 @@ export function BreakdownSuggestion({
   return (
     <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-text-primary">
-        Break down <span className="text-primary font-bold">{parentName}</span> into:
+        {t.rich('habits.breakdown.breakInto', {
+          name: () => <span className="text-primary font-bold">{parentName}</span>,
+        })}
       </p>
 
       <div className="space-y-3">
@@ -214,7 +207,7 @@ export function BreakdownSuggestion({
                 type="text"
                 value={habit.title}
                 onChange={(e) => updateHabit(index, { title: e.target.value })}
-                placeholder="Habit name..."
+                placeholder={t('habits.breakdown.habitNamePlaceholder')}
                 className="w-full bg-transparent text-sm font-medium text-text-primary placeholder-text-muted outline-none"
               />
               <div className="flex items-center gap-2">
@@ -229,7 +222,7 @@ export function BreakdownSuggestion({
                   }}
                   className="bg-transparent text-[11px] text-text-secondary outline-none cursor-pointer"
                 >
-                  {FREQUENCY_OPTIONS.map((opt) => (
+                  {frequencyOptions.map((opt) => (
                     <option
                       key={opt.value}
                       value={opt.value}
@@ -241,7 +234,7 @@ export function BreakdownSuggestion({
                 </select>
                 {habit.frequencyUnit && (
                   <>
-                    <span className="text-[11px] text-text-muted">every</span>
+                    <span className="text-[11px] text-text-muted">{t('habits.breakdown.every')}</span>
                     <input
                       type="number"
                       min={1}
@@ -254,7 +247,7 @@ export function BreakdownSuggestion({
                       className="w-8 bg-transparent text-[11px] text-text-secondary text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-text-muted">
-                      {FREQUENCY_UNIT_LABELS[habit.frequencyUnit] ?? habit.frequencyUnit}
+                      {t(`habits.form.unit${habit.frequencyUnit}`)}
                     </span>
                   </>
                 )}
@@ -276,12 +269,13 @@ export function BreakdownSuggestion({
         onClick={addHabit}
       >
         <Plus className="size-3.5" />
-        Add habit
+        {t('habits.breakdown.addHabit')}
       </button>
 
       {/* Group as parent checkbox */}
-      <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+      <label htmlFor="breakdown-create-as-parent" className="flex items-center gap-2 cursor-pointer select-none w-fit">
         <input
+          id="breakdown-create-as-parent"
           type="checkbox"
           checked={createAsParent}
           onChange={(e) => setCreateAsParent(e.target.checked)}
@@ -294,7 +288,7 @@ export function BreakdownSuggestion({
           {createAsParent && <Check className="size-2.5 text-white" />}
         </div>
         <span className="text-xs text-text-secondary">
-          Create as parent with sub-habits
+          {t('habits.breakdown.createAsParent')}
         </span>
       </label>
 
@@ -309,14 +303,14 @@ export function BreakdownSuggestion({
           onClick={handleConfirm}
         >
           {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-          Create {validHabits.length} habit{validHabits.length !== 1 ? 's' : ''}
+          {t('habits.breakdown.createCount', { n: validHabits.length })}
         </button>
         <button
           className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-border text-text-secondary text-xs font-medium hover:bg-surface-elevated/80 transition-all duration-150"
           disabled={isSubmitting}
           onClick={onCancelled}
         >
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </div>

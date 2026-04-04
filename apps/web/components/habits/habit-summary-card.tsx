@@ -39,7 +39,7 @@ export function HabitSummaryCard({ date }: HabitSummaryCardProps) {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="glass bg-surface rounded-xl p-4 space-y-3 border border-border-muted shadow-sm">
+      <div className="glass bg-surface rounded-xl p-4 space-y-3 border border-border-muted shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
           <Sparkles className="text-primary size-5 animate-pulse" />
           <span className="text-sm font-bold text-text-primary">
@@ -74,7 +74,7 @@ export function HabitSummaryCard({ date }: HabitSummaryCardProps) {
   // Content state
   if (summary) {
     return (
-      <div className="glass bg-surface rounded-xl p-4 border border-border-muted shadow-sm">
+      <div className="glass bg-surface rounded-xl p-4 border border-border-muted shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
           <Sparkles className="text-primary size-5" />
           <span className="text-sm font-bold text-text-primary">

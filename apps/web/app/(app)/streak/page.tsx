@@ -111,9 +111,9 @@ export default function StreakPage() {
       {/* Loading */}
       {streakQuery.isLoading && !streakInfo ? (
         <div className="space-y-6">
-          <div className="h-32 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
-          <div className="h-20 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
-          <div className="h-24 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
+          <div className="h-32 bg-surface rounded-(--radius-xl) animate-pulse" />
+          <div className="h-20 bg-surface rounded-(--radius-xl) animate-pulse" />
+          <div className="h-24 bg-surface rounded-(--radius-xl) animate-pulse" />
         </div>
       ) : (
         <div className="space-y-5">
@@ -165,7 +165,7 @@ export default function StreakPage() {
           </div>
 
           {/* Weekly timeline */}
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5">
+          <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5">
             <p className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">
               {t('streakDisplay.detail.thisWeek')}
             </p>
@@ -203,13 +203,13 @@ export default function StreakPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-4 text-center">
+            <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-4 text-center">
               <p className="text-2xl font-extrabold text-amber-400">{streak}</p>
               <p className="text-xs text-text-muted font-bold uppercase tracking-wider mt-1">
                 {t('streakDisplay.detail.currentStreak')}
               </p>
             </div>
-            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-4 text-center">
+            <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-4 text-center">
               <p className="text-2xl font-extrabold text-amber-500/60">{streakInfo?.longestStreak ?? 0}</p>
               <p className="text-xs text-text-muted font-bold uppercase tracking-wider mt-1">
                 {t('streakDisplay.detail.longestStreak')}
@@ -218,7 +218,7 @@ export default function StreakPage() {
           </div>
 
           {/* Freeze section */}
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
+          <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <svg viewBox="0 0 12 14" fill="none" className="size-4">

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Sparkles, User } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
@@ -21,6 +22,7 @@ interface MessageBubbleProps {
 // ---------------------------------------------------------------------------
 
 export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubbleProps) {
+  const t = useTranslations()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<number>>(new Set())
 
   const suggestionActions = useMemo(
@@ -56,7 +58,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubblePr
       >
         {/* Sender label */}
         <span className="text-[11px] font-medium text-text-secondary mb-1 px-2">
-          {isUser ? 'You' : 'Orbit'}
+          {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
         <div
@@ -70,7 +72,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubblePr
           {message.imageUrl && (
             <img
               src={message.imageUrl}
-              alt="Attachment preview"
+              alt={t('chat.attachmentPreview')}
               className="rounded-xl max-h-48 mb-2"
             />
           )}

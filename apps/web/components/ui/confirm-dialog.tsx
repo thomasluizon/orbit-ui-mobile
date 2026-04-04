@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { AppOverlay } from './app-overlay'
 
 type Variant = 'danger' | 'warning' | 'success'
@@ -51,12 +52,13 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   variant = 'danger',
 }: ConfirmDialogProps) {
+  const t = useTranslations()
   const config = variantConfig[variant]
   const Icon = config.icon
 
@@ -90,13 +92,13 @@ export function ConfirmDialog({
             className="flex-1 py-3 rounded-xl border border-border text-text-secondary font-medium text-sm hover:bg-surface transition-colors duration-[var(--duration-fast)]"
             onClick={handleCancel}
           >
-            {cancelLabel}
+            {cancelLabel || t('common.cancel')}
           </button>
           <button
             className={`flex-1 py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.98] shadow-[var(--shadow-sm)] ${config.btn}`}
             onClick={handleConfirm}
           >
-            {confirmLabel}
+            {confirmLabel || t('common.confirm')}
           </button>
         </div>
       }

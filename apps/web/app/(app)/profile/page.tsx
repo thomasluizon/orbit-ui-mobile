@@ -13,10 +13,8 @@ import {
   ChevronRight,
   Clock,
   BadgeCheck,
-  ArrowLeft,
   X,
   Check,
-  Flame,
 } from 'lucide-react'
 import { parseISO, format } from 'date-fns'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
@@ -58,10 +56,9 @@ export default function ProfilePage() {
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
       setShowResetModal(false)
-      // Hard reload for fresh state
       window.location.href = '/'
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.' // i18n
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       setResetError(msg)
     } finally {
       setResetLoading(false)
@@ -92,7 +89,7 @@ export default function ProfilePage() {
       await requestDeletion()
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.' // i18n
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -106,11 +103,10 @@ export default function ProfilePage() {
     setDeleteError('')
     try {
       await confirmDeletion(code)
-      // Assume successful -- show deactivated state
       setScheduledDeletionDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.' // i18n
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -149,10 +145,8 @@ export default function ProfilePage() {
 
   const deleteWarningMessage = useMemo(() => {
     if (profile?.hasProAccess && profile?.planExpiresAt) {
-      // i18n: "Your Pro subscription is active until {date}. Deleting your account will cancel it."
       return `Your Pro subscription is active until ${format(parseISO(profile.planExpiresAt), 'PPP')}. Deleting your account will cancel it.`
     }
-    // i18n: "This will permanently delete your account and all data."
     return 'This will permanently delete your account and all data.'
   }, [profile?.hasProAccess, profile?.planExpiresAt])
 
@@ -160,18 +154,6 @@ export default function ProfilePage() {
     if (!scheduledDeletionDate) return ''
     return format(parseISO(scheduledDeletionDate), 'PPP')
   }, [scheduledDeletionDate])
-
-  // --- Subscription card styling ---
-  const isActiveSubscription = profile?.isTrialActive || profile?.hasProAccess
-  const subscriptionClasses = isActiveSubscription
-    ? 'bg-primary/10 border border-primary/20 hover:bg-primary/15 hover:border-primary/30'
-    : 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30'
-  const subscriptionIconClasses = isActiveSubscription
-    ? 'bg-primary/20 group-hover:bg-primary/30'
-    : 'bg-amber-500/20 group-hover:bg-amber-500/30'
-  const subscriptionIconColor = isActiveSubscription
-    ? 'text-primary'
-    : 'text-amber-400'
 
   return (
     <div className="pb-8">
@@ -192,10 +174,7 @@ export default function ProfilePage() {
 
       <div className="space-y-4">
         {/* ==================== ACCOUNT ==================== */}
-        <h2 className="form-label pt-2">
-          {/* i18n: Account */}
-          Account
-        </h2>
+        <h2 className="form-label pt-2">Account</h2>
 
         {/* User info card */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
@@ -213,43 +192,34 @@ export default function ProfilePage() {
         </div>
 
         {/* Streak display */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5">
-          <div className="flex items-center gap-3">
-            <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3">
-              <Flame className="size-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-text-primary">
-                {/* i18n: {count} day streak */}
-                {profile?.currentStreak ?? 0} day streak
-              </p>
-              <p className="text-xs text-text-secondary mt-0.5">
-                {/* i18n: {count} streak freezes available */}
-                {profile?.streakFreezesAvailable ?? 0} streak freezes available
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* TODO: Replace with ProfileStreakCard component */}
 
         {/* Subscription */}
         <Link
           href="/upgrade"
-          className={`w-full rounded-[var(--radius-xl)] p-5 flex items-center gap-4 transition-all duration-200 group text-left shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] ${subscriptionClasses}`}
+          className={`w-full rounded-[var(--radius-xl)] p-5 flex items-center gap-4 transition-all duration-200 group text-left shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] ${
+            profile?.isTrialActive || profile?.hasProAccess
+              ? 'bg-primary/10 border border-primary/20 hover:bg-primary/15 hover:border-primary/30'
+              : 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30'
+          }`}
         >
           <div
-            className={`shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors ${subscriptionIconClasses}`}
+            className={`shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors ${
+              profile?.isTrialActive || profile?.hasProAccess
+                ? 'bg-primary/20 group-hover:bg-primary/30'
+                : 'bg-amber-500/20 group-hover:bg-amber-500/30'
+            }`}
           >
             {profile?.isTrialActive ? (
-              <Clock className={`size-5 ${subscriptionIconColor}`} />
+              <Clock className={`size-5 ${profile?.isTrialActive || profile?.hasProAccess ? 'text-primary' : 'text-amber-400'}`} />
             ) : profile?.hasProAccess ? (
-              <BadgeCheck className={`size-5 ${subscriptionIconColor}`} />
+              <BadgeCheck className={`size-5 ${profile?.isTrialActive || profile?.hasProAccess ? 'text-primary' : 'text-amber-400'}`} />
             ) : (
-              <Sparkles className={`size-5 ${subscriptionIconColor}`} />
+              <Sparkles className={`size-5 ${profile?.isTrialActive || profile?.hasProAccess ? 'text-primary' : 'text-amber-400'}`} />
             )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-text-primary">
-              {/* i18n: subscription labels */}
               {profile?.isTrialActive
                 ? 'Pro Trial'
                 : profile?.hasProAccess
@@ -259,7 +229,6 @@ export default function ProfilePage() {
                     : 'Free Plan'}
             </p>
             <p className="text-xs text-text-secondary mt-0.5">
-              {/* i18n: subscription hints */}
               {profile?.isTrialActive
                 ? `${trialDaysLeft} days left in trial`
                 : profile?.hasProAccess
@@ -275,26 +244,37 @@ export default function ProfilePage() {
         {/* ==================== NAVIGATION CARDS ==================== */}
 
         {/* Preferences */}
-        <NavCard
+        <Link
           href="/preferences"
-          icon={<Settings className="size-5 text-primary" />}
-          title="Preferences"
-          hint="Theme, language, notifications"
-        />
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
+            <Settings className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Preferences</p>
+            <p className="text-xs text-text-secondary mt-0.5">Theme, language, notifications</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
+        </Link>
 
         {/* AI Features */}
-        <NavCard
+        <Link
           href="/ai-settings"
-          icon={<Sparkles className="size-5 text-primary" />}
-          title="AI Features"
-          hint="Memory, summaries, and more"
-        />
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
+            <Sparkles className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">AI Features</p>
+            <p className="text-xs text-text-secondary mt-0.5">Memory, summaries, and more</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
+        </Link>
 
         {/* ==================== FEATURES ==================== */}
-        <h2 className="form-label pt-2">
-          {/* i18n: Features */}
-          Features
-        </h2>
+        <h2 className="form-label pt-2">Features</h2>
 
         {/* Retrospective */}
         <Link
@@ -354,26 +334,37 @@ export default function ProfilePage() {
         </Link>
 
         {/* About & Help */}
-        <NavCard
+        <Link
           href="/about"
-          icon={<Info className="size-5 text-primary" />}
-          title="About & Help"
-          hint="Feature guide, support, privacy"
-        />
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
+            <Info className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">About & Help</p>
+            <p className="text-xs text-text-secondary mt-0.5">Feature guide, support, privacy</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
+        </Link>
 
         {/* Advanced */}
-        <NavCard
+        <Link
           href="/advanced"
-          icon={<Wrench className="size-5 text-primary" />}
-          title="Advanced"
-          hint="Timezone, developer tools"
-        />
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
+            <Wrench className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Advanced</p>
+            <p className="text-xs text-text-secondary mt-0.5">Timezone, developer tools</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
+        </Link>
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <h2 className="form-label pt-2">
-          {/* i18n: Account Actions */}
-          Account Actions
-        </h2>
+        <h2 className="form-label pt-2">Account Actions</h2>
 
         {/* Logout */}
         <button
@@ -381,7 +372,6 @@ export default function ProfilePage() {
           onClick={() => logout()}
         >
           <LogOut className="size-4" />
-          {/* i18n: Log Out */}
           Log Out
         </button>
 
@@ -391,7 +381,6 @@ export default function ProfilePage() {
           onClick={openResetModal}
         >
           <RotateCcw className="size-4" />
-          {/* i18n: Fresh Start */}
           Fresh Start
         </button>
 
@@ -401,7 +390,6 @@ export default function ProfilePage() {
           onClick={openDeleteModal}
         >
           <Trash2 className="size-3.5" />
-          {/* i18n: Delete Account */}
           Delete Account
         </button>
       </div>
@@ -410,31 +398,29 @@ export default function ProfilePage() {
       <AppOverlay
         open={showResetModal}
         onOpenChange={setShowResetModal}
-        title="Fresh Start" // i18n
+        title="Fresh Start"
       >
         {resetStep === 'info' ? (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary">
-              {/* i18n */}
               Start over with a clean slate. This will delete all your data but keep your account and subscription.
             </p>
 
             {/* What gets deleted */}
             <div className="border border-primary/20 rounded-2xl p-4">
               <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
-                {/* i18n: What gets deleted */}
                 What gets deleted
               </p>
               <ul className="space-y-1.5">
                 {[
-                  'All habits and logs', // i18n
-                  'All goals and progress', // i18n
-                  'Chat history', // i18n
-                  'AI memory (user facts)', // i18n
-                  'Achievements and XP', // i18n
-                  'Notifications', // i18n
-                  'Checklist templates', // i18n
-                  'Onboarding progress', // i18n
+                  'All habits and logs',
+                  'All goals and progress',
+                  'Chat history',
+                  'AI memory (user facts)',
+                  'Achievements and XP',
+                  'Notifications',
+                  'Checklist templates',
+                  'Onboarding progress',
                 ].map((item) => (
                   <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
                     <X className="size-3.5 text-red-400 shrink-0 mt-0.5" />
@@ -447,14 +433,13 @@ export default function ProfilePage() {
             {/* What stays */}
             <div className="bg-success/10 border border-success/20 rounded-2xl p-4">
               <p className="text-xs font-bold text-success uppercase tracking-wider mb-2">
-                {/* i18n: What stays */}
                 What stays
               </p>
               <ul className="space-y-1.5">
                 {[
-                  'Your account and email', // i18n
-                  'Your subscription', // i18n
-                  'Your preferences', // i18n
+                  'Your account and email',
+                  'Your subscription',
+                  'Your preferences',
                 ].map((item) => (
                   <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
                     <Check className="size-3.5 text-success shrink-0 mt-0.5" />
@@ -468,14 +453,12 @@ export default function ProfilePage() {
               className="w-full py-3 rounded-2xl bg-primary text-text-inverse font-bold text-sm hover:bg-primary/90 transition-colors"
               onClick={() => setResetStep('confirm')}
             >
-              {/* i18n: Continue */}
               Continue
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary text-center">
-              {/* i18n: Type ORBIT to confirm */}
               Type <strong>ORBIT</strong> to confirm
             </p>
             <input
@@ -494,7 +477,6 @@ export default function ProfilePage() {
               disabled={!isResetConfirmed || resetLoading}
               onClick={handleResetAccount}
             >
-              {/* i18n: Reset My Account / Processing... */}
               {resetLoading ? 'Processing...' : 'Reset My Account'}
             </button>
           </div>
@@ -505,14 +487,13 @@ export default function ProfilePage() {
       <AppOverlay
         open={showDeleteModal}
         onOpenChange={setShowDeleteModal}
-        title="Delete Account" // i18n
+        title="Delete Account"
       >
         {deleteStep === 'confirm' ? (
           <div className="space-y-4">
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
               <p className="text-sm text-red-400 font-bold mb-2">{deleteWarningMessage}</p>
               <p className="text-xs text-text-secondary leading-relaxed">
-                {/* i18n */}
                 You will receive a confirmation code via email. Your account will be deactivated immediately and permanently deleted after 30 days.
               </p>
             </div>
@@ -524,14 +505,12 @@ export default function ProfilePage() {
               disabled={deleteLoading}
               onClick={handleRequestDeletion}
             >
-              {/* i18n: Send Confirmation Code / Sending... */}
               {deleteLoading ? 'Sending...' : 'Send Confirmation Code'}
             </button>
           </div>
         ) : deleteStep === 'code' ? (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary text-center">
-              {/* i18n */}
               Enter the 6-digit code sent to your email
             </p>
             <div className="flex justify-center gap-2" onPaste={handleDeleteCodePaste}>
@@ -557,7 +536,6 @@ export default function ProfilePage() {
               disabled={deleteLoading || deleteCode.join('').length !== 6}
               onClick={handleConfirmDeletion}
             >
-              {/* i18n: Confirm Deletion / Deleting... */}
               {deleteLoading ? 'Deleting...' : 'Confirm Deletion'}
             </button>
           </div>
@@ -567,12 +545,10 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="size-5 text-amber-400" />
                 <p className="text-sm text-amber-400 font-bold">
-                  {/* i18n: Account Scheduled for Deletion */}
                   Account Scheduled for Deletion
                 </p>
               </div>
               <p className="text-sm text-text-secondary leading-relaxed">
-                {/* i18n */}
                 Your account has been deactivated and will be permanently deleted on {formattedDeletionDate}. Log in before then to cancel.
               </p>
             </div>
@@ -580,44 +556,11 @@ export default function ProfilePage() {
               className="w-full py-3 rounded-2xl bg-surface-elevated text-text-primary font-bold text-sm hover:bg-border transition-colors"
               onClick={() => logout()}
             >
-              {/* i18n: Log Out */}
               Log Out
             </button>
           </div>
         )}
       </AppOverlay>
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// NavCard -- reusable navigation card for profile sub-pages
-// ---------------------------------------------------------------------------
-
-function NavCard({
-  href,
-  icon,
-  title,
-  hint,
-}: {
-  href: string
-  icon: React.ReactNode
-  title: string
-  hint: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
-    >
-      <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-text-primary">{title}</p>
-        <p className="text-xs text-text-secondary mt-0.5">{hint}</p>
-      </div>
-      <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-    </Link>
   )
 }

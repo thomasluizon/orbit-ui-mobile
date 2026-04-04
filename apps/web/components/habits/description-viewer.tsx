@@ -48,7 +48,7 @@ export function DescriptionViewer({
   if (!mounted || !open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] bg-background flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-0 z-[10000] bg-background flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-border-muted shrink-0">
         <button
@@ -60,7 +60,7 @@ export function DescriptionViewer({
         <h1 className="font-bold text-lg text-text-primary truncate">{title}</h1>
       </div>
 
-      {/* Content */}
+      {/* Markdown content */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div
           className="prose-orbit"

@@ -7,6 +7,7 @@ import { useMutation } from '@tanstack/react-query'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
@@ -19,8 +20,8 @@ export default function PreferencesPage() {
 
   // --- Week Start Day ---
   const weekStartOptions = [
-    { value: 1, label: 'Monday' }, // i18n
-    { value: 0, label: 'Sunday' }, // i18n
+    { value: 1, label: 'Monday' },
+    { value: 0, label: 'Sunday' },
   ]
 
   const weekStartMutation = useMutation({
@@ -56,9 +57,7 @@ export default function PreferencesPage() {
   })
 
   function handleSchemeChange(scheme: ColorScheme) {
-    // Free users can only use purple
     if (!profile?.hasProAccess && scheme !== 'purple') {
-      // Could navigate to /upgrade, for now just return
       return
     }
     applyScheme(scheme)
@@ -77,8 +76,8 @@ export default function PreferencesPage() {
   }
 
   const timeFormatOptions = [
-    { value: '12h' as const, label: '12-hour' }, // i18n
-    { value: '24h' as const, label: '24-hour' }, // i18n
+    { value: '12h' as const, label: '12-hour' },
+    { value: '24h' as const, label: '24-hour' },
   ]
 
   // --- Home Screen Toggle (local-only preference) ---
@@ -98,13 +97,12 @@ export default function PreferencesPage() {
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
-          aria-label="Back to profile" // i18n
+          aria-label="Back to profile"
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {/* i18n: Preferences */}
           Preferences
         </h1>
       </header>
@@ -114,15 +112,11 @@ export default function PreferencesPage() {
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-              {/* i18n: Color Scheme */}
               Color Scheme
             </h2>
-            <span className="bg-primary/15 text-primary text-[10px] font-bold rounded-full px-1.5 py-0.5">
-              PRO
-            </span>
+            <ProBadge />
           </div>
           <p className="text-sm text-text-secondary">
-            {/* i18n */}
             Choose your accent color. Pro users can pick any scheme.
           </p>
           <div className="flex gap-3">
@@ -156,11 +150,9 @@ export default function PreferencesPage() {
         {/* Time Format */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {/* i18n: Time Format */}
             Time Format
           </h2>
           <p className="text-sm text-text-secondary">
-            {/* i18n */}
             Choose how times are displayed throughout the app.
           </p>
           <div className="flex gap-2">
@@ -183,11 +175,9 @@ export default function PreferencesPage() {
         {/* Week Start Day */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {/* i18n: Week Start Day */}
             Week Start Day
           </h2>
           <p className="text-sm text-text-secondary">
-            {/* i18n */}
             Choose which day your week starts on for calendar views.
           </p>
           <div className="flex gap-2">
@@ -212,18 +202,16 @@ export default function PreferencesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {/* i18n: Home Screen */}
                 Home Screen
               </h2>
               <p className="text-xs text-text-muted mt-1">
-                {/* i18n */}
                 Show &quot;General&quot; habits on today view
               </p>
             </div>
             <button
               role="switch"
               aria-checked={showGeneralOnToday}
-              aria-label="Show general habits on today" // i18n
+              aria-label="Show general habits on today"
               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
                 showGeneralOnToday ? 'bg-primary' : 'bg-surface-elevated'
               }`}

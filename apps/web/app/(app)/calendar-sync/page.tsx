@@ -4,46 +4,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, Check, Link as LinkIcon, CalendarDays, AlertTriangle, Bell } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'calendar.title': 'Google Calendar Import',
-    'calendar.fetchingEvents': 'Fetching your calendar events...',
-    'calendar.notConnectedTitle': 'Connect Google Calendar',
-    'calendar.notConnectedDesc': 'Sign in with Google to import your calendar events as habits.',
-    'calendar.noEvents': 'No upcoming events found in your calendar.',
-    'calendar.eventsFound': `${params?.count ?? 0} events found`,
-    'calendar.selectAll': 'Select all',
-    'calendar.deselectAll': 'Deselect all',
-    'calendar.importButton': `Import ${params?.count ?? 0} events`,
-    'calendar.importing': 'Importing events...',
-    'calendar.importDone': 'Import Complete!',
-    'calendar.importedCount': `${params?.count ?? 0} events imported as habits.`,
-    'calendar.goToHabits': 'Go to Habits',
-    'calendar.errorTitle': 'Something went wrong',
-    'calendar.retry': 'Try Again',
-    'calendar.fetchError': 'Failed to fetch calendar events.',
-    'calendar.importError': 'Failed to import events.',
-    'calendar.recurring': 'Recurring',
-    'calendar.recurrenceDaily': 'Daily',
-    'calendar.recurrenceWeekly': 'Weekly',
-    'calendar.recurrenceMonthly': 'Monthly',
-    'calendar.recurrenceYearly': 'Yearly',
-    'calendar.recurrenceEveryNDays': `Every ${params?.n ?? 0} days`,
-    'calendar.recurrenceEveryNWeeks': `Every ${params?.n ?? 0} weeks`,
-    'calendar.recurrenceEveryNMonths': `Every ${params?.n ?? 0} months`,
-    'calendar.recurrenceWeeklyDays': `Weekly (${params?.days ?? ''})`,
-    'auth.signInWithGoogle': 'Sign in with Google',
-    'common.goBack': 'Go back',
-  }
-  return strings[key] ?? key
-}
 
 interface CalendarEvent {
   id: string
@@ -63,29 +29,6 @@ interface ImportResult {
 }
 
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected'
-
-function formatRecurrence(rule: string | null): string {
-  if (!rule) return ''
-  const upper = rule.toUpperCase()
-  const intervalMatch = upper.match(/INTERVAL=(\d+)/)
-  const interval = intervalMatch?.[1] ? Number.parseInt(intervalMatch[1]) : 1
-
-  if (upper.includes('FREQ=DAILY')) {
-    return interval > 1 ? t('calendar.recurrenceEveryNDays', { n: interval }) : t('calendar.recurrenceDaily')
-  }
-  if (upper.includes('FREQ=WEEKLY')) {
-    const dayMatch = upper.match(/BYDAY=([A-Z,]+)/)
-    const days = dayMatch ? dayMatch[1] : ''
-    if (interval > 1) return t('calendar.recurrenceEveryNWeeks', { n: interval })
-    if (days) return t('calendar.recurrenceWeeklyDays', { days })
-    return t('calendar.recurrenceWeekly')
-  }
-  if (upper.includes('FREQ=MONTHLY')) {
-    return interval > 1 ? t('calendar.recurrenceEveryNMonths', { n: interval }) : t('calendar.recurrenceMonthly')
-  }
-  if (upper.includes('FREQ=YEARLY')) return t('calendar.recurrenceYearly')
-  return ''
-}
 
 function parseRRule(rule: string | null): { frequencyUnit?: FrequencyUnit; frequencyQuantity?: number; days?: string[] } {
   if (!rule) return {}
@@ -113,6 +56,7 @@ function parseRRule(rule: string | null): { frequencyUnit?: FrequencyUnit; frequ
 }
 
 export default function CalendarSyncPage() {
+  const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
@@ -125,6 +69,40 @@ export default function CalendarSyncPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
+
+  function formatDailyRecurrence(interval: number): string {
+    if (interval > 1) return t('calendar.recurrenceEveryNDays', { n: interval })
+    return t('calendar.recurrenceDaily')
+  }
+
+  function formatWeeklyRecurrence(upper: string, interval: number): string {
+    const dayMatch = upper.match(/BYDAY=([A-Z,]+)/)
+    const days = dayMatch ? dayMatch[1] : ''
+    if (interval > 1) {
+      const base = t('calendar.recurrenceEveryNWeeks', { n: interval })
+      return days ? `${base} (${days})` : base
+    }
+    if (days) return t('calendar.recurrenceWeeklyDays', { days })
+    return t('calendar.recurrenceWeekly')
+  }
+
+  function formatMonthlyRecurrence(interval: number): string {
+    if (interval > 1) return t('calendar.recurrenceEveryNMonths', { n: interval })
+    return t('calendar.recurrenceMonthly')
+  }
+
+  function formatRecurrence(rule: string | null): string {
+    if (!rule) return ''
+    const upper = rule.toUpperCase()
+    const intervalMatch = upper.match(/INTERVAL=(\d+)/)
+    const interval = intervalMatch?.[1] ? Number.parseInt(intervalMatch[1]) : 1
+
+    if (upper.includes('FREQ=DAILY')) return formatDailyRecurrence(interval)
+    if (upper.includes('FREQ=WEEKLY')) return formatWeeklyRecurrence(upper, interval)
+    if (upper.includes('FREQ=MONTHLY')) return formatMonthlyRecurrence(interval)
+    if (upper.includes('FREQ=YEARLY')) return t('calendar.recurrenceYearly')
+    return ''
+  }
 
   // Redirect non-Pro users
   useEffect(() => {
@@ -155,7 +133,7 @@ export default function CalendarSyncPage() {
       setErrorMessage(getErrorMessage(err, t('calendar.fetchError')))
       setStep('error')
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (profile && hasProAccess) {
@@ -235,6 +213,11 @@ export default function CalendarSyncPage() {
     }
   }
 
+  async function connectGoogle() {
+    // Redirect to auth flow with Google Calendar scope
+    window.location.href = '/api/auth/google?scope=calendar'
+  }
+
   return (
     <div className="pb-8">
       {/* Header */}
@@ -269,10 +252,7 @@ export default function CalendarSyncPage() {
           </div>
           <button
             className="bg-primary text-white font-bold py-3 px-8 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-all"
-            onClick={() => {
-              // Redirect to auth flow with Google Calendar scope
-              window.location.href = '/api/auth/google?scope=calendar'
-            }}
+            onClick={connectGoogle}
           >
             {t('auth.signInWithGoogle')}
           </button>
@@ -334,7 +314,9 @@ export default function CalendarSyncPage() {
                         <p className="text-sm font-semibold text-text-primary truncate">{event.title}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           {event.startDate && (
-                            <span className="text-xs text-text-secondary">{event.startDate}</span>
+                            <span className="text-xs text-text-secondary">
+                              {event.startDate}
+                            </span>
                           )}
                           {event.startTime && (
                             <span className="text-xs text-text-muted">
@@ -347,14 +329,16 @@ export default function CalendarSyncPage() {
                             </span>
                           )}
                           {event.reminders.length > 0 && (
-                            <span className="text-[10px] text-text-muted flex items-center gap-0.5">
+                            <span className="text-[10px] text-text-muted">
                               <Bell className="size-3 inline" />
                               {event.reminders.length}
                             </span>
                           )}
                         </div>
                         {event.description && (
-                          <p className="text-xs text-text-muted mt-1 line-clamp-1">{event.description}</p>
+                          <p className="text-xs text-text-muted mt-1 line-clamp-1">
+                            {event.description}
+                          </p>
                         )}
                       </div>
                     </div>

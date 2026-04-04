@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'

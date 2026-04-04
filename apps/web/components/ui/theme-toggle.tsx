@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { Sun, Moon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 
 export function ThemeToggle() {
+  const t = useTranslations()
   const { currentTheme, toggleTheme } = useColorScheme()
   const [isToggling, setIsToggling] = useState(false)
 
@@ -20,7 +22,7 @@ export function ThemeToggle() {
 
   return (
     <button
-      aria-label={currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={currentTheme === 'dark' ? t('settings.theme.switchToLight') : t('settings.theme.switchToDark')}
       className="relative size-9 flex items-center justify-center rounded-full bg-surface-elevated/60 hover:bg-surface-elevated border border-border-muted hover:border-border transition-all duration-200 active:scale-90 overflow-hidden"
       disabled={isToggling}
       onClick={handleToggle}

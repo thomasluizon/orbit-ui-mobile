@@ -3,19 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Clock, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'trial.banner.lastDay': 'Last day of your Pro trial!',
-    'trial.banner.daysLeft': `${params?.days ?? 0} days left in your Pro trial`,
-    'trial.banner.upgrade': 'Upgrade',
-  }
-  return strings[key] ?? key
-}
-
 export function TrialBanner() {
+  const t = useTranslations()
   const { profile } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialUrgent = useTrialUrgent()

@@ -14,7 +14,6 @@ import Link from 'next/link'
 import {
   ArrowLeft,
   Sparkles,
-  PaperclipIcon,
   Mic,
   Square,
   SendHorizontal,
@@ -198,7 +197,6 @@ export default function ChatPage() {
         if (messageContent) formData.append('message', messageContent)
         if (attachedImage) formData.append('image', attachedImage)
 
-        // Send recent conversation history for context (last 10 messages)
         const currentMessages = useChatStore.getState().messages
         const recentHistory = currentMessages
           .slice(-11, -1)
@@ -219,7 +217,6 @@ export default function ChatPage() {
 
         scrollToBottom()
 
-        // Refresh habits if any action succeeded
         if (response.actions?.some((a) => a.status === 'Success')) {
           queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
         }
@@ -333,7 +330,9 @@ export default function ChatPage() {
         <div className="pt-3 pb-[calc(1rem+var(--safe-bottom))]">
           {/* Error banner */}
           {sendError && (
-            <div className="text-sm text-red-400 pb-2 text-center">{sendError}</div>
+            <div className="text-sm text-red-400 pb-2 text-center">
+              {sendError}
+            </div>
           )}
 
           {/* Image preview */}
@@ -355,7 +354,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Starter chips (shown after first message) */}
+          {/* Starter chips */}
           {messages.length > 0 && (
             <div className="pb-3 overflow-x-auto">
               <div className="flex gap-2 min-w-max">
@@ -390,19 +389,16 @@ export default function ChatPage() {
             >
               <ImageIcon className="size-[15px]" />
             </button>
-
-            {/* Voice button placeholder */}
             <button
               aria-label="Voice input"
               className="shrink-0 p-1 text-text-muted hover:text-text-primary transition-colors"
               disabled={isTyping}
               onClick={() => {
-                // Voice input placeholder - to be implemented with speech-to-text
+                // Voice input placeholder
               }}
             >
               <Mic className="size-4" />
             </button>
-
             <textarea
               ref={textareaRef}
               value={input}

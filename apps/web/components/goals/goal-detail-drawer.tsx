@@ -183,7 +183,7 @@ export function GoalDetailDrawer({
           <div className="space-y-6">
             {/* Progress section */}
             <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">
+              <h4 className="form-label mb-2">
                 {t('goals.progress')}
               </h4>
 
@@ -219,11 +219,11 @@ export function GoalDetailDrawer({
 
               {/* Progress form */}
               {showProgressForm && goal.status === 'Active' && (
-                <div className="space-y-3 bg-surface-elevated rounded-xl p-4 border border-border-muted shadow-sm">
+                <div className="space-y-3 bg-surface-elevated rounded-[var(--radius-lg)] p-4 border border-border-muted shadow-[var(--shadow-sm)]">
                   <div>
                     <label
                       htmlFor="goal-progress-value"
-                      className="text-[10px] font-bold uppercase tracking-wider text-text-muted"
+                      className="form-label"
                     >
                       {t('goals.form.targetValue')}
                     </label>
@@ -236,7 +236,7 @@ export function GoalDetailDrawer({
                           e.target.value === '' ? null : Number(e.target.value),
                         )
                       }
-                      className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors mt-1"
+                      className="form-input"
                       min={0}
                       step="any"
                     />
@@ -249,7 +249,7 @@ export function GoalDetailDrawer({
                   <div>
                     <label
                       htmlFor="goal-progress-note"
-                      className="text-[10px] font-bold uppercase tracking-wider text-text-muted"
+                      className="form-label"
                     >
                       {t('goals.progressNote')}
                     </label>
@@ -258,20 +258,20 @@ export function GoalDetailDrawer({
                       type="text"
                       value={progressNote}
                       onChange={(e) => setProgressNote(e.target.value)}
-                      className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors mt-1"
+                      className="form-input"
                       placeholder={t('goals.progressNote')}
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       disabled={progressValue === null || isUpdatingProgress}
-                      className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 disabled:opacity-50"
+                      className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 disabled:opacity-50"
                       onClick={submitProgress}
                     >
                       {isUpdatingProgress ? '...' : t('common.save')}
                     </button>
                     <button
-                      className="py-2.5 px-4 rounded-xl bg-surface text-text-secondary font-medium text-sm hover:bg-surface-elevated/80 transition-all duration-150"
+                      className="py-2.5 px-4 rounded-[var(--radius-lg)] bg-surface text-text-secondary font-medium text-sm hover:bg-surface-elevated/80 transition-all duration-150"
                       onClick={() => setShowProgressForm(false)}
                     >
                       {t('common.cancel')}
@@ -293,7 +293,7 @@ export function GoalDetailDrawer({
             {/* Progress history */}
             {detail?.progressHistory && detail.progressHistory.length > 0 && (
               <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">
+                <h4 className="form-label mb-2">
                   {t('goals.progressHistory')}
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -328,7 +328,7 @@ export function GoalDetailDrawer({
             {/* Linked Habits */}
             {goal.linkedHabits && goal.linkedHabits.length > 0 && (
               <div className="mt-4">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">
+                <h4 className="form-label mb-2">
                   {t('goals.linkedHabits')}
                 </h4>
                 <div className="flex flex-wrap gap-2">
@@ -359,7 +359,7 @@ export function GoalDetailDrawer({
             {/* Actions */}
             <div className="space-y-2 pt-2 border-t border-border">
               <button
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
                 onClick={() => setShowEditModal(true)}
               >
                 <PencilLine className="size-5 text-text-muted" />
@@ -369,7 +369,7 @@ export function GoalDetailDrawer({
               {goal.status === 'Active' && (
                 <button
                   disabled={isUpdatingStatus}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-green-400 hover:bg-green-500/10 transition-all duration-150 disabled:opacity-50"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-green-400 hover:bg-green-500/10 transition-all duration-150 disabled:opacity-50"
                   onClick={markCompleted}
                 >
                   <CheckCircle2 className="size-5" />
@@ -380,7 +380,7 @@ export function GoalDetailDrawer({
               {goal.status === 'Active' && (
                 <button
                   disabled={isUpdatingStatus}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-amber-400 hover:bg-amber-500/10 transition-all duration-150 disabled:opacity-50"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-amber-400 hover:bg-amber-500/10 transition-all duration-150 disabled:opacity-50"
                   onClick={markAbandoned}
                 >
                   <ArchiveX className="size-5" />
@@ -391,7 +391,7 @@ export function GoalDetailDrawer({
               {goal.status !== 'Active' && (
                 <button
                   disabled={isUpdatingStatus}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-primary hover:bg-primary/10 transition-all duration-150 disabled:opacity-50"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-primary hover:bg-primary/10 transition-all duration-150 disabled:opacity-50"
                   onClick={reactivate}
                 >
                   <RotateCw className="size-5" />
@@ -400,7 +400,7 @@ export function GoalDetailDrawer({
               )}
 
               <button
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-all duration-150"
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-red-400 hover:bg-red-500/10 transition-all duration-150"
                 onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="size-5" />

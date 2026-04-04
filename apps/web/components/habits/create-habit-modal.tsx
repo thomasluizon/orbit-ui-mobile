@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { HabitFormFields } from './habit-form-fields'
@@ -248,7 +248,7 @@ export function CreateHabitModal({
                           setSubHabits(subHabits.filter((_, i) => i !== index))
                         }
                       >
-                        <span className="size-4 block">x</span>
+                        <Trash2 className="size-4" />
                       </button>
                     </div>
                   ))}
@@ -260,7 +260,7 @@ export function CreateHabitModal({
                 disabled={subHabits.length >= 20}
                 onClick={() => setSubHabits([...subHabits, ''])}
               >
-                <span className="size-3.5">+</span>
+                <Plus className="size-3.5" />
                 {t('habits.form.addSubHabit')}
               </button>
             </div>

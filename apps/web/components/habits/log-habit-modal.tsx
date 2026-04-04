@@ -95,11 +95,11 @@ export function LogHabitModal({
           </div>
 
           <div>
-            <label htmlFor="log-note" className="block form-label mb-2">
+            <label htmlFor="note" className="block form-label mb-2">
               {t('habits.log.noteLabel')}
             </label>
             <textarea
-              id="log-note"
+              id="note"
               value={note}
               placeholder={t('habits.log.notePlaceholder')}
               rows={3}

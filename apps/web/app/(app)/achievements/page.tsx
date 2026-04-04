@@ -21,7 +21,6 @@ export default function AchievementsPage() {
 
   return (
     <div className="pb-8">
-      {/* Header */}
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link href="/profile" className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors">
           <ArrowLeft className="size-5 text-text-primary" />
@@ -116,7 +115,7 @@ export default function AchievementsPage() {
               <div className="space-y-6 mt-6">
                 {achievementsByCategory.map((category) => (
                   <div key={category.key}>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3">
+                    <h2 className="form-label mb-3">
                       {t(`gamification.categories.${category.key}`)}
                     </h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -1,6 +1,7 @@
 'use client'
 
 import { CheckCircle, XCircle, Info } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { ActionResult } from '@orbit/shared/types/chat'
 import { ConflictWarning } from './conflict-warning'
 
@@ -9,25 +10,25 @@ import { ConflictWarning } from './conflict-warning'
 // ---------------------------------------------------------------------------
 
 const ACTION_LABELS: Record<string, string> = {
-  log_habit: 'Logged',
-  create_habit: 'Created',
-  update_habit: 'Updated',
-  delete_habit: 'Deleted',
-  skip_habit: 'Skipped',
-  create_sub_habit: 'Created sub-habit',
-  suggest_breakdown: 'Breakdown',
-  assign_tags: 'Tags updated',
-  duplicate_habit: 'Duplicated',
-  move_habit: 'Moved',
+  log_habit: 'chat.action.logged',
+  create_habit: 'chat.action.created',
+  update_habit: 'chat.action.updated',
+  delete_habit: 'chat.action.deleted',
+  skip_habit: 'chat.action.skipped',
+  create_sub_habit: 'chat.action.createdSubHabit',
+  suggest_breakdown: 'chat.action.breakdown',
+  assign_tags: 'chat.action.tagsUpdated',
+  duplicate_habit: 'chat.action.duplicated',
+  move_habit: 'chat.action.moved',
   // Legacy names (backward compat)
-  LogHabit: 'Logged',
-  CreateHabit: 'Created',
-  UpdateHabit: 'Updated',
-  DeleteHabit: 'Deleted',
-  SkipHabit: 'Skipped',
-  CreateSubHabit: 'Created sub-habit',
-  SuggestBreakdown: 'Breakdown',
-  AssignTags: 'Tags updated',
+  LogHabit: 'chat.action.logged',
+  CreateHabit: 'chat.action.created',
+  UpdateHabit: 'chat.action.updated',
+  DeleteHabit: 'chat.action.deleted',
+  SkipHabit: 'chat.action.skipped',
+  CreateSubHabit: 'chat.action.createdSubHabit',
+  SuggestBreakdown: 'chat.action.breakdown',
+  AssignTags: 'chat.action.tagsUpdated',
 }
 
 const CHIP_STYLES: Record<
@@ -59,14 +60,6 @@ const DEFAULT_CHIP_STYLE = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function actionLabel(action: ActionResult): string {
-  const name = action.entityName || 'Unknown'
-  const labelTemplate = ACTION_LABELS[action.type]
-  if (labelTemplate) return `${labelTemplate}: ${name}`
-  // Fallback: humanize the tool name
-  return `${action.type.replaceAll('_', ' ')}: ${name}`
-}
-
 function chipStyle(action: ActionResult) {
   return CHIP_STYLES[action.status] ?? DEFAULT_CHIP_STYLE
 }
@@ -80,6 +73,16 @@ interface ActionChipsProps {
 }
 
 export function ActionChips({ actions }: ActionChipsProps) {
+  const t = useTranslations()
+
+  function actionLabel(action: ActionResult): string {
+    const name = action.entityName || t('chat.unknownEntity')
+    const labelKey = ACTION_LABELS[action.type]
+    if (labelKey) return t(labelKey, { name })
+    // Fallback: humanize the tool name
+    return `${action.type.replaceAll('_', ' ')}: ${name}`
+  }
+
   return (
     <div className="flex flex-col gap-2 mt-2">
       {actions.map((action, index) => {
@@ -90,7 +93,7 @@ export function ActionChips({ actions }: ActionChipsProps) {
         return (
           <div
             key={`${action.type}-${action.entityId || index}`}
-            className="animate-in fade-in slide-in-from-bottom-1"
+            className="animate-chip-in"
             style={{ animationDelay: `${index * 80}ms` }}
           >
             <span

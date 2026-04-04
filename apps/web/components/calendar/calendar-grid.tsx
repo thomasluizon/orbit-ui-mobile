@@ -11,6 +11,7 @@ import {
   isToday,
   getDate,
 } from 'date-fns'
+import { useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useProfile } from '@/hooks/use-profile'
@@ -42,9 +43,6 @@ type DayStatus = 'empty' | 'done' | 'missed' | 'upcoming'
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const WEEKDAY_HEADERS_MONDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const WEEKDAY_HEADERS_SUNDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return 'empty'
@@ -102,10 +100,28 @@ function dotClass(cell: GridDay): string {
 // ---------------------------------------------------------------------------
 
 export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: CalendarGridProps) {
+  const t = useTranslations()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
 
-  const weekdayHeaders = weekStartsOn === 0 ? WEEKDAY_HEADERS_SUNDAY : WEEKDAY_HEADERS_MONDAY
+  const weekdayHeaders = useMemo(() => {
+    const mondayFirst = [
+      t('dates.daysShort.monday'),
+      t('dates.daysShort.tuesday'),
+      t('dates.daysShort.wednesday'),
+      t('dates.daysShort.thursday'),
+      t('dates.daysShort.friday'),
+      t('dates.daysShort.saturday'),
+      t('dates.daysShort.sunday'),
+    ]
+    if (weekStartsOn === 0) {
+      return [
+        t('dates.daysShort.sunday'),
+        ...mondayFirst.slice(0, 6),
+      ]
+    }
+    return mondayFirst
+  }, [weekStartsOn, t])
 
   const gridDays = useMemo<GridDay[]>(() => {
     const monthStart = startOfMonth(currentMonth)

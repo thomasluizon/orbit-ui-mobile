@@ -1,52 +1,54 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
   BookOpen,
-  MessageCircle,
+  MessageSquareText,
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react'
-
-// Server Component -- no client-side interactivity needed for navigation
+import { useTranslations } from 'next-intl'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 
 export default function AboutPage() {
+  const t = useTranslations()
+  const [showGuide, setShowGuide] = useState(false)
+  const [showReferral, setShowReferral] = useState(false)
+
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
-          aria-label="Back to profile" // i18n
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {/* i18n: About & Help */}
-          About &amp; Help
-        </h1>
+        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">{t('about.title')}</h1>
       </header>
 
       <div className="space-y-4">
         {/* Feature Guide */}
-        <Link
-          href="/onboarding"
+        <button
           className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
+          onClick={() => setShowGuide(true)}
         >
           <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
             <BookOpen className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">
-              {/* i18n: Feature Guide */}
-              Feature Guide
-            </p>
-            <p className="text-xs text-text-secondary mt-0.5">
-              {/* i18n */}
-              Learn how to get the most out of Orbit
-            </p>
+            <p className="text-sm font-bold text-text-primary">{t('onboarding.featureGuide.openButton')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.featureGuideHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-        </Link>
+        </button>
+
+        {/* Referral */}
+        <ReferralCard onOpen={() => setShowReferral(true)} />
 
         {/* Support link */}
         <Link
@@ -54,17 +56,11 @@ export default function AboutPage() {
           className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group shadow-[var(--shadow-sm)]"
         >
           <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
-            <MessageCircle className="size-5 text-primary" />
+            <MessageSquareText className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">
-              {/* i18n: Support */}
-              Support
-            </p>
-            <p className="text-xs text-text-secondary mt-0.5">
-              {/* i18n */}
-              Get help or send feedback
-            </p>
+            <p className="text-sm font-bold text-text-primary">{t('profile.support.title')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.support.hint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </Link>
@@ -78,18 +74,16 @@ export default function AboutPage() {
             <ShieldCheck className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">
-              {/* i18n: Privacy Policy */}
-              Privacy Policy
-            </p>
-            <p className="text-xs text-text-secondary mt-0.5">
-              {/* i18n */}
-              How we handle your data
-            </p>
+            <p className="text-sm font-bold text-text-primary">{t('privacy.title')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('privacy.hint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </Link>
       </div>
+
+      {/* Drawers */}
+      <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
+      <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
     </div>
   )
 }

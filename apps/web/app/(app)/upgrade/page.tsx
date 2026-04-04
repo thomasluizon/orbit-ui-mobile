@@ -6,92 +6,14 @@ import { format, parseISO } from 'date-fns'
 import {
   ArrowLeft, Loader2, BadgeCheck, Sparkles, CreditCard,
   Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
-  CalendarDays, AlertTriangle, Download, CheckCircle2,
-  Clock, Info, Check, X as XIcon,
+  AlertTriangle, Download, CheckCircle2, Clock, Check, X as XIcon,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'upgrade.title': 'Subscription',
-    'upgrade.subscribe': 'Subscribe',
-    'upgrade.alreadyPro': 'Pro Plan',
-    'upgrade.manageHint': 'You have full access to all Pro features.',
-    'upgrade.feature': 'Feature',
-    'upgrade.free': 'Free',
-    'common.proBadge': 'Pro',
-    'trial.proBadge': 'Trial',
-    'trial.banner.lastDay': 'Last day of your Pro trial!',
-    'trial.banner.daysLeft': `${params?.days ?? 0} days left in your Pro trial`,
-    'trial.expired.title': 'Your trial has ended',
-    'trial.expired.dontLose': 'Don\'t lose access to:',
-    'trial.expired.unlimitedHabits': 'Unlimited habits',
-    'trial.expired.aiChat': 'Unlimited AI chat messages',
-    'trial.expired.allColors': 'All color schemes',
-    'trial.expired.aiSummary': 'AI daily summary',
-    'trial.expired.subHabits': 'Sub-habits & checklists',
-    'trial.expired.retrospective': 'AI retrospective',
-    'upgrade.plans.error': 'Failed to load subscription plans.',
-    'upgrade.plans.retry': 'Retry',
-    'upgrade.plans.free.name': 'Free',
-    'upgrade.plans.free.cta': 'Current Plan',
-    'upgrade.plans.free.features.habits': '5 habits',
-    'upgrade.plans.free.features.ai': '10 AI messages/month',
-    'upgrade.plans.free.features.theme': '1 color scheme',
-    'upgrade.plans.free.features.ads': 'Contains ads',
-    'upgrade.plans.monthly.name': 'Pro Monthly',
-    'upgrade.plans.monthly.period': '/mo',
-    'upgrade.plans.monthly.cta': 'Subscribe Monthly',
-    'upgrade.plans.yearly.name': 'Pro Yearly',
-    'upgrade.plans.yearly.period': '/yr',
-    'upgrade.plans.yearly.cta': 'Subscribe Yearly',
-    'upgrade.plans.yearly.recommended': 'Recommended',
-    'upgrade.plans.yearly.includesMonthly': 'Everything in Monthly, plus:',
-    'upgrade.plans.savePercent': `Save ${params?.percent ?? 0}%`,
-    'upgrade.plans.equivalent': `${params?.price ?? ''}/mo equivalent`,
-    'upgrade.plans.proFeatures.unlimited': 'Unlimited habits',
-    'upgrade.plans.proFeatures.ai': 'Unlimited AI chat',
-    'upgrade.plans.proFeatures.themes': 'All color schemes',
-    'upgrade.plans.proFeatures.adFree': 'Ad-free experience',
-    'upgrade.plans.proFeatures.retrospective': 'AI retrospective',
-    'upgrade.plans.coupon.discountBadge': `${params?.percent ?? 0}% off`,
-    'upgrade.plans.coupon.appliedNote': 'Referral discount applied',
-    'upgrade.billing.error': 'Failed to load billing details.',
-    'upgrade.billing.retry': 'Retry',
-    'upgrade.billing.plan.yearly': 'Pro Yearly',
-    'upgrade.billing.plan.monthly': 'Pro Monthly',
-    'upgrade.billing.plan.lifetime': 'Lifetime Pro',
-    'upgrade.billing.plan.lifetimeHint': 'You have permanent access to all Pro features.',
-    'upgrade.billing.plan.canceledBadge': 'Canceled',
-    'upgrade.billing.plan.pastDue': 'Past Due',
-    'upgrade.billing.plan.canceledHint': `Access until ${params?.date ?? ''}`,
-    'upgrade.billing.plan.renewsOn': `Renews on ${params?.date ?? ''}`,
-    'upgrade.billing.payment.card': `${params?.brand ?? ''} ending in ${params?.last4 ?? ''}`,
-    'upgrade.billing.payment.expires': `Expires ${params?.month ?? ''}/${params?.year ?? ''}`,
-    'upgrade.billing.payment.change': 'Change',
-    'upgrade.billing.usage.title': 'Usage',
-    'upgrade.billing.usage.aiMessages': 'AI Messages',
-    'upgrade.billing.usage.aiMessagesOf': `${params?.used ?? 0} / ${params?.limit ?? 0}`,
-    'upgrade.billing.invoices.title': 'Recent Invoices',
-    'upgrade.billing.invoices.download': 'Download invoice',
-    'upgrade.billing.invoices.reasonCreate': 'New subscription',
-    'upgrade.billing.invoices.reasonCycle': 'Renewal',
-    'upgrade.billing.invoices.reasonUpdate': 'Plan change',
-    'upgrade.billing.invoices.reasonManual': 'Manual',
-    'upgrade.billing.invoices.statusPaid': 'Paid',
-    'upgrade.billing.invoices.statusOpen': 'Open',
-    'upgrade.billing.invoices.statusVoid': 'Void',
-    'upgrade.billing.actions.manage': 'Manage Subscription',
-    'upgrade.billing.actions.manageHint': 'Change plan, update payment method, or cancel.',
-    'auth.genericError': 'Something went wrong. Please try again.',
-  }
-  return strings[key] ?? key
-}
 
 const trialExpiredFeatures = [
   'trial.expired.unlimitedHabits',
@@ -113,6 +35,53 @@ const yearlyExtraFeatures = [
   { key: 'retrospective', Icon: BarChart3 },
 ]
 
+interface FeatureRow {
+  key: string
+  Icon: React.ComponentType<{ className?: string }>
+  type: 'boolean' | 'text'
+  freeEnabled?: boolean
+  proEnabled?: boolean
+}
+
+interface FeatureCategory {
+  category: string
+  features: FeatureRow[]
+}
+
+const featureCategories: FeatureCategory[] = [
+  {
+    category: 'habits',
+    features: [
+      { key: 'habits', type: 'text', Icon: Flame },
+      { key: 'subHabits', type: 'boolean', Icon: Flame, freeEnabled: false, proEnabled: true },
+    ],
+  },
+  {
+    category: 'ai',
+    features: [
+      { key: 'ai', type: 'text', Icon: MessageSquare },
+      { key: 'aiMemory', type: 'boolean', Icon: MessageSquare, freeEnabled: false, proEnabled: true },
+      { key: 'summary', type: 'boolean', Icon: MessageSquare, freeEnabled: false, proEnabled: true },
+      { key: 'slipAlerts', type: 'boolean', Icon: ShieldCheck, freeEnabled: false, proEnabled: true },
+    ],
+  },
+  {
+    category: 'insights',
+    features: [
+      { key: 'retrospective', type: 'boolean', Icon: BarChart3, freeEnabled: false, proEnabled: true },
+      { key: 'achievements', type: 'boolean', Icon: Flame, freeEnabled: false, proEnabled: true },
+    ],
+  },
+  {
+    category: 'personalization',
+    features: [
+      { key: 'colors', type: 'text', Icon: Palette },
+      { key: 'calendarImport', type: 'boolean', Icon: Flame, freeEnabled: false, proEnabled: true },
+      { key: 'adFree', type: 'boolean', Icon: ShieldCheck, freeEnabled: false, proEnabled: true },
+    ],
+  },
+]
+
 function formatBillingDate(isoDate: string): string {
   return format(parseISO(isoDate), 'MMM d, yyyy')
 }
@@ -121,26 +90,8 @@ function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
 }
 
-function invoiceReasonLabel(reason: string): string {
-  const reasons: Record<string, string> = {
-    subscription_create: t('upgrade.billing.invoices.reasonCreate'),
-    subscription_cycle: t('upgrade.billing.invoices.reasonCycle'),
-    subscription_update: t('upgrade.billing.invoices.reasonUpdate'),
-    manual: t('upgrade.billing.invoices.reasonManual'),
-  }
-  return reasons[reason] ?? reason
-}
-
-function invoiceStatusLabel(status: string): string {
-  const statuses: Record<string, string> = {
-    paid: t('upgrade.billing.invoices.statusPaid'),
-    open: t('upgrade.billing.invoices.statusOpen'),
-    void: t('upgrade.billing.invoices.statusVoid'),
-  }
-  return statuses[status] ?? status
-}
-
 export default function UpgradePage() {
+  const t = useTranslations()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const trialExpired = useTrialExpired()
@@ -155,11 +106,32 @@ export default function UpgradePage() {
   const [checkoutError, setCheckoutError] = useState('')
   const [portalError, setPortalError] = useState('')
 
+  const featureBadgeLabel = profile?.isTrialActive ? t('trial.proBadge') : t('common.proBadge')
+
   const usagePercent = useMemo(() => {
     if (!profile || profile.aiMessagesLimit === 0) return 0
     return Math.min(100, Math.round((profile.aiMessagesUsed / profile.aiMessagesLimit) * 100))
   }, [profile])
   const usageUrgent = usagePercent > 80
+
+  function invoiceReasonLabel(reason: string): string {
+    const reasons: Record<string, string> = {
+      subscription_create: t('upgrade.billing.invoices.reasonCreate'),
+      subscription_cycle: t('upgrade.billing.invoices.reasonCycle'),
+      subscription_update: t('upgrade.billing.invoices.reasonUpdate'),
+      manual: t('upgrade.billing.invoices.reasonManual'),
+    }
+    return reasons[reason] ?? reason
+  }
+
+  function invoiceStatusLabel(status: string): string {
+    const statuses: Record<string, string> = {
+      paid: t('upgrade.billing.invoices.statusPaid'),
+      open: t('upgrade.billing.invoices.statusOpen'),
+      void: t('upgrade.billing.invoices.statusVoid'),
+    }
+    return statuses[status] ?? status
+  }
 
   const handleCheckout = useCallback(async (interval: 'monthly' | 'yearly') => {
     setCheckoutLoading(interval)
@@ -183,7 +155,7 @@ export default function UpgradePage() {
     } finally {
       setCheckoutLoading(null)
     }
-  }, [])
+  }, [t])
 
   const handleOpenPortal = useCallback(async () => {
     setPortalError('')
@@ -200,7 +172,7 @@ export default function UpgradePage() {
     } catch (err: unknown) {
       setPortalError(getErrorMessage(err, t('auth.genericError')))
     }
-  }, [])
+  }, [t])
 
   return (
     <div className="pb-8">
@@ -221,16 +193,22 @@ export default function UpgradePage() {
             <>
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
                 <div className="flex items-center gap-4">
-                  <div className="size-12 rounded-full bg-surface-elevated animate-pulse shrink-0" />
+                  <div className="size-12 rounded-full bg-surface-elevated skeleton-shimmer shrink-0" />
                   <div className="space-y-2 flex-1">
-                    <div className="h-4 w-28 bg-surface-elevated rounded animate-pulse" />
-                    <div className="h-3 w-44 bg-surface-elevated rounded animate-pulse" />
+                    <div className="h-4 w-28 bg-surface-elevated rounded skeleton-shimmer" />
+                    <div className="h-3 w-44 bg-surface-elevated rounded skeleton-shimmer" />
                   </div>
                 </div>
               </div>
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <div className="h-3 w-20 bg-surface-elevated rounded animate-pulse" />
-                <div className="h-1.5 w-full bg-surface-elevated rounded-full animate-pulse" />
+                <div className="h-3 w-20 bg-surface-elevated rounded skeleton-shimmer" />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="h-3.5 w-24 bg-surface-elevated rounded skeleton-shimmer" />
+                    <div className="h-3.5 w-16 bg-surface-elevated rounded skeleton-shimmer" />
+                  </div>
+                  <div className="h-1.5 w-full bg-surface-elevated rounded-full skeleton-shimmer" />
+                </div>
               </div>
             </>
           )}
@@ -246,7 +224,7 @@ export default function UpgradePage() {
             </div>
           )}
 
-          {/* Loaded: billing data available */}
+          {/* Loaded: billing data available (Stripe Pro) */}
           {billing && (
             <>
               {/* Plan card */}
@@ -319,7 +297,7 @@ export default function UpgradePage() {
 
               {/* Usage stats */}
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">{t('upgrade.billing.usage.title')}</h3>
+                <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
@@ -343,7 +321,7 @@ export default function UpgradePage() {
               {billing.recentInvoices.length > 0 && (
                 <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] overflow-hidden">
                   <div className="p-5 pb-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">{t('upgrade.billing.invoices.title')}</h3>
+                    <h3 className="form-label">{t('upgrade.billing.invoices.title')}</h3>
                   </div>
                   <div className="divide-y divide-border-muted">
                     {billing.recentInvoices.map((invoice) => (
@@ -405,9 +383,10 @@ export default function UpgradePage() {
             </>
           )}
 
-          {/* No billing data (lifetime Pro) */}
+          {/* Loaded: no billing data (lifetime Pro or no Stripe subscription) */}
           {!isBillingLoading && !isBillingError && !billing && (
             <>
+              {/* Plan card */}
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
                 <div className="flex items-center gap-4">
                   <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
@@ -426,7 +405,7 @@ export default function UpgradePage() {
 
               {/* Usage stats */}
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">{t('upgrade.billing.usage.title')}</h3>
+                <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
@@ -475,7 +454,7 @@ export default function UpgradePage() {
                 <Sparkles className="size-5 text-primary" />
                 <span className="text-sm font-bold text-text-primary">{t('trial.expired.title')}</span>
               </div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <p className="form-label">
                 {t('trial.expired.dontLose')}
               </p>
               <ul className="space-y-2">
@@ -490,20 +469,22 @@ export default function UpgradePage() {
           )}
 
           {/* PRICING PLAN CARDS */}
+
           {/* Loading skeletons */}
           {isLoadingPlans && (
             <div className="space-y-3 mb-6">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="rounded-[var(--radius-xl)] p-5 border border-border-muted">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-4 w-20 bg-surface-elevated rounded animate-pulse" />
-                    <div className="h-6 w-16 bg-surface-elevated rounded-full animate-pulse" />
+                    <div className="h-4 w-20 bg-surface-elevated rounded skeleton-shimmer" />
+                    <div className="h-6 w-16 bg-surface-elevated rounded-full skeleton-shimmer" />
                   </div>
                   <div className="space-y-2.5 mb-4">
-                    <div className="h-3 w-3/4 bg-surface-elevated rounded animate-pulse" />
-                    <div className="h-3 w-1/2 bg-surface-elevated rounded animate-pulse" />
+                    <div className="h-3 w-3/4 bg-surface-elevated rounded skeleton-shimmer" />
+                    <div className="h-3 w-1/2 bg-surface-elevated rounded skeleton-shimmer" />
+                    <div className="h-3 w-2/3 bg-surface-elevated rounded skeleton-shimmer" />
                   </div>
-                  <div className="h-10 w-full bg-surface-elevated rounded-[var(--radius-lg)] animate-pulse" />
+                  <div className="h-10 w-full bg-surface-elevated rounded-[var(--radius-lg)] skeleton-shimmer" />
                 </div>
               ))}
             </div>
@@ -559,9 +540,11 @@ export default function UpgradePage() {
 
               {/* PRO MONTHLY */}
               <div className="rounded-[var(--radius-xl)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
-                <h3 className="text-sm font-bold text-text-primary mb-1">
-                  {t('upgrade.plans.monthly.name')}
-                </h3>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-bold text-text-primary">
+                    {t('upgrade.plans.monthly.name')}
+                  </h3>
+                </div>
                 <div className="mb-4">
                   {plans.couponPercentOff ? (
                     <div className="flex items-baseline gap-2">
@@ -577,10 +560,12 @@ export default function UpgradePage() {
                       </span>
                     </div>
                   ) : (
-                    <span className="text-2xl font-extrabold text-text-primary">
-                      {formatPrice(plans.monthly.unitAmount, plans.currency)}
-                      <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
-                    </span>
+                    <div className="flex items-baseline">
+                      <span className="text-2xl font-extrabold text-text-primary">
+                        {formatPrice(plans.monthly.unitAmount, plans.currency)}
+                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
+                      </span>
+                    </div>
                   )}
                 </div>
                 <ul className="space-y-2 mb-4">
@@ -629,10 +614,12 @@ export default function UpgradePage() {
                       </span>
                     </div>
                   ) : (
-                    <span className="text-2xl font-extrabold text-text-primary">
-                      {formatPrice(plans.yearly.unitAmount, plans.currency)}
-                      <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
-                    </span>
+                    <div className="flex items-baseline">
+                      <span className="text-2xl font-extrabold text-text-primary">
+                        {formatPrice(plans.yearly.unitAmount, plans.currency)}
+                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
+                      </span>
+                    </div>
                   )}
                 </div>
                 <p className="text-xs text-text-muted mb-4">
@@ -673,6 +660,70 @@ export default function UpgradePage() {
 
           {checkoutError && (
             <p className="text-xs text-red-400 text-center">{checkoutError}</p>
+          )}
+
+          {/* Feature comparison - grouped by category */}
+          {plans && (
+            <div className="space-y-4 mb-6">
+              {/* Column headers */}
+              <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('upgrade.feature')}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-center w-16">{t('upgrade.free')}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary text-center w-16">{t('common.proBadge')}</span>
+              </div>
+
+              {/* Category groups */}
+              {featureCategories.map((group) => (
+                <div key={group.category} className="space-y-1.5">
+                  {/* Category header */}
+                  <div className="px-4 pt-2 pb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
+                      {t(`upgrade.categories.${group.category}`)}
+                    </span>
+                  </div>
+
+                  {/* Feature rows */}
+                  {group.features.map((feat) => (
+                    <div
+                      key={feat.key}
+                      className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
+                    >
+                      {/* Feature label with icon */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <feat.Icon className="size-4 text-text-muted shrink-0" />
+                        <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
+                      </div>
+
+                      {/* Free value */}
+                      <div className="w-16 flex justify-center">
+                        {feat.type === 'boolean' ? (
+                          feat.freeEnabled ? (
+                            <Check className="size-4 text-text-muted" />
+                          ) : (
+                            <XIcon className="size-4 text-text-muted/40" />
+                          )
+                        ) : (
+                          <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>
+                        )}
+                      </div>
+
+                      {/* Pro value */}
+                      <div className="w-16 flex justify-center">
+                        {feat.type === 'boolean' ? (
+                          feat.proEnabled ? (
+                            <Check className="size-4 text-primary" />
+                          ) : (
+                            <XIcon className="size-4 text-text-muted/40" />
+                          )
+                        ) : (
+                          <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}

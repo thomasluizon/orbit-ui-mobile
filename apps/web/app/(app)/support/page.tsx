@@ -3,32 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, Send } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'profile.support.title': 'Support',
-    'profile.support.description': 'Have a question, feedback, or need help? Send us a message and we\'ll get back to you.',
-    'profile.support.namePlaceholder': 'Name',
-    'profile.support.emailPlaceholder': 'Email',
-    'profile.support.subjectPlaceholder': 'Subject',
-    'profile.support.messagePlaceholder': 'Your message...',
-    'profile.support.send': 'Send Message',
-    'profile.support.success': 'Message sent! We\'ll get back to you soon.',
-    'profile.support.nameRequired': 'Name is required.',
-    'profile.support.emailRequired': 'Email is required.',
-    'profile.support.emailInvalid': 'Please enter a valid email address.',
-    'auth.genericError': 'Something went wrong. Please try again.',
-    'common.backToProfile': 'Back to profile',
-  }
-  return strings[key] ?? key
-}
-
 export default function SupportPage() {
+  const t = useTranslations()
   const { profile } = useProfile()
 
   const [name, setName] = useState('')
@@ -105,7 +87,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [name, email, subject, message, profile])
+  }, [name, email, subject, message, profile, t])
 
   return (
     <div className="pb-8">

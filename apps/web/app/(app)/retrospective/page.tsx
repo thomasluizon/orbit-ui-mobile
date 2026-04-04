@@ -3,47 +3,14 @@
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, Lock, BarChart3 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'retrospective.title': 'Retrospective',
-    'retrospective.periods.week': 'Week',
-    'retrospective.periods.month': 'Month',
-    'retrospective.periods.quarter': 'Quarter',
-    'retrospective.periods.semester': 'Semester',
-    'retrospective.periods.year': 'Year',
-    'retrospective.generate': 'Generate Retrospective',
-    'retrospective.generating': 'Generating...',
-    'retrospective.locked': 'Pro Feature',
-    'retrospective.lockedHint': 'Upgrade to Pro to get AI-powered retrospectives of your habits.',
-    'retrospective.lockedYearly': 'Yearly Pro Feature',
-    'retrospective.lockedYearlyHint': 'Retrospectives are available for yearly Pro subscribers.',
-    'retrospective.changePlan': 'Change Plan',
-    'retrospective.cached': 'Loaded from cache.',
-    'retrospective.error': 'Failed to generate retrospective.',
-    'retrospective.empty': 'Select a period and tap Generate to get your AI retrospective.',
-    'upgrade.subscribe': 'Upgrade to Pro',
-    'common.retry': 'Retry',
-    'common.yearlyBadge': 'Yearly',
-    'auth.genericError': 'Something went wrong. Please try again.',
-  }
-  return strings[key] ?? key
-}
-
-const periods: { key: RetrospectivePeriod; label: string }[] = [
-  { key: 'week', label: t('retrospective.periods.week') },
-  { key: 'month', label: t('retrospective.periods.month') },
-  { key: 'quarter', label: t('retrospective.periods.quarter') },
-  { key: 'semester', label: t('retrospective.periods.semester') },
-  { key: 'year', label: t('retrospective.periods.year') },
-]
-
 export default function RetrospectivePage() {
+  const t = useTranslations()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const isYearlyPro = useIsYearlyPro()
@@ -58,6 +25,14 @@ export default function RetrospectivePage() {
     setPeriod,
     generate,
   } = useRetrospective()
+
+  const periods: { key: RetrospectivePeriod; label: string }[] = [
+    { key: 'week', label: t('retrospective.periods.week') },
+    { key: 'month', label: t('retrospective.periods.month') },
+    { key: 'quarter', label: t('retrospective.periods.quarter') },
+    { key: 'semester', label: t('retrospective.periods.semester') },
+    { key: 'year', label: t('retrospective.periods.year') },
+  ]
 
   const [portalError, setPortalError] = useState('')
 
@@ -82,7 +57,7 @@ export default function RetrospectivePage() {
     } catch (err: unknown) {
       setPortalError(getErrorMessage(err, t('auth.genericError')))
     }
-  }, [])
+  }, [t])
 
   const isLoaded = !!profile
 
@@ -192,6 +167,11 @@ export default function RetrospectivePage() {
                 <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
                 <div className="h-4 w-3/4 bg-surface-elevated rounded animate-pulse" />
               </div>
+              <div className="h-5 w-24 bg-surface-elevated rounded animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
+                <div className="h-4 w-2/3 bg-surface-elevated rounded animate-pulse" />
+              </div>
             </div>
           )}
 
@@ -221,7 +201,7 @@ export default function RetrospectivePage() {
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty state (before first generation) */}
           {!isLoading && !retrospective && !error && (
             <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center">
               <div className="bg-primary/10 rounded-full size-12 flex items-center justify-center mx-auto mb-3">

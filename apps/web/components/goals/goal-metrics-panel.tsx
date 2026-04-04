@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { GoalMetrics } from '@orbit/shared/types/goal'
 
@@ -87,7 +86,7 @@ export function GoalMetricsPanel({
       {/* Tracking Status Badge */}
       {statusConfig && (
         <div
-          className={`${statusConfig.bg} flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border-muted`}
+          className={`${statusConfig.bg} flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-lg)] border border-border-muted`}
         >
           <div className={`${statusConfig.dot} w-2 h-2 rounded-full`} />
           <span className={`${statusConfig.text} text-sm font-semibold`}>
@@ -99,7 +98,7 @@ export function GoalMetricsPanel({
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
         {/* Projected Completion */}
-        <div className="bg-surface-elevated rounded-xl px-4 py-3 border border-border-muted shadow-sm">
+        <div className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
           <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold">
             {t('goals.metrics.projectedCompletion')}
           </p>
@@ -111,7 +110,7 @@ export function GoalMetricsPanel({
         </div>
 
         {/* Velocity */}
-        <div className="bg-surface-elevated rounded-xl px-4 py-3 border border-border-muted shadow-sm">
+        <div className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
           <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold">
             {t('goals.metrics.velocity')}
           </p>
@@ -133,7 +132,7 @@ export function GoalMetricsPanel({
             {metrics.habitAdherence.map((habit) => (
               <div
                 key={habit.habitId}
-                className="bg-surface-elevated rounded-xl px-4 py-3 flex items-center justify-between border border-border-muted shadow-sm"
+                className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 flex items-center justify-between border border-border-muted shadow-[var(--shadow-sm)]"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-text-primary truncate">
@@ -160,9 +159,8 @@ export function GoalMetricsPanel({
                   </div>
                 </div>
                 {habit.currentStreak > 0 && (
-                  <div className="ml-3 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold whitespace-nowrap flex items-center gap-0.5">
-                    <Flame className="size-3" />
-                    {habit.currentStreak}d
+                  <div className="ml-3 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold whitespace-nowrap">
+                    {t('habits.detail.streakDays', { n: habit.currentStreak })}
                   </div>
                 )}
               </div>

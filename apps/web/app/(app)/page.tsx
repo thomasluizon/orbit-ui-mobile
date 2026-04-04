@@ -16,15 +16,8 @@ import {
   Search,
   X,
   Plus,
-  Settings2,
   Eye,
   EyeOff,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  CheckSquare,
-  Trash2,
-  Check,
-  FastForward,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { HabitList } from '@/components/habits/habit-list'
@@ -223,7 +216,13 @@ export default function TodayPage() {
       </div>
 
       {/* Goals view */}
-      {activeView === 'goals' && <GoalsView />}
+      <div
+        id="tabpanel-goals"
+        role="tabpanel"
+        aria-labelledby="tab-goals"
+      >
+        {activeView === 'goals' && <GoalsView />}
+      </div>
 
       {/* Date navigation (today view only) */}
       {activeView === 'today' && (
@@ -255,7 +254,7 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* AI Summary card (Today view only) */}
+      {/* AI Summary card (Today view only, when summary is enabled) */}
       {activeView === 'today' &&
         isToday(selectedDate) &&
         profile?.hasProAccess &&

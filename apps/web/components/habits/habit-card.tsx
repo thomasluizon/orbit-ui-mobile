@@ -35,6 +35,7 @@ interface HabitCardProps {
   hasChildren?: boolean
   hasSubHabits?: boolean
   isExpanded?: boolean
+  isLastChild?: boolean
   isDraggingList?: boolean
   childrenDone?: number
   childrenTotal?: number
@@ -55,6 +56,14 @@ interface HabitCardProps {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function truncate(text: string, max = 20): string {
+  return text.length > max ? text.slice(0, max) + '...' : text
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -69,6 +78,7 @@ export function HabitCard({
   hasChildren = false,
   hasSubHabits = false,
   isExpanded = true,
+  isLastChild = false,
   isDraggingList = false,
   childrenDone = 0,
   childrenTotal = 0,
@@ -209,6 +219,18 @@ export function HabitCard({
       : ''
     return t('habits.frequency.flexibleProgress', { done, target, unit })
   }, [habit, t])
+
+  // Match badges for search
+  const matchBadges = useMemo(() => {
+    if (!searchQuery || !habit.searchMatches) return []
+    return habit.searchMatches
+      .filter((m) => m.field !== 'title')
+      .map((m) => {
+        if (m.field === 'tag') return { label: t('habits.search.matchTag', { value: truncate(m.value ?? '') }) }
+        if (m.field === 'child') return { label: t('habits.search.matchChild', { value: truncate(m.value ?? '') }) }
+        return { label: t('habits.search.matchDescription') }
+      })
+  }, [searchQuery, habit.searchMatches, t])
 
   // Actions menu
   const [showActionsMenu, setShowActionsMenu] = useState(false)
@@ -433,16 +455,15 @@ export function HabitCard({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2.5"
-                    className={
+                    className={`transition-all duration-500 ${
                       isDoneForRange
                         ? 'text-primary'
                         : progressPercent === 100
                           ? 'text-primary'
                           : 'text-primary/60'
-                    }
+                    }`}
                     strokeLinecap="round"
                     strokeDasharray={`${isDoneForRange ? 94.25 : progressPercent * 0.9425} 94.25`}
-                    style={{ transition: 'all 500ms' }}
                   />
                 </svg>
                 {isDoneForRange ? (
@@ -541,8 +562,9 @@ export function HabitCard({
                 </p>
               )}
 
-              {/* Badges row */}
+              {/* Badges row -- 3 branches matching Vue exactly */}
               {!isChild ? (
+                /* Top-level habit badges */
                 <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted/70">
                     {frequencyLabel}
@@ -579,7 +601,7 @@ export function HabitCard({
                       <HighlightText text={tag.name} query={searchQuery} />
                     </span>
                   ))}
-                  {habit.linkedGoals?.map((goal) => (
+                  {(habit.linkedGoals ?? []).map((goal) => (
                     <span
                       key={goal.id}
                       className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10"
@@ -600,8 +622,46 @@ export function HabitCard({
                         {checkedCount}/{habit.checklistItems.length}
                       </span>
                     )}
+                  {matchBadges.map((badge, i) => (
+                    <span
+                      key={`match-${i}`}
+                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10"
+                    >
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+              ) : isChild && habit.isBadHabit ? (
+                /* Child habit with bad habit badge */
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase text-red-400 bg-red-500/10">
+                    {t('habits.badHabit')}
+                  </span>
+                  {habit.tags?.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white/95"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      <HighlightText text={tag.name} query={searchQuery} />
+                    </span>
+                  ))}
+                  {habit.currentStreak != null && habit.currentStreak >= 2 && (
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-400 bg-amber-400/10">
+                      <Flame className="size-3" />
+                      {habit.currentStreak}
+                    </span>
+                  )}
+                  {habit.checklistItems &&
+                    habit.checklistItems.length > 0 && (
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-text-secondary bg-surface-elevated/60">
+                        <ClipboardCheck className="size-3" />
+                        {checkedCount}/{habit.checklistItems.length}
+                      </span>
+                    )}
                 </div>
               ) : (
+                /* Child habit default badges */
                 <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                   <span className="text-[9px] font-semibold uppercase tracking-widest text-text-muted/60">
                     {frequencyLabel}
@@ -611,11 +671,6 @@ export function HabitCard({
                       className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusBadge.color} ${statusBadge.bg}`}
                     >
                       {statusBadge.text}
-                    </span>
-                  )}
-                  {habit.isBadHabit && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase text-red-400 bg-red-500/10">
-                      {t('habits.badHabit')}
                     </span>
                   )}
                   {habit.tags?.map((tag) => (

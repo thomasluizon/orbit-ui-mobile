@@ -20,7 +20,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
 
 // ---------------------------------------------------------------------------
-// User facts types (minimal inline -- full type lives in shared if needed)
+// User facts types
 // ---------------------------------------------------------------------------
 
 interface UserFact {
@@ -176,13 +176,12 @@ export default function AiSettingsPage() {
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
-          aria-label="Back to profile" // i18n
+          aria-label="Back to profile"
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {/* i18n: AI Features */}
           AI Features
         </h1>
       </header>
@@ -193,7 +192,6 @@ export default function AiSettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {/* i18n: AI Memory */}
                 AI Memory
               </h2>
               <ProBadge />
@@ -218,18 +216,15 @@ export default function AiSettingsPage() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
               >
                 <Lock className="size-3.5" />
-                {/* i18n: PRO */}
                 PRO
               </Link>
             )}
           </div>
           <p className="text-sm text-text-secondary">
-            {/* i18n */}
             Orbit remembers what you share in conversations to give more personalized advice.
           </p>
           <p className="text-xs text-text-muted leading-relaxed">
             <ShieldCheck className="size-3.5 inline-block align-text-bottom mr-1 text-emerald-400" />
-            {/* i18n */}
             Your data is never shared with third parties or used to train models.
           </p>
           <p
@@ -237,7 +232,6 @@ export default function AiSettingsPage() {
               profile?.aiMemoryEnabled ? 'text-primary' : 'text-text-muted'
             }`}
           >
-            {/* i18n: Enabled / Disabled */}
             {profile?.aiMemoryEnabled ? 'Enabled' : 'Disabled'}
           </p>
         </div>
@@ -247,7 +241,6 @@ export default function AiSettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {/* i18n: AI Daily Summary */}
                 AI Daily Summary
               </h2>
               <ProBadge />
@@ -277,7 +270,6 @@ export default function AiSettingsPage() {
             )}
           </div>
           <p className="text-sm text-text-secondary">
-            {/* i18n */}
             Get a personalized AI-generated summary of your day based on your habit logs.
           </p>
           <p
@@ -285,7 +277,6 @@ export default function AiSettingsPage() {
               profile?.aiSummaryEnabled ? 'text-primary' : 'text-text-muted'
             }`}
           >
-            {/* i18n: Enabled / Disabled */}
             {profile?.aiSummaryEnabled ? 'Enabled' : 'Disabled'}
           </p>
         </div>
@@ -295,7 +286,6 @@ export default function AiSettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {/* i18n: What Orbit Knows */}
                 What Orbit Knows
               </h2>
               {facts.length > 0 && (
@@ -312,18 +302,11 @@ export default function AiSettingsPage() {
                 onClick={toggleSelectMode}
               >
                 {selectMode ? (
-                  <>
-                    <X className="size-3" />
-                    {/* i18n: Cancel */}
-                    Cancel
-                  </>
+                  <X className="size-3" />
                 ) : (
-                  <>
-                    <Check className="size-3" />
-                    {/* i18n: Select */}
-                    Select
-                  </>
+                  <Check className="size-3" />
                 )}
+                {selectMode ? 'Cancel' : 'Select'}
               </button>
             )}
           </div>
@@ -335,7 +318,6 @@ export default function AiSettingsPage() {
                 className="text-xs font-semibold text-primary hover:underline"
                 onClick={toggleSelectAll}
               >
-                {/* i18n: Select All / Deselect All */}
                 {selectedFactIds.size === facts.length ? 'Deselect All' : 'Select All'}
               </button>
               <button
@@ -343,7 +325,6 @@ export default function AiSettingsPage() {
                 className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-full disabled:opacity-30 transition-all active:scale-95"
                 onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
               >
-                {/* i18n: Delete {n} selected */}
                 Delete {selectedFactIds.size} selected
               </button>
             </div>
@@ -361,7 +342,6 @@ export default function AiSettingsPage() {
           {!factsQuery.isLoading && facts.length === 0 && (
             <div className="text-center py-6">
               <p className="text-text-muted text-sm">
-                {/* i18n */}
                 No memories yet. Chat with Orbit to start building your profile.
               </p>
             </div>

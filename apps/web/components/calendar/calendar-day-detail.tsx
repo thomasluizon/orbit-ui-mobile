@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ArrowRight, Check } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
 import { parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -22,17 +23,6 @@ interface CalendarDayDetailProps {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function statusLabel(entry: CalendarDayEntry): string {
-  if (entry.isBadHabit) {
-    if (entry.status === 'completed') return 'Indulged'
-    if (entry.status === 'missed') return 'Resisted'
-    return 'Scheduled'
-  }
-  if (entry.status === 'completed') return 'Completed'
-  if (entry.status === 'missed') return 'Missed'
-  return 'Upcoming'
-}
 
 function statusBadgeClass(entry: CalendarDayEntry): string {
   if (entry.isBadHabit) {
@@ -69,13 +59,15 @@ export function CalendarDayDetail({
   dateStr,
   entries,
 }: CalendarDayDetailProps) {
+  const t = useTranslations()
+  const locale = useLocale()
   const [showRecurring, setShowRecurring] = useState(true)
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
     const date = parseAPIDate(dateStr)
-    return format(date, 'EEEE, MMMM d, yyyy')
-  }, [dateStr])
+    return format(date, locale === 'pt-BR' ? "EEEE, dd 'de' MMMM 'de' yyyy" : 'EEEE, MMMM d, yyyy')
+  }, [dateStr, locale])
 
   const filteredEntries = useMemo(() => {
     if (showRecurring) return entries
@@ -83,6 +75,17 @@ export function CalendarDayDetail({
   }, [entries, showRecurring])
 
   const completedCount = filteredEntries.filter((e) => e.status === 'completed').length
+
+  const statusLabel = useCallback((entry: CalendarDayEntry): string => {
+    if (entry.isBadHabit) {
+      if (entry.status === 'completed') return t('calendar.status.indulged')
+      if (entry.status === 'missed') return t('calendar.status.resisted')
+      return t('calendar.status.scheduled')
+    }
+    if (entry.status === 'completed') return t('calendar.status.completed')
+    if (entry.status === 'missed') return t('calendar.status.missed')
+    return t('calendar.status.upcoming')
+  }, [t])
 
   return (
     <AppOverlay
@@ -96,19 +99,22 @@ export function CalendarDayDetail({
           onClick={() => onOpenChange(false)}
         >
           <ArrowRight className="size-4" />
-          Go to this day
+          {t('calendar.goToDay')}
         </Link>
       }
     >
       {entries.length === 0 ? (
         <div className="text-text-muted text-sm text-center py-8">
-          No habits scheduled for this day.
+          {t('calendar.noHabitsScheduled')}
         </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-text-faded">
-              {completedCount}/{filteredEntries.length} completed
+              {t('calendar.dayDetail.completionSummary', {
+                done: completedCount,
+                total: filteredEntries.length,
+              })}
             </p>
             <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
               <input
@@ -117,13 +123,13 @@ export function CalendarDayDetail({
                 onChange={(e) => setShowRecurring(e.target.checked)}
                 className="accent-primary"
               />
-              Show recurring
+              {t('calendar.showRecurring')}
             </label>
           </div>
 
           {filteredEntries.length === 0 && (
             <div className="text-text-muted text-sm text-center py-6">
-              No habits scheduled for this day.
+              {t('calendar.noHabitsScheduled')}
             </div>
           )}
 

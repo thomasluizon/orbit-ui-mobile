@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -14,14 +14,17 @@ import {
   Lock,
   Smartphone,
 } from 'lucide-react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import { useTranslations, useLocale } from 'next-intl'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { updateTimezone } from '@/app/actions/profile'
 
 // ---------------------------------------------------------------------------
@@ -42,7 +45,7 @@ async function fetchApiKeys(): Promise<ApiKey[]> {
   return res.json()
 }
 
-async function createApiKey(name: string): Promise<{ id: string; key: string }> {
+async function createApiKey(name: string): Promise<{ id: string; key: string; name: string }> {
   const res = await fetch(API.apiKeys.create, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -62,6 +65,9 @@ async function revokeApiKey(id: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export default function AdvancedPage() {
+  const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
 
@@ -115,17 +121,8 @@ export default function AdvancedPage() {
   const canCreateKey = apiKeys.length < MAX_API_KEYS
 
   const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
-  const [newKeyName, setNewKeyName] = useState('')
-  const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
+  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
-
-  const createKeyMutation = useMutation({
-    mutationFn: (name: string) => createApiKey(name),
-    onSuccess: (data) => {
-      setNewKeyValue(data.key)
-      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-    },
-  })
 
   const revokeKeyMutation = useMutation({
     mutationFn: revokeApiKey,
@@ -166,7 +163,23 @@ export default function AdvancedPage() {
   }
 
   function formatKeyDate(dateStr: string): string {
-    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true })
+    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
+  }
+
+  async function handleCreateKey(name: string) {
+    setCreateKeyError(null)
+    try {
+      const result = await createApiKey(name)
+      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      return result
+    } catch (err) {
+      setCreateKeyError(err instanceof Error ? err.message : 'Failed to create key')
+      return null
+    }
+  }
+
+  function handleKeyCreated() {
+    // Keys list already updated by composable
   }
 
   return (
@@ -174,33 +187,28 @@ export default function AdvancedPage() {
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
-          aria-label="Back to profile" // i18n
+          aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {/* i18n: Advanced */}
-          Advanced
+          {t('advancedSettings.title')}
         </h1>
       </header>
 
       <div className="space-y-4">
         {/* Timezone */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {/* i18n: Timezone */}
-            Timezone
-          </h2>
+        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">{t('profile.timezone.title')}</h2>
           <div className="flex items-center justify-between">
             <p className="text-sm text-text-secondary flex items-center gap-1.5">
-              {/* i18n: Current: */}
-              Current:{' '}
+              {t('profile.timezone.current')}
               <span className="text-text-primary font-medium">
-                {profile?.timeZone || 'Not set'}
+                {profile?.timeZone || t('profile.timezone.notSet')}
               </span>
               {timezoneSaving && <Loader2 className="size-3.5 text-primary animate-spin" />}
-              {timezoneSaved && <CheckCircle className="size-3.5 text-green-400" />}
+              {!timezoneSaving && timezoneSaved && <CheckCircle className="size-3.5 text-green-400" />}
             </p>
             <button
               className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
@@ -209,8 +217,7 @@ export default function AdvancedPage() {
                 setTimezoneSaved(false)
               }}
             >
-              {/* i18n: Edit / Close */}
-              {timezoneOpen ? 'Close' : 'Edit'}
+              {timezoneOpen ? t('common.close') : t('common.edit')}
             </button>
           </div>
           {timezoneOpen && (
@@ -219,7 +226,7 @@ export default function AdvancedPage() {
                 type="text"
                 value={timezoneSearch}
                 onChange={(e) => setTimezoneSearch(e.target.value)}
-                placeholder="Search timezones..." // i18n
+                placeholder={t('profile.timezone.searchPlaceholder')}
                 autoFocus
                 className="w-full bg-background text-text-primary placeholder-text-muted rounded-2xl py-2.5 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
@@ -240,41 +247,29 @@ export default function AdvancedPage() {
               </div>
             </>
           )}
-          <p className="text-xs text-text-muted">
-            {/* i18n */}
-            Your timezone affects when habits reset and when you receive notifications.
-          </p>
+          <p className="text-xs text-text-muted">{t('profile.timezone.description')}</p>
         </div>
 
         {/* Widget tip */}
         <button
-          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
+          className="w-full bg-surface rounded-(--radius-xl) border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-(--shadow-md) hover:border-border transition-all duration-200 group text-left shadow-(--shadow-sm)"
           onClick={() => setShowWidgetInfo(true)}
         >
-          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-(--radius-lg) p-3 transition-colors">
             <Smartphone className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">
-              {/* i18n: Home Screen Widget */}
-              Home Screen Widget
-            </p>
-            <p className="text-xs text-text-secondary mt-0.5">
-              {/* i18n */}
-              Add Orbit to your home screen
-            </p>
+            <p className="text-sm font-bold text-text-primary">{t('profile.widgetTitle')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.widgetHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </button>
 
         {/* For Developers */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-4">
+        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {/* i18n: Orbit MCP */}
-                Orbit MCP
-              </h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">{t('orbitMcp.title')}</h2>
               <ProBadge />
             </div>
             {!profile?.hasProAccess && (
@@ -283,54 +278,40 @@ export default function AdvancedPage() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
               >
                 <Lock className="size-3.5" />
-                PRO
+                {t('common.proBadge')}
               </Link>
             )}
           </div>
 
-          <p className="text-sm text-text-secondary">
-            {/* i18n */}
-            Connect Orbit to Claude, ChatGPT, or any MCP-compatible AI assistant.
-          </p>
+          <p className="text-sm text-text-secondary">{t('orbitMcp.description')}</p>
 
           {profile?.hasProAccess && (
             <>
               {/* API Keys Sub-section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                    {/* i18n: API Keys */}
-                    API Keys
-                  </h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t('orbitMcp.apiKeys')}</h4>
                   {canCreateKey && (
                     <button
                       className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-                      onClick={() => {
-                        setNewKeyName('')
-                        setNewKeyValue(null)
-                        setCreateKeyModalOpen(true)
-                      }}
+                      onClick={() => setCreateKeyModalOpen(true)}
                     >
                       <Plus className="size-3.5" />
-                      {/* i18n: Create Key */}
-                      Create Key
+                      {t('orbitMcp.createKey')}
                     </button>
                   )}
                 </div>
 
-                <p className="text-xs text-text-muted">
-                  {/* i18n */}
-                  API keys let you connect external tools to your Orbit account.
-                </p>
+                <p className="text-xs text-text-muted">{t('orbitMcp.apiKeysDescription')}</p>
 
+                {/* Max keys warning */}
                 {!canCreateKey && (
                   <p className="text-xs text-amber-400 font-medium">
-                    {/* i18n */}
-                    Maximum of {MAX_API_KEYS} keys reached. Revoke an existing key to create a new one.
+                    {t('orbitMcp.maxKeysReached')}
                   </p>
                 )}
 
-                {/* Loading */}
+                {/* Loading state */}
                 {apiKeysQuery.isLoading && (
                   <div className="space-y-2">
                     <div className="h-14 w-full bg-surface-elevated rounded-2xl animate-pulse" />
@@ -339,20 +320,14 @@ export default function AdvancedPage() {
                 )}
 
                 {/* Error */}
-                {apiKeysQuery.error && (
-                  <p className="text-xs text-red-400">
-                    {/* i18n */}
-                    Failed to load API keys
-                  </p>
+                {apiKeysQuery.error && !apiKeysQuery.isLoading && (
+                  <p className="text-xs text-red-400">{t('orbitMcp.apiKeysError')}</p>
                 )}
 
-                {/* Empty */}
+                {/* Empty state */}
                 {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
                   <div className="text-center py-4">
-                    <p className="text-text-muted text-sm">
-                      {/* i18n */}
-                      No API keys yet
-                    </p>
+                    <p className="text-text-muted text-sm">{t('orbitMcp.noKeys')}</p>
                   </div>
                 )}
 
@@ -363,56 +338,44 @@ export default function AdvancedPage() {
                       <div key={key.id} className="rounded-2xl bg-background p-3 space-y-2">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text-primary truncate">
-                              {key.name}
-                            </p>
-                            <p className="text-xs font-mono text-text-muted mt-0.5">
-                              {key.keyPrefix}...
-                            </p>
+                            <p className="text-sm font-medium text-text-primary truncate">{key.name}</p>
+                            <p className="text-xs font-mono text-text-muted mt-0.5">{key.keyPrefix}...</p>
                           </div>
                           <div className="shrink-0 text-right">
+                            <p className="text-[10px] text-text-muted">{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
                             <p className="text-[10px] text-text-muted">
-                              {/* i18n: Created */}
-                              Created {formatKeyDate(key.createdAtUtc)}
-                            </p>
-                            <p className="text-[10px] text-text-muted">
-                              {/* i18n: Last used */}
-                              Last used{' '}
-                              {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : 'never'}
+                              {t('orbitMcp.lastUsed')}{' '}
+                              {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </p>
                           </div>
                         </div>
 
+                        {/* Revoke: normal state */}
                         {revokingKeyId !== key.id ? (
                           <div className="flex justify-end">
                             <button
                               className="text-xs font-semibold text-text-muted hover:text-red-500 transition-colors"
                               onClick={() => setRevokingKeyId(key.id)}
                             >
-                              {/* i18n: Revoke */}
-                              Revoke
+                              {t('orbitMcp.revoke')}
                             </button>
                           </div>
                         ) : (
+                          /* Revoke: confirmation state */
                           <div className="flex items-center justify-between rounded-xl bg-red-500/5 border border-red-500/20 px-3 py-2">
-                            <p className="text-xs text-red-400">
-                              {/* i18n */}
-                              Are you sure?
-                            </p>
+                            <p className="text-xs text-red-400">{t('orbitMcp.revokeConfirm')}</p>
                             <div className="flex items-center gap-2 shrink-0 ml-3">
                               <button
                                 className="text-xs font-semibold text-text-muted hover:text-text-primary transition-colors"
                                 onClick={() => setRevokingKeyId(null)}
                               >
-                                {/* i18n: Cancel */}
-                                Cancel
+                                {t('orbitMcp.cancel')}
                               </button>
                               <button
                                 className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors"
                                 onClick={() => revokeKeyMutation.mutate(key.id)}
                               >
-                                {/* i18n: Confirm */}
-                                Confirm
+                                {t('orbitMcp.confirm')}
                               </button>
                             </div>
                           </div>
@@ -430,8 +393,7 @@ export default function AdvancedPage() {
                   onClick={() => setInstructionsOpen(!instructionsOpen)}
                 >
                   <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted group-hover:text-text-secondary transition-colors">
-                    {/* i18n: Connection Instructions */}
-                    Connection Instructions
+                    {t('orbitMcp.connectionInstructions')}
                   </h4>
                   <ChevronDown
                     className={`size-4 text-text-muted transition-transform duration-200 ${
@@ -444,67 +406,69 @@ export default function AdvancedPage() {
                   <>
                     {/* Tab buttons */}
                     <div className="flex gap-2">
-                      {(
-                        [
-                          { value: 'web', label: 'Claude Web' },
-                          { value: 'desktop', label: 'Claude Desktop' },
-                          { value: 'code', label: 'Claude Code' },
-                        ] as const
-                      ).map((tab) => (
-                        <button
-                          key={tab.value}
-                          className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-                            activeConfigTab === tab.value
-                              ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                              : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                          }`}
-                          onClick={() => setActiveConfigTab(tab.value)}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
+                      <button
+                        className={`px-3 py-1.5 rounded-(--radius-lg) text-xs font-semibold transition-all ${
+                          activeConfigTab === 'web'
+                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                            : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                        }`}
+                        onClick={() => setActiveConfigTab('web')}
+                      >
+                        {t('orbitMcp.claudeWeb')}
+                      </button>
+                      <button
+                        className={`px-3 py-1.5 rounded-(--radius-lg) text-xs font-semibold transition-all ${
+                          activeConfigTab === 'desktop'
+                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                            : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                        }`}
+                        onClick={() => setActiveConfigTab('desktop')}
+                      >
+                        {t('orbitMcp.claudeDesktop')}
+                      </button>
+                      <button
+                        className={`px-3 py-1.5 rounded-(--radius-lg) text-xs font-semibold transition-all ${
+                          activeConfigTab === 'code'
+                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                            : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                        }`}
+                        onClick={() => setActiveConfigTab('code')}
+                      >
+                        {t('orbitMcp.claudeCode')}
+                      </button>
                     </div>
 
+                    {/* Claude Web instructions (OAuth, no API key needed) */}
                     {activeConfigTab === 'web' ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-text-muted">
-                          {/* i18n */}
-                          Connect via OAuth -- no API key needed.
-                        </p>
+                        <p className="text-xs text-text-muted">{t('orbitMcp.webInstructions')}</p>
                         <ol className="text-xs text-text-secondary space-y-2 list-decimal list-inside">
-                          <li>Go to claude.ai Settings</li>
-                          <li>Click &quot;Connected Apps&quot;</li>
-                          <li>Click &quot;Add Integration&quot;</li>
-                          <li>Paste the URL below</li>
+                          <li>{t('orbitMcp.webStep1')}</li>
+                          <li>{t('orbitMcp.webStep2')}</li>
+                          <li>{t('orbitMcp.webStep3')}</li>
+                          <li>{t('orbitMcp.webStep4')}</li>
                         </ol>
                         <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">
-                            https://api.useorbit.org/mcp
-                          </pre>
+                          <pre className="rounded-(--radius-lg) bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">https://api.useorbit.org/mcp</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-(--radius-lg) bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
                             onClick={() => copyToClipboard('https://api.useorbit.org/mcp')}
                           >
                             <Clipboard className="size-4" />
                           </button>
                         </div>
-                        <p className="text-xs text-text-muted italic">
-                          {/* i18n */}
-                          No API key required for Claude Web.
-                        </p>
+                        <p className="text-xs text-text-muted italic">{t('orbitMcp.webNoApiKey')}</p>
                       </div>
                     ) : (
+                      /* Desktop / Code instructions (API key required) */
                       <div className="space-y-3">
-                        <p className="text-xs text-text-muted">
-                          {/* i18n */}
-                          Add this to your MCP configuration file:
-                        </p>
+                        <p className="text-xs text-text-muted">{t('orbitMcp.configInstructions')}</p>
+
+                        {/* Config code block */}
                         <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed whitespace-pre">
-                            {mcpConfigJson}
-                          </pre>
+                          <pre className="rounded-(--radius-lg) bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-(--radius-lg) bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
                             onClick={copyConfig}
                           >
                             {configCopied ? (
@@ -514,10 +478,8 @@ export default function AdvancedPage() {
                             )}
                           </button>
                         </div>
-                        <p className="text-xs text-text-muted italic">
-                          {/* i18n */}
-                          Replace YOUR_API_KEY with an actual API key from above.
-                        </p>
+
+                        <p className="text-xs text-text-muted italic">{t('orbitMcp.replaceKey')}</p>
                       </div>
                     )}
                   </>
@@ -532,50 +494,44 @@ export default function AdvancedPage() {
       <AppOverlay
         open={showWidgetInfo}
         onOpenChange={setShowWidgetInfo}
-        title="Home Screen Widget" // i18n
+        title={t('profile.widgetTitle')}
       >
         <div className="space-y-5">
           <div>
-            <h3 className="text-sm font-bold text-text-primary mb-1.5">
-              {/* i18n: How to add */}
-              How to add
-            </h3>
+            <h3 className="text-sm font-bold text-text-primary mb-1.5">{t('profile.widgetHow.title')}</h3>
             <ol className="text-sm text-text-secondary leading-relaxed space-y-2">
               <li className="flex gap-2">
                 <span className="text-primary font-bold shrink-0">1.</span>
-                <span>Open this app in your mobile browser</span>
+                <span>{t('profile.widgetHow.step1')}</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary font-bold shrink-0">2.</span>
-                <span>Tap &quot;Share&quot; then &quot;Add to Home Screen&quot;</span>
+                <span>{t('profile.widgetHow.step2')}</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary font-bold shrink-0">3.</span>
-                <span>Orbit will appear as a native-like app</span>
+                <span>{t('profile.widgetHow.step3')}</span>
               </li>
             </ol>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-text-primary mb-1.5">
-              {/* i18n: Features */}
-              Features
-            </h3>
+            <h3 className="text-sm font-bold text-text-primary mb-1.5">{t('profile.widgetHow.featuresTitle')}</h3>
             <ul className="text-sm text-text-secondary leading-relaxed space-y-1.5">
               <li className="flex gap-2 items-start">
                 <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>Quick habit check-off from home screen</span>
+                <span>{t('profile.widgetHow.feature1')}</span>
               </li>
               <li className="flex gap-2 items-start">
                 <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>Today&apos;s progress at a glance</span>
+                <span>{t('profile.widgetHow.feature2')}</span>
               </li>
               <li className="flex gap-2 items-start">
                 <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>Upcoming habits list</span>
+                <span>{t('profile.widgetHow.feature3')}</span>
               </li>
               <li className="flex gap-2 items-start">
                 <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>Auto-refreshes throughout the day</span>
+                <span>{t('profile.widgetHow.feature4')}</span>
               </li>
             </ul>
           </div>
@@ -583,68 +539,7 @@ export default function AdvancedPage() {
       </AppOverlay>
 
       {/* Create API Key Modal */}
-      <AppOverlay
-        open={createKeyModalOpen}
-        onOpenChange={setCreateKeyModalOpen}
-        title="Create API Key" // i18n
-      >
-        {newKeyValue ? (
-          <div className="space-y-4">
-            <p className="text-sm text-text-secondary">
-              {/* i18n */}
-              Copy your API key now. You won&apos;t be able to see it again.
-            </p>
-            <div className="relative">
-              <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-primary break-all whitespace-pre-wrap">
-                {newKeyValue}
-              </pre>
-              <button
-                className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 text-text-secondary hover:text-text-primary transition-all"
-                onClick={() => copyToClipboard(newKeyValue)}
-              >
-                <Clipboard className="size-4" />
-              </button>
-            </div>
-            <button
-              className="w-full py-3 rounded-2xl bg-primary text-text-inverse font-bold text-sm hover:bg-primary/90 transition-colors"
-              onClick={() => setCreateKeyModalOpen(false)}
-            >
-              {/* i18n: Done */}
-              Done
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-text-secondary">
-              {/* i18n */}
-              Give your API key a name to help you identify it later.
-            </p>
-            <input
-              type="text"
-              value={newKeyName}
-              onChange={(e) => setNewKeyName(e.target.value)}
-              placeholder="e.g. Claude Desktop" // i18n
-              className="w-full bg-surface-elevated text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-              autoFocus
-            />
-            {createKeyMutation.error && (
-              <p className="text-xs text-red-400 text-center">
-                {createKeyMutation.error instanceof Error
-                  ? createKeyMutation.error.message
-                  : 'Failed to create key'}
-              </p>
-            )}
-            <button
-              className="w-full py-3 rounded-2xl bg-primary text-text-inverse font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
-              disabled={!newKeyName.trim() || createKeyMutation.isPending}
-              onClick={() => createKeyMutation.mutate(newKeyName.trim())}
-            >
-              {/* i18n: Create / Creating... */}
-              {createKeyMutation.isPending ? 'Creating...' : 'Create'}
-            </button>
-          </div>
-        )}
-      </AppOverlay>
+      <CreateApiKeyModal open={createKeyModalOpen} onOpenChange={setCreateKeyModalOpen} onCreateKey={handleCreateKey} apiError={createKeyError} onCreated={handleKeyCreated} />
     </div>
   )
 }

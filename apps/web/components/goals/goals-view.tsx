@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Flag, Plus } from 'lucide-react'
+import { Flag } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
-import { CreateGoalModal } from './create-goal-modal'
 import { useGoals } from '@/hooks/use-goals'
 import type { GoalStatus } from '@orbit/shared/types/goal'
 
@@ -15,9 +14,8 @@ import type { GoalStatus } from '@orbit/shared/types/goal'
 export function GoalsView() {
   const t = useTranslations()
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const { data, isLoading, isFetched } = useGoals(activeFilter)
+  const { data, isFetched } = useGoals(activeFilter)
 
   const statusFilters = useMemo(
     () => [
@@ -40,12 +38,7 @@ export function GoalsView() {
   }, [])
 
   return (
-    <div
-      id="tabpanel-goals"
-      role="tabpanel"
-      aria-labelledby="tab-goals"
-      className="pt-4"
-    >
+    <div className="pt-4">
       {/* Filter tabs */}
       <div className="flex gap-2 pb-4 overflow-x-auto">
         {statusFilters.map((filter) => (
@@ -102,21 +95,6 @@ export function GoalsView() {
           )}
         </>
       )}
-
-      {/* Floating action button */}
-      <button
-        className="fixed bottom-24 right-6 z-50 size-14 rounded-full bg-primary text-white shadow-[var(--shadow-glow)] flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all duration-150"
-        aria-label={t('goals.create')}
-        onClick={() => setShowCreateModal(true)}
-      >
-        <Plus className="size-6" />
-      </button>
-
-      {/* Create goal modal */}
-      <CreateGoalModal
-        open={showCreateModal}
-        onOpenChange={setShowCreateModal}
-      />
     </div>
   )
 }

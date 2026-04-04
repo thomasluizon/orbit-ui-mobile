@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useCallback, useMemo, type ReactNode } from 'react'
-import { X, Plus, Bell, AlertTriangle } from 'lucide-react'
+import { useState, useCallback, useMemo, useId, type ReactNode } from 'react'
+import { X, Plus, Bell, Check, ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
-import type { UseFormReturn } from 'react-hook-form'
-import type { HabitFormData } from '@orbit/shared/validation'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { HabitChecklist } from './habit-checklist'
@@ -31,6 +29,23 @@ interface HabitFormFieldsProps {
 }
 
 // ---------------------------------------------------------------------------
+// Reminder presets
+// ---------------------------------------------------------------------------
+
+const REMINDER_PRESETS = [
+  { value: 0, key: 'habits.form.reminderAtTime' },
+  { value: 5, key: 'habits.form.reminder5min' },
+  { value: 10, key: 'habits.form.reminder10min' },
+  { value: 15, key: 'habits.form.reminder15min' },
+  { value: 30, key: 'habits.form.reminder30min' },
+  { value: 60, key: 'habits.form.reminder1hour' },
+  { value: 120, key: 'habits.form.reminder2hours' },
+  { value: 360, key: 'habits.form.reminder6hours' },
+  { value: 720, key: 'habits.form.reminder12hours' },
+  { value: 1440, key: 'habits.form.reminder1day' },
+] as const
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -43,6 +58,11 @@ export function HabitFormFields({
   children,
 }: HabitFormFieldsProps) {
   const t = useTranslations()
+  const reminderLabelId = useId()
+  const scheduledReminderLabelId = useId()
+  const slipAlertLabelId = useId()
+  const slipAlertDescriptionId = useId()
+
   const {
     form,
     isOneTime,
@@ -63,8 +83,6 @@ export function HabitFormFields({
 
   const { register, watch, setValue, getValues } = form
 
-  const watchedTitle = watch('title')
-  const watchedDescription = watch('description')
   const watchedFrequencyUnit = watch('frequencyUnit')
   const watchedFrequencyQuantity = watch('frequencyQuantity')
   const watchedDays = watch('days')
@@ -98,6 +116,123 @@ export function HabitFormFields({
     const h = Number.parseInt(hStr!, 10)
     const m = Number.parseInt(mStr!, 10)
     return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+  }
+
+  // Reminder state
+  const [showAddReminder, setShowAddReminder] = useState(false)
+  const [showCustomInput, setShowCustomInput] = useState(false)
+  const [customValue, setCustomValue] = useState<number | null>(null)
+  const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
+
+  const reminderUnitOptions = useMemo(() => [
+    { value: 'min', label: t('habits.form.reminderUnitMin') },
+    { value: 'hours', label: t('habits.form.reminderUnitHours') },
+    { value: 'days', label: t('habits.form.reminderUnitDays') },
+  ], [t])
+
+  // reminderTimes is not in the form schema, manage as local state
+  const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+
+  const availablePresets = useMemo(
+    () => REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
+    [reminderTimes],
+  )
+
+  function reminderLabel(minutes: number): string {
+    const preset = REMINDER_PRESETS.find((p) => p.value === minutes)
+    if (preset) return t(preset.key as any)
+    if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
+    if (minutes < 1440) {
+      const h = Math.floor(minutes / 60)
+      return `${h} ${t(h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours' as any)}`
+    }
+    const d = Math.floor(minutes / 1440)
+    return `${d} ${t(d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays' as any)}`
+  }
+
+  function addPreset(value: number) {
+    if (!reminderTimes.includes(value)) {
+      setReminderTimes((prev) => [...prev, value].sort((a, b) => b - a))
+    }
+    setShowAddReminder(false)
+  }
+
+  function addCustomReminder() {
+    if (!customValue || customValue <= 0) return
+    let multiplier = 1
+    if (customUnit === 'days') multiplier = 1440
+    else if (customUnit === 'hours') multiplier = 60
+    const minutes = customValue * multiplier
+    if (!reminderTimes.includes(minutes)) {
+      setReminderTimes((prev) => [...prev, minutes].sort((a, b) => b - a))
+    }
+    setCustomValue(null)
+    setShowCustomInput(false)
+    setShowAddReminder(false)
+  }
+
+  function removeReminder(value: number) {
+    setReminderTimes((prev) => prev.filter((v) => v !== value))
+  }
+
+  // Scheduled reminders
+  const MAX_SCHEDULED_REMINDERS = 5
+  const [showScheduledReminderForm, setShowScheduledReminderForm] = useState(false)
+  const [scheduledReminderWhen, setScheduledReminderWhen] = useState<ScheduledReminderWhen>('same_day')
+  const [scheduledReminderTime, setScheduledReminderTime] = useState('')
+
+  const atScheduledReminderLimit = (watchedScheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
+
+  function formatScheduledTimeInput(value: string): string {
+    let v = value.replace(/\D/g, '')
+    if (v.length > 4) v = v.slice(0, 4)
+    if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
+    return v
+  }
+
+  function isValidScheduledTime(time: string): boolean {
+    if (time.length !== 5) return false
+    const [hStr, mStr] = time.split(':')
+    const h = Number.parseInt(hStr!, 10)
+    const m = Number.parseInt(mStr!, 10)
+    return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+  }
+
+  function addScheduledReminder() {
+    if (!isValidScheduledTime(scheduledReminderTime)) return
+    if (atScheduledReminderLimit) return
+    const current = watchedScheduledReminders ?? []
+    const duplicate = current.some(
+      (sr) => sr.when === scheduledReminderWhen && sr.time === scheduledReminderTime,
+    )
+    if (duplicate) return
+    setValue('scheduledReminders', [...current, { when: scheduledReminderWhen, time: scheduledReminderTime }], { shouldDirty: true })
+    setScheduledReminderTime('')
+    setShowScheduledReminderForm(false)
+  }
+
+  function removeScheduledReminder(index: number) {
+    const current = watchedScheduledReminders ?? []
+    setValue('scheduledReminders', current.filter((_, i) => i !== index), { shouldDirty: true })
+  }
+
+  function scheduledReminderLabel(sr: { when: string; time: string }): string {
+    const timeDisplay = sr.time.slice(0, 5)
+    if (sr.when === 'day_before') {
+      return t('habits.form.scheduledReminderDayBeforeAt', { time: timeDisplay })
+    }
+    return t('habits.form.scheduledReminderSameDayAt', { time: timeDisplay })
+  }
+
+  // Tag pop animation
+  const [justToggledTagId, setJustToggledTagId] = useState('')
+
+  function handleTagToggle(tagId: string) {
+    if (!tags.selectedTagIds.includes(tagId)) {
+      setJustToggledTagId(tagId)
+      setTimeout(() => setJustToggledTagId(''), 200)
+    }
+    tags.toggleTag(tagId)
   }
 
   return (
@@ -376,6 +511,11 @@ export function HabitFormFields({
                   <X className="size-4" />
                 </button>
               </div>
+              {watchedEndDate && watchedDueDate && watchedEndDate < watchedDueDate ? (
+                <p className="text-xs text-red-400 font-medium">{t('habits.form.endDateBeforeDueDate')}</p>
+              ) : (
+                <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
+              )}
             </div>
           ) : (
             <button
@@ -394,78 +534,229 @@ export function HabitFormFields({
         </div>
       )}
 
-      {/* Reminder toggle */}
-      {!isGeneral && (
-        <div className="space-y-1.5">
+      {/* Reminder (only when dueTime is set, hidden for general habits) */}
+      {watchedDueTime && !isGeneral && (
+        <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
           <div className="flex items-center justify-between">
-            <span className="form-label">
-              <Bell className="size-3.5 inline mr-1" />
-              {t('habits.form.reminder')}
-            </span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={watchedReminderEnabled}
-                onChange={(e) =>
-                  setValue('reminderEnabled', e.target.checked, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <div className="w-9 h-5 bg-surface-elevated peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
-            </label>
+            <div className="flex items-center gap-2">
+              <Bell className="size-4 text-primary" />
+              <span id={reminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.reminder')}</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={watchedReminderEnabled}
+              aria-labelledby={reminderLabelId}
+              className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${watchedReminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+              onClick={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedReminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+            </button>
           </div>
+          {watchedReminderEnabled && (
+            <div className="space-y-3">
+              {/* Selected reminder chips */}
+              <div className="flex flex-wrap gap-2">
+                {reminderTimes.map((time) => (
+                  <span
+                    key={time}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
+                  >
+                    {reminderLabel(time)}
+                    <button
+                      type="button"
+                      className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-primary/60'}`}
+                      disabled={reminderTimes.length <= 1}
+                      onClick={() => removeReminder(time)}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Add reminder */}
+              <div className="relative">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}
+                >
+                  <Plus className="size-3.5" />
+                  {t('habits.form.reminderAdd')}
+                </button>
+
+                {showAddReminder && (
+                  <div className="mt-2 rounded-lg border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1">
+                    {availablePresets.map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
+                        onClick={() => addPreset(preset.value)}
+                      >
+                        {t(preset.key as any)}
+                      </button>
+                    ))}
+                    {showCustomInput && (
+                      <div className="flex items-center gap-2 px-3 py-2">
+                        <input
+                          value={customValue ?? ''}
+                          type="number"
+                          min={1}
+                          placeholder={t('habits.form.reminderCustomPlaceholder')}
+                          className="w-20 bg-surface text-text-primary rounded-xl py-1.5 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
+                        />
+                        <AppSelect
+                          value={customUnit}
+                          options={reminderUnitOptions}
+                          label={t('habits.form.reminderCustom')}
+                          onChange={(val) => setCustomUnit(val as 'min' | 'hours' | 'days')}
+                        />
+                        <button
+                          type="button"
+                          className="shrink-0 p-1.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-all duration-150"
+                          onClick={addCustomReminder}
+                        >
+                          <Plus className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-xl text-sm text-primary font-medium hover:bg-surface-elevated/80 transition-all duration-150"
+                      onClick={() => setShowCustomInput(!showCustomInput)}
+                    >
+                      {t('habits.form.reminderCustom')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Bad habit toggle */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="form-label">
-            <AlertTriangle className="size-3.5 inline mr-1" />
-            {t('habits.form.badHabitLabel')}
-          </span>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={watchedIsBadHabit}
-              onChange={(e) =>
-                setValue('isBadHabit', e.target.checked, {
-                  shouldDirty: true,
-                })
-              }
-            />
-            <div className="w-9 h-5 bg-surface-elevated peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500" />
-          </label>
-        </div>
-      </div>
-
-      {/* Slip alert (bad habits only) */}
-      {watchedIsBadHabit && (
-        <div className="space-y-1.5">
+      {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
+      {!watchedDueTime && !isGeneral && (
+        <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
           <div className="flex items-center justify-between">
-            <span className="form-label">{t('habits.form.slipAlert')}</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={watchedSlipAlertEnabled}
-                onChange={(e) =>
-                  setValue('slipAlertEnabled', e.target.checked, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <div className="w-9 h-5 bg-surface-elevated peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
-            </label>
+            <div className="flex items-center gap-2">
+              <Bell className="size-4 text-primary" />
+              <span id={scheduledReminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.scheduledReminder')}</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={watchedReminderEnabled}
+              aria-labelledby={scheduledReminderLabelId}
+              className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${watchedReminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+              onClick={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedReminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+            </button>
           </div>
+          {watchedReminderEnabled && (
+            <div className="space-y-3">
+              {(watchedScheduledReminders?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {(watchedScheduledReminders ?? []).map((sr, idx) => (
+                    <span
+                      key={`${sr.when}-${sr.time}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
+                    >
+                      {scheduledReminderLabel(sr)}
+                      <button type="button" className="hover:text-primary/60 transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                {!showScheduledReminderForm && !atScheduledReminderLimit && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => setShowScheduledReminderForm(true)}
+                  >
+                    <Plus className="size-3.5" />
+                    {t('habits.form.scheduledReminderAdd')}
+                  </button>
+                )}
+
+                {atScheduledReminderLimit && (
+                  <p className="text-xs text-text-muted">{t('habits.form.scheduledReminderMax')}</p>
+                )}
+
+                {showScheduledReminderForm && (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          scheduledReminderWhen === 'day_before'
+                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                            : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                        }`}
+                        onClick={() => setScheduledReminderWhen('day_before')}
+                      >
+                        {t('habits.form.scheduledReminderDayBefore')}
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          scheduledReminderWhen === 'same_day'
+                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                            : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                        }`}
+                        onClick={() => setScheduledReminderWhen('same_day')}
+                      >
+                        {t('habits.form.scheduledReminderSameDay')}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={scheduledReminderTime}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]{2}:[0-9]{2}"
+                        placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
+                        maxLength={5}
+                        className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                        onChange={(e) => setScheduledReminderTime(formatScheduledTimeInput(e.target.value))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addScheduledReminder() } }}
+                      />
+                      <button
+                        type="button"
+                        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
+                        disabled={!isValidScheduledTime(scheduledReminderTime)}
+                        onClick={addScheduledReminder}
+                      >
+                        {t('common.add')}
+                      </button>
+                      <button
+                        type="button"
+                        className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors"
+                        onClick={() => { setShowScheduledReminderForm(false); setScheduledReminderTime('') }}
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tags */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <span className="form-label" aria-hidden="true">
           {t('habits.form.tags')}
         </span>
@@ -489,7 +780,7 @@ export function HabitFormFields({
                     ? { backgroundColor: tag.color }
                     : undefined
                 }
-                onClick={() => tags.toggleTag(tag.id)}
+                onClick={() => handleTagToggle(tag.id)}
               >
                 {tag.name}
               </button>
@@ -552,6 +843,52 @@ export function HabitFormFields({
         atGoalLimit={atGoalLimit}
         onToggleGoal={onToggleGoal}
       />
+
+      {/* Bad habit toggle */}
+      {!isGeneral && (
+        <label className="flex items-center gap-3 cursor-pointer py-1">
+          <div
+            className={`size-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+              watchedIsBadHabit ? 'bg-primary border-primary' : 'border-border'
+            }`}
+          >
+            {watchedIsBadHabit && <Check className="size-3 text-white" />}
+          </div>
+          <input
+            type="checkbox"
+            className="hidden"
+            checked={watchedIsBadHabit}
+            onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
+          />
+          <span className="text-sm text-text-primary">{t('habits.form.badHabitLabel')}</span>
+        </label>
+      )}
+
+      {/* Slip alert toggle (only when bad habit) */}
+      {watchedIsBadHabit && (
+        <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="size-4 text-primary" />
+                <span id={slipAlertLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.slipAlert')}</span>
+              </div>
+              <span id={slipAlertDescriptionId} className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={watchedSlipAlertEnabled}
+              aria-labelledby={slipAlertLabelId}
+              aria-describedby={slipAlertDescriptionId}
+              className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${watchedSlipAlertEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+              onClick={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedSlipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Slot for extra fields (e.g. sub-habits) */}
       {children}

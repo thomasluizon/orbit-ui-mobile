@@ -184,10 +184,8 @@ export default function LoginPage() {
 
       setAuth(loginResponse)
 
-      // Flag referral success for toast on home page
       if (referralCode) {
         localStorage.setItem('orbit_referral_applied', '1')
-        // Clear referral cookie
         document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
       }
 
@@ -241,7 +239,6 @@ export default function LoginPage() {
     const cleanValue = value.replace(/\D/g, '')
 
     if (cleanValue.length > 1) {
-      // Handle paste: distribute digits across inputs
       const digits = cleanValue.split('')
       const newCodeDigits = [...codeDigits]
       for (let i = 0; i < digits.length && index + i < 6; i++) {
@@ -251,9 +248,7 @@ export default function LoginPage() {
       const nextIndex = Math.min(index + digits.length, 5)
       codeInputRefs.current[nextIndex]?.focus()
 
-      // Auto-submit if all 6 digits are filled
       if (newCodeDigits.join('').length === 6) {
-        // Defer to allow state to settle
         setTimeout(() => verifyCode(), 0)
       }
       return
@@ -263,7 +258,6 @@ export default function LoginPage() {
     newCodeDigits[index] = cleanValue
     setCodeDigits(newCodeDigits)
 
-    // Auto-focus next input
     if (cleanValue && index < 5) {
       codeInputRefs.current[index + 1]?.focus()
     }
@@ -306,8 +300,6 @@ export default function LoginPage() {
         return
       }
 
-      // Build the Supabase OAuth URL directly instead of using the client library.
-      // This is the web flow -- redirect to Supabase which redirects to Google.
       const redirectTo = `${window.location.origin}/auth-callback`
       const params = new URLSearchParams({
         provider: 'google',

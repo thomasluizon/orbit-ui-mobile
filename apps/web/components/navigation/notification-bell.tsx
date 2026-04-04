@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { Bell, BellOff, Trash2, X, ArrowRight, Check } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Bell, BellOff, Trash2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
@@ -83,7 +83,7 @@ export function NotificationBell() {
         <>
           <div
             id="notification-dropdown"
-            className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-surface-overlay border border-border-emphasis rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] overflow-hidden z-50 flex flex-col animate-in fade-in slide-in-from-top-1 duration-200"
+            className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-surface-overlay border border-border-emphasis rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] overflow-hidden z-50 flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-muted">

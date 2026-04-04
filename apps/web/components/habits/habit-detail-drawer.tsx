@@ -124,6 +124,8 @@ export function HabitDetailDrawer({
         onOpenChange={onOpenChange}
         title={habit?.title}
         description={habit?.description ?? undefined}
+        expandable
+        onExpandDescription={() => setDescriptionViewerOpen(true)}
         footer={
           habit ? (
             <div className="flex gap-3">

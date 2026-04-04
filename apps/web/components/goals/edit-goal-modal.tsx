@@ -124,7 +124,7 @@ export function EditGoalModal({
           <div>
             <label
               htmlFor="edit-goal-target"
-              className="text-[10px] font-bold uppercase tracking-wider text-text-muted"
+              className="form-label"
             >
               {t('goals.form.targetValue')}
             </label>
@@ -133,7 +133,7 @@ export function EditGoalModal({
               type="number"
               value={targetValue}
               onChange={(e) => setTargetValue(Number(e.target.value))}
-              className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors mt-1"
+              className="form-input"
               min={0.01}
               step="any"
             />
@@ -141,7 +141,7 @@ export function EditGoalModal({
           <div>
             <label
               htmlFor="edit-goal-unit"
-              className="text-[10px] font-bold uppercase tracking-wider text-text-muted"
+              className="form-label"
             >
               {t('goals.form.unit')}
             </label>
@@ -150,7 +150,7 @@ export function EditGoalModal({
               type="text"
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
-              className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors mt-1"
+              className="form-input"
               maxLength={50}
             />
           </div>
@@ -160,19 +160,17 @@ export function EditGoalModal({
         <div>
           <label
             htmlFor="edit-goal-description"
-            className="text-[10px] font-bold uppercase tracking-wider text-text-muted"
+            className="form-label"
           >
-            {t('goals.form.description')}{' '}
-            <span className="text-text-muted font-normal normal-case tracking-normal">
-              ({t('goals.form.descriptionOptional')})
-            </span>
+            {t('goals.form.description')}
+            <span className="text-text-muted font-normal ml-1">({t('goals.form.descriptionOptional')})</span>
           </label>
           <input
             id="edit-goal-description"
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors mt-1"
+            className="form-input"
             placeholder={t('goals.form.descriptionPlaceholder')}
             maxLength={200}
           />
@@ -182,11 +180,9 @@ export function EditGoalModal({
         <div className="space-y-1.5">
           {deadline ? (
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                {t('goals.form.deadline')}{' '}
-                <span className="text-text-muted font-normal normal-case tracking-normal">
-                  ({t('goals.form.deadlineOptional')})
-                </span>
+              <span className="form-label">
+                {t('goals.form.deadline')}
+                <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
               </span>
               <div className="flex items-center gap-2">
                 <div className="flex-1">
@@ -211,11 +207,9 @@ export function EditGoalModal({
             </div>
           ) : (
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                {t('goals.form.deadline')}{' '}
-                <span className="text-text-muted font-normal normal-case tracking-normal">
-                  ({t('goals.form.deadlineOptional')})
-                </span>
+              <span className="form-label">
+                {t('goals.form.deadline')}
+                <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
               </span>
               <button
                 type="button"
@@ -243,7 +237,7 @@ export function EditGoalModal({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
+          className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
         >
           {isSubmitting ? '...' : t('common.save')}
         </button>
