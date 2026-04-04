@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Manrope } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages } from 'next-intl/server'
 import './globals.css'
 
 const manrope = Manrope({
@@ -20,13 +22,16 @@ export const viewport: Viewport = {
   themeColor: '#07060e',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
-    <html lang="en" className={`dark ${manrope.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`dark ${manrope.variable}`} suppressHydrationWarning>
       <head>
         {/* Anti-flash script: apply saved theme before paint */}
         <script
@@ -43,7 +48,9 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-text-primary font-sans antialiased">
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   )

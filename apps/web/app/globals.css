@@ -494,6 +494,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   backdrop-filter: blur(48px) saturate(1.8);
 }
 
+/* Chat glass effect */
+.chat-glass {
+  background: var(--nav-glass-bg);
+  -webkit-backdrop-filter: blur(48px) saturate(1.8);
+  backdrop-filter: blur(48px) saturate(1.8);
+}
+
 /* Theme transition class (toggled by useColorScheme on scheme change) */
 .theme-transitioning,
 .theme-transitioning * {

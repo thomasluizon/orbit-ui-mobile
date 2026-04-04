@@ -169,13 +169,15 @@ export default function ProfilePage() {
   const subscriptionIconClasses = isActiveSubscription
     ? 'bg-primary/20 group-hover:bg-primary/30'
     : 'bg-amber-500/20 group-hover:bg-amber-500/30'
+  const subscriptionIconColor = isActiveSubscription
+    ? 'text-primary'
+    : 'text-amber-400'
 
   return (
     <div className="pb-8">
       {/* Header */}
       <header className="pt-8 pb-6 flex items-center justify-between">
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {/* i18n: Profile */}
           Profile
         </h1>
         <ThemeToggle />
@@ -190,7 +192,7 @@ export default function ProfilePage() {
 
       <div className="space-y-4">
         {/* ==================== ACCOUNT ==================== */}
-        <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted pt-2">
+        <h2 className="form-label pt-2">
           {/* i18n: Account */}
           Account
         </h2>
@@ -238,11 +240,11 @@ export default function ProfilePage() {
             className={`shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors ${subscriptionIconClasses}`}
           >
             {profile?.isTrialActive ? (
-              <Clock className="size-5 text-primary" />
+              <Clock className={`size-5 ${subscriptionIconColor}`} />
             ) : profile?.hasProAccess ? (
-              <BadgeCheck className="size-5 text-primary" />
+              <BadgeCheck className={`size-5 ${subscriptionIconColor}`} />
             ) : (
-              <Sparkles className="size-5 text-amber-400" />
+              <Sparkles className={`size-5 ${subscriptionIconColor}`} />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -276,36 +278,99 @@ export default function ProfilePage() {
         <NavCard
           href="/preferences"
           icon={<Settings className="size-5 text-primary" />}
-          title="Preferences" // i18n
-          hint="Theme, language, notifications" // i18n
+          title="Preferences"
+          hint="Theme, language, notifications"
         />
 
         {/* AI Features */}
         <NavCard
           href="/ai-settings"
           icon={<Sparkles className="size-5 text-primary" />}
-          title="AI Features" // i18n
-          hint="Memory, summaries, and more" // i18n
+          title="AI Features"
+          hint="Memory, summaries, and more"
         />
+
+        {/* ==================== FEATURES ==================== */}
+        <h2 className="form-label pt-2">
+          {/* i18n: Features */}
+          Features
+        </h2>
+
+        {/* Retrospective */}
+        <Link
+          href="/retrospective"
+          className="w-full bg-primary/10 border border-primary/20 rounded-[var(--radius-xl)] p-5 flex items-center gap-4 hover:bg-primary/15 hover:border-primary/30 transition-all duration-200 group text-left shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/20 rounded-[var(--radius-lg)] p-3 group-hover:bg-primary/30 transition-colors">
+            <svg className="size-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" /><path d="M18 9l-5 5-4-4-3 3" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-bold text-text-primary">Retrospective</p>
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">PRO</span>
+            </div>
+            <p className="text-xs text-text-secondary mt-0.5">Weekly and monthly reports</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-primary transition-colors shrink-0" />
+        </Link>
+
+        {/* Achievements & Level */}
+        <Link
+          href="/achievements"
+          className="w-full bg-primary/10 border border-primary/20 rounded-[var(--radius-xl)] p-5 flex items-center gap-4 hover:bg-primary/15 hover:border-primary/30 transition-all duration-200 group text-left shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/20 rounded-[var(--radius-lg)] p-3 group-hover:bg-primary/30 transition-colors">
+            <svg className="size-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 8 9 8" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 15 8 15 8" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-bold text-text-primary">Achievements & Level</p>
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">PRO</span>
+            </div>
+            <p className="text-xs text-text-secondary mt-0.5">Track your progress and earn rewards</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-primary transition-colors shrink-0" />
+        </Link>
+
+        {/* Google Calendar Sync */}
+        <Link
+          href="/calendar-sync"
+          className="w-full bg-primary/10 border border-primary/20 rounded-[var(--radius-xl)] p-5 flex items-center gap-4 hover:bg-primary/15 hover:border-primary/30 transition-all duration-200 group text-left shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
+        >
+          <div className="shrink-0 flex items-center justify-center bg-primary/20 rounded-[var(--radius-lg)] p-3 group-hover:bg-primary/30 transition-colors">
+            <svg className="size-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Google Calendar</p>
+            <p className="text-xs text-text-secondary mt-0.5">Sync events as habits</p>
+          </div>
+          <ChevronRight className="size-4 text-text-muted group-hover:text-primary transition-colors shrink-0" />
+        </Link>
 
         {/* About & Help */}
         <NavCard
           href="/about"
           icon={<Info className="size-5 text-primary" />}
-          title="About & Help" // i18n
-          hint="Feature guide, support, privacy" // i18n
+          title="About & Help"
+          hint="Feature guide, support, privacy"
         />
 
         {/* Advanced */}
         <NavCard
           href="/advanced"
           icon={<Wrench className="size-5 text-primary" />}
-          title="Advanced" // i18n
-          hint="Timezone, developer tools" // i18n
+          title="Advanced"
+          hint="Timezone, developer tools"
         />
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted pt-2">
+        <h2 className="form-label pt-2">
           {/* i18n: Account Actions */}
           Account Actions
         </h2>
@@ -380,8 +445,8 @@ export default function ProfilePage() {
             </div>
 
             {/* What stays */}
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
-              <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
+            <div className="bg-success/10 border border-success/20 rounded-2xl p-4">
+              <p className="text-xs font-bold text-success uppercase tracking-wider mb-2">
                 {/* i18n: What stays */}
                 What stays
               </p>
@@ -392,7 +457,7 @@ export default function ProfilePage() {
                   'Your preferences', // i18n
                 ].map((item) => (
                   <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
-                    <Check className="size-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <Check className="size-3.5 text-success shrink-0 mt-0.5" />
                     {item}
                   </li>
                 ))}
@@ -417,8 +482,8 @@ export default function ProfilePage() {
               type="text"
               value={resetConfirmText}
               onChange={(e) => setResetConfirmText(e.target.value)}
-              className="w-full bg-surface-elevated text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm text-center border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="ORBIT" // i18n
+              className="form-input text-center"
+              placeholder="ORBIT"
               autoComplete="off"
             />
             {resetError && (

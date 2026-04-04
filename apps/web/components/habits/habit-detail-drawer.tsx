@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Clock, Bell, CalendarDays, Flame, Trophy, BarChart3 } from 'lucide-react'
+import { Clock, Bell, CalendarDays, Flame, Trophy, BarChart3, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -137,6 +137,7 @@ export function HabitDetailDrawer({
                 className="flex-[2] py-4 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-150 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
                 onClick={handleDelete}
               >
+                <Trash2 className="size-3" />
                 {t('common.delete')}
               </button>
             </div>
@@ -204,7 +205,7 @@ export function HabitDetailDrawer({
             {/* Stats grid (3-column) */}
             {metrics && !metricsLoading ? (
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm">
+                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
                   <Flame className="size-5 text-primary" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
                     {t('habits.detail.currentStreak')}
@@ -215,7 +216,7 @@ export function HabitDetailDrawer({
                     })}
                   </span>
                 </div>
-                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm">
+                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
                   <Trophy className="size-5 text-primary" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
                     {t('habits.detail.longestStreak')}
@@ -226,7 +227,7 @@ export function HabitDetailDrawer({
                     })}
                   </span>
                 </div>
-                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm">
+                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
                   <BarChart3 className="size-5 text-primary" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
                     {t('habits.detail.monthlyRate')}
@@ -269,7 +270,7 @@ export function HabitDetailDrawer({
                   {logsWithNotes.map((log) => (
                     <div
                       key={log.id}
-                      className="bg-surface-ground border border-border-muted rounded-lg p-3 shadow-sm"
+                      className="bg-surface-ground border border-border-muted rounded-lg p-3 shadow-[var(--shadow-sm)]"
                     >
                       <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">
                         {format(new Date(log.date), 'MMM d, yyyy')}

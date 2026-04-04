@@ -8,6 +8,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "web": "turbo run dev --filter=@orbit/web",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",

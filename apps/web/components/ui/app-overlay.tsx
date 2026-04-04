@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback, useId, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
-import { useMediaQuery } from '@/hooks/use-media-query'
 
 interface AppOverlayProps {
   open: boolean
@@ -12,8 +11,10 @@ interface AppOverlayProps {
   titleContent?: ReactNode
   description?: string
   dismissible?: boolean
+  expandable?: boolean
   children?: ReactNode
   footer?: ReactNode
+  onExpandDescription?: () => void
 }
 
 export function AppOverlay({
@@ -23,15 +24,16 @@ export function AppOverlay({
   titleContent,
   description,
   dismissible = true,
+  expandable = false,
   children,
   footer,
+  onExpandDescription,
 }: AppOverlayProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)
   const pointerDownOnBackdrop = useRef(false)
   const savedScrollY = useRef(0)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
-  const isDesktop = useMediaQuery('(min-width: 640px)')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -141,9 +143,7 @@ export function AppOverlay({
 
   const overlay = (
     <div
-      className={`fixed inset-0 z-[9999] flex ${
-        isDesktop ? 'items-center' : 'items-end'
-      } justify-center ${isDesktop ? 'p-4' : ''} animate-in fade-in`}
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
       onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}
     >
@@ -156,19 +156,13 @@ export function AppOverlay({
         open
         aria-modal="true"
         aria-labelledby={hasTitle ? titleId : undefined}
-        className={`relative w-full ${
-          isDesktop ? 'sm:max-w-lg' : ''
-        } max-h-[90dvh] bg-surface-overlay ${
-          isDesktop ? 'rounded-2xl border border-border' : 'rounded-t-2xl border-t border-border'
-        } overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain`}
+        className="relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle (mobile only) */}
-        {!isDesktop && (
-          <div className="flex justify-center pt-3 pb-2">
-            <div className="w-10 h-1 rounded-full bg-border-emphasis" />
-          </div>
-        )}
+        {/* Drag handle (mobile) */}
+        <div className="flex justify-center pt-3 pb-2 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-border-emphasis" />
+        </div>
 
         {/* Header */}
         {hasTitle && (
@@ -182,9 +176,21 @@ export function AppOverlay({
               </div>
               {description && (
                 <div className="mt-1 flex items-start gap-2">
-                  <p className="flex-1 text-sm text-text-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">
-                    {description}
-                  </p>
+                  <p
+                    className="flex-1 text-sm text-text-secondary whitespace-pre-wrap max-h-32 overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: description }}
+                  />
+                  {expandable && (
+                    <button
+                      className="shrink-0 size-7 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors mt-0.5"
+                      aria-label="Expand description"
+                      onClick={onExpandDescription}
+                    >
+                      <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -222,4 +228,3 @@ export function AppOverlay({
 
   return createPortal(overlay, document.body)
 }
-

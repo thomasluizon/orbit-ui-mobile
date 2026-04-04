@@ -93,9 +93,7 @@ export default function CalendarPage() {
 
       {/* Refetch loading bar */}
       {isFetching && !isLoading && (
-        <div className="w-full h-0.5 bg-primary/30 rounded overflow-hidden">
-          <div className="h-full w-1/3 bg-primary rounded animate-[shimmer_1s_ease-in-out_infinite]" />
-        </div>
+        <div className="loading-bar w-full" />
       )}
 
       {/* Calendar grid */}

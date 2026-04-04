@@ -282,9 +282,9 @@ export default function ChatPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-5rem)]">
+    <div className="flex flex-col h-full">
       {/* Top bar */}
-      <header className="shrink-0 flex items-center pt-3 pb-3 z-10 nav-glass">
+      <header className="shrink-0 chat-glass flex items-center pt-3 pb-3 z-10">
         <Link
           href="/"
           aria-label="Go back"
@@ -304,11 +304,11 @@ export default function ChatPage() {
           <div className="flex flex-col items-center justify-center h-full gap-6">
             <div className="relative flex items-center justify-center size-16">
               {/* Rotating gradient ring */}
-              <div className="absolute inset-0 rounded-full animate-spin bg-gradient-to-r from-primary via-transparent to-primary opacity-30" style={{ animationDuration: '3s' }} />
+              <div className="absolute inset-0 rounded-full animate-spin-slow orbit-ring" />
               {/* Glow */}
               <div className="absolute inset-0 rounded-full bg-primary/15 blur-md" />
               {/* Icon */}
-              <Sparkles className="size-7 text-primary animate-pulse relative" />
+              <Sparkles className="size-7 text-primary animate-orbit-pulse relative" />
             </div>
             <p className="text-text-secondary text-sm">How can I help you today?</p>
             <SuggestionChips onSelect={(s) => sendMessage(s)} />
@@ -329,7 +329,7 @@ export default function ChatPage() {
       </div>
 
       {/* Bottom input area */}
-      <div className="shrink-0 nav-glass border-t border-border-muted">
+      <div className="shrink-0 chat-glass border-t border-border-muted">
         <div className="pt-3 pb-[calc(1rem+var(--safe-bottom))]">
           {/* Error banner */}
           {sendError && (

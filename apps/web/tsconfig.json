@@ -1,7 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
     "jsx": "preserve",
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -11,9 +15,15 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
-      "@orbit/shared/*": ["../../packages/shared/src/*"]
-    }
+      "@/*": [
+        "./*"
+      ],
+      "@orbit/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true
   },
   "include": [
     "next-env.d.ts",
@@ -21,5 +31,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

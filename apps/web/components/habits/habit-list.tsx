@@ -709,8 +709,8 @@ export function HabitList({
       <ConfirmDialog
         open={showForceLogConfirm}
         onOpenChange={setShowForceLogConfirm}
-        title={t('habits.forceLogConfirmTitle')}
-        description={t('habits.forceLogConfirmMessage')}
+        title={t('habits.forceLogTitle')}
+        description={t('habits.forceLogMessage')}
         confirmLabel={t('habits.logHabit')}
         cancelLabel={t('common.cancel')}
         onConfirm={confirmForceLog}

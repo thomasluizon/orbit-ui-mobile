@@ -87,11 +87,11 @@ function dotClass(cell: GridDay): string {
   const status = dayStatus(cell)
   switch (status) {
     case 'done':
-      return 'bg-green-400 animate-pulse'
+      return 'bg-green-400 animate-perfect-day'
     case 'missed':
       return 'bg-orange-400'
     case 'upcoming':
-      return 'bg-primary'
+      return 'bg-primary-400'
     default:
       return ''
   }

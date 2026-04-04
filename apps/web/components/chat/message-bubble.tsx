@@ -62,7 +62,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubblePr
         <div
           className={`px-4 py-3 text-sm ${
             isUser
-              ? 'bg-gradient-to-br from-primary to-primary/80 text-white rounded-2xl rounded-br-md shadow-[var(--shadow-sm)]'
+              ? 'bg-linear-to-br from-primary to-primary/80 text-white rounded-2xl rounded-br-md shadow-[var(--shadow-sm)]'
               : 'bg-surface-elevated text-text-primary rounded-2xl rounded-bl-md shadow-[var(--shadow-sm)]'
           }`}
         >

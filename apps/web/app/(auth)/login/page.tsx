@@ -325,14 +325,14 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-card shadow-lg border border-border rounded-2xl p-6 space-y-6">
-        <h2 className="text-2xl font-bold text-foreground">
+      <div className="bg-surface-overlay shadow-[var(--shadow-lg)] border border-border-muted rounded-[var(--radius-2xl)] p-6 space-y-6">
+        <h2 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary">
           {t('auth.welcomeBack')}
         </h2>
 
         {/* Referral banner */}
         {referralCode && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 text-sm text-emerald-400 flex items-center gap-2">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400 flex items-center gap-2">
             <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
             </svg>
@@ -342,14 +342,14 @@ export default function LoginPage() {
 
         {/* Success alert */}
         {successMessage && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 text-sm text-emerald-400">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400">
             {successMessage}
           </div>
         )}
 
         {/* Error alert */}
         {errorMessage && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-sm text-red-400">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-red-400">
             {errorMessage}
           </div>
         )}
@@ -365,7 +365,7 @@ export default function LoginPage() {
               }}
             >
               <div className="space-y-1.5">
-                <label htmlFor="login-email" className="text-sm font-medium text-muted-foreground">
+                <label htmlFor="login-email" className="form-label">
                   {t('auth.email')}
                 </label>
                 <input
@@ -374,14 +374,14 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t('auth.emailPlaceholder')}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all"
+                  className="form-input"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting || !email.trim()}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-[var(--radius-xl)] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[var(--shadow-glow)] flex items-center justify-center gap-2"
               >
                 {isSubmitting && (
                   <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -395,11 +395,11 @@ export default function LoginPage() {
 
             {/* OAuth divider */}
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+              <div className="flex-1 h-px bg-border-emphasis" />
+              <span className="text-xs text-text-muted uppercase tracking-wider font-semibold">
                 {t('auth.orContinueWith')}
               </span>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-border-emphasis" />
             </div>
 
             {/* Google Sign-In */}
@@ -407,7 +407,7 @@ export default function LoginPage() {
               type="button"
               disabled={isGoogleLoading}
               onClick={signInWithGoogle}
-              className="w-full bg-white hover:bg-gray-50 text-gray-800 font-medium py-3.5 rounded-xl border border-border transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+              className="w-full bg-white hover:bg-gray-50 text-gray-800 font-medium py-3.5 rounded-[var(--radius-xl)] border border-border-emphasis transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
             >
               {isGoogleLoading ? (
                 <svg className="size-5 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -440,9 +440,9 @@ export default function LoginPage() {
         ) : (
           <>
             {/* Step 2: Code verification */}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-text-secondary">
               {t('auth.codeSentTo')}{' '}
-              <span className="text-foreground font-medium">{email}</span>
+              <span className="text-text-primary font-medium">{email}</span>
             </p>
 
             <form
@@ -466,7 +466,7 @@ export default function LoginPage() {
                     onChange={(e) => onCodeInput(index, e.target.value)}
                     onKeyDown={(e) => onCodeKeydown(index, e)}
                     onPaste={onCodePaste}
-                    className="size-11 sm:w-12 sm:h-14 bg-background text-foreground text-center text-lg sm:text-xl font-bold rounded-md sm:rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all"
+                    className="size-11 sm:w-12 sm:h-14 bg-surface-ground text-text-primary text-center text-lg sm:text-xl font-bold rounded-[var(--radius-md)] sm:rounded-[var(--radius-lg)] border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all"
                   />
                 ))}
               </div>
@@ -474,7 +474,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || codeDigits.join('').length !== 6}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-[var(--radius-xl)] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[var(--shadow-glow)] flex items-center justify-center gap-2"
               >
                 {isSubmitting && (
                   <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -490,7 +490,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={backToEmail}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-text-muted hover:text-text-secondary transition-colors"
               >
                 {t('auth.changeEmail')}
               </button>
@@ -509,7 +509,7 @@ export default function LoginPage() {
         )}
 
         {/* Privacy & Terms */}
-        <p className="text-[10px] text-muted-foreground text-center pt-2">
+        <p className="text-[10px] text-text-muted text-center pt-2">
           <a href="/privacy" className="hover:underline">
             {t('privacy.title')}
           </a>

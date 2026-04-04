@@ -69,7 +69,7 @@ export function GoalsView() {
           {[1, 2, 3].map((i) => (
             <div
               key={`skeleton-${i}`}
-              className="bg-surface rounded-2xl p-5 border border-border-muted shadow-sm"
+              className="bg-surface rounded-[var(--radius-xl)] p-5 border border-border-muted shadow-[var(--shadow-sm)]"
             >
               <div className="space-y-3">
                 <div className="h-5 w-2/3 bg-surface-elevated rounded animate-pulse" />

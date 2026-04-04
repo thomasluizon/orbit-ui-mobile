@@ -400,7 +400,7 @@ export function HabitFormFields({
           <div className="flex items-center justify-between">
             <span className="form-label">
               <Bell className="size-3.5 inline mr-1" />
-              {t('habits.form.reminders')}
+              {t('habits.form.reminder')}
             </span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -424,7 +424,7 @@ export function HabitFormFields({
         <div className="flex items-center justify-between">
           <span className="form-label">
             <AlertTriangle className="size-3.5 inline mr-1" />
-            {t('habits.form.badHabit')}
+            {t('habits.form.badHabitLabel')}
           </span>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -504,14 +504,14 @@ export function HabitFormFields({
             onClick={() => tags.setShowNewTag(true)}
           >
             <Plus className="size-3.5" />
-            {t('habits.form.addTag')}
+            {t('habits.form.newTag')}
           </button>
         ) : (
           <div className="flex items-center gap-2">
             <input
               value={tags.newTagName}
               type="text"
-              placeholder={t('habits.form.tagNamePlaceholder')}
+              placeholder={t('habits.form.tagName')}
               className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
               onChange={(e) => tags.setNewTagName(e.target.value)}
             />
