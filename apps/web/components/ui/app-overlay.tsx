@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 
 // ---------------------------------------------------------------------------
 // linkifyText -- converts URLs in plain text to clickable <a> tags
@@ -64,7 +63,6 @@ export function AppOverlay({
   onExpandDescription,
 }: AppOverlayProps) {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('app-overlay')
   const titleId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)
   const pointerDownOnBackdrop = useRef(false)
@@ -290,5 +288,5 @@ export function AppOverlay({
     </div>
   )
 
-  return portalContainer ? createPortal(overlay, portalContainer) : null
+  return createPortal(overlay, document.body)
 }

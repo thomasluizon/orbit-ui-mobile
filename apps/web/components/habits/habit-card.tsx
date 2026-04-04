@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import {
   ChevronRight,
   Check,
@@ -102,7 +101,6 @@ export function HabitCard({
   onEnterSelectMode,
 }: HabitCardProps) {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('habit-card')
   const { displayTime } = useTimeFormat()
 
   const isChild = depth > 0
@@ -733,7 +731,6 @@ export function HabitCard({
 
       {/* Actions menu portal */}
       {showActionsMenu &&
-        portalContainer &&
         createPortal(
           <div
             ref={actionsMenuPanelRef}
@@ -839,7 +836,7 @@ export function HabitCard({
               </button>
             )}
           </div>,
-          portalContainer,
+          document.body,
         )}
     </>
   )

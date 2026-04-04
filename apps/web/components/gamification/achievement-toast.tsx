@@ -4,12 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import type { Achievement } from '@orbit/shared/types/gamification'
 
 export function AchievementToast() {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('achievement-toast')
   const { newAchievements, invalidate } = useGamificationProfile()
   const [visible, setVisible] = useState(false)
   const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null)
@@ -57,7 +55,7 @@ export function AchievementToast() {
 
   if (!mounted || !shouldRender || !currentAchievement) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <div
       role="status"
       aria-live="polite"
@@ -89,6 +87,6 @@ export function AchievementToast() {
         </span>
       </div>
     </div>,
-    portalContainer
-  ) : null
+    document.body
+  )
 }

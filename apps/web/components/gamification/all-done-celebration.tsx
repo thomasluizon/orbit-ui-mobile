@@ -4,12 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import './all-done-celebration.css'
 
 export function AllDoneCelebration() {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('all-done-celebration')
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
   const [visible, setVisible] = useState(false)
@@ -49,7 +47,7 @@ export function AllDoneCelebration() {
 
   if (!mounted || !shouldRender) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <output
       aria-live="polite"
       className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
@@ -109,6 +107,6 @@ export function AllDoneCelebration() {
         </p>
       </div>
     </output>,
-    portalContainer
-  ) : null
+    document.body
+  )
 }

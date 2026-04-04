@@ -6,7 +6,6 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 
 interface DescriptionViewerProps {
   open: boolean
@@ -22,7 +21,6 @@ export function DescriptionViewer({
   description,
 }: DescriptionViewerProps) {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('description-viewer')
   const [mounted, setMounted] = useState(false)
   const [renderedHtml, setRenderedHtml] = useState('')
 
@@ -41,7 +39,7 @@ export function DescriptionViewer({
 
   if (!mounted || !open) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <div className="fixed inset-0 z-[10000] bg-background flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-border-muted shrink-0">
@@ -63,6 +61,6 @@ export function DescriptionViewer({
         />
       </div>
     </div>,
-    portalContainer,
-  ) : null
+    document.body,
+  )
 }

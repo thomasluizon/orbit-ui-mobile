@@ -339,7 +339,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="w-full max-w-md">
       <div className="bg-surface-overlay shadow-[var(--shadow-lg)] border border-border-muted rounded-[var(--radius-2xl)] p-6 space-y-6">
         <h2 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary">
           {t('auth.welcomeBack')}

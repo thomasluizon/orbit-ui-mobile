@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import './level-up-overlay.css'
 
 interface LevelUpOverlayProps {
@@ -14,7 +13,6 @@ interface LevelUpOverlayProps {
 
 export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayProps) {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('level-up-overlay')
   const [visible, setVisible] = useState(false)
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
@@ -48,7 +46,7 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayP
 
   if (!mounted || !shouldRender) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <output
       aria-live="assertive"
       className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70"
@@ -84,6 +82,6 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayP
         </div>
       </div>
     </output>,
-    portalContainer
-  ) : null
+    document.body
+  )
 }

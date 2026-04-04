@@ -4,11 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 
 export function WelcomeBackToast() {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('welcome-back-toast')
   const { profile } = useProfile()
   const [visible, setVisible] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
@@ -75,7 +73,7 @@ export function WelcomeBackToast() {
 
   if (!mounted || !shouldRender) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <div
       className="fixed top-4 left-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] bg-surface-overlay border border-border-muted rounded-2xl shadow-[var(--shadow-lg)] backdrop-blur-xl px-5 py-4 cursor-pointer"
       style={{
@@ -94,6 +92,6 @@ export function WelcomeBackToast() {
         </p>
       </div>
     </div>,
-    portalContainer
-  ) : null
+    document.body
+  )
 }

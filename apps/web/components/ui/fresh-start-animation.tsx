@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 
 interface FreshStartAnimationProps {
   onComplete: () => void
@@ -12,7 +11,6 @@ interface FreshStartAnimationProps {
 
 export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('fresh-start')
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -74,5 +72,5 @@ export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
     </output>
   )
 
-  return portalContainer ? createPortal(overlay, portalContainer) : null
+  return createPortal(overlay, document.body)
 }

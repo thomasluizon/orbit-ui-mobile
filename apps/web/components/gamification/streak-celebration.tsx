@@ -5,14 +5,12 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useUIStore } from '@/stores/ui-store'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import './streak-celebration.css'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
 
 export function StreakCelebration() {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('streak-celebration')
   const streakCelebration = useUIStore((s) => s.streakCelebration)
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
   const [visible, setVisible] = useState(false)
@@ -66,7 +64,7 @@ export function StreakCelebration() {
 
   if (!mounted || !shouldRender) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <output
       aria-live="polite"
       className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer"
@@ -132,6 +130,6 @@ export function StreakCelebration() {
         </p>
       </div>
     </output>,
-    portalContainer
-  ) : null
+    document.body
+  )
 }

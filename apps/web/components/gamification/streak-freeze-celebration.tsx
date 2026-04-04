@@ -3,7 +3,6 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import './streak-freeze-celebration.css'
 
 export interface StreakFreezeCelebrationHandle {
@@ -13,7 +12,6 @@ export interface StreakFreezeCelebrationHandle {
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
   function StreakFreezeCelebration(_props, ref) {
     const t = useTranslations()
-    const portalContainer = usePortalContainer('streak-freeze-celebration')
     const [visible, setVisible] = useState(false)
     const [mounted, setMounted] = useState(false)
     const [shouldRender, setShouldRender] = useState(false)
@@ -50,7 +48,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
 
     if (!mounted || !shouldRender) return null
 
-    return portalContainer ? createPortal(
+    return createPortal(
       <div
         className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
         style={{
@@ -98,7 +96,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
           </p>
         </div>
       </div>,
-      portalContainer
-    ) : null
+      document.body
+    )
   }
 )

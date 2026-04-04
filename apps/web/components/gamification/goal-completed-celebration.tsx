@@ -4,12 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
-import { usePortalContainer } from '@/hooks/use-portal-container'
 import './goal-completed-celebration.css'
 
 export function GoalCompletedCelebration() {
   const t = useTranslations()
-  const portalContainer = usePortalContainer('goal-completed-celebration')
   const goalCompletedCelebration = useUIStore((s) => s.goalCompletedCelebration)
   const setGoalCompletedCelebration = useUIStore((s) => s.setGoalCompletedCelebration)
   const [visible, setVisible] = useState(false)
@@ -51,7 +49,7 @@ export function GoalCompletedCelebration() {
 
   if (!mounted || !shouldRender) return null
 
-  return portalContainer ? createPortal(
+  return createPortal(
     <div
       className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
       style={{
@@ -102,6 +100,6 @@ export function GoalCompletedCelebration() {
         </p>
       </div>
     </div>,
-    portalContainer
-  ) : null
+    document.body
+  )
 }
