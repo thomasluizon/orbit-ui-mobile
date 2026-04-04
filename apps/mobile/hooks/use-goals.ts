@@ -1,62 +1,125 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { goalKeys, habitKeys } from '@orbit/shared/query'
+import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
 import type {
   Goal,
-  PaginatedGoalResponse,
+  GoalStatus,
   GoalMetrics,
+  GoalDetailWithMetrics,
+  PaginatedGoalResponse,
   CreateGoalRequest,
+  UpdateGoalRequest,
   UpdateGoalProgressRequest,
+  UpdateGoalStatusRequest,
+  GoalPositionItem,
 } from '@orbit/shared/types/goal'
 import { apiClient } from '@/lib/api-client'
+import { useUIStore } from '@/stores/ui-store'
 
 // ---------------------------------------------------------------------------
-// Fetch helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
-async function fetchGoals(
-  status?: string,
-): Promise<PaginatedGoalResponse> {
-  const params = new URLSearchParams()
-  if (status) params.set('status', status)
-  const qs = params.toString()
-  return apiClient<PaginatedGoalResponse>(`/api/goals${qs ? `?${qs}` : ''}`)
-}
-
-async function fetchGoalMetrics(goalId: string): Promise<GoalMetrics> {
-  return apiClient<GoalMetrics>(`/api/goals/${goalId}/metrics`)
+function sortByPosition(a: Goal, b: Goal): number {
+  if (a.position !== b.position) return a.position - b.position
+  return a.createdAtUtc.localeCompare(b.createdAtUtc)
 }
 
 // ---------------------------------------------------------------------------
-// useGoals -- goal list
+// Normalized data returned from select
 // ---------------------------------------------------------------------------
 
-export function useGoals(status?: string) {
-  const filters = { status: status ?? 'Active' }
-  const query = useQuery({
-    queryKey: goalKeys.list(filters as Record<string, unknown>),
-    queryFn: () => fetchGoals(filters.status),
+export interface NormalizedGoalsData {
+  goalsById: Map<string, Goal>
+  allGoals: Goal[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
+// ---------------------------------------------------------------------------
+// Goals list query
+// ---------------------------------------------------------------------------
+
+export function useGoals(status?: GoalStatus | null) {
+  const filters: Record<string, unknown> = {}
+  if (status) filters.status = status
+
+  return useQuery({
+    queryKey: goalKeys.list(filters),
+    queryFn: async (): Promise<Goal[]> => {
+      const params: Record<string, string> = { pageSize: '100' }
+      if (status) params.status = status
+
+      const qs = new URLSearchParams(params).toString()
+      const url = qs ? `${API.goals.list}?${qs}` : API.goals.list
+      const data = await apiClient<PaginatedGoalResponse>(url)
+
+      const allItems = [...data.items]
+
+      // Fetch remaining pages in parallel if needed
+      if (data.totalPages > 1) {
+        const pagePromises: Promise<PaginatedGoalResponse>[] = []
+        for (let p = 2; p <= data.totalPages; p++) {
+          const pageParams = { ...params, page: String(p) }
+          const pageQs = new URLSearchParams(pageParams).toString()
+          pagePromises.push(apiClient<PaginatedGoalResponse>(`${API.goals.list}?${pageQs}`))
+        }
+        const pages = await Promise.all(pagePromises)
+        for (const pageData of pages) {
+          allItems.push(...pageData.items)
+        }
+      }
+
+      return allItems
+    },
+    staleTime: QUERY_STALE_TIMES.goals,
+    select: (items): NormalizedGoalsData => {
+      const goalsById = new Map<string, Goal>()
+      for (const goal of items) {
+        goalsById.set(goal.id, goal)
+      }
+      const allGoals = Array.from(goalsById.values()).sort(sortByPosition)
+
+      return {
+        goalsById,
+        allGoals,
+        totalCount: items.length,
+        totalPages: 1,
+        currentPage: 1,
+      }
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Single goal detail with metrics
+// ---------------------------------------------------------------------------
+
+export function useGoalDetail(id: string | null) {
+  return useQuery({
+    queryKey: goalKeys.detail(id ?? ''),
+    queryFn: () => apiClient<GoalDetailWithMetrics>(API.goals.detail(id ?? '')),
+    enabled: !!id,
     staleTime: QUERY_STALE_TIMES.goals,
   })
-
-  return {
-    goals: query.data?.items ?? [],
-    totalCount: query.data?.totalCount ?? 0,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
-  }
 }
 
 // ---------------------------------------------------------------------------
-// useGoalMetrics
+// Standalone goal metrics
 // ---------------------------------------------------------------------------
 
-export function useGoalMetrics(goalId: string, enabled = true) {
+export function useGoalMetrics(id: string | null) {
   return useQuery({
-    queryKey: goalKeys.metrics(goalId),
-    queryFn: () => fetchGoalMetrics(goalId),
+    queryKey: goalKeys.metrics(id ?? ''),
+    queryFn: () => apiClient<GoalMetrics>(API.goals.metrics(id ?? '')),
+    enabled: !!id,
     staleTime: QUERY_STALE_TIMES.goals,
-    enabled,
   })
 }
 
@@ -69,11 +132,69 @@ export function useCreateGoal() {
 
   return useMutation({
     mutationFn: (data: CreateGoalRequest) =>
-      apiClient<Goal>('/api/goals', {
+      apiClient<{ id: string }>(API.goals.create, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    onSuccess: () => {
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    },
+  })
+}
+
+export function useUpdateGoal() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ goalId, data }: { goalId: string; data: UpdateGoalRequest }) =>
+      apiClient<void>(API.goals.update(goalId), {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    onSettled: (_data, _err, { goalId }) => {
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+    },
+  })
+}
+
+export function useDeleteGoal() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (goalId: string) =>
+      apiClient<void>(API.goals.delete(goalId), { method: 'DELETE' }),
+
+    onMutate: async (goalId) => {
+      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
+
+      const previousLists = queryClient.getQueriesData<Goal[]>({
+        queryKey: goalKeys.lists(),
+      })
+
+      // Optimistic: remove goal from cache
+      queryClient.setQueriesData<Goal[]>(
+        { queryKey: goalKeys.lists() },
+        (old) => {
+          if (!old) return old
+          return old.filter((g) => g.id !== goalId)
+        },
+      )
+
+      return { previousLists }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousLists) {
+        for (const [key, data] of context.previousLists) {
+          if (data) queryClient.setQueryData(key, data)
+        }
+      }
+    },
+
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
@@ -85,29 +206,124 @@ export function useUpdateGoalProgress() {
   return useMutation({
     mutationFn: ({
       goalId,
-      ...data
-    }: UpdateGoalProgressRequest & { goalId: string }) =>
-      apiClient<void>(`/api/goals/${goalId}/progress`, {
-        method: 'POST',
+      data,
+    }: {
+      goalId: string
+      data: UpdateGoalProgressRequest
+    }) =>
+      apiClient<void>(API.goals.progress(goalId), {
+        method: 'PUT',
         body: JSON.stringify(data),
       }),
-    onSuccess: () => {
+
+    onSettled: (_data, _err, { goalId }) => {
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
     },
   })
 }
 
 export function useUpdateGoalStatus() {
   const queryClient = useQueryClient()
+  const { setGoalCompletedCelebration } = useUIStore.getState()
 
   return useMutation({
-    mutationFn: ({ goalId, status }: { goalId: string; status: string }) =>
-      apiClient<void>(`/api/goals/${goalId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
+    mutationFn: ({
+      goalId,
+      data,
+      goalName,
+    }: {
+      goalId: string
+      data: UpdateGoalStatusRequest
+      goalName?: string
+    }) =>
+      apiClient<void>(API.goals.status(goalId), {
+        method: 'PUT',
+        body: JSON.stringify(data),
       }),
-    onSuccess: () => {
+
+    onSuccess: (_data, { data, goalName }) => {
+      if (data.status === 'Completed' && goalName) {
+        setGoalCompletedCelebration({ name: goalName })
+      }
+    },
+
+    onSettled: (_data, _err, { goalId }) => {
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
+    },
+  })
+}
+
+export function useReorderGoals() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (positions: GoalPositionItem[]) =>
+      apiClient<void>(API.goals.reorder, {
+        method: 'PUT',
+        body: JSON.stringify({ positions }),
+      }),
+
+    onMutate: async (positions) => {
+      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
+
+      const previousLists = queryClient.getQueriesData<Goal[]>({
+        queryKey: goalKeys.lists(),
+      })
+
+      // Optimistic: update positions in cache
+      queryClient.setQueriesData<Goal[]>(
+        { queryKey: goalKeys.lists() },
+        (old) => {
+          if (!old) return old
+          const positionMap = new Map(positions.map((p) => [p.id, p.position]))
+          return old.map((g) => {
+            const newPos = positionMap.get(g.id)
+            return newPos !== undefined ? { ...g, position: newPos } : g
+          })
+        },
+      )
+
+      return { previousLists }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousLists) {
+        for (const [key, data] of context.previousLists) {
+          if (data) queryClient.setQueryData(key, data)
+        }
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    },
+  })
+}
+
+export function useLinkHabitsToGoal() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      goalId,
+      habitIds,
+    }: {
+      goalId: string
+      habitIds: string[]
+    }) =>
+      apiClient<void>(API.goals.habits(goalId), {
+        method: 'PUT',
+        body: JSON.stringify({ habitIds }),
+      }),
+
+    onSettled: (_data, _err, { goalId }) => {
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     },
   })
 }

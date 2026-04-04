@@ -1,98 +1,408 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import { startOfMonth, endOfMonth, isToday, isAfter } from 'date-fns'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
-import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
+import { useMemo, useCallback } from 'react'
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
+import { formatAPIDate } from '@orbit/shared/utils'
 import type {
-  HabitScheduleItem,
   HabitsFilter,
+  HabitScheduleItem,
+  HabitScheduleChild,
+  NormalizedHabit,
   PaginatedResponse,
+  HabitDetail,
+  HabitMetrics,
+  HabitFullDetail,
   LogHabitResponse,
-  CalendarMonthResponse,
+  CreateHabitRequest,
+  UpdateHabitRequest,
+  ReorderHabitsRequest,
+  ChecklistItem,
+  CreateSubHabitRequest,
+  MoveHabitParentRequest,
+  BulkCreateRequest,
+  BulkCreateResponse,
+  BulkDeleteResponse,
+  BulkLogItemRequest,
+  BulkLogResult,
+  BulkSkipItemRequest,
+  BulkSkipResult,
 } from '@orbit/shared/types/habit'
+import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { CalendarDayEntry, HabitDayStatus } from '@orbit/shared/types/calendar'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { startOfMonth, endOfMonth, isToday, isAfter } from 'date-fns'
+import { parseAPIDate } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { useUIStore } from '@/stores/ui-store'
 
 // ---------------------------------------------------------------------------
-// Fetch helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
 function buildQueryString(filters: HabitsFilter): string {
   const params = new URLSearchParams()
-  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
-  if (filters.dateTo) params.set('dateTo', filters.dateTo)
-  if (filters.includeOverdue) params.set('includeOverdue', 'true')
-  if (filters.includeGeneral) params.set('includeGeneral', 'true')
-  if (filters.isGeneral) params.set('isGeneral', 'true')
-  if (filters.search) params.set('search', filters.search)
-  if (filters.isCompleted !== undefined) params.set('isCompleted', String(filters.isCompleted))
-  if (filters.page) params.set('page', String(filters.page))
-  if (filters.pageSize) params.set('pageSize', String(filters.pageSize))
+  if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
+  if (filters.dateTo) params.append('dateTo', filters.dateTo)
+  if (filters.includeOverdue) params.append('includeOverdue', 'true')
+  if (filters.isGeneral) params.append('isGeneral', 'true')
+  if (filters.includeGeneral) params.append('includeGeneral', 'true')
+  if (filters.search) params.append('search', filters.search)
+  if (filters.isCompleted !== undefined) params.append('isCompleted', String(filters.isCompleted))
+  if (filters.frequencyUnit) params.append('frequencyUnit', filters.frequencyUnit)
+  // .NET expects repeated params: tagIds=a&tagIds=b (not comma-separated)
+  if (filters.tagIds?.length) {
+    for (const tagId of filters.tagIds) {
+      params.append('tagIds', tagId)
+    }
+  }
+  if (filters.page) params.append('page', String(filters.page))
+  if (filters.pageSize) params.append('pageSize', String(filters.pageSize))
   return params.toString()
 }
 
-async function fetchHabits(
-  filters: HabitsFilter,
-): Promise<PaginatedResponse<HabitScheduleItem>> {
-  const qs = buildQueryString(filters)
-  return apiClient<PaginatedResponse<HabitScheduleItem>>(
-    `/api/habits${qs ? `?${qs}` : ''}`,
-  )
+function buildUrl(base: string, qs: string): string {
+  return qs ? `${base}?${qs}` : base
 }
 
-async function logHabit(
-  habitId: string,
-  body?: { note?: string; date?: string },
-): Promise<LogHabitResponse> {
-  return apiClient<LogHabitResponse>(`/api/habits/${habitId}/log`, {
-    method: 'POST',
-    body: JSON.stringify(body ?? {}),
-  })
+// Sort by position asc (nulls last), then createdAtUtc as tiebreaker
+function sortByPosition(a: NormalizedHabit, b: NormalizedHabit): number {
+  if (a.position !== null && b.position !== null) {
+    const diff = a.position - b.position
+    if (diff !== 0) return diff
+  }
+  if (a.position !== null && b.position === null) return -1
+  if (a.position === null && b.position !== null) return 1
+  return a.createdAtUtc.localeCompare(b.createdAtUtc)
 }
 
-async function skipHabit(
-  habitId: string,
-  body?: { date?: string },
-): Promise<void> {
-  return apiClient<void>(`/api/habits/${habitId}/skip`, {
-    method: 'POST',
-    body: JSON.stringify(body ?? {}),
-  })
+// Normalize children recursively into a flat map
+function normalizeChildren(
+  children: HabitScheduleChild[],
+  parentId: string,
+  rootItem: HabitScheduleItem,
+  map: Map<string, NormalizedHabit>,
+) {
+  const todayStr = formatAPIDate(new Date())
+  for (const child of children) {
+    const { children: grandchildren, ...childData } = child
+    map.set(child.id, {
+      ...childData,
+      createdAtUtc: rootItem.createdAtUtc,
+      parentId,
+      position: child.position ?? null,
+      scheduledDates: [],
+      isOverdue:
+        !child.isCompleted &&
+        !child.frequencyUnit &&
+        !!child.dueDate &&
+        child.dueDate < todayStr,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+      slipAlertEnabled: false,
+      hasSubHabits: child.hasSubHabits ?? grandchildren.length > 0,
+      flexibleTarget: null,
+      flexibleCompleted: null,
+      isLoggedInRange: child.isLoggedInRange ?? false,
+      instances: child.instances ?? [],
+      searchMatches: child.searchMatches ?? null,
+    })
+
+    if (grandchildren && grandchildren.length > 0) {
+      normalizeChildren(grandchildren, child.id, rootItem, map)
+    }
+  }
+}
+
+// Normalize a full page of schedule items into a flat Map
+function normalizeHabits(
+  allItems: HabitScheduleItem[],
+): Map<string, NormalizedHabit> {
+  const map = new Map<string, NormalizedHabit>()
+
+  for (const item of allItems) {
+    const { children, ...parentData } = item
+    map.set(item.id, {
+      ...parentData,
+      parentId: null,
+      position: item.position ?? null,
+      hasSubHabits: item.hasSubHabits,
+      flexibleTarget: item.flexibleTarget ?? null,
+      flexibleCompleted: item.flexibleCompleted ?? null,
+      isLoggedInRange: false,
+      instances: item.instances ?? [],
+      searchMatches: item.searchMatches ?? null,
+    })
+
+    if (children && children.length > 0) {
+      normalizeChildren(children, item.id, item, map)
+    }
+  }
+
+  return map
+}
+
+// Build parentId -> child ids index
+function buildChildrenIndex(habitsById: Map<string, NormalizedHabit>): Map<string, string[]> {
+  const index = new Map<string, string[]>()
+  for (const habit of habitsById.values()) {
+    if (habit.parentId !== null) {
+      const siblings = index.get(habit.parentId)
+      if (siblings) {
+        siblings.push(habit.id)
+      } else {
+        index.set(habit.parentId, [habit.id])
+      }
+    }
+  }
+  return index
 }
 
 // ---------------------------------------------------------------------------
-// useHabits -- paginated habit list
+// Normalized data type returned from select
+// ---------------------------------------------------------------------------
+
+export interface NormalizedHabitsData {
+  habitsById: Map<string, NormalizedHabit>
+  childrenByParent: Map<string, string[]>
+  topLevelHabits: NormalizedHabit[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
+// ---------------------------------------------------------------------------
+// Habits list query
 // ---------------------------------------------------------------------------
 
 export function useHabits(filters: HabitsFilter) {
+  const queryClient = useQueryClient()
+
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
-    queryFn: () => fetchHabits(filters),
+    queryFn: async (): Promise<HabitScheduleItem[]> => {
+      const qs = buildQueryString(filters)
+      const url = buildUrl(API.habits.list, qs)
+      const data = await apiClient<PaginatedResponse<HabitScheduleItem>>(url)
+
+      const allItems = [...data.items]
+
+      // For dateless queries (all view), fetch remaining pages in parallel
+      if (!filters.dateFrom && data.totalPages > 1) {
+        const pagePromises: Promise<PaginatedResponse<HabitScheduleItem>>[] = []
+        for (let p = 2; p <= data.totalPages; p++) {
+          const pageFilters = { ...filters, page: p }
+          const pageQs = buildQueryString(pageFilters)
+          const pageUrl = buildUrl(API.habits.list, pageQs)
+          pagePromises.push(apiClient<PaginatedResponse<HabitScheduleItem>>(pageUrl))
+        }
+        const pages = await Promise.all(pagePromises)
+        for (const pageData of pages) {
+          allItems.push(...pageData.items)
+        }
+      }
+
+      return allItems
+    },
     staleTime: QUERY_STALE_TIMES.habits,
+    select: (items): NormalizedHabitsData => {
+      const habitsById = normalizeHabits(items)
+      const childrenByParent = buildChildrenIndex(habitsById)
+      const topLevelHabits = Array.from(habitsById.values())
+        .filter((h) => h.parentId === null)
+        .sort(sortByPosition)
+
+      return {
+        habitsById,
+        childrenByParent,
+        topLevelHabits,
+        totalCount: items.length,
+        totalPages: 1,
+        currentPage: 1,
+      }
+    },
   })
 
+  // Utility: get sorted children for a parent
+  const getChildren = useCallback(
+    (parentId: string): NormalizedHabit[] => {
+      const data = query.data
+      if (!data) return []
+      const ids = data.childrenByParent.get(parentId) ?? []
+      return ids
+        .map((id) => data.habitsById.get(id))
+        .filter((h): h is NormalizedHabit => h !== undefined)
+        .sort(sortByPosition)
+    },
+    [query.data],
+  )
+
   return {
-    habits: query.data?.items ?? [],
-    totalCount: query.data?.totalCount ?? 0,
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    error: query.error,
-    refetch: query.refetch,
+    ...query,
+    getChildren,
   }
 }
 
 // ---------------------------------------------------------------------------
-// useLogHabit / useSkipHabit mutations
+// Single habit detail query
+// ---------------------------------------------------------------------------
+
+export function useHabitDetail(id: string | null) {
+  return useQuery({
+    queryKey: habitKeys.detail(id ?? ''),
+    queryFn: () => apiClient<HabitDetail>(API.habits.get(id ?? '')),
+    enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Habit metrics query
+// ---------------------------------------------------------------------------
+
+export function useHabitMetrics(id: string | null) {
+  const query = useQuery({
+    queryKey: habitKeys.metrics(id ?? ''),
+    queryFn: () => apiClient<HabitMetrics>(API.habits.metrics(id ?? '')),
+    enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+
+  const weeklyPercentage = query.data?.weeklyCompletionRate ?? 0
+  const monthlyPercentage = query.data?.monthlyCompletionRate ?? 0
+
+  return {
+    ...query,
+    weeklyPercentage,
+    monthlyPercentage,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Habit logs query
+// ---------------------------------------------------------------------------
+
+export function useHabitLogs(id: string | null) {
+  return useQuery({
+    queryKey: habitKeys.logs(id ?? ''),
+    queryFn: () => apiClient<HabitLog[]>(`${API.habits.get(id ?? '')}/logs`),
+    enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Habit full detail (habit + metrics + logs)
+// ---------------------------------------------------------------------------
+
+export function useHabitFullDetail(id: string | null) {
+  return useQuery({
+    queryKey: habitKeys.detail(id ?? ''),
+    queryFn: () => apiClient<HabitFullDetail>(API.habits.detail(id ?? '')),
+    enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Mutations
 // ---------------------------------------------------------------------------
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
+  const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
   return useMutation({
-    mutationFn: ({ habitId, note, date }: { habitId: string; note?: string; date?: string }) =>
-      logHabit(habitId, { note, date }),
-    onSuccess: () => {
+    mutationFn: ({
+      habitId,
+      note,
+      date,
+    }: {
+      habitId: string
+      note?: string
+      date?: string
+    }) =>
+      apiClient<LogHabitResponse>(API.habits.log(habitId), {
+        method: 'POST',
+        body: note || date ? JSON.stringify({ note, date }) : undefined,
+      }),
+
+    onMutate: async ({ habitId, date }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+
+      // Snapshot all list queries for rollback
+      const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
+        queryKey: habitKeys.lists(),
+      })
+
+      // Optimistic toggle: find the habit in any list cache and flip isCompleted
+      if (!date) {
+        queryClient.setQueriesData<HabitScheduleItem[]>(
+          { queryKey: habitKeys.lists() },
+          (old) => {
+            if (!old) return old
+            return old.map((item) => {
+              if (item.id === habitId) {
+                return { ...item, isCompleted: !item.isCompleted }
+              }
+              // Check children
+              if (item.children.some((c) => c.id === habitId)) {
+                return {
+                  ...item,
+                  children: item.children.map((c) =>
+                    c.id === habitId ? { ...c, isCompleted: !c.isCompleted } : c,
+                  ),
+                }
+              }
+              return item
+            })
+          },
+        )
+      }
+
+      return { previousLists }
+    },
+
+    onError: (_err, _vars, context) => {
+      // Rollback optimistic update
+      if (context?.previousLists) {
+        for (const [key, data] of context.previousLists) {
+          if (data) {
+            queryClient.setQueryData(key, data)
+          }
+        }
+      }
+    },
+
+    onSuccess: (response) => {
+      // Streak celebration
+      if (response?.isFirstCompletionToday && response.currentStreak > 0) {
+        setStreakCelebration({ streak: response.currentStreak })
+      }
+
+      // Check all-done celebration
+      const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
+        habitKeys.list(activeFilters as Record<string, unknown>),
+      )
+      if (habitsData) {
+        const normalized = normalizeHabits(habitsData)
+        checkAllDoneCelebration(normalized)
+      }
+    },
+
+    onSettled: () => {
+      // Refetch for eventual consistency
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })
 }
@@ -102,15 +412,323 @@ export function useSkipHabit() {
 
   return useMutation({
     mutationFn: ({ habitId, date }: { habitId: string; date?: string }) =>
-      skipHabit(habitId, { date }),
-    onSuccess: () => {
+      apiClient<void>(API.habits.skip(habitId), {
+        method: 'POST',
+        body: date ? JSON.stringify({ date }) : undefined,
+      }),
+
+    onMutate: async ({ habitId, date }) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+
+      const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
+        queryKey: habitKeys.lists(),
+      })
+
+      // Optimistic: mark as completed (only when no specific date)
+      if (!date) {
+        queryClient.setQueriesData<HabitScheduleItem[]>(
+          { queryKey: habitKeys.lists() },
+          (old) => {
+            if (!old) return old
+            return old.map((item) =>
+              item.id === habitId ? { ...item, isCompleted: true } : item,
+            )
+          },
+        )
+      }
+
+      return { previousLists }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousLists) {
+        for (const [key, data] of context.previousLists) {
+          if (data) queryClient.setQueryData(key, data)
+        }
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+export function useCreateHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: CreateHabitRequest) =>
+      apiClient<{ id: string }>(API.habits.create, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    onSuccess: (result) => {
+      useUIStore.getState().setLastCreatedHabitId(result.id)
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+export function useUpdateHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ habitId, data }: { habitId: string; data: UpdateHabitRequest }) =>
+      apiClient<void>(API.habits.update(habitId), {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    onSettled: (_data, _err, { habitId }) => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+export function useDeleteHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (habitId: string) =>
+      apiClient<void>(API.habits.delete(habitId), { method: 'DELETE' }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    },
+  })
+}
+
+export function useReorderHabits() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: ReorderHabitsRequest) =>
+      apiClient<void>(API.habits.reorder, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     },
   })
 }
 
+export function useDuplicateHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (habitId: string) =>
+      apiClient<void>(API.habits.duplicate(habitId), { method: 'POST' }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+export function useUpdateChecklist() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      habitId,
+      items,
+    }: {
+      habitId: string
+      items: ChecklistItem[]
+    }) =>
+      apiClient<void>(API.habits.checklist(habitId), {
+        method: 'PUT',
+        body: JSON.stringify({ checklistItems: items }),
+      }),
+
+    onMutate: async ({ habitId, items }) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+
+      const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
+        queryKey: habitKeys.lists(),
+      })
+
+      // Optimistic: update checklist items in cache
+      queryClient.setQueriesData<HabitScheduleItem[]>(
+        { queryKey: habitKeys.lists() },
+        (old) => {
+          if (!old) return old
+          return old.map((item) => {
+            if (item.id === habitId) {
+              return { ...item, checklistItems: items }
+            }
+            if (item.children.some((c) => c.id === habitId)) {
+              return {
+                ...item,
+                children: item.children.map((c) =>
+                  c.id === habitId ? { ...c, checklistItems: items } : c,
+                ),
+              }
+            }
+            return item
+          })
+        },
+      )
+
+      return { previousLists }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousLists) {
+        for (const [key, data] of context.previousLists) {
+          if (data) queryClient.setQueryData(key, data)
+        }
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
 // ---------------------------------------------------------------------------
-// useCalendarData -- calendar month data
+// Sub-habit and parent mutations
+// ---------------------------------------------------------------------------
+
+export function useCreateSubHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      parentId,
+      data,
+    }: {
+      parentId: string
+      data: CreateSubHabitRequest
+    }) =>
+      apiClient<void>(API.habits.subHabits(parentId), {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+export function useMoveHabitParent() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      habitId,
+      data,
+    }: {
+      habitId: string
+      data: MoveHabitParentRequest
+    }) =>
+      apiClient<void>(API.habits.parent(habitId), {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Bulk operations
+// ---------------------------------------------------------------------------
+
+export function useBulkCreateHabits() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: BulkCreateRequest) =>
+      apiClient<BulkCreateResponse>(API.habits.bulk, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+export function useBulkDeleteHabits() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (habitIds: string[]) =>
+      apiClient<BulkDeleteResponse>(API.habits.bulk, {
+        method: 'DELETE',
+        body: JSON.stringify({ habitIds }),
+      }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    },
+  })
+}
+
+export function useBulkLogHabits() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (items: BulkLogItemRequest[]) =>
+      apiClient<BulkLogResult>(API.habits.bulkLog, {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    },
+  })
+}
+
+export function useBulkSkipHabits() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (items: BulkSkipItemRequest[]) =>
+      apiClient<BulkSkipResult>(API.habits.bulkSkip, {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      }),
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Calendar data
 // ---------------------------------------------------------------------------
 
 function determineStatus(date: Date, wasLogged: boolean): HabitDayStatus {
@@ -127,7 +745,7 @@ export function useCalendarData(currentMonth: Date) {
     queryKey: habitKeys.calendar(monthStart, monthEnd),
     queryFn: () =>
       apiClient<CalendarMonthResponse>(
-        `/api/habits/calendar-month?dateFrom=${monthStart}&dateTo=${monthEnd}`,
+        `${API.habits.calendarMonth}?dateFrom=${monthStart}&dateTo=${monthEnd}`,
       ),
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -138,6 +756,7 @@ export function useCalendarData(currentMonth: Date) {
 
     const { habits, logs } = query.data
 
+    // Build log cache: habitId -> Set of date strings
     const logsByHabit = new Map<string, Set<string>>()
     for (const [habitId, habitLogs] of Object.entries(logs)) {
       const dateSet = new Set<string>()
@@ -184,15 +803,59 @@ export function useCalendarData(currentMonth: Date) {
 }
 
 // ---------------------------------------------------------------------------
-// useDailySummary -- AI summary for a given date
+// AI Daily Summary
 // ---------------------------------------------------------------------------
 
-export function useDailySummary(date: string, enabled: boolean) {
-  return useQuery({
-    queryKey: habitKeys.summary(date, date),
-    queryFn: () =>
-      apiClient<{ summary: string }>(`/api/habits/summary?date=${date}`),
-    staleTime: 5 * 60 * 1000,
-    enabled,
-  })
+interface SummaryResponse {
+  summary: string
+  fromCache: boolean
 }
+
+interface UseSummaryOptions {
+  date: string
+  locale: string
+  hasProAccess: boolean
+  aiSummaryEnabled: boolean
+}
+
+export function useSummary({
+  date,
+  locale,
+  hasProAccess,
+  aiSummaryEnabled,
+}: UseSummaryOptions) {
+  const enabled = hasProAccess && aiSummaryEnabled && !!date
+
+  const query = useQuery({
+    queryKey: habitKeys.summary(date, date),
+    queryFn: async (): Promise<string> => {
+      const params = new URLSearchParams({
+        dateFrom: date,
+        dateTo: date,
+        includeOverdue: 'true',
+        language: locale,
+      })
+
+      const data = await apiClient<SummaryResponse>(
+        `${API.habits.summary}?${params.toString()}`,
+      )
+      return data.summary
+    },
+    enabled,
+    staleTime: QUERY_STALE_TIMES.habits,
+    refetchOnWindowFocus: false,
+  })
+
+  return {
+    summary: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Re-export normalize helpers for drill navigation and other consumers
+// ---------------------------------------------------------------------------
+
+export { normalizeHabits, sortByPosition }

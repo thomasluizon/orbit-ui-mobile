@@ -81,7 +81,7 @@ export default function AdvancedScreen() {
     setTimezoneSaved(false)
     try {
       await apiClient('/api/profile/timezone', {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify({ timeZone: newTimezone }),
       })
       patchProfile({ timeZone: newTimezone })

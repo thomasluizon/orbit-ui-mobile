@@ -7,14 +7,14 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { Check, SkipForward, ChevronRight } from 'lucide-react-native'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface HabitCardProps {
-  habit: HabitScheduleItem
+  habit: NormalizedHabit
   dateStr: string
   isLogged: boolean
   onLog: (habitId: string) => void
@@ -154,9 +154,7 @@ export function HabitCard({
             />
           ))}
           {habit.hasSubHabits && (
-            <Text style={styles.subText}>
-              {habit.children?.length ?? 0} sub
-            </Text>
+            <Text style={styles.subText}>sub-habits</Text>
           )}
         </View>
       </View>

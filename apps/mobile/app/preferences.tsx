@@ -52,7 +52,7 @@ export default function PreferencesScreen() {
   const weekStartMutation = useMutation({
     mutationFn: (day: number) =>
       apiClient('/api/profile/week-start-day', {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify({ weekStartDay: day }),
       }),
     onMutate: (day) => {
@@ -64,7 +64,7 @@ export default function PreferencesScreen() {
   const colorSchemeMutation = useMutation({
     mutationFn: (scheme: string) =>
       apiClient('/api/profile/color-scheme', {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify({ colorScheme: scheme }),
       }),
     onMutate: (scheme) => {

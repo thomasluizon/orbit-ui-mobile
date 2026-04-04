@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native'
 import { Plus } from 'lucide-react-native'
-import type { HabitScheduleItem, HabitsFilter } from '@orbit/shared/types/habit'
+import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { HabitCard } from './habit-card'
 
@@ -46,52 +46,49 @@ export function HabitList({
   showCompleted,
   onCreatePress,
 }: HabitListProps) {
-  const { habits, isLoading, isFetching, refetch } = useHabits(filters)
+  const habitsQuery = useHabits(filters)
+  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
+  const isLoading = habitsQuery.isLoading
+  const isFetching = habitsQuery.isFetching
+  const refetch = habitsQuery.refetch
+
   const logMutation = useLogHabit()
   const skipMutation = useSkipHabit()
 
   // Filter out completed habits if needed
   const visibleHabits = showCompleted
-    ? habits
-    : habits.filter((h) => {
-        const instance = h.instances?.find((i) => i.date === dateStr)
-        return instance?.status !== 'Completed'
-      })
+    ? topLevelHabits
+    : topLevelHabits.filter((h) => !h.isCompleted)
 
   const handleLog = useCallback(
     (habitId: string) => {
-      logMutation.mutate({ habitId, date: dateStr })
+      logMutation.mutate({ habitId })
     },
-    [logMutation, dateStr],
+    [logMutation],
   )
 
   const handleSkip = useCallback(
     (habitId: string) => {
-      skipMutation.mutate({ habitId, date: dateStr })
+      skipMutation.mutate({ habitId })
     },
-    [skipMutation, dateStr],
+    [skipMutation],
   )
 
   const renderItem = useCallback(
-    ({ item }: { item: HabitScheduleItem }) => {
-      const instance = item.instances?.find((i) => i.date === dateStr)
-      const isLogged = instance?.status === 'Completed'
-
-      return (
-        <HabitCard
-          habit={item}
-          dateStr={dateStr}
-          isLogged={isLogged}
-          onLog={handleLog}
-          onSkip={handleSkip}
-        />
-      )
-    },
+    ({ item }: { item: NormalizedHabit }) => (
+      <HabitCard
+        habit={item}
+        dateStr={dateStr}
+        isLogged={item.isCompleted}
+        onLog={handleLog}
+        onSkip={handleSkip}
+      />
+    ),
     [dateStr, handleLog, handleSkip],
   )
 
   const keyExtractor = useCallback(
-    (item: HabitScheduleItem) => item.id,
+    (item: NormalizedHabit) => item.id,
     [],
   )
 

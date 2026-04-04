@@ -57,7 +57,7 @@ export default function AiSettingsScreen() {
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       apiClient('/api/profile/ai-memory', {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
     onMutate: (enabled) => {
@@ -69,7 +69,7 @@ export default function AiSettingsScreen() {
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       apiClient('/api/profile/ai-summary', {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
     onMutate: (enabled) => {

@@ -46,12 +46,30 @@ Personal habit tracker. Turborepo monorepo: Next.js 15 (web) + Expo/React Native
 - Test factories: `packages/shared/src/__tests__/factories.ts`
 - Run: `npx vitest run` (unit), `npm run test:e2e` (E2E)
 
+### Cross-Platform Parity (MANDATORY)
+
+**Every change MUST be applied to BOTH web and mobile.** No exceptions. A task is NOT complete until both platforms are updated.
+
+- Modifying a hook in `apps/web/hooks/`? Update the equivalent in `apps/mobile/hooks/`.
+- Adding a feature to a web page? Add it to the mobile screen too.
+- Fixing a bug in mobile? Check and fix the same bug in web.
+- Adding i18n keys? Both platforms must use them.
+- Changing validation logic? It must live in `packages/shared/` or be duplicated identically.
+
+The only differences allowed are platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next). Logic, features, behavior, data flow, and error handling must be identical.
+
+**Before marking any task done, verify:** "Did I update both apps/web and apps/mobile?"
+
 ### Common Tasks
 
-**Add a new page:** Create `apps/web/app/(app)/my-page/page.tsx`. Add route to mobile at `apps/mobile/app/my-page.tsx` + register in `_layout.tsx`.
+**Add a new page:** Create `apps/web/app/(app)/my-page/page.tsx` AND `apps/mobile/app/my-page.tsx` + register in `_layout.tsx`. Both must have the same features, states, and behavior.
 
-**Add a new API endpoint:** Add path to `packages/shared/src/api/endpoints.ts`. Create Server Action in `apps/web/app/actions/`. Add query key to `packages/shared/src/query/keys.ts` if it's a query.
+**Add a new API endpoint:** Add path to `packages/shared/src/api/endpoints.ts`. Create Server Action in `apps/web/app/actions/`. Create direct API call in `apps/mobile/`. Add query key to `packages/shared/src/query/keys.ts` if it's a query.
 
 **Add a new type:** Create Zod schema in `packages/shared/src/types/`. Export from `index.ts`. Both apps get it automatically.
 
-**Add a new component:** Create in `apps/web/components/<feature>/`. For mobile, create parallel in `apps/mobile/components/`.
+**Add a new component:** Create in `apps/web/components/<feature>/` AND create parallel in `apps/mobile/components/`. Same features, same states, same logic.
+
+**Add a new hook:** Create in `apps/web/hooks/` AND `apps/mobile/hooks/`. Same query keys, same data transformations, same error handling. Platform-specific differences only for auth headers and fetch implementation.
+
+**Fix a bug:** Fix in the app where it was found, then check and fix in the other app too.

@@ -30,8 +30,9 @@ import {
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
-import { useHabits, useLogHabit, useSkipHabit, useDailySummary } from '@/hooks/use-habits'
+import { useHabits, useLogHabit, useSkipHabit, useSummary } from '@/hooks/use-habits'
 import { useGoals } from '@/hooks/use-goals'
+import { useUIStore } from '@/stores/ui-store'
 import { HabitCard } from '@/components/habit-card'
 import { GoalCard } from '@/components/goal-card'
 
@@ -112,41 +113,56 @@ export default function TodayScreen() {
     return base
   }, [activeView, dateStr, selectedDate, searchQuery])
 
+  // Sync filters to UI store for celebration checks
+  const setFilters = useUIStore((s) => s.setFilters)
+  useMemo(() => {
+    setFilters(filters)
+  }, [filters, setFilters])
+
   // Data
-  const { habits, isLoading, refetch } = useHabits(filters)
-  const { goals, isLoading: goalsLoading } = useGoals('Active')
+  const habitsQuery = useHabits(filters)
+  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
+  const isLoading = habitsQuery.isLoading
+  const refetch = habitsQuery.refetch
+
+  const goalsQuery = useGoals('Active')
+  const goals = goalsQuery.data?.allGoals ?? []
+  const goalsLoading = goalsQuery.isLoading
+
   const logMutation = useLogHabit()
   const skipMutation = useSkipHabit()
 
   // AI Summary
+  const { summary } = useSummary({
+    date: dateStr,
+    locale: profile?.language ?? 'en',
+    hasProAccess: profile?.hasProAccess ?? false,
+    aiSummaryEnabled: profile?.aiSummaryEnabled ?? false,
+  })
   const showSummary =
     activeView === 'today' &&
     isToday(selectedDate) &&
     profile?.hasProAccess &&
     profile?.aiSummaryEnabled
-  const { data: summaryData } = useDailySummary(dateStr, !!showSummary)
 
   // Filter completed
   const visibleHabits = useMemo(() => {
-    if (showCompleted) return habits
-    return habits.filter((h) => {
-      const instance = h.instances?.find((i) => i.date === dateStr)
-      return instance?.status !== 'Completed'
-    })
-  }, [habits, showCompleted, dateStr])
+    if (showCompleted) return topLevelHabits
+    return topLevelHabits.filter((h) => !h.isCompleted)
+  }, [topLevelHabits, showCompleted])
 
   const handleLog = useCallback(
     (habitId: string) => {
-      logMutation.mutate({ habitId, date: dateStr })
+      logMutation.mutate({ habitId })
     },
-    [logMutation, dateStr],
+    [logMutation],
   )
 
   const handleSkip = useCallback(
     (habitId: string) => {
-      skipMutation.mutate({ habitId, date: dateStr })
+      skipMutation.mutate({ habitId })
     },
-    [skipMutation, dateStr],
+    [skipMutation],
   )
 
   return (
@@ -255,13 +271,13 @@ export default function TodayScreen() {
         )}
 
         {/* AI Summary card */}
-        {showSummary && summaryData?.summary && (
+        {showSummary && summary && (
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
               <Sparkles size={16} color={colors.primary} />
               <Text style={styles.summaryTitle}>AI Summary</Text>
             </View>
-            <Text style={styles.summaryText}>{summaryData.summary}</Text>
+            <Text style={styles.summaryText}>{summary}</Text>
           </View>
         )}
 
@@ -329,22 +345,16 @@ export default function TodayScreen() {
                 </Text>
               </View>
             ) : (
-              visibleHabits.map((habit) => {
-                const instance = habit.instances?.find(
-                  (i) => i.date === dateStr,
-                )
-                const isLogged = instance?.status === 'Completed'
-                return (
-                  <HabitCard
-                    key={habit.id}
-                    habit={habit}
-                    dateStr={dateStr}
-                    isLogged={isLogged}
-                    onLog={handleLog}
-                    onSkip={handleSkip}
-                  />
-                )
-              })
+              visibleHabits.map((habit) => (
+                <HabitCard
+                  key={habit.id}
+                  habit={habit}
+                  dateStr={dateStr}
+                  isLogged={habit.isCompleted}
+                  onLog={handleLog}
+                  onSkip={handleSkip}
+                />
+              ))
             )}
           </View>
         )}

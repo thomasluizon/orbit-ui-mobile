@@ -134,6 +134,23 @@ All API calls from the web app go through Next.js Route Handlers or Server Actio
 - Every feature must include frontend validation (inline errors + submit blocking).
 - Never assume "the backend will catch it" -- validate on both sides.
 
+## Cross-Platform Parity (MANDATORY)
+
+**Every change to web MUST have a matching change in mobile, and vice versa.** This is a hard rule with zero exceptions.
+
+- When you add/modify a component, hook, store, or page in `apps/web/`, you MUST make the equivalent change in `apps/mobile/`.
+- When you add/modify something in `apps/mobile/`, you MUST make the equivalent change in `apps/web/`.
+- Shared logic (types, utils, validation, query keys, i18n, theme, API endpoints) goes in `packages/shared/` so both apps get it automatically.
+- The only allowed differences are platform-specific implementations:
+  - Web: Server Actions + BFF proxy. Mobile: direct API calls with SecureStore JWT.
+  - Web: shadcn/ui + Tailwind CSS. Mobile: NativeWind + React Native components + @gorhom/bottom-sheet.
+  - Web: next-intl. Mobile: i18next + react-i18next. Both use shared locale files.
+  - Web: IndexedDB offline queue. Mobile: SQLite offline queue.
+  - Web: httpOnly cookie auth. Mobile: SecureStore auth.
+- **Behavior, features, validation, error handling, data flow, query keys, i18n keys, and business logic must be identical across both platforms.**
+- If you are unsure whether a change needs a mobile/web counterpart, it does.
+- Never consider a task complete until both platforms are updated.
+
 ## Working Principles
 
 - Plan first for non-trivial tasks. Re-plan immediately if approach fails.

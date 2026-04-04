@@ -140,7 +140,7 @@
   "auth": {
     "welcomeBack": "Welcome",
     "email": "Email",
-    "emailPlaceholder": "you{'@'}example.com",
+    "emailPlaceholder": "you@example.com",
     "sendCode": "Send Code",
     "codeSent": "Verification code sent! Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
@@ -751,7 +751,7 @@
     },
     "contact": {
       "title": "Contact",
-      "body": "If you have questions about this privacy policy or your data, contact us at contact{'@'}useorbit.org."
+      "body": "If you have questions about this privacy policy or your data, contact us at contact@useorbit.org."
     }
   },
   "trial": {
