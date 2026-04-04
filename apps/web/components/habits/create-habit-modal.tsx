@@ -9,7 +9,8 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { NormalizedHabit, CreateHabitRequest, CreateSubHabitRequest } from '@orbit/shared/types/habit'
+import { useUIStore } from '@/stores/ui-store'
+import type { NormalizedHabit, CreateHabitRequest, CreateSubHabitRequest, ScheduledReminderTime } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -36,6 +37,7 @@ export function CreateHabitModal({
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const isSubHabitMode = !!parentHabit
+  const activeView = useUIStore((s) => s.activeView)
 
   const formHelpers = useHabitForm({
     initialData: {
@@ -47,8 +49,9 @@ export function CreateHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<string[]>([])
   const [validationError, setValidationError] = useState('')
+  const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
 
-  const atGoalLimit = selectedGoalIds.length >= 5
+  const atGoalLimit = selectedGoalIds.length >= 10
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => {
@@ -83,24 +86,48 @@ export function CreateHabitModal({
       setSelectedGoalIds([])
       setSubHabits([])
       setValidationError('')
+      setReminderTimes([0, 15])
 
       // Prefill from parent if sub-habit mode
       if (parentHabit) {
+        formHelpers.form.setValue('frequencyUnit', parentHabit.frequencyUnit)
+        formHelpers.form.setValue('frequencyQuantity', parentHabit.frequencyQuantity)
+        if (parentHabit.days?.length) {
+          formHelpers.form.setValue('days', [...parentHabit.days])
+        }
         formHelpers.form.setValue('isBadHabit', parentHabit.isBadHabit)
+        formHelpers.form.setValue('isGeneral', parentHabit.isGeneral ?? false)
+        formHelpers.form.setValue('isFlexible', parentHabit.isFlexible ?? false)
+        formHelpers.form.setValue('slipAlertEnabled', parentHabit.slipAlertEnabled ?? false)
+        formHelpers.form.setValue('dueDate', parentHabit.dueDate ?? initialDate ?? formatAPIDate(new Date()))
+        formHelpers.form.setValue('dueTime', parentHabit.dueTime?.slice(0, 5) ?? '')
+        formHelpers.form.setValue('dueEndTime', parentHabit.dueEndTime?.slice(0, 5) ?? '')
+        formHelpers.form.setValue('endDate', parentHabit.endDate ?? '')
+        formHelpers.form.setValue('reminderEnabled', parentHabit.reminderEnabled ?? false)
+        setReminderTimes(parentHabit.reminderTimes?.length ? [...parentHabit.reminderTimes] : [0, 15])
+        formHelpers.form.setValue('scheduledReminders',
+          parentHabit.scheduledReminders?.length
+            ? parentHabit.scheduledReminders.map((sr: ScheduledReminderTime) => ({ ...sr }))
+            : []
+        )
+
         if (parentHabit.isGeneral) {
           formHelpers.setGeneral()
         } else if (parentHabit.isFlexible) {
           formHelpers.setFlexible()
         } else if (parentHabit.frequencyUnit) {
           formHelpers.setRecurring()
-          formHelpers.form.setValue('frequencyUnit', parentHabit.frequencyUnit)
-          formHelpers.form.setValue('frequencyQuantity', parentHabit.frequencyQuantity)
-          if (parentHabit.days?.length) {
-            formHelpers.form.setValue('days', [...parentHabit.days])
-          }
+        } else {
+          formHelpers.setOneTime()
         }
+
         tags.resetTags(parentHabit.tags?.map((t) => t.id) ?? [])
         setSelectedGoalIds(parentHabit.linkedGoals?.map((g) => g.id) ?? [])
+      }
+
+      // Auto-set general mode when on the general view
+      if (activeView === 'general') {
+        formHelpers.setGeneral()
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,6 +152,7 @@ export function CreateHabitModal({
         }
         if (data.description) subRequest.description = data.description
         if (!data.isGeneral) {
+          // Schedule fields
           if (data.dueDate) subRequest.dueDate = data.dueDate
           if (data.isFlexible) {
             subRequest.isFlexible = true
@@ -136,7 +164,16 @@ export function CreateHabitModal({
             if (data.days?.length) subRequest.days = data.days
             if (data.endDate) subRequest.endDate = data.endDate
           }
-          if (data.dueTime) subRequest.dueTime = data.dueTime
+          // Reminder fields
+          if (data.dueTime) {
+            subRequest.dueTime = data.dueTime
+            if (data.dueEndTime) subRequest.dueEndTime = data.dueEndTime
+            subRequest.reminderEnabled = data.reminderEnabled
+            subRequest.reminderTimes = reminderTimes
+          } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
+            subRequest.reminderEnabled = true
+            subRequest.scheduledReminders = data.scheduledReminders ?? undefined
+          }
         }
         if (data.isBadHabit) {
           subRequest.isBadHabit = true
@@ -163,21 +200,27 @@ export function CreateHabitModal({
         if (data.isGeneral) {
           request.isGeneral = true
         } else {
-          if (data.dueDate) request.dueDate = data.dueDate
+          // Schedule fields
+          request.dueDate = data.dueDate
           if (data.isFlexible) {
             request.isFlexible = true
-            if (data.frequencyUnit) request.frequencyUnit = data.frequencyUnit
-            if (data.frequencyQuantity) request.frequencyQuantity = data.frequencyQuantity
+            request.frequencyUnit = data.frequencyUnit ?? undefined
+            request.frequencyQuantity = data.frequencyQuantity ?? undefined
           } else if (data.frequencyUnit) {
             request.frequencyUnit = data.frequencyUnit
             request.frequencyQuantity = data.frequencyQuantity ?? undefined
             if (data.days?.length) request.days = data.days
             if (data.endDate) request.endDate = data.endDate
           }
+          // Reminder fields (match Nuxt applyReminderFields)
           if (data.dueTime) {
             request.dueTime = data.dueTime
             if (data.dueEndTime) request.dueEndTime = data.dueEndTime
             request.reminderEnabled = data.reminderEnabled
+            request.reminderTimes = reminderTimes
+          } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
+            request.reminderEnabled = true
+            request.scheduledReminders = data.scheduledReminders ?? undefined
           }
         }
         if (data.isBadHabit) request.slipAlertEnabled = data.slipAlertEnabled
@@ -196,7 +239,7 @@ export function CreateHabitModal({
         }
       }
     },
-    [formHelpers, isSubHabitMode, parentHabit, tags, selectedGoalIds, subHabits, createHabit, createSubHabit, onOpenChange],
+    [formHelpers, isSubHabitMode, parentHabit, tags, selectedGoalIds, subHabits, reminderTimes, createHabit, createSubHabit, onOpenChange],
   )
 
   const isPending = createHabit.isPending || createSubHabit.isPending
@@ -219,6 +262,8 @@ export function CreateHabitModal({
           selectedGoalIds={selectedGoalIds}
           atGoalLimit={atGoalLimit}
           onToggleGoal={toggleGoal}
+          reminderTimes={reminderTimes}
+          onReminderTimesChange={setReminderTimes}
         >
           {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (

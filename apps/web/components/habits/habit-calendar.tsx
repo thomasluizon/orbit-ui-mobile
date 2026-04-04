@@ -19,6 +19,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useHabitLogs } from '@/hooks/use-habits'
+import { useProfile } from '@/hooks/use-profile'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 
 // ---------------------------------------------------------------------------
@@ -63,8 +64,8 @@ export function HabitCalendar({ habitId, logs: externalLogs }: HabitCalendarProp
     [currentMonth, locale, dateFnsLocale],
   )
 
-  // TODO: weekStartsOn from profile when available
-  const weekStartsOn = 1 as 0 | 1
+  const { profile } = useProfile()
+  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
 
   const weekdays = useMemo(() => {
     const sundayFirst = [

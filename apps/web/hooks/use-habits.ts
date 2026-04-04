@@ -417,7 +417,7 @@ export function useLogHabit() {
     onSettled: () => {
       // Refetch for eventual consistency
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       queryClient.invalidateQueries({ queryKey: profileKeys.all })
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -465,7 +465,7 @@ export function useSkipHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -482,7 +482,7 @@ export function useCreateHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -497,7 +497,7 @@ export function useUpdateHabit() {
     onSettled: (_data, _err, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -510,7 +510,7 @@ export function useDeleteHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
@@ -536,7 +536,7 @@ export function useDuplicateHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -595,7 +595,7 @@ export function useUpdateChecklist() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -618,7 +618,7 @@ export function useCreateSubHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -637,7 +637,7 @@ export function useMoveHabitParent() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -654,7 +654,7 @@ export function useBulkCreateHabits() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
 }
@@ -667,7 +667,7 @@ export function useBulkDeleteHabits() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
@@ -681,7 +681,7 @@ export function useBulkLogHabits() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
@@ -696,9 +696,26 @@ export function useBulkSkipHabits() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
+}
+
+// ---------------------------------------------------------------------------
+// Total habit count (lightweight -- fetches page 1 with pageSize=1 to read totalCount)
+// ---------------------------------------------------------------------------
+
+export function useTotalHabitCount(): number {
+  const query = useQuery({
+    queryKey: habitKeys.list({ _count: true } as Record<string, unknown>),
+    queryFn: async () => {
+      const url = buildUrl(API.habits.list, 'pageSize=1')
+      const data = await fetchJson<PaginatedResponse<HabitScheduleItem>>(url)
+      return data.totalCount
+    },
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+  return query.data ?? 0
 }
 
 // ---------------------------------------------------------------------------

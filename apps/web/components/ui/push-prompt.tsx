@@ -16,21 +16,45 @@ function setCookie(name: string, value: string, maxAge: number) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replaceAll('-', '+').replaceAll('_', '/')
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.codePointAt(i) ?? 0
+  }
+  return outputArray
+}
+
 export function PushPrompt() {
   const t = useTranslations()
   const [show, setShow] = useState(false)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Check conditions
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return
-    if (Notification.permission === 'granted') return
+    if (typeof globalThis === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in globalThis)) return
     if (Notification.permission === 'denied') return
     if (getCookie(STORAGE_KEY) === '1') return
 
-    setShow(true)
-    // Trigger enter animation on next frame
-    requestAnimationFrame(() => setVisible(true))
+    // Check if already subscribed
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => {
+        if (sub && Notification.permission === 'granted') {
+          // Already subscribed, don't show prompt
+          return
+        }
+        setShow(true)
+        requestAnimationFrame(() => setVisible(true))
+      })
+      .catch(() => {
+        // If we can't check, show the prompt anyway (unless already granted)
+        if (Notification.permission !== 'granted') {
+          setShow(true)
+          requestAnimationFrame(() => setVisible(true))
+        }
+      })
   }, [])
 
   const dismiss = useCallback(() => {
@@ -41,9 +65,45 @@ export function PushPrompt() {
 
   const handleEnable = useCallback(async () => {
     try {
-      await Notification.requestPermission()
+      // Skip the permission prompt if already granted
+      const permission = Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission()
+
+      if (permission !== 'granted') {
+        dismiss()
+        return
+      }
+
+      const registration = await navigator.serviceWorker.ready
+
+      // Unsubscribe any existing subscription first
+      const existing = await registration.pushManager.getSubscription()
+      if (existing) await existing.unsubscribe()
+
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!vapidKey) {
+        dismiss()
+        return
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
+      })
+
+      const keys = subscription.toJSON()
+      await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          p256dh: keys.keys?.p256dh,
+          auth: keys.keys?.auth,
+        }),
+      })
     } catch {
-      // Permission request failed
+      // Subscribe failed silently
     }
     dismiss()
   }, [dismiss])

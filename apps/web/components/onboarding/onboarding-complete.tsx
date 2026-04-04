@@ -22,8 +22,8 @@ export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: Onbo
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
-    return format(parseISO(profile.trialEndsAt), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
-  }, [profile?.trialEndsAt, locale, dateFnsLocale])
+    return format(parseISO(profile.trialEndsAt), 'PPP', { locale: dateFnsLocale })
+  }, [profile?.trialEndsAt, dateFnsLocale])
 
   const recapItems = useMemo(() => {
     const items = [

@@ -199,18 +199,19 @@ export function useActivateStreakFreeze() {
 // Derived selectors
 // ---------------------------------------------------------------------------
 
-export function useStreakFreeze() {
+export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null) {
   const streakQuery = useStreakInfo()
   const streakInfo = streakQuery.data ?? null
 
-  const freezesAvailable = streakInfo?.freezesAvailable ?? 0
+  const freezesAvailable = streakInfo?.freezesAvailable ?? profile?.streakFreezesAvailable ?? 0
   const isFrozenToday = streakInfo?.isFrozenToday ?? false
   const hasCompletedToday = useMemo(() => {
     if (!streakInfo?.lastActiveDate) return false
     return streakInfo.lastActiveDate === formatAPIDate(new Date())
   }, [streakInfo?.lastActiveDate])
 
-  const canFreeze = freezesAvailable > 0 && !isFrozenToday && !hasCompletedToday && (streakInfo?.currentStreak ?? 0) > 0
+  const currentStreak = streakInfo?.currentStreak ?? profile?.currentStreak ?? 0
+  const canFreeze = freezesAvailable > 0 && !isFrozenToday && !hasCompletedToday && currentStreak > 0
 
   return {
     streakQuery,

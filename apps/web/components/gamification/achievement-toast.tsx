@@ -3,54 +3,73 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useGamificationProfile } from '@/hooks/use-gamification'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 import type { Achievement } from '@orbit/shared/types/gamification'
 
-interface AchievementToastProps {
-  newAchievements: Achievement[]
-  onClear: () => void
-}
-
-export function AchievementToast({ newAchievements, onClear }: AchievementToastProps) {
+export function AchievementToast() {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('achievement-toast')
+  const { newAchievements, invalidate } = useGamificationProfile()
   const [visible, setVisible] = useState(false)
   const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null)
   const queueRef = useRef<Achievement[]>([])
   const [mounted, setMounted] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+  const visibleRef = useRef(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  // Keep visibleRef in sync
+  useEffect(() => {
+    visibleRef.current = visible
+  }, [visible])
+
   const processQueue = useCallback(() => {
-    if (queueRef.current.length === 0) return
+    if (visibleRef.current || queueRef.current.length === 0) return
     const next = queueRef.current.shift() ?? null
     setCurrentAchievement(next)
     setVisible(true)
+    setShouldRender(true)
+    requestAnimationFrame(() => setIsVisible(true))
     setTimeout(() => {
       setVisible(false)
-      setTimeout(() => processQueue(), 400)
+      setIsVisible(false)
+      setTimeout(() => {
+        setShouldRender(false)
+        processQueue()
+      }, 400)
     }, 4000)
   }, [])
 
   useEffect(() => {
     if (newAchievements.length > 0) {
       queueRef.current.push(...newAchievements)
-      onClear()
-      if (!visible) {
+      invalidate()
+      if (!visibleRef.current) {
         processQueue()
       }
     }
-  }, [newAchievements, onClear, processQueue, visible])
+  }, [newAchievements, invalidate, processQueue])
 
-  if (!mounted || !visible || !currentAchievement) return null
+  if (!mounted || !shouldRender || !currentAchievement) return null
 
-  return createPortal(
+  return portalContainer ? createPortal(
     <div
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] animate-in slide-in-from-top-4 fade-in duration-400"
-      style={{ animationTimingFunction: 'var(--ease-spring)' }}
+      className="fixed top-6 left-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)]"
+      style={{
+        transition: 'opacity 0.4s var(--ease-spring), transform 0.4s var(--ease-spring)',
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible
+          ? 'translate(-50%, 0) scale(1)'
+          : 'translate(-50%, -100%) scale(0.95)',
+      }}
     >
       <div className="bg-surface-overlay border border-primary/30 rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-lg)] flex items-center gap-3">
         <span className="text-3xl shrink-0" aria-hidden="true">{'\u2B50'}</span>
@@ -70,6 +89,6 @@ export function AchievementToast({ newAchievements, onClear }: AchievementToastP
         </span>
       </div>
     </div>,
-    document.body
-  )
+    portalContainer
+  ) : null
 }

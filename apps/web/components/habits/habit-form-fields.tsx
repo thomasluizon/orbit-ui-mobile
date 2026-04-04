@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useId, type ReactNode } from 'react'
+import { useState, useMemo, useId, type ReactNode } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
+import { useHasProAccess } from '@/hooks/use-profile'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -25,6 +26,9 @@ interface HabitFormFieldsProps {
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
+  /** Controlled reminderTimes state from parent modal */
+  reminderTimes: number[]
+  onReminderTimesChange: (times: number[]) => void
   children?: ReactNode
 }
 
@@ -55,6 +59,8 @@ export function HabitFormFields({
   selectedGoalIds,
   atGoalLimit,
   onToggleGoal,
+  reminderTimes,
+  onReminderTimesChange,
   children,
 }: HabitFormFieldsProps) {
   const t = useTranslations()
@@ -62,6 +68,7 @@ export function HabitFormFields({
   const scheduledReminderLabelId = useId()
   const slipAlertLabelId = useId()
   const slipAlertDescriptionId = useId()
+  const hasProAccess = useHasProAccess()
 
   const {
     form,
@@ -130,9 +137,6 @@ export function HabitFormFields({
     { value: 'days', label: t('habits.form.reminderUnitDays') },
   ], [t])
 
-  // reminderTimes is not in the form schema, manage as local state
-  const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
-
   const availablePresets = useMemo(
     () => REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
@@ -152,7 +156,7 @@ export function HabitFormFields({
 
   function addPreset(value: number) {
     if (!reminderTimes.includes(value)) {
-      setReminderTimes((prev) => [...prev, value].sort((a, b) => b - a))
+      onReminderTimesChange([...reminderTimes, value].sort((a, b) => b - a))
     }
     setShowAddReminder(false)
   }
@@ -164,7 +168,7 @@ export function HabitFormFields({
     else if (customUnit === 'hours') multiplier = 60
     const minutes = customValue * multiplier
     if (!reminderTimes.includes(minutes)) {
-      setReminderTimes((prev) => [...prev, minutes].sort((a, b) => b - a))
+      onReminderTimesChange([...reminderTimes, minutes].sort((a, b) => b - a))
     }
     setCustomValue(null)
     setShowCustomInput(false)
@@ -172,7 +176,7 @@ export function HabitFormFields({
   }
 
   function removeReminder(value: number) {
-    setReminderTimes((prev) => prev.filter((v) => v !== value))
+    onReminderTimesChange(reminderTimes.filter((v) => v !== value))
   }
 
   // Scheduled reminders
@@ -937,26 +941,44 @@ export function HabitFormFields({
       {/* Slip alert toggle (only when bad habit) */}
       {watchedIsBadHabit && (
         <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="size-4 text-primary" />
-                <span id={slipAlertLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.slipAlert')}</span>
+          {!hasProAccess ? (
+            /* Pro locked state */
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-4 text-text-muted" />
+                  <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
+                </div>
+                <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
               </div>
-              <span id={slipAlertDescriptionId} className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+              <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
+                <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
+              </div>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={watchedSlipAlertEnabled}
-              aria-labelledby={slipAlertLabelId}
-              aria-describedby={slipAlertDescriptionId}
-              className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${watchedSlipAlertEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
-              onClick={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedSlipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
-            </button>
-          </div>
+          ) : (
+            /* Pro unlocked state */
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-4 text-primary" />
+                  <span id={slipAlertLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.slipAlert')}</span>
+                </div>
+                <span id={slipAlertDescriptionId} className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={watchedSlipAlertEnabled}
+                aria-labelledby={slipAlertLabelId}
+                aria-describedby={slipAlertDescriptionId}
+                className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${watchedSlipAlertEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+                onClick={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedSlipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

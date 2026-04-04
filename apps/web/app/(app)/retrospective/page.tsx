@@ -4,10 +4,28 @@ import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, Lock, BarChart3 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import DOMPurify from 'dompurify'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function renderMarkdown(text: string): string {
+  const result = escapeHtml(text)
+    .replaceAll(/\*\*(.+?)\*\*/g, '<strong class="text-text-primary font-bold block mt-4 mb-1">$1</strong>')
+    .replaceAll('\n', '<br>')
+
+  return DOMPurify.sanitize(result, { ALLOWED_TAGS: ['strong', 'br'], ALLOWED_ATTR: ['class'] })
+}
 
 export default function RetrospectivePage() {
   const t = useTranslations()
@@ -180,7 +198,7 @@ export default function RetrospectivePage() {
             <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
               <div
                 className="text-sm text-text-secondary leading-relaxed whitespace-pre-line [&_strong]:block [&_strong]:mt-4 [&_strong]:mb-1 [&_strong]:font-bold [&_strong]:text-text-primary [&_strong:first-child]:mt-0"
-                dangerouslySetInnerHTML={{ __html: retrospective }}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(retrospective) }}
               />
               {fromCache && (
                 <p className="text-xs text-text-muted mt-4">{t('retrospective.cached')}</p>

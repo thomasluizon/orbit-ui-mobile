@@ -8,6 +8,8 @@ import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
+import { assignTags } from '@/app/actions/tags'
+import { getErrorMessage } from '@orbit/shared/utils'
 import type { NormalizedHabit, UpdateHabitRequest } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -36,12 +38,14 @@ export function EditHabitModal({
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [validationError, setValidationError] = useState('')
+  const [detailFetchError, setDetailFetchError] = useState('')
   const [originalEndDate, setOriginalEndDate] = useState('')
+  const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
 
-  const atGoalLimit = selectedGoalIds.length >= 5
+  const atGoalLimit = selectedGoalIds.length >= 10
 
   // Fetch detail to get dueDate, dueTime, endDate etc.
-  const { data: habitDetail } = useHabitDetail(open && habit ? habit.id : null)
+  const { data: habitDetail, error: detailError } = useHabitDetail(open && habit ? habit.id : null)
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => {
@@ -51,9 +55,19 @@ export function EditHabitModal({
     })
   }, [])
 
+  // Show detail fetch error
+  useEffect(() => {
+    if (detailError) {
+      setDetailFetchError(getErrorMessage(detailError, t('errors.fetchHabits')))
+    }
+  }, [detailError, t])
+
   // Populate form when modal opens or detail loads
   useEffect(() => {
     if (!open || !habit) return
+
+    setValidationError('')
+    setDetailFetchError('')
 
     formHelpers.form.reset({
       title: habit.title,
@@ -75,9 +89,9 @@ export function EditHabitModal({
     })
 
     setOriginalEndDate(habitDetail?.endDate ?? '')
+    setReminderTimes(habit.reminderTimes?.length ? [...habit.reminderTimes] : [0, 15])
     tags.resetTags(habit.tags?.map((t) => t.id) ?? [])
     setSelectedGoalIds(habit.linkedGoals?.map((g) => g.id) ?? [])
-    setValidationError('')
 
     // Set mode based on habit data
     if (habit.isGeneral) {
@@ -116,10 +130,11 @@ export function EditHabitModal({
       if (data.description) request.description = data.description
 
       if (!data.isGeneral) {
+        // Schedule fields
         if (data.dueDate) request.dueDate = data.dueDate
 
-        if (data.frequencyUnit) {
-          request.frequencyUnit = data.frequencyUnit
+        if (!formHelpers.isOneTime) {
+          request.frequencyUnit = data.frequencyUnit ?? undefined
           request.frequencyQuantity = data.frequencyQuantity ?? undefined
           if (data.days?.length) request.days = data.days
           if (data.endDate) {
@@ -129,10 +144,15 @@ export function EditHabitModal({
           }
         }
 
+        // Reminder fields (match Nuxt applyRemindersToUpdate)
         if (data.dueTime) {
           request.dueTime = data.dueTime
           request.dueEndTime = data.dueEndTime || undefined
           request.reminderEnabled = data.reminderEnabled
+          request.reminderTimes = reminderTimes
+        } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
+          request.reminderEnabled = true
+          request.scheduledReminders = data.scheduledReminders ?? undefined
         } else {
           request.reminderEnabled = false
         }
@@ -144,12 +164,13 @@ export function EditHabitModal({
 
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
+        await assignTags(habit.id, tags.selectedTagIds)
         onOpenChange(false)
       } catch {
         // Error handled by mutation
       }
     },
-    [habit, formHelpers, originalEndDate, selectedGoalIds, updateHabit, onOpenChange],
+    [habit, formHelpers, originalEndDate, selectedGoalIds, reminderTimes, tags, updateHabit, onOpenChange],
   )
 
   return (
@@ -166,7 +187,14 @@ export function EditHabitModal({
           selectedGoalIds={selectedGoalIds}
           atGoalLimit={atGoalLimit}
           onToggleGoal={toggleGoal}
+          reminderTimes={reminderTimes}
+          onReminderTimesChange={setReminderTimes}
         />
+
+        {/* Detail fetch error */}
+        {detailFetchError && (
+          <p className="text-sm text-red-500 font-medium">{detailFetchError}</p>
+        )}
 
         {/* Validation error */}
         {validationError && (

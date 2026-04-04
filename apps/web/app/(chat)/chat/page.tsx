@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   Sparkles,
@@ -22,8 +23,9 @@ import {
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { habitKeys } from '@orbit/shared/query'
-import type { ChatResponse } from '@orbit/shared/types/chat'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
+import { getErrorMessage } from '@orbit/shared/utils'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { sendChatMessage } from '@/app/actions/chat'
@@ -51,6 +53,7 @@ const STARTER_CHIP_KEYS = [
 
 export default function ChatPage() {
   const t = useTranslations()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
 
@@ -93,7 +96,7 @@ export default function ChatPage() {
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
       const el = chatContainerRef.current
-      if (el) el.scrollTop = el.scrollHeight
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
     })
   }, [])
 
@@ -107,6 +110,18 @@ export default function ChatPage() {
     textarea.style.height = 'auto'
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
   }, [input])
+
+  // -------------------------------------------------------------------------
+  // Escape key -> navigate back
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    function handleKeydown(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') router.push('/')
+    }
+    document.addEventListener('keydown', handleKeydown)
+    return () => document.removeEventListener('keydown', handleKeydown)
+  }, [router])
 
   // -------------------------------------------------------------------------
   // Image handling
@@ -197,9 +212,6 @@ export default function ChatPage() {
       setIsTyping(true)
       scrollToBottom()
 
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000)
-
       try {
         const formData = new FormData()
         if (messageContent) formData.append('message', messageContent)
@@ -211,41 +223,54 @@ export default function ChatPage() {
           .map((m) => ({ role: m.role, content: m.content }))
         formData.append('history', JSON.stringify(recentHistory))
 
-        const response: ChatResponse = await sendChatMessage(formData)
+        const result = await sendChatMessage(formData)
+
+        if (!result.ok) {
+          setIsTyping(false)
+
+          if (result.status === 408) {
+            setSendError(t('chat.timeoutError'))
+          } else if (result.status === 403) {
+            setSendError(t('chat.limitReachedError'))
+          } else {
+            setSendError(getErrorMessage(result.error, t('chat.sendError')))
+          }
+
+          addMessage({
+            id: crypto.randomUUID(),
+            role: 'ai',
+            content: t('chat.aiError'),
+            timestamp: new Date(),
+          })
+          scrollToBottom()
+          return
+        }
 
         setIsTyping(false)
 
         addMessage({
           id: crypto.randomUUID(),
           role: 'ai',
-          content: response.aiMessage || '',
-          actions: response.actions,
+          content: result.data.aiMessage || '',
+          actions: result.data.actions,
           timestamp: new Date(),
         })
 
         scrollToBottom()
 
-        if (response.actions?.some((a) => a.status === 'Success')) {
+        // Increment AI messages used counter (optimistic cache update)
+        if (!hasProAccess) {
+          queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+            old ? { ...old, aiMessagesUsed: (old.aiMessagesUsed ?? 0) + 1 } : old,
+          )
+        }
+
+        if (result.data.actions?.some((a) => a.status === 'Success')) {
           queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
         }
       } catch (err: unknown) {
         setIsTyping(false)
-
-        const isAbort =
-          err instanceof DOMException && err.name === 'AbortError'
-        const is403 =
-          (err as { status?: number })?.status === 403 ||
-          (err as { response?: { status?: number } })?.response?.status === 403
-
-        if (isAbort) {
-          setSendError(t('chat.timeoutError'))
-        } else if (is403) {
-          setSendError(t('chat.limitReachedError'))
-        } else {
-          setSendError(
-            err instanceof Error ? err.message : t('chat.sendError'),
-          )
-        }
+        setSendError(getErrorMessage(err, t('chat.sendError')))
 
         addMessage({
           id: crypto.randomUUID(),
@@ -254,8 +279,6 @@ export default function ChatPage() {
           timestamp: new Date(),
         })
         scrollToBottom()
-      } finally {
-        clearTimeout(timeoutId)
       }
     },
     [
@@ -263,6 +286,7 @@ export default function ChatPage() {
       selectedImage,
       imagePreview,
       isTyping,
+      hasProAccess,
       addMessage,
       setIsTyping,
       scrollToBottom,

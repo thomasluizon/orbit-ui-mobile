@@ -65,8 +65,8 @@ export function CalendarDayDetail({
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
     const date = parseAPIDate(dateStr)
-    return format(date, locale === 'pt-BR' ? "EEEE, dd 'de' MMMM 'de' yyyy" : 'EEEE, MMMM d, yyyy', { locale: dateFnsLocale })
-  }, [dateStr, locale, dateFnsLocale])
+    return format(date, 'EEEE, MMM d', { locale: dateFnsLocale })
+  }, [dateStr, dateFnsLocale])
 
   const filteredEntries = useMemo(() => {
     if (showRecurring) return entries

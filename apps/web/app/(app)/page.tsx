@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useSearchParams } from 'next/navigation'
 import {
   addDays,
   subDays,
@@ -29,8 +30,10 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import { plural } from '@/lib/plural'
-import { HabitList } from '@/components/habits/habit-list'
+import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { GoalsView } from '@/components/goals/goals-view'
@@ -41,7 +44,7 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
-import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
@@ -59,6 +62,8 @@ export default function TodayPage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
@@ -84,7 +89,8 @@ export default function TodayPage() {
   const isSelectMode = useUIStore((s) => s.isSelectMode)
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
-  const toggleHabitSelection = useUIStore((s) => s.toggleHabitSelection)
+  const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
+  const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
 
   // Create modal (shared with layout's BottomNav via store)
@@ -101,21 +107,31 @@ export default function TodayPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
   const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
-  const [allCollapsed, setAllCollapsed] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const controlsMenuRef = useRef<HTMLDivElement>(null)
   const controlsMenuPanelRef = useRef<HTMLDivElement>(null)
-  const habitListRef = useRef<{
-    collapseAll: () => void
-    expandAll: () => void
-    allCollapsed: boolean
-    markRecentlyCompleted: (habitId: string) => void
-    checkAndPromptParentLog: (childHabitId: string) => void
-  } | null>(null)
+  const habitListRef = useRef<HabitListHandle>(null)
 
   const CONTROLS_MENU_WIDTH_PX = 200
   const CONTROLS_MENU_MARGIN_PX = 8
+
+  // ?date= query parameter handling
+  const dateParam = searchParams.get('date')
+  const initialDateStr = useMemo(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
+    return null
+  }, [dateParam])
+
+  // Initialize selectedDate from URL ?date= param on mount
+  useEffect(() => {
+    if (initialDateStr) {
+      setSelectedDate(initialDateStr)
+      setActiveView('today')
+    }
+  // Only run on mount / when dateParam changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDateStr])
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -253,6 +269,46 @@ export default function TodayPage() {
     return f
   }, [activeView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
+  // Query habits for selection cascade helpers and count
+  const habitsQuery = useHabits(filters)
+  const habitsById = habitsQuery.data?.habitsById ?? new Map()
+  const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
+  const habitsCount = habitsById.size
+  const hasFetched = habitsQuery.dataUpdatedAt > 0
+  const isRefetching = habitsQuery.isFetching && hasFetched
+
+  // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
+  const getDescendantIds = useCallback(
+    (parentId: string): string[] => {
+      const childIds = childrenByParent.get(parentId) ?? []
+      const loaded = habitListRef.current?.allLoadedIds
+      const ids: string[] = []
+      for (const cid of childIds) {
+        if (loaded && !loaded.has(cid)) continue
+        ids.push(cid, ...getDescendantIds(cid))
+      }
+      return ids
+    },
+    [childrenByParent],
+  )
+
+  const isAncestorSelected = useCallback(
+    (habitId: string): boolean => {
+      const habit = habitsById.get(habitId)
+      if (!habit?.parentId) return false
+      if (selectedHabitIds.has(habit.parentId)) return true
+      return isAncestorSelected(habit.parentId)
+    },
+    [habitsById, selectedHabitIds],
+  )
+
+  const handleToggleSelection = useCallback(
+    (habitId: string) => {
+      toggleSelectionCascade(habitId, getDescendantIds, isAncestorSelected)
+    },
+    [toggleSelectionCascade, getDescendantIds, isAncestorSelected],
+  )
+
   // Tab keyboard navigation
   const handleTabKeydown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -287,10 +343,12 @@ export default function TodayPage() {
   }, [])
 
   // Select all / deselect all
-  const allSelected = selectedHabitIds.size > 0
+  const allSelected = habitsCount > 0 && selectedHabitIds.size === habitsCount
   const selectAll = useCallback(() => {
-    // Toggle all currently visible -- store manages
-  }, [])
+    const loaded = habitListRef.current?.allLoadedIds
+    const allIds = loaded ? Array.from(loaded) : Array.from(habitsById.keys())
+    selectAllHabits(allIds)
+  }, [habitsById, selectAllHabits])
   const deselectAll = useCallback(() => {
     clearSelection()
   }, [clearSelection])
@@ -313,7 +371,16 @@ export default function TodayPage() {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      await bulkLog.mutateAsync(ids.map((id) => ({ habitId: id })))
+      const result = await bulkLog.mutateAsync(ids.map((id) => ({ habitId: id })))
+      const successIds = result.results
+        .filter((r) => r.status === 'Success')
+        .map((r) => r.habitId)
+      for (const id of successIds) {
+        habitListRef.current?.markRecentlyCompleted(id)
+      }
+      for (const id of successIds) {
+        habitListRef.current?.checkAndPromptParentLog(id)
+      }
     } catch {
       // Error handled in hook
     } finally {
@@ -326,7 +393,16 @@ export default function TodayPage() {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      await bulkSkip.mutateAsync(ids.map((id) => ({ habitId: id })))
+      const result = await bulkSkip.mutateAsync(ids.map((id) => ({ habitId: id })))
+      const successIds = result.results
+        .filter((r) => r.status === 'Success')
+        .map((r) => r.habitId)
+      for (const id of successIds) {
+        habitListRef.current?.markRecentlyCompleted(id)
+      }
+      for (const id of successIds) {
+        habitListRef.current?.checkAndPromptParentLog(id)
+      }
     } catch {
       // Error handled in hook
     } finally {
@@ -595,31 +671,32 @@ export default function TodayPage() {
                 <button
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
                   onClick={() => {
-                    if (allCollapsed) {
-                      habitListRef.current?.expandAll()
+                    if (habitListRef.current?.allCollapsed) {
+                      habitListRef.current.expandAll()
                     } else {
                       habitListRef.current?.collapseAll()
                     }
-                    setAllCollapsed(!allCollapsed)
                     closeControlsMenu()
                   }}
                 >
-                  {allCollapsed ? (
+                  {habitListRef.current?.allCollapsed ? (
                     <ChevronsUpDown className="size-4 text-text-muted" />
                   ) : (
                     <ChevronsDownUp className="size-4 text-text-muted" />
                   )}
-                  {allCollapsed
+                  {habitListRef.current?.allCollapsed
                     ? t('habits.expandAll')
                     : t('habits.collapseAll')}
                 </button>
                 <button
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+                  disabled={habitsQuery.isFetching}
                   onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
                     closeControlsMenu()
                   }}
                 >
-                  <RefreshCw className="size-4 text-text-muted" />
+                  <RefreshCw className={`size-4 text-text-muted${habitsQuery.isFetching ? ' animate-spin' : ''}`} />
                   {t('habits.refresh')}
                 </button>
                 <button
@@ -640,13 +717,38 @@ export default function TodayPage() {
               document.body,
             )}
 
+          {/* Loading skeleton (before first fetch) */}
+          {!hasFetched && (
+            <div className="space-y-3 pt-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={`skeleton-${i}`}
+                  className="bg-surface rounded-[var(--radius-xl)] p-4 flex items-center gap-4"
+                >
+                  <div className="size-10 rounded-full bg-surface-elevated animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 w-3/4 bg-surface-elevated rounded animate-pulse" />
+                    <div className="h-3 w-1/2 bg-surface-elevated rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Refetch loading bar */}
+          {isRefetching && (
+            <div className="loading-bar w-full" />
+          )}
+
           {/* Habit list */}
+          {hasFetched && (
           <div
             className={`overflow-x-hidden overflow-y-visible pt-2 transition-opacity duration-200 ${
               isSelectMode ? 'pb-20' : ''
-            }`}
+            } ${isRefetching ? 'opacity-40 pointer-events-none' : ''}`}
           >
             <HabitList
+              ref={habitListRef}
               view={
                 activeView === 'today' ||
                 activeView === 'all' ||
@@ -660,15 +762,16 @@ export default function TodayPage() {
               selectedHabitIds={selectedHabitIds}
               searchQuery={searchQueryStore}
               filters={filters}
-              onToggleSelection={toggleHabitSelection}
+              onToggleSelection={handleToggleSelection}
               onEnterSelectMode={(habitId) => {
                 if (!isSelectMode) toggleSelectMode()
-                toggleHabitSelection(habitId)
+                handleToggleSelection(habitId)
               }}
               onCreate={() => setShowCreateModal(true)}
               onSeeUpcoming={goToNextDay}
             />
           </div>
+          )}
         </div>
       )}
 

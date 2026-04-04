@@ -4,14 +4,18 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 
 export function WelcomeBackToast() {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('welcome-back-toast')
   const { profile } = useProfile()
   const [visible, setVisible] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [toastEmoji, setToastEmoji] = useState('\uD83D\uDC4B')
   const [mounted, setMounted] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const checkedRef = useRef(false)
 
@@ -26,10 +30,20 @@ export function WelcomeBackToast() {
     setToastMessage(message)
     setToastEmoji(emoji)
     setVisible(true)
+    setShouldRender(true)
+    requestAnimationFrame(() => setIsVisible(true))
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     dismissTimerRef.current = setTimeout(() => {
       setVisible(false)
+      setIsVisible(false)
+      setTimeout(() => setShouldRender(false), 300)
     }, 4000)
+  }
+
+  function dismiss() {
+    setVisible(false)
+    setIsVisible(false)
+    setTimeout(() => setShouldRender(false), 300)
   }
 
   useEffect(() => {
@@ -59,13 +73,19 @@ export function WelcomeBackToast() {
     }
   }, [profile, t])
 
-  if (!mounted || !visible) return null
+  if (!mounted || !shouldRender) return null
 
-  return createPortal(
+  return portalContainer ? createPortal(
     <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] bg-surface-overlay border border-border-muted rounded-2xl shadow-[var(--shadow-lg)] backdrop-blur-xl px-5 py-4 cursor-pointer animate-in slide-in-from-top-4 fade-in duration-400"
-      style={{ animationTimingFunction: 'var(--ease-spring)' }}
-      onClick={() => setVisible(false)}
+      className="fixed top-4 left-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] bg-surface-overlay border border-border-muted rounded-2xl shadow-[var(--shadow-lg)] backdrop-blur-xl px-5 py-4 cursor-pointer"
+      style={{
+        transition: 'opacity 0.4s var(--ease-spring), transform 0.4s var(--ease-spring)',
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible
+          ? 'translate(-50%, 0) scale(1)'
+          : 'translate(-50%, -20px) scale(0.95)',
+      }}
+      onClick={dismiss}
     >
       <div className="flex items-center gap-3">
         <span className="text-2xl">{toastEmoji}</span>
@@ -74,6 +94,6 @@ export function WelcomeBackToast() {
         </p>
       </div>
     </div>,
-    document.body
-  )
+    portalContainer
+  ) : null
 }

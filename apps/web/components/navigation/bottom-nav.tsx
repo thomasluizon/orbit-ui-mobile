@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, MessageCircle, CalendarDays, User, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useUIStore } from '@/stores/ui-store'
+import { formatAPIDate } from '@orbit/shared/utils'
 import type { LucideIcon } from 'lucide-react'
 
 interface NavItem {
@@ -19,6 +21,8 @@ interface BottomNavProps {
 export function BottomNav({ onCreate }: BottomNavProps) {
   const t = useTranslations()
   const pathname = usePathname()
+  const setSelectedDate = useUIStore((s) => s.setSelectedDate)
+  const setActiveView = useUIStore((s) => s.setActiveView)
 
   const navItems: NavItem[] = [
     { name: t('nav.habits'), path: '/', icon: Home },
@@ -33,13 +37,29 @@ export function BottomNav({ onCreate }: BottomNavProps) {
     return pathname === path || pathname === path + '/'
   }
 
+  function handleNavClick(item: NavItem, event: React.MouseEvent) {
+    if (item.path === '/') {
+      // Reset date to today and view to 'today' when clicking Home
+      setSelectedDate(formatAPIDate(new Date()))
+      setActiveView('today')
+      if (isActive(item.path)) {
+        event.preventDefault()
+      }
+    }
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50">
       <div className="nav-glass border-t border-border-muted pb-[var(--safe-bottom)]">
         <div className="flex items-center justify-around h-20 max-w-[var(--app-max-w)] mx-auto px-[var(--app-px)] relative">
           {/* First two nav items */}
           {navItems.slice(0, 2).map((item) => (
-            <NavLink key={item.name} item={item} active={isActive(item.path)} />
+            <NavLink
+              key={item.name}
+              item={item}
+              active={isActive(item.path)}
+              onClick={(e) => handleNavClick(item, e)}
+            />
           ))}
 
           {/* Central FAB button */}
@@ -55,7 +75,12 @@ export function BottomNav({ onCreate }: BottomNavProps) {
 
           {/* Last two nav items */}
           {navItems.slice(2).map((item) => (
-            <NavLink key={item.name} item={item} active={isActive(item.path)} />
+            <NavLink
+              key={item.name}
+              item={item}
+              active={isActive(item.path)}
+              onClick={(e) => handleNavClick(item, e)}
+            />
           ))}
         </div>
       </div>
@@ -63,7 +88,15 @@ export function BottomNav({ onCreate }: BottomNavProps) {
   )
 }
 
-function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+function NavLink({
+  item,
+  active,
+  onClick,
+}: {
+  item: NavItem
+  active: boolean
+  onClick?: (e: React.MouseEvent) => void
+}) {
   const Icon = item.icon
 
   return (
@@ -72,6 +105,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       className={`relative flex flex-col items-center gap-1 py-2 min-w-[48px] transition-all duration-150 ${
         active ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
       }`}
+      onClick={onClick}
     >
       <Icon
         className={`size-[22px] transition-transform duration-150 ${

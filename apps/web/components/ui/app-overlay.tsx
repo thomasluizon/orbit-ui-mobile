@@ -4,6 +4,39 @@ import { useState, useEffect, useRef, useCallback, useId, type ReactNode } from 
 import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import DOMPurify from 'dompurify'
+import { usePortalContainer } from '@/hooks/use-portal-container'
+
+// ---------------------------------------------------------------------------
+// linkifyText -- converts URLs in plain text to clickable <a> tags
+// ---------------------------------------------------------------------------
+
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
+function linkifyText(text: string): string {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g
+  const parts = text.split(urlRegex)
+
+  const result = parts.map((part, i) => {
+    const escaped = escapeHtml(part)
+    if (i % 2 === 1) {
+      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${escaped}</a>`
+    }
+    return escaped
+  }).join('')
+
+  return DOMPurify.sanitize(result, { ALLOWED_TAGS: ['a'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class'] })
+}
+
+// ---------------------------------------------------------------------------
+// AppOverlay
+// ---------------------------------------------------------------------------
 
 interface AppOverlayProps {
   open: boolean
@@ -31,16 +64,34 @@ export function AppOverlay({
   onExpandDescription,
 }: AppOverlayProps) {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('app-overlay')
   const titleId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)
   const pointerDownOnBackdrop = useRef(false)
   const savedScrollY = useRef(0)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [animState, setAnimState] = useState<'hidden' | 'entering' | 'visible' | 'leaving'>('hidden')
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Transition state machine
+  useEffect(() => {
+    if (open && mounted) {
+      setAnimState('entering')
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setAnimState('visible')
+        })
+      })
+    } else if (!open && animState === 'visible') {
+      setAnimState('leaving')
+      const timer = setTimeout(() => setAnimState('hidden'), 200)
+      return () => clearTimeout(timer)
+    }
+  }, [open, mounted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lockBodyScroll = useCallback(() => {
     savedScrollY.current = window.scrollY
@@ -139,9 +190,20 @@ export function AppOverlay({
     pointerDownOnBackdrop.current = false
   }
 
-  if (!open || !mounted) return null
+  if (animState === 'hidden' || !mounted) return null
 
   const hasTitle = !!(title || titleContent)
+  const linkedDescription = description ? linkifyText(description) : ''
+
+  // Transition classes
+  const isEntering = animState === 'entering'
+  const isLeaving = animState === 'leaving'
+  const backdropClass = isEntering || isLeaving ? 'opacity-0' : 'opacity-100'
+  const panelClass = isEntering
+    ? 'translate-y-full sm:translate-y-0 sm:scale-95 opacity-0'
+    : isLeaving
+      ? 'opacity-0'
+      : 'translate-y-0 sm:scale-100 opacity-100'
 
   const overlay = (
     <div
@@ -150,7 +212,9 @@ export function AppOverlay({
       onClick={handleBackdropClick}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-[var(--ease-out)] ${backdropClass}`}
+      />
 
       {/* Panel - bottom sheet on mobile, centered modal on desktop */}
       <dialog
@@ -158,7 +222,7 @@ export function AppOverlay({
         open
         aria-modal="true"
         aria-labelledby={hasTitle ? titleId : undefined}
-        className="relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain"
+        className={`relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain transition-all duration-300 ease-[var(--ease-out)] ${panelClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle (mobile) */}
@@ -180,7 +244,7 @@ export function AppOverlay({
                 <div className="mt-1 flex items-start gap-2">
                   <p
                     className="flex-1 text-sm text-text-secondary whitespace-pre-wrap max-h-32 overflow-y-auto"
-                    dangerouslySetInnerHTML={{ __html: description }}
+                    dangerouslySetInnerHTML={{ __html: linkedDescription }}
                   />
                   {expandable && (
                     <button
@@ -226,5 +290,5 @@ export function AppOverlay({
     </div>
   )
 
-  return createPortal(overlay, document.body)
+  return portalContainer ? createPortal(overlay, portalContainer) : null
 }

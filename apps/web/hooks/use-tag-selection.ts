@@ -69,11 +69,11 @@ export interface TagSelectionState {
  * callback functions so this hook stays decoupled from the tags store/API.
  *
  * @param initialTagIds - Tag IDs to start with (for editing)
- * @param maxTags - Maximum number of tags allowed per habit
+ * @param maxTags - Maximum number of tags allowed per habit (from config.limits.maxTagsPerHabit)
  */
 export function useTagSelection(
   initialTagIds: string[] = [],
-  maxTags = 5,
+  maxTags = 10,
 ): TagSelectionState {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([...initialTagIds])
   const [showNewTag, setShowNewTag] = useState(false)

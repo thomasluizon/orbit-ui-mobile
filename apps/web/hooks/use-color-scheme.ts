@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { schemes, type ColorScheme, type ColorSchemeDefinition } from '@orbit/shared'
 import type { ThemeMode } from '@orbit/shared'
+import { updateColorScheme as updateColorSchemeAction } from '@/app/actions/profile'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -121,13 +122,17 @@ export function useColorScheme() {
 
   // Apply scheme on mount and when values change
   useEffect(() => {
-    applySchemeToDOM(currentScheme, currentTheme)
+    applySchemeToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
 
-  const applyScheme = useCallback((scheme: ColorScheme) => {
+  const applyScheme = useCallback((scheme: ColorScheme, persistToDb = true) => {
     setCookie('orbit_color_scheme', scheme)
     setCurrentScheme(scheme)
     applySchemeToDOM(scheme, currentTheme, true)
+
+    if (persistToDb) {
+      updateColorSchemeAction({ colorScheme: scheme }).catch(() => {})
+    }
   }, [currentTheme])
 
   const applyTheme = useCallback((theme: ThemeMode) => {
@@ -141,11 +146,37 @@ export function useColorScheme() {
     applyTheme(next)
   }, [currentTheme, applyTheme])
 
+  /**
+   * Sync cookie with DB value (DB is source of truth).
+   * Call this after profile loads to ensure cross-device sync.
+   */
+  const syncSchemeFromProfile = useCallback((dbColorScheme: string | null) => {
+    const dbScheme = (dbColorScheme && VALID_SCHEMES.includes(dbColorScheme as ColorScheme))
+      ? (dbColorScheme as ColorScheme)
+      : null
+    if (dbScheme && dbScheme !== currentScheme) {
+      setCookie('orbit_color_scheme', dbScheme)
+      setCurrentScheme(dbScheme)
+      applySchemeToDOM(dbScheme, currentTheme)
+    }
+  }, [currentScheme, currentTheme])
+
+  /**
+   * First-login detection: if DB colorScheme is null, save current
+   * cookie value (default purple) so future logins are consistent.
+   */
+  const detectAndSaveSchemeIfNeeded = useCallback((dbColorScheme: string | null) => {
+    if (dbColorScheme !== null) return
+    updateColorSchemeAction({ colorScheme: currentScheme }).catch(() => {})
+  }, [currentScheme])
+
   return {
     currentScheme,
     currentTheme,
     applyScheme,
     applyTheme,
     toggleTheme,
+    syncSchemeFromProfile,
+    detectAndSaveSchemeIfNeeded,
   }
 }

@@ -87,3 +87,9 @@ export async function resetAccount(): Promise<void> {
     method: 'POST',
   })
 }
+
+export async function dismissCalendarImport(): Promise<void> {
+  await authFetch('/api/calendar/dismiss', {
+    method: 'PUT',
+  })
+}

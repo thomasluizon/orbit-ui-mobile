@@ -1,7 +1,9 @@
 'use client'
 
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -9,12 +11,29 @@ import { updateWeekStartDay, updateColorScheme as updateColorSchemeAction } from
 
 export function OnboardingWelcome() {
   const t = useTranslations()
+  const queryClient = useQueryClient()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const { currentScheme, applyScheme } = useColorScheme()
 
   const weekStartDayMutation = useMutation({
     mutationFn: (day: number) => updateWeekStartDay({ weekStartDay: day }),
+    onMutate: async (newDay) => {
+      await queryClient.cancelQueries({ queryKey: profileKeys.all })
+      const prev = queryClient.getQueryData<Profile>(profileKeys.detail())
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+        old ? { ...old, weekStartDay: newDay } : old,
+      )
+      return { prev }
+    },
+    onError: (_err, _newDay, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData<Profile>(profileKeys.detail(), context.prev)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    },
   })
 
   const colorSchemeMutation = useMutation({
