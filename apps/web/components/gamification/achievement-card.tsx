@@ -59,7 +59,7 @@ export function AchievementCard({ achievement, earned, earnedDate }: Achievement
 
       {earned && earnedDate && (
         <p className="text-[10px] text-text-muted mt-1">
-          {t('gamification.page.earnedOn', { date: format(new Date(earnedDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale }) })}
+          {t('gamification.page.earnedOn', { date: format(new Date(earnedDate), 'PPP', { locale: dateFnsLocale }) })}
         </p>
       )}
     </div>

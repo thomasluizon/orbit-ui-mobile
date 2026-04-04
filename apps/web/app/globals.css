@@ -443,6 +443,120 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ═══════════════════════════════════════════════════════
+   FRESH START ANIMATION
+   ═══════════════════════════════════════════════════════ */
+
+.fresh-start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.fresh-start-overlay.is-visible {
+  opacity: 1;
+}
+
+.fresh-start-overlay.is-fading-out {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Center orb */
+.fresh-start-orb {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 9999px;
+  border: 2px solid var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.3);
+  box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0);
+}
+
+.is-visible .fresh-start-orb {
+  animation: fresh-start-orb 0.8s var(--ease-spring) forwards;
+}
+
+/* Radiating rings */
+.fresh-start-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5rem;
+  height: 5rem;
+  margin-top: -2.5rem;
+  margin-left: -2.5rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(var(--primary-shadow), 0.4);
+  opacity: 0;
+  transform: scale(0.5);
+  pointer-events: none;
+}
+
+.is-visible .fresh-start-ring-1 {
+  animation: fresh-start-ring 1.2s ease-out 0.2s forwards;
+}
+
+.is-visible .fresh-start-ring-2 {
+  animation: fresh-start-ring 1.2s ease-out 0.4s forwards;
+}
+
+/* Text reveal */
+.fresh-start-text {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.is-visible .fresh-start-text {
+  animation: fresh-start-text 0.6s var(--ease-out) 0.8s forwards;
+}
+
+/* Fresh start keyframes */
+@keyframes fresh-start-orb {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+    box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(var(--primary-shadow), 0.3), 0 0 60px rgba(var(--primary-shadow), 0.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(var(--primary-shadow), 0.2), 0 0 40px rgba(var(--primary-shadow), 0.1);
+  }
+}
+
+@keyframes fresh-start-ring {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+@keyframes fresh-start-text {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
    ACCESSIBILITY
    ═══════════════════════════════════════════════════════ */
 
@@ -453,6 +567,28 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Fresh start: simple fade only */
+  .fresh-start-orb,
+  .fresh-start-ring,
+  .fresh-start-text {
+    animation: none !important;
+  }
+
+  .is-visible .fresh-start-orb {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(var(--primary-shadow), 0.2);
+  }
+
+  .is-visible .fresh-start-ring {
+    display: none;
+  }
+
+  .is-visible .fresh-start-text {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

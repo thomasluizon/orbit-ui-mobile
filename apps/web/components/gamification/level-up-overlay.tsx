@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 import './level-up-overlay.css'
 
 interface LevelUpOverlayProps {
@@ -13,13 +14,20 @@ interface LevelUpOverlayProps {
 
 export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayProps) {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('level-up-overlay')
   const [visible, setVisible] = useState(false)
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
     setMounted(true)
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -27,21 +35,27 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayP
       setLevel(newLevel)
       setTitle(t(`gamification.levels.${newLevel}`))
       setVisible(true)
-      const timer = setTimeout(() => {
+      setShouldRender(true)
+      requestAnimationFrame(() => setIsVisible(true))
+      timerRef.current = setTimeout(() => {
         setVisible(false)
+        setIsVisible(false)
         onClear()
+        setTimeout(() => setShouldRender(false), 400)
       }, 3000)
-      return () => clearTimeout(timer)
     }
   }, [leveledUp, newLevel, onClear, t])
 
-  if (!mounted || !visible) return null
+  if (!mounted || !shouldRender) return null
 
-  return createPortal(
+  return portalContainer ? createPortal(
     <output
       aria-live="assertive"
-      className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 animate-in fade-in duration-500"
-      style={{ animationTimingFunction: 'var(--ease-spring)' }}
+      className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70"
+      style={{
+        transition: 'opacity 0.5s var(--ease-spring)',
+        opacity: isVisible ? 1 : 0,
+      }}
     >
       <div className="text-center space-y-4 level-up-content">
         {/* Orbital ring animation */}
@@ -70,6 +84,6 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayP
         </div>
       </div>
     </output>,
-    document.body
-  )
+    portalContainer
+  ) : null
 }

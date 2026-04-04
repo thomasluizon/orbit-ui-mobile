@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
+import { getErrorMessage } from '@orbit/shared/utils'
 import {
   Settings,
   Sparkles,
@@ -34,11 +38,20 @@ export default function ProfilePage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   const { profile, isLoading, error, invalidate } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile()
+
+  // Handle subscription success redirect -- refresh profile to pick up new plan
+  useEffect(() => {
+    if (searchParams.get('subscription') === 'success') {
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    }
+  }, [searchParams, queryClient])
 
   // --- Fresh Start ---
   const [showResetModal, setShowResetModal] = useState(false)
@@ -70,8 +83,7 @@ export default function ProfilePage() {
       setShowResetModal(false)
       setShowFreshStartAnimation(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.freshStart.errorGeneric')
-      setResetError(msg)
+      setResetError(getErrorMessage(err, t('profile.freshStart.errorGeneric')))
     } finally {
       setResetLoading(false)
     }
@@ -106,8 +118,7 @@ export default function ProfilePage() {
       await requestDeletion()
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
-      setDeleteError(msg)
+      setDeleteError(getErrorMessage(err, t('profile.deleteAccount.errorGeneric')))
     } finally {
       setDeleteLoading(false)
     }
@@ -119,12 +130,11 @@ export default function ProfilePage() {
     setDeleteLoading(true)
     setDeleteError('')
     try {
-      await confirmDeletion(code)
-      setScheduledDeletionDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+      const response = await confirmDeletion(code)
+      setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
-      setDeleteError(msg)
+      setDeleteError(getErrorMessage(err, t('profile.deleteAccount.errorGeneric')))
     } finally {
       setDeleteLoading(false)
     }

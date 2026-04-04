@@ -24,6 +24,8 @@ import type { FrequencyUnit, ChecklistItem, ScheduledReminderTime } from '@orbit
 export interface HabitFormOptions {
   /** Initial data for editing an existing habit */
   initialData?: Partial<HabitFormData>
+  /** Week start day from profile: 0 = Sunday, 1 = Monday (default) */
+  weekStartDay?: number
 }
 
 export interface HabitFormHelpers {
@@ -63,7 +65,7 @@ export interface HabitFormHelpers {
 // ---------------------------------------------------------------------------
 
 export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
-  const { initialData } = options
+  const { initialData, weekStartDay = 1 } = options
   const t = useTranslations()
 
   const form = useForm<HabitFormData>({
@@ -102,7 +104,6 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const showEndDate = !!frequencyUnit && !isGeneral
 
   // -- Day picker list --
-  // TODO: Use weekStartDay from profile store when available
   const daysList = useMemo(() => {
     const mondayFirst = [
       { value: 'Monday', label: t('dates.daysShort.monday') },
@@ -113,9 +114,12 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       { value: 'Saturday', label: t('dates.daysShort.saturday') },
       { value: 'Sunday', label: t('dates.daysShort.sunday') },
     ]
-    // TODO: Check profile weekStartDay === 0 for Sunday-first
+    // weekStartDay === 0 means Sunday-first
+    if (weekStartDay === 0) {
+      return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)]
+    }
     return mondayFirst
-  }, [t])
+  }, [t, weekStartDay])
 
   // -- Frequency units list --
   const frequencyUnits = useMemo(

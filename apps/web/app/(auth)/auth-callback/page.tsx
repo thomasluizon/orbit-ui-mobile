@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import Link from 'next/link'
+import { useTranslations, useLocale } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
+import { getSupabaseClient } from '@/lib/supabase'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 function getCookieValue(name: string): string | undefined {
@@ -15,112 +17,65 @@ function getCookieValue(name: string): string | undefined {
 
 export default function AuthCallbackPage() {
   const t = useTranslations()
+  const locale = useLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { setAuth, isAuthenticated } = useAuthStore()
+  const { setAuth } = useAuthStore()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const processedRef = useRef(false)
+  const isAuthenticatedRef = useRef(false)
+  const errorMessageRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (processedRef.current) return
     processedRef.current = true
 
-    async function handleCallback() {
-      // Extract provider tokens from URL hash (Supabase implicit flow)
-      // and from query params (fallback)
-      let providerToken: string | undefined
-      let providerRefreshToken: string | undefined
-      let accessToken: string | undefined
+    // Extract provider tokens before Supabase client consumes them.
+    // Web: tokens are in the URL hash (implicit flow).
+    let extractedProviderToken: string | undefined
+    let extractedProviderRefreshToken: string | undefined
 
-      if (window.location.hash) {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        providerToken = hashParams.get('provider_token') ?? undefined
-        providerRefreshToken = hashParams.get('provider_refresh_token') ?? undefined
-        accessToken = hashParams.get('access_token') ?? undefined
-      }
+    if (window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      extractedProviderToken = hashParams.get('provider_token') ?? undefined
+      extractedProviderRefreshToken = hashParams.get('provider_refresh_token') ?? undefined
+    }
+    const query = new URLSearchParams(window.location.search)
+    extractedProviderToken ??= query.get('provider_token') ?? undefined
+    extractedProviderRefreshToken ??= query.get('provider_refresh_token') ?? undefined
 
-      // Also check query params as fallback
-      providerToken ??= searchParams.get('provider_token') ?? undefined
-      providerRefreshToken ??= searchParams.get('provider_refresh_token') ?? undefined
-      accessToken ??= searchParams.get('access_token') ?? undefined
+    const supabase = getSupabaseClient()
 
-      // Supabase PKCE flow: code is in query params, exchange via Supabase client
-      const code = searchParams.get('code')
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
+      if (!session) return
 
-      if (!accessToken && !code) {
-        // No tokens at all -- something went wrong
-        setErrorMessage(t('auth.callbackError'))
-        return
-      }
-
-      // If we have a code but no access_token, we need to exchange it.
-      // For PKCE flow, exchange code for session via Supabase.
-      if (code && !accessToken) {
-        try {
-          // Exchange code for access token via Supabase REST API
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-          const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-          if (!supabaseUrl || !supabaseKey) {
-            setErrorMessage(t('auth.callbackError'))
-            return
-          }
-
-          const tokenResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseKey,
-            },
-            body: JSON.stringify({
-              auth_code: code,
-              code_verifier: sessionStorage.getItem('supabase-code-verifier') ?? '',
-            }),
-          })
-
-          if (tokenResponse.ok) {
-            const tokenData = await tokenResponse.json()
-            accessToken = tokenData.access_token
-            providerToken ??= tokenData.provider_token
-            providerRefreshToken ??= tokenData.provider_refresh_token
-          } else {
-            setErrorMessage(t('auth.callbackError'))
-            return
-          }
-        } catch {
-          setErrorMessage(t('auth.callbackError'))
-          return
-        }
-      }
-
-      if (!accessToken) {
-        setErrorMessage(t('auth.callbackError'))
-        return
-      }
-
-      // Exchange Supabase token for our app token via BFF
-      const referralCode = getCookieValue('referral_code')
+      subscription.unsubscribe()
 
       try {
+        const referralCode = getCookieValue('referral_code')
+
         const response = await fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            accessToken,
-            language: 'en',
-            googleAccessToken: providerToken,
-            googleRefreshToken: providerRefreshToken,
+            accessToken: session.access_token,
+            language: locale,
+            googleAccessToken: extractedProviderToken ?? session.provider_token ?? undefined,
+            googleRefreshToken: extractedProviderRefreshToken ?? session.provider_refresh_token ?? undefined,
             ...(referralCode ? { referralCode } : {}),
           }),
         })
 
         if (!response.ok) {
           setErrorMessage(t('auth.callbackError'))
+          errorMessageRef.current = t('auth.callbackError')
           return
         }
 
         const loginResponse = (await response.json()) as LoginResponse
         setAuth(loginResponse)
+        isAuthenticatedRef.current = true
 
         // Handle referral
         if (referralCode) {
@@ -139,14 +94,14 @@ export default function AuthCallbackPage() {
         router.push(safeUrl)
       } catch {
         setErrorMessage(t('auth.callbackError'))
+        errorMessageRef.current = t('auth.callbackError')
       }
-    }
+    })
 
-    handleCallback()
-
-    // 15s timeout for OAuth callback
+    // 15s timeout -- uses refs to avoid stale closure
     const timeoutId = setTimeout(() => {
-      if (!isAuthenticated && !errorMessage) {
+      subscription.unsubscribe()
+      if (!isAuthenticatedRef.current && !errorMessageRef.current) {
         setErrorMessage(t('auth.callbackError'))
       }
     }, 15000)
@@ -163,12 +118,12 @@ export default function AuthCallbackPage() {
             <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 text-sm text-red-400">
               {errorMessage}
             </div>
-            <a
+            <Link
               href="/login"
               className="text-primary hover:underline font-semibold text-sm"
             >
               {t('auth.backToLogin')}
-            </a>
+            </Link>
           </>
         ) : (
           <>

@@ -19,7 +19,7 @@ export default function StreakPage() {
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
-  const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze()
+  const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze(profile)
   const activateFreezeMutation = useActivateStreakFreeze()
 
   const [showConfirm, setShowConfirm] = useState(false)

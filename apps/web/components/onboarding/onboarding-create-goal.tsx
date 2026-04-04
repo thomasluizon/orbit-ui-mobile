@@ -34,7 +34,7 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: OnboardingCreateGoal
     { key: 'run', title: t('onboarding.flow.createGoal.suggestions.run'), target: 100, unit: 'km' },
     { key: 'books', title: t('onboarding.flow.createGoal.suggestions.books'), target: 12, unit: t('onboarding.flow.createGoal.suggestions.booksUnit') },
     { key: 'save', title: t('onboarding.flow.createGoal.suggestions.save'), target: 5000, unit: '$' },
-  ], [])
+  ], [t])
 
   function selectSuggestion(suggestion: GoalSuggestion) {
     setDescription(suggestion.title)

@@ -7,7 +7,6 @@ describe('chat store', () => {
     useChatStore.setState({
       messages: [],
       isTyping: false,
-      isStreaming: false,
     })
   })
 
@@ -31,10 +30,9 @@ describe('chat store', () => {
       expect(state.messages).toEqual([])
     })
 
-    it('starts with typing and streaming false', () => {
+    it('starts with typing false', () => {
       const state = useChatStore.getState()
       expect(state.isTyping).toBe(false)
-      expect(state.isStreaming).toBe(false)
     })
   })
 
@@ -123,25 +121,6 @@ describe('chat store', () => {
   })
 
   // -------------------------------------------------------------------------
-  // setIsStreaming
-  // -------------------------------------------------------------------------
-
-  describe('setIsStreaming', () => {
-    it('sets streaming to true', () => {
-      const { setIsStreaming } = useChatStore.getState()
-      setIsStreaming(true)
-      expect(useChatStore.getState().isStreaming).toBe(true)
-    })
-
-    it('sets streaming to false', () => {
-      useChatStore.setState({ isStreaming: true })
-      const { setIsStreaming } = useChatStore.getState()
-      setIsStreaming(false)
-      expect(useChatStore.getState().isStreaming).toBe(false)
-    })
-  })
-
-  // -------------------------------------------------------------------------
   // clearMessages
   // -------------------------------------------------------------------------
 
@@ -161,13 +140,6 @@ describe('chat store', () => {
       const { clearMessages } = useChatStore.getState()
       clearMessages()
       expect(useChatStore.getState().isTyping).toBe(false)
-    })
-
-    it('resets streaming state', () => {
-      useChatStore.setState({ isStreaming: true })
-      const { clearMessages } = useChatStore.getState()
-      clearMessages()
-      expect(useChatStore.getState().isStreaming).toBe(false)
     })
   })
 })

@@ -30,15 +30,25 @@ interface UIState {
   // Select mode (bulk operations)
   isSelectMode: boolean
   selectedHabitIds: Set<string>
+  manuallySelectedIds: Set<string>
   lastCreatedHabitId: string | null
   toggleSelectMode: () => void
   toggleHabitSelection: (id: string) => void
+  /** Cascade-aware toggle: selects/deselects all descendants with the parent */
+  toggleSelectionCascade: (
+    habitId: string,
+    getDescendantIds: (id: string) => string[],
+    isAncestorSelected: (id: string) => boolean,
+  ) => void
+  selectAllHabits: (allIds: string[]) => void
   clearSelection: () => void
   setLastCreatedHabitId: (id: string | null) => void
 
-  // Create modal (shared between layout BottomNav and pages)
+  // Create modals (shared between layout BottomNav and pages)
   showCreateModal: boolean
   setShowCreateModal: (show: boolean) => void
+  showCreateGoalModal: boolean
+  setShowCreateGoalModal: (show: boolean) => void
 
   // Search
   searchQuery: string
@@ -98,12 +108,14 @@ export const useUIStore = create<UIState>((set, get) => ({
   // -- Select mode ------------------------------------------------------------
   isSelectMode: false,
   selectedHabitIds: new Set<string>(),
+  manuallySelectedIds: new Set<string>(),
   lastCreatedHabitId: null,
 
   toggleSelectMode: () =>
     set((state) => ({
       isSelectMode: !state.isSelectMode,
       selectedHabitIds: state.isSelectMode ? new Set<string>() : state.selectedHabitIds,
+      manuallySelectedIds: state.isSelectMode ? new Set<string>() : state.manuallySelectedIds,
     })),
 
   toggleHabitSelection: (id) =>
@@ -117,8 +129,40 @@ export const useUIStore = create<UIState>((set, get) => ({
       return { selectedHabitIds: next }
     }),
 
+  toggleSelectionCascade: (habitId, getDescendantIds, isAncestorSelected) =>
+    set((state) => {
+      // If an ancestor is already selected, don't allow toggling the child
+      if (isAncestorSelected(habitId)) return state
+
+      const selected = new Set(state.selectedHabitIds)
+      const manual = new Set(state.manuallySelectedIds)
+      const descendants = getDescendantIds(habitId)
+
+      if (selected.has(habitId)) {
+        // Deselect: remove the habit and auto-selected descendants
+        selected.delete(habitId)
+        manual.delete(habitId)
+        for (const id of descendants) {
+          if (!manual.has(id)) selected.delete(id)
+        }
+      } else {
+        // Select: add the habit and all descendants
+        selected.add(habitId)
+        manual.add(habitId)
+        for (const id of descendants) selected.add(id)
+      }
+
+      return { selectedHabitIds: selected, manuallySelectedIds: manual }
+    }),
+
+  selectAllHabits: (allIds) =>
+    set({
+      selectedHabitIds: new Set(allIds),
+      manuallySelectedIds: new Set(allIds),
+    }),
+
   clearSelection: () =>
-    set({ isSelectMode: false, selectedHabitIds: new Set<string>() }),
+    set({ isSelectMode: false, selectedHabitIds: new Set<string>(), manuallySelectedIds: new Set<string>() }),
 
   setLastCreatedHabitId: (id) => {
     if (createdHabitTimer) clearTimeout(createdHabitTimer)
@@ -128,9 +172,11 @@ export const useUIStore = create<UIState>((set, get) => ({
     }
   },
 
-  // -- Create modal -----------------------------------------------------------
+  // -- Create modals ----------------------------------------------------------
   showCreateModal: false,
   setShowCreateModal: (show) => set({ showCreateModal: show }),
+  showCreateGoalModal: false,
+  setShowCreateGoalModal: (show) => set({ showCreateGoalModal: show }),
 
   // -- Search -----------------------------------------------------------------
   searchQuery: '',

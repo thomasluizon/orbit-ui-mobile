@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import {
   isToday as isDateToday,
   isTomorrow,
@@ -24,6 +24,7 @@ import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
 import { LogHabitModal } from './log-habit-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AppOverlay } from '@/components/ui/app-overlay'
 import {
   useHabits,
   useLogHabit,
@@ -31,16 +32,17 @@ import {
   useDeleteHabit,
   useDuplicateHabit,
   useReorderHabits,
-  type NormalizedHabitsData,
+  useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { useConfig } from '@/hooks/use-config'
 import { useUIStore } from '@/stores/ui-store'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
-// Props
+// Props & Handle
 // ---------------------------------------------------------------------------
 
 interface HabitListProps {
@@ -57,11 +59,32 @@ interface HabitListProps {
   onSeeUpcoming?: () => void
 }
 
+export interface HabitListHandle {
+  collapseAll: () => void
+  expandAll: () => void
+  allCollapsed: boolean
+  allLoadedIds: Set<string>
+  markRecentlyCompleted: (habitId: string) => void
+  checkAndPromptParentLog: (childHabitId: string) => void
+}
+
+// ---------------------------------------------------------------------------
+// Move parent picker types
+// ---------------------------------------------------------------------------
+
+interface MoveParentOption {
+  id: string | null
+  label: string
+  depth: number
+  disabled: boolean
+  reason: string | null
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function HabitList({
+export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
   view = 'today',
   selectedDate,
   showCompleted = false,
@@ -73,7 +96,7 @@ export function HabitList({
   onEnterSelectMode,
   onCreate,
   onSeeUpcoming,
-}: HabitListProps) {
+}, ref) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -84,7 +107,13 @@ export function HabitList({
   const skipHabit = useSkipHabit()
   const deleteHabitMut = useDeleteHabit()
   const duplicateHabitMut = useDuplicateHabit()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const reorderHabitsMut = useReorderHabits()
+  const moveHabitParentMut = useMoveHabitParent()
+
+  // Config
+  const { config: appConfig } = useConfig()
+  const maxHabitDepth = appConfig.limits.maxHabitDepth
 
   const data = habitsQuery.data
   const habitsById = data?.habitsById ?? new Map()
@@ -124,6 +153,11 @@ export function HabitList({
     recentlyCompletedIds,
   })
 
+  // Wrapper for getVisibleChildren that passes the current view
+  function getVisibleChildren(parentId: string): NormalizedHabit[] {
+    return visibility.getVisibleChildren(parentId, view)
+  }
+
   // Drill navigation
   const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
 
@@ -142,6 +176,26 @@ export function HabitList({
     })
   }, [])
 
+  // Collapse / expand all
+  const expandableIds = useMemo(() => {
+    const ids: string[] = []
+    for (const h of habitsById.values()) {
+      const childIds = childrenByParent.get(h.id)
+      if (childIds && childIds.length > 0) ids.push(h.id)
+    }
+    return ids
+  }, [habitsById, childrenByParent])
+
+  const allCollapsed = expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id))
+
+  const collapseAll = useCallback(() => {
+    setCollapsedIds(new Set(expandableIds))
+  }, [expandableIds])
+
+  const expandAll = useCallback(() => {
+    setCollapsedIds(new Set())
+  }, [])
+
   // Filter habits
   const habits = useMemo(() => {
     if (view === 'general' || view === 'all') {
@@ -155,25 +209,91 @@ export function HabitList({
     return topLevelHabits.filter((h) => visibility.hasVisibleContent(h))
   }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
 
-  // Children progress
-  const getChildrenProgress = useCallback(
-    (habitId: string) => {
+  // All loaded/selectable IDs including descendants
+  const allLoadedIds = useMemo(() => {
+    const ids = new Set<string>()
+    function collect(habitId: string) {
+      ids.add(habitId)
+      const childIds = childrenByParent.get(habitId)
+      if (childIds) {
+        for (const cid of childIds) collect(cid)
+      }
+    }
+    for (const h of habits) {
+      collect(h.id)
+    }
+    return ids
+  }, [habits, childrenByParent])
+
+  // Children progress -- matches Nuxt computeChildProgress logic
+  const isListView = view === 'all' || view === 'general'
+
+  const childrenProgressMap = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>()
+
+    function computeChildProgress(
+      child: NormalizedHabit,
+      computeFn: (id: string) => { done: number; total: number },
+    ): { done: number; total: number } {
+      let done = 0
+      let total = 0
+
+      if (isListView || child.isGeneral) {
+        total++
+        if (child.isCompleted) done++
+      } else if (!visibility.isRelevantToday(child) && !child.isLoggedInRange) {
+        // Not relevant today and not logged -- only count nested
+        const nested = computeFn(child.id)
+        return nested
+      } else if (visibility.isDueOnSelectedDate(child) || child.isLoggedInRange) {
+        total++
+        if (child.isCompleted || child.isLoggedInRange) done++
+      }
+
+      const nested = computeFn(child.id)
+      done += nested.done
+      total += nested.total
+      return { done, total }
+    }
+
+    function compute(habitId: string): { done: number; total: number } {
+      const cached = map.get(habitId)
+      if (cached) return cached
+
       const children = getChildren(habitId)
+      if (children.length === 0) {
+        const result = { done: 0, total: 0 }
+        map.set(habitId, result)
+        return result
+      }
+
       let done = 0
       let total = 0
       for (const child of children) {
-        total++
-        if (child.isCompleted || child.isLoggedInRange) done++
-        // Recurse
-        const nested = getChildren(child.id)
-        for (const nc of nested) {
-          total++
-          if (nc.isCompleted || nc.isLoggedInRange) done++
-        }
+        const progress = computeChildProgress(child, compute)
+        done += progress.done
+        total += progress.total
       }
-      return { done, total }
+
+      const result = { done, total }
+      map.set(habitId, result)
+      return result
+    }
+
+    for (const habit of habitsById.values()) {
+      if (!map.has(habit.id)) {
+        compute(habit.id)
+      }
+    }
+
+    return map
+  }, [habitsById, getChildren, isListView, visibility])
+
+  const getChildrenProgress = useCallback(
+    (habitId: string) => {
+      return childrenProgressMap.get(habitId) ?? { done: 0, total: 0 }
     },
-    [getChildren],
+    [childrenProgressMap],
   )
 
   // Date groups for "all" view
@@ -267,16 +387,16 @@ export function HabitList({
     const items: DragItem[] = []
 
     function addHabitTree(habit: NormalizedHabit, depth: number) {
-      const visibleChildren = visibility.getVisibleChildren(habit.id, view)
+      const visChildren = visibility.getVisibleChildren(habit.id, view)
       items.push({
         id: habit.id,
         habit,
         depth,
-        hasChildren: visibleChildren.length > 0,
+        hasChildren: visChildren.length > 0,
         hasSubHabits: habit.hasSubHabits,
       })
       if (!collapsedIds.has(habit.id)) {
-        for (const child of visibleChildren) {
+        for (const child of visChildren) {
           addHabitTree(child, depth + 1)
         }
       }
@@ -308,7 +428,192 @@ export function HabitList({
   const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
   const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
 
+  // Auto-log parent state
+  const [showAutoLogParent, setShowAutoLogParent] = useState(false)
+  const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
+  const autoLogParentHabit = autoLogParentId ? habitsById.get(autoLogParentId) ?? null : null
+
+  // Move parent picker state
+  const [showMoveParentOverlay, setShowMoveParentOverlay] = useState(false)
+  const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
+  const [selectedMoveParentId, setSelectedMoveParentId] = useState<string | null>(null)
+  const [isMovingParent, setIsMovingParent] = useState(false)
+  const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
+
+  // -------------------------------------------------------------------------
+  // Auto-log parent when all sub-habits complete
+  // -------------------------------------------------------------------------
+
+  function checkAndPromptParentLog(childHabitId: string) {
+    const child = habitsById.get(childHabitId)
+    if (!child?.parentId) return
+    const parent = habitsById.get(child.parentId)
+    if (!parent || parent.isCompleted) return
+    const { done, total } = getChildrenProgress(parent.id)
+    if (total > 0 && done >= total) {
+      setAutoLogParentId(parent.id)
+      setShowAutoLogParent(true)
+    }
+  }
+
+  async function confirmAutoLogParent() {
+    const parentId = autoLogParentId
+    if (!parentId) return
+    setShowAutoLogParent(false)
+    setAutoLogParentId(null)
+    markRecentlyCompleted(parentId)
+    try {
+      await logHabit.mutateAsync({ habitId: parentId })
+      // After logging parent, check if grandparent also needs logging
+      checkAndPromptParentLog(parentId)
+    } catch {
+      // Error handled by mutation
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Move parent picker helpers
+  // -------------------------------------------------------------------------
+
+  function getHabitDepth(habitId: string): number {
+    let depth = 0
+    let current = habitsById.get(habitId)
+    while (current?.parentId) {
+      depth++
+      current = habitsById.get(current.parentId)
+    }
+    return depth
+  }
+
+  function getSubtreeMaxDepth(habitId: string, baseDepth: number): number {
+    let max = baseDepth
+    const children = getChildren(habitId)
+    for (const child of children) {
+      const childMax = getSubtreeMaxDepth(child.id, baseDepth + 1)
+      if (childMax > max) max = childMax
+    }
+    return max
+  }
+
+  function isDescendant(candidateId: string, ancestorId: string): boolean {
+    let current = habitsById.get(candidateId)
+    while (current?.parentId) {
+      if (current.parentId === ancestorId) return true
+      current = habitsById.get(current.parentId)
+    }
+    return false
+  }
+
+  function validateMoveTarget(
+    targetParentId: string | null,
+    draggedId: string,
+  ): { valid: boolean; reason: string | null } {
+    if (targetParentId === draggedId) {
+      return { valid: false, reason: t('habits.moveParent.invalidSelf') }
+    }
+
+    if (targetParentId && isDescendant(targetParentId, draggedId)) {
+      return { valid: false, reason: t('habits.moveParent.invalidDescendant') }
+    }
+
+    const newParentDepth = targetParentId ? getHabitDepth(targetParentId) : -1
+    const subtreeMax = getSubtreeMaxDepth(draggedId, newParentDepth + 1)
+    if (subtreeMax >= maxHabitDepth) {
+      return {
+        valid: false,
+        reason: t('habits.moveParent.invalidDepth', { max: maxHabitDepth }),
+      }
+    }
+
+    return { valid: true, reason: null }
+  }
+
+  const moveParentOptions = useMemo<MoveParentOption[]>(() => {
+    if (!movingHabitId) return []
+
+    const options: MoveParentOption[] = []
+    const rootValidation = validateMoveTarget(null, movingHabitId)
+    options.push({
+      id: null,
+      label: t('habits.moveParent.toRoot'),
+      depth: 0,
+      disabled: !rootValidation.valid,
+      reason: rootValidation.reason,
+    })
+
+    function addOption(habit: NormalizedHabit, depth: number) {
+      const validation = validateMoveTarget(habit.id, movingHabitId!)
+      options.push({
+        id: habit.id,
+        label: habit.title,
+        depth,
+        disabled: !validation.valid,
+        reason: validation.reason,
+      })
+
+      const ch = getChildren(habit.id)
+      for (const child of ch) {
+        addOption(child, depth + 1)
+      }
+    }
+
+    for (const topLevel of topLevelHabits) {
+      addOption(topLevel, 0)
+    }
+
+    return options
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movingHabitId, topLevelHabits, habitsById, t, maxHabitDepth])
+
+  const selectedMoveOption = moveParentOptions.find(
+    (option) => option.id === selectedMoveParentId,
+  ) ?? null
+
+  const canSubmitMoveParent =
+    movingHabit !== null &&
+    !isMovingParent &&
+    selectedMoveParentId !== movingHabit.parentId &&
+    selectedMoveOption !== null &&
+    !selectedMoveOption.disabled
+
+  function openMoveParentPicker(habitId: string) {
+    const habit = habitsById.get(habitId)
+    if (!habit) return
+    setMovingHabitId(habitId)
+    setSelectedMoveParentId(habit.parentId)
+    setShowMoveParentOverlay(true)
+  }
+
+  function closeMoveParentPicker() {
+    if (isMovingParent) return
+    setShowMoveParentOverlay(false)
+    setMovingHabitId(null)
+    setSelectedMoveParentId(null)
+  }
+
+  async function confirmMoveParent() {
+    if (!movingHabitId || !canSubmitMoveParent) return
+
+    setIsMovingParent(true)
+    try {
+      await moveHabitParentMut.mutateAsync({
+        habitId: movingHabitId,
+        data: { parentId: selectedMoveParentId },
+      })
+      setShowMoveParentOverlay(false)
+      setMovingHabitId(null)
+      setSelectedMoveParentId(null)
+    } catch {
+      // Error handled by mutation
+    } finally {
+      setIsMovingParent(false)
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Actions
+  // -------------------------------------------------------------------------
+
   function openDetail(habit: NormalizedHabit) {
     setSelectedHabit(habit)
     setShowDetailDrawer(true)
@@ -351,9 +656,11 @@ export function HabitList({
 
   async function confirmSkip() {
     if (!habitToSkip) return
+    const skippedId = habitToSkip
     try {
-      await skipHabit.mutateAsync({ habitId: habitToSkip })
-      markRecentlyCompleted(habitToSkip)
+      await skipHabit.mutateAsync({ habitId: skippedId })
+      markRecentlyCompleted(skippedId)
+      checkAndPromptParentLog(skippedId)
     } catch {
       // Error handled by mutation
     } finally {
@@ -364,6 +671,7 @@ export function HabitList({
 
   function handleLogged(habitId: string) {
     markRecentlyCompleted(habitId)
+    checkAndPromptParentLog(habitId)
   }
 
   async function confirmForceLog() {
@@ -400,6 +708,31 @@ export function HabitList({
     return habit ? !habit.frequencyUnit : false
   }, [habitToSkip, habitsById])
 
+  // Skip confirm message -- 3 branches: postpone, flexible, regular
+  const skipConfirmMessage = useMemo(() => {
+    if (isPostponeAction) return t('habits.postponeConfirmMessage')
+    if (habitToSkip) {
+      const habit = habitsById.get(habitToSkip)
+      if (habit?.flexibleTarget != null) {
+        return t('habits.skipConfirmMessageFlexible')
+      }
+    }
+    return t('habits.skipConfirmMessage')
+  }, [isPostponeAction, habitToSkip, habitsById, t])
+
+  // -------------------------------------------------------------------------
+  // Expose imperative handle
+  // -------------------------------------------------------------------------
+
+  useImperativeHandle(ref, () => ({
+    collapseAll,
+    expandAll,
+    get allCollapsed() { return allCollapsed },
+    get allLoadedIds() { return allLoadedIds },
+    markRecentlyCompleted,
+    checkAndPromptParentLog,
+  }))
+
   // Render a single HabitCard with all handlers
   function renderHabitCard(
     habit: NormalizedHabit,
@@ -424,6 +757,7 @@ export function HabitList({
         childrenTotal={progress.total}
         isSelectMode={isSelectMode}
         isSelected={selectedHabitIds?.has(habit.id) ?? false}
+        maxHabitDepth={maxHabitDepth}
         onLog={() => promptLog(habit)}
         onUnlog={() => logHabit.mutate({ habitId: habit.id })}
         onForceLogParent={() => {
@@ -432,9 +766,7 @@ export function HabitList({
         }}
         onSkip={() => promptSkip(habit.id)}
         onDuplicate={() => duplicateHabitMut.mutate(habit.id)}
-        onMoveParent={() => {
-          // TODO: Move parent picker
-        }}
+        onMoveParent={() => openMoveParentPicker(habit.id)}
         onDelete={() => promptDelete(habit.id)}
         onDetail={() => openDetail(habit)}
         onDrillInto={() => drill.drillInto(habit.id)}
@@ -591,7 +923,7 @@ export function HabitList({
           )}
         </div>
       ) : view === 'all' ? (
-        /* ALL VIEW: date-grouped list */
+        /* ALL VIEW: date-grouped list with nested children (up to depth 2) */
         <>
           {dateGroups.map((group) => (
             <div key={group.key} className="mb-4">
@@ -610,14 +942,38 @@ export function HabitList({
                 />
               </div>
               <div className="space-y-2.5">
-                {group.habits.map((habit) =>
-                  renderHabitCard(
-                    habit,
-                    0,
-                    getChildren(habit.id).length > 0,
-                    habit.hasSubHabits,
-                  ),
-                )}
+                {group.habits.map((habit) => (
+                  <div key={habit.id}>
+                    {renderHabitCard(
+                      habit,
+                      0,
+                      getChildren(habit.id).length > 0,
+                      habit.hasSubHabits,
+                    )}
+                    {/* Children (depth 1) when expanded */}
+                    {!collapsedIds.has(habit.id) && getVisibleChildren(habit.id).map((child) => (
+                      <div key={child.id} className="mb-1.5">
+                        {renderHabitCard(
+                          child,
+                          1,
+                          getVisibleChildren(child.id).length > 0,
+                          habitsById.get(child.id)?.hasSubHabits ?? false,
+                        )}
+                        {/* Grandchildren (depth 2) when child expanded */}
+                        {!collapsedIds.has(child.id) && getVisibleChildren(child.id).map((grandchild) => (
+                          <div key={grandchild.id} className="mb-1.5">
+                            {renderHabitCard(
+                              grandchild,
+                              2,
+                              getVisibleChildren(grandchild.id).length > 0,
+                              habitsById.get(grandchild.id)?.hasSubHabits ?? false,
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -690,11 +1046,7 @@ export function HabitList({
             ? 'habits.postponeConfirmTitle'
             : 'habits.skipConfirmTitle',
         )}
-        description={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmMessage'
-            : 'habits.skipConfirmMessage',
-        )}
+        description={skipConfirmMessage}
         confirmLabel={t(
           isPostponeAction
             ? 'habits.postponeConfirmButton'
@@ -714,7 +1066,7 @@ export function HabitList({
         onOpenChange={setShowForceLogConfirm}
         title={t('habits.forceLogTitle')}
         description={t('habits.forceLogMessage')}
-        confirmLabel={t('habits.logHabit')}
+        confirmLabel={t('habits.forceLogConfirm')}
         cancelLabel={t('common.cancel')}
         onConfirm={confirmForceLog}
         onCancel={() => {
@@ -723,6 +1075,87 @@ export function HabitList({
         }}
         variant="warning"
       />
+
+      {/* Auto-log parent when all sub-habits complete */}
+      <ConfirmDialog
+        open={showAutoLogParent}
+        onOpenChange={setShowAutoLogParent}
+        title={t('habits.autoLogParentTitle')}
+        description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
+        confirmLabel={t('habits.autoLogParentConfirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmAutoLogParent}
+        onCancel={() => {
+          setAutoLogParentId(null)
+          setShowAutoLogParent(false)
+        }}
+        variant="success"
+      />
+
+      {/* Move parent picker */}
+      <AppOverlay
+        open={showMoveParentOverlay}
+        onOpenChange={(open) => {
+          if (!open) closeMoveParentPicker()
+        }}
+        dismissible={!isMovingParent}
+        title={t('habits.moveParent.title')}
+        description={movingHabit ? t('habits.moveParent.description', { name: movingHabit.title }) : undefined}
+        footer={
+          <div className="flex gap-3">
+            <button
+              className="flex-1 py-3 rounded-xl border border-border text-text-primary font-bold text-sm hover:bg-surface-elevated/80 transition-all duration-150 disabled:opacity-50"
+              disabled={isMovingParent}
+              onClick={closeMoveParentPicker}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canSubmitMoveParent}
+              onClick={confirmMoveParent}
+            >
+              {isMovingParent ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
+            </button>
+          </div>
+        }
+      >
+        {moveParentOptions.length > 0 ? (
+          <div className="space-y-2">
+            {moveParentOptions.map((option) => (
+              <button
+                key={option.id ?? '__root__'}
+                className={`w-full text-left rounded-lg border px-3 py-2.5 transition-all duration-150 ${
+                  option.id === selectedMoveParentId
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border-muted bg-surface hover:bg-surface-elevated/80'
+                } ${option.disabled ? 'opacity-50 cursor-not-allowed hover:bg-surface' : ''}`}
+                style={option.id === null ? undefined : { paddingLeft: `${0.75 + option.depth * 1.1}rem` }}
+                disabled={option.disabled}
+                onClick={() => setSelectedMoveParentId(option.id)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-text-primary truncate">{option.label}</span>
+                  {movingHabit && option.id === movingHabit.parentId && (
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                      {t('habits.moveParent.currentParent')}
+                    </span>
+                  )}
+                </div>
+                {option.reason && (
+                  <p className="text-[10px] text-text-muted mt-1">
+                    {option.reason}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted text-center py-4">
+            {t('habits.moveParent.noOptions')}
+          </p>
+        )}
+      </AppOverlay>
     </div>
   )
-}
+})

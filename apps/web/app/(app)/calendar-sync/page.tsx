@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { getSupabaseClient } from '@/lib/supabase'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
@@ -215,8 +216,20 @@ export default function CalendarSyncPage() {
   }
 
   async function connectGoogle() {
-    // Redirect to auth flow with Google Calendar scope
-    window.location.href = '/api/auth/google?scope=calendar'
+    const supabase = getSupabaseClient()
+    const redirectTo = `${window.location.origin}/auth-callback`
+    sessionStorage.setItem('auth_return_url', '/calendar-sync')
+
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        queryParams: {
+          access_type: 'offline',
+        },
+      },
+    })
   }
 
   return (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 
@@ -14,6 +14,7 @@ interface RetrospectiveResponse {
 
 export function useRetrospective() {
   const t = useTranslations()
+  const locale = useLocale()
   const [retrospective, setRetrospective] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +29,7 @@ export function useRetrospective() {
     try {
       const params = new URLSearchParams({
         period,
-        language: 'en',
+        language: locale,
       })
       const res = await fetch(`${API.habits.retrospective}?${params.toString()}`)
       if (!res.ok) {
@@ -43,7 +44,7 @@ export function useRetrospective() {
     } finally {
       setIsLoading(false)
     }
-  }, [period, t])
+  }, [period, locale, t])
 
   return {
     retrospective,

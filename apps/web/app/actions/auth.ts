@@ -29,10 +29,12 @@ export async function requestDeletion(): Promise<void> {
 
 /**
  * Confirm account deletion with the code received via email.
+ * Returns the scheduled deletion date from the backend response.
  */
-export async function confirmDeletion(code: string): Promise<void> {
-  await authFetch('/api/auth/confirm-deletion', {
+export async function confirmDeletion(code: string): Promise<{ scheduledDeletionAt?: string }> {
+  const response = await authFetch('/api/auth/confirm-deletion', {
     method: 'POST',
     body: JSON.stringify({ code }),
   })
+  return response ?? {}
 }

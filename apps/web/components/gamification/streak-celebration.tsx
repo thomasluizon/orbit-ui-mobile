@@ -5,17 +5,21 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useUIStore } from '@/stores/ui-store'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 import './streak-celebration.css'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
 
 export function StreakCelebration() {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('streak-celebration')
   const streakCelebration = useUIStore((s) => s.streakCelebration)
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
   const [visible, setVisible] = useState(false)
   const [streakCount, setStreakCount] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
@@ -29,10 +33,14 @@ export function StreakCelebration() {
     if (streakCelebration) {
       setStreakCount(streakCelebration.streak)
       setVisible(true)
+      setShouldRender(true)
+      requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
         setVisible(false)
+        setIsVisible(false)
         setStreakCelebration(null)
+        setTimeout(() => setShouldRender(false), 300)
       }, 2500)
     }
   }, [streakCelebration, setStreakCelebration])
@@ -51,15 +59,21 @@ export function StreakCelebration() {
 
   function dismiss() {
     setVisible(false)
+    setIsVisible(false)
     setStreakCelebration(null)
+    setTimeout(() => setShouldRender(false), 300)
   }
 
-  if (!mounted || !visible) return null
+  if (!mounted || !shouldRender) return null
 
-  return createPortal(
+  return portalContainer ? createPortal(
     <output
       aria-live="polite"
       className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer"
+      style={{
+        transition: 'opacity 0.3s ease-out',
+        opacity: isVisible ? 1 : 0,
+      }}
       onClick={dismiss}
     >
       {/* Backdrop */}
@@ -118,6 +132,6 @@ export function StreakCelebration() {
         </p>
       </div>
     </output>,
-    document.body
-  )
+    portalContainer
+  ) : null
 }

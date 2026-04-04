@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -87,6 +87,39 @@ const featureCategories: FeatureCategory[] = [
 
 function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
+}
+
+function FeatureTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        className="shrink-0 p-0.5 rounded-full text-text-muted/60 hover:text-text-secondary transition-colors"
+        onClick={() => setOpen((v) => !v)}
+        type="button"
+      >
+        <Info className="size-3.5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 px-3 py-2.5 max-w-[260px] bg-surface-elevated border border-border rounded-xl shadow-lg">
+          <p className="text-xs text-text-secondary leading-relaxed">{text}</p>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function UpgradePage() {
@@ -702,12 +735,7 @@ export default function UpgradePage() {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <feat.Icon className="size-4 text-text-muted shrink-0" />
                       <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
-                      <button
-                        className="shrink-0 p-0.5 rounded-full text-text-muted/60 hover:text-text-secondary transition-colors"
-                        title={t(`upgrade.features.${feat.key}.tooltip`)}
-                      >
-                        <Info className="size-3.5" />
-                      </button>
+                      <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
                     </div>
 
                     {/* Free value */}

@@ -8,21 +8,36 @@ interface Segment {
   isMatch: boolean
 }
 
+/**
+ * indexOf-based highlight matching (port of Nuxt utils/highlight.ts).
+ * Avoids the stateful `lastIndex` bug from using regex.test() with the `g` flag.
+ */
 function highlightText(text: string, query: string): Segment[] {
-  if (!query || !query.trim()) {
-    return [{ text, isMatch: false }]
+  if (!query || !text) return [{ text: text || '', isMatch: false }]
+
+  const segments: Segment[] = []
+  const lowerText = text.toLowerCase()
+  const lowerQuery = query.toLowerCase().trim()
+
+  if (!lowerQuery) return [{ text, isMatch: false }]
+
+  let pos = 0
+  let idx = lowerText.indexOf(lowerQuery, pos)
+
+  while (idx !== -1) {
+    if (idx > pos) {
+      segments.push({ text: text.slice(pos, idx), isMatch: false })
+    }
+    segments.push({ text: text.slice(idx, idx + lowerQuery.length), isMatch: true })
+    pos = idx + lowerQuery.length
+    idx = lowerText.indexOf(lowerQuery, pos)
   }
 
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(`(${escaped})`, 'gi')
-  const parts = text.split(regex)
+  if (pos < text.length) {
+    segments.push({ text: text.slice(pos), isMatch: false })
+  }
 
-  return parts
-    .filter(Boolean)
-    .map((part) => ({
-      text: part,
-      isMatch: regex.test(part) || part.toLowerCase() === query.toLowerCase(),
-    }))
+  return segments.length > 0 ? segments : [{ text, isMatch: false }]
 }
 
 export function HighlightText({ text, query }: HighlightTextProps) {

@@ -4,6 +4,10 @@ import { useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { usePortalContainer } from '@/hooks/use-portal-container'
+import { useQueryClient } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { completeOnboarding } from '@/app/actions/profile'
 import { OnboardingWelcome } from './onboarding-welcome'
@@ -17,7 +21,9 @@ const TOTAL_STEPS = 6
 
 export function OnboardingFlow() {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('onboarding-flow')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
 
   const [currentStep, setCurrentStep] = useState(0)
@@ -91,7 +97,10 @@ export function OnboardingFlow() {
       await completeOnboarding()
     } catch {
       // Intentionally ignoring onboarding completion errors -- user should proceed
-      // regardless. Next session load will re-show onboarding if needed.
+      // regardless. Set flag locally so user is never stuck re-seeing onboarding.
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+        old ? { ...old, hasCompletedOnboarding: true } : old,
+      )
     }
     router.push('/')
   }
@@ -219,5 +228,5 @@ export function OnboardingFlow() {
     </div>
   )
 
-  return createPortal(overlay, document.body)
+  return portalContainer ? createPortal(overlay, portalContainer) : null
 }

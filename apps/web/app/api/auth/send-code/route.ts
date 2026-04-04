@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const url = `${apiBase}/api/auth/send-code`
-    console.log('[send-code] POST', url)
 
     const response = await fetch(url, {
       method: 'POST',
@@ -19,20 +18,16 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     })
 
-    console.log('[send-code] response status:', response.status)
-
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      console.log('[send-code] error data:', JSON.stringify(data))
       return NextResponse.json(data ?? { error: 'Authentication failed' }, {
         status: response.status,
       })
     }
 
     return NextResponse.json(data)
-  } catch (err: unknown) {
-    console.error('[send-code] fetch failed:', err)
+  } catch {
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 })
   }
 }

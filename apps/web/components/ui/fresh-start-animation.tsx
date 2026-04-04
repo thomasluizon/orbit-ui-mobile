@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 
 interface FreshStartAnimationProps {
   onComplete: () => void
@@ -11,6 +12,7 @@ interface FreshStartAnimationProps {
 
 export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('fresh-start')
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -42,10 +44,7 @@ export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
 
   const overlay = (
     <output
-      className={`fixed inset-0 z-[99999] transition-opacity ${
-        isVisible && !isFadingOut ? 'opacity-100' : 'opacity-0'
-      }`}
-      style={{ transitionDuration: isFadingOut ? '500ms' : '400ms' }}
+      className={`fresh-start-overlay ${isVisible ? 'is-visible' : ''} ${isFadingOut ? 'is-fading-out' : ''}`}
       aria-live="assertive"
     >
       {/* Backdrop */}
@@ -54,28 +53,16 @@ export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-8">
         {/* Radiating rings */}
-        {isVisible && (
-          <>
-            <div className="absolute top-1/2 left-1/2 size-20 -mt-10 -ml-10 rounded-full border-2 border-[rgba(var(--primary-shadow),0.4)] opacity-0 animate-[fresh-start-ring_1.2s_ease-out_0.2s_forwards]" />
-            <div className="absolute top-1/2 left-1/2 size-20 -mt-10 -ml-10 rounded-full border-2 border-[rgba(var(--primary-shadow),0.4)] opacity-0 animate-[fresh-start-ring_1.2s_ease-out_0.4s_forwards]" />
-          </>
-        )}
+        <div className="fresh-start-ring fresh-start-ring-1" />
+        <div className="fresh-start-ring fresh-start-ring-2" />
 
         {/* Center orb */}
-        <div
-          className={`size-20 rounded-full border-2 border-primary flex items-center justify-center ${
-            isVisible ? 'animate-[fresh-start-orb_0.8s_cubic-bezier(0.34,1.56,0.64,1)_forwards]' : 'opacity-0 scale-[0.3]'
-          }`}
-        >
+        <div className="fresh-start-orb">
           <RefreshCw className="size-8 text-text-primary" />
         </div>
 
         {/* Text */}
-        <div
-          className={`mt-10 text-center ${
-            isVisible ? 'animate-[fresh-start-text_0.6s_ease-out_0.8s_forwards]' : 'opacity-0 translate-y-[10px]'
-          }`}
-        >
+        <div className="fresh-start-text mt-10 text-center">
           <p className="text-[length:var(--text-fluid-xl)] font-bold text-text-primary tracking-tight">
             {t('profile.freshStart.successTitle')}
           </p>
@@ -87,5 +74,5 @@ export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
     </output>
   )
 
-  return createPortal(overlay, document.body)
+  return portalContainer ? createPortal(overlay, portalContainer) : null
 }

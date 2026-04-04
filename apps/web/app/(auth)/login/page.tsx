@@ -2,9 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { useAuthStore } from '@/stores/auth-store'
+import { getSupabaseClient } from '@/lib/supabase'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 const BACKEND_ERROR_MAP: Record<string, string> = {
@@ -22,6 +24,56 @@ function getCookieValue(name: string): string | undefined {
   return value !== undefined ? decodeURIComponent(value) : undefined
 }
 
+/**
+ * Extract a backend error message from a fetch response body.
+ *
+ * BFF routes return JSON bodies shaped like:
+ *   { error: "..." }                  -- simple error
+ *   { data: { error: "..." } }        -- nested
+ *   { errors: { Field: ["msg"] } }    -- FluentValidation
+ *   { data: { errors: { ... } } }     -- nested FluentValidation
+ */
+function extractFetchError(err: unknown): string | undefined {
+  if (!err || typeof err !== 'object') return undefined
+
+  const obj = err as Record<string, unknown>
+
+  // Direct error string
+  if (typeof obj.error === 'string') return obj.error
+
+  // Nested data.error
+  if (obj.data && typeof obj.data === 'object') {
+    const data = obj.data as Record<string, unknown>
+    if (typeof data.error === 'string') return data.error
+
+    // Deeper: data.data.error
+    if (data.data && typeof data.data === 'object') {
+      const inner = data.data as Record<string, unknown>
+      if (typeof inner.error === 'string') return inner.error
+
+      // FluentValidation at data.data.errors
+      if (inner.errors && typeof inner.errors === 'object') {
+        const firstField = Object.values(inner.errors as Record<string, unknown>)[0]
+        if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
+      }
+    }
+
+    // FluentValidation at data.errors
+    if (data.errors && typeof data.errors === 'object') {
+      const firstField = Object.values(data.errors as Record<string, unknown>)[0]
+      if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
+    }
+  }
+
+  // Top-level FluentValidation
+  if (obj.errors && typeof obj.errors === 'object') {
+    const firstField = Object.values(obj.errors as Record<string, unknown>)[0]
+    if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
+  }
+
+  return undefined
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -35,11 +87,8 @@ export default function LoginPage() {
   }
 
   function extractError(err: unknown): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const msg = (err as { error?: string }).error
-      if (msg) return translateBackendError(msg)
-    }
-    return t('auth.genericError')
+    const backendError = extractFetchError(err)
+    return backendError ? translateBackendError(backendError) : t('auth.genericError')
   }
 
   const [step, setStep] = useState<'email' | 'code'>('email')
@@ -260,29 +309,29 @@ export default function LoginPage() {
     }
   }
 
-  function signInWithGoogle() {
+  async function signInWithGoogle() {
     setIsGoogleLoading(true)
     setErrorMessage(null)
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (!supabaseUrl || !supabaseKey) {
-        setErrorMessage(t('auth.googleError'))
-        setIsGoogleLoading(false)
-        return
-      }
-
+      const supabase = getSupabaseClient()
       const redirectTo = `${window.location.origin}/auth-callback`
-      const params = new URLSearchParams({
+
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        redirect_to: redirectTo,
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        access_type: 'offline',
+        options: {
+          redirectTo,
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+          queryParams: {
+            access_type: 'offline',
+          },
+        },
       })
 
-      window.location.href = `${supabaseUrl}/auth/v1/authorize?${params.toString()}`
+      if (error) {
+        setErrorMessage(t('auth.googleError'))
+        setIsGoogleLoading(false)
+      }
     } catch {
       setErrorMessage(t('auth.googleError'))
       setIsGoogleLoading(false)
@@ -425,7 +474,7 @@ export default function LoginPage() {
                     ref={(el) => { codeInputRefs.current[index] = el }}
                     value={digit}
                     data-code-index={index}
-                    aria-label={`${t('auth.codeDigit')} ${index + 1}`}
+                    aria-label={t('auth.codeDigit', { n: index + 1 })}
                     type="text"
                     inputMode="numeric"
                     maxLength={20}
@@ -476,9 +525,9 @@ export default function LoginPage() {
 
         {/* Privacy & Terms */}
         <p className="text-[10px] text-text-muted text-center pt-2">
-          <a href="/privacy" className="hover:underline">
+          <Link href="/privacy" className="hover:underline">
             {t('privacy.title')}
-          </a>
+          </Link>
         </p>
       </div>
     </div>

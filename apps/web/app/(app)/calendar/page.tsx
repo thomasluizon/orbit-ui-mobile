@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -8,6 +8,8 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+
+const SWIPE_THRESHOLD = 50
 
 export default function CalendarPage() {
   const t = useTranslations()
@@ -43,8 +45,33 @@ export default function CalendarPage() {
     return dayMap.get(selectedDay) ?? []
   }, [selectedDay, dayMap])
 
+  // Swipe navigation
+  const touchStartX = useRef<number | null>(null)
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    if (touch) touchStartX.current = touch.clientX
+  }, [])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return
+    const touch = e.changedTouches[0]
+    if (!touch) return
+    const deltaX = touch.clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
+    if (deltaX < 0) {
+      setCurrentMonth((m) => addMonths(m, 1))
+    } else {
+      setCurrentMonth((m) => subMonths(m, 1))
+    }
+  }, [])
+
   return (
-    <div>
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Header */}
       <header className="pt-8 pb-2 flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -100,9 +127,11 @@ export default function CalendarPage() {
       )}
 
       {/* Refetch loading bar */}
-      {isFetching && !isLoading && (
-        <div className="loading-bar w-full" />
-      )}
+      <div
+        className={`loading-bar w-full transition-opacity duration-300 ${
+          isFetching && !isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
       {/* Calendar grid */}
       {(!isLoading || isFetching) && (

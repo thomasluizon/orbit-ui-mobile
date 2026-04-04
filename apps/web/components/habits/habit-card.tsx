@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 import {
   ChevronRight,
   Check,
@@ -41,6 +42,7 @@ interface HabitCardProps {
   childrenDone?: number
   childrenTotal?: number
   searchQuery?: string
+  maxHabitDepth?: number
   onLog?: () => void
   onUnlog?: () => void
   onSkip?: () => void
@@ -84,6 +86,7 @@ export function HabitCard({
   childrenDone = 0,
   childrenTotal = 0,
   searchQuery = '',
+  maxHabitDepth = 5,
   onLog,
   onUnlog,
   onSkip,
@@ -99,6 +102,7 @@ export function HabitCard({
   onEnterSelectMode,
 }: HabitCardProps) {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('habit-card')
   const { displayTime } = useTimeFormat()
 
   const isChild = depth > 0
@@ -729,7 +733,7 @@ export function HabitCard({
 
       {/* Actions menu portal */}
       {showActionsMenu &&
-        typeof document !== 'undefined' &&
+        portalContainer &&
         createPortal(
           <div
             ref={actionsMenuPanelRef}
@@ -741,7 +745,7 @@ export function HabitCard({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {showAddSubHabit && (
+            {showAddSubHabit && depth < maxHabitDepth - 1 && (
               <button
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-text-primary hover:bg-surface-elevated/60 transition-colors duration-150"
                 onClick={(e) => {
@@ -835,7 +839,7 @@ export function HabitCard({
               </button>
             )}
           </div>,
-          document.body,
+          portalContainer,
         )}
     </>
   )

@@ -3,6 +3,7 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 import './streak-freeze-celebration.css'
 
 export interface StreakFreezeCelebrationHandle {
@@ -12,8 +13,11 @@ export interface StreakFreezeCelebrationHandle {
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
   function StreakFreezeCelebration(_props, ref) {
     const t = useTranslations()
+    const portalContainer = usePortalContainer('streak-freeze-celebration')
     const [visible, setVisible] = useState(false)
     const [mounted, setMounted] = useState(false)
+    const [shouldRender, setShouldRender] = useState(false)
+    const [isVisible, setIsVisible] = useState(false)
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
     useEffect(() => {
@@ -25,24 +29,34 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
 
     function show() {
       setVisible(true)
+      setShouldRender(true)
+      requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
         setVisible(false)
+        setIsVisible(false)
+        setTimeout(() => setShouldRender(false), 300)
       }, 3000)
     }
 
     function dismiss() {
       setVisible(false)
+      setIsVisible(false)
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+      setTimeout(() => setShouldRender(false), 300)
     }
 
     useImperativeHandle(ref, () => ({ show }))
 
-    if (!mounted || !visible) return null
+    if (!mounted || !shouldRender) return null
 
-    return createPortal(
+    return portalContainer ? createPortal(
       <div
         className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
+        style={{
+          transition: 'opacity 0.3s ease-out',
+          opacity: isVisible ? 1 : 0,
+        }}
         onClick={dismiss}
       >
         {/* Backdrop */}
@@ -84,7 +98,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
           </p>
         </div>
       </div>,
-      document.body
-    )
+      portalContainer
+    ) : null
   }
 )

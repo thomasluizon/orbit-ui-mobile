@@ -4,14 +4,18 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
+import { usePortalContainer } from '@/hooks/use-portal-container'
 import './all-done-celebration.css'
 
 export function AllDoneCelebration() {
   const t = useTranslations()
+  const portalContainer = usePortalContainer('all-done-celebration')
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
   const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
@@ -24,25 +28,35 @@ export function AllDoneCelebration() {
   useEffect(() => {
     if (allDoneCelebration) {
       setVisible(true)
+      setShouldRender(true)
+      requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
         setVisible(false)
+        setIsVisible(false)
         setAllDoneCelebration(false)
+        setTimeout(() => setShouldRender(false), 300)
       }, 3500)
     }
   }, [allDoneCelebration, setAllDoneCelebration])
 
   function dismiss() {
     setVisible(false)
+    setIsVisible(false)
     setAllDoneCelebration(false)
+    setTimeout(() => setShouldRender(false), 300)
   }
 
-  if (!mounted || !visible) return null
+  if (!mounted || !shouldRender) return null
 
-  return createPortal(
+  return portalContainer ? createPortal(
     <output
       aria-live="polite"
       className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
+      style={{
+        transition: 'opacity 0.3s ease-out',
+        opacity: isVisible ? 1 : 0,
+      }}
       onClick={dismiss}
     >
       {/* Backdrop */}
@@ -95,6 +109,6 @@ export function AllDoneCelebration() {
         </p>
       </div>
     </output>,
-    document.body
-  )
+    portalContainer
+  ) : null
 }
