@@ -1,0 +1,237 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Loader2, Lock, BarChart3 } from 'lucide-react'
+import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
+import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
+import { API } from '@orbit/shared/api'
+import { getErrorMessage } from '@orbit/shared/utils'
+
+// TODO: Replace with next-intl when i18n is wired up
+const t = (key: string) => {
+  const strings: Record<string, string> = {
+    'retrospective.title': 'Retrospective',
+    'retrospective.periods.week': 'Week',
+    'retrospective.periods.month': 'Month',
+    'retrospective.periods.quarter': 'Quarter',
+    'retrospective.periods.semester': 'Semester',
+    'retrospective.periods.year': 'Year',
+    'retrospective.generate': 'Generate Retrospective',
+    'retrospective.generating': 'Generating...',
+    'retrospective.locked': 'Pro Feature',
+    'retrospective.lockedHint': 'Upgrade to Pro to get AI-powered retrospectives of your habits.',
+    'retrospective.lockedYearly': 'Yearly Pro Feature',
+    'retrospective.lockedYearlyHint': 'Retrospectives are available for yearly Pro subscribers.',
+    'retrospective.changePlan': 'Change Plan',
+    'retrospective.cached': 'Loaded from cache.',
+    'retrospective.error': 'Failed to generate retrospective.',
+    'retrospective.empty': 'Select a period and tap Generate to get your AI retrospective.',
+    'upgrade.subscribe': 'Upgrade to Pro',
+    'common.retry': 'Retry',
+    'common.yearlyBadge': 'Yearly',
+    'auth.genericError': 'Something went wrong. Please try again.',
+  }
+  return strings[key] ?? key
+}
+
+const periods: { key: RetrospectivePeriod; label: string }[] = [
+  { key: 'week', label: t('retrospective.periods.week') },
+  { key: 'month', label: t('retrospective.periods.month') },
+  { key: 'quarter', label: t('retrospective.periods.quarter') },
+  { key: 'semester', label: t('retrospective.periods.semester') },
+  { key: 'year', label: t('retrospective.periods.year') },
+]
+
+export default function RetrospectivePage() {
+  const { profile } = useProfile()
+  const hasProAccess = useHasProAccess()
+  const isYearlyPro = useIsYearlyPro()
+  const {
+    retrospective,
+    setRetrospective,
+    isLoading,
+    error,
+    setError,
+    fromCache,
+    period,
+    setPeriod,
+    generate,
+  } = useRetrospective()
+
+  const [portalError, setPortalError] = useState('')
+
+  function selectPeriod(key: RetrospectivePeriod) {
+    setPeriod(key)
+    setRetrospective(null)
+    setError(null)
+  }
+
+  const handleOpenPortal = useCallback(async () => {
+    setPortalError('')
+    try {
+      const res = await fetch(API.subscription.portal, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error ?? `Failed with status ${res.status}`)
+      }
+      const data = await res.json()
+      if (data?.url) {
+        window.location.href = data.url
+      }
+    } catch (err: unknown) {
+      setPortalError(getErrorMessage(err, t('auth.genericError')))
+    }
+  }, [])
+
+  const isLoaded = !!profile
+
+  return (
+    <div className="pb-8">
+      <header className="pt-8 pb-6 flex items-center gap-3">
+        <Link href="/profile" className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors">
+          <ArrowLeft className="size-5 text-text-primary" />
+        </Link>
+        <div className="flex items-center gap-2">
+          <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
+            {t('retrospective.title')}
+          </h1>
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+            {t('common.yearlyBadge')}
+          </span>
+        </div>
+      </header>
+
+      {/* Locked state for non-Pro users */}
+      {isLoaded && !hasProAccess && (
+        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center space-y-4">
+          <div className="bg-primary/20 rounded-full size-16 flex items-center justify-center mx-auto">
+            <Lock className="size-8 text-primary" />
+          </div>
+          <h2 className="text-lg font-bold text-text-primary">{t('retrospective.locked')}</h2>
+          <p className="text-sm text-text-secondary">{t('retrospective.lockedHint')}</p>
+          <Link
+            href="/upgrade"
+            className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
+          >
+            {t('upgrade.subscribe')}
+          </Link>
+        </div>
+      )}
+
+      {/* Locked state for non-yearly Pro users */}
+      {isLoaded && hasProAccess && !isYearlyPro && (
+        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center space-y-4">
+          <div className="bg-primary/20 rounded-full size-16 flex items-center justify-center mx-auto">
+            <Lock className="size-8 text-primary" />
+          </div>
+          <h2 className="text-lg font-bold text-text-primary">{t('retrospective.lockedYearly')}</h2>
+          <p className="text-sm text-text-secondary">{t('retrospective.lockedYearlyHint')}</p>
+          {profile?.isTrialActive ? (
+            <Link
+              href="/upgrade"
+              className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
+            >
+              {t('upgrade.subscribe')}
+            </Link>
+          ) : (
+            <button
+              className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
+              onClick={handleOpenPortal}
+            >
+              {t('retrospective.changePlan')}
+            </button>
+          )}
+          {portalError && (
+            <p className="text-xs text-red-400 text-center mt-2">{portalError}</p>
+          )}
+        </div>
+      )}
+
+      {/* Yearly Pro user content */}
+      {isLoaded && isYearlyPro && (
+        <>
+          {/* Period selector */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {periods.map((p) => (
+              <button
+                key={p.key}
+                className={`px-3.5 py-2 rounded-[var(--radius-xl)] text-sm font-semibold transition-all duration-200 ${
+                  period === p.key
+                    ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                    : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                }`}
+                onClick={() => selectPeriod(p.key)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Generate button */}
+          <button
+            className="w-full py-4 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2 mb-6"
+            disabled={isLoading}
+            onClick={generate}
+          >
+            {isLoading && <Loader2 className="size-4 animate-spin" />}
+            {isLoading ? t('retrospective.generating') : t('retrospective.generate')}
+          </button>
+
+          {/* Loading skeleton */}
+          {isLoading && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-4">
+              <div className="h-5 w-32 bg-surface-elevated rounded animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
+                <div className="h-4 w-5/6 bg-surface-elevated rounded animate-pulse" />
+                <div className="h-4 w-4/6 bg-surface-elevated rounded animate-pulse" />
+              </div>
+              <div className="h-5 w-40 bg-surface-elevated rounded animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
+                <div className="h-4 w-3/4 bg-surface-elevated rounded animate-pulse" />
+              </div>
+            </div>
+          )}
+
+          {/* Result */}
+          {!isLoading && retrospective && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+              <div
+                className="text-sm text-text-secondary leading-relaxed whitespace-pre-line [&_strong]:block [&_strong]:mt-4 [&_strong]:mb-1 [&_strong]:font-bold [&_strong]:text-text-primary [&_strong:first-child]:mt-0"
+                dangerouslySetInnerHTML={{ __html: retrospective }}
+              />
+              {fromCache && (
+                <p className="text-xs text-text-muted mt-4">{t('retrospective.cached')}</p>
+              )}
+            </div>
+          )}
+
+          {/* Error */}
+          {!isLoading && error && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 text-center space-y-3">
+              <p className="text-sm text-red-400">{t('retrospective.error')}</p>
+              <button
+                className="text-sm text-primary font-semibold hover:text-primary/80 transition-colors"
+                onClick={generate}
+              >
+                {t('common.retry')}
+              </button>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isLoading && !retrospective && !error && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center">
+              <div className="bg-primary/10 rounded-full size-12 flex items-center justify-center mx-auto mb-3">
+                <BarChart3 className="size-6 text-primary" />
+              </div>
+              <p className="text-sm text-text-secondary">{t('retrospective.empty')}</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}

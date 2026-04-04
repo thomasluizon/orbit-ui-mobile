@@ -1,0 +1,1631 @@
+{
+  "settings": {
+    "title": "Configurações",
+    "hint": "Idioma, cores, preferências de IA, fuso horário",
+    "timeFormat": {
+      "title": "Formato de Hora",
+      "description": "Escolha como os horários são exibidos no app",
+      "12h": "12 horas (3:00 PM)",
+      "24h": "24 horas (15:00)"
+    },
+    "notifications": {
+      "title": "Notificações Push",
+      "description": "Receba lembretes e atualizações mesmo quando o app estiver fechado",
+      "enabled": "Notificações estão ativadas",
+      "disabled": "Notificações estão desativadas",
+      "denied": "Notificações estão bloqueadas. Ative nas configurações do navegador.",
+      "unsupported": "Notificações push não são suportadas neste navegador"
+    },
+    "homeScreen": {
+      "title": "Tela Inicial",
+      "showGeneral": "Mostrar hábitos gerais no Hoje",
+      "showGeneralDesc": "Exibir seus hábitos gerais abaixo dos hábitos agendados para hoje"
+    },
+    "weekStartDay": {
+      "title": "Semana Começa Em",
+      "description": "Escolha em qual dia sua semana começa. Isso afeta todos os calendários e seletores de dias.",
+      "monday": "Segunda-feira",
+      "sunday": "Domingo"
+    },
+    "theme": {
+      "light": "Claro",
+      "dark": "Escuro",
+      "switchToLight": "Mudar para modo claro",
+      "switchToDark": "Mudar para modo escuro"
+    }
+  },
+  "pushPrompt": {
+    "title": "Mantenha o foco",
+    "description": "Ative notificações para receber lembretes dos seus hábitos",
+    "enable": "Ativar",
+    "later": "Agora não"
+  },
+  "updatePrompt": {
+    "title": "Atualização disponível",
+    "description": "Uma nova versão do Orbit está disponível com melhorias e correções",
+    "update": "Atualizar",
+    "later": "Agora não"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "bell": "Notificações",
+    "bellWithCount": "{count} notificação não lida | {count} notificações não lidas",
+    "empty": "Nenhuma notificação ainda",
+    "markAllRead": "Marcar todas como lidas",
+    "markAsRead": "Marcar como lida",
+    "deleteAll": "Excluir todas",
+    "deleteNotification": "Excluir notificação",
+    "view": "Ver",
+    "now": "Agora",
+    "minutesAgo": "{n} min atrás",
+    "hoursAgo": "{n}h atrás",
+    "daysAgo": "{n}d atrás"
+  },
+  "welcome": {
+    "backMessage": "Bem-vindo de volta! Sua sequência está em {streak} dias."
+  },
+  "common": {
+    "save": "Salvar",
+    "add": "Adicionar",
+    "back": "Voltar",
+    "backToProfile": "Voltar ao perfil",
+    "cancel": "Cancelar",
+    "goBack": "Voltar",
+    "later": "Talvez depois",
+    "delete": "Excluir",
+    "dismiss": "Fechar",
+    "confirm": "Confirmar",
+    "loading": "Carregando...",
+    "close": "Fechar",
+    "expandDescription": "Expandir descrição",
+    "edit": "Editar",
+    "create": "Criar",
+    "search": "Buscar...",
+    "noResults": "Nenhum resultado encontrado",
+    "error": "Ocorreu um erro",
+    "retry": "Tentar Novamente",
+    "selected": "{n} selecionado | {n} selecionados",
+    "selectAll": "Selecionar Tudo",
+    "deselectAll": "Desmarcar Tudo",
+    "clear": "Limpar",
+    "never": "Nunca",
+    "yes": "Sim",
+    "no": "Não",
+    "all": "Todos",
+    "select": "Selecionar",
+    "proBadge": "Pro",
+    "yearlyBadge": "Anual",
+    "required": "é obrigatório",
+    "selectDate": "Selecionar data",
+    "selectedDate": "Data selecionada: {date}",
+    "previousMonth": "Mês anterior",
+    "nextMonth": "Próximo mês",
+    "continue": "Continuar"
+  },
+  "nav": {
+    "habits": "Hábitos",
+    "calendar": "Calendário",
+    "chat": "Chat",
+    "createHabit": "Criar hábito",
+    "profile": "Perfil",
+    "skipToContent": "Pular para o conteúdo principal"
+  },
+  "dates": {
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "tomorrow": "Amanhã",
+    "nextDay": "Próximo dia",
+    "previousDay": "Dia anterior",
+    "days": {
+      "monday": "segunda-feira",
+      "tuesday": "terça-feira",
+      "wednesday": "quarta-feira",
+      "thursday": "quinta-feira",
+      "friday": "sexta-feira",
+      "saturday": "sábado",
+      "sunday": "domingo"
+    },
+    "daysShort": {
+      "monday": "Seg",
+      "tuesday": "Ter",
+      "wednesday": "Qua",
+      "thursday": "Qui",
+      "friday": "Sex",
+      "saturday": "Sáb",
+      "sunday": "Dom"
+    }
+  },
+  "auth": {
+    "welcomeBack": "Bem-vindo",
+    "email": "E-mail",
+    "emailPlaceholder": "você{'@'}exemplo.com",
+    "sendCode": "Enviar Código",
+    "codeSent": "Código de verificação enviado! Verifique seu e-mail.",
+    "codeSentTo": "Enviamos um código de 6 dígitos para",
+    "verify": "Verificar",
+    "resendCode": "Reenviar código",
+    "changeEmail": "Alterar e-mail",
+    "genericError": "Ocorreu um erro. Tente novamente.",
+    "orContinueWith": "ou continue com",
+    "signInWithGoogle": "Entrar com Google",
+    "googleError": "Falha ao entrar com Google. Tente novamente.",
+    "signingIn": "Entrando...",
+    "callbackError": "Algo deu errado durante o login. Tente novamente.",
+    "backToLogin": "Voltar ao login",
+    "codeDigit": "Dígito {n} de 6",
+    "tagline": "Acompanhe seus hábitos, construa suas sequências",
+    "errors": {
+      "invalidEmail": "Formato de e-mail inválido",
+      "rateLimited": "Aguarde antes de solicitar um novo código",
+      "codeExpired": "Código expirado. Solicite um novo.",
+      "tooManyAttempts": "Muitas tentativas. Solicite um novo código.",
+      "invalidCode": "Código de verificação inválido"
+    }
+  },
+  "habits": {
+    "title": "Meus Hábitos",
+    "count": "nenhum hábito | um hábito | {n} hábitos",
+    "dueToday": "Vence hoje",
+    "overdue": "Atrasado",
+    "dueYesterday": "Venceu ontem",
+    "due": "Vence {date}",
+    "instance": {
+      "overdueFor": "Atrasado - {date}",
+      "loggingFor": "Registrando para {date}",
+      "skippingFor": "Pulando para {date}",
+      "pending": "Pendente",
+      "completed": "Concluído",
+      "overdue": "Atrasado"
+    },
+    "oneTimeTask": "Tarefa única",
+    "generalHabit": "Geral",
+    "badHabit": "Mau Hábito",
+    "search": {
+      "matchTag": "tag: {value}",
+      "matchChild": "sub-hábito: {value}",
+      "matchDescription": "na descrição"
+    },
+    "newHabit": "Novo Hábito",
+    "createHabit": "Criar Hábito",
+    "createSubHabit": "Criar Sub-Hábito",
+    "editHabit": "Editar Hábito",
+    "deleteHabit": "Excluir Hábito",
+    "logHabit": "Registrar Hábito",
+    "saveChanges": "Salvar Alterações",
+    "viewsLabel": "Visualizações de hábitos",
+    "viewToday": "Hoje",
+    "viewAll": "Todos",
+    "viewGeneral": "Geral",
+    "searchPlaceholder": "Buscar hábitos...",
+    "showCompleted": "Mostrar concluídos",
+    "collapseAll": "Recolher todos",
+    "expandAll": "Expandir todos",
+    "refresh": "Atualizar",
+    "noDueToday": "Nenhum hábito para hoje",
+    "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro!",
+    "emptyGeneral": "Nenhum hábito geral ainda",
+    "allDoneToday": "Tudo feito por hoje!",
+    "allDoneHint": "Todos os seus hábitos foram concluídos. Ótimo trabalho!",
+    "allDoneCelebrationTitle": "Tudo feito!",
+    "allDoneCelebrationSubtitle": "Você arrasou em todos os hábitos hoje.",
+    "seeUpcoming": "Ver hábitos de amanhã",
+    "generalSection": "Geral",
+    "noSubHabits": "Nenhum sub-hábito ainda",
+    "moveParent": {
+      "button": "Mover para...",
+      "title": "Mover Hábito",
+      "description": "Escolha onde colocar \"{name}\"",
+      "toRoot": "Sem pai (nível raiz)",
+      "currentParent": "Atual",
+      "confirm": "Mover",
+      "moving": "Movendo...",
+      "noOptions": "Nenhum hábito pai disponível",
+      "invalidSelf": "Não pode mover para ele mesmo",
+      "invalidDescendant": "Não pode mover para um descendente",
+      "invalidDepth": "Excederia a profundidade máxima ({max})"
+    },
+    "actions": {
+      "more": "Mais ações",
+      "duplicate": "Duplicar",
+      "skip": "Pular",
+      "postpone": "Adiar",
+      "openSubHabits": "Abrir sub-hábitos",
+      "unlog": "Marcar como incompleto"
+    },
+    "backToHabits": "Voltar para todos os hábitos",
+    "completed": "concluídos",
+    "skipConfirmTitle": "Pular Hábito",
+    "skipConfirmMessage": "Isso vai avançar a data de vencimento para a próxima ocorrência sem registrar como concluído.",
+    "skipConfirmMessageFlexible": "Isso vai reduzir as conclusões necessárias para este período em 1.",
+    "skipConfirmButton": "Pular",
+    "postponeConfirmTitle": "Adiar Tarefa",
+    "postponeConfirmMessage": "Isso vai mover a tarefa para amanhã.",
+    "postponeConfirmButton": "Adiar",
+    "deleteConfirmTitle": "Excluir Hábito",
+    "deleteConfirmMessage": "Tem certeza que deseja excluir este hábito? Esta ação não pode ser desfeita.",
+    "forceLogTitle": "Registrar com sub-hábitos incompletos",
+    "forceLogMessage": "Alguns sub-hábitos ainda não foram concluídos. Deseja registrar este hábito mesmo assim?",
+    "forceLogConfirm": "Registrar mesmo assim",
+    "autoLogParentTitle": "Todos os sub-hábitos concluídos!",
+    "autoLogParentMessage": "Deseja registrar \"{name}\" como completo?",
+    "autoLogParentConfirm": "Registrar pai",
+    "checklistCompleteTitle": "Checklist concluído!",
+    "checklistCompleteMessage": "Todos os itens de \"{name}\" foram concluídos. Deseja registrar este hábito?",
+    "checklistCompleteConfirm": "Registrar hábito",
+    "bulkDeleteTitle": "Excluir Hábitos",
+    "bulkDeleteMessage": "Tem certeza que deseja excluir {count} hábito? Esta ação não pode ser desfeita. | Tem certeza que deseja excluir {count} hábitos? Esta ação não pode ser desfeita.",
+    "bulkDeleteConfirm": "Excluir Todos",
+    "bulkLogTitle": "Registrar Hábitos",
+    "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Hábitos já concluídos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Hábitos já concluídos serão ignorados.",
+    "bulkLogConfirm": "Registrar Todos",
+    "bulkSkipTitle": "Pular Hábitos",
+    "bulkSkipMessage": "Pular/adiar {count} hábito selecionado? Hábitos recorrentes avançam para a próxima data, tarefas únicas movem para amanhã. | Pular/adiar {count} hábitos selecionados? Hábitos recorrentes avançam para a próxima data, tarefas únicas movem para amanhã.",
+    "bulkSkipConfirm": "Pular Todos",
+    "skipHabit": "Pular",
+    "frequency": {
+      "everyDay": "Todo dia",
+      "everyWeek": "Toda semana",
+      "everyMonth": "Todo mês",
+      "everyYear": "Todo ano",
+      "everyNDays": "A cada {n} dia | A cada {n} dias",
+      "everyNWeeks": "A cada {n} semana | A cada {n} semanas",
+      "everyNMonths": "A cada {n} mês | A cada {n} meses",
+      "everyNYears": "A cada {n} ano | A cada {n} anos",
+      "flexibleLabel": "{n}x / {unit}",
+      "flexibleProgress": "{done}/{target} neste {unit}"
+    },
+    "form": {
+      "title": "Título",
+      "titlePlaceholder": "ex. Corrida matinal",
+      "description": "Descrição",
+      "descriptionPlaceholder": "Descrição opcional",
+      "frequency": "Frequência",
+      "oneTimeTask": "Tarefa única",
+      "recurring": "Recorrente",
+      "general": "Geral",
+      "flexible": "Flexível",
+      "flexibleDescription": "Complete {n} vezes a cada {unit}",
+      "timesPerUnit": "Vezes por",
+      "every": "A cada",
+      "unit": "Unidade",
+      "titleRequired": "O título é obrigatório",
+      "frequencyRequired": "A frequência deve ser pelo menos 1",
+      "unitDay": "Dia",
+      "unitWeek": "Semana",
+      "unitMonth": "Mês",
+      "unitYear": "Ano",
+      "activeDays": "Dias Ativos",
+      "dueDate": "Começar em",
+      "dueTime": "Horário",
+      "dueEndTime": "Horário Final",
+      "reminder": "Lembrar-me",
+      "reminderBefore": "Antecedência",
+      "reminderAtTime": "No horário",
+      "reminderMinutes": "min antes",
+      "reminder5min": "5 min antes",
+      "reminder10min": "10 min antes",
+      "reminder15min": "15 min antes",
+      "reminder30min": "30 min antes",
+      "reminder1hour": "1 hora antes",
+      "reminder2hours": "2 horas antes",
+      "reminder6hours": "6 horas antes",
+      "reminder12hours": "12 horas antes",
+      "reminder1day": "1 dia antes",
+      "reminderHour": "hora antes",
+      "reminderHours": "horas antes",
+      "reminderDay": "dia antes",
+      "reminderDays": "dias antes",
+      "reminderAdd": "Adicionar lembrete",
+      "reminderCustom": "Personalizado...",
+      "reminderCustomPlaceholder": "Valor",
+      "reminderUnitMin": "minutos",
+      "reminderUnitHours": "horas",
+      "reminderUnitDays": "dias",
+      "scheduledReminder": "Lembrar-me",
+      "scheduledReminderDayBefore": "Dia anterior",
+      "scheduledReminderSameDay": "Mesmo dia",
+      "scheduledReminderDayBeforeAt": "Dia anterior às {time}",
+      "scheduledReminderSameDayAt": "Mesmo dia às {time}",
+      "scheduledReminderAdd": "Adicionar lembrete",
+      "scheduledReminderMax": "Máximo de 5 lembretes",
+      "invalidScheduledReminderTime": "Horário de lembrete inválido",
+      "duplicateScheduledReminder": "Lembrete duplicado",
+      "reminderMinimumOne": "Pelo menos um horário de lembrete é obrigatório",
+      "scheduledReminderTimePlaceholder": "HH:MM",
+      "tags": "Tags",
+      "badHabitLabel": "Este é um mau hábito (rastrear para evitar)",
+      "subHabits": "Sub-hábitos",
+      "subHabitPlaceholder": "Título do sub-hábito",
+      "addSubHabit": "Adicionar sub-hábito",
+      "newTag": "Nova tag",
+      "tagName": "Nome da tag",
+      "slipAlert": "Alertas de deslize",
+      "slipAlertDescription": "IA envia mensagens motivacionais antes dos seus horários de deslize",
+      "createDescription": "Adicionar um novo hábito para rastrear",
+      "createSubHabitDescription": "Este sub-hábito herdará o agendamento do hábito pai.",
+      "editDescription": "Atualizar detalhes do hábito",
+      "checklist": "Checklist",
+      "checklistPlaceholder": "Adicionar um item...",
+      "addChecklistItem": "Adicionar item",
+      "templates": "Modelos",
+      "saveAsTemplate": "Salvar como modelo",
+      "loadTemplate": "Carregar modelo",
+      "templateName": "Nome do modelo",
+      "templateNamePlaceholder": "ex. Compras semanais",
+      "deleteTemplate": "Excluir",
+      "noTemplates": "Nenhum modelo salvo",
+      "resetChecklist": "Resetar",
+      "clearChecklist": "Limpar tudo",
+      "duplicateChecklistItem": "Duplicar item",
+      "endDate": "Data Final",
+      "endDateHint": "O hábito para de aparecer após esta data",
+      "endDateBeforeDueDate": "A data final deve ser após a data de início",
+      "addEndDate": "Adicionar data final",
+      "clearEndDate": "Remover data final",
+      "endTimeBeforeStartTime": "O horário final deve ser após o horário inicial",
+      "invalidTime": "Horário inválido (deve ser HH:MM, 00:00-23:59)",
+      "invalidEndTime": "Horário final inválido (deve ser HH:MM, 00:00-23:59)",
+      "goals": "Metas",
+      "noGoals": "Nenhuma meta ativa",
+      "goalLimit": "Limite de metas atingido"
+    },
+    "log": {
+      "title": "Registrar Hábito",
+      "description": "Registrar uma conclusão de hábito",
+      "habitLabel": "Hábito",
+      "noteLabel": "Nota (opcional)",
+      "notePlaceholder": "Como foi?"
+    },
+    "detail": {
+      "performance": "Desempenho",
+      "recentNotes": "Notas Recentes",
+      "completed": "Concluído",
+      "loggedAt": "Registrado às {time}",
+      "day": "dia",
+      "days": "dias",
+      "endsOn": "Termina em",
+      "viewDescription": "Ver descrição completa",
+      "currentStreak": "Atual",
+      "longestStreak": "Maior",
+      "monthlyRate": "Mensal",
+      "activity": "Atividade",
+      "streakDays": "{n}d"
+    },
+    "filter": {
+      "daily": "Diário",
+      "weekly": "Semanal",
+      "monthly": "Mensal",
+      "yearly": "Anual",
+      "oneTime": "Único"
+    },
+    "breakdown": {
+      "breakInto": "Dividir {name} em:",
+      "habitNamePlaceholder": "Nome do hábito...",
+      "descriptionPlaceholder": "Descrição (opcional)",
+      "addHabit": "Adicionar hábito",
+      "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
+      "createdSuccess": "nenhum hábito criado | {n} hábito criado com sucesso | {n} hábitos criados com sucesso",
+      "createAsParent": "Agrupar como hábito pai",
+      "createAsParentSuccess": "'{name}' criado com {n} sub-hábito | '{name}' criado com {n} sub-hábitos",
+      "every": "a cada"
+    },
+    "subHabitPlaceholder": "Título do sub-hábito..."
+  },
+  "calendar": {
+    "legend": {
+      "done": "Feito",
+      "upcoming": "Próximo",
+      "missed": "Perdido"
+    },
+    "dayDetail": {
+      "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
+    },
+    "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
+    "goToDay": "Ver este dia",
+    "status": {
+      "completed": "Concluído",
+      "missed": "Perdido",
+      "upcoming": "Próximo",
+      "indulged": "Cedeu",
+      "resisted": "Resistiu",
+      "scheduled": "Agendado"
+    },
+    "completionHistory": "Histórico de Conclusão",
+    "noCompletions": "Sem conclusões",
+    "less": "Menos",
+    "more": "Mais",
+    "showRecurring": "Mostrar recorrentes",
+    "title": "Google Calendar",
+    "profileButton": "Google Calendar",
+    "profileHint": "Importar eventos como hábitos",
+    "fetchingEvents": "Buscando seus eventos...",
+    "noEvents": "Nenhum evento encontrado no seu Google Calendar.",
+    "eventsFound": "{count} evento encontrado | {count} eventos encontrados",
+    "selectAll": "Selecionar todos",
+    "deselectAll": "Desmarcar todos",
+    "importButton": "Importar {count} evento | Importar {count} eventos",
+    "importing": "Importando eventos...",
+    "importDone": "Importação concluída!",
+    "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
+    "goToHabits": "Ir para Hábitos",
+    "errorTitle": "Algo deu errado",
+    "fetchError": "Não foi possível buscar os eventos. Tente novamente.",
+    "importError": "Não foi possível importar os eventos. Tente novamente.",
+    "retry": "Tentar novamente",
+    "recurring": "Recorrente",
+    "recurrenceDaily": "Diário",
+    "recurrenceWeekly": "Semanal",
+    "recurrenceWeeklyDays": "Semanal ({days})",
+    "recurrenceMonthly": "Mensal",
+    "recurrenceEveryNDays": "A cada {n} dia | A cada {n} dias",
+    "recurrenceEveryNWeeks": "A cada {n} semana | A cada {n} semanas",
+    "recurrenceEveryNMonths": "A cada {n} mês | A cada {n} meses",
+    "recurrenceYearly": "Anual",
+    "notConnectedTitle": "Conectar Conta Google",
+    "notConnectedDesc": "Entre com o Google para importar seus eventos do calendário como hábitos."
+  },
+  "chat": {
+    "title": "Chat com Orbit",
+    "placeholder": "Diga ao Orbit o que você fez...",
+    "attachImage": "Anexar imagem",
+    "listening": "Ouvindo...",
+    "speechLanguage": "Idioma de fala",
+    "stopRecording": "Parar gravação",
+    "toggleMic": "Ativar gravação de voz",
+    "imageError": "Apenas imagens JPEG, PNG e WebP são suportadas.",
+    "imageSizeError": "A imagem deve ter menos de 20MB.",
+    "sendError": "Falha ao enviar mensagem. Tente novamente.",
+    "timeoutError": "A requisição expirou. Tente novamente.",
+    "limitReachedError": "Você atingiu o limite de mensagens. Faça upgrade para Pro para mensagens ilimitadas.",
+    "aiError": "Desculpe, algo deu errado. Tente novamente.",
+    "suggestion": {
+      "prompt": "Peça para criar hábitos, registrar conclusões ou gerenciar sua rotina",
+      "meditated": "Eu meditei hoje",
+      "exercise": "Criar um hábito de exercício toda manhã",
+      "groceries": "Preciso comprar mantimentos amanhã"
+    },
+    "action": {
+      "created": "Criou {name}",
+      "logged": "Registrou {name}",
+      "updated": "Atualizou {name}",
+      "deleted": "Excluiu {name}",
+      "breakdown": "Divisão: {name}",
+      "createdSubHabit": "Sub-hábito adicionado: {name}",
+      "skipped": "Pulou {name}",
+      "tagsUpdated": "Tags atualizadas: {name}",
+      "duplicated": "Duplicou {name}",
+      "moved": "Moveu {name}"
+    },
+    "conflict": {
+      "title": "Potencial conflito"
+    },
+    "attachmentPreview": "Anexo enviado pelo usuário",
+    "messagesUsed": "mensagens usadas neste mês",
+    "imageFallback": "Imagem",
+    "senderYou": "Você",
+    "senderOrbit": "Orbit",
+    "unknownEntity": "Desconhecido",
+    "starterChips": {
+      "logHabit": "Registrar um hábito",
+      "createRoutine": "Criar uma rotina",
+      "howAmIDoing": "Como estou indo?",
+      "planWeek": "Planejar minha semana"
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "sections": {
+      "account": "Conta",
+      "preferences": "Preferências",
+      "aiFeatures": "Recursos de IA",
+      "features": "Recursos",
+      "notifications": "Notificações",
+      "aboutHelp": "Sobre e Ajuda",
+      "advanced": "Avançado",
+      "accountActions": "Conta",
+      "preferencesHint": "Idioma, cores, notificações",
+      "aiFeaturesHint": "Memória, resumo diário",
+      "aboutHelpHint": "Guia de recursos, suporte, indicação",
+      "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
+    },
+    "userInfo": "Informações do Usuário",
+    "language": {
+      "title": "Idioma",
+      "description": "Selecione seu idioma preferido"
+    },
+    "colorScheme": {
+      "title": "Cor do Tema",
+      "description": "Escolha sua cor de destaque"
+    },
+    "timezone": {
+      "title": "Fuso Horário",
+      "current": "Atual:",
+      "notSet": "Não definido",
+      "searchPlaceholder": "Buscar fusos horários...",
+      "description": "Afeta quando os hábitos vencem e a resolução de 'hoje'"
+    },
+    "aiMemory": {
+      "title": "Memória da IA",
+      "description": "Quando ativado, o Orbit aprende suas preferências, rotinas e contexto das conversas para oferecer respostas mais personalizadas.",
+      "privacy": "Seus dados são privados e usados apenas para melhorar sua experiência pessoal. Eles nunca são usados para treinar modelos de IA ou compartilhados com terceiros.",
+      "enabled": "O Orbit vai lembrar coisas sobre você",
+      "disabled": "O Orbit não vai salvar novas informações sobre você"
+    },
+    "aiSummary": {
+      "title": "Resumo Diário",
+      "description": "Quando ativado, o Orbit gera um resumo personalizado do seu dia na tela de hábitos.",
+      "enabled": "Resumo diário está ativo",
+      "disabled": "Resumo diário está desativado"
+    },
+    "facts": {
+      "title": "O que o Orbit Sabe Sobre Você",
+      "empty": "Converse com o Orbit para construir seu perfil",
+      "add": "Adicionar Fato",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "factPlaceholder": "Digite um fato sobre você...",
+      "category": "Categoria",
+      "preference": "Preferência",
+      "routine": "Rotina",
+      "context": "Contexto",
+      "none": "Nenhuma",
+      "select": "Selecionar",
+      "selectAll": "Selecionar Tudo",
+      "deselectAll": "Desmarcar Tudo",
+      "deleteSelected": "Excluir ({n})",
+      "confirmBulkDelete": "Excluir {n} fatos?",
+      "count": "{n} / {max}",
+      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos."
+    },
+    "support": {
+      "title": "Suporte",
+      "hint": "Dúvidas, bugs ou feedback",
+      "description": "Tem uma pergunta, bug ou feedback? Envie uma mensagem.",
+      "namePlaceholder": "Seu nome",
+      "emailPlaceholder": "Seu e-mail",
+      "subjectPlaceholder": "Assunto",
+      "messagePlaceholder": "Descreva seu problema ou feedback...",
+      "send": "Enviar Mensagem",
+      "success": "Mensagem enviada! Retornaremos em breve.",
+      "nameRequired": "Nome é obrigatório.",
+      "emailRequired": "E-mail é obrigatório.",
+      "emailInvalid": "Por favor, insira um endereço de e-mail válido."
+    },
+    "logout": "Sair",
+    "featureGuideHint": "Saiba como aproveitar ao máximo o Orbit",
+    "retrospectiveTitle": "Retrospectiva",
+    "retrospectiveHint": "Insights da IA sobre seus hábitos ao longo do tempo",
+    "widgetTitle": "Widget na Tela Inicial",
+    "widgetHint": "Veja seus hábitos rapidamente",
+    "widgetHow": {
+      "title": "Como Adicionar",
+      "step1": "Pressione e segure em uma área vazia da tela inicial",
+      "step2": "Toque em \"Widgets\" e procure por Orbit",
+      "step3": "Arraste o widget para a tela inicial e redimensione como quiser",
+      "featuresTitle": "O Que Ele Mostra",
+      "feature1": "Hábitos de hoje com status de conclusão",
+      "feature2": "Horários dos hábitos agendados",
+      "feature3": "Progresso do checklist para hábitos com listas",
+      "feature4": "Mostra automaticamente os hábitos de amanhã quando hoje está livre"
+    },
+    "subscription": {
+      "pro": "Orbit Pro",
+      "proHint": "Gerencie sua assinatura",
+      "free": "Plano Grátis",
+      "freeHint": "Faça upgrade para desbloquear tudo",
+      "trial": "Teste Pro",
+      "trialDaysLeft": "{days} dia restante | {days} dias restantes",
+      "trialEnded": "Teste Encerrado",
+      "trialEndedHint": "Faça upgrade para recuperar os recursos Pro"
+    },
+    "freshStart": {
+      "button": "Novo Começo",
+      "title": "Novo Começo",
+      "description": "Recomece sua jornada com uma página em branco. Isso excluirá permanentemente todos os seus dados.",
+      "whatDeleted": "O que será excluído:",
+      "deleteHabits": "Todos os hábitos, sub-hábitos e histórico de conclusão",
+      "deleteGoals": "Todas as metas e registros de progresso",
+      "deleteChat": "Conversas com IA",
+      "deleteUserFacts": "Memória da IA (fatos do usuário)",
+      "deleteAchievements": "Conquistas, XP e progresso de nível",
+      "deleteNotifications": "Todas as notificações",
+      "deleteChecklist": "Modelos de checklist salvos",
+      "deleteOnboarding": "Progresso de introdução (o fluxo de boas-vindas será reexibido)",
+      "whatPreserved": "O que permanece:",
+      "preserveAccount": "Sua conta (e-mail, nome, senha)",
+      "preserveSubscription": "Status da assinatura Pro",
+      "preservePreferences": "Tema, esquema de cores, idioma e fuso horário",
+      "confirmTitle": "Digite para confirmar",
+      "confirmInstruction": "Digite ORBIT abaixo para confirmar esta ação.",
+      "confirmPlaceholder": "ORBIT",
+      "confirmButton": "Resetar minha conta",
+      "processing": "Resetando...",
+      "successTitle": "Sua órbita foi reiniciada",
+      "successSubtitle": "Hora de um novo começo",
+      "errorGeneric": "Algo deu errado. Tente novamente."
+    },
+    "deleteAccount": {
+      "button": "Excluir conta",
+      "title": "Excluir Conta",
+      "warning": "Esta ação é irreversível.",
+      "warningFree": "Sua conta será desativada e permanentemente excluída após 7 dias. Faça login novamente antes disso para cancelar.",
+      "warningPro": "Sua conta será desativada e permanentemente excluída 7 dias após seu plano expirar em {date}. Faça login novamente antes disso para cancelar.",
+      "warningDetail": "Todos os seus dados serão permanentemente excluídos, incluindo hábitos, histórico de conclusão, conversas com IA, fatos do usuário e configurações.",
+      "sendCode": "Enviar código de confirmação para meu e-mail",
+      "sending": "Enviando...",
+      "codeInstructions": "Digite o código de 6 dígitos enviado ao seu e-mail para confirmar a desativação da conta.",
+      "confirmDelete": "Desativar minha conta",
+      "deleting": "Processando...",
+      "deactivated": "Sua conta será desativada. Ela será permanentemente excluída em {date}.",
+      "reactivated": "Bem-vindo de volta! A exclusão da sua conta foi cancelada.",
+      "errorGeneric": "Algo deu errado. Tente novamente."
+    }
+  },
+  "referral": {
+    "applied": "Indicação aplicada! Vocês dois ganham desconto.",
+    "card": {
+      "title": "Convidar Amigos",
+      "hint": "Ganhe cupons de desconto para você e seus amigos",
+      "progress": "{count}/{max} indicações concluídas"
+    },
+    "drawer": {
+      "title": "Convidar Amigos",
+      "yourLink": "Seu link de indicação",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "share": "Compartilhar com amigos",
+      "completed": "Indicações concluídas",
+      "pending": "Pendentes",
+      "couponsEarned": "Cupons ganhos",
+      "howItWorks": "Como funciona",
+      "explanation": "Compartilhe seu link com amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Você pode indicar até 10 amigos!",
+      "disclaimer": "Cada indicação gera um cupom de {discount}% de desconto de uso único. Cupons se aplicam a um único ciclo de cobrança e não acumulam -- uma nova indicação substitui qualquer cupom não utilizado. Se você já é assinante, o desconto é aplicado automaticamente na sua próxima fatura."
+    },
+    "share": {
+      "title": "Entre no Orbit comigo",
+      "text": "Estou usando o Orbit para criar hábitos melhores. Entre e nós dois ganhamos um cupom de {discount}% de desconto!"
+    },
+    "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
+  },
+  "privacy": {
+    "title": "Pol\u00edtica de Privacidade",
+    "hint": "Como tratamos seus dados",
+    "lastUpdated": "\u00daltima atualiza\u00e7\u00e3o: Abril de 2026",
+    "intro": {
+      "title": "Introdu\u00e7\u00e3o",
+      "body": "O Orbit \u00e9 um aplicativo de rastreamento de h\u00e1bitos pessoais. Levamos sua privacidade a s\u00e9rio e estamos comprometidos em proteger seus dados pessoais. Esta pol\u00edtica explica quais dados armazenamos, como os usamos e seus direitos."
+    },
+    "dataCollected": {
+      "title": "Dados que Armazenamos",
+      "account": "Informa\u00e7\u00f5es da conta: nome e endere\u00e7o de e-mail (via cadastro por e-mail ou Google OAuth)",
+      "habits": "Dados de h\u00e1bitos: h\u00e1bitos criados, registros de conclus\u00e3o, agendamentos, tags e metas",
+      "chat": "Mensagens do chat com IA: conversas com o assistente de IA do Orbit",
+      "preferences": "Prefer\u00eancias: idioma, fuso hor\u00e1rio, cor do tema, configura\u00e7\u00f5es de notifica\u00e7\u00e3o e fatos de mem\u00f3ria da IA que voc\u00ea fornece"
+    },
+    "howWeUse": {
+      "title": "Como Usamos Seus Dados",
+      "provide": "Para fornecer e operar o servi\u00e7o Orbit",
+      "personalize": "Para personalizar sua experi\u00eancia com insights e resumos baseados em IA",
+      "notifications": "Para enviar notifica\u00e7\u00f5es push e lembretes de h\u00e1bitos que voc\u00ea configurou"
+    },
+    "thirdParty": {
+      "title": "Servi\u00e7os de Terceiros",
+      "intro": "Usamos os seguintes servi\u00e7os para operar o Orbit:",
+      "google": "Google OAuth - para autentica\u00e7\u00e3o",
+      "stripe": "Stripe - para processamento de pagamentos de assinatura",
+      "firebase": "Firebase Cloud Messaging - para notifica\u00e7\u00f5es push",
+      "openai": "OpenAI - para recursos de chat com IA e resumos di\u00e1rios",
+      "resend": "Resend - para e-mails transacionais"
+    },
+    "noSell": {
+      "title": "N\u00e3o Vendemos Seus Dados",
+      "body": "Seus dados n\u00e3o s\u00e3o vendidos a terceiros e n\u00e3o s\u00e3o usados para treinar modelos de IA. Seus dados de h\u00e1bitos e conversas s\u00e3o usados exclusivamente para fornecer o servi\u00e7o Orbit."
+    },
+    "security": {
+      "title": "Seguran\u00e7a dos Dados",
+      "body": "Todas as conex\u00f5es com o Orbit usam criptografia HTTPS. A autentica\u00e7\u00e3o usa sess\u00f5es de atualiza\u00e7\u00e3o rotativas. Informa\u00e7\u00f5es de pagamento s\u00e3o tratadas inteiramente pelo Stripe e nunca passam por nossos servidores."
+    },
+    "deletion": {
+      "title": "Exclus\u00e3o de Dados",
+      "body": "Voc\u00ea pode excluir sua conta e todos os dados associados a qualquer momento pela p\u00e1gina de Perfil no app. O processo requer confirma\u00e7\u00e3o por e-mail:",
+      "step1": "1. V\u00e1 ao Perfil e toque em \"Excluir conta\"",
+      "step2": "2. Um c\u00f3digo de confirma\u00e7\u00e3o ser\u00e1 enviado ao seu e-mail",
+      "step3": "3. Digite o c\u00f3digo para confirmar a exclus\u00e3o",
+      "step4": "Todos os dados s\u00e3o exclu\u00eddos permanentemente imediatamente, incluindo h\u00e1bitos, hist\u00f3rico de conclus\u00e3o, conversas com IA, fatos do usu\u00e1rio e configura\u00e7\u00f5es. Esta a\u00e7\u00e3o \u00e9 irrevers\u00edvel."
+    },
+    "contact": {
+      "title": "Contato",
+      "body": "Se voc\u00ea tem perguntas sobre esta pol\u00edtica de privacidade ou seus dados, entre em contato pelo contact{'@'}useorbit.org."
+    }
+  },
+  "trial": {
+    "proBadge": "Período de teste",
+    "banner": {
+      "daysLeft": "Teste Pro - {days} dia restante | Teste Pro - {days} dias restantes",
+      "lastDay": "O teste acaba hoje!",
+      "upgrade": "Upgrade"
+    },
+    "expired": {
+      "title": "Seu Teste Pro Acabou",
+      "subtitle": "Você teve {days} dia de acesso Pro completo. Não perca o que construiu. | Você teve {days} dias de acesso Pro completo. Não perca o que construiu.",
+      "dontLose": "Não perca acesso a:",
+      "unlimitedHabits": "Hábitos ilimitados",
+      "aiChat": "500 mensagens de IA por mês",
+      "allColors": "Todos os 6 temas",
+      "aiSummary": "Resumos diários da IA",
+      "subHabits": "Sub-hábitos",
+      "retrospective": "Retrospectivas com IA",
+      "subscribe": "Assinar Pro",
+      "continueFree": "Continuar com Grátis"
+    }
+  },
+  "metrics": {
+    "currentStreak": "Sequência Atual",
+    "longestStreak": "Maior Sequência",
+    "weekly": "Semanal",
+    "monthly": "Mensal",
+    "totalCompletions": "Total de Conclusões",
+    "lastCompleted": "Última conclusão"
+  },
+  "summary": {
+    "title": "Seu Dia",
+    "loading": "Vendo o que temos pra hoje...",
+    "error": "Não foi possível carregar seu resumo.",
+    "retry": "Tentar novamente"
+  },
+  "retrospective": {
+    "title": "Retrospectiva",
+    "locked": "Retrospectivas são um recurso Pro",
+    "lockedHint": "Faça upgrade para Pro para desbloquear retrospectivas com IA que analisam seus hábitos ao longo do tempo.",
+    "lockedYearly": "Disponível no Plano Anual",
+    "lockedYearlyHint": "Retrospectivas são um recurso exclusivo para assinantes Pro anuais. Mude para o plano anual para desbloquear insights com IA.",
+    "changePlan": "Mudar Plano",
+    "generate": "Gerar Retrospectiva",
+    "generating": "Analisando seus hábitos...",
+    "error": "Não foi possível gerar sua retrospectiva.",
+    "empty": "Escolha um período e gere uma retrospectiva para ver insights da IA sobre seus hábitos.",
+    "cached": "Carregado do cache",
+    "periods": {
+      "week": "Semana",
+      "month": "Mês",
+      "quarter": "Trimestre",
+      "semester": "Semestre",
+      "year": "Ano"
+    }
+  },
+  "onboarding": {
+    "flow": {
+      "step": "{current} de {total}",
+      "skip": "Pular",
+      "next": "Próximo",
+      "back": "Voltar",
+      "welcome": {
+        "title": "Bem-vindo ao Orbit",
+        "subtitle": "Vamos configurar sua experiência e criar seu primeiro hábito.",
+        "weekStart": "Quando sua semana começa?",
+        "colorScheme": "Escolha sua cor"
+      },
+      "createHabit": {
+        "title": "Crie seu primeiro hábito",
+        "subtitle": "Hábitos são a base de tudo. O que você quer acompanhar?",
+        "placeholder": "ex: Beber água, Ler, Exercitar",
+        "create": "Criar Hábito",
+        "creating": "Criando...",
+        "success": "Hábito criado!",
+        "frequency": {
+          "daily": "Diário",
+          "weekly": "Semanal",
+          "oneTime": "Única vez"
+        },
+        "suggestions": {
+          "water": "Beber água",
+          "read": "Ler 10 páginas",
+          "exercise": "Exercitar",
+          "meditate": "Meditar"
+        }
+      },
+      "completeHabit": {
+        "title": "Agora complete",
+        "instruction": "Toque no círculo para marcar como feito",
+        "tapHint": "Toque no círculo para completar",
+        "success": "Sua sequência começa agora!"
+      },
+      "createGoal": {
+        "title": "Defina uma meta",
+        "optional": "Opcional",
+        "subtitle": "Metas dão um propósito maior aos seus hábitos.",
+        "descriptionPlaceholder": "ex: Ler 12 livros este ano",
+        "targetPlaceholder": "Quantidade",
+        "unitPlaceholder": "Unidade (km, livros...)",
+        "create": "Criar Meta",
+        "creating": "Criando...",
+        "success": "Meta criada!",
+        "skipStep": "Pular por enquanto",
+        "suggestions": {
+          "run": "Correr 100km",
+          "books": "Ler 12 livros",
+          "booksUnit": "livros",
+          "save": "Economizar R$5000"
+        }
+      },
+      "features": {
+        "title": "Mais para explorar",
+        "subtitle": "O Orbit tem muito mais. Aqui estão alguns destaques.",
+        "chat": {
+          "title": "Chat IA",
+          "desc": "Peça para a IA criar hábitos, obter insights ou analisar seu progresso."
+        },
+        "calendar": {
+          "title": "Calendário",
+          "desc": "Veja seu histórico com um mapa de calor colorido."
+        },
+        "achievements": {
+          "title": "Conquistas",
+          "desc": "Ganhe XP, suba de nível e desbloqueie badges ao construir sequências."
+        },
+        "notifications": {
+          "title": "Notificações",
+          "desc": "Receba lembretes antes dos seus hábitos vencerem."
+        }
+      },
+      "complete": {
+        "title": "Tudo pronto!",
+        "subtitle": "Tudo é real -- seu hábito e progresso já estão salvos.",
+        "start": "Começar a Usar o Orbit",
+        "recap": {
+          "habit": "Hábito criado",
+          "goal": "Meta criada",
+          "theme": "Tema personalizado"
+        },
+        "trialTitle": "Seu Teste Pro está Ativo",
+        "trialDesc": "Aproveite o acesso Pro completo até {date}."
+      }
+    },
+    "wizard": {
+      "calendarTitle": "Importar do Google Calendar",
+      "calendarDescription": "Já tem eventos no Google Calendar? Importe como hábitos no Orbit com um toque.",
+      "calendarButton": "Importar Calendário"
+    },
+    "weekStart": {
+      "title": "Quando sua semana começa?",
+      "description": "Essa configuração afeta como os calendários e seletores de dias são exibidos no app."
+    },
+    "featureGuide": {
+      "title": "Guia de Funcionalidades",
+      "openButton": "Guia de Funcionalidades",
+      "habits": "Hábitos",
+      "calendar": "Calendário",
+      "chat": "Chat IA",
+      "settings": "Configurações",
+      "goals": "Metas",
+      "notifications": "Notificações",
+      "habitsSection": {
+        "creatingTitle": "Criando Hábitos",
+        "creatingDesc": "Toque no botão + na parte inferior da tela, ou peça para a IA no chat. Defina nome, descrição opcional e frequência (diária, semanal em dias específicos, mensal ou anual).",
+        "frequenciesTitle": "Frequências e Agendamento",
+        "frequenciesDesc": "Hábitos podem repetir diariamente, semanalmente em dias específicos, mensalmente ou anualmente. Você também pode criar tarefas únicas sem frequência. O app mostra apenas os hábitos programados para cada dia.",
+        "subHabitsTitle": "Sub-hábitos",
+        "subHabitsDesc": "Divida hábitos complexos em etapas menores. Por exemplo, 'Rotina Matinal' pode ter 'Meditar', 'Escrever' e 'Alongar' como sub-hábitos. Cada um pode ser concluído de forma independente.",
+        "checklistsTitle": "Checklists",
+        "checklistsDesc": "Adicione um checklist a qualquer hábito para listas simples como compras, mala de viagem ou tarefas. Marque os itens na visualização detalhada. Para hábitos recorrentes, o checklist reseta automaticamente ao registrar o hábito. Você também pode salvar checklists como modelos reutilizáveis.",
+        "loggingTitle": "Registrando Conclusões",
+        "loggingDesc": "Toque no círculo ao lado de qualquer hábito para marcá-lo como feito. Toque novamente para desfazer. Você também pode registrar hábitos pelo chat da IA dizendo coisas como 'corri hoje'.",
+        "badHabitsTitle": "Rastreamento de Hábitos Ruins",
+        "badHabitsDesc": "Rastreie hábitos que você quer parar (fumar, roer unhas, etc.). Registre cada deslize para construir consciência. Sua sequência conta os dias sem o hábito ruim.",
+        "slipAlertsTitle": "Alertas de Deslize",
+        "slipAlertsDesc": "Ative alertas de deslize em hábitos ruins para receber notificações motivacionais geradas por IA antes dos seus horários habituais de deslize. O sistema detecta padrões de dia e horário nos seus registros e envia mensagens personalizadas para te ajudar a se manter firme.",
+        "metricsTitle": "Métricas e Sequências",
+        "metricsDesc": "Cada hábito rastreia sua sequência atual, melhor sequência, taxas de conclusão semanal e mensal, e total de conclusões. Toque em um hábito para ver todas as estatísticas.",
+        "dragDropTitle": "Arrastar e Soltar",
+        "dragDropDesc": "Pressione e segure qualquer cartão de hábito para arrastá-lo na ordem desejada. Sua ordem personalizada é salva automaticamente.",
+        "bulkSelectTitle": "Ações em Massa",
+        "bulkSelectDesc": "Toque em 'Selecionar' para entrar no modo de seleção. Escolha vários hábitos para registrar, pular ou excluí-los de uma vez.",
+        "filteringTitle": "Pesquisa e Filtros",
+        "filteringDesc": "Use a barra de pesquisa para encontrar hábitos por nome. Filtre por frequência (diária, semanal, mensal, anual, única) usando os chips abaixo da pesquisa.",
+        "summaryTitle": "Resumo Diário da IA",
+        "summaryDesc": "Quando ativado nas Configurações, um cartão de resumo gerado pela IA aparece no topo da visualização Hoje com insights sobre seu dia e motivação.",
+        "remindersTitle": "Lembretes",
+        "remindersDesc": "Adicione lembretes a qualquer hábito. Hábitos com horário recebem lembretes relativos (ex: 15 min antes). Hábitos sem horário recebem lembretes agendados em horários específicos no mesmo dia ou dia anterior. Você receberá uma notificação push para cada lembrete.",
+        "oneTimeTasksTitle": "Tarefas Únicas",
+        "oneTimeTasksDesc": "Crie tarefas sem frequência recorrente para metas de um único dia. Perfeito para coisas como 'comprar mantimentos amanhã' ou 'consulta no dentista sexta'.",
+        "duplicateTitle": "Duplicar Hábitos",
+        "duplicateDesc": "Pressione e segure um cartão de hábito ou use o menu para duplicá-lo com todas as configurações (frequência, tags, lembretes). Ótimo para criar hábitos semelhantes rapidamente.",
+        "dateNavTitle": "Navegação por Data",
+        "dateNavDesc": "Use as setas esquerda e direita na visualização Hoje para navegar entre dias. A visualização Hoje também mostra hábitos atrasados que ainda precisam de atenção.",
+        "endDatesTitle": "Datas de Término",
+        "endDatesDesc": "Defina uma data de término opcional em hábitos recorrentes. O hábito para de aparecer na sua agenda após a data, perfeito para desafios temporários ou rotinas de prazo limitado.",
+        "goalLinkingTitle": "Vinculação a Metas",
+        "goalLinkingDesc": "Vincule hábitos às suas metas pelo formulário de hábitos. Hábitos vinculados contribuem para o rastreamento de adesão à meta, ajudando a ver como suas ações diárias impulsionam objetivos maiores.",
+        "tagDisplayTitle": "Tags nos Cards",
+        "tagDisplayDesc": "Tags atribuídas aos hábitos aparecem como badges coloridos diretamente nos cards. Identifique categorias rapidamente sem abrir cada hábito.",
+        "retrospectiveTitle": "Retrospectiva com IA",
+        "retrospectiveDesc": "Recurso Pro. Acesse pelo seu Perfil para gerar retrospectivas com IA que analisam seus hábitos em períodos configuráveis (semana, mês, trimestre, ano). Veja destaques, oportunidades perdidas, tendências e sugestões práticas.",
+        "flexibleTitle": "Hábitos Flexíveis",
+        "flexibleDesc": "Complete X vezes por semana ou mês no seu próprio ritmo -- sem dias específicos obrigatórios. Hábitos flexíveis rastreiam quantas vezes você os conclui dentro de uma janela, dando liberdade para escolher quando.",
+        "generalTitle": "Hábitos Gerais",
+        "generalDesc": "Hábitos sem agendamento -- sempre visíveis, sem datas de vencimento. Perfeito para hábitos contínuos como escrever ou ler que você quer rastrear sem estar preso a dias específicos. Ative 'Mostrar gerais no Hoje' nas Configurações.",
+        "logNotesTitle": "Notas ao Registrar",
+        "logNotesDesc": "Adicione uma nota ao registrar um hábito para capturar contexto ou como você se sentiu. As notas aparecem no histórico do hábito e ajudam a IA a fornecer insights mais personalizados.",
+        "skipTitle": "Pular vs Registrar",
+        "skipDesc": "Pular marca um hábito como intencionalmente ignorado no dia sem quebrar sua sequência. Use quando você conscientemente escolheu não fazer um hábito (dia de descanso, viagem, etc.) em vez de simplesmente esquecer."
+      },
+      "goalsSection": {
+        "creatingTitle": "Criando Metas",
+        "creatingDesc": "Crie metas com título, valor alvo, unidade e prazo opcional. Metas dão um propósito maior aos seus hábitos e ajudam a medir o progresso a longo prazo.",
+        "trackingTitle": "Acompanhando o Progresso",
+        "trackingDesc": "Atualize seu valor atual, adicione notas e veja seu histórico completo de progresso. Cada atualização te aproxima do seu objetivo.",
+        "linkingTitle": "Vinculando Hábitos",
+        "linkingDesc": "Conecte hábitos a metas para rastreamento de adesão. Veja o quão consistentemente você cumpre os hábitos que mais importam para cada meta.",
+        "dashboardTitle": "Painel de Métricas da Meta",
+        "dashboardDesc": "Veja velocidade, data prevista de conclusão e status de acompanhamento (no caminho, em risco ou atrasado) para cada meta. Insights baseados em dados sobre seu progresso.",
+        "aiReviewTitle": "Revisão de Metas com IA",
+        "aiReviewDesc": "Obtenha revisões geradas pela IA do progresso das suas metas com análise do que está funcionando, o que precisa de atenção e sugestões para manter o rumo.",
+        "statusTitle": "Ciclo de Vida da Meta",
+        "statusDesc": "Metas passam por estados ativa, concluída e abandonada. Marque metas como concluídas ao atingir seu objetivo, ou abandone se as prioridades mudarem."
+      },
+      "chatSection": {
+        "canDoTitle": "Criar e Registrar",
+        "canDoDesc": "Diga à IA quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar conclusões. Ela pode criar tarefas únicas também, como 'comprar ovos amanhã'.",
+        "manageTitle": "Atualizar e Excluir",
+        "manageDesc": "Peça à IA para modificar hábitos: 'mover minha academia para amanhã', 'renomear corrida para caminhada', 'mudar meditação para semanal', ou 'excluir meu hábito de leitura'. Ela lida com operações em massa também.",
+        "insightsTitle": "Progresso e Análise",
+        "insightsDesc": "Pergunte 'como estou indo?' e a IA analisa suas sequências reais, taxas de conclusão e tendências. Ela pode dar revisões semanais, sugerir melhorias e celebrar seu progresso.",
+        "imageTitle": "Análise de Imagem",
+        "imageDesc": "Envie uma foto de uma agenda, lista de tarefas ou calendário e a IA extrai hábitos dela. Ela sugere para sua revisão antes de criar qualquer coisa.",
+        "voiceTitle": "Entrada por Voz",
+        "voiceDesc": "Toque no ícone do microfone para falar em vez de digitar. Escolha seu idioma no seletor de bandeira ao lado do microfone. Suporta vários idiomas.",
+        "cannotDoTitle": "Limitações",
+        "cannotDoDesc": "A IA é focada em hábitos e rotinas. Ela não pode responder perguntas gerais, ajudar com tarefas escolares ou fazer coisas não relacionadas aos seus hábitos.",
+        "tipsTitle": "Dicas",
+        "tipsDesc": "A IA lembra sua conversa, então você pode dizer 'modificar a sugestão anterior' ou 'mudar TestA para semanal'. Ela também conhece suas sequências e estatísticas, então peça um feedback honesto!",
+        "reschedulingTitle": "Reagendamento Inteligente",
+        "reschedulingDesc": "Peça à IA para analisar sua agenda e sugerir melhores horários ou dias para seus hábitos. Ela considera sua rotina existente para encontrar os melhores momentos."
+      },
+      "calendarSection": {
+        "colorsTitle": "Codificação por Cores",
+        "colorsDesc": "Verde significa todos os hábitos concluídos naquele dia. Laranja significa que você perdeu alguns hábitos. Roxo significa hábitos futuros (hoje ou futuro). Cada dia com hábitos mostra um pequeno indicador de ponto.",
+        "dayDetailsTitle": "Detalhes do Dia",
+        "dayDetailsDesc": "Toque em qualquer dia no calendário para ver quais hábitos estavam programados e seu status de conclusão.",
+        "navigationTitle": "Navegação",
+        "navigationDesc": "Use as setas para mover entre meses. Toque no ícone de pesquisa para voltar ao mês atual.",
+        "streaksTitle": "Sequências e Progresso",
+        "streaksDesc": "O calendário mostra seus padrões de conclusão ao longo do tempo. Use-o para identificar falhas de consistência e ver quais dias você tende a perder, para ajustar sua rotina.",
+        "googleCalendarTitle": "Importar do Google Calendar",
+        "googleCalendarDesc": "Importe eventos do seu Google Calendar como tarefas únicas. Sincronize sua agenda com o Orbit para que reuniões, compromissos e eventos apareçam automaticamente como tarefas no dia certo."
+      },
+      "settingsSection": {
+        "colorSchemeTitle": "Esquema de Cores",
+        "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). Todo o app se adapta -- fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
+        "languageTitle": "Idioma",
+        "languageDesc": "Alterne entre inglês e português. O app, respostas da IA e emails se adaptam ao idioma escolhido.",
+        "aiMemoryTitle": "Memória da IA",
+        "aiMemoryDesc": "Quando ativada, a IA aprende com suas conversas -- suas preferências, rotinas e objetivos. Ela usa isso para dar sugestões mais personalizadas. Você pode ver e gerenciar o que ela sabe em 'O que o Orbit Sabe'.",
+        "aiSummaryTitle": "Resumo Diário da IA",
+        "aiSummaryDesc": "Ativa um cartão de resumo diário gerado pela IA na sua página Hoje com insights sobre seus hábitos e motivação.",
+        "userFactsTitle": "O que o Orbit Sabe",
+        "userFactsDesc": "Adicione manualmente fatos sobre você (preferências, rotinas, contexto) que a IA usa para personalizar suas sugestões. Por exemplo: 'Trabalho de noite' ou 'Prefiro exercícios ao ar livre'.",
+        "timezoneTitle": "Fuso Horário",
+        "timezoneDesc": "Seu fuso horário é detectado automaticamente no primeiro login. Ele determina quando os hábitos vencem e o que 'hoje' significa para sua agenda.",
+        "supportTitle": "Suporte",
+        "supportDesc": "Tem uma dúvida, encontrou um bug ou quer compartilhar feedback? Use a página de Suporte (acessível pelo seu Perfil) para nos enviar uma mensagem.",
+        "pushNotificationsTitle": "Notificações Push",
+        "pushNotificationsDesc": "Ative ou desative notificações push nas Configurações. Use o botão 'Enviar notificação de teste' para verificar se funcionam. Lembretes são enviados como notificações push com base no horário de cada hábito.",
+        "timeFormatTitle": "Formato de Hora",
+        "timeFormatDesc": "Alterne entre 12 horas (3:00 PM) e 24 horas (15:00). Isso afeta como os horários são exibidos no app, incluindo horários de hábitos e lembretes.",
+        "subscriptionTitle": "Assinatura e Pro",
+        "subscriptionDesc": "O plano grátis inclui até 10 hábitos e 20 mensagens de IA por mês. O Orbit Pro desbloqueia hábitos ilimitados, 500 mensagens de IA, resumos diários, sub-hábitos e todos os temas.",
+        "retrospectiveTitle": "Retrospectiva com IA",
+        "retrospectiveDesc": "Recurso Pro acessível pelo seu Perfil. Gera análises com IA dos seus hábitos em períodos configuráveis (semana, mês, trimestre, ano). Veja o que foi bem, o que foi perdido, tendências e sugestões práticas.",
+        "weekStartDayTitle": "Início da Semana",
+        "weekStartDayDesc": "Escolha se sua semana começa na segunda ou no domingo. Isso afeta todos os calendários, seletores de dias e exibições de frequência semanal no app.",
+        "referralTitle": "Indicações",
+        "referralDesc": "Compartilhe seu código de indicação exclusivo para convidar amigos para o Orbit. Encontre seu código na página do Perfil e ajude a comunidade a crescer.",
+        "gamificationTitle": "Conquistas e Gamificação",
+        "gamificationDesc": "Recurso Pro. Ganhe XP ao completar hábitos e metas. Suba de nível, desbloqueie badges de conquista e acompanhe seu progresso na página de Conquistas acessível pelo seu Perfil.",
+        "widgetTitle": "Widget na Tela Inicial",
+        "widgetDesc": "Adicione o widget do Orbit na tela inicial do Android para ver seus hábitos de um relance. Mostra status de conclusão, horários e progresso do checklist. Quando nada está agendado para hoje, mostra automaticamente os hábitos de amanhã.",
+        "showGeneralTodayTitle": "Mostrar Gerais no Hoje",
+        "showGeneralTodayDesc": "Ative para mostrar hábitos gerais (hábitos sem agendamento) na visualização Hoje. Quando ativado, aparecem em uma seção separada abaixo dos hábitos agendados."
+      },
+      "notificationsSection": {
+        "bellTitle": "Sino de Notificações",
+        "bellDesc": "Acesse suas notificações pelo ícone de sino na página de hábitos. Um badge mostra a quantidade de não lidas para você não perder nenhum lembrete.",
+        "managingTitle": "Gerenciando Notificações",
+        "managingDesc": "Marque notificações como lidas ou exclua individualmente. Use 'Marcar todas como lidas' ou 'Excluir todas' para ações em massa. Notificações são criadas quando os lembretes de hábitos disparam.",
+        "configuringRemindersTitle": "Configurando Lembretes",
+        "configuringRemindersDesc": "Configure lembretes no formulário de edição do hábito. Escolha um horário antes do vencimento -- no horário, ou minutos, horas ou até 1 dia antes. Você pode adicionar múltiplos lembretes por hábito."
+      }
+    }
+  },
+  "upgrade": {
+    "title": "Upgrade para Pro",
+    "alreadyPro": "Você está no plano Pro!",
+    "manageHint": "Gerencie sua assinatura, atualize pagamento ou cancele quando quiser",
+    "manageSubscription": "Gerenciar Assinatura",
+    "trialActive": "Seu teste grátis está ativo. Assine para manter os recursos Pro.",
+    "monthly": "Mensal",
+    "yearly": "Anual",
+    "save33": "Economize 33%",
+    "feature": "Recurso",
+    "free": "Grátis",
+    "subscribe": "Assinar Pro",
+    "categories": {
+      "habits": "Hábitos",
+      "ai": "Recursos de IA",
+      "insights": "Análises",
+      "personalization": "Personalização"
+    },
+    "features": {
+      "habits": {
+        "label": "Hábitos",
+        "free": "Até 10",
+        "pro": "Ilimitados",
+        "tooltip": "Crie e acompanhe hábitos diários, semanais ou mensais. Usuários gratuitos podem ter até 10 hábitos ativos."
+      },
+      "ai": {
+        "label": "Chat IA",
+        "free": "20 msgs/mês",
+        "pro": "500 msgs/mês",
+        "tooltip": "Converse com um coach de IA que pode criar hábitos, registrar conclusões, analisar progresso, sugerir divisões e oferecer conselhos personalizados."
+      },
+      "subHabits": {
+        "label": "Sub-hábitos",
+        "free": "Não",
+        "pro": "Ilimitados",
+        "tooltip": "Divida hábitos complexos em etapas menores. Sub-hábitos se aninham sob um hábito pai para melhor organização."
+      },
+      "colors": {
+        "label": "Temas",
+        "free": "1 tema",
+        "pro": "Todos 6 temas",
+        "tooltip": "Personalize o Orbit com 6 esquemas de cores: roxo, azul, verde, rosa, laranja e ciano. Usuários gratuitos usam o tema roxo padrão."
+      },
+      "aiMemory": {
+        "label": "Memória IA",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "A IA lembra suas preferências, metas e contexto entre conversas para um coaching mais personalizado."
+      },
+      "summary": {
+        "label": "Resumo Diário",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Receba um resumo diário gerado por IA sobre seus hábitos, sequências e o que precisa de atenção hoje."
+      },
+      "retrospective": {
+        "label": "Retrospectiva",
+        "free": "Não",
+        "pro": "Anual",
+        "tooltip": "A IA analisa seus dados de hábitos ao longo de semanas, meses ou trimestres para revelar padrões, conquistas e áreas de melhoria."
+      },
+      "achievements": {
+        "label": "Conquistas & XP",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Ganhe XP ao completar hábitos, suba de nível e desbloqueie conquistas que celebram sua consistência e marcos."
+      },
+      "slipAlerts": {
+        "label": "Alertas de Recaída",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Para maus hábitos, a IA detecta seus padrões de recaída e envia notificações motivacionais antes dos horários habituais."
+      },
+      "calendarImport": {
+        "label": "Google Calendar",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Importe eventos do Google Calendar como hábitos com um toque. Mantenha suas rotinas e calendário sincronizados."
+      },
+      "adFree": {
+        "label": "Sem anúncios",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Remova todos os anúncios do app para uma experiência de acompanhamento de hábitos sem distrações."
+      }
+    },
+    "plans": {
+      "free": {
+        "name": "Grátis",
+        "cta": "Plano Atual",
+        "features": {
+          "habits": "Até 10 hábitos",
+          "ai": "20 mensagens IA/mês",
+          "theme": "1 tema de cor",
+          "ads": "Com anúncios"
+        }
+      },
+      "monthly": {
+        "name": "Pro Mensal",
+        "period": "/mês",
+        "cta": "Assinar Mensal"
+      },
+      "yearly": {
+        "name": "Pro Anual",
+        "period": "/ano",
+        "perMonth": "/mês",
+        "cta": "Assinar Anual",
+        "recommended": "Melhor Valor",
+        "includesMonthly": "Tudo do Pro Mensal, mais:"
+      },
+      "proFeatures": {
+        "unlimited": "Hábitos ilimitados",
+        "ai": "500 mensagens IA/mês",
+        "themes": "Todos os 6 temas",
+        "adFree": "Sem anúncios",
+        "retrospective": "Retrospectiva IA",
+        "allFeatures": "Todos os recursos Pro"
+      },
+      "savePercent": "Economize {percent}%",
+      "coupon": {
+        "discountBadge": "{percent}% de desconto",
+        "appliedNote": "Desconto de indicação aplicado"
+      },
+      "equivalent": "{price}/mês",
+      "loading": "Carregando preços...",
+      "error": "Não foi possível carregar preços",
+      "retry": "Tentar novamente"
+    },
+    "billing": {
+      "plan": {
+        "title": "Plano Atual",
+        "monthly": "Pro Mensal",
+        "yearly": "Pro Anual",
+        "lifetime": "Pro Vitalício",
+        "lifetimeHint": "Seu acesso Pro nunca expira",
+        "renewsOn": "Renova em {date}",
+        "canceledBadge": "Cancela no fim do período",
+        "canceledHint": "Acesso até {date}",
+        "pastDue": "Pagamento em atraso"
+      },
+      "payment": {
+        "title": "Método de Pagamento",
+        "card": "{brand} final {last4}",
+        "expires": "Expira {month}/{year}",
+        "change": "Alterar"
+      },
+      "usage": {
+        "title": "Este Mês",
+        "aiMessages": "Mensagens de IA",
+        "aiMessagesOf": "{used} de {limit}"
+      },
+      "invoices": {
+        "title": "Histórico de Faturas",
+        "empty": "Nenhuma fatura ainda",
+        "download": "Baixar PDF",
+        "statusPaid": "Pago",
+        "statusOpen": "Em aberto",
+        "statusVoid": "Anulado",
+        "reasonCreate": "Primeiro pagamento",
+        "reasonCycle": "Renovação",
+        "reasonUpdate": "Mudança de plano",
+        "reasonManual": "Manual"
+      },
+      "actions": {
+        "manage": "Gerenciar Assinatura",
+        "manageHint": "Alterar plano, atualizar pagamento ou cancelar"
+      },
+      "loading": "Carregando detalhes de cobrança...",
+      "error": "Não foi possível carregar detalhes de cobrança",
+      "retry": "Tentar novamente"
+    }
+  },
+  "ads": {
+    "watchForMessages": "Assistir anúncio para +5 mensagens de IA",
+    "rewardGranted": "+5 mensagens de IA adicionadas!",
+    "rewardFailed": "Anúncio não concluído",
+    "dailyLimitReached": "recompensas diárias"
+  },
+  "errors": {
+    "fetchHabits": "Falha ao carregar hábitos",
+    "createHabit": "Falha ao criar hábito",
+    "updateHabit": "Falha ao atualizar hábito",
+    "updateChecklist": "Falha ao atualizar checklist",
+    "deleteHabit": "Falha ao excluir hábito",
+    "logHabit": "Falha ao registrar hábito",
+    "skipHabit": "Falha ao pular hábito",
+    "bulkCreateHabits": "Falha ao criar hábitos",
+    "bulkDeleteHabits": "Falha ao excluir hábitos",
+    "bulkLogHabits": "Falha ao registrar hábitos",
+    "bulkSkipHabits": "Falha ao pular hábitos",
+    "reorderHabits": "Falha ao reordenar hábitos",
+    "moveHabit": "Falha ao mover hábito",
+    "createSubHabit": "Falha ao criar sub-hábito",
+    "loadProfile": "Falha ao carregar perfil",
+    "updateTimezone": "Falha ao atualizar fuso horário",
+    "loadFacts": "Falha ao carregar fatos",
+    "deleteFact": "Falha ao excluir fato",
+    "loadReferral": "Falha ao carregar dados de indicação",
+    "habitMetrics": "Falha ao buscar métricas do hábito",
+    "duplicateHabit": "Falha ao duplicar hábito",
+    "fetchGamification": "Falha ao carregar conquistas",
+    "updateAiMemory": "Falha ao atualizar configuração de memória da IA",
+    "updateAiSummary": "Falha ao atualizar configuração de resumo diário",
+    "updateWeekStartDay": "Falha ao atualizar início da semana",
+    "completeOnboarding": "Falha ao concluir integração",
+    "updateLanguage": "Falha ao atualizar idioma",
+    "createTag": "Falha ao criar tag",
+    "updateTag": "Falha ao atualizar tag",
+    "deleteTag": "Falha ao excluir tag",
+    "assignTags": "Falha ao atribuir tags",
+    "deleteFacts": "Falha ao excluir fatos",
+    "billing": "Falha ao carregar informações de cobrança",
+    "subscriptionPlans": "Falha ao carregar planos",
+    "updateColorScheme": "Falha ao atualizar esquema de cores",
+    "updateThemePreference": "Falha ao atualizar preferência de tema"
+  },
+  "speech": {
+    "micDenied": "Acesso ao microfone negado.",
+    "noSpeech": "Nenhuma fala detectada.",
+    "recognitionError": "Erro de reconhecimento de voz: {error}",
+    "failedToStart": "Falha ao iniciar a gravação."
+  },
+  "goals": {
+    "completedCelebrationTitle": "Meta alcançada!",
+    "completedCelebrationSubtitle": "Você concluiu {name}",
+    "title": "Metas",
+    "tab": "Metas",
+    "empty": "Nenhuma meta ainda",
+    "emptyHint": "Crie sua primeira meta para começar a acompanhar o progresso",
+    "create": "Nova Meta",
+    "form": {
+      "description": "Descrição",
+      "descriptionOptional": "Opcional",
+      "descriptionPlaceholder": "ex: Ler 12 livros este ano",
+      "targetValue": "Quantidade",
+      "unit": "Unidade",
+      "unitPlaceholder": "ex: livros, músicas, kg",
+      "deadline": "Prazo",
+      "deadlineOptional": "Opcional",
+      "addDeadline": "Adicionar prazo",
+      "deadlineInPast": "Este prazo está no passado.",
+      "progressExceedsTarget": "Valor acima da meta — será limitado a 100%.",
+      "targetValueRequired": "Quantidade deve ser maior que 0",
+      "unitRequired": "Unidade é obrigatória"
+    },
+    "progress": "Progresso",
+    "progressOf": "{current} de {target} {unit}",
+    "progressPercentage": "{pct}% completo",
+    "updateProgress": "Atualizar Progresso",
+    "progressNote": "Nota (opcional)",
+    "progressHistory": "Histórico",
+    "progressEntry": "{previous} -> {value} {unit}",
+    "status": {
+      "active": "Ativa",
+      "completed": "Concluída",
+      "abandoned": "Abandonada"
+    },
+    "detail": {
+      "markCompleted": "Marcar como Concluída",
+      "markAbandoned": "Abandonar Meta",
+      "reactivate": "Reativar",
+      "delete": "Excluir Meta",
+      "deleteConfirm": "Tem certeza que deseja excluir esta meta? Esta ação não pode ser desfeita.",
+      "edit": "Editar Meta",
+      "loadError": "Não foi possível carregar os detalhes completos. Exibindo dados em cache."
+    },
+    "filters": {
+      "all": "Todas",
+      "active": "Ativas",
+      "completed": "Concluídas",
+      "abandoned": "Abandonadas"
+    },
+    "deadline": {
+      "due": "Prazo {date}",
+      "overdue": "Atrasada",
+      "daysLeft": "{n} dia restante | {n} dias restantes"
+    },
+    "errors": {
+      "fetch": "Falha ao carregar metas",
+      "create": "Falha ao criar meta",
+      "update": "Falha ao atualizar meta",
+      "delete": "Falha ao excluir meta",
+      "progress": "Falha ao atualizar progresso"
+    },
+    "linkedHabits": "Hábitos Vinculados",
+    "linkHabits": "Vincular Hábitos",
+    "noLinkedHabits": "Nenhum hábito vinculado a esta meta",
+    "metrics": {
+      "title": "Análise da Meta",
+      "onTrack": "No Caminho",
+      "atRisk": "Em Risco",
+      "behind": "Atrasada",
+      "noDeadline": "Sem Prazo",
+      "completed": "Concluída",
+      "projectedCompletion": "Conclusão Projetada",
+      "velocity": "Ritmo de Progresso",
+      "daysToDeadline": "Dias para o Prazo",
+      "habitAdherence": "Desempenho dos Hábitos Vinculados",
+      "noData": "Dados insuficientes",
+      "perDay": "dia"
+    }
+  },
+  "gamification": {
+    "xpReward": "+{n} XP",
+    "title": "Conquistas & Nível",
+    "profileCard": {
+      "title": "Conquistas & Nível",
+      "hint": "Acompanhe seu progresso e desbloqueie conquistas",
+      "level": "Nível {level}",
+      "xp": "{current} / {next} XP",
+      "totalXp": "{total} XP no total",
+      "earned": "{count} / {total} conquistas desbloqueadas"
+    },
+    "page": {
+      "backToProfile": "Perfil",
+      "lockedTitle": "Desbloqueie Conquistas",
+      "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
+      "upgradeButton": "Assinar Pro",
+      "emptyEarned": "Complete hábitos para começar a ganhar conquistas!",
+      "earnedOn": "Conquistado em {date}"
+    },
+    "streak": {
+      "current": "dias seguidos",
+      "currentShort": "{n}d",
+      "longest": "Recorde: {n} dia | Recorde: {n} dias"
+    },
+    "levels": {
+      "1": "Iniciante",
+      "2": "Começando",
+      "3": "Comprometido",
+      "4": "Dedicado",
+      "5": "Focado",
+      "6": "Disciplinado",
+      "7": "Consistente",
+      "8": "Determinado",
+      "9": "Imparável",
+      "10": "Mestre",
+      "11": "Lenda",
+      "12": "Orbit Elite"
+    },
+    "categories": {
+      "GettingStarted": "Primeiros Passos",
+      "Consistency": "Consistência",
+      "Volume": "Volume",
+      "Goals": "Metas",
+      "Perfection": "Perfeição",
+      "Special": "Especial"
+    },
+    "rarity": {
+      "common": "Comum",
+      "uncommon": "Incomum",
+      "rare": "Raro",
+      "epic": "Épico",
+      "legendary": "Lendário"
+    },
+    "achievements": {
+      "first_orbit": {
+        "name": "Primeira Órbita",
+        "description": "Crie seu primeiro hábito"
+      },
+      "liftoff": {
+        "name": "Decolagem",
+        "description": "Complete seu primeiro hábito"
+      },
+      "mission_control": {
+        "name": "Controle de Missão",
+        "description": "Crie sua primeira meta"
+      },
+      "week_warrior": {
+        "name": "Guerreiro da Semana",
+        "description": "Alcance uma sequência de 7 dias"
+      },
+      "fortnight_focus": {
+        "name": "Foco Quinzenal",
+        "description": "Alcance uma sequência de 14 dias"
+      },
+      "monthly_master": {
+        "name": "Mestre Mensal",
+        "description": "Alcance uma sequência de 30 dias"
+      },
+      "quarter_champion": {
+        "name": "Campeão Trimestral",
+        "description": "Alcance uma sequência de 90 dias"
+      },
+      "centurion": {
+        "name": "Centurião",
+        "description": "Alcance uma sequência de 100 dias"
+      },
+      "year_of_discipline": {
+        "name": "Ano de Disciplina",
+        "description": "Alcance uma sequência de 365 dias"
+      },
+      "getting_momentum": {
+        "name": "Ganhando Ritmo",
+        "description": "Complete 10 hábitos no total"
+      },
+      "building_habits": {
+        "name": "Construindo Hábitos",
+        "description": "Complete 50 hábitos no total"
+      },
+      "dedicated": {
+        "name": "Dedicado",
+        "description": "Complete 100 hábitos no total"
+      },
+      "relentless": {
+        "name": "Imparável",
+        "description": "Complete 500 hábitos no total"
+      },
+      "legendary": {
+        "name": "Lendário",
+        "description": "Complete 1.000 hábitos no total"
+      },
+      "goal_setter": {
+        "name": "Definidor de Metas",
+        "description": "Crie 3 metas"
+      },
+      "goal_crusher": {
+        "name": "Destruidor de Metas",
+        "description": "Complete sua primeira meta"
+      },
+      "overachiever": {
+        "name": "Superador",
+        "description": "Complete 5 metas"
+      },
+      "dream_maker": {
+        "name": "Realizador de Sonhos",
+        "description": "Complete 10 metas"
+      },
+      "perfect_day": {
+        "name": "Dia Perfeito",
+        "description": "Complete todos os hábitos em um dia"
+      },
+      "perfect_week": {
+        "name": "Semana Perfeita",
+        "description": "Complete todos os hábitos por 7 dias consecutivos"
+      },
+      "perfect_month": {
+        "name": "Mês Perfeito",
+        "description": "Complete todos os hábitos por 30 dias consecutivos"
+      },
+      "early_bird": {
+        "name": "Madrugador",
+        "description": "Complete um hábito antes das 7h (10 vezes)"
+      },
+      "night_owl": {
+        "name": "Coruja Noturna",
+        "description": "Complete um hábito após as 22h (10 vezes)"
+      },
+      "comeback": {
+        "name": "Retorno",
+        "description": "Retome após 7+ dias de inatividade"
+      },
+      "bad_habit_breaker": {
+        "name": "Quebrador de Maus Hábitos",
+        "description": "Alcance 30 dias sem um mau hábito"
+      }
+    },
+    "toast": {
+      "achievementUnlocked": "Conquista Desbloqueada!",
+      "xpEarned": "+{xp} XP"
+    },
+    "levelUp": {
+      "title": "Subiu de Nível!",
+      "newLevel": "Nível {level}",
+      "subtitle": "Você agora é um {title}"
+    }
+  },
+  "toast": {
+    "errors": {
+      "validation": "Verifique seus dados e tente novamente",
+      "notFound": "O recurso solicitado não foi encontrado",
+      "conflict": "Esta ação conflita com dados existentes",
+      "tooManyRequests": "Muitas requisições. Aguarde um momento.",
+      "server": "Algo deu errado. Tente novamente mais tarde.",
+      "unknown": "Ocorreu um erro inesperado",
+      "fetchStreak": "Falha ao carregar informações da sequência",
+      "activateFreeze": "Falha ao ativar o congelamento da sequência"
+    }
+  },
+  "streakDisplay": {
+    "celebration": {
+      "title": "Sequência!",
+      "subtitle": "Sequência de {count} dia | Sequência de {count} dias",
+      "milestone": "Marco incrível!",
+      "keepGoing": "Continue assim!"
+    },
+    "badge": {
+      "days": "{count}",
+      "tooltip": "Sequência de {count} dia | Sequência de {count} dias"
+    },
+    "profile": {
+      "title": "Sua Sequência",
+      "currentStreak": "Sequência de {count} dia | Sequência de {count} dias",
+      "longestStreak": "Maior: {count} dia | Maior: {count} dias",
+      "noStreak": "Comece sua sequência hoje!",
+      "encouragement1": "Ótimo começo!",
+      "encouragement7": "Uma semana firme!",
+      "encouragement14": "Duas semanas de dedicação!",
+      "encouragement30": "Um mês inteiro! Incrível!",
+      "encouragement100": "Três dígitos! Lendário!",
+      "encouragement365": "Um ano inteiro! Você é imparável!"
+    },
+    "freeze": {
+      "title": "Congelamento de Sequência",
+      "available": "Nenhum congelamento disponível | {count} congelamento disponível | {count} congelamentos disponíveis",
+      "activate": "Ativar Congelamento",
+      "confirmTitle": "Tirar um dia de descanso?",
+      "confirmBody": "Sem estresse! Use um congelamento para manter sua sequência de {streak} dias segura. Você tem {remaining} congelamento disponível este mês -- use quando precisar! | Sem estresse! Use um congelamento para manter sua sequência de {streak} dias segura. Você tem {remaining} congelamentos disponíveis este mês -- use quando precisar!",
+      "activeToday": "Congelamento ativo hoje",
+      "success": "Congelamento de sequência ativado!",
+      "recentLabel": "Usados recentemente",
+      "completedToday": "Você já completou um hábito hoje. Não precisa congelar!",
+      "celebrationTitle": "Sequência salva!",
+      "celebrationSubtitle": "Seu congelamento protegeu sua sequência."
+    },
+    "detail": {
+      "title": "Detalhes da Sequência",
+      "thisWeek": "Esta Semana",
+      "stats": "Estatísticas",
+      "currentStreak": "Atual",
+      "longestStreak": "Maior",
+      "dayActive": "Ativo",
+      "dayFrozen": "Congelado",
+      "dayMissed": "Perdido",
+      "dayFuture": "Próximo",
+      "dayToday": "Hoje",
+      "daysUnit": "dia | dias"
+    }
+  },
+  "orbitMcp": {
+    "title": "Para Desenvolvedores",
+    "description": "Conecte ferramentas de IA como Claude a sua conta Orbit via MCP",
+    "apiKeys": "Chaves de API",
+    "apiKeysDescription": "Chaves de API permitem que ferramentas externas acessem seus dados do Orbit",
+    "createKey": "Criar Chave de API",
+    "noKeys": "Nenhuma chave de API ainda",
+    "keyName": "Nome da Chave",
+    "keyNamePlaceholder": "ex. Claude Desktop",
+    "keyNameRequired": "O nome da chave é obrigatório",
+    "keyNameMaxLength": "O nome da chave deve ter no máximo 50 caracteres",
+    "created": "Criada em",
+    "lastUsed": "Último uso",
+    "never": "Nunca",
+    "revoke": "Revogar",
+    "revokeConfirm": "Tem certeza? Todas as ferramentas usando esta chave perderão o acesso.",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "keyCreated": "Chave de API Criada",
+    "keyCreatedWarning": "Copie esta chave agora. Ela não será exibida novamente.",
+    "copied": "Copiado!",
+    "done": "Concluído",
+    "connectionInstructions": "Instruções de Conexão",
+    "claudeWeb": "Claude Web",
+    "claudeDesktop": "Claude Desktop",
+    "claudeCode": "Claude Code",
+    "webInstructions": "Conecte via claude.ai com login OAuth automático. Nenhuma chave de API necessária.",
+    "webStep1": "Vá em claude.ai Configurações > Integrações",
+    "webStep2": "Clique em \"Adicionar conector personalizado\"",
+    "webStep3": "Insira a URL abaixo e clique em \"Adicionar\"",
+    "webStep4": "Clique em \"Vincular\" e faça login com sua conta Orbit",
+    "webNoApiKey": "O Claude Web usa OAuth. Você fará login com seu email ou conta Google do Orbit. Nenhuma chave de API necessária.",
+    "configInstructions": "Adicione isso à sua configuração MCP:",
+    "replaceKey": "Substitua YOUR_API_KEY pela chave que você criou acima",
+    "maxKeysReached": "Máximo de 5 chaves de API atingido",
+    "copyConfig": "Copiar configuração"
+  },
+  "preferences": {
+    "title": "Preferências",
+    "colorBlue": "Tema azul",
+    "colorCyan": "Tema ciano",
+    "colorGreen": "Tema verde",
+    "colorOrange": "Tema laranja",
+    "colorPurple": "Tema roxo",
+    "colorRose": "Tema rosa"
+  },
+  "aiSettings": {
+    "title": "Recursos de IA"
+  },
+  "about": {
+    "title": "Sobre e Ajuda"
+  },
+  "advancedSettings": {
+    "title": "Avançado"
+  },
+  "apiKeys": {
+    "errors": {
+      "load": "Falha ao carregar chaves de API",
+      "create": "Falha ao criar chave de API",
+      "revoke": "Falha ao revogar chave de API"
+    }
+  }
+}

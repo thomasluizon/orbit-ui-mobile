@@ -1,0 +1,681 @@
+'use client'
+
+import { useState, useMemo, useCallback } from 'react'
+import Link from 'next/link'
+import { format, parseISO } from 'date-fns'
+import {
+  ArrowLeft, Loader2, BadgeCheck, Sparkles, CreditCard,
+  Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
+  CalendarDays, AlertTriangle, Download, CheckCircle2,
+  Clock, Info, Check, X as XIcon,
+} from 'lucide-react'
+import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
+import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
+import { useBilling } from '@/hooks/use-billing'
+import { API } from '@orbit/shared/api'
+import { getErrorMessage } from '@orbit/shared/utils'
+
+// TODO: Replace with next-intl when i18n is wired up
+const t = (key: string, params?: Record<string, string | number>) => {
+  const strings: Record<string, string> = {
+    'upgrade.title': 'Subscription',
+    'upgrade.subscribe': 'Subscribe',
+    'upgrade.alreadyPro': 'Pro Plan',
+    'upgrade.manageHint': 'You have full access to all Pro features.',
+    'upgrade.feature': 'Feature',
+    'upgrade.free': 'Free',
+    'common.proBadge': 'Pro',
+    'trial.proBadge': 'Trial',
+    'trial.banner.lastDay': 'Last day of your Pro trial!',
+    'trial.banner.daysLeft': `${params?.days ?? 0} days left in your Pro trial`,
+    'trial.expired.title': 'Your trial has ended',
+    'trial.expired.dontLose': 'Don\'t lose access to:',
+    'trial.expired.unlimitedHabits': 'Unlimited habits',
+    'trial.expired.aiChat': 'Unlimited AI chat messages',
+    'trial.expired.allColors': 'All color schemes',
+    'trial.expired.aiSummary': 'AI daily summary',
+    'trial.expired.subHabits': 'Sub-habits & checklists',
+    'trial.expired.retrospective': 'AI retrospective',
+    'upgrade.plans.error': 'Failed to load subscription plans.',
+    'upgrade.plans.retry': 'Retry',
+    'upgrade.plans.free.name': 'Free',
+    'upgrade.plans.free.cta': 'Current Plan',
+    'upgrade.plans.free.features.habits': '5 habits',
+    'upgrade.plans.free.features.ai': '10 AI messages/month',
+    'upgrade.plans.free.features.theme': '1 color scheme',
+    'upgrade.plans.free.features.ads': 'Contains ads',
+    'upgrade.plans.monthly.name': 'Pro Monthly',
+    'upgrade.plans.monthly.period': '/mo',
+    'upgrade.plans.monthly.cta': 'Subscribe Monthly',
+    'upgrade.plans.yearly.name': 'Pro Yearly',
+    'upgrade.plans.yearly.period': '/yr',
+    'upgrade.plans.yearly.cta': 'Subscribe Yearly',
+    'upgrade.plans.yearly.recommended': 'Recommended',
+    'upgrade.plans.yearly.includesMonthly': 'Everything in Monthly, plus:',
+    'upgrade.plans.savePercent': `Save ${params?.percent ?? 0}%`,
+    'upgrade.plans.equivalent': `${params?.price ?? ''}/mo equivalent`,
+    'upgrade.plans.proFeatures.unlimited': 'Unlimited habits',
+    'upgrade.plans.proFeatures.ai': 'Unlimited AI chat',
+    'upgrade.plans.proFeatures.themes': 'All color schemes',
+    'upgrade.plans.proFeatures.adFree': 'Ad-free experience',
+    'upgrade.plans.proFeatures.retrospective': 'AI retrospective',
+    'upgrade.plans.coupon.discountBadge': `${params?.percent ?? 0}% off`,
+    'upgrade.plans.coupon.appliedNote': 'Referral discount applied',
+    'upgrade.billing.error': 'Failed to load billing details.',
+    'upgrade.billing.retry': 'Retry',
+    'upgrade.billing.plan.yearly': 'Pro Yearly',
+    'upgrade.billing.plan.monthly': 'Pro Monthly',
+    'upgrade.billing.plan.lifetime': 'Lifetime Pro',
+    'upgrade.billing.plan.lifetimeHint': 'You have permanent access to all Pro features.',
+    'upgrade.billing.plan.canceledBadge': 'Canceled',
+    'upgrade.billing.plan.pastDue': 'Past Due',
+    'upgrade.billing.plan.canceledHint': `Access until ${params?.date ?? ''}`,
+    'upgrade.billing.plan.renewsOn': `Renews on ${params?.date ?? ''}`,
+    'upgrade.billing.payment.card': `${params?.brand ?? ''} ending in ${params?.last4 ?? ''}`,
+    'upgrade.billing.payment.expires': `Expires ${params?.month ?? ''}/${params?.year ?? ''}`,
+    'upgrade.billing.payment.change': 'Change',
+    'upgrade.billing.usage.title': 'Usage',
+    'upgrade.billing.usage.aiMessages': 'AI Messages',
+    'upgrade.billing.usage.aiMessagesOf': `${params?.used ?? 0} / ${params?.limit ?? 0}`,
+    'upgrade.billing.invoices.title': 'Recent Invoices',
+    'upgrade.billing.invoices.download': 'Download invoice',
+    'upgrade.billing.invoices.reasonCreate': 'New subscription',
+    'upgrade.billing.invoices.reasonCycle': 'Renewal',
+    'upgrade.billing.invoices.reasonUpdate': 'Plan change',
+    'upgrade.billing.invoices.reasonManual': 'Manual',
+    'upgrade.billing.invoices.statusPaid': 'Paid',
+    'upgrade.billing.invoices.statusOpen': 'Open',
+    'upgrade.billing.invoices.statusVoid': 'Void',
+    'upgrade.billing.actions.manage': 'Manage Subscription',
+    'upgrade.billing.actions.manageHint': 'Change plan, update payment method, or cancel.',
+    'auth.genericError': 'Something went wrong. Please try again.',
+  }
+  return strings[key] ?? key
+}
+
+const trialExpiredFeatures = [
+  'trial.expired.unlimitedHabits',
+  'trial.expired.aiChat',
+  'trial.expired.allColors',
+  'trial.expired.aiSummary',
+  'trial.expired.subHabits',
+  'trial.expired.retrospective',
+]
+
+const proFeatures = [
+  { key: 'unlimited', Icon: Flame },
+  { key: 'ai', Icon: MessageSquare },
+  { key: 'themes', Icon: Palette },
+  { key: 'adFree', Icon: ShieldCheck },
+]
+
+const yearlyExtraFeatures = [
+  { key: 'retrospective', Icon: BarChart3 },
+]
+
+function formatBillingDate(isoDate: string): string {
+  return format(parseISO(isoDate), 'MMM d, yyyy')
+}
+
+function formatCardBrand(brand: string): string {
+  return brand.charAt(0).toUpperCase() + brand.slice(1)
+}
+
+function invoiceReasonLabel(reason: string): string {
+  const reasons: Record<string, string> = {
+    subscription_create: t('upgrade.billing.invoices.reasonCreate'),
+    subscription_cycle: t('upgrade.billing.invoices.reasonCycle'),
+    subscription_update: t('upgrade.billing.invoices.reasonUpdate'),
+    manual: t('upgrade.billing.invoices.reasonManual'),
+  }
+  return reasons[reason] ?? reason
+}
+
+function invoiceStatusLabel(status: string): string {
+  const statuses: Record<string, string> = {
+    paid: t('upgrade.billing.invoices.statusPaid'),
+    open: t('upgrade.billing.invoices.statusOpen'),
+    void: t('upgrade.billing.invoices.statusVoid'),
+  }
+  return statuses[status] ?? status
+}
+
+export default function UpgradePage() {
+  const { profile } = useProfile()
+  const hasProAccess = useHasProAccess()
+  const trialExpired = useTrialExpired()
+  const trialDaysLeft = useTrialDaysLeft()
+  const trialUrgent = useTrialUrgent()
+  const { plans, isLoading: isLoadingPlans, isError: isPlansError, refetch: refetchPlans, discountedAmount } = useSubscriptionPlans()
+
+  const isBillingEnabled = hasProAccess && !profile?.isTrialActive
+  const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
+
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError] = useState('')
+  const [portalError, setPortalError] = useState('')
+
+  const usagePercent = useMemo(() => {
+    if (!profile || profile.aiMessagesLimit === 0) return 0
+    return Math.min(100, Math.round((profile.aiMessagesUsed / profile.aiMessagesLimit) * 100))
+  }, [profile])
+  const usageUrgent = usagePercent > 80
+
+  const handleCheckout = useCallback(async (interval: 'monthly' | 'yearly') => {
+    setCheckoutLoading(interval)
+    setCheckoutError('')
+    try {
+      const res = await fetch(API.subscription.checkout, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error ?? `Failed with status ${res.status}`)
+      }
+      const data = await res.json()
+      if (data?.url) {
+        window.location.href = data.url
+      }
+    } catch (err: unknown) {
+      setCheckoutError(getErrorMessage(err, t('auth.genericError')))
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }, [])
+
+  const handleOpenPortal = useCallback(async () => {
+    setPortalError('')
+    try {
+      const res = await fetch(API.subscription.portal, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error ?? `Failed with status ${res.status}`)
+      }
+      const data = await res.json()
+      if (data?.url) {
+        window.location.href = data.url
+      }
+    } catch (err: unknown) {
+      setPortalError(getErrorMessage(err, t('auth.genericError')))
+    }
+  }, [])
+
+  return (
+    <div className="pb-8">
+      <header className="pt-8 pb-6 flex items-center gap-3">
+        <Link href="/profile" className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors">
+          <ArrowLeft className="size-5 text-text-primary" />
+        </Link>
+        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
+          {t('upgrade.title')}
+        </h1>
+      </header>
+
+      {/* Already Pro: Billing Dashboard */}
+      {hasProAccess && !profile?.isTrialActive ? (
+        <div className="space-y-3">
+          {/* Loading */}
+          {isBillingLoading && (
+            <>
+              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+                <div className="flex items-center gap-4">
+                  <div className="size-12 rounded-full bg-surface-elevated animate-pulse shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-28 bg-surface-elevated rounded animate-pulse" />
+                    <div className="h-3 w-44 bg-surface-elevated rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
+                <div className="h-3 w-20 bg-surface-elevated rounded animate-pulse" />
+                <div className="h-1.5 w-full bg-surface-elevated rounded-full animate-pulse" />
+              </div>
+            </>
+          )}
+
+          {/* Error */}
+          {isBillingError && !billing && !isBillingLoading && (
+            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted p-8 text-center space-y-3">
+              <AlertTriangle className="size-8 text-text-muted mx-auto" />
+              <p className="text-sm text-text-secondary">{t('upgrade.billing.error')}</p>
+              <button className="text-primary text-sm font-semibold hover:underline" onClick={() => refetchBilling()}>
+                {t('upgrade.billing.retry')}
+              </button>
+            </div>
+          )}
+
+          {/* Loaded: billing data available */}
+          {billing && (
+            <>
+              {/* Plan card */}
+              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
+                    <BadgeCheck className="size-6 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-text-primary">
+                        {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
+                      </h2>
+                      {billing.cancelAtPeriodEnd && (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                          {t('upgrade.billing.plan.canceledBadge')}
+                        </span>
+                      )}
+                      {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">
+                          {t('upgrade.billing.plan.pastDue')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-text-secondary mt-0.5">
+                      {billing.cancelAtPeriodEnd
+                        ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd) })
+                        : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd) })}
+                      {billing.amountPerPeriod > 0 && (
+                        <span className="text-text-muted">
+                          {' '}&middot;{' '}{formatPrice(billing.amountPerPeriod, billing.currency)}
+                          {billing.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment method */}
+              {billing.paymentMethod && (
+                <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <CreditCard className="size-8 text-text-muted shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-text-primary">
+                          {t('upgrade.billing.payment.card', {
+                            brand: formatCardBrand(billing.paymentMethod.brand),
+                            last4: billing.paymentMethod.last4,
+                          })}
+                        </p>
+                        <p className="text-xs text-text-muted mt-0.5">
+                          {t('upgrade.billing.payment.expires', {
+                            month: String(billing.paymentMethod.expMonth).padStart(2, '0'),
+                            year: billing.paymentMethod.expYear,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      className="px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold text-text-secondary bg-surface-elevated border border-border hover:bg-surface-overlay transition-colors shrink-0"
+                      onClick={handleOpenPortal}
+                    >
+                      {t('upgrade.billing.payment.change')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Usage stats */}
+              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">{t('upgrade.billing.usage.title')}</h3>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
+                    <span className={`text-sm font-semibold ${usageUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+                      {t('upgrade.billing.usage.aiMessagesOf', {
+                        used: profile?.aiMessagesUsed ?? 0,
+                        limit: profile?.aiMessagesLimit ?? 0,
+                      })}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-surface-elevated">
+                    <div
+                      className={`h-1.5 rounded-full transition-all duration-500 ${usageUrgent ? 'bg-amber-400' : 'bg-primary'}`}
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice history */}
+              {billing.recentInvoices.length > 0 && (
+                <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] overflow-hidden">
+                  <div className="p-5 pb-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">{t('upgrade.billing.invoices.title')}</h3>
+                  </div>
+                  <div className="divide-y divide-border-muted">
+                    {billing.recentInvoices.map((invoice) => (
+                      <div key={invoice.id} className="px-5 py-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm text-text-primary font-medium">
+                              {formatBillingDate(invoice.date)}
+                            </span>
+                            <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded-full bg-surface-elevated text-text-muted border border-border-muted">
+                              {invoiceReasonLabel(invoice.billingReason)}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                              invoice.status === 'paid'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                : invoice.status === 'open'
+                                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                                  : 'bg-surface-elevated text-text-muted border border-border-muted'
+                            }`}
+                          >
+                            {invoiceStatusLabel(invoice.status)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-sm font-semibold text-text-primary">
+                            {formatPrice(invoice.amountPaid, invoice.currency)}
+                          </span>
+                          {(invoice.invoicePdf ?? invoice.hostedInvoiceUrl) && (
+                            <a
+                              href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-text-muted hover:text-text-primary transition-colors"
+                              title={t('upgrade.billing.invoices.download')}
+                            >
+                              <Download className="size-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Manage subscription */}
+              <div className="space-y-2 pt-1">
+                <button
+                  className="w-full py-3 rounded-[var(--radius-xl)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98]"
+                  onClick={handleOpenPortal}
+                >
+                  {t('upgrade.billing.actions.manage')}
+                </button>
+                <p className="text-xs text-text-muted text-center">{t('upgrade.billing.actions.manageHint')}</p>
+                {portalError && <p className="text-xs text-red-400 text-center">{portalError}</p>}
+              </div>
+            </>
+          )}
+
+          {/* No billing data (lifetime Pro) */}
+          {!isBillingLoading && !isBillingError && !billing && (
+            <>
+              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
+                    <Sparkles className="size-6 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-bold text-text-primary">
+                      {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetime') : t('upgrade.alreadyPro')}
+                    </h2>
+                    <p className="text-sm text-text-secondary mt-0.5">
+                      {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetimeHint') : t('upgrade.manageHint')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Usage stats */}
+              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">{t('upgrade.billing.usage.title')}</h3>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
+                    <span className={`text-sm font-semibold ${usageUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+                      {t('upgrade.billing.usage.aiMessagesOf', {
+                        used: profile?.aiMessagesUsed ?? 0,
+                        limit: profile?.aiMessagesLimit ?? 0,
+                      })}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-surface-elevated">
+                    <div
+                      className={`h-1.5 rounded-full transition-all duration-500 ${usageUrgent ? 'bg-amber-400' : 'bg-primary'}`}
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Trial countdown banner */}
+          {profile?.isTrialActive && (
+            <div
+              className={`rounded-[var(--radius-xl)] p-4 mb-4 flex items-center gap-3 border ${
+                trialUrgent
+                  ? 'bg-amber-500/10 border-amber-500/20'
+                  : 'bg-primary/10 border-primary/20'
+              }`}
+            >
+              <Clock className={`size-5 shrink-0 ${trialUrgent ? 'text-amber-400' : 'text-primary'}`} />
+              <p className={`text-sm font-medium ${trialUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+                {trialDaysLeft === 0
+                  ? t('trial.banner.lastDay')
+                  : t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 })}
+              </p>
+            </div>
+          )}
+
+          {/* Trial expired emotional section */}
+          {trialExpired && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 mb-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-primary" />
+                <span className="text-sm font-bold text-text-primary">{t('trial.expired.title')}</span>
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                {t('trial.expired.dontLose')}
+              </p>
+              <ul className="space-y-2">
+                {trialExpiredFeatures.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2.5">
+                    <CheckCircle2 className="size-4 text-primary shrink-0" />
+                    <span className="text-sm text-text-secondary">{t(feature)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* PRICING PLAN CARDS */}
+          {/* Loading skeletons */}
+          {isLoadingPlans && (
+            <div className="space-y-3 mb-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-[var(--radius-xl)] p-5 border border-border-muted">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="h-4 w-20 bg-surface-elevated rounded animate-pulse" />
+                    <div className="h-6 w-16 bg-surface-elevated rounded-full animate-pulse" />
+                  </div>
+                  <div className="space-y-2.5 mb-4">
+                    <div className="h-3 w-3/4 bg-surface-elevated rounded animate-pulse" />
+                    <div className="h-3 w-1/2 bg-surface-elevated rounded animate-pulse" />
+                  </div>
+                  <div className="h-10 w-full bg-surface-elevated rounded-[var(--radius-lg)] animate-pulse" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error state */}
+          {isPlansError && !plans && !isLoadingPlans && (
+            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted p-8 text-center space-y-3 mb-6">
+              <AlertTriangle className="size-8 text-text-muted mx-auto" />
+              <p className="text-sm text-text-secondary">{t('upgrade.plans.error')}</p>
+              <button className="text-primary text-sm font-semibold hover:underline" onClick={() => refetchPlans()}>
+                {t('upgrade.plans.retry')}
+              </button>
+            </div>
+          )}
+
+          {/* Plan cards */}
+          {plans && (
+            <div className="space-y-3 mb-6">
+              {/* FREE PLAN */}
+              <div className="rounded-[var(--radius-xl)] border border-dashed border-border-emphasis bg-surface-ground p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider">
+                    {t('upgrade.plans.free.name')}
+                  </h3>
+                  <span className="text-lg font-bold text-text-muted">
+                    {formatPrice(0, plans.currency)}
+                  </span>
+                </div>
+                <ul className="space-y-2 mb-4">
+                  <li className="flex items-center gap-2.5">
+                    <Flame className="size-3.5 text-text-muted/60 shrink-0" />
+                    <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.habits')}</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <MessageSquare className="size-3.5 text-text-muted/60 shrink-0" />
+                    <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.ai')}</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Palette className="size-3.5 text-text-muted/60 shrink-0" />
+                    <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.theme')}</span>
+                  </li>
+                </ul>
+                {!hasProAccess && (
+                  <button
+                    disabled
+                    className="w-full py-2.5 rounded-[var(--radius-lg)] bg-surface text-text-muted text-xs font-semibold border border-border-muted cursor-default opacity-60"
+                  >
+                    {t('upgrade.plans.free.cta')}
+                  </button>
+                )}
+              </div>
+
+              {/* PRO MONTHLY */}
+              <div className="rounded-[var(--radius-xl)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
+                <h3 className="text-sm font-bold text-text-primary mb-1">
+                  {t('upgrade.plans.monthly.name')}
+                </h3>
+                <div className="mb-4">
+                  {plans.couponPercentOff ? (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-extrabold text-text-primary">
+                        {formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency)}
+                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
+                      </span>
+                      <span className="text-sm text-text-muted line-through">
+                        {formatPrice(plans.monthly.unitAmount, plans.currency)}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-2xl font-extrabold text-text-primary">
+                      {formatPrice(plans.monthly.unitAmount, plans.currency)}
+                      <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
+                    </span>
+                  )}
+                </div>
+                <ul className="space-y-2 mb-4">
+                  {proFeatures.map((feat) => (
+                    <li key={feat.key} className="flex items-center gap-2.5">
+                      <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
+                      <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="w-full py-3 rounded-[var(--radius-lg)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={!!checkoutLoading}
+                  onClick={() => handleCheckout('monthly')}
+                >
+                  {checkoutLoading === 'monthly' && <Loader2 className="size-4 animate-spin" />}
+                  {t('upgrade.plans.monthly.cta')}
+                </button>
+              </div>
+
+              {/* PRO YEARLY (Recommended) */}
+              <div className="relative rounded-[var(--radius-xl)] border border-primary/30 bg-surface p-5 shadow-[var(--shadow-glow-sm)]">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/20">
+                    {t('upgrade.plans.yearly.recommended')}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                    {t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-text-primary mb-1">
+                  {t('upgrade.plans.yearly.name')}
+                </h3>
+                <div className="mb-1">
+                  {plans.couponPercentOff ? (
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-2xl font-extrabold text-text-primary">
+                        {formatPrice(discountedAmount(plans.yearly.unitAmount), plans.currency)}
+                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
+                      </span>
+                      <span className="text-sm text-text-muted line-through">
+                        {formatPrice(plans.yearly.unitAmount, plans.currency)}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-2xl font-extrabold text-text-primary">
+                      {formatPrice(plans.yearly.unitAmount, plans.currency)}
+                      <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-muted mb-4">
+                  {plans.couponPercentOff
+                    ? t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(discountedAmount(plans.yearly.unitAmount)), plans.currency) })
+                    : t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency) })}
+                </p>
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center gap-2.5 rounded-[var(--radius-lg)] bg-primary/[0.04] border border-primary/10 px-3 py-2">
+                    <BadgeCheck className="size-4 text-primary/50 shrink-0" />
+                    <span className="text-xs text-text-secondary">{t('upgrade.plans.yearly.includesMonthly')}</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {yearlyExtraFeatures.map((feat) => (
+                      <li key={feat.key} className="flex items-center gap-2.5">
+                        <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
+                        <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {plans.couponPercentOff && (
+                  <p className="text-[10px] text-emerald-400/70 mb-3 flex items-center gap-1.5">
+                    {t('upgrade.plans.coupon.appliedNote')}
+                  </p>
+                )}
+                <button
+                  className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={!!checkoutLoading}
+                  onClick={() => handleCheckout('yearly')}
+                >
+                  {checkoutLoading === 'yearly' && <Loader2 className="size-4 animate-spin" />}
+                  {t('upgrade.plans.yearly.cta')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {checkoutError && (
+            <p className="text-xs text-red-400 text-center">{checkoutError}</p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}

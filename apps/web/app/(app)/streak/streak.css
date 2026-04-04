@@ -1,0 +1,52 @@
+.streak-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(251, 146, 60, 0.1);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.streak-hero__glow {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.streak-hero__flame {
+  filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.5));
+  animation: streak-detail-flame 2s ease-in-out infinite;
+}
+
+.streak-hero__count {
+  color: #fdba74;
+}
+
+.streak-hero--strong {
+  border-color: rgba(249, 115, 22, 0.15);
+}
+
+.streak-hero--intense {
+  border-color: rgba(249, 115, 22, 0.2);
+  box-shadow: var(--shadow-sm), 0 0 20px rgba(249, 115, 22, 0.05);
+}
+
+.streak-hero--legendary {
+  border-color: rgba(251, 191, 36, 0.25);
+  box-shadow: var(--shadow-sm), 0 0 30px rgba(251, 191, 36, 0.08);
+}
+
+.streak-hero--legendary .streak-hero__count {
+  color: #fbbf24;
+}
+
+@keyframes streak-detail-flame {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}

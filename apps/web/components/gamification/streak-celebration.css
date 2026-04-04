@@ -1,0 +1,108 @@
+/* Content pop */
+.streak-celebration-content {
+  animation: streak-celebration-pop 0.5s var(--ease-spring) forwards;
+}
+
+@keyframes streak-celebration-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Streak number gradient text */
+.streak-number {
+  background: linear-gradient(to bottom, #fbbf24, #f97316);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.4));
+}
+
+/* Flame dance */
+.streak-flame-dance {
+  animation: streak-flame-sway 1.5s ease-in-out infinite;
+}
+
+.streak-flame-dance-big {
+  animation: streak-flame-sway-big 1.2s ease-in-out infinite;
+}
+
+@keyframes streak-flame-sway {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.03) rotate(-1.5deg); }
+  75% { transform: scale(0.98) rotate(1.5deg); }
+}
+
+@keyframes streak-flame-sway-big {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.06) rotate(-2deg); }
+  50% { transform: scale(1.02) rotate(0deg); }
+  75% { transform: scale(0.96) rotate(2deg); }
+}
+
+/* Glow pulse */
+.streak-glow-pulse {
+  animation: streak-glow-breathe 2s ease-in-out infinite;
+}
+
+.streak-glow-pulse-strong {
+  animation: streak-glow-breathe-strong 1.5s ease-in-out infinite;
+}
+
+@keyframes streak-glow-breathe {
+  0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes streak-glow-breathe-strong {
+  0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* Ember particles (milestone celebrations) */
+.streak-ember {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fbbf24;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  animation: streak-ember-rise 2s var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 0.08s);
+  opacity: 0;
+}
+
+.streak-ember:nth-child(odd) {
+  background: #f97316;
+  width: 3px;
+  height: 3px;
+}
+
+.streak-ember:nth-child(3n) {
+  background: #ef4444;
+  width: 5px;
+  height: 5px;
+}
+
+@keyframes streak-ember-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(
+      calc(cos(calc(var(--i) * 30deg)) * 20px),
+      calc(sin(calc(var(--i) * 30deg)) * 20px)
+    ) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(cos(calc(var(--i) * 30deg)) * 120px),
+      calc(sin(calc(var(--i) * 30deg)) * 120px - 60px)
+    ) scale(0.3);
+  }
+}

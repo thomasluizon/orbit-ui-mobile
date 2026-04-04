@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "postgres-local": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres:postgres@localhost:5432/orbit"
+      ]
+    }
+  }
+}

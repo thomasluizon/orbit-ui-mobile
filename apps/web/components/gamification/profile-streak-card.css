@@ -1,0 +1,59 @@
+.streak-card {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+  border: 1px solid rgba(251, 146, 60, 0.1);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.streak-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.streak-card__glow {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.08), transparent 70%);
+  pointer-events: none;
+}
+
+.streak-card__flame {
+  filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.4));
+  animation: profile-flame 2s ease-in-out infinite;
+}
+
+.streak-card__count {
+  color: #fdba74;
+}
+
+/* Tier styles */
+.streak-card--strong {
+  border-color: rgba(249, 115, 22, 0.15);
+}
+
+.streak-card--intense {
+  border-color: rgba(249, 115, 22, 0.2);
+  box-shadow: var(--shadow-sm), 0 0 20px rgba(249, 115, 22, 0.05);
+}
+
+.streak-card--legendary {
+  border-color: rgba(251, 191, 36, 0.25);
+  box-shadow: var(--shadow-sm), 0 0 30px rgba(251, 191, 36, 0.08);
+}
+
+.streak-card--legendary .streak-card__count {
+  color: #fbbf24;
+}
+
+@keyframes profile-flame {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
