@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import { DescriptionViewer } from './description-viewer'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -41,6 +42,7 @@ export function HabitDetailDrawer({
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const { displayTime } = useTimeFormat()
   const habitId = habit?.id ?? ''
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
@@ -155,10 +157,7 @@ export function HabitDetailDrawer({
             {habit.dueTime && (
               <div className="flex items-center gap-2 text-sm text-text-secondary">
                 <Clock className="size-4 text-primary" />
-                <span>
-                  {habit.dueTime}
-                  {habit.dueEndTime ? ` - ${habit.dueEndTime}` : ''}
-                </span>
+                <span>{displayTime(habit.dueTime)}</span>
               </div>
             )}
 

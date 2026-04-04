@@ -24,6 +24,7 @@ export default function AboutPage() {
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
+          aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
@@ -34,10 +35,10 @@ export default function AboutPage() {
       <div className="space-y-4">
         {/* Feature Guide */}
         <button
-          className="w-full bg-surface rounded-(--radius-xl) border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-(--shadow-md) hover:border-border transition-all duration-200 group text-left shadow-(--shadow-sm)"
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
           onClick={() => setShowGuide(true)}
         >
-          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-(--radius-lg) p-3 transition-colors">
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
             <BookOpen className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
@@ -53,9 +54,9 @@ export default function AboutPage() {
         {/* Support link */}
         <Link
           href="/support"
-          className="w-full bg-surface rounded-(--radius-xl) border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-(--shadow-md) hover:border-border transition-all duration-200 group shadow-(--shadow-sm)"
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group shadow-[var(--shadow-sm)]"
         >
-          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-(--radius-lg) p-3 transition-colors">
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
             <MessageSquareText className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
@@ -68,9 +69,9 @@ export default function AboutPage() {
         {/* Privacy Policy link */}
         <Link
           href="/privacy"
-          className="w-full bg-surface rounded-(--radius-xl) border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-(--shadow-md) hover:border-border transition-all duration-200 group shadow-(--shadow-sm)"
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group shadow-[var(--shadow-sm)]"
         >
-          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-(--radius-lg) p-3 transition-colors">
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
             <ShieldCheck className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">

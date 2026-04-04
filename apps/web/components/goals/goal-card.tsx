@@ -88,8 +88,10 @@ export function GoalCard({ goal }: GoalCardProps) {
 
   return (
     <>
-      <div
-        className={`bg-surface rounded-[var(--radius-xl)] p-5 cursor-pointer hover:bg-surface-elevated/80 border border-border-muted shadow-[var(--shadow-sm)] transition-all duration-150 ${trackingBorderClass}`}
+      {/* Use a button so the card is keyboard-accessible and has the correct role */}
+      <button
+        type="button"
+        className={`w-full text-left bg-surface rounded-[var(--radius-xl)] p-5 cursor-pointer hover:bg-surface-elevated/80 border border-border-muted shadow-[var(--shadow-sm)] transition-all duration-150 ${trackingBorderClass}`}
         onClick={() => setShowDetail(true)}
       >
         <div className="flex items-start gap-3">
@@ -124,7 +126,14 @@ export function GoalCard({ goal }: GoalCardProps) {
             </p>
 
             {/* Progress bar */}
-            <div className="h-2 bg-surface-elevated rounded-full overflow-hidden mb-2">
+            <div
+              className="h-2 bg-surface-elevated rounded-full overflow-hidden mb-2"
+              role="progressbar"
+              aria-valuenow={Math.min(goal.progressPercentage, 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+            >
               <div
                 className={`h-full rounded-full transition-all duration-500 animate-[progress-fill_0.6s_ease-out] ${progressColor}`}
                 style={{
@@ -150,7 +159,7 @@ export function GoalCard({ goal }: GoalCardProps) {
             </div>
           </div>
         </div>
-      </div>
+      </button>
 
       <GoalDetailDrawer
         open={showDetail}

@@ -474,10 +474,11 @@ export function HabitList({
         <>
           <div className="flex items-center gap-3 pb-1">
             <button
+              aria-label={t('common.goBack')}
               className="shrink-0 size-8 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated/80 transition-all duration-150"
               onClick={drill.drillBack}
             >
-              <ArrowLeft className="size-4 text-text-secondary" />
+              <ArrowLeft className="size-4 text-text-secondary" aria-hidden="true" />
             </button>
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-bold text-text-primary truncate">
@@ -527,7 +528,7 @@ export function HabitList({
               )}
               <button
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
-                onClick={() => startAddSubHabit(drill.currentParentId!)}
+                onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
               >
                 <Plus className="size-4" />
                 {t('habits.form.addSubHabit')}
@@ -540,7 +541,7 @@ export function HabitList({
               </p>
               <button
                 className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
-                onClick={() => startAddSubHabit(drill.currentParentId!)}
+                onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
               >
                 <Plus className="size-4" />
                 {t('habits.form.addSubHabit')}

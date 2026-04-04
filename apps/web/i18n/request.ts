@@ -13,9 +13,9 @@ export default getRequestConfig(async () => {
     messages,
     onError(error) {
       if (error.code === 'MISSING_MESSAGE') return
-      console.error(error)
+      // Swallow i18n errors in production -- do not log to console
     },
-    getMessageFallback({ namespace, key }) {
+    getMessageFallback({ namespace: _namespace, key }) {
       return key
     },
   }

@@ -52,20 +52,22 @@ export default function CalendarPage() {
             {t('nav.calendar')}
           </h1>
           <button
+            aria-label={t('dates.goToToday')}
             className="p-2 rounded-full hover:bg-surface transition-colors"
             onClick={goToToday}
           >
-            <Search className="size-[18px] text-text-secondary" />
+            <Search className="size-[18px] text-text-secondary" aria-hidden="true" />
           </button>
         </div>
 
         {/* Month navigation pill */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] flex items-center justify-between p-1">
           <button
+            aria-label={t('common.previousMonth')}
             className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
             onClick={prevMonth}
           >
-            <ChevronLeft className="size-3 text-text-faded" />
+            <ChevronLeft className="size-3 text-text-faded" aria-hidden="true" />
           </button>
           <button
             className="text-base font-semibold text-text-primary hover:text-primary transition-colors"
@@ -74,10 +76,11 @@ export default function CalendarPage() {
             {monthLabel}
           </button>
           <button
+            aria-label={t('common.nextMonth')}
             className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
             onClick={nextMonth}
           >
-            <ChevronRight className="size-3 text-text-faded" />
+            <ChevronRight className="size-3 text-text-faded" aria-hidden="true" />
           </button>
         </div>
       </header>

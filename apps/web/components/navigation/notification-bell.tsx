@@ -71,9 +71,12 @@ export function NotificationBell() {
         className="relative size-9 flex items-center justify-center rounded-full bg-surface-elevated/60 hover:bg-surface-elevated border border-border-muted hover:border-border transition-all duration-200 text-text-secondary hover:text-text-primary"
         onClick={toggle}
       >
-        <Bell className="size-4" />
+        <Bell className="size-4" aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 size-4.5 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-gentle-pulse">
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 size-4.5 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-gentle-pulse"
+          >
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -84,6 +87,8 @@ export function NotificationBell() {
         <>
           <div
             id="notification-dropdown"
+            role="region"
+            aria-label={t('notifications.title')}
             className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-surface-overlay border border-border-emphasis rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] overflow-hidden z-50 flex flex-col"
           >
             {/* Header */}
@@ -100,42 +105,50 @@ export function NotificationBell() {
                 )}
                 {notifications.length > 0 && (
                   <button
+                    aria-label={t('notifications.deleteAll')}
                     className="p-1 text-text-muted hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
-                    title={t('notifications.deleteAll')}
                     onClick={() => deleteAll.mutate()}
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-3.5" aria-hidden="true" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto">
+            <ul
+              className="flex-1 overflow-y-auto list-none m-0 p-0"
+              aria-label={t('notifications.title')}
+            >
               {isLoading && notifications.length === 0 ? (
-                <div className="p-4 space-y-3">
+                <li className="p-4 space-y-3" aria-label={t('common.loading')}>
                   <div className="h-12 bg-surface-elevated rounded-xl animate-pulse" />
                   <div className="h-12 bg-surface-elevated rounded-xl animate-pulse" />
-                </div>
+                </li>
               ) : notifications.length === 0 ? (
-                <div className="p-6 text-center">
-                  <BellOff className="size-8 text-text-muted mx-auto mb-2" />
+                <li className="p-6 text-center">
+                  <BellOff className="size-8 text-text-muted mx-auto mb-2" aria-hidden="true" />
                   <p className="text-sm text-text-muted">{t('notifications.empty')}</p>
-                </div>
+                </li>
               ) : (
                 notifications.map((item) => (
-                  <div
+                  <li
                     key={item.id}
-                    className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-all duration-150 hover:bg-surface-elevated ${
+                    className={`px-4 py-3 flex items-start gap-3 transition-all duration-150 hover:bg-surface-elevated ${
                       !item.isRead ? 'bg-primary/5' : ''
                     }`}
                   >
                     <div
+                      aria-hidden="true"
                       className={`shrink-0 mt-1 size-2 rounded-full ${
                         item.isRead ? 'bg-transparent' : 'bg-primary'
                       }`}
                     />
-                    <button className="flex-1 min-w-0 text-left" onClick={() => handleClick(item)}>
+                    <button
+                      className="flex-1 min-w-0 text-left"
+                      aria-label={item.title}
+                      onClick={() => handleClick(item)}
+                    >
                       <p className="text-sm font-medium text-text-primary truncate">{item.title}</p>
                       <p className="text-xs text-text-secondary">{item.body}</p>
                       <p className="text-[10px] text-text-muted mt-0.5">{formatTime(item.createdAtUtc, t)}</p>
@@ -148,12 +161,12 @@ export function NotificationBell() {
                         deleteNotification.mutate(item.id)
                       }}
                     >
-                      <X className="size-3.5" />
+                      <X className="size-3.5" aria-hidden="true" />
                     </button>
-                  </div>
+                  </li>
                 ))
               )}
-            </div>
+            </ul>
           </div>
 
           {/* Backdrop to close */}

@@ -40,7 +40,9 @@ export const goalMetricsSchema = z.object({
   velocityPerDay: z.number(),
   projectedCompletionDate: z.string().nullable(),
   daysToDeadline: z.number().nullable(),
-  trackingStatus: trackingStatusSchema.nullable(),
+  // Backend GoalMetrics.TrackingStatus is a non-nullable string.
+  // Use z.string() to accept any value, with optional enum refinement at use sites.
+  trackingStatus: z.string(),
   habitAdherence: z.array(linkedHabitAdherenceSchema),
 })
 
@@ -68,7 +70,7 @@ export const goalSchema = z.object({
   createdAtUtc: z.string(),
   completedAtUtc: z.string().nullable(),
   progressPercentage: z.number(),
-  trackingStatus: trackingStatusSchema.optional(),
+  trackingStatus: z.string().optional(),
   linkedHabits: z.array(linkedHabitInfoSchema).optional(),
 })
 

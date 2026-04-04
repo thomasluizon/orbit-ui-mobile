@@ -123,7 +123,7 @@ export function useGoals(status?: GoalStatus | null) {
 export function useGoalDetail(id: string | null) {
   return useQuery({
     queryKey: goalKeys.detail(id ?? ''),
-    queryFn: () => fetchJson<GoalDetailWithMetrics>(API.goals.detail(id!)),
+    queryFn: () => fetchJson<GoalDetailWithMetrics>(API.goals.detail(id ?? "")),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.goals,
   })
@@ -136,7 +136,7 @@ export function useGoalDetail(id: string | null) {
 export function useGoalMetrics(id: string | null) {
   return useQuery({
     queryKey: goalKeys.metrics(id ?? ''),
-    queryFn: () => fetchJson<GoalMetrics>(API.goals.metrics(id!)),
+    queryFn: () => fetchJson<GoalMetrics>(API.goals.metrics(id ?? "")),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.goals,
   })

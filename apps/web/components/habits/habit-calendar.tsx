@@ -80,7 +80,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: HabitCalendarProp
       weekStartsOn === 1
         ? [...sundayFirst.slice(1), sundayFirst[0]]
         : sundayFirst
-    return keys.map((k) => t(`dates.daysShort.${k}` as any).charAt(0))
+    return keys.map((k) => t(`dates.daysShort.${k}` as Parameters<typeof t>[0]).charAt(0))
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {

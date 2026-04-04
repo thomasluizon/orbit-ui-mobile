@@ -5,7 +5,8 @@ import { Check, X, Plus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import type { BulkHabitItem } from '@orbit/shared/types/habit'
+import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
+import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 
 // ---------------------------------------------------------------------------
@@ -15,7 +16,7 @@ import { useBulkCreateHabits } from '@/hooks/use-habits'
 interface EditableHabit {
   title: string
   description: string
-  frequencyUnit: string | null
+  frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
   days: string[] | null
   isBadHabit: boolean
@@ -113,7 +114,7 @@ export function BreakdownSuggestion({
       const subItems: BulkHabitItem[] = validHabits.map((h) => ({
         title: h.title.trim(),
         description: h.description.trim() || undefined,
-        frequencyUnit: (h.frequencyUnit as BulkHabitItem['frequencyUnit']) ?? undefined,
+        frequencyUnit: h.frequencyUnit ?? undefined,
         frequencyQuantity: resolveFrequencyQuantity(h),
         days: h.days ?? undefined,
         isBadHabit: h.isBadHabit,
@@ -139,7 +140,7 @@ export function BreakdownSuggestion({
             {
               title: parentName,
               frequencyUnit:
-                (firstWithFreq?.frequencyUnit as BulkHabitItem['frequencyUnit']) ??
+                firstWithFreq?.frequencyUnit ??
                 undefined,
               frequencyQuantity: parentFreqQty,
               dueDate: earliestDueDate,
@@ -215,7 +216,9 @@ export function BreakdownSuggestion({
                 <select
                   value={habit.frequencyUnit ?? ''}
                   onChange={(e) => {
-                    const val = e.target.value || null
+                    const rawVal = e.target.value
+                    const parsed = frequencyUnitSchema.safeParse(rawVal)
+                    const val: FrequencyUnit | null = parsed.success ? parsed.data : null
                     updateHabit(index, {
                       frequencyUnit: val,
                       frequencyQuantity: val ? habit.frequencyQuantity : null,
@@ -248,7 +251,7 @@ export function BreakdownSuggestion({
                       className="w-8 bg-transparent text-[11px] text-text-secondary text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-text-muted">
-                      {t(`habits.form.unit${habit.frequencyUnit}`)}
+                      {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])}
                     </span>
                   </>
                 )}

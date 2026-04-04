@@ -191,7 +191,7 @@ export default function AiSettingsPage() {
 
       <div className="space-y-4">
         {/* AI Memory */}
-        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
@@ -240,7 +240,7 @@ export default function AiSettingsPage() {
         </div>
 
         {/* AI Summary */}
-        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">

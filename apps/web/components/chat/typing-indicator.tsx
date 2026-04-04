@@ -1,8 +1,11 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export function TypingIndicator() {
+  const t = useTranslations()
+
   return (
     <div className="flex gap-3 items-end">
       {/* AI avatar */}
@@ -11,7 +14,7 @@ export function TypingIndicator() {
       </div>
       <div>
         <span className="text-[11px] font-medium text-text-secondary mb-1 px-2 block">
-          Orbit
+          {t('chat.senderOrbit')}
         </span>
         <div className="bg-surface-elevated rounded-tl-[var(--radius-lg)] rounded-tr-[var(--radius-lg)] rounded-br-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
           <div className="flex gap-1.5 items-center">

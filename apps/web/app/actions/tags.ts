@@ -18,6 +18,10 @@ async function authFetch(path: string, init: RequestInit) {
   return res.json()
 }
 
+export async function getTags(): Promise<Array<{ id: string; name: string; color: string }>> {
+  return authFetch('/api/tags', { method: 'GET' })
+}
+
 export async function createTag(
   name: string,
   color: string,

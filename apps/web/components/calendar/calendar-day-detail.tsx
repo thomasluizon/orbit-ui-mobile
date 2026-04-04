@@ -7,6 +7,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { ArrowRight, Check } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { plural } from '@/lib/plural'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -42,14 +43,7 @@ function statusIconBg(entry: CalendarDayEntry): string {
   return 'border-text-faded/30'
 }
 
-function formatDueTime(time: string): string {
-  // time is "HH:MM" or "HH:MM:SS"
-  const [h, m] = time.split(':')
-  const hour = parseInt(h!, 10)
-  const ampm = hour >= 12 ? 'PM' : 'AM'
-  const displayHour = hour % 12 || 12
-  return `${displayHour}:${m} ${ampm}`
-}
+// formatDueTime is now handled by useTimeFormat hook
 
 // ---------------------------------------------------------------------------
 // Component
@@ -63,6 +57,7 @@ export function CalendarDayDetail({
 }: CalendarDayDetailProps) {
   const t = useTranslations()
   const locale = useLocale()
+  const { displayTime } = useTimeFormat()
   const [showRecurring, setShowRecurring] = useState(true)
 
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -159,7 +154,7 @@ export function CalendarDayDetail({
                     </span>
                     {entry.dueTime && (
                       <span className="shrink-0 text-[11px] font-semibold text-text-secondary">
-                        {formatDueTime(entry.dueTime)}
+                        {displayTime(entry.dueTime)}
                       </span>
                     )}
                   </div>

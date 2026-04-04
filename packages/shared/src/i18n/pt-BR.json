@@ -100,7 +100,8 @@
     "selectedDate": "Data selecionada: {date}",
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "unknown": "Desconhecido"
   },
   "nav": {
     "habits": "Hábitos",
@@ -112,6 +113,7 @@
   },
   "dates": {
     "today": "Hoje",
+    "goToToday": "Ir para hoje",
     "yesterday": "Ontem",
     "tomorrow": "Amanhã",
     "nextDay": "Próximo dia",
@@ -361,6 +363,14 @@
       "resetChecklist": "Resetar",
       "clearChecklist": "Limpar tudo",
       "duplicateChecklistItem": "Duplicar item",
+      "removeChecklistItem": "Remover item",
+      "checklistItemLabel": "Item {n}",
+      "removeEndDate": "Remover data de fim",
+      "removeReminder": "Remover lembrete",
+      "removeScheduledReminder": "Remover lembrete agendado",
+      "editTag": "Editar etiqueta",
+      "deleteTag": "Excluir etiqueta",
+      "selectColor": "Selecionar cor {color}",
       "endDate": "Data Final",
       "endDateHint": "O hábito para de aparecer após esta data",
       "endDateBeforeDueDate": "A data final deve ser após a data de início",
@@ -472,6 +482,8 @@
     "title": "Chat com Orbit",
     "placeholder": "Diga ao Orbit o que você fez...",
     "attachImage": "Anexar imagem",
+    "send": "Enviar mensagem",
+    "removeImage": "Remover imagem",
     "listening": "Ouvindo...",
     "speechLanguage": "Idioma de fala",
     "stopRecording": "Parar gravação",
@@ -692,54 +704,54 @@
     "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
   },
   "privacy": {
-    "title": "Pol\u00edtica de Privacidade",
+    "title": "Política de Privacidade",
     "hint": "Como tratamos seus dados",
-    "lastUpdated": "\u00daltima atualiza\u00e7\u00e3o: Abril de 2026",
+    "lastUpdated": "Última atualização: Abril de 2026",
     "intro": {
-      "title": "Introdu\u00e7\u00e3o",
-      "body": "O Orbit \u00e9 um aplicativo de rastreamento de h\u00e1bitos pessoais. Levamos sua privacidade a s\u00e9rio e estamos comprometidos em proteger seus dados pessoais. Esta pol\u00edtica explica quais dados armazenamos, como os usamos e seus direitos."
+      "title": "Introdução",
+      "body": "O Orbit é um aplicativo de rastreamento de hábitos pessoais. Levamos sua privacidade a sério e estamos comprometidos em proteger seus dados pessoais. Esta política explica quais dados armazenamos, como os usamos e seus direitos."
     },
     "dataCollected": {
       "title": "Dados que Armazenamos",
-      "account": "Informa\u00e7\u00f5es da conta: nome e endere\u00e7o de e-mail (via cadastro por e-mail ou Google OAuth)",
-      "habits": "Dados de h\u00e1bitos: h\u00e1bitos criados, registros de conclus\u00e3o, agendamentos, tags e metas",
+      "account": "Informações da conta: nome e endereço de e-mail (via cadastro por e-mail ou Google OAuth)",
+      "habits": "Dados de hábitos: hábitos criados, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com IA: conversas com o assistente de IA do Orbit",
-      "preferences": "Prefer\u00eancias: idioma, fuso hor\u00e1rio, cor do tema, configura\u00e7\u00f5es de notifica\u00e7\u00e3o e fatos de mem\u00f3ria da IA que voc\u00ea fornece"
+      "preferences": "Preferências: idioma, fuso horário, cor do tema, configurações de notificação e fatos de memória da IA que você fornece"
     },
     "howWeUse": {
       "title": "Como Usamos Seus Dados",
-      "provide": "Para fornecer e operar o servi\u00e7o Orbit",
-      "personalize": "Para personalizar sua experi\u00eancia com insights e resumos baseados em IA",
-      "notifications": "Para enviar notifica\u00e7\u00f5es push e lembretes de h\u00e1bitos que voc\u00ea configurou"
+      "provide": "Para fornecer e operar o serviço Orbit",
+      "personalize": "Para personalizar sua experiência com insights e resumos baseados em IA",
+      "notifications": "Para enviar notificações push e lembretes de hábitos que você configurou"
     },
     "thirdParty": {
-      "title": "Servi\u00e7os de Terceiros",
-      "intro": "Usamos os seguintes servi\u00e7os para operar o Orbit:",
-      "google": "Google OAuth - para autentica\u00e7\u00e3o",
+      "title": "Serviços de Terceiros",
+      "intro": "Usamos os seguintes serviços para operar o Orbit:",
+      "google": "Google OAuth - para autenticação",
       "stripe": "Stripe - para processamento de pagamentos de assinatura",
-      "firebase": "Firebase Cloud Messaging - para notifica\u00e7\u00f5es push",
-      "openai": "OpenAI - para recursos de chat com IA e resumos di\u00e1rios",
+      "firebase": "Firebase Cloud Messaging - para notificações push",
+      "openai": "OpenAI - para recursos de chat com IA e resumos diários",
       "resend": "Resend - para e-mails transacionais"
     },
     "noSell": {
-      "title": "N\u00e3o Vendemos Seus Dados",
-      "body": "Seus dados n\u00e3o s\u00e3o vendidos a terceiros e n\u00e3o s\u00e3o usados para treinar modelos de IA. Seus dados de h\u00e1bitos e conversas s\u00e3o usados exclusivamente para fornecer o servi\u00e7o Orbit."
+      "title": "Não Vendemos Seus Dados",
+      "body": "Seus dados não são vendidos a terceiros e não são usados para treinar modelos de IA. Seus dados de hábitos e conversas são usados exclusivamente para fornecer o serviço Orbit."
     },
     "security": {
-      "title": "Seguran\u00e7a dos Dados",
-      "body": "Todas as conex\u00f5es com o Orbit usam criptografia HTTPS. A autentica\u00e7\u00e3o usa sess\u00f5es de atualiza\u00e7\u00e3o rotativas. Informa\u00e7\u00f5es de pagamento s\u00e3o tratadas inteiramente pelo Stripe e nunca passam por nossos servidores."
+      "title": "Segurança dos Dados",
+      "body": "Todas as conexões com o Orbit usam criptografia HTTPS. A autenticação usa sessões de atualização rotativas. Informações de pagamento são tratadas inteiramente pelo Stripe e nunca passam por nossos servidores."
     },
     "deletion": {
-      "title": "Exclus\u00e3o de Dados",
-      "body": "Voc\u00ea pode excluir sua conta e todos os dados associados a qualquer momento pela p\u00e1gina de Perfil no app. O processo requer confirma\u00e7\u00e3o por e-mail:",
-      "step1": "1. V\u00e1 ao Perfil e toque em \"Excluir conta\"",
-      "step2": "2. Um c\u00f3digo de confirma\u00e7\u00e3o ser\u00e1 enviado ao seu e-mail",
-      "step3": "3. Digite o c\u00f3digo para confirmar a exclus\u00e3o",
-      "step4": "Todos os dados s\u00e3o exclu\u00eddos permanentemente imediatamente, incluindo h\u00e1bitos, hist\u00f3rico de conclus\u00e3o, conversas com IA, fatos do usu\u00e1rio e configura\u00e7\u00f5es. Esta a\u00e7\u00e3o \u00e9 irrevers\u00edvel."
+      "title": "Exclusão de Dados",
+      "body": "Você pode excluir sua conta e todos os dados associados a qualquer momento pela página de Perfil no app. O processo requer confirmação por e-mail:",
+      "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
+      "step2": "2. Um código de confirmação será enviado ao seu e-mail",
+      "step3": "3. Digite o código para confirmar a exclusão",
+      "step4": "Todos os dados são excluídos permanentemente imediatamente, incluindo hábitos, histórico de conclusão, conversas com IA, fatos do usuário e configurações. Esta ação é irreversível."
     },
     "contact": {
       "title": "Contato",
-      "body": "Se voc\u00ea tem perguntas sobre esta pol\u00edtica de privacidade ou seus dados, entre em contato pelo contact{'@'}useorbit.org."
+      "body": "Se você tem perguntas sobre esta política de privacidade ou seus dados, entre em contato pelo contact{'@'}useorbit.org."
     }
   },
   "trial": {
@@ -1605,7 +1617,8 @@
     "configInstructions": "Adicione isso à sua configuração MCP:",
     "replaceKey": "Substitua YOUR_API_KEY pela chave que você criou acima",
     "maxKeysReached": "Máximo de 5 chaves de API atingido",
-    "copyConfig": "Copiar configuração"
+    "copyConfig": "Copiar configuração",
+    "apiKeysError": "Falha ao carregar chaves de API"
   },
   "preferences": {
     "title": "Preferências",

@@ -11,6 +11,11 @@ import type { GoalStatus } from '@orbit/shared/types/goal'
 // Component
 // ---------------------------------------------------------------------------
 
+interface StatusFilter {
+  key: GoalStatus | null
+  label: string
+}
+
 export function GoalsView() {
   const t = useTranslations()
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null)
@@ -18,11 +23,11 @@ export function GoalsView() {
   const { data, isFetched } = useGoals(activeFilter)
 
   const statusFilters = useMemo(
-    () => [
-      { key: null as GoalStatus | null, label: t('goals.filters.all') },
-      { key: 'Active' as GoalStatus, label: t('goals.filters.active') },
-      { key: 'Completed' as GoalStatus, label: t('goals.filters.completed') },
-      { key: 'Abandoned' as GoalStatus, label: t('goals.filters.abandoned') },
+    (): StatusFilter[] => [
+      { key: null, label: t('goals.filters.all') },
+      { key: 'Active', label: t('goals.filters.active') },
+      { key: 'Completed', label: t('goals.filters.completed') },
+      { key: 'Abandoned', label: t('goals.filters.abandoned') },
     ],
     [t],
   )

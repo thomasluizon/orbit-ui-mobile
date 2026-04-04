@@ -175,7 +175,7 @@ export default function AdvancedPage() {
       const result = await createApiKey(name)
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch (err) {
+    } catch (err: unknown) {
       setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
       return null
     }
@@ -202,7 +202,7 @@ export default function AdvancedPage() {
 
       <div className="space-y-4">
         {/* Timezone */}
-        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">{t('profile.timezone.title')}</h2>
           <div className="flex items-center justify-between">
             <p className="text-sm text-text-secondary flex items-center gap-1.5">
@@ -255,10 +255,10 @@ export default function AdvancedPage() {
 
         {/* Widget tip */}
         <button
-          className="w-full bg-surface rounded-(--radius-xl) border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-(--shadow-md) hover:border-border transition-all duration-200 group text-left shadow-(--shadow-sm)"
+          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
           onClick={() => setShowWidgetInfo(true)}
         >
-          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-(--radius-lg) p-3 transition-colors">
+          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
             <Smartphone className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
@@ -269,7 +269,7 @@ export default function AdvancedPage() {
         </button>
 
         {/* For Developers */}
-        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-4">
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">{t('orbitMcp.title')}</h2>
@@ -410,7 +410,7 @@ export default function AdvancedPage() {
                     {/* Tab buttons */}
                     <div className="flex gap-2">
                       <button
-                        className={`px-3 py-1.5 rounded-(--radius-lg) text-xs font-semibold transition-all ${
+                        className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
                           activeConfigTab === 'web'
                             ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
                             : 'bg-background border border-border text-text-secondary hover:text-text-primary'
@@ -420,7 +420,7 @@ export default function AdvancedPage() {
                         {t('orbitMcp.claudeWeb')}
                       </button>
                       <button
-                        className={`px-3 py-1.5 rounded-(--radius-lg) text-xs font-semibold transition-all ${
+                        className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
                           activeConfigTab === 'desktop'
                             ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
                             : 'bg-background border border-border text-text-secondary hover:text-text-primary'
@@ -430,7 +430,7 @@ export default function AdvancedPage() {
                         {t('orbitMcp.claudeDesktop')}
                       </button>
                       <button
-                        className={`px-3 py-1.5 rounded-(--radius-lg) text-xs font-semibold transition-all ${
+                        className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
                           activeConfigTab === 'code'
                             ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
                             : 'bg-background border border-border text-text-secondary hover:text-text-primary'
@@ -452,9 +452,9 @@ export default function AdvancedPage() {
                           <li>{t('orbitMcp.webStep4')}</li>
                         </ol>
                         <div className="relative">
-                          <pre className="rounded-(--radius-lg) bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">https://api.useorbit.org/mcp</pre>
+                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">https://api.useorbit.org/mcp</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-(--radius-lg) bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
                             onClick={() => copyToClipboard('https://api.useorbit.org/mcp')}
                           >
                             <Clipboard className="size-4" />
@@ -469,9 +469,9 @@ export default function AdvancedPage() {
 
                         {/* Config code block */}
                         <div className="relative">
-                          <pre className="rounded-(--radius-lg) bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
+                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-(--radius-lg) bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
                             onClick={copyConfig}
                           >
                             {configCopied ? (

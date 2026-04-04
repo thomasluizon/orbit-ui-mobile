@@ -16,6 +16,11 @@ interface GoalLinkingFieldProps {
   onToggleGoal: (goalId: string) => void
 }
 
+// Response shape from the goals list endpoint
+interface GoalsListResponse {
+  items: Goal[]
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -29,11 +34,11 @@ export function GoalLinkingField({
 
   const { data: goals } = useQuery({
     queryKey: goalKeys.lists(),
-    queryFn: async () => {
+    queryFn: async (): Promise<Goal[]> => {
       const res = await fetch(API.goals.list)
       if (!res.ok) throw new Error('Failed to fetch goals')
-      const data = await res.json()
-      return (data.items ?? data) as Goal[]
+      const data = (await res.json()) as GoalsListResponse | Goal[]
+      return Array.isArray(data) ? data : data.items
     },
     staleTime: QUERY_STALE_TIMES.goals,
   })

@@ -91,14 +91,14 @@ export async function bulkDeleteHabits(habitIds: string[]): Promise<BulkDeleteRe
 }
 
 export async function bulkLogHabits(items: BulkLogItemRequest[]): Promise<BulkLogResult> {
-  return authFetch('/api/habits/bulk-log', {
+  return authFetch('/api/habits/bulk/log', {
     method: 'POST',
     body: JSON.stringify({ items }),
   })
 }
 
 export async function bulkSkipHabits(items: BulkSkipItemRequest[]): Promise<BulkSkipResult> {
-  return authFetch('/api/habits/bulk-skip', {
+  return authFetch('/api/habits/bulk/skip', {
     method: 'POST',
     body: JSON.stringify({ items }),
   })
@@ -151,7 +151,7 @@ export async function linkGoalsToHabit(
   habitId: string,
   goalIds: string[],
 ): Promise<void> {
-  await authFetch(`/api/habits/${habitId}`, {
+  await authFetch(`/api/habits/${habitId}/goals`, {
     method: 'PUT',
     body: JSON.stringify({ goalIds }),
   })

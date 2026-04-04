@@ -5,8 +5,15 @@ const DB_NAME = 'orbit-offline'
 const STORE_NAME = 'mutations'
 const DB_VERSION = 1
 
-async function getDB(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, DB_VERSION, {
+interface OrbitDB {
+  [STORE_NAME]: {
+    key: string
+    value: QueuedMutation
+  }
+}
+
+async function getDB(): Promise<IDBPDatabase<OrbitDB>> {
+  return openDB<OrbitDB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' })
@@ -28,7 +35,7 @@ export async function dequeueMutation(id: string): Promise<void> {
 export async function getAllMutations(): Promise<QueuedMutation[]> {
   const db = await getDB()
   const all = await db.getAll(STORE_NAME)
-  return (all as QueuedMutation[]).sort((a, b) => a.timestamp - b.timestamp)
+  return all.sort((a, b) => a.timestamp - b.timestamp)
 }
 
 export async function getQueueSize(): Promise<number> {

@@ -195,6 +195,7 @@ export default function PreferencesPage() {
             {LANGUAGE_OPTIONS.map((lang) => (
               <button
                 key={lang.value}
+                aria-pressed={selectedLanguage === lang.value}
                 className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
                   selectedLanguage === lang.value
                     ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
@@ -223,7 +224,7 @@ export default function PreferencesPage() {
             {colorSchemeOptions.map((option) => (
               <button
                 key={option.value}
-                aria-label={option.value}
+                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])}
                 aria-pressed={currentScheme === option.value}
                 className={`size-9 rounded-full transition-all active:scale-90 flex items-center justify-center ${
                   currentScheme === option.value
@@ -259,6 +260,7 @@ export default function PreferencesPage() {
             {timeFormatOptions.map((opt) => (
               <button
                 key={opt.value}
+                aria-pressed={timeFormat === opt.value}
                 className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
                   timeFormat === opt.value
                     ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
@@ -284,6 +286,7 @@ export default function PreferencesPage() {
             {weekStartOptions.map((opt) => (
               <button
                 key={opt.value}
+                aria-pressed={profile?.weekStartDay === opt.value}
                 className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
                   profile?.weekStartDay === opt.value
                     ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'

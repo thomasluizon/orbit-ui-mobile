@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useId, type ReactNode } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
-import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
+import type { FrequencyUnit, ScheduledReminderWhen, HabitTag } from '@orbit/shared/types/habit'
 import { tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { HabitChecklist } from './habit-checklist'
@@ -99,10 +99,10 @@ export function HabitFormFields({
   // Fetch tags
   const { data: tagsData } = useQuery({
     queryKey: tagKeys.lists(),
-    queryFn: async () => {
+    queryFn: async (): Promise<HabitTag[]> => {
       const res = await fetch(API.tags.list)
       if (!res.ok) throw new Error('Failed to fetch tags')
-      return res.json() as Promise<Array<{ id: string; name: string; color: string }>>
+      return (await res.json()) as HabitTag[]
     },
     staleTime: QUERY_STALE_TIMES.tags,
   })
@@ -113,8 +113,8 @@ export function HabitFormFields({
   function isValidTime(time: string): boolean {
     if (time.length !== 5) return true
     const [hStr, mStr] = time.split(':')
-    const h = Number.parseInt(hStr!, 10)
-    const m = Number.parseInt(mStr!, 10)
+    const h = Number.parseInt(hStr ?? "", 10)
+    const m = Number.parseInt(mStr ?? "", 10)
     return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
   }
 
@@ -140,14 +140,14 @@ export function HabitFormFields({
 
   function reminderLabel(minutes: number): string {
     const preset = REMINDER_PRESETS.find((p) => p.value === minutes)
-    if (preset) return t(preset.key as any)
+    if (preset) return t(preset.key as Parameters<typeof t>[0])
     if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
     if (minutes < 1440) {
       const h = Math.floor(minutes / 60)
-      return `${h} ${t(h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours' as any)}`
+      return `${h} ${t((h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours') as Parameters<typeof t>[0])}`
     }
     const d = Math.floor(minutes / 1440)
-    return `${d} ${t(d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays' as any)}`
+    return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
   }
 
   function addPreset(value: number) {
@@ -193,8 +193,8 @@ export function HabitFormFields({
   function isValidScheduledTime(time: string): boolean {
     if (time.length !== 5) return false
     const [hStr, mStr] = time.split(':')
-    const h = Number.parseInt(hStr!, 10)
-    const m = Number.parseInt(mStr!, 10)
+    const h = Number.parseInt(hStr ?? "", 10)
+    const m = Number.parseInt(mStr ?? "", 10)
     return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
   }
 
@@ -290,6 +290,7 @@ export function HabitFormFields({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            aria-pressed={isOneTime}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
               isOneTime
                 ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
@@ -301,6 +302,7 @@ export function HabitFormFields({
           </button>
           <button
             type="button"
+            aria-pressed={!isOneTime && !isGeneral && !isFlexible}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
               !isOneTime && !isGeneral && !isFlexible
                 ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
@@ -312,6 +314,7 @@ export function HabitFormFields({
           </button>
           <button
             type="button"
+            aria-pressed={isFlexible}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
               isFlexible
                 ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
@@ -323,6 +326,7 @@ export function HabitFormFields({
           </button>
           <button
             type="button"
+            aria-pressed={isGeneral}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
               isGeneral
                 ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
@@ -341,7 +345,7 @@ export function HabitFormFields({
           {t('habits.form.flexibleDescription', {
             n: watchedFrequencyQuantity ?? 3,
             unit: watchedFrequencyUnit
-              ? t(`habits.form.unit${watchedFrequencyUnit}` as any)
+              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0])
               : '',
           })}
         </p>
@@ -505,6 +509,7 @@ export function HabitFormFields({
                 />
                 <button
                   type="button"
+                  aria-label={t('habits.form.removeEndDate')}
                   className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
                   onClick={() => setValue('endDate', '', { shouldDirty: true })}
                 >
@@ -527,7 +532,7 @@ export function HabitFormFields({
                 })
               }
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-3.5" aria-hidden="true" />
               {t('habits.form.addEndDate')}
             </button>
           )}
@@ -565,11 +570,12 @@ export function HabitFormFields({
                     {reminderLabel(time)}
                     <button
                       type="button"
+                      aria-label={t('habits.form.removeReminder')}
                       className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-primary/60'}`}
                       disabled={reminderTimes.length <= 1}
                       onClick={() => removeReminder(time)}
                     >
-                      <X className="size-3" />
+                      <X className="size-3" aria-hidden="true" />
                     </button>
                   </span>
                 ))}
@@ -595,7 +601,7 @@ export function HabitFormFields({
                         className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
                         onClick={() => addPreset(preset.value)}
                       >
-                        {t(preset.key as any)}
+                        {t(preset.key as Parameters<typeof t>[0])}
                       </button>
                     ))}
                     {showCustomInput && (
@@ -604,6 +610,7 @@ export function HabitFormFields({
                           value={customValue ?? ''}
                           type="number"
                           min={1}
+                          aria-label={t('habits.form.reminderCustomPlaceholder')}
                           placeholder={t('habits.form.reminderCustomPlaceholder')}
                           className="w-20 bg-surface text-text-primary rounded-xl py-1.5 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
                           onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
@@ -668,8 +675,8 @@ export function HabitFormFields({
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
                     >
                       {scheduledReminderLabel(sr)}
-                      <button type="button" className="hover:text-primary/60 transition-colors" onClick={() => removeScheduledReminder(idx)}>
-                        <X className="size-3" />
+                      <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="hover:text-primary/60 transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                        <X className="size-3" aria-hidden="true" />
                       </button>
                     </span>
                   ))}
@@ -724,6 +731,7 @@ export function HabitFormFields({
                         value={scheduledReminderTime}
                         type="text"
                         inputMode="numeric"
+                        aria-label={t('habits.form.scheduledReminderTimePlaceholder')}
                         pattern="[0-9]{2}:[0-9]{2}"
                         placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
                         maxLength={5}
@@ -741,10 +749,11 @@ export function HabitFormFields({
                       </button>
                       <button
                         type="button"
+                        aria-label={t('common.cancel')}
                         className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors"
                         onClick={() => { setShowScheduledReminderForm(false); setScheduledReminderTime('') }}
                       >
-                        <X className="size-3.5" />
+                        <X className="size-3.5" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -794,18 +803,20 @@ export function HabitFormFields({
                 className={`pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
                   tags.selectedTagIds.includes(tag.id) ? 'text-white/70' : 'text-text-muted'
                 }`}
+                aria-label={t('habits.form.editTag')}
                 onClick={(e) => { e.stopPropagation(); tags.startEditTag(tag) }}
               >
-                <PenSquare className="size-3" />
+                <PenSquare className="size-3" aria-hidden="true" />
               </button>
               <button
                 type="button"
                 className={`pr-2 pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
                   tags.selectedTagIds.includes(tag.id) ? 'text-white/70' : 'text-text-muted'
                 }`}
+                aria-label={t('habits.form.deleteTag')}
                 onClick={(e) => { e.stopPropagation(); tags.deleteTag(tag.id, async () => {}) }}
               >
-                <X className="size-3" />
+                <X className="size-3" aria-hidden="true" />
               </button>
             </div>
           ))}
@@ -827,6 +838,8 @@ export function HabitFormFields({
                 <button
                   key={c}
                   type="button"
+                  aria-label={t('habits.form.selectColor', { color: c })}
+                  aria-pressed={tags.editTagColor === c}
                   className={`size-5 rounded-full transition-all ${
                     tags.editTagColor === c
                       ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
@@ -841,14 +854,15 @@ export function HabitFormFields({
               <input
                 value={tags.editTagName}
                 type="text"
+                aria-label={t('habits.form.tagName')}
                 maxLength={50}
                 className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
                 onChange={(e) => tags.setEditTagName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); tags.saveEditTag(async () => {}) } }}
               />
               <button type="button" className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150" onClick={() => tags.saveEditTag(async () => {})}>{t('common.save')}</button>
-              <button type="button" className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={tags.cancelEditTag}>
-                <X className="size-3.5" />
+              <button type="button" aria-label={t('common.cancel')} className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={tags.cancelEditTag}>
+                <X className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -861,6 +875,8 @@ export function HabitFormFields({
                 <button
                   key={c}
                   type="button"
+                  aria-label={t('habits.form.selectColor', { color: c })}
+                  aria-pressed={tags.newTagColor === c}
                   className={`size-5 rounded-full transition-all ${
                     tags.newTagColor === c
                       ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
@@ -875,6 +891,7 @@ export function HabitFormFields({
               <input
                 value={tags.newTagName}
                 type="text"
+                aria-label={t('habits.form.tagName')}
                 placeholder={t('habits.form.tagName')}
                 maxLength={50}
                 className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -882,8 +899,8 @@ export function HabitFormFields({
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); tags.createAndSelectTag(async () => null) } }}
               />
               <button type="button" className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150" onClick={() => tags.createAndSelectTag(async () => null)}>{t('common.add')}</button>
-              <button type="button" className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={() => tags.setShowNewTag(false)}>
-                <X className="size-3.5" />
+              <button type="button" aria-label={t('common.cancel')} className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={() => tags.setShowNewTag(false)}>
+                <X className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>

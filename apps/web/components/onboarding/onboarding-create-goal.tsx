@@ -54,7 +54,7 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: OnboardingCreateGoal
     createGoal.mutate(
       {
         title,
-        targetValue: targetValue!,
+        targetValue: targetValue ?? 0,
         unit: unit.trim(),
       },
       {

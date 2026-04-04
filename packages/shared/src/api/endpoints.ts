@@ -43,9 +43,10 @@ export const API = {
     checklist: (id: string) => `/api/habits/${id}/checklist` as const,
     parent: (id: string) => `/api/habits/${id}/parent` as const,
     subHabits: (parentId: string) => `/api/habits/${parentId}/sub-habits` as const,
+    goals: (id: string) => `/api/habits/${id}/goals` as const,
     bulk: '/api/habits/bulk',
-    bulkLog: '/api/habits/bulk-log',
-    bulkSkip: '/api/habits/bulk-skip',
+    bulkLog: '/api/habits/bulk/log',
+    bulkSkip: '/api/habits/bulk/skip',
     reorder: '/api/habits/reorder',
     summary: '/api/habits/summary',
     calendarMonth: '/api/habits/calendar-month',
@@ -66,6 +67,7 @@ export const API = {
     habits: (id: string) => `/api/goals/${id}/habits` as const,
     metrics: (id: string) => `/api/goals/${id}/metrics` as const,
     reorder: '/api/goals/reorder',
+    review: '/api/goals/review',
   },
 
   // -- Tags ------------------------------------------------------------------
@@ -86,6 +88,7 @@ export const API = {
     deleteAll: '/api/notifications/all',
     subscribe: '/api/notifications/subscribe',
     unsubscribe: '/api/notifications/unsubscribe',
+    testPush: '/api/notifications/test-push',
   },
 
   // -- Subscription / Billing ------------------------------------------------
@@ -101,6 +104,7 @@ export const API = {
   // -- Gamification ----------------------------------------------------------
   gamification: {
     profile: '/api/gamification/profile',
+    achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
     streakFreeze: '/api/gamification/streak/freeze',
   },

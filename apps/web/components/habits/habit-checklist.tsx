@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
@@ -35,6 +35,7 @@ export function HabitChecklist({
   onClear,
 }: HabitChecklistProps) {
   const t = useTranslations()
+  const newItemInputId = useId()
   const [newItemText, setNewItemText] = useState('')
   const [justCheckedIndex, setJustCheckedIndex] = useState(-1)
   const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -103,7 +104,14 @@ export function HabitChecklist({
       {/* Progress + actions */}
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-surface-elevated rounded-full overflow-hidden">
+          <div
+            className="flex-1 h-1.5 bg-surface-elevated rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow={items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${checkedCount}/${items.length}`}
+          >
             <div
               className="h-full bg-primary rounded-full transition-all duration-300"
               style={{
@@ -111,7 +119,7 @@ export function HabitChecklist({
               }}
             />
           </div>
-          <span className="text-[10px] font-bold text-text-muted tabular-nums">
+          <span className="text-[10px] font-bold text-text-muted tabular-nums" aria-hidden="true">
             {checkedCount}/{items.length}
           </span>
           {interactive && checkedCount > 0 && (
@@ -140,18 +148,22 @@ export function HabitChecklist({
         <div className="space-y-1">
           {items.map((item, index) => (
             <div key={index} className="flex items-center gap-2 group py-0.5">
-              {/* Drag handle */}
-              <div className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary transition-colors">
+              {/* Drag handle - decorative, drag is handled by library */}
+              <div
+                aria-hidden="true"
+                className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary transition-colors"
+              >
                 <GripHorizontal className="size-3.5" />
               </div>
 
               {/* Static checkbox indicator */}
-              <div className="shrink-0 size-4 rounded border-2 border-border" />
+              <div aria-hidden="true" className="shrink-0 size-4 rounded border-2 border-border" />
 
               {/* Text input */}
               <input
                 value={item.text}
                 type="text"
+                aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
                 className="flex-1 min-w-0 bg-transparent text-sm text-text-primary py-1 px-0 border-0 border-b border-transparent focus:border-border focus:outline-none"
                 onChange={(e) => updateItemText(index, e.target.value)}
               />
@@ -159,20 +171,21 @@ export function HabitChecklist({
               {/* Duplicate button */}
               <button
                 type="button"
-                title={t('habits.form.duplicateChecklistItem')}
+                aria-label={t('habits.form.duplicateChecklistItem')}
                 className="shrink-0 p-1 text-text-muted hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                 onClick={() => duplicateItem(index)}
               >
-                <Copy className="size-3.5" />
+                <Copy className="size-3.5" aria-hidden="true" />
               </button>
 
               {/* Delete button */}
               <button
                 type="button"
+                aria-label={t('habits.form.removeChecklistItem')}
                 className="shrink-0 p-1 text-text-muted hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                 onClick={() => removeItem(index)}
               >
-                <X className="size-3.5" />
+                <X className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           ))}
@@ -192,6 +205,7 @@ export function HabitChecklist({
                     onChange={() => handleToggle(index)}
                   />
                   <span
+                    aria-hidden="true"
                     className={`size-5 rounded-md border-2 flex items-center justify-center transition-all ${
                       item.isChecked
                         ? 'bg-primary border-primary'
@@ -234,7 +248,11 @@ export function HabitChecklist({
       {/* Add item (editable mode only) */}
       {editable && (
         <div className="flex">
+          <label htmlFor={newItemInputId} className="sr-only">
+            {t('habits.form.checklistPlaceholder')}
+          </label>
           <input
+            id={newItemInputId}
             value={newItemText}
             type="text"
             placeholder={t('habits.form.checklistPlaceholder')}

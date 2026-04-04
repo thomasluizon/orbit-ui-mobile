@@ -100,7 +100,8 @@
     "selectedDate": "Selected date: {date}",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
-    "continue": "Continue"
+    "continue": "Continue",
+    "unknown": "Unknown"
   },
   "nav": {
     "habits": "Habits",
@@ -112,6 +113,7 @@
   },
   "dates": {
     "today": "Today",
+    "goToToday": "Go to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
     "nextDay": "Next day",
@@ -361,6 +363,14 @@
       "resetChecklist": "Reset",
       "clearChecklist": "Clear all",
       "duplicateChecklistItem": "Duplicate item",
+      "removeChecklistItem": "Remove item",
+      "checklistItemLabel": "Item {n}",
+      "removeEndDate": "Remove end date",
+      "removeReminder": "Remove reminder",
+      "removeScheduledReminder": "Remove scheduled reminder",
+      "editTag": "Edit tag",
+      "deleteTag": "Delete tag",
+      "selectColor": "Select color {color}",
       "endDate": "End Date",
       "endDateHint": "Habit stops appearing after this date",
       "endDateBeforeDueDate": "End date must be after the start date",
@@ -472,6 +482,8 @@
     "title": "Chat with Orbit",
     "placeholder": "Tell Orbit what you did...",
     "attachImage": "Attach image",
+    "send": "Send message",
+    "removeImage": "Remove image",
     "listening": "Listening...",
     "speechLanguage": "Speech language",
     "stopRecording": "Stop recording",
@@ -1605,7 +1617,8 @@
     "configInstructions": "Add this to your MCP configuration:",
     "replaceKey": "Replace YOUR_API_KEY with the key you created above",
     "maxKeysReached": "Maximum of 5 API keys reached",
-    "copyConfig": "Copy config"
+    "copyConfig": "Copy config",
+    "apiKeysError": "Failed to load API keys"
   },
   "preferences": {
     "title": "Preferences",

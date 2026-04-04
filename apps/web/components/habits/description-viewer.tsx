@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface DescriptionViewerProps {
   open: boolean
@@ -34,6 +35,7 @@ export function DescriptionViewer({
   title,
   description,
 }: DescriptionViewerProps) {
+  const t = useTranslations()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export function DescriptionViewer({
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-border-muted shrink-0">
         <button
+          aria-label={t('common.back')}
           className="size-9 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-all duration-150"
           onClick={() => onOpenChange(false)}
         >

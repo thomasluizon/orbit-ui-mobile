@@ -10,8 +10,10 @@ import {
   isSameMonth,
   isToday,
   getDate,
+  format,
 } from 'date-fns'
-import { useTranslations } from 'next-intl'
+import { enUS, ptBR } from 'date-fns/locale'
+import { useTranslations, useLocale } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useProfile } from '@/hooks/use-profile'
@@ -101,6 +103,8 @@ function dotClass(cell: GridDay): string {
 
 export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: CalendarGridProps) {
   const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
 
@@ -168,12 +172,15 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: CalendarGrid
           return (
             <button
               key={cell.dateStr}
+              aria-label={format(cell.date, 'EEEE, MMMM d', { locale: dateFnsLocale })}
+              aria-current={cell.isToday ? 'date' : undefined}
+              aria-disabled={!canSelect}
               className={`aspect-square rounded-[var(--radius-xl)] flex flex-col items-center justify-center text-sm transition-all duration-150 relative gap-0.5 ${dayBgClass(cell)} ${dayTextClass(cell)} ${canSelect ? 'cursor-pointer hover:ring-2 hover:ring-primary/30' : ''} ${cell.isToday ? 'ring-2 ring-background ring-offset-2 ring-offset-primary' : ''}`}
               onClick={() => canSelect && onSelectDay(cell.dateStr)}
             >
-              <span>{cell.day}</span>
+              <span aria-hidden="true">{cell.day}</span>
               {cell.isCurrentMonth && cell.totalCount > 0 && (
-                <span className="flex gap-px">
+                <span aria-hidden="true" className="flex gap-px">
                   <span className={`size-1 rounded-full ${dotClass(cell)}`} />
                 </span>
               )}

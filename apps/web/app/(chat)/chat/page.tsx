@@ -353,10 +353,11 @@ export default function ChatPage() {
                   className="h-16 rounded-[var(--radius-lg)] border border-border-muted"
                 />
                 <button
+                  aria-label={t('chat.removeImage')}
                   className="absolute -top-1.5 -right-1.5 rounded-full bg-surface-elevated border border-border p-0.5"
                   onClick={removeImage}
                 >
-                  <X className="size-3" />
+                  <X className="size-3" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -420,10 +421,11 @@ export default function ChatPage() {
             />
             <button
               disabled={!canSend}
+              aria-label={t('chat.send')}
               className="shrink-0 flex items-center justify-center bg-primary rounded-[var(--radius-xl)] p-2 text-white transition-all active:scale-95 disabled:opacity-40 shadow-[var(--shadow-glow-sm)]"
               onClick={() => sendMessage()}
             >
-              <SendHorizontal className="size-4" />
+              <SendHorizontal className="size-4" aria-hidden="true" />
             </button>
           </div>
 

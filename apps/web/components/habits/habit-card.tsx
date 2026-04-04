@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { HighlightText } from '@/components/ui/highlight-text'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -98,6 +99,7 @@ export function HabitCard({
   onEnterSelectMode,
 }: HabitCardProps) {
   const t = useTranslations()
+  const { displayTime } = useTimeFormat()
 
   const isChild = depth > 0
   const checkedCount =
@@ -194,17 +196,17 @@ export function HabitCard({
     if (isFlexible) {
       return t('habits.frequency.flexibleLabel', {
         n: frequencyQuantity ?? 1,
-        unit: t(`habits.form.unit${frequencyUnit}` as any),
+        unit: t(`habits.form.unit${frequencyUnit}` as Parameters<typeof t>[0]),
       })
     }
     if (frequencyQuantity === 1 && days.length > 0) {
       return days
-        .map((day) => t(`dates.daysShort.${day.toLowerCase()}` as any))
+        .map((day) => t(`dates.daysShort.${day.toLowerCase()}` as Parameters<typeof t>[0]))
         .join(', ')
     }
     if (frequencyQuantity === 1)
-      return t(`habits.frequency.every${frequencyUnit}` as any)
-    return t(`habits.frequency.everyN${frequencyUnit}s` as any, {
+      return t(`habits.frequency.every${frequencyUnit}` as Parameters<typeof t>[0])
+    return t(`habits.frequency.everyN${frequencyUnit}s` as Parameters<typeof t>[0], {
       n: frequencyQuantity ?? 1,
     })
   }, [habit, t])
@@ -215,7 +217,7 @@ export function HabitCard({
     const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
     const done = habit.flexibleCompleted ?? 0
     const unit = habit.frequencyUnit
-      ? t(`habits.form.unit${habit.frequencyUnit}` as any)
+      ? t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])
       : ''
     return t('habits.frequency.flexibleProgress', { done, target, unit })
   }, [habit, t])
@@ -347,6 +349,7 @@ export function HabitCard({
           } ${justCompleted ? 'animate-complete-glow' : ''} ${
             justCreated ? 'animate-creation-glow' : ''
           }`}
+          tabIndex={0}
           onClick={handleCardClick}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -576,8 +579,8 @@ export function HabitCard({
                   )}
                   {habit.dueTime && (
                     <span className="text-[10px] font-medium text-text-secondary">
-                      {habit.dueTime}
-                      {habit.dueEndTime ? ` - ${habit.dueEndTime}` : ''}
+                      {displayTime(habit.dueTime)}
+                      {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
                     </span>
                   )}
                   {statusBadge && (

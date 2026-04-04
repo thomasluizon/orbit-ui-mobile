@@ -42,6 +42,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useTags } from '@/hooks/use-tags'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
@@ -60,6 +61,13 @@ export default function TodayPage() {
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
+  const { tags } = useTags()
+
+  // Show general on today preference (local storage)
+  const [showGeneralOnToday] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('orbit_show_general_on_today') !== 'false'
+  })
 
   // Bulk mutation hooks
   const bulkDelete = useBulkDeleteHabits()
@@ -229,7 +237,7 @@ export default function TodayPage() {
         dateFrom: dateStr,
         dateTo: dateStr,
         includeOverdue: isToday(selectedDate),
-        includeGeneral: true,
+        includeGeneral: showGeneralOnToday || undefined,
       }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
       if (selectedFrequency) f.frequencyUnit = selectedFrequency
@@ -243,7 +251,7 @@ export default function TodayPage() {
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
     if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [activeView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds])
+  }, [activeView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   // Tab keyboard navigation
   const handleTabKeydown = useCallback(
@@ -410,6 +418,7 @@ export default function TodayPage() {
               <ChevronLeft className="size-5 text-text-secondary" />
             </button>
             <button
+              aria-label={isToday(selectedDate) ? dateLabel : t('dates.goToToday')}
               className={`min-w-40 text-center text-[length:var(--text-fluid-base)] font-semibold text-text-primary hover:text-primary transition-colors ${
                 isToday(selectedDate) ? 'text-primary' : ''
               }`}
@@ -452,16 +461,18 @@ export default function TodayPage() {
               <input
                 value={searchQuery}
                 type="text"
+                aria-label={t('habits.searchPlaceholder')}
                 placeholder={t('habits.searchPlaceholder')}
                 className="w-full bg-surface text-text-primary placeholder-text-muted rounded-full py-3 pl-12 pr-12 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
               />
               {searchQuery && (
                 <button
+                  aria-label={t('common.clear')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-text-secondary hover:text-text-primary transition-colors"
                   onClick={() => setLocalSearchQuery('')}
                 >
-                  <X className="size-4" />
+                  <X className="size-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -469,12 +480,14 @@ export default function TodayPage() {
 
           {/* Filter chips + controls row */}
           <div className="pb-2 flex items-center gap-2">
+            {activeView !== 'general' || tags.length > 0 ? (
             <div className="flex-1 overflow-x-auto thin-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
               <div className="flex gap-2 min-w-max">
                 {/* Frequency chips (hidden in general view) */}
                 {activeView !== 'general' && (
                   <>
                     <button
+                      aria-pressed={!selectedFrequency}
                       className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
                         !selectedFrequency
                           ? 'bg-primary text-white'
@@ -487,6 +500,7 @@ export default function TodayPage() {
                     {frequencyOptions.map((opt) => (
                       <button
                         key={opt.key}
+                        aria-pressed={selectedFrequency === opt.key}
                         className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
                           selectedFrequency === opt.key
                             ? 'bg-primary text-white'
@@ -503,8 +517,39 @@ export default function TodayPage() {
                     ))}
                   </>
                 )}
+                {/* Tag chips */}
+                {tags.length > 0 && (
+                  <>
+                    {activeView !== 'general' && (
+                      <span className="w-px h-6 bg-border self-center" />
+                    )}
+                    {tags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                          selectedTagIds.includes(tag.id)
+                            ? 'text-white'
+                            : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                        }`}
+                        style={selectedTagIds.includes(tag.id) ? { backgroundColor: tag.color } : undefined}
+                        onClick={() => toggleTagFilter(tag.id)}
+                      >
+                        {!selectedTagIds.includes(tag.id) && (
+                          <span
+                            className="size-2 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                        )}
+                        {tag.name}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
+            ) : (
+              <div className="flex-1" />
+            )}
             <div ref={controlsMenuRef} className="shrink-0">
               <button
                 className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface"

@@ -46,11 +46,14 @@ export function AchievementToast({ newAchievements, onClear }: AchievementToastP
 
   return createPortal(
     <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
       className="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] animate-in slide-in-from-top-4 fade-in duration-400"
       style={{ animationTimingFunction: 'var(--ease-spring)' }}
     >
       <div className="bg-surface-overlay border border-primary/30 rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-lg)] flex items-center gap-3">
-        <span className="text-3xl shrink-0">{'\u2B50'}</span>
+        <span className="text-3xl shrink-0" aria-hidden="true">{'\u2B50'}</span>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
             {t('gamification.toast.achievementUnlocked')}
