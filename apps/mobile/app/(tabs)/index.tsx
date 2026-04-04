@@ -1,23 +1,26 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
-  Image,
+  ActivityIndicator,
+  Platform,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   ChevronLeft,
   ChevronRight,
   Search,
   X,
   Plus,
-  Eye,
-  EyeOff,
   Sparkles,
+  MoreVertical,
+  Check,
+  Flame,
+  ClipboardCheck,
 } from 'lucide-react-native'
 import {
   addDays,
@@ -27,14 +30,79 @@ import {
   isTomorrow,
   format,
 } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabits, useLogHabit, useSkipHabit, useSummary } from '@/hooks/use-habits'
 import { useGoals } from '@/hooks/use-goals'
+import { useTags } from '@/hooks/use-tags'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { HabitCard } from '@/components/habit-card'
 import { GoalCard } from '@/components/goal-card'
+
+// ---------------------------------------------------------------------------
+// Design tokens (exact match with web globals.css)
+// ---------------------------------------------------------------------------
+
+const C = {
+  // Surface hierarchy
+  background: '#07060e',
+  surfaceGround: '#0d0b16',
+  surface: '#13111f',
+  surfaceElevated: '#1a1829',
+  surfaceOverlay: '#211f33',
+
+  // Primary
+  primary: '#8b5cf6',
+  primaryShadow: 'rgba(139,92,246,',
+
+  // Text hierarchy
+  textPrimary: '#f0eef6',
+  textSecondary: '#9b95ad',
+  textMuted: '#7a7490',
+  textFaded: '#a59cba',
+
+  // Border hierarchy
+  border: 'rgba(255,255,255,0.07)',
+  borderMuted: 'rgba(255,255,255,0.04)',
+  borderEmphasis: 'rgba(255,255,255,0.12)',
+
+  // Semantic
+  success: '#34d399',
+  warning: '#fbbf24',
+  danger: '#f87171',
+
+  // Radius
+  radiusSm: 8,
+  radiusMd: 12,
+  radiusLg: 16,
+  radiusXl: 20,
+  radius2xl: 24,
+  radiusFull: 9999,
+
+  // Shadows
+  shadowSm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+  },
+  shadowMd: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+  },
+  shadowLg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 40,
+  },
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -43,17 +111,203 @@ import { GoalCard } from '@/components/goal-card'
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 type ViewTab = (typeof TAB_VIEWS)[number]
 
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surfaceGround: '#0d0b16',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
+type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+
+// ---------------------------------------------------------------------------
+// HabitCardMobile - inline component matching web habit-card exactly
+// ---------------------------------------------------------------------------
+
+function HabitCardMobile({
+  habit,
+  selectedDate,
+  dateStr,
+  isCompleted,
+  onLog,
+  onSkip,
+  onPress,
+}: {
+  habit: NormalizedHabit
+  selectedDate?: Date
+  dateStr: string
+  isCompleted: boolean
+  onLog: (habitId: string) => void
+  onSkip: (habitId: string) => void
+  onPress?: (habitId: string) => void
+}) {
+  const { t } = useTranslation()
+
+  const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
+  const isOverdue = habit.isOverdue && !isDoneForRange
+
+  // Status logic matching web
+  const status = useMemo(() => {
+    if (isDoneForRange) return 'completed' as const
+    if (habit.isGeneral) return 'pending' as const
+    if (habit.isOverdue && !habit.frequencyUnit) return 'overdue' as const
+    const sel = formatAPIDate(selectedDate ?? new Date())
+    const hasTodaySchedule = habit.instances?.some((i) => i.date === sel) ?? false
+    if (hasTodaySchedule) return 'due-today' as const
+    return 'pending' as const
+  }, [isDoneForRange, habit, selectedDate])
+
+  const isNotDueToday = useMemo(() => {
+    if (!selectedDate) return false
+    if (status !== 'pending') return false
+    return true
+  }, [selectedDate, status])
+
+  // Frequency label matching web
+  const frequencyLabel = useMemo(() => {
+    if (habit.isGeneral) return t('habits.generalHabit')
+    const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
+    if (!frequencyUnit) return t('habits.oneTimeTask')
+    if (isFlexible) {
+      return t('habits.frequency.flexibleLabel', {
+        n: frequencyQuantity ?? 1,
+        unit: t(`habits.form.unit${frequencyUnit}`),
+      })
+    }
+    if (frequencyQuantity === 1 && days.length > 0) {
+      return days
+        .map((day) => t(`dates.daysShort.${day.toLowerCase()}`))
+        .join(', ')
+    }
+    if (frequencyQuantity === 1)
+      return t(`habits.frequency.every${frequencyUnit}`)
+    return t(`habits.frequency.everyN${frequencyUnit}s`, {
+      n: frequencyQuantity ?? 1,
+    })
+  }, [habit, t])
+
+  // Flexible progress
+  const flexibleProgressLabel = useMemo(() => {
+    if (!habit.isFlexible) return null
+    const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
+    const done = habit.flexibleCompleted ?? 0
+    const unit = habit.frequencyUnit ? t(`habits.form.unit${habit.frequencyUnit}`) : ''
+    return t('habits.frequency.flexibleProgress', { done, target, unit })
+  }, [habit, t])
+
+  const checkedCount = habit.checklistItems?.filter((i) => i.isChecked).length ?? 0
+
+  // Card styles matching web habit-card-parent
+  const cardBorderLeft =
+    status === 'due-today'
+      ? { borderLeftWidth: 3, borderLeftColor: 'rgba(245,158,11,0.7)' }
+      : status === 'overdue'
+        ? { borderLeftWidth: 3, borderLeftColor: 'rgba(239,68,68,0.7)' }
+        : {}
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.habitCard,
+        cardBorderLeft,
+        (isDoneForRange || isNotDueToday) && { opacity: 0.4 },
+      ]}
+      onPress={() => onPress?.(habit.id)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.habitCardRow}>
+        {/* Log button (circle indicator) */}
+        <TouchableOpacity
+          style={[
+            styles.logButton,
+            isDoneForRange && styles.logButtonDone,
+            !isDoneForRange && status === 'overdue' && styles.logButtonOverdue,
+          ]}
+          onPress={() => onLog(habit.id)}
+          activeOpacity={0.7}
+        >
+          {isDoneForRange && <Check size={16} color="#fff" />}
+        </TouchableOpacity>
+
+        {/* Content */}
+        <View style={styles.habitContent}>
+          <Text
+            style={[
+              styles.habitTitle,
+              isDoneForRange && styles.habitTitleDone,
+            ]}
+            numberOfLines={1}
+          >
+            {habit.title}
+          </Text>
+          {habit.description ? (
+            <Text style={styles.habitDescription} numberOfLines={1}>
+              {habit.description}
+            </Text>
+          ) : null}
+
+          {/* Badges row matching web */}
+          <View style={styles.badgesRow}>
+            <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
+
+            {flexibleProgressLabel ? (
+              <View style={styles.badgePrimary}>
+                <Text style={styles.badgePrimaryText}>{flexibleProgressLabel}</Text>
+              </View>
+            ) : null}
+
+            {habit.dueTime ? (
+              <Text style={styles.dueTimeText}>
+                {habit.dueTime}
+                {habit.dueEndTime ? ` - ${habit.dueEndTime}` : ''}
+              </Text>
+            ) : null}
+
+            {status === 'overdue' ? (
+              <View style={styles.badgeOverdue}>
+                <Text style={styles.badgeOverdueText}>{t('habits.overdue')}</Text>
+              </View>
+            ) : null}
+
+            {habit.isBadHabit ? (
+              <View style={styles.badgeBadHabit}>
+                <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
+              </View>
+            ) : null}
+
+            {habit.tags?.map((tag) => (
+              <View
+                key={tag.id}
+                style={[styles.badgeTag, { backgroundColor: tag.color }]}
+              >
+                <Text style={styles.badgeTagText}>{tag.name}</Text>
+              </View>
+            ))}
+
+            {(habit.linkedGoals ?? []).map((goal) => (
+              <View key={goal.id} style={styles.badgePrimary}>
+                <Text style={styles.badgePrimaryText}>{goal.title}</Text>
+              </View>
+            ))}
+
+            {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+              <View style={styles.badgeStreak}>
+                <Flame size={10} color="#fbbf24" />
+                <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
+              </View>
+            ) : null}
+
+            {habit.checklistItems && habit.checklistItems.length > 0 ? (
+              <View style={styles.badgeChecklist}>
+                <ClipboardCheck size={10} color={C.textSecondary} />
+                <Text style={styles.badgeChecklistText}>
+                  {checkedCount}/{habit.checklistItems.length}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Drill chevron */}
+        <View style={styles.drillIcon}>
+          <MoreVertical size={16} color="rgba(122,116,144,0.4)" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -61,59 +315,121 @@ const colors = {
 // ---------------------------------------------------------------------------
 
 export default function TodayScreen() {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const insets = useSafeAreaInsets()
+
   const { profile } = useProfile()
+  const { data: streakInfo } = useStreakInfo()
+  const { tags } = useTags()
 
-  // State
-  const [selectedDate, setSelectedDate] = useState(() => new Date())
-  const [activeView, setActiveView] = useState<ViewTab>('today')
-  const [searchQuery, setSearchQuery] = useState('')
+  // UI Store
+  const selectedDateStr = useUIStore((s) => s.selectedDate)
+  const setSelectedDate = useUIStore((s) => s.setSelectedDate)
+  const activeView = useUIStore((s) => s.activeView)
+  const setActiveView = useUIStore((s) => s.setActiveView)
+  const searchQueryStore = useUIStore((s) => s.searchQuery)
+  const setSearchQueryStore = useUIStore((s) => s.setSearchQuery)
+
+  // Local state
+  const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const dateStr = formatAPIDate(selectedDate)
+  const selectedDate = useMemo(
+    () => new Date(selectedDateStr + 'T00:00:00'),
+    [selectedDateStr],
+  )
+
+  const frequencyOptions = useMemo<Array<{ key: FreqKey; label: string }>>(
+    () => [
+      { key: 'Day', label: t('habits.filter.daily') },
+      { key: 'Week', label: t('habits.filter.weekly') },
+      { key: 'Month', label: t('habits.filter.monthly') },
+      { key: 'Year', label: t('habits.filter.yearly') },
+      { key: 'none', label: t('habits.filter.oneTime') },
+    ],
+    [t],
+  )
 
   // Date navigation
   const goToPreviousDay = useCallback(() => {
-    setSelectedDate((d) => subDays(d, 1))
-  }, [])
+    setSelectedDate(formatAPIDate(subDays(selectedDate, 1)))
+  }, [selectedDate, setSelectedDate])
 
   const goToNextDay = useCallback(() => {
-    setSelectedDate((d) => addDays(d, 1))
-  }, [])
+    setSelectedDate(formatAPIDate(addDays(selectedDate, 1)))
+  }, [selectedDate, setSelectedDate])
 
   const goToToday = useCallback(() => {
-    setSelectedDate(new Date())
+    setSelectedDate(formatAPIDate(new Date()))
     setActiveView('today')
-  }, [])
+  }, [setSelectedDate, setActiveView])
 
   const dateLabel = useMemo(() => {
-    if (isToday(selectedDate)) return 'Today'
-    if (isYesterday(selectedDate)) return 'Yesterday'
-    if (isTomorrow(selectedDate)) return 'Tomorrow'
-    return format(selectedDate, 'MMM dd, yyyy')
-  }, [selectedDate])
+    if (isToday(selectedDate)) return t('dates.today')
+    if (isYesterday(selectedDate)) return t('dates.yesterday')
+    if (isTomorrow(selectedDate)) return t('dates.tomorrow')
+    return format(
+      selectedDate,
+      locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy',
+      { locale: dateFnsLocale },
+    )
+  }, [selectedDate, t, locale, dateFnsLocale])
 
-  // Build filters
+  // Search debounce
+  useEffect(() => {
+    if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current)
+    searchDebounceTimer.current = setTimeout(() => {
+      setSearchQueryStore(searchQuery)
+    }, 300)
+    return () => {
+      if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current)
+    }
+  }, [searchQuery, setSearchQueryStore])
+
+  // Tag filter toggle
+  const toggleTagFilter = useCallback((tagId: string) => {
+    setSelectedTagIds((prev) => {
+      const idx = prev.indexOf(tagId)
+      if (idx >= 0) return prev.filter((id) => id !== tagId)
+      return [...prev, tagId]
+    })
+  }, [])
+
+  // Build filters (matching web exactly)
+  const dateStr = formatAPIDate(selectedDate)
   const filters = useMemo<HabitsFilter>(() => {
-    const base: HabitsFilter = {}
-    if (searchQuery.trim()) base.search = searchQuery.trim()
-
     if (activeView === 'general') {
-      return { ...base, isGeneral: true }
+      const f: HabitsFilter = { isGeneral: true }
+      if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
+      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
+      return f
     }
     if (activeView === 'today') {
-      return {
-        ...base,
+      const f: HabitsFilter = {
         dateFrom: dateStr,
         dateTo: dateStr,
         includeOverdue: isToday(selectedDate),
         includeGeneral: true,
       }
+      if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
+      if (selectedFrequency) f.frequencyUnit = selectedFrequency
+      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
+      return f
     }
     // 'all' view
-    return base
-  }, [activeView, dateStr, selectedDate, searchQuery])
+    const f: HabitsFilter = {}
+    if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
+    if (selectedFrequency) f.frequencyUnit = selectedFrequency
+    if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
+    return f
+  }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds])
 
-  // Sync filters to UI store for celebration checks
+  // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters)
   useMemo(() => {
     setFilters(filters)
@@ -123,7 +439,6 @@ export default function TodayScreen() {
   const habitsQuery = useHabits(filters)
   const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
   const isLoading = habitsQuery.isLoading
-  const refetch = habitsQuery.refetch
 
   const goalsQuery = useGoals('Active')
   const goals = goalsQuery.data?.allGoals ?? []
@@ -165,37 +480,72 @@ export default function TodayScreen() {
     [skipMutation],
   )
 
+  // Clear filters on view change
+  useEffect(() => {
+    setSelectedFrequency(null)
+  }, [activeView])
+
+  // Profile avatar initials
+  const avatarInitials = useMemo(() => {
+    if (!profile?.name) return '?'
+    const parts = profile.name.trim().split(/\s+/)
+    const first = parts[0] ?? ''
+    const last = parts.length >= 2 ? (parts[parts.length - 1] ?? '') : ''
+    if (last) return ((first[0] ?? '') + (last[0] ?? '')).toUpperCase()
+    return (first[0] ?? '?').toUpperCase()
+  }, [profile?.name])
+
+  const currentStreak = streakInfo?.currentStreak ?? 0
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <ScrollView
-        style={styles.container}
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
+        {/* ============================================================
+            HEADER: Orbit logo + streak badge + avatar
+            Matches: <header className="flex items-center justify-between pt-8 pb-2">
+            ============================================================ */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.logoRow}
             onPress={goToToday}
             activeOpacity={0.8}
           >
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>O</Text>
+            <View style={styles.logoIcon}>
+              <Text style={styles.logoIconText}>O</Text>
             </View>
             <Text style={styles.headerTitle}>Orbit</Text>
           </TouchableOpacity>
+
+          <View style={styles.headerRight}>
+            {/* Streak badge */}
+            {currentStreak > 0 && (
+              <View style={styles.streakBadge}>
+                <Flame size={14} color="#fbbf24" />
+                <Text style={styles.streakText}>{currentStreak}</Text>
+              </View>
+            )}
+            {/* Profile avatar */}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarInitials}</Text>
+            </View>
+          </View>
         </View>
 
-        {/* View tabs */}
-        <View style={styles.tabsContainer}>
+        {/* ============================================================
+            TABS: Today / All / General / Goals
+            Matches: flex bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1
+            ============================================================ */}
+        <View style={styles.tabsWrapper}>
           <View style={styles.tabsRow}>
             {TAB_VIEWS.map((view) => (
               <TouchableOpacity
                 key={view}
-                style={[
-                  styles.tab,
-                  activeView === view && styles.tabActive,
-                ]}
+                style={[styles.tab, activeView === view && styles.tabActive]}
                 onPress={() => setActiveView(view)}
                 activeOpacity={0.7}
               >
@@ -206,30 +556,32 @@ export default function TodayScreen() {
                   ]}
                 >
                   {view === 'today'
-                    ? 'Today'
+                    ? t('habits.viewToday')
                     : view === 'all'
-                      ? 'All'
+                      ? t('habits.viewAll')
                       : view === 'general'
-                        ? 'General'
-                        : 'Goals'}
+                        ? t('habits.viewGeneral')
+                        : t('goals.tab')}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Goals view */}
+        {/* ============================================================
+            GOALS VIEW
+            ============================================================ */}
         {activeView === 'goals' && (
           <View style={styles.section}>
             {goalsLoading ? (
               <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading goals...</Text>
+                <ActivityIndicator size="large" color={C.primary} />
               </View>
             ) : goals.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>No goals yet</Text>
+                <Text style={styles.emptyTitle}>{t('goals.empty')}</Text>
                 <Text style={styles.emptySubtitle}>
-                  Create a goal to track your long-term progress
+                  {t('goals.emptyHint')}
                 </Text>
               </View>
             ) : (
@@ -240,7 +592,10 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {/* Date navigation (today view only) */}
+        {/* ============================================================
+            DATE NAVIGATION (today view only)
+            Matches: flex items-center justify-center gap-4
+            ============================================================ */}
         {activeView === 'today' && (
           <View style={styles.dateNav}>
             <TouchableOpacity
@@ -248,7 +603,7 @@ export default function TodayScreen() {
               onPress={goToPreviousDay}
               activeOpacity={0.7}
             >
-              <ChevronLeft size={20} color={colors.textSecondary} />
+              <ChevronLeft size={20} color={C.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
               <Text
@@ -265,132 +620,245 @@ export default function TodayScreen() {
               onPress={goToNextDay}
               activeOpacity={0.7}
             >
-              <ChevronRight size={20} color={colors.textSecondary} />
+              <ChevronRight size={20} color={C.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
 
-        {/* AI Summary card */}
-        {showSummary && summary && (
+        {/* ============================================================
+            AI SUMMARY CARD
+            Matches web: bg-surface border border-primary/30 rounded-2xl p-4
+            ============================================================ */}
+        {showSummary && summary ? (
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
-              <Sparkles size={16} color={colors.primary} />
-              <Text style={styles.summaryTitle}>AI Summary</Text>
+              <Sparkles size={16} color={C.primary} />
+              <Text style={styles.summaryTitle}>{t('settings.aiSummary.title')}</Text>
             </View>
             <Text style={styles.summaryText}>{summary}</Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Habits content (hidden on goals tab) */}
+        {/* ============================================================
+            HABITS CONTENT (hidden on goals tab)
+            ============================================================ */}
         {activeView !== 'goals' && (
-          <View style={styles.section}>
-            {/* Search bar */}
-            <View style={styles.searchContainer}>
-              <Search size={18} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search habits..."
-                placeholderTextColor={colors.textMuted}
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <X size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
+          <View style={styles.habitsSection}>
+            {/* Search bar - matches web: rounded-full py-3 pl-12 pr-12 */}
+            <View style={styles.searchWrapper}>
+              <View style={styles.searchContainer}>
+                <Search size={18} color={C.textMuted} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChangeText={setLocalSearchQuery}
+                  placeholder={t('habits.searchPlaceholder')}
+                  placeholderTextColor={C.textMuted}
+                  returnKeyType="search"
+                  selectionColor={C.primary}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setLocalSearchQuery('')}
+                    style={styles.searchClear}
+                  >
+                    <X size={16} color={C.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
-            {/* Controls row */}
-            <View style={styles.controlsRow}>
+            {/* Filter chips row - matches web filter chips */}
+            <View style={styles.filtersWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filtersContent}
+              >
+                {/* Frequency chips (hidden in general view) */}
+                {activeView !== 'general' && (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.filterChip,
+                        !selectedFrequency && styles.filterChipActive,
+                      ]}
+                      onPress={() => setSelectedFrequency(null)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          !selectedFrequency && styles.filterChipTextActive,
+                        ]}
+                      >
+                        {t('common.all')}
+                      </Text>
+                    </TouchableOpacity>
+                    {frequencyOptions.map((opt) => (
+                      <TouchableOpacity
+                        key={opt.key}
+                        style={[
+                          styles.filterChip,
+                          selectedFrequency === opt.key && styles.filterChipActive,
+                        ]}
+                        onPress={() =>
+                          setSelectedFrequency(
+                            selectedFrequency === opt.key ? null : opt.key,
+                          )
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            selectedFrequency === opt.key &&
+                              styles.filterChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+
+                {/* Tag divider */}
+                {activeView !== 'general' && tags.length > 0 && (
+                  <View style={styles.filterDivider} />
+                )}
+
+                {/* Tag chips */}
+                {tags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag.id}
+                    style={[
+                      styles.filterChip,
+                      selectedTagIds.includes(tag.id)
+                        ? { backgroundColor: tag.color, borderColor: tag.color }
+                        : {},
+                    ]}
+                    onPress={() => toggleTagFilter(tag.id)}
+                    activeOpacity={0.7}
+                  >
+                    {!selectedTagIds.includes(tag.id) && (
+                      <View
+                        style={[styles.tagDot, { backgroundColor: tag.color }]}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        selectedTagIds.includes(tag.id) && { color: '#fff' },
+                      ]}
+                    >
+                      {tag.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Controls menu (three dots) */}
               <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  showCompleted && styles.toggleButtonActive,
-                ]}
-                onPress={() => setShowCompleted(!showCompleted)}
+                style={styles.controlsButton}
                 activeOpacity={0.7}
               >
-                {showCompleted ? (
-                  <Eye size={12} color="#fff" />
-                ) : (
-                  <EyeOff size={12} color={colors.textMuted} />
-                )}
-                <Text
-                  style={[
-                    styles.toggleText,
-                    showCompleted && styles.toggleTextActive,
-                  ]}
-                >
-                  Completed
-                </Text>
+                <MoreVertical size={20} color={C.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {/* Habit list */}
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading habits...</Text>
+                {/* Skeleton cards matching web */}
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.skeletonCard}>
+                    <View style={styles.skeletonCircle} />
+                    <View style={styles.skeletonContent}>
+                      <View style={styles.skeletonLine1} />
+                      <View style={styles.skeletonLine2} />
+                    </View>
+                  </View>
+                ))}
               </View>
             ) : visibleHabits.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>
-                  {searchQuery ? 'No habits found' : 'No habits yet'}
+                  {searchQuery
+                    ? t('common.noResults')
+                    : activeView === 'general'
+                      ? t('habits.emptyGeneral')
+                      : activeView === 'today'
+                        ? t('habits.noDueToday')
+                        : t('habits.noHabitsYet')}
                 </Text>
                 <Text style={styles.emptySubtitle}>
                   {searchQuery
-                    ? 'Try a different search term'
-                    : 'Tap + to create your first habit'}
+                    ? t('habits.searchPlaceholder')
+                    : t('habits.noHabitsYet')}
                 </Text>
               </View>
             ) : (
-              visibleHabits.map((habit) => (
-                <HabitCard
-                  key={habit.id}
-                  habit={habit}
-                  dateStr={dateStr}
-                  isLogged={habit.isCompleted}
-                  onLog={handleLog}
-                  onSkip={handleSkip}
-                />
-              ))
+              <View style={styles.habitListContainer}>
+                {visibleHabits.map((habit) => (
+                  <HabitCardMobile
+                    key={habit.id}
+                    habit={habit}
+                    selectedDate={activeView === 'today' ? selectedDate : undefined}
+                    dateStr={dateStr}
+                    isCompleted={habit.isCompleted}
+                    onLog={handleLog}
+                    onSkip={handleSkip}
+                  />
+                ))}
+              </View>
             )}
           </View>
         )}
       </ScrollView>
 
-      {/* FAB */}
+      {/* ============================================================
+          FAB - floating action button matching web create button
+          ============================================================ */}
       {activeView !== 'goals' && (
-        <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: 24 + insets.bottom },
+          ]}
+          activeOpacity={0.8}
+        >
           <Plus size={24} color="#fff" />
         </TouchableOpacity>
       )}
-    </SafeAreaView>
+    </View>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Styles
+// Styles - pixel-accurate match with web CSS
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  // Layout
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: C.background,
   },
-  container: {
+  scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingHorizontal: 20, // --app-px: 1.25rem = 20px
+    paddingBottom: 120,
   },
+
+  // Header: pt-8 pb-2 = 32px/8px
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
+    paddingTop: 32,
     paddingBottom: 8,
   },
   logoRow: {
@@ -398,84 +866,147 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  logoPlaceholder: {
+  // Logo: size-10 = 40px
+  logoIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: 'rgba(139,92,246,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: {
+  logoIconText: {
     fontSize: 20,
     fontWeight: '800',
-    color: colors.primary,
+    color: C.primary,
   },
+  // text-[length:var(--text-fluid-xl)] = 18-24px, font-extrabold
   headerTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800',
-    color: colors.textPrimary,
+    color: C.textPrimary,
     letterSpacing: -0.5,
   },
-  tabsContainer: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251,191,36,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: C.radiusFull,
+  },
+  streakText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: C.surfaceElevated,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.textSecondary,
+  },
+
+  // Tabs: pt-4 = 16px
+  tabsWrapper: {
     paddingTop: 16,
   },
+  // bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1
   tabsRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceGround,
-    borderRadius: 14,
+    backgroundColor: C.surfaceGround,
+    borderRadius: C.radiusLg,
     padding: 4,
     gap: 4,
   },
+  // flex-1 text-center py-2 text-sm font-bold rounded-[var(--radius-md)]
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 8,
+    borderRadius: C.radiusMd,
   },
+  // text-primary bg-surface shadow-[var(--shadow-sm)]
   tabActive: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.4,
+          shadowRadius: 3,
+        }
+      : { elevation: 2 }),
   },
   tabText: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   tabTextActive: {
-    color: colors.primary,
+    color: C.primary,
   },
+
+  // Section container
+  section: {
+    paddingTop: 8,
+  },
+
+  // Date navigation: pt-4 pb-4 = 16px each
   dateNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
+  // size-9 = 36px rounded-full bg-surface
   dateNavButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // min-w-40 = 160px, text-base font-semibold
   dateLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
-    minWidth: 140,
+    color: C.textPrimary,
+    minWidth: 160,
     textAlign: 'center',
   },
   dateLabelToday: {
-    color: colors.primary,
+    color: C.primary,
   },
+
+  // AI Summary card - matches web's summary card
   summaryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
+    backgroundColor: C.surface,
+    borderRadius: C.radiusLg,
     borderWidth: 1,
-    borderColor: `${colors.primary}30`,
+    borderColor: 'rgba(139,92,246,0.3)',
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   summaryHeader: {
     flexDirection: 'row',
@@ -486,101 +1017,370 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: C.primary,
   },
   summaryText: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
-  section: {
+
+  // Habits section
+  habitsSection: {
     paddingTop: 4,
   },
+
+  // Search bar: pt-3 pb-2 = 12px/8px
+  searchWrapper: {
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  // rounded-full py-3 pl-12 pr-12 bg-surface border border-border
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 24,
+    backgroundColor: C.surface,
+    borderRadius: C.radiusFull,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
+    borderColor: C.border,
     paddingVertical: 10,
-    gap: 10,
-    marginBottom: 8,
+    paddingLeft: 44,
+    paddingRight: 44,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 20,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: colors.textPrimary,
+    color: C.textPrimary,
     padding: 0,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 8,
+  searchClear: {
+    position: 'absolute',
+    right: 12,
+    padding: 8,
   },
-  toggleButton: {
+
+  // Filter chips row: pb-2 = 8px
+  filtersWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 8,
+    gap: 8,
+  },
+  filtersContent: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 8,
+  },
+  // px-4 py-2 rounded-full text-xs font-semibold
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: C.radiusFull,
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: C.border,
   },
-  toggleButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  filterChipActive: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
   },
-  toggleText: {
+  filterChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: C.textFaded,
   },
-  toggleTextActive: {
+  filterChipTextActive: {
     color: '#fff',
   },
-  loadingContainer: {
+  // Divider between frequency and tag chips
+  filterDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: C.border,
+    alignSelf: 'center',
+  },
+  tagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  // Controls (3-dot) button
+  controlsButton: {
+    padding: 8,
+    borderRadius: C.radiusXl,
+  },
+
+  // Habit card - matches web .habit-card-parent
+  habitCard: {
+    borderRadius: C.radiusLg,
+    padding: 16,
+    marginBottom: 10,
+    // Glass surface with gradient effect
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    // Shadow matching .habit-card-parent box-shadow
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+        }
+      : { elevation: 4 }),
+  },
+  habitCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+
+  // Log button - matches web .log-btn + size-10 sm:size-11
+  logButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: C.borderEmphasis,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
   },
-  loadingText: {
-    fontSize: 14,
-    color: colors.textMuted,
+  // .log-btn-done gradient
+  logButtonDone: {
+    backgroundColor: C.primary,
+    borderColor: 'transparent',
+    // Glow shadow matching .log-btn-done
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: C.primary,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.4,
+          shadowRadius: 16,
+        }
+      : { elevation: 6 }),
   },
+  logButtonOverdue: {
+    borderColor: 'rgba(239,68,68,0.2)',
+  },
+
+  // Content area
+  habitContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  // font-bold text-text-primary text-sm sm:text-base
+  habitTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.textPrimary,
+  },
+  habitTitleDone: {
+    textDecorationLine: 'line-through',
+    textDecorationColor: 'rgba(122,116,144,0.4)',
+  },
+  // text-text-muted text-[11px] sm:text-xs
+  habitDescription: {
+    fontSize: 11,
+    color: C.textMuted,
+    marginTop: 2,
+  },
+
+  // Badges row: flex items-center gap-1.5 mt-1.5 flex-wrap
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  // text-[10px] font-semibold uppercase tracking-widest text-text-muted/70
+  frequencyLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: 'rgba(122,116,144,0.7)',
+  },
+  // Due time: text-[10px] font-medium text-text-secondary
+  dueTimeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: C.textSecondary,
+  },
+  // Badge styles: px-2 py-0.5 rounded-full text-[9px] font-bold
+  badgeOverdue: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: C.radiusFull,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+  },
+  badgeOverdueText: {
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: '#ef4444',
+  },
+  badgeBadHabit: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: C.radiusFull,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.1)',
+  },
+  badgeBadHabitText: {
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: '#f87171',
+  },
+  badgeTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: C.radiusFull,
+  },
+  badgeTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.95)',
+  },
+  badgePrimary: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: C.radiusFull,
+    backgroundColor: 'rgba(139,92,246,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.1)',
+  },
+  badgePrimaryText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: C.primary,
+  },
+  badgeStreak: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: C.radiusFull,
+    backgroundColor: 'rgba(251,191,36,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.1)',
+  },
+  badgeStreakText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  badgeChecklist: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: C.radiusFull,
+    backgroundColor: 'rgba(26,24,41,0.6)',
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+  },
+  badgeChecklistText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: C.textSecondary,
+  },
+
+  // Drill icon (3-dot) on card right
+  drillIcon: {
+    padding: 8,
+  },
+
+  // Habit list container: space-y-2.5 = 10px gap via marginBottom on cards
+  habitListContainer: {
+    paddingTop: 8,
+  },
+
+  // Loading / Skeleton
+  loadingContainer: {
+    paddingTop: 8,
+    gap: 12,
+  },
+  skeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: C.surface,
+    borderRadius: C.radiusLg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    padding: 16,
+  },
+  skeletonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.surfaceElevated,
+  },
+  skeletonContent: {
+    flex: 1,
+    gap: 10,
+  },
+  skeletonLine1: {
+    height: 16,
+    width: '75%',
+    borderRadius: 8,
+    backgroundColor: C.surfaceElevated,
+  },
+  skeletonLine2: {
+    height: 12,
+    width: '40%',
+    borderRadius: 8,
+    backgroundColor: 'rgba(26,24,41,0.6)',
+  },
+
+  // Empty state
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 64,
     gap: 8,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: C.textPrimary,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
   },
+
+  // FAB: matches web's primary button
   fab: {
     position: 'absolute',
-    bottom: 24,
     right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    // Glow shadow matching --shadow-glow
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: C.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+        }
+      : { elevation: 8 }),
   },
 })

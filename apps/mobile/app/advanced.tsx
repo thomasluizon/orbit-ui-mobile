@@ -8,17 +8,31 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import {
   ArrowLeft,
   CheckCircle,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Lock,
+  Smartphone,
+  Clock,
+  List,
+  RotateCcw,
+  X,
 } from 'lucide-react-native'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow, parseISO } from 'date-fns'
+import { getTimezoneList } from '@orbit/shared/utils'
+import { apiKeyKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 
 // ---------------------------------------------------------------------------
-// Colors
+// Colors (from globals.css design system)
 // ---------------------------------------------------------------------------
 
 const colors = {
@@ -27,32 +41,26 @@ const colors = {
   surface: '#13111f',
   surfaceElevated: '#1a1829',
   border: 'rgba(255,255,255,0.07)',
+  borderMuted: 'rgba(255,255,255,0.04)',
   textPrimary: '#f0eef6',
   textSecondary: '#9b95ad',
   textMuted: '#7a7490',
-  green: '#22c55e',
+  green: '#34d399',
+  red: '#ef4444',
+  amber: '#fbbf24',
 }
 
 // ---------------------------------------------------------------------------
-// Common timezone list (subset for mobile)
+// API Keys types
 // ---------------------------------------------------------------------------
 
-const COMMON_TIMEZONES = [
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'America/Sao_Paulo',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Berlin',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Asia/Kolkata',
-  'Australia/Sydney',
-  'Pacific/Auckland',
-  'UTC',
-]
+interface ApiKey {
+  id: string
+  name: string
+  keyPrefix: string
+  createdAtUtc: string
+  lastUsedAtUtc: string | null
+}
 
 // ---------------------------------------------------------------------------
 // Advanced Screen
@@ -61,20 +69,24 @@ const COMMON_TIMEZONES = [
 export default function AdvancedScreen() {
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
+  const queryClient = useQueryClient()
 
-  // Timezone
+  // --- Timezone ---
+  const [timezoneList, setTimezoneList] = useState<string[]>([])
   const [timezoneSearch, setTimezoneSearch] = useState('')
   const [timezoneOpen, setTimezoneOpen] = useState(false)
   const [timezoneSaving, setTimezoneSaving] = useState(false)
   const [timezoneSaved, setTimezoneSaved] = useState(false)
 
+  useEffect(() => {
+    setTimezoneList(getTimezoneList())
+  }, [])
+
   const filteredTimezones = useMemo(() => {
     const search = timezoneSearch.toLowerCase()
-    if (!search) return COMMON_TIMEZONES
-    return COMMON_TIMEZONES.filter((tz) =>
-      tz.toLowerCase().includes(search),
-    )
-  }, [timezoneSearch])
+    if (!search) return timezoneList.slice(0, 50)
+    return timezoneList.filter((tz) => tz.toLowerCase().includes(search)).slice(0, 100)
+  }, [timezoneSearch, timezoneList])
 
   async function handleTimezoneChange(newTimezone: string) {
     setTimezoneSaving(true)
@@ -94,6 +106,50 @@ export default function AdvancedScreen() {
       setTimezoneOpen(false)
       setTimezoneSearch('')
     }, 400)
+  }
+
+  // --- Widget Info ---
+  const [showWidgetInfo, setShowWidgetInfo] = useState(false)
+
+  // --- API Keys ---
+  const apiKeysQuery = useQuery({
+    queryKey: apiKeyKeys.lists(),
+    queryFn: () => apiClient<ApiKey[]>('/api/api-keys'),
+    enabled: profile?.hasProAccess ?? false,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const apiKeys = apiKeysQuery.data ?? []
+  const MAX_API_KEYS = 5
+  const canCreateKey = apiKeys.length < MAX_API_KEYS
+
+  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
+
+  const revokeKeyMutation = useMutation({
+    mutationFn: (id: string) => apiClient(`/api/api-keys/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      setRevokingKeyId(null)
+      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+    },
+  })
+
+  // --- Connection Instructions ---
+  const [instructionsOpen, setInstructionsOpen] = useState(false)
+  const [activeConfigTab, setActiveConfigTab] = useState<'web' | 'desktop' | 'code'>('web')
+
+  const mcpConfigJson = `{
+  "mcpServers": {
+    "orbit": {
+      "url": "https://api.useorbit.org/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}`
+
+  function formatKeyDate(dateStr: string): string {
+    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true })
   }
 
   return (
@@ -119,18 +175,18 @@ export default function AdvancedScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Timezone</Text>
           <View style={styles.timezoneRow}>
-            <Text style={styles.timezoneValue}>
-              Current:{' '}
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.timezoneValue}>Current: </Text>
               <Text style={styles.timezoneHighlight}>
                 {profile?.timeZone || 'Not set'}
               </Text>
-            </Text>
-            {timezoneSaving && (
-              <ActivityIndicator size="small" color={colors.primary} />
-            )}
-            {timezoneSaved && (
-              <CheckCircle size={16} color={colors.green} />
-            )}
+              {timezoneSaving && (
+                <ActivityIndicator size="small" color={colors.primary} />
+              )}
+              {!timezoneSaving && timezoneSaved && (
+                <CheckCircle size={14} color={colors.green} />
+              )}
+            </View>
             <TouchableOpacity
               onPress={() => {
                 setTimezoneOpen(!timezoneOpen)
@@ -153,7 +209,7 @@ export default function AdvancedScreen() {
                 placeholderTextColor={colors.textMuted}
                 autoFocus
               />
-              <View style={styles.timezoneList}>
+              <ScrollView style={styles.timezoneList} nestedScrollEnabled>
                 {filteredTimezones.map((tz) => (
                   <TouchableOpacity
                     key={tz}
@@ -174,16 +230,268 @@ export default function AdvancedScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             </>
           )}
 
           <Text style={styles.hintText}>
-            Your timezone affects when habits reset and when you receive
-            notifications.
+            Your timezone affects when habits reset and when you receive notifications.
           </Text>
         </View>
+
+        {/* Widget tip */}
+        <TouchableOpacity
+          style={styles.navCard}
+          onPress={() => setShowWidgetInfo(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.navCardIcon}>
+            <Smartphone size={20} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.navCardTitle}>Home Screen Widget</Text>
+            <Text style={styles.navCardHint}>Quick access to your habits</Text>
+          </View>
+          <ChevronRight size={16} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        {/* For Developers */}
+        <View style={styles.card}>
+          <View style={styles.developerHeader}>
+            <View style={styles.labelRow}>
+              <Text style={styles.cardLabel}>For Developers</Text>
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            </View>
+            {!profile?.hasProAccess && (
+              <TouchableOpacity
+                onPress={() => router.push('/upgrade')}
+                style={styles.lockRow}
+              >
+                <Lock size={14} color={colors.primary} />
+                <Text style={styles.lockText}>PRO</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Text style={styles.cardDescription}>
+            Connect Orbit to Claude, Cursor, and other AI assistants via the Model Context Protocol.
+          </Text>
+
+          {profile?.hasProAccess && (
+            <>
+              {/* API Keys Sub-section */}
+              <View style={{ gap: 10, marginTop: 4 }}>
+                <View style={styles.apiKeysHeaderRow}>
+                  <Text style={styles.subLabel}>API KEYS</Text>
+                  {canCreateKey && (
+                    <TouchableOpacity
+                      style={styles.createKeyButton}
+                      onPress={() => {
+                        // Would open create key modal
+                      }}
+                    >
+                      <Plus size={14} color={colors.primary} />
+                      <Text style={styles.createKeyText}>Create</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <Text style={styles.hintText}>
+                  API keys are used to authenticate MCP connections.
+                </Text>
+
+                {!canCreateKey && (
+                  <Text style={styles.warningText}>
+                    Maximum of {MAX_API_KEYS} API keys reached.
+                  </Text>
+                )}
+
+                {/* Loading */}
+                {apiKeysQuery.isLoading && (
+                  <View style={{ gap: 8 }}>
+                    <View style={[styles.skeletonBar, { height: 56 }]} />
+                    <View style={[styles.skeletonBar, { height: 56 }]} />
+                  </View>
+                )}
+
+                {/* Error */}
+                {apiKeysQuery.error && !apiKeysQuery.isLoading && (
+                  <Text style={styles.errorText}>Failed to load API keys.</Text>
+                )}
+
+                {/* Empty */}
+                {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
+                  <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                    <Text style={styles.emptyText}>No API keys yet.</Text>
+                  </View>
+                )}
+
+                {/* Key list */}
+                {apiKeys.length > 0 && (
+                  <View style={{ gap: 8 }}>
+                    {apiKeys.map((key) => (
+                      <View key={key.id} style={styles.apiKeyCard}>
+                        <View style={styles.apiKeyRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.apiKeyName}>{key.name}</Text>
+                            <Text style={styles.apiKeyPrefix}>{key.keyPrefix}...</Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.apiKeyDate}>Created {formatKeyDate(key.createdAtUtc)}</Text>
+                            <Text style={styles.apiKeyDate}>
+                              Last used {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : 'Never'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {revokingKeyId !== key.id ? (
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <TouchableOpacity onPress={() => setRevokingKeyId(key.id)}>
+                              <Text style={styles.revokeText}>Revoke</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={styles.revokeConfirmBar}>
+                            <Text style={styles.revokeConfirmText}>Revoke this key?</Text>
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <TouchableOpacity onPress={() => setRevokingKeyId(null)}>
+                                <Text style={styles.revokeCancelText}>Cancel</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => revokeKeyMutation.mutate(key.id)}>
+                                <Text style={styles.revokeConfirmAction}>Confirm</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Connection Instructions */}
+              <View style={styles.instructionsDivider}>
+                <TouchableOpacity
+                  style={styles.instructionsToggle}
+                  onPress={() => setInstructionsOpen(!instructionsOpen)}
+                >
+                  <Text style={styles.subLabel}>CONNECTION INSTRUCTIONS</Text>
+                  <ChevronDown
+                    size={16}
+                    color={colors.textMuted}
+                    style={instructionsOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
+                  />
+                </TouchableOpacity>
+
+                {instructionsOpen && (
+                  <View style={{ gap: 12, marginTop: 12 }}>
+                    {/* Tab buttons */}
+                    <View style={styles.tabRow}>
+                      {(['web', 'desktop', 'code'] as const).map((tab) => (
+                        <TouchableOpacity
+                          key={tab}
+                          style={[
+                            styles.tabButton,
+                            activeConfigTab === tab && styles.tabButtonActive,
+                          ]}
+                          onPress={() => setActiveConfigTab(tab)}
+                        >
+                          <Text
+                            style={[
+                              styles.tabButtonText,
+                              activeConfigTab === tab && styles.tabButtonTextActive,
+                            ]}
+                          >
+                            {tab === 'web' ? 'Claude Web' : tab === 'desktop' ? 'Claude Desktop' : 'Claude Code'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {activeConfigTab === 'web' ? (
+                      <View style={{ gap: 8 }}>
+                        <Text style={styles.hintText}>
+                          Claude Web uses OAuth -- no API key needed.
+                        </Text>
+                        <View style={styles.codeBlock}>
+                          <Text style={styles.codeText}>https://api.useorbit.org/mcp</Text>
+                        </View>
+                        <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
+                          OAuth authenticates automatically -- no API key required.
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ gap: 8 }}>
+                        <Text style={styles.hintText}>
+                          Add this to your MCP configuration:
+                        </Text>
+                        <View style={styles.codeBlock}>
+                          <Text style={styles.codeText}>{mcpConfigJson}</Text>
+                        </View>
+                        <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
+                          Replace YOUR_API_KEY with an actual key from above.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </>
+          )}
+        </View>
       </ScrollView>
+
+      {/* Widget Info Modal */}
+      <Modal
+        visible={showWidgetInfo}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowWidgetInfo(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Home Screen Widget</Text>
+              <TouchableOpacity onPress={() => setShowWidgetInfo(false)}>
+                <X size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 20 }}>
+              <View style={{ gap: 8 }}>
+                <Text style={styles.widgetSectionTitle}>How to add</Text>
+                {[
+                  '1. Long-press on your home screen',
+                  '2. Tap "Widgets" and search for Orbit',
+                  '3. Choose a widget size and place it',
+                ].map((step) => (
+                  <View key={step} style={styles.widgetStep}>
+                    <Text style={styles.widgetStepNumber}>{step.charAt(0)}</Text>
+                    <Text style={styles.widgetStepText}>{step.slice(3)}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={{ gap: 8 }}>
+                <Text style={styles.widgetSectionTitle}>Features</Text>
+                {[
+                  { icon: <CheckCircle size={16} color={colors.primary} />, text: 'Quick habit completion' },
+                  { icon: <Clock size={16} color={colors.primary} />, text: 'Today\'s progress at a glance' },
+                  { icon: <List size={16} color={colors.primary} />, text: 'Upcoming habits' },
+                  { icon: <RotateCcw size={16} color={colors.primary} />, text: 'Auto-refreshes throughout the day' },
+                ].map((feature) => (
+                  <View key={feature.text} style={styles.widgetFeatureRow}>
+                    {feature.icon}
+                    <Text style={styles.widgetFeatureText}>{feature.text}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -196,11 +504,12 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingTop: 16,
+    paddingTop: 32,
     paddingBottom: 24,
   },
   backButton: { padding: 8, marginLeft: -8 },
@@ -210,11 +519,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
+
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderMuted,
     padding: 20,
     marginBottom: 12,
     gap: 10,
@@ -226,25 +536,57 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: colors.textMuted,
   },
+  cardDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  hintText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  subLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: colors.textMuted,
+  },
+
+  // Pro badge
+  proBadge: {
+    backgroundColor: 'rgba(139,92,246,0.20)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  proBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  lockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  lockText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+  developerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  // Timezone
   timezoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
   },
-  timezoneValue: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  timezoneHighlight: {
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  editLink: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
+  timezoneValue: { fontSize: 14, color: colors.textSecondary },
+  timezoneHighlight: { fontSize: 14, color: colors.textPrimary, fontWeight: '500' },
+  editLink: { fontSize: 12, fontWeight: '600', color: colors.primary },
   searchInput: {
     backgroundColor: colors.background,
     borderRadius: 16,
@@ -261,25 +603,161 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
   },
   timezoneItem: {
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   timezoneItemActive: {
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: 'rgba(139,92,246,0.20)',
   },
-  timezoneItemText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  timezoneItemText: { fontSize: 14, color: colors.textSecondary },
+  timezoneItemTextActive: { color: colors.primary, fontWeight: '500' },
+
+  // Nav card (widget)
+  navCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    padding: 20,
+    marginBottom: 12,
+    gap: 16,
   },
-  timezoneItemTextActive: {
-    color: colors.primary,
-    fontWeight: '500',
+  navCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: 'rgba(139,92,246,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  hintText: {
+  navCardTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  navCardHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  // API Keys
+  apiKeysHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  createKeyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  createKeyText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  warningText: { fontSize: 12, fontWeight: '500', color: colors.amber },
+  errorText: { fontSize: 12, color: colors.red },
+  emptyText: { fontSize: 14, color: colors.textMuted },
+  skeletonBar: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 16,
+    width: '100%',
+  },
+
+  apiKeyCard: {
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: 12,
+    gap: 8,
+  },
+  apiKeyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  apiKeyName: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  apiKeyPrefix: { fontSize: 12, color: colors.textMuted, fontFamily: 'monospace', marginTop: 2 },
+  apiKeyDate: { fontSize: 10, color: colors.textMuted },
+  revokeText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  revokeConfirmBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(239,68,68,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.20)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  revokeConfirmText: { fontSize: 12, color: colors.red },
+  revokeCancelText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  revokeConfirmAction: { fontSize: 12, fontWeight: '600', color: colors.red },
+
+  // Instructions
+  instructionsDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 16,
+    marginTop: 4,
+  },
+  instructionsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tabButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  tabButtonText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  tabButtonTextActive: { color: '#fff' },
+  codeBlock: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 16,
+  },
+  codeText: {
     fontSize: 12,
-    color: colors.textMuted,
+    fontFamily: 'monospace',
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+
+  // Widget info modal
+  widgetSectionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+  widgetStep: { flexDirection: 'row', gap: 8 },
+  widgetStepNumber: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  widgetStepText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+  widgetFeatureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  widgetFeatureText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
 })

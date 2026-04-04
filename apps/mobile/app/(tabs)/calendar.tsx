@@ -8,7 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native'
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, Search, Check } from 'lucide-react-native'
 import {
   addMonths,
   subMonths,
@@ -18,48 +18,175 @@ import {
   endOfWeek,
   addDays,
   isSameMonth,
-  isSameDay,
   isToday,
   format,
+  getDate,
 } from 'date-fns'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useCalendarData } from '@/hooks/use-habits'
+import { useProfile } from '@/hooks/use-profile'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 
 // ---------------------------------------------------------------------------
-// Colors
+// Colors (from globals.css design tokens)
 // ---------------------------------------------------------------------------
 
 const colors = {
   primary: '#8b5cf6',
+  primaryLight: 'rgba(139, 92, 246, 0.20)',
+  primaryRing: 'rgba(139, 92, 246, 0.30)',
   background: '#07060e',
   surfaceGround: '#0d0b16',
   surface: '#13111f',
   surfaceElevated: '#1a1829',
   border: 'rgba(255,255,255,0.07)',
+  borderMuted: 'rgba(255,255,255,0.04)',
   textPrimary: '#f0eef6',
   textSecondary: '#9b95ad',
   textMuted: '#7a7490',
   textFaded: '#a59cba',
-  green: '#22c55e',
-  orange: '#f97316',
+  textFaded40: 'rgba(165, 156, 186, 0.40)',
+  green500: '#22c55e',
+  green400: '#4ade80',
+  green500bg: 'rgba(34, 197, 94, 1)',
+  green500_60: 'rgba(34, 197, 94, 0.60)',
+  orange500: '#f97316',
+  orange400: '#fb923c',
+  orange300: '#fdba74',
+  orange500_30: 'rgba(249, 115, 22, 0.30)',
+  emerald400: '#34d399',
+  emerald500_20: 'rgba(52, 211, 153, 0.20)',
+  emerald500_30: 'rgba(52, 211, 153, 0.30)',
+  emerald400_10: 'rgba(52, 211, 153, 0.10)',
+  orange400_10: 'rgba(251, 146, 60, 0.10)',
+  primary400: '#c084fc',
+  primary_10: 'rgba(139, 92, 246, 0.10)',
+  primary_20: 'rgba(139, 92, 246, 0.20)',
+  red400: '#f87171',
+  red400_10: 'rgba(248, 113, 113, 0.10)',
+  borderFaded30: 'rgba(165, 156, 186, 0.30)',
+  borderDivider: 'rgba(255,255,255,0.02)',
 }
 
 // ---------------------------------------------------------------------------
-// Day cell status color
+// Types
 // ---------------------------------------------------------------------------
 
-function dayDotColor(entries: CalendarDayEntry[]): string | null {
-  if (entries.length === 0) return null
-  const hasCompleted = entries.some((e) => e.status === 'completed')
-  const hasMissed = entries.some((e) => e.status === 'missed')
-  const hasUpcoming = entries.some((e) => e.status === 'upcoming')
+interface GridDay {
+  date: Date
+  dateStr: string
+  day: number
+  isCurrentMonth: boolean
+  isToday: boolean
+  entries: CalendarDayEntry[]
+  completedCount: number
+  totalCount: number
+  completionRatio: number
+}
 
-  if (hasCompleted && !hasMissed) return colors.green
-  if (hasMissed) return colors.orange
-  if (hasUpcoming) return colors.primary
-  return colors.textMuted
+type DayStatus = 'empty' | 'done' | 'missed' | 'upcoming'
+
+// ---------------------------------------------------------------------------
+// Helpers (matching web CalendarGrid logic exactly)
+// ---------------------------------------------------------------------------
+
+function dayStatus(cell: GridDay): DayStatus {
+  if (!cell.isCurrentMonth || cell.totalCount === 0) return 'empty'
+  if (cell.completedCount === cell.totalCount) return 'done'
+  const hasMissed = cell.entries.some((e) => e.status === 'missed')
+  if (hasMissed) return 'missed'
+  return 'upcoming'
+}
+
+function getDayBgColor(cell: GridDay): string {
+  const status = dayStatus(cell)
+  switch (status) {
+    case 'done':
+      return cell.completionRatio >= 0.9 ? colors.green500bg : colors.green500_60
+    case 'missed':
+      return colors.orange500_30
+    case 'upcoming':
+      return colors.primary_20
+    default:
+      return cell.isCurrentMonth ? colors.surfaceGround : 'transparent'
+  }
+}
+
+function getDayTextColor(cell: GridDay): string {
+  if (!cell.isCurrentMonth) return colors.textFaded40
+  const status = dayStatus(cell)
+  switch (status) {
+    case 'done':
+      return '#ffffff'
+    case 'missed':
+      return colors.orange300
+    case 'upcoming':
+      return colors.textPrimary
+    default:
+      return colors.textFaded
+  }
+}
+
+function getDayFontWeight(cell: GridDay): '400' | '500' | '700' {
+  if (!cell.isCurrentMonth) return '400'
+  const status = dayStatus(cell)
+  switch (status) {
+    case 'done':
+      return '700'
+    case 'missed':
+    case 'upcoming':
+      return '500'
+    default:
+      return '400'
+  }
+}
+
+function getDotColor(cell: GridDay): string | null {
+  const status = dayStatus(cell)
+  switch (status) {
+    case 'done':
+      return colors.green400
+    case 'missed':
+      return colors.orange400
+    case 'upcoming':
+      return colors.primary400
+    default:
+      return null
+  }
+}
+
+function statusBadgeColors(entry: CalendarDayEntry): { text: string; bg: string } {
+  if (entry.isBadHabit) {
+    if (entry.status === 'completed') return { text: colors.red400, bg: colors.red400_10 }
+    if (entry.status === 'missed') return { text: colors.emerald400, bg: colors.emerald400_10 }
+    return { text: colors.primary, bg: colors.primary_10 }
+  }
+  if (entry.status === 'completed') return { text: colors.emerald400, bg: colors.emerald400_10 }
+  if (entry.status === 'missed') return { text: colors.orange400, bg: colors.orange400_10 }
+  return { text: colors.primary, bg: colors.primary_10 }
+}
+
+function statusIconBgColor(entry: CalendarDayEntry): {
+  bg: string
+  border: string
+  showCheck: boolean
+} {
+  if (entry.status === 'completed') {
+    return { bg: colors.emerald500_20, border: colors.emerald500_30, showCheck: true }
+  }
+  return { bg: 'transparent', border: colors.borderFaded30, showCheck: false }
+}
+
+function statusLabel(entry: CalendarDayEntry): string {
+  if (entry.isBadHabit) {
+    if (entry.status === 'completed') return 'INDULGED'
+    if (entry.status === 'missed') return 'RESISTED'
+    return 'SCHEDULED'
+  }
+  if (entry.status === 'completed') return 'COMPLETED'
+  if (entry.status === 'missed') return 'MISSED'
+  return 'UPCOMING'
 }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +194,9 @@ function dayDotColor(entries: CalendarDayEntry[]): string | null {
 // ---------------------------------------------------------------------------
 
 export default function CalendarScreen() {
+  const { profile } = useProfile()
+  const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
+
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showDayDetail, setShowDayDetail] = useState(false)
@@ -95,36 +225,69 @@ export default function CalendarScreen() {
     setShowDayDetail(true)
   }, [])
 
-  // Build calendar grid
-  const calendarWeeks = useMemo(() => {
+  // Build weekday headers (matching web CalendarGrid: localized, respecting weekStartDay)
+  const weekdayHeaders = useMemo(() => {
+    const mondayFirst = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    if (weekStartsOn === 0) {
+      return ['Sun', ...mondayFirst.slice(0, 6)]
+    }
+    return mondayFirst
+  }, [weekStartsOn])
+
+  // Build grid days (matching web CalendarGrid exactly)
+  const gridDays = useMemo<GridDay[]>(() => {
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
-    const calStart = startOfWeek(monthStart, { weekStartsOn: 0 })
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
+    const gridStart = startOfWeek(monthStart, { weekStartsOn })
+    const gridEnd = endOfWeek(monthEnd, { weekStartsOn })
 
-    const weeks: Date[][] = []
-    let day = calStart
-    let week: Date[] = []
+    const days: GridDay[] = []
+    let day = gridStart
+    while (day <= gridEnd) {
+      const dateStr = formatAPIDate(day)
+      const entries = dayMap.get(dateStr) ?? []
+      const completedCount = entries.filter((e) => e.status === 'completed').length
+      const totalCount = entries.length
 
-    while (day <= calEnd) {
-      week.push(day)
-      if (week.length === 7) {
-        weeks.push(week)
-        week = []
-      }
+      days.push({
+        date: day,
+        dateStr,
+        day: getDate(day),
+        isCurrentMonth: isSameMonth(day, currentMonth),
+        isToday: isToday(day),
+        entries,
+        completedCount,
+        totalCount,
+        completionRatio: totalCount > 0 ? completedCount / totalCount : 0,
+      })
       day = addDays(day, 1)
     }
 
-    return weeks
-  }, [currentMonth])
+    return days
+  }, [currentMonth, dayMap, weekStartsOn])
 
-  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  // Chunk grid days into weeks (rows of 7)
+  const calendarWeeks = useMemo(() => {
+    const weeks: GridDay[][] = []
+    for (let i = 0; i < gridDays.length; i += 7) {
+      weeks.push(gridDays.slice(i, i + 7))
+    }
+    return weeks
+  }, [gridDays])
 
   // Selected day entries
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return []
     return dayMap.get(selectedDay) ?? []
   }, [selectedDay, dayMap])
+
+  const formattedSelectedDate = useMemo(() => {
+    if (!selectedDay) return ''
+    const date = parseAPIDate(selectedDay)
+    return format(date, 'EEEE, MMMM d, yyyy')
+  }, [selectedDay])
+
+  const completedCount = selectedEntries.filter((e) => e.status === 'completed').length
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -135,31 +298,40 @@ export default function CalendarScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Calendar</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Calendar</Text>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={goToToday}
+              activeOpacity={0.7}
+            >
+              <Search size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Month navigation pill */}
+          <View style={styles.monthNav}>
+            <TouchableOpacity
+              style={styles.monthNavButton}
+              onPress={prevMonth}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={12} color={colors.textFaded} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
+              <Text style={styles.monthLabel}>{monthLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.monthNavButton}
+              onPress={nextMonth}
+              activeOpacity={0.7}
+            >
+              <ChevronRight size={12} color={colors.textFaded} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Month navigation */}
-        <View style={styles.monthNav}>
-          <TouchableOpacity
-            style={styles.monthNavButton}
-            onPress={prevMonth}
-            activeOpacity={0.7}
-          >
-            <ChevronLeft size={14} color={colors.textFaded} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
-            <Text style={styles.monthLabel}>{monthLabel}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.monthNavButton}
-            onPress={nextMonth}
-            activeOpacity={0.7}
-          >
-            <ChevronRight size={14} color={colors.textFaded} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Loading state */}
+        {/* Loading skeleton */}
         {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -168,11 +340,16 @@ export default function CalendarScreen() {
 
         {/* Calendar grid */}
         {!isLoading && (
-          <View style={styles.calendarCard}>
+          <View
+            style={[
+              styles.calendarCard,
+              isFetching && !isLoading ? styles.calendarCardFetching : null,
+            ]}
+          >
             {/* Weekday headers */}
             <View style={styles.weekDayRow}>
-              {weekDays.map((d, i) => (
-                <View key={i} style={styles.weekDayCell}>
+              {weekdayHeaders.map((d) => (
+                <View key={d} style={styles.weekDayCell}>
                   <Text style={styles.weekDayText}>{d}</Text>
                 </View>
               ))}
@@ -181,33 +358,34 @@ export default function CalendarScreen() {
             {/* Day cells */}
             {calendarWeeks.map((week, wi) => (
               <View key={wi} style={styles.weekRow}>
-                {week.map((day, di) => {
-                  const dateStr = formatAPIDate(day)
-                  const isCurrentMonth = isSameMonth(day, currentMonth)
-                  const isCurrentDay = isToday(day)
-                  const entries = dayMap.get(dateStr) ?? []
-                  const dotColor = dayDotColor(entries)
+                {week.map((cell) => {
+                  const bgColor = getDayBgColor(cell)
+                  const textColor = getDayTextColor(cell)
+                  const fontWeight = getDayFontWeight(cell)
+                  const dotColor = getDotColor(cell)
+                  const canSelect = cell.isCurrentMonth
 
                   return (
                     <TouchableOpacity
-                      key={di}
+                      key={cell.dateStr}
                       style={[
                         styles.dayCell,
-                        isCurrentDay && styles.dayCellToday,
+                        { backgroundColor: bgColor },
+                        cell.isToday && styles.dayCellToday,
                       ]}
-                      onPress={() => onSelectDay(dateStr)}
-                      activeOpacity={0.6}
+                      onPress={() => canSelect && onSelectDay(cell.dateStr)}
+                      activeOpacity={canSelect ? 0.6 : 1}
+                      disabled={!canSelect}
                     >
                       <Text
                         style={[
                           styles.dayText,
-                          !isCurrentMonth && styles.dayTextOutside,
-                          isCurrentDay && styles.dayTextToday,
+                          { color: textColor, fontWeight },
                         ]}
                       >
-                        {format(day, 'd')}
+                        {cell.day}
                       </Text>
-                      {dotColor && (
+                      {cell.isCurrentMonth && cell.totalCount > 0 && dotColor && (
                         <View
                           style={[styles.dayDot, { backgroundColor: dotColor }]}
                         />
@@ -223,7 +401,7 @@ export default function CalendarScreen() {
         {/* Legend */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.green }]} />
+            <View style={[styles.legendDot, { backgroundColor: colors.green500 }]} />
             <Text style={styles.legendText}>Done</Text>
           </View>
           <View style={styles.legendItem}>
@@ -231,7 +409,7 @@ export default function CalendarScreen() {
             <Text style={styles.legendText}>Upcoming</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.orange }]} />
+            <View style={[styles.legendDot, { backgroundColor: colors.orange500 }]} />
             <Text style={styles.legendText}>Missed</Text>
           </View>
         </View>
@@ -241,8 +419,8 @@ export default function CalendarScreen() {
       <BottomSheetModal
         open={showDayDetail}
         onClose={() => setShowDayDetail(false)}
-        title={selectedDay ? format(new Date(selectedDay + 'T12:00:00'), 'EEEE, MMM d') : ''}
-        snapPoints={['40%', '70%']}
+        title={formattedSelectedDate}
+        snapPoints={['45%', '75%']}
       >
         {selectedEntries.length === 0 ? (
           <View style={styles.emptyDay}>
@@ -250,36 +428,67 @@ export default function CalendarScreen() {
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
-            {selectedEntries.map((entry, idx) => (
-              <View key={`${entry.habitId}-${idx}`} style={styles.dayEntryRow}>
-                <View
-                  style={[
-                    styles.dayEntryDot,
-                    {
-                      backgroundColor:
-                        entry.status === 'completed'
-                          ? colors.green
-                          : entry.status === 'missed'
-                            ? colors.orange
-                            : colors.primary,
-                    },
-                  ]}
-                />
-                <View style={styles.dayEntryContent}>
-                  <Text style={styles.dayEntryTitle}>{entry.title}</Text>
-                  {entry.dueTime && (
-                    <Text style={styles.dayEntryTime}>{entry.dueTime}</Text>
+            {/* Summary line */}
+            <Text style={styles.summaryText}>
+              {completedCount}/{selectedEntries.length} completed
+            </Text>
+
+            {/* Entries */}
+            {selectedEntries.map((entry, idx) => {
+              const badge = statusBadgeColors(entry)
+              const icon = statusIconBgColor(entry)
+
+              return (
+                <View key={`${entry.habitId}-${idx}`}>
+                  <View style={styles.dayEntryRow}>
+                    {/* Status circle */}
+                    <View
+                      style={[
+                        styles.statusCircle,
+                        {
+                          backgroundColor: icon.bg,
+                          borderColor: icon.border,
+                        },
+                      ]}
+                    >
+                      {icon.showCheck && (
+                        <Check size={12} color={colors.emerald400} />
+                      )}
+                    </View>
+
+                    {/* Habit info */}
+                    <View style={styles.dayEntryContent}>
+                      <View style={styles.dayEntryTitleRow}>
+                        <Text
+                          style={[
+                            styles.dayEntryTitle,
+                            entry.status === 'completed' && styles.dayEntryTitleCompleted,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {entry.title}
+                        </Text>
+                        {entry.dueTime && (
+                          <Text style={styles.dayEntryTime}>{entry.dueTime}</Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Status badge */}
+                    <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                      <Text style={[styles.statusBadgeText, { color: badge.text }]}>
+                        {statusLabel(entry)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Divider */}
+                  {idx < selectedEntries.length - 1 && (
+                    <View style={styles.divider} />
                   )}
                 </View>
-                <Text style={styles.dayEntryStatus}>
-                  {entry.status === 'completed'
-                    ? 'Done'
-                    : entry.status === 'missed'
-                      ? 'Missed'
-                      : 'Upcoming'}
-                </Text>
-              </View>
-            ))}
+              )
+            })}
           </ScrollView>
         )}
       </BottomSheetModal>
@@ -303,9 +512,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+
+  // Header
   header: {
-    paddingTop: 16,
+    paddingTop: 32,
     paddingBottom: 8,
+    gap: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 28,
@@ -313,21 +530,35 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
+  searchButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Month navigation pill
   monthNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderMuted,
     padding: 4,
-    marginTop: 16,
+    // shadow-sm equivalent
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 2,
   },
   monthNavButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -336,19 +567,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
+
+  // Loading
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
   },
+
+  // Calendar card
   calendarCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderMuted,
     padding: 12,
-    marginTop: 12,
+    marginTop: 8,
+    // shadow-sm equivalent
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 2,
   },
+  calendarCardFetching: {
+    opacity: 0.4,
+  },
+
+  // Weekday headers
   weekDayRow: {
     flexDirection: 'row',
     marginBottom: 8,
@@ -359,11 +605,14 @@ const styles = StyleSheet.create({
   },
   weekDayText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
+    fontWeight: '700',
+    color: colors.textFaded,
   },
+
+  // Day rows
   weekRow: {
     flexDirection: 'row',
+    gap: 4,
     marginBottom: 4,
   },
   dayCell: {
@@ -371,30 +620,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 20,
+    gap: 2,
   },
   dayCellToday: {
-    backgroundColor: `${colors.primary}20`,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   dayText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  dayTextOutside: {
-    color: colors.textMuted,
-    opacity: 0.4,
-  },
-  dayTextToday: {
-    color: colors.primary,
-    fontWeight: '700',
   },
   dayDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginTop: 2,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
+
+  // Legend
   legend: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -416,44 +658,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
+
+  // Day detail: empty
   emptyDay: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 32,
   },
   emptyDayText: {
     fontSize: 14,
     color: colors.textMuted,
   },
+
+  // Day detail: summary
+  summaryText: {
+    fontSize: 14,
+    color: colors.textFaded,
+    marginBottom: 12,
+  },
+
+  // Day detail: entries
   dayEntryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     gap: 12,
   },
-  dayEntryDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  statusCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayEntryContent: {
     flex: 1,
+    minWidth: 0,
+  },
+  dayEntryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
   },
   dayEntryTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  dayEntryTitleCompleted: {
+    opacity: 0.6,
   },
   dayEntryTime: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  dayEntryStatus: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: colors.textSecondary,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderDivider,
   },
 })

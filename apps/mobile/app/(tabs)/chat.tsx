@@ -9,11 +9,14 @@ import {
   Platform,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
+  Animated,
 } from 'react-native'
 import {
   Sparkles,
   SendHorizontal,
   Image as ImageIcon,
+  Mic,
 } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
@@ -33,17 +36,83 @@ const STARTER_CHIPS = [
   'Plan my week',
 ]
 
+const SUGGESTION_CHIPS = [
+  'I meditated today',
+  'Went to the gym',
+  'Need groceries',
+]
+
+// ---------------------------------------------------------------------------
+// Colors (from globals.css design tokens)
+// ---------------------------------------------------------------------------
+
 const colors = {
   primary: '#8b5cf6',
+  primary_15: 'rgba(139, 92, 246, 0.15)',
   background: '#07060e',
   surface: '#13111f',
   surfaceElevated: '#1a1829',
   border: 'rgba(255,255,255,0.07)',
   borderMuted: 'rgba(255,255,255,0.04)',
+  border50: 'rgba(255,255,255,0.035)',
   textPrimary: '#f0eef6',
   textSecondary: '#9b95ad',
   textMuted: '#7a7490',
-  amber: '#f59e0b',
+  amber400: '#fbbf24',
+  red400: '#f87171',
+}
+
+// ---------------------------------------------------------------------------
+// Animated Sparkle Icon for empty state
+// ---------------------------------------------------------------------------
+
+function AnimatedSparkle() {
+  const scale = useRef(new Animated.Value(1)).current
+  const opacity = useRef(new Animated.Value(0.7)).current
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.1,
+            duration: 1250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: 1250,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 1250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0.7,
+            duration: 1250,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    )
+    animation.start()
+    return () => animation.stop()
+  }, [scale, opacity])
+
+  return (
+    <View style={styles.sparkleOuter}>
+      {/* Glow */}
+      <View style={styles.sparkleGlow} />
+      {/* Icon */}
+      <Animated.View style={{ transform: [{ scale }], opacity }}>
+        <Sparkles size={28} color={colors.primary} />
+      </Animated.View>
+    </View>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -177,22 +246,21 @@ export default function ChatScreen() {
         {/* Messages area */}
         {showSuggestions ? (
           <View style={styles.emptyState}>
-            {/* Sparkle icon */}
-            <View style={styles.sparkleContainer}>
-              <Sparkles size={28} color={colors.primary} />
-            </View>
+            {/* Animated sparkle icon */}
+            <AnimatedSparkle />
+
             <Text style={styles.emptyText}>How can I help you today?</Text>
 
             {/* Suggestion chips */}
-            <View style={styles.chipsContainer}>
-              {STARTER_CHIPS.map((chip) => (
+            <View style={styles.suggestionsContainer}>
+              {SUGGESTION_CHIPS.map((chip) => (
                 <TouchableOpacity
                   key={chip}
-                  style={styles.chip}
+                  style={styles.suggestionChip}
                   onPress={() => sendMessage(chip)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.chipText}>{chip}</Text>
+                  <Text style={styles.suggestionChipText}>{chip}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -217,9 +285,14 @@ export default function ChatScreen() {
             <Text style={styles.errorText}>{sendError}</Text>
           )}
 
-          {/* Quick chips (after first message) */}
+          {/* Quick chips (after first message) - horizontal scrollable */}
           {messages.length > 0 && (
-            <View style={styles.quickChips}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickChipsContent}
+              style={styles.quickChipsScroll}
+            >
               {STARTER_CHIPS.map((chip) => (
                 <TouchableOpacity
                   key={chip}
@@ -230,13 +303,17 @@ export default function ChatScreen() {
                   <Text style={styles.quickChipText}>{chip}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           )}
 
           {/* Input bar */}
           <View style={styles.inputBar}>
-            <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-              <ImageIcon size={16} color={colors.textMuted} />
+            <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+              <ImageIcon size={15} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+              <Mic size={16} color={colors.textMuted} />
             </TouchableOpacity>
 
             <TextInput
@@ -291,129 +368,156 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
+
+  // Header (matching web: centered title, bold, fluid-lg equivalent)
   header: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.textPrimary,
     textAlign: 'center',
   },
+
+  // Empty state (matching web: centered with sparkle orb + suggestion chips)
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 24,
     paddingHorizontal: 20,
   },
-  sparkleContainer: {
+  sparkleOuter: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sparkleGlow: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary_15,
+  },
+
   emptyText: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textSecondary,
   },
-  chipsContainer: {
+
+  // Suggestion chips (centered, wrapping, matching web SuggestionChips)
+  suggestionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
-    paddingTop: 8,
+    paddingTop: 0,
     maxWidth: 320,
   },
-  chip: {
+  suggestionChip: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    paddingVertical: 8,
+    borderRadius: 9999,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderMuted,
   },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
+  suggestionChipText: {
+    fontSize: 12,
+    fontWeight: '500',
     color: colors.textPrimary,
   },
+
+  // Message list
   messageList: {
     paddingVertical: 16,
   },
+
+  // Input area (matching web: border-top, glass bg)
   inputArea: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderMuted,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 16,
     backgroundColor: colors.background,
   },
   errorText: {
-    fontSize: 13,
-    color: '#ef4444',
+    fontSize: 14,
+    color: colors.red400,
     textAlign: 'center',
     marginBottom: 8,
   },
-  quickChips: {
-    flexDirection: 'row',
-    gap: 8,
+
+  // Quick chips (horizontal scroll, matching web starter chips in chat)
+  quickChipsScroll: {
     marginBottom: 12,
   },
+  quickChipsContent: {
+    gap: 8,
+  },
   quickChip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 9999,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border50,
   },
   quickChipText: {
     fontSize: 11,
     fontWeight: '500',
     color: colors.textPrimary,
   },
+
+  // Input bar (matching web: bg-surface-elevated, rounded-lg, border-border-muted)
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     backgroundColor: colors.surfaceElevated,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    gap: 6,
+    borderColor: colors.borderMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
   },
-  attachButton: {
-    padding: 8,
+  iconButton: {
+    padding: 4,
   },
   textInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textPrimary,
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
     maxHeight: 120,
     minHeight: 36,
   },
   sendButton: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    // shadow-glow-sm equivalent
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 3,
   },
   sendButtonDisabled: {
     opacity: 0.4,
   },
   limitText: {
     fontSize: 10,
-    color: colors.amber,
+    color: colors.amber400,
     textAlign: 'center',
     marginTop: 8,
     fontWeight: '500',

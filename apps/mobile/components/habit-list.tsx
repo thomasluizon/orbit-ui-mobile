@@ -1,14 +1,18 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
 } from 'react-native'
-import { Plus } from 'lucide-react-native'
+import {
+  Plus,
+  ClipboardList,
+  CheckCircle2,
+} from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { HabitCard } from './habit-card'
@@ -20,20 +24,45 @@ import { HabitCard } from './habit-card'
 interface HabitListProps {
   filters: HabitsFilter
   dateStr: string
+  selectedDate?: Date
   showCompleted: boolean
   onCreatePress: () => void
+  onSeeUpcoming?: () => void
 }
 
 // ---------------------------------------------------------------------------
-// Colors
+// Colors (from globals.css design tokens)
 // ---------------------------------------------------------------------------
 
 const colors = {
+  background: '#07060e',
+  surfaceGround: '#0d0b16',
+  surface: '#13111f',
+  surfaceElevated: '#1a1829',
   primary: '#8b5cf6',
   textPrimary: '#f0eef6',
   textSecondary: '#9b95ad',
   textMuted: '#7a7490',
-  surface: '#13111f',
+  border: 'rgba(255, 255, 255, 0.07)',
+  borderMuted: 'rgba(255, 255, 255, 0.04)',
+  success: '#34d399',
+  white: '#ffffff',
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton card for loading state
+// ---------------------------------------------------------------------------
+
+function SkeletonCard() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonCircle} />
+      <View style={styles.skeletonContent}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonSubtitle} />
+      </View>
+    </View>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -43,70 +72,188 @@ const colors = {
 export function HabitList({
   filters,
   dateStr,
+  selectedDate,
   showCompleted,
   onCreatePress,
+  onSeeUpcoming,
 }: HabitListProps) {
+  const { t } = useTranslation()
   const habitsQuery = useHabits(filters)
   const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
+  const totalCount = habitsQuery.data?.totalCount ?? 0
   const isLoading = habitsQuery.isLoading
   const isFetching = habitsQuery.isFetching
   const refetch = habitsQuery.refetch
+  const getChildren = habitsQuery.getChildren
 
   const logMutation = useLogHabit()
   const skipMutation = useSkipHabit()
 
-  // Filter out completed habits if needed
-  const visibleHabits = showCompleted
-    ? topLevelHabits
-    : topLevelHabits.filter((h) => !h.isCompleted)
+  // Collapse state
+  const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
 
-  const handleLog = useCallback(
-    (habitId: string) => {
-      logMutation.mutate({ habitId })
-    },
-    [logMutation],
-  )
+  const toggleExpand = useCallback((habitId: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(habitId)) {
+        next.delete(habitId)
+      } else {
+        next.add(habitId)
+      }
+      return next
+    })
+  }, [])
 
-  const handleSkip = useCallback(
+  // Filter habits
+  const visibleHabits = useMemo(() => {
+    if (showCompleted) return topLevelHabits
+    return topLevelHabits.filter((h) => !h.isCompleted)
+  }, [topLevelHabits, showCompleted])
+
+  // Build flat drag items (tree flattening with depth)
+  interface DragItem {
+    id: string
+    habit: NormalizedHabit
+    depth: number
+    hasChildren: boolean
+    hasSubHabits: boolean
+  }
+
+  const flatItems = useMemo<DragItem[]>(() => {
+    const items: DragItem[] = []
+
+    function addHabitTree(habit: NormalizedHabit, depth: number) {
+      const children = getChildren(habit.id)
+      items.push({
+        id: habit.id,
+        habit,
+        depth,
+        hasChildren: children.length > 0,
+        hasSubHabits: habit.hasSubHabits,
+      })
+      if (!collapsedIds.has(habit.id)) {
+        for (const child of children) {
+          addHabitTree(child, depth + 1)
+        }
+      }
+    }
+
+    for (const h of visibleHabits) {
+      addHabitTree(h, 0)
+    }
+
+    return items
+  }, [visibleHabits, collapsedIds, getChildren])
+
+  // Children progress
+  const getChildrenProgress = useCallback(
     (habitId: string) => {
-      skipMutation.mutate({ habitId })
+      const children = getChildren(habitId)
+      let done = 0
+      let total = 0
+      for (const child of children) {
+        total++
+        if (child.isCompleted || child.isLoggedInRange) done++
+        const nested = getChildren(child.id)
+        for (const nc of nested) {
+          total++
+          if (nc.isCompleted || nc.isLoggedInRange) done++
+        }
+      }
+      return { done, total }
     },
-    [skipMutation],
+    [getChildren],
   )
 
   const renderItem = useCallback(
-    ({ item }: { item: NormalizedHabit }) => (
-      <HabitCard
-        habit={item}
-        dateStr={dateStr}
-        isLogged={item.isCompleted}
-        onLog={handleLog}
-        onSkip={handleSkip}
-      />
-    ),
-    [dateStr, handleLog, handleSkip],
+    ({ item }: { item: DragItem }) => {
+      const progress = item.hasChildren
+        ? getChildrenProgress(item.habit.id)
+        : { done: 0, total: 0 }
+
+      return (
+        <HabitCard
+          habit={item.habit}
+          selectedDate={selectedDate}
+          depth={item.depth}
+          hasChildren={item.hasChildren}
+          hasSubHabits={item.hasSubHabits}
+          isExpanded={!collapsedIds.has(item.habit.id)}
+          childrenDone={progress.done}
+          childrenTotal={progress.total}
+          showAddSubHabit
+          onLog={() => logMutation.mutate({ habitId: item.habit.id })}
+          onUnlog={() => logMutation.mutate({ habitId: item.habit.id })}
+          onSkip={() => skipMutation.mutate({ habitId: item.habit.id })}
+          onToggleExpand={() => toggleExpand(item.habit.id)}
+        />
+      )
+    },
+    [
+      selectedDate,
+      collapsedIds,
+      getChildrenProgress,
+      logMutation,
+      skipMutation,
+      toggleExpand,
+    ],
   )
 
   const keyExtractor = useCallback(
-    (item: NormalizedHabit) => item.id,
+    (item: DragItem) => item.id,
     [],
   )
 
+  // Loading skeleton (matches web: 3 skeleton cards)
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.skeletonContainer}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </View>
+    )
+  }
+
+  // All done today empty state
+  if (
+    flatItems.length === 0 &&
+    totalCount > 0 &&
+    !showCompleted
+  ) {
+    return (
+      <View style={styles.emptyAllDone}>
+        <View style={styles.allDoneIconContainer}>
+          <CheckCircle2 size={40} color={colors.success} />
+        </View>
+        <Text style={styles.allDoneTitle}>
+          {t('habits.allDoneToday')}
+        </Text>
+        <Text style={styles.allDoneSubtitle}>
+          {t('habits.allDoneHint')}
+        </Text>
+        {onSeeUpcoming && (
+          <TouchableOpacity
+            style={styles.seeUpcomingButton}
+            onPress={onSeeUpcoming}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.seeUpcomingText}>
+              {t('habits.seeUpcoming')}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     )
   }
 
   return (
     <FlatList
-      data={visibleHabits}
+      data={flatItems}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       contentContainerStyle={
-        visibleHabits.length === 0 ? styles.emptyContainer : styles.listContent
+        flatItems.length === 0 ? styles.emptyContainer : styles.listContent
       }
       refreshControl={
         <RefreshControl
@@ -117,17 +264,20 @@ export function HabitList({
       }
       ListEmptyComponent={
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No habits yet</Text>
+          <View style={styles.emptyIconContainer}>
+            <ClipboardList size={40} color={colors.textMuted} />
+          </View>
           <Text style={styles.emptySubtitle}>
-            Create your first habit to get started
+            {t('habits.noHabitsYet')}
           </Text>
           <TouchableOpacity
-            style={styles.emptyButton}
+            style={styles.createButton}
             onPress={onCreatePress}
             activeOpacity={0.8}
           >
-            <Plus size={18} color="#fff" />
-            <Text style={styles.emptyButtonText}>Create Habit</Text>
+            <Text style={styles.createButtonText}>
+              {t('habits.createHabit')}
+            </Text>
           </TouchableOpacity>
         </View>
       }
@@ -141,47 +291,138 @@ export function HabitList({
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
+  // Skeleton loading (matches web skeleton)
+  skeletonContainer: {
+    paddingTop: 8,
+    gap: 12,
   },
+  skeletonCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  skeletonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonContent: {
+    flex: 1,
+    gap: 10,
+  },
+  skeletonTitle: {
+    height: 16,
+    width: '75%',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 8,
+  },
+  skeletonSubtitle: {
+    height: 12,
+    width: '40%',
+    backgroundColor: 'rgba(26, 24, 41, 0.6)',
+    borderRadius: 8,
+  },
+
+  // List
   listContent: {
     paddingBottom: 100,
   },
   emptyContainer: {
     flex: 1,
   },
-  emptyState: {
+
+  // Empty: all done today (matches web allDoneToday state)
+  emptyAllDone: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    gap: 8,
+    paddingVertical: 64,
   },
-  emptyTitle: {
+  allDoneIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(52, 211, 153, 0.1)', // bg-success/10
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.2)', // border-success/20
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  allDoneTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  allDoneSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  seeUpcomingButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12, // rounded-xl
+    backgroundColor: 'rgba(139, 92, 246, 0.1)', // bg-primary/10
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)', // border-primary/20
+  },
+  seeUpcomingText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
+  // Empty: no habits (matches web no habits state)
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.surfaceGround, // bg-surface-ground
+    borderWidth: 1,
+    borderColor: colors.borderMuted, // border-border-muted
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptySubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
+  createButton: {
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    // Glow shadow
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  emptyButtonText: {
-    fontSize: 15,
+  createButtonText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.white,
   },
 })

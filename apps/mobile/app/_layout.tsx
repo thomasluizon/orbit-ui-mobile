@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { View } from 'react-native'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { Providers } from '@/lib/providers'
@@ -92,7 +93,9 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <Providers>
-      <RootLayoutNav />
+      <View style={{ flex: 1, backgroundColor: '#07060e' }}>
+        <RootLayoutNav />
+      </View>
     </Providers>
   )
 }

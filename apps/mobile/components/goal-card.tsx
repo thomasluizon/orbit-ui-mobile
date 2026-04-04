@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { Target, ChevronRight } from 'lucide-react-native'
+import { differenceInDays, parseISO } from 'date-fns'
+import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 
 // ---------------------------------------------------------------------------
@@ -12,52 +14,23 @@ interface GoalCardProps {
 }
 
 // ---------------------------------------------------------------------------
-// Colors
+// Colors (from globals.css design tokens)
 // ---------------------------------------------------------------------------
 
 const colors = {
-  primary: '#8b5cf6',
   surface: '#13111f',
-  border: 'rgba(255,255,255,0.07)',
+  surfaceElevated: '#1a1829',
+  primary: '#8b5cf6',
   textPrimary: '#f0eef6',
   textSecondary: '#9b95ad',
   textMuted: '#7a7490',
-  green: '#22c55e',
-  orange: '#f97316',
-  red: '#ef4444',
-  blue: '#3b82f6',
-}
-
-function statusColor(status?: string): string {
-  switch (status) {
-    case 'on_track':
-      return colors.green
-    case 'at_risk':
-      return colors.orange
-    case 'behind':
-      return colors.red
-    case 'completed':
-      return colors.green
-    default:
-      return colors.textMuted
-  }
-}
-
-function statusLabel(status?: string): string {
-  switch (status) {
-    case 'on_track':
-      return 'On Track'
-    case 'at_risk':
-      return 'At Risk'
-    case 'behind':
-      return 'Behind'
-    case 'completed':
-      return 'Completed'
-    case 'no_deadline':
-      return 'No Deadline'
-    default:
-      return ''
-  }
+  borderMuted: 'rgba(255, 255, 255, 0.04)',
+  green400: '#4ade80',
+  green500: '#22c55e',
+  amber400: '#fbbf24',
+  amber500: '#f59e0b',
+  red400: '#f87171',
+  red500: '#ef4444',
 }
 
 // ---------------------------------------------------------------------------
@@ -65,119 +38,270 @@ function statusLabel(status?: string): string {
 // ---------------------------------------------------------------------------
 
 export function GoalCard({ goal, onPress }: GoalCardProps) {
+  const { t } = useTranslation()
   const progress = Math.min(100, Math.round(goal.progressPercentage))
-  const color = statusColor(goal.trackingStatus)
+
+  // Progress bar color (matches web progressColor logic)
+  const progressBarColor = useMemo(() => {
+    if (goal.status === 'Completed') return colors.green500
+    if (goal.status === 'Abandoned') return colors.textMuted
+    if (goal.progressPercentage >= 75) return colors.green500
+    return colors.primary
+  }, [goal.status, goal.progressPercentage])
+
+  // Deadline info (matches web deadlineInfo logic)
+  const deadlineInfo = useMemo(() => {
+    if (!goal.deadline) return null
+    const deadlineDate = parseISO(goal.deadline)
+    const today = new Date()
+    const daysLeft = differenceInDays(deadlineDate, today)
+
+    if (goal.status !== 'Active') return null
+
+    if (daysLeft < 0) {
+      return {
+        text: t('goals.deadline.overdue'),
+        textColor: colors.red400,
+        bgColor: 'rgba(239, 68, 68, 0.1)', // bg-red-500/10
+      }
+    }
+    if (daysLeft <= 7) {
+      return {
+        text: t('goals.deadline.daysLeft', { n: daysLeft }),
+        textColor: colors.amber400,
+        bgColor: 'rgba(245, 158, 11, 0.1)', // bg-amber-500/10
+      }
+    }
+    return {
+      text: t('goals.deadline.daysLeft', { n: daysLeft }),
+      textColor: colors.textMuted,
+      bgColor: colors.surfaceElevated,
+    }
+  }, [goal.deadline, goal.status, t])
+
+  // Status badge (matches web statusBadge logic)
+  const statusBadge = useMemo(() => {
+    if (goal.status === 'Completed') {
+      return {
+        text: t('goals.status.completed'),
+        textColor: colors.green400,
+        bgColor: 'rgba(34, 197, 94, 0.1)', // bg-green-500/10
+      }
+    }
+    if (goal.status === 'Abandoned') {
+      return {
+        text: t('goals.status.abandoned'),
+        textColor: colors.textMuted,
+        bgColor: colors.surfaceElevated,
+      }
+    }
+    return null
+  }, [goal.status, t])
+
+  // Tracking status left border color (matches web trackingBorderClass)
+  const trackingBorder = useMemo(() => {
+    switch (goal.trackingStatus) {
+      case 'on_track':
+        return { borderLeftWidth: 3, borderLeftColor: colors.green500 }
+      case 'at_risk':
+        return { borderLeftWidth: 3, borderLeftColor: colors.amber500 }
+      case 'behind':
+        return { borderLeftWidth: 3, borderLeftColor: colors.red500 }
+      default:
+        return {}
+    }
+  }, [goal.trackingStatus])
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, trackingBorder]}
       onPress={() => onPress?.(goal.id)}
-      activeOpacity={0.7}
+      activeOpacity={0.85}
       disabled={!onPress}
     >
-      {/* Icon */}
-      <View style={[styles.iconContainer, { backgroundColor: `${colors.primary}15` }]}>
-        <Target size={20} color={colors.primary} />
-      </View>
-
-      {/* Content */}
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={1}>
-          {goal.title}
+        {/* Title row */}
+        <View style={styles.titleRow}>
+          <Text
+            style={[
+              styles.title,
+              goal.status === 'Abandoned' && styles.titleAbandoned,
+            ]}
+            numberOfLines={1}
+          >
+            {goal.title}
+          </Text>
+          {statusBadge && (
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusBadge.bgColor },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: statusBadge.textColor },
+                ]}
+              >
+                {statusBadge.text}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Progress text */}
+        <Text style={styles.progressLabel}>
+          {t('goals.progressOf', {
+            current: goal.currentValue,
+            target: goal.targetValue,
+            unit: goal.unit,
+          })}
         </Text>
 
         {/* Progress bar */}
-        <View style={styles.progressBar}>
+        <View
+          style={styles.progressBar}
+          accessibilityRole="progressbar"
+          accessibilityValue={{
+            min: 0,
+            max: 100,
+            now: progress,
+          }}
+        >
           <View
             style={[
               styles.progressFill,
               {
                 width: `${progress}%`,
-                backgroundColor: color,
+                backgroundColor: progressBarColor,
               },
             ]}
           />
         </View>
 
-        {/* Meta row */}
-        <View style={styles.metaRow}>
-          <Text style={styles.progressText}>
-            {goal.currentValue}/{goal.targetValue} {goal.unit}
+        {/* Footer: percentage + deadline */}
+        <View style={styles.footer}>
+          <Text style={styles.percentText}>
+            {t('goals.progressPercentage', { pct: goal.progressPercentage })}
           </Text>
-          {goal.trackingStatus && (
-            <View style={[styles.statusBadge, { backgroundColor: `${color}20` }]}>
-              <Text style={[styles.statusText, { color }]}>
-                {statusLabel(goal.trackingStatus)}
+          {deadlineInfo && (
+            <View
+              style={[
+                styles.deadlineBadge,
+                { backgroundColor: deadlineInfo.bgColor },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.deadlineBadgeText,
+                  { color: deadlineInfo.textColor },
+                ]}
+              >
+                {deadlineInfo.text}
               </Text>
             </View>
           )}
         </View>
       </View>
-
-      {onPress && <ChevronRight size={16} color={colors.textMuted} />}
     </TouchableOpacity>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Styles
+// Styles (matches web goal-card exactly)
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  // Card: matches bg-surface rounded-[var(--radius-xl)] p-5 border border-border-muted shadow-sm
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20, // --radius-xl = 1.25rem = 20px
+    padding: 20, // p-5
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    marginBottom: 8,
-    gap: 12,
+    borderColor: colors.borderMuted,
+    marginBottom: 10, // space-y-2.5
+    // Shadow matching --shadow-sm
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 4,
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   content: {
     flex: 1,
     minWidth: 0,
   },
+
+  // Title row
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8, // gap-2
+    marginBottom: 4, // mb-1
+  },
   title: {
-    fontSize: 15,
+    fontSize: 14, // text-sm
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: 6,
+    flex: 1,
   },
+  titleAbandoned: {
+    textDecorationLine: 'line-through',
+    color: colors.textMuted,
+  },
+
+  // Status badge (completed/abandoned)
+  statusBadge: {
+    paddingHorizontal: 8, // px-2
+    paddingVertical: 2, // py-0.5
+    borderRadius: 9999,
+  },
+  statusBadgeText: {
+    fontSize: 10, // text-[10px]
+    fontWeight: '700',
+  },
+
+  // Progress text
+  progressLabel: {
+    fontSize: 12, // text-xs
+    color: colors.textSecondary,
+    marginBottom: 8, // mb-2
+  },
+
+  // Progress bar: h-2 bg-surface-elevated rounded-full
   progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 2,
+    height: 8, // h-2
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 9999,
     overflow: 'hidden',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 9999,
   },
-  metaRow: {
+
+  // Footer
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  progressText: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  percentText: {
+    fontSize: 11, // text-[11px]
+    fontWeight: '500',
+    color: colors.textMuted,
   },
-  statusBadge: {
-    paddingHorizontal: 6,
+
+  // Deadline badge
+  deadlineBadge: {
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 9999,
   },
-  statusText: {
+  deadlineBadgeText: {
     fontSize: 10,
     fontWeight: '700',
   },

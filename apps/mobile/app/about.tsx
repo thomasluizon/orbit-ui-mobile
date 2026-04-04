@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -10,23 +11,57 @@ import { useRouter } from 'expo-router'
 import {
   ArrowLeft,
   BookOpen,
-  MessageCircle,
+  MessageSquare,
   ShieldCheck,
   ChevronRight,
+  Gift,
 } from 'lucide-react-native'
 
 // ---------------------------------------------------------------------------
-// Colors
+// Colors (from globals.css design system)
 // ---------------------------------------------------------------------------
 
 const colors = {
   primary: '#8b5cf6',
   background: '#07060e',
   surface: '#13111f',
+  surfaceElevated: '#1a1829',
   border: 'rgba(255,255,255,0.07)',
+  borderMuted: 'rgba(255,255,255,0.04)',
   textPrimary: '#f0eef6',
   textSecondary: '#9b95ad',
   textMuted: '#7a7490',
+}
+
+// ---------------------------------------------------------------------------
+// NavRow component
+// ---------------------------------------------------------------------------
+
+function NavRow({
+  icon,
+  title,
+  hint,
+  onPress,
+}: {
+  icon: React.ReactNode
+  title: string
+  hint: string
+  onPress: () => void
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.navCard}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.navCardIcon}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.navCardTitle}>{title}</Text>
+        <Text style={styles.navCardHint}>{hint}</Text>
+      </View>
+      <ChevronRight size={16} color={colors.textMuted} />
+    </TouchableOpacity>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -35,33 +70,6 @@ const colors = {
 
 export default function AboutScreen() {
   const router = useRouter()
-
-  function NavRow({
-    icon,
-    title,
-    hint,
-    onPress,
-  }: {
-    icon: React.ReactNode
-    title: string
-    hint: string
-    onPress: () => void
-  }) {
-    return (
-      <TouchableOpacity
-        style={styles.navCard}
-        onPress={onPress}
-        activeOpacity={0.7}
-      >
-        <View style={styles.navCardIcon}>{icon}</View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.navCardTitle}>{title}</Text>
-          <Text style={styles.navCardHint}>{hint}</Text>
-        </View>
-        <ChevronRight size={16} color={colors.textMuted} />
-      </TouchableOpacity>
-    )
-  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -88,13 +96,23 @@ export default function AboutScreen() {
           title="Feature Guide"
           hint="Learn how to get the most out of Orbit"
           onPress={() => {
-            // Would navigate to onboarding/feature guide
+            // Feature guide -- could navigate or open a bottom sheet
+          }}
+        />
+
+        {/* Referral */}
+        <NavRow
+          icon={<Gift size={20} color={colors.primary} />}
+          title="Refer a Friend"
+          hint="Share Orbit and earn rewards"
+          onPress={() => {
+            // Referral flow
           }}
         />
 
         {/* Support */}
         <NavRow
-          icon={<MessageCircle size={20} color={colors.primary} />}
+          icon={<MessageSquare size={20} color={colors.primary} />}
           title="Support"
           hint="Get help or send feedback"
           onPress={() => router.push('/support')}
@@ -120,11 +138,12 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingTop: 16,
+    paddingTop: 32,
     paddingBottom: 24,
   },
   backButton: { padding: 8, marginLeft: -8 },
@@ -134,13 +153,14 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
+
   navCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderMuted,
     padding: 20,
     marginBottom: 8,
     gap: 16,
@@ -148,8 +168,8 @@ const styles = StyleSheet.create({
   navCardIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: `${colors.primary}15`,
+    borderRadius: 16,
+    backgroundColor: 'rgba(139,92,246,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
