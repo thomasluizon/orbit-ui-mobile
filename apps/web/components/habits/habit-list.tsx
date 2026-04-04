@@ -651,11 +651,13 @@ export function HabitList({
         habit={habitToEdit}
       />
 
-      <CreateHabitModal
-        open={showSubHabitModal}
-        onOpenChange={setShowSubHabitModal}
-        parentHabit={subHabitParent}
-      />
+      {showSubHabitModal && (
+        <CreateHabitModal
+          open={showSubHabitModal}
+          onOpenChange={setShowSubHabitModal}
+          parentHabit={subHabitParent}
+        />
+      )}
 
       <LogHabitModal
         open={showLogModal}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -10,9 +10,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  CheckCircle,
   X,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { userFactKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
@@ -54,6 +56,7 @@ async function bulkDeleteUserFacts(ids: string[]): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export default function AiSettingsPage() {
+  const t = useTranslations()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
 
@@ -176,23 +179,23 @@ export default function AiSettingsPage() {
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
-          aria-label="Back to profile"
+          aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          AI Features
+          {t('aiSettings.title')}
         </h1>
       </header>
 
       <div className="space-y-4">
         {/* AI Memory */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
+        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                AI Memory
+                {t('profile.aiMemory.title')}
               </h2>
               <ProBadge />
             </div>
@@ -216,32 +219,32 @@ export default function AiSettingsPage() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
               >
                 <Lock className="size-3.5" />
-                PRO
+                {t('common.proBadge')}
               </Link>
             )}
           </div>
           <p className="text-sm text-text-secondary">
-            Orbit remembers what you share in conversations to give more personalized advice.
+            {t('profile.aiMemory.description')}
           </p>
           <p className="text-xs text-text-muted leading-relaxed">
             <ShieldCheck className="size-3.5 inline-block align-text-bottom mr-1 text-emerald-400" />
-            Your data is never shared with third parties or used to train models.
+            {t('profile.aiMemory.privacy')}
           </p>
           <p
             className={`text-xs font-medium ${
               profile?.aiMemoryEnabled ? 'text-primary' : 'text-text-muted'
             }`}
           >
-            {profile?.aiMemoryEnabled ? 'Enabled' : 'Disabled'}
+            {profile?.aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
           </p>
         </div>
 
         {/* AI Summary */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
+        <div className="bg-surface rounded-(--radius-xl) border border-border-muted shadow-(--shadow-sm) p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                AI Daily Summary
+                {t('profile.aiSummary.title')}
               </h2>
               <ProBadge />
             </div>
@@ -265,19 +268,19 @@ export default function AiSettingsPage() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
               >
                 <Lock className="size-3.5" />
-                PRO
+                {t('common.proBadge')}
               </Link>
             )}
           </div>
           <p className="text-sm text-text-secondary">
-            Get a personalized AI-generated summary of your day based on your habit logs.
+            {t('profile.aiSummary.description')}
           </p>
           <p
             className={`text-xs font-medium ${
               profile?.aiSummaryEnabled ? 'text-primary' : 'text-text-muted'
             }`}
           >
-            {profile?.aiSummaryEnabled ? 'Enabled' : 'Disabled'}
+            {profile?.aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
           </p>
         </div>
 
@@ -286,7 +289,7 @@ export default function AiSettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                What Orbit Knows
+                {t('profile.facts.title')}
               </h2>
               {facts.length > 0 && (
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-text-muted bg-surface-elevated">
@@ -304,9 +307,9 @@ export default function AiSettingsPage() {
                 {selectMode ? (
                   <X className="size-3" />
                 ) : (
-                  <Check className="size-3" />
+                  <CheckCircle className="size-3" />
                 )}
-                {selectMode ? 'Cancel' : 'Select'}
+                {selectMode ? t('profile.facts.cancel') : t('profile.facts.select')}
               </button>
             )}
           </div>
@@ -318,14 +321,14 @@ export default function AiSettingsPage() {
                 className="text-xs font-semibold text-primary hover:underline"
                 onClick={toggleSelectAll}
               >
-                {selectedFactIds.size === facts.length ? 'Deselect All' : 'Select All'}
+                {selectedFactIds.size === facts.length ? t('profile.facts.deselectAll') : t('profile.facts.selectAll')}
               </button>
               <button
                 disabled={selectedFactIds.size === 0}
                 className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-full disabled:opacity-30 transition-all active:scale-95"
                 onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
               >
-                Delete {selectedFactIds.size} selected
+                {t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
               </button>
             </div>
           )}
@@ -342,7 +345,7 @@ export default function AiSettingsPage() {
           {!factsQuery.isLoading && facts.length === 0 && (
             <div className="text-center py-6">
               <p className="text-text-muted text-sm">
-                No memories yet. Chat with Orbit to start building your profile.
+                {t('profile.facts.empty')}
               </p>
             </div>
           )}

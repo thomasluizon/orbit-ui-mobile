@@ -57,24 +57,28 @@ import { useUIStore } from '@/stores/ui-store'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildQueryParams(filters: HabitsFilter): Record<string, string> {
-  const params: Record<string, string> = {}
-  if (filters.dateFrom) params.dateFrom = filters.dateFrom
-  if (filters.dateTo) params.dateTo = filters.dateTo
-  if (filters.includeOverdue) params.includeOverdue = 'true'
-  if (filters.isGeneral) params.isGeneral = 'true'
-  if (filters.includeGeneral) params.includeGeneral = 'true'
-  if (filters.search) params.search = filters.search
-  if (filters.isCompleted !== undefined) params.isCompleted = String(filters.isCompleted)
-  if (filters.frequencyUnit) params.frequencyUnit = filters.frequencyUnit
-  if (filters.tagIds?.length) params.tagIds = filters.tagIds.join(',')
-  if (filters.page) params.page = String(filters.page)
-  if (filters.pageSize) params.pageSize = String(filters.pageSize)
-  return params
+function buildQueryString(filters: HabitsFilter): string {
+  const params = new URLSearchParams()
+  if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
+  if (filters.dateTo) params.append('dateTo', filters.dateTo)
+  if (filters.includeOverdue) params.append('includeOverdue', 'true')
+  if (filters.isGeneral) params.append('isGeneral', 'true')
+  if (filters.includeGeneral) params.append('includeGeneral', 'true')
+  if (filters.search) params.append('search', filters.search)
+  if (filters.isCompleted !== undefined) params.append('isCompleted', String(filters.isCompleted))
+  if (filters.frequencyUnit) params.append('frequencyUnit', filters.frequencyUnit)
+  // .NET expects repeated params: tagIds=a&tagIds=b (not comma-separated)
+  if (filters.tagIds?.length) {
+    for (const tagId of filters.tagIds) {
+      params.append('tagIds', tagId)
+    }
+  }
+  if (filters.page) params.append('page', String(filters.page))
+  if (filters.pageSize) params.append('pageSize', String(filters.pageSize))
+  return params.toString()
 }
 
-function buildUrl(base: string, params: Record<string, string>): string {
-  const qs = new URLSearchParams(params).toString()
+function buildUrl(base: string, qs: string): string {
   return qs ? `${base}?${qs}` : base
 }
 
@@ -204,8 +208,8 @@ export function useHabits(filters: HabitsFilter) {
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
-      const params = buildQueryParams(filters)
-      const url = buildUrl(API.habits.list, params)
+      const qs = buildQueryString(filters)
+      const url = buildUrl(API.habits.list, qs)
       const data = await fetchJson<PaginatedResponse<HabitScheduleItem>>(url)
 
       const allItems = [...data.items]
@@ -214,8 +218,9 @@ export function useHabits(filters: HabitsFilter) {
       if (!filters.dateFrom && data.totalPages > 1) {
         const pagePromises: Promise<PaginatedResponse<HabitScheduleItem>>[] = []
         for (let p = 2; p <= data.totalPages; p++) {
-          const pageParams = { ...params, page: String(p) }
-          const pageUrl = buildUrl(API.habits.list, pageParams)
+          const pageFilters = { ...filters, page: p }
+          const pageQs = buildQueryString(pageFilters)
+          const pageUrl = buildUrl(API.habits.list, pageQs)
           pagePromises.push(fetchJson<PaginatedResponse<HabitScheduleItem>>(pageUrl))
         }
         const pages = await Promise.all(pagePromises)

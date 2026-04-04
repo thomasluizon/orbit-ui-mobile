@@ -239,7 +239,7 @@ export function HabitCard({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const [menuOpensUp, setMenuOpensUp] = useState(false)
 
-  const MENU_WIDTH_PX = 192
+  const MENU_WIDTH_PX = 176
   const MENU_MARGIN_PX = 8
   const MENU_ESTIMATED_HEIGHT_PX = 220
 

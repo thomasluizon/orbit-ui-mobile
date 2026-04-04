@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import './profile-streak-card.css'
 
@@ -105,7 +106,7 @@ export function ProfileStreakCard() {
           </p>
           {streak > 0 ? (
             <p className="text-lg font-extrabold streak-card__count">
-              {t('streakDisplay.profile.currentStreak', { count: displayStreak })}
+              {plural(t('streakDisplay.profile.currentStreak', { count: displayStreak }), displayStreak)}
             </p>
           ) : (
             <p className="text-sm text-text-secondary font-medium">

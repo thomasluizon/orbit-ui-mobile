@@ -6,6 +6,9 @@ import {
   ArrowLeft,
   Loader2,
   CheckCircle,
+  Clock,
+  List,
+  RotateCcw,
   ChevronRight,
   ChevronDown,
   Clipboard,
@@ -14,7 +17,7 @@ import {
   Lock,
   Smartphone,
 } from 'lucide-react'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
@@ -173,7 +176,7 @@ export default function AdvancedPage() {
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
     } catch (err) {
-      setCreateKeyError(err instanceof Error ? err.message : 'Failed to create key')
+      setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
       return null
     }
   }
@@ -522,15 +525,15 @@ export default function AdvancedPage() {
                 <span>{t('profile.widgetHow.feature1')}</span>
               </li>
               <li className="flex gap-2 items-start">
-                <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
+                <Clock className="size-4 text-primary shrink-0 mt-0.5" />
                 <span>{t('profile.widgetHow.feature2')}</span>
               </li>
               <li className="flex gap-2 items-start">
-                <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
+                <List className="size-4 text-primary shrink-0 mt-0.5" />
                 <span>{t('profile.widgetHow.feature3')}</span>
               </li>
               <li className="flex gap-2 items-start">
-                <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
+                <RotateCcw className="size-4 text-primary shrink-0 mt-0.5" />
                 <span>{t('profile.widgetHow.feature4')}</span>
               </li>
             </ul>

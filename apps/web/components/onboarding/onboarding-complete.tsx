@@ -2,23 +2,10 @@
 
 import { useMemo } from 'react'
 import { parseISO, format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { CheckCircle2, Sparkles, BadgeCheck } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.complete.title': 'You\'re all set!',
-    'onboarding.flow.complete.subtitle': 'Your journey starts now.',
-    'onboarding.flow.complete.recap.habit': 'First habit created',
-    'onboarding.flow.complete.recap.goal': 'First goal set',
-    'onboarding.flow.complete.recap.theme': 'Theme customized',
-    'onboarding.flow.complete.trialTitle': 'Pro Trial Active',
-    'onboarding.flow.complete.trialDesc': `Enjoy all Pro features until ${params?.date ?? ''}. No credit card needed.`,
-    'onboarding.flow.complete.start': 'Start using Orbit',
-  }
-  return strings[key] ?? key
-}
 
 interface OnboardingCompleteProps {
   createdHabit: string
@@ -27,13 +14,16 @@ interface OnboardingCompleteProps {
 }
 
 export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: OnboardingCompleteProps) {
+  const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
-    return format(parseISO(profile.trialEndsAt), 'MMM d, yyyy')
-  }, [profile?.trialEndsAt])
+    return format(parseISO(profile.trialEndsAt), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
+  }, [profile?.trialEndsAt, locale, dateFnsLocale])
 
   const recapItems = useMemo(() => {
     const items = [

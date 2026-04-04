@@ -36,6 +36,10 @@ interface UIState {
   clearSelection: () => void
   setLastCreatedHabitId: (id: string | null) => void
 
+  // Create modal (shared between layout BottomNav and pages)
+  showCreateModal: boolean
+  setShowCreateModal: (show: boolean) => void
+
   // Search
   searchQuery: string
   setSearchQuery: (query: string) => void
@@ -123,6 +127,10 @@ export const useUIStore = create<UIState>((set, get) => ({
       createdHabitTimer = setTimeout(() => set({ lastCreatedHabitId: null }), 1500)
     }
   },
+
+  // -- Create modal -----------------------------------------------------------
+  showCreateModal: false,
+  setShowCreateModal: (show) => set({ showCreateModal: show }),
 
   // -- Search -----------------------------------------------------------------
   searchQuery: '',

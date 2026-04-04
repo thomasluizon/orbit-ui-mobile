@@ -13,6 +13,10 @@
   --color-surface-elevated: #1a1829;
   --color-surface-overlay: #211f33;
 
+  /* Legacy aliases (keep for backward compat with Nuxt UI internals) */
+  --color-card: #13111f;
+  --color-card-border: #1a1829;
+
   /* Primary accent (default: purple) */
   --color-primary: #8b5cf6;
 
@@ -197,6 +201,33 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════
+   PAGE & LAYOUT TRANSITIONS
+   Enter: spring out (250ms), Leave: quick ease-in (150ms)
+   ═══════════════════════════════════════════════════════ */
+
+.page-enter-active,
+.layout-enter-active {
+  transition: all 280ms var(--ease-out);
+}
+
+.page-leave-active,
+.layout-leave-active {
+  transition: all 150ms ease-in;
+}
+
+.page-enter-from,
+.layout-enter-from {
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+}
+
+.page-leave-to,
+.layout-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.99);
+}
+
+/* ═══════════════════════════════════════════════════════
    SKELETON & LOADING
    ═══════════════════════════════════════════════════════ */
 
@@ -227,6 +258,20 @@ button {
 @keyframes loading-slide {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   GENERIC TRANSITIONS
+   ═══════════════════════════════════════════════════════ */
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-smooth);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -499,6 +544,135 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: var(--nav-glass-bg);
   -webkit-backdrop-filter: blur(48px) saturate(1.8);
   backdrop-filter: blur(48px) saturate(1.8);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PROSE / MARKDOWN (DescriptionViewer)
+   ═══════════════════════════════════════════════════════ */
+
+.prose-orbit {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.prose-orbit h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.prose-orbit h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.prose-orbit h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-orbit p {
+  margin-bottom: 0.75rem;
+}
+
+.prose-orbit ul,
+.prose-orbit ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.prose-orbit ul {
+  list-style-type: disc;
+}
+
+.prose-orbit ol {
+  list-style-type: decimal;
+}
+
+.prose-orbit li {
+  margin-bottom: 0.25rem;
+}
+
+.prose-orbit a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.prose-orbit a:hover {
+  text-decoration: underline;
+}
+
+.prose-orbit strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.prose-orbit code {
+  background: var(--surface-elevated);
+  padding: 0.15em 0.4em;
+  border-radius: 0.375rem;
+  font-size: 0.875em;
+}
+
+.prose-orbit pre {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+}
+
+.prose-orbit pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.prose-orbit blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.prose-orbit hr {
+  border-color: var(--border);
+  margin: 1.5rem 0;
+}
+
+.prose-orbit img {
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+
+.prose-orbit table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+}
+
+.prose-orbit th,
+.prose-orbit td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.prose-orbit th {
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--surface-elevated);
 }
 
 /* Theme transition class (toggled by useColorScheme on scheme change) */
@@ -789,4 +963,46 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     0 8px 30px rgba(0, 0, 0, 0.1),
     0 4px 10px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════
+   TODAY PAGE TRANSITIONS
+   Slide-up for bulk action bar, slide-date for date navigation
+   ═══════════════════════════════════════════════════════ */
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+/* Date navigation slide animations */
+.slide-date-right-enter-active,
+.slide-date-right-leave-active,
+.slide-date-left-enter-active,
+.slide-date-left-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-date-right-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.slide-date-right-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.slide-date-left-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.slide-date-left-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
 }

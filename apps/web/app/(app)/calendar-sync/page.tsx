@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, Check, Link as LinkIcon, CalendarDays, AlertTriangle, Bell } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { API } from '@orbit/shared/api'
@@ -71,7 +72,7 @@ export default function CalendarSyncPage() {
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
   function formatDailyRecurrence(interval: number): string {
-    if (interval > 1) return t('calendar.recurrenceEveryNDays', { n: interval })
+    if (interval > 1) return plural(t('calendar.recurrenceEveryNDays', { n: interval }), interval)
     return t('calendar.recurrenceDaily')
   }
 
@@ -79,7 +80,7 @@ export default function CalendarSyncPage() {
     const dayMatch = upper.match(/BYDAY=([A-Z,]+)/)
     const days = dayMatch ? dayMatch[1] : ''
     if (interval > 1) {
-      const base = t('calendar.recurrenceEveryNWeeks', { n: interval })
+      const base = plural(t('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
       return days ? `${base} (${days})` : base
     }
     if (days) return t('calendar.recurrenceWeeklyDays', { days })
@@ -87,7 +88,7 @@ export default function CalendarSyncPage() {
   }
 
   function formatMonthlyRecurrence(interval: number): string {
-    if (interval > 1) return t('calendar.recurrenceEveryNMonths', { n: interval })
+    if (interval > 1) return plural(t('calendar.recurrenceEveryNMonths', { n: interval }), interval)
     return t('calendar.recurrenceMonthly')
   }
 
@@ -278,7 +279,7 @@ export default function CalendarSyncPage() {
               {/* Select all toggle */}
               <div className="flex items-center justify-between">
                 <p className="text-sm text-text-secondary">
-                  {t('calendar.eventsFound', { count: events.length })}
+                  {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
                 </p>
                 <button
                   className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
@@ -353,7 +354,7 @@ export default function CalendarSyncPage() {
                   disabled={selectedIds.size === 0}
                   onClick={importSelected}
                 >
-                  {t('calendar.importButton', { count: selectedIds.size })}
+                  {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
                 </button>
               </div>
             </>
@@ -378,7 +379,7 @@ export default function CalendarSyncPage() {
           <div className="text-center">
             <h2 className="text-lg font-bold text-text-primary mb-2">{t('calendar.importDone')}</h2>
             <p className="text-sm text-text-secondary">
-              {t('calendar.importedCount', { count: importResult?.imported ?? 0 })}
+              {plural(t('calendar.importedCount', { count: importResult?.imported ?? 0 }), importResult?.imported ?? 0)}
             </p>
           </div>
           <Link

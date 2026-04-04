@@ -21,6 +21,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { habitKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import { useChatStore } from '@/stores/chat-store'
@@ -37,18 +38,19 @@ import { TypingIndicator } from '@/components/chat/typing-indicator'
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
-const STARTER_CHIPS = [
-  'Log a habit',
-  'Create a routine',
-  'How am I doing?',
-  'Plan my week',
-]
+const STARTER_CHIP_KEYS = [
+  'chat.starterChips.logHabit',
+  'chat.starterChips.createRoutine',
+  'chat.starterChips.howAmIDoing',
+  'chat.starterChips.planWeek',
+] as const
 
 // ---------------------------------------------------------------------------
 // Chat Page
 // ---------------------------------------------------------------------------
 
 export default function ChatPage() {
+  const t = useTranslations()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
 
@@ -78,6 +80,12 @@ export default function ChatPage() {
     (input.trim().length > 0 || selectedImage !== null) && !isTyping && !atMessageLimit
   const showSuggestions = messages.length === 0 && !isTyping
 
+  // Translated starter chips
+  const starterChips = useMemo(
+    () => STARTER_CHIP_KEYS.map((key) => t(key)),
+    [t],
+  )
+
   // -------------------------------------------------------------------------
   // Scroll to bottom
   // -------------------------------------------------------------------------
@@ -105,8 +113,8 @@ export default function ChatPage() {
   // -------------------------------------------------------------------------
 
   function validateImageFile(file: File): string | null {
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) return 'Only JPEG, PNG, and WebP images are supported.'
-    if (file.size > MAX_IMAGE_SIZE) return 'Image must be under 20MB.'
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) return t('chat.imageError')
+    if (file.size > MAX_IMAGE_SIZE) return t('chat.imageSizeError')
     return null
   }
 
@@ -230,20 +238,19 @@ export default function ChatPage() {
           (err as { response?: { status?: number } })?.response?.status === 403
 
         if (isAbort) {
-          setSendError('Request timed out. Please try again.')
+          setSendError(t('chat.timeoutError'))
         } else if (is403) {
-          setSendError('Message limit reached. Upgrade to Pro for unlimited messages.')
+          setSendError(t('chat.limitReachedError'))
         } else {
           setSendError(
-            err instanceof Error ? err.message : 'Failed to send message. Please try again.',
+            err instanceof Error ? err.message : t('chat.sendError'),
           )
         }
 
         addMessage({
           id: crypto.randomUUID(),
           role: 'ai',
-          content:
-            "Sorry, I couldn't process that. Please try again.",
+          content: t('chat.aiError'),
           timestamp: new Date(),
         })
         scrollToBottom()
@@ -260,6 +267,7 @@ export default function ChatPage() {
       setIsTyping,
       scrollToBottom,
       queryClient,
+      t,
     ],
   )
 
@@ -284,13 +292,13 @@ export default function ChatPage() {
       <header className="shrink-0 chat-glass flex items-center pt-3 pb-3 z-10">
         <Link
           href="/"
-          aria-label="Go back"
+          aria-label={t('common.goBack')}
           className="size-9 rounded-full hover:bg-surface-elevated flex items-center justify-center transition-colors"
         >
           <ArrowLeft className="size-4 text-text-primary" />
         </Link>
         <h1 className="flex-1 text-center text-[length:var(--text-fluid-lg)] font-bold text-text-primary pr-10">
-          AI Chat
+          {t('chat.title')}
         </h1>
       </header>
 
@@ -307,7 +315,7 @@ export default function ChatPage() {
               {/* Icon */}
               <Sparkles className="size-7 text-primary animate-orbit-pulse relative" />
             </div>
-            <p className="text-text-secondary text-sm">How can I help you today?</p>
+            <p className="text-text-secondary text-sm">{t('chat.suggestion.prompt')}</p>
             <SuggestionChips onSelect={(s) => sendMessage(s)} />
           </div>
         )}
@@ -358,7 +366,7 @@ export default function ChatPage() {
           {messages.length > 0 && (
             <div className="pb-3 overflow-x-auto">
               <div className="flex gap-2 min-w-max">
-                {STARTER_CHIPS.map((chip) => (
+                {starterChips.map((chip) => (
                   <button
                     key={chip}
                     className="px-4 py-1.5 rounded-full text-[11px] font-medium bg-surface-elevated border border-border/50 text-text-primary hover:bg-surface transition-colors whitespace-nowrap"
@@ -383,14 +391,14 @@ export default function ChatPage() {
           {/* Input bar */}
           <div className="bg-surface-elevated rounded-[var(--radius-lg)] border border-border-muted flex items-center gap-2 px-3 py-2">
             <button
-              aria-label="Attach image"
+              aria-label={t('chat.attachImage')}
               className="shrink-0 p-1 text-text-muted hover:text-text-primary transition-colors"
               onClick={openFilePicker}
             >
               <ImageIcon className="size-[15px]" />
             </button>
             <button
-              aria-label="Voice input"
+              aria-label={t('chat.toggleMic')}
               className="shrink-0 p-1 text-text-muted hover:text-text-primary transition-colors"
               disabled={isTyping}
               onClick={() => {
@@ -403,8 +411,8 @@ export default function ChatPage() {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type a message..."
-              aria-label="Type a message"
+              placeholder={t('chat.placeholder')}
+              aria-label={t('chat.placeholder')}
               className="flex-1 resize-none bg-transparent text-text-primary placeholder-text-muted text-sm py-2 px-3 focus:outline-none min-h-[36px] max-h-[120px]"
               rows={1}
               onKeyDown={handleKeyDown}
@@ -423,13 +431,13 @@ export default function ChatPage() {
           {!hasProAccess && atMessageLimit && (
             <div className="text-center pt-2 space-y-1.5">
               <p className="text-[10px] text-amber-400 font-medium">
-                Message limit reached. Upgrade to Pro for unlimited messages.
+                {t('chat.limitReachedError')}
               </p>
             </div>
           )}
           {!hasProAccess && !atMessageLimit && (
             <p className="text-[10px] text-text-muted text-center pt-2">
-              {aiMessagesUsed}/{aiMessagesLimit} messages used
+              {aiMessagesUsed}/{aiMessagesLimit} {t('chat.messagesUsed')}
             </p>
           )}
         </div>

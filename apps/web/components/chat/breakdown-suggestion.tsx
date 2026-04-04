@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Check, X, Plus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BulkHabitItem } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -176,8 +177,8 @@ export function BreakdownSuggestion({
           </div>
           <p className="text-sm font-semibold text-emerald-400">
             {createAsParent
-              ? t('habits.breakdown.createAsParentSuccess', { name: parentName, n: createdCount })
-              : t('habits.breakdown.createdSuccess', { n: createdCount })}
+              ? plural(t('habits.breakdown.createAsParentSuccess', { name: parentName, n: createdCount }), createdCount)
+              : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
           </p>
         </div>
       </div>
@@ -303,7 +304,7 @@ export function BreakdownSuggestion({
           onClick={handleConfirm}
         >
           {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-          {t('habits.breakdown.createCount', { n: validHabits.length })}
+          {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
         </button>
         <button
           className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-border text-text-secondary text-xs font-medium hover:bg-surface-elevated/80 transition-all duration-150"

@@ -2,38 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations, useLocale } from 'next-intl'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { useAuthStore } from '@/stores/auth-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'auth.welcomeBack': 'Welcome back',
-    'auth.email': 'Email',
-    'auth.emailPlaceholder': 'you@example.com',
-    'auth.sendCode': 'Send code',
-    'auth.orContinueWith': 'or continue with',
-    'auth.signInWithGoogle': 'Continue with Google',
-    'auth.codeSent': 'Code sent! Check your inbox.',
-    'auth.codeSentTo': 'We sent a code to',
-    'auth.verify': 'Verify',
-    'auth.changeEmail': 'Change email',
-    'auth.resendCode': 'Resend code',
-    'auth.genericError': 'Something went wrong. Please try again.',
-    'auth.googleError': 'Google sign-in failed. Please try again.',
-    'auth.errors.invalidEmail': 'Please enter a valid email address.',
-    'auth.errors.rateLimited': 'Please wait before requesting a new code.',
-    'auth.errors.codeExpired': 'Verification code expired or not found.',
-    'auth.errors.tooManyAttempts': 'Too many attempts. Please request a new code.',
-    'auth.errors.invalidCode': 'Invalid verification code.',
-    'auth.codeDigit': 'Digit',
-    'referral.loginBanner': 'You were referred! Sign up to get your bonus.',
-    'profile.deleteAccount.reactivated': 'Welcome back! Your account has been reactivated.',
-    'privacy.title': 'Privacy Policy',
-  }
-  return strings[key] ?? key
-}
 
 const BACKEND_ERROR_MAP: Record<string, string> = {
   'Please wait before requesting a new code': 'auth.errors.rateLimited',
@@ -41,19 +13,6 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
   'Too many attempts. Please request a new code': 'auth.errors.tooManyAttempts',
   'Invalid verification code': 'auth.errors.invalidCode',
   'Invalid email format': 'auth.errors.invalidEmail',
-}
-
-function translateBackendError(error: string): string {
-  const key = BACKEND_ERROR_MAP[error]
-  return key ? t(key) : error
-}
-
-function extractError(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const msg = (err as { error?: string }).error
-    if (msg) return translateBackendError(msg)
-  }
-  return t('auth.genericError')
 }
 
 function getCookieValue(name: string): string | undefined {
@@ -66,7 +25,22 @@ function getCookieValue(name: string): string | undefined {
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations()
+  const locale = useLocale()
   const { setAuth } = useAuthStore()
+
+  function translateBackendError(error: string): string {
+    const key = BACKEND_ERROR_MAP[error]
+    return key ? t(key) : error
+  }
+
+  function extractError(err: unknown): string {
+    if (err && typeof err === 'object' && 'error' in err) {
+      const msg = (err as { error?: string }).error
+      if (msg) return translateBackendError(msg)
+    }
+    return t('auth.genericError')
+  }
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
@@ -138,7 +112,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, language: 'en' }),
+        body: JSON.stringify({ email, language: locale }),
       })
 
       if (!response.ok) {
@@ -170,7 +144,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           email,
           code,
-          language: 'en',
+          language: locale,
           ...(referralCode ? { referralCode } : {}),
         }),
       })
@@ -211,7 +185,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, language: 'en' }),
+        body: JSON.stringify({ email, language: locale }),
       })
 
       if (!response.ok) {

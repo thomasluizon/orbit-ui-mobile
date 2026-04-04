@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo, useId, type ReactNode } from 'react'
-import { X, Plus, Bell, Check, ShieldAlert } from 'lucide-react'
+import { X, Plus, Bell, Check, ShieldAlert, PenSquare } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
@@ -760,79 +760,132 @@ export function HabitFormFields({
         <span className="form-label" aria-hidden="true">
           {t('habits.form.tags')}
         </span>
-        {availableTags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {availableTags.map((tag) => (
+        <div className="flex flex-wrap gap-2">
+          {availableTags.map((tag) => (
+            <div
+              key={tag.id}
+              className={`flex items-center rounded-full text-xs font-semibold transition-all ${
+                tags.selectedTagIds.includes(tag.id)
+                  ? 'text-white'
+                  : 'bg-surface border border-border text-text-secondary'
+              } ${
+                !tags.selectedTagIds.includes(tag.id) && tags.atTagLimit
+                  ? 'opacity-30 pointer-events-none'
+                  : ''
+              } ${justToggledTagId === tag.id ? 'animate-tag-pop' : ''}`}
+              style={
+                tags.selectedTagIds.includes(tag.id)
+                  ? { backgroundColor: tag.color }
+                  : undefined
+              }
+            >
               <button
-                key={tag.id}
                 type="button"
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-                  tags.selectedTagIds.includes(tag.id)
-                    ? 'text-white'
-                    : 'bg-surface border border-border-muted text-text-secondary hover:text-text-primary'
-                } ${
-                  !tags.selectedTagIds.includes(tag.id) && tags.atTagLimit
-                    ? 'opacity-30 pointer-events-none'
-                    : ''
-                }`}
-                style={
-                  tags.selectedTagIds.includes(tag.id)
-                    ? { backgroundColor: tag.color }
-                    : undefined
-                }
+                className="pl-3 pr-1 py-1.5 flex items-center gap-1.5 hover:opacity-80"
                 onClick={() => handleTagToggle(tag.id)}
               >
+                {!tags.selectedTagIds.includes(tag.id) && (
+                  <span className="size-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                )}
                 {tag.name}
               </button>
-            ))}
-          </div>
-        )}
-        {/* New tag form */}
-        {!tags.showNewTag ? (
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-            onClick={() => tags.setShowNewTag(true)}
-          >
-            <Plus className="size-3.5" />
-            {t('habits.form.newTag')}
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <input
-              value={tags.newTagName}
-              type="text"
-              placeholder={t('habits.form.tagName')}
-              className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-              onChange={(e) => tags.setNewTagName(e.target.value)}
-            />
-            <div className="flex gap-1">
-              {tags.tagColors.map((color) => (
+              <button
+                type="button"
+                className={`pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
+                  tags.selectedTagIds.includes(tag.id) ? 'text-white/70' : 'text-text-muted'
+                }`}
+                onClick={(e) => { e.stopPropagation(); tags.startEditTag(tag) }}
+              >
+                <PenSquare className="size-3" />
+              </button>
+              <button
+                type="button"
+                className={`pr-2 pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
+                  tags.selectedTagIds.includes(tag.id) ? 'text-white/70' : 'text-text-muted'
+                }`}
+                onClick={(e) => { e.stopPropagation(); tags.deleteTag(tag.id, async () => {}) }}
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+          {!tags.showNewTag && !tags.atTagLimit && (
+            <button
+              type="button"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface border border-dashed border-border text-text-muted hover:text-text-primary hover:border-primary/50 transition-all"
+              onClick={() => tags.setShowNewTag(true)}
+            >
+              + {t('habits.form.newTag')}
+            </button>
+          )}
+        </div>
+        {/* Inline tag edit */}
+        {tags.editingTagId && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {tags.tagColors.map((c) => (
                 <button
-                  key={color}
+                  key={c}
                   type="button"
                   className={`size-5 rounded-full transition-all ${
-                    tags.newTagColor === color
-                      ? 'ring-2 ring-offset-2 ring-offset-background'
-                      : ''
+                    tags.editTagColor === c
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
+                      : 'hover:scale-110'
                   }`}
-                  style={{
-                    backgroundColor: color,
-                    ...(tags.newTagColor === color
-                      ? { boxShadow: `0 0 0 2px ${color}` }
-                      : {}),
-                  }}
-                  onClick={() => tags.setNewTagColor(color)}
+                  style={{ backgroundColor: c }}
+                  onClick={() => tags.setEditTagColor(c)}
                 />
               ))}
             </div>
-            <button
-              type="button"
-              className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-all duration-150"
-              onClick={() => tags.setShowNewTag(false)}
-            >
-              <X className="size-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <input
+                value={tags.editTagName}
+                type="text"
+                maxLength={50}
+                className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                onChange={(e) => tags.setEditTagName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); tags.saveEditTag(async () => {}) } }}
+              />
+              <button type="button" className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150" onClick={() => tags.saveEditTag(async () => {})}>{t('common.save')}</button>
+              <button type="button" className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={tags.cancelEditTag}>
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Inline new tag creation */}
+        {tags.showNewTag && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {tags.tagColors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`size-5 rounded-full transition-all ${
+                    tags.newTagColor === c
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
+                      : 'hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: c }}
+                  onClick={() => tags.setNewTagColor(c)}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                value={tags.newTagName}
+                type="text"
+                placeholder={t('habits.form.tagName')}
+                maxLength={50}
+                className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                onChange={(e) => tags.setNewTagName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); tags.createAndSelectTag(async () => null) } }}
+              />
+              <button type="button" className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150" onClick={() => tags.createAndSelectTag(async () => null)}>{t('common.add')}</button>
+              <button type="button" className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={() => tags.setShowNewTag(false)}>
+                <X className="size-3.5" />
+              </button>
+            </div>
           </div>
         )}
       </div>

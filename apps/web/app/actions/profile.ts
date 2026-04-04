@@ -78,7 +78,7 @@ export async function updateColorScheme(data: SetColorSchemeRequest): Promise<vo
 
 export async function completeOnboarding(): Promise<void> {
   await authFetch('/api/profile/onboarding', {
-    method: 'POST',
+    method: 'PUT',
   })
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import {
   PencilLine,
   CheckCircle2,
@@ -43,6 +44,7 @@ export function GoalDetailDrawer({
 }: GoalDetailDrawerProps) {
   const t = useTranslations()
   const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
   // Queries
   const { data: goalsData } = useGoals()
@@ -93,9 +95,10 @@ export function GoalDetailDrawer({
       return format(
         parseISO(dateStr),
         locale === 'pt-BR' ? 'dd/MM/yyyy HH:mm' : 'MMM dd, yyyy HH:mm',
+        { locale: dateFnsLocale },
       )
     },
-    [locale],
+    [locale, dateFnsLocale],
   )
 
   // Handlers

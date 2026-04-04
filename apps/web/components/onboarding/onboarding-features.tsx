@@ -2,23 +2,7 @@
 
 import { MessageSquare, CalendarDays, Trophy, BellRing } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.features.title': 'Discover what Orbit can do',
-    'onboarding.flow.features.subtitle': 'Everything you need to build lasting habits.',
-    'onboarding.flow.features.chat.title': 'AI Coach',
-    'onboarding.flow.features.chat.desc': 'Chat with your personal AI to manage habits, get insights, and stay motivated.',
-    'onboarding.flow.features.calendar.title': 'Calendar View',
-    'onboarding.flow.features.calendar.desc': 'Visualize your progress with a color-coded calendar and streak tracking.',
-    'onboarding.flow.features.achievements.title': 'Achievements',
-    'onboarding.flow.features.achievements.desc': 'Earn XP, level up, and unlock achievements as you build consistency.',
-    'onboarding.flow.features.notifications.title': 'Smart Reminders',
-    'onboarding.flow.features.notifications.desc': 'Get timely reminders so you never miss a habit.',
-  }
-  return strings[key] ?? key
-}
+import { useTranslations } from 'next-intl'
 
 interface FeatureItem {
   Icon: LucideIcon
@@ -34,6 +18,8 @@ const features: FeatureItem[] = [
 ]
 
 export function OnboardingFeatures() {
+  const t = useTranslations()
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-text-primary text-center mb-2">

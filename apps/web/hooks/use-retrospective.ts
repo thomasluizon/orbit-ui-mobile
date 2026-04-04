@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 
@@ -11,15 +12,8 @@ interface RetrospectiveResponse {
   fromCache: boolean
 }
 
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'retrospective.error': 'Failed to generate retrospective. Please try again.',
-  }
-  return strings[key] ?? key
-}
-
 export function useRetrospective() {
+  const t = useTranslations()
   const [retrospective, setRetrospective] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +43,7 @@ export function useRetrospective() {
     } finally {
       setIsLoading(false)
     }
-  }, [period])
+  }, [period, t])
 
   return {
     retrospective,

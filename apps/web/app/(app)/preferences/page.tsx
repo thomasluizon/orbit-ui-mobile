@@ -1,27 +1,60 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { useAuthStore } from '@/stores/auth-store'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
+  updateLanguage,
 } from '@/app/actions/profile'
 
-export default function PreferencesPage() {
-  const { profile, patchProfile } = useProfile()
+// Language options matching Vue locales
+const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'pt-BR', label: 'Português' },
+]
 
-  const { currentScheme, applyScheme, currentTheme, applyTheme } = useColorScheme()
+export default function PreferencesPage() {
+  const t = useTranslations()
+  const router = useRouter()
+  const { profile, patchProfile } = useProfile()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  const { currentScheme, applyScheme } = useColorScheme()
+
+  // --- Language ---
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (typeof document === 'undefined') return 'en'
+    const match = document.cookie.match(/(?:^|; )i18n_locale=([^;]*)/)
+    return match?.[1] ? decodeURIComponent(match[1]) : 'en'
+  })
+
+  async function handleLanguageChange(locale: SupportedLocale) {
+    setSelectedLanguage(locale)
+    document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
+    if (isAuthenticated) {
+      try {
+        await updateLanguage({ language: locale })
+      } catch {
+        // Error handled silently like Vue
+      }
+    }
+  }
 
   // --- Week Start Day ---
   const weekStartOptions = [
-    { value: 1, label: 'Monday' },
-    { value: 0, label: 'Sunday' },
+    { value: 1, label: t('settings.weekStartDay.monday') },
+    { value: 0, label: t('settings.weekStartDay.sunday') },
   ]
 
   const weekStartMutation = useMutation({
@@ -58,6 +91,7 @@ export default function PreferencesPage() {
 
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
+      router.push('/upgrade')
       return
     }
     applyScheme(scheme)
@@ -76,8 +110,8 @@ export default function PreferencesPage() {
   }
 
   const timeFormatOptions = [
-    { value: '12h' as const, label: '12-hour' },
-    { value: '24h' as const, label: '24-hour' },
+    { value: '12h' as const, label: t('settings.timeFormat.12h') },
+    { value: '24h' as const, label: t('settings.timeFormat.24h') },
   ]
 
   // --- Home Screen Toggle (local-only preference) ---
@@ -92,32 +126,98 @@ export default function PreferencesPage() {
     localStorage.setItem('orbit_show_general_on_today', String(next))
   }
 
+  // --- Push Notifications ---
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushPermission, setPushPermission] = useState<PermissionState | ''>('')
+  const [pushLoading, setPushLoading] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
+      setPushSupported(true)
+      setPushPermission(Notification.permission as PermissionState)
+      // Check if already subscribed
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setPushSubscribed(!!sub)
+        })
+      }).catch(() => {})
+    }
+  }, [])
+
+  async function handleTogglePush() {
+    setPushLoading(true)
+    try {
+      if (pushSubscribed) {
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) await sub.unsubscribe()
+        setPushSubscribed(false)
+      } else {
+        const permission = await Notification.requestPermission()
+        setPushPermission(permission as PermissionState)
+        if (permission === 'granted') {
+          setPushSubscribed(true)
+        }
+      }
+    } catch {
+      // Error handled silently
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
         <Link
           href="/profile"
-          aria-label="Back to profile"
+          aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          Preferences
+          {t('preferences.title')}
         </h1>
       </header>
 
       <div className="space-y-4">
+        {/* Language */}
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
+            {t('profile.language.title')}
+          </h2>
+          <p className="text-sm text-text-secondary">
+            {t('profile.language.description')}
+          </p>
+          <div className="flex gap-2">
+            {LANGUAGE_OPTIONS.map((lang) => (
+              <button
+                key={lang.value}
+                className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
+                  selectedLanguage === lang.value
+                    ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                    : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                }`}
+                onClick={() => handleLanguageChange(lang.value)}
+              >
+                {lang.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Color Scheme */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-              Color Scheme
+              {t('profile.colorScheme.title')}
             </h2>
             <ProBadge />
           </div>
           <p className="text-sm text-text-secondary">
-            Choose your accent color. Pro users can pick any scheme.
+            {t('profile.colorScheme.description')}
           </p>
           <div className="flex gap-3">
             {colorSchemeOptions.map((option) => (
@@ -150,10 +250,10 @@ export default function PreferencesPage() {
         {/* Time Format */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            Time Format
+            {t('settings.timeFormat.title')}
           </h2>
           <p className="text-sm text-text-secondary">
-            Choose how times are displayed throughout the app.
+            {t('settings.timeFormat.description')}
           </p>
           <div className="flex gap-2">
             {timeFormatOptions.map((opt) => (
@@ -175,10 +275,10 @@ export default function PreferencesPage() {
         {/* Week Start Day */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            Week Start Day
+            {t('settings.weekStartDay.title')}
           </h2>
           <p className="text-sm text-text-secondary">
-            Choose which day your week starts on for calendar views.
+            {t('settings.weekStartDay.description')}
           </p>
           <div className="flex gap-2">
             {weekStartOptions.map((opt) => (
@@ -202,16 +302,16 @@ export default function PreferencesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                Home Screen
+                {t('settings.homeScreen.title')}
               </h2>
               <p className="text-xs text-text-muted mt-1">
-                Show &quot;General&quot; habits on today view
+                {t('settings.homeScreen.showGeneralDesc')}
               </p>
             </div>
             <button
               role="switch"
               aria-checked={showGeneralOnToday}
-              aria-label="Show general habits on today"
+              aria-label={t('settings.homeScreen.showGeneral')}
               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
                 showGeneralOnToday ? 'bg-primary' : 'bg-surface-elevated'
               }`}
@@ -225,6 +325,47 @@ export default function PreferencesPage() {
             </button>
           </div>
         </div>
+
+        {/* Push Notifications */}
+        {pushSupported && (
+          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
+                {t('settings.notifications.title')}
+              </h2>
+              {pushPermission !== 'denied' && (
+                <button
+                  role="switch"
+                  aria-checked={pushSubscribed}
+                  aria-label={t('settings.notifications.title')}
+                  disabled={pushLoading}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
+                    pushSubscribed ? 'bg-primary' : 'bg-surface-elevated'
+                  }`}
+                  onClick={handleTogglePush}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                      pushSubscribed ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-text-secondary">
+              {t('settings.notifications.description')}
+            </p>
+            {pushPermission === 'denied' ? (
+              <p className="text-xs text-red-400">
+                {t('settings.notifications.denied')}
+              </p>
+            ) : (
+              <p className={`text-xs font-medium ${pushSubscribed ? 'text-primary' : 'text-text-muted'}`}>
+                {pushSubscribed ? t('settings.notifications.enabled') : t('settings.notifications.disabled')}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

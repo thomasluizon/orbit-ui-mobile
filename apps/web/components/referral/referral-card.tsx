@@ -1,23 +1,15 @@
 'use client'
 
 import { Gift, ChevronRight } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'referral.card.title': 'Refer a Friend',
-    'referral.card.hint': 'Share Orbit and earn rewards',
-    'referral.card.progress': `${params?.count ?? 0} of ${params?.max ?? 0} referrals completed`,
-  }
-  return strings[key] ?? key
-}
 
 interface ReferralCardProps {
   onOpen: () => void
 }
 
 export function ReferralCard({ onOpen }: ReferralCardProps) {
+  const t = useTranslations()
   const { stats, isLoading } = useReferral()
 
   return (

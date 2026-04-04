@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import './streak-badge.css'
 
 interface StreakBadgeProps {
@@ -24,7 +25,7 @@ export function StreakBadge({ streak, isFrozen }: StreakBadgeProps) {
   return (
     <output
       className={`streak-badge streak-badge--${tier}`}
-      aria-label={t('streakDisplay.badge.tooltip', { count: streak })}
+      aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
     >
       <span className="streak-badge__flame" aria-hidden="true">
         <svg viewBox="0 0 16 20" fill="none" className="streak-badge__flame-svg">

@@ -3,22 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'auth.sessionExpiring': `Your session expires in ${params?.minutes ?? 0} minutes. Save your work.`,
-    'auth.sessionExpired': 'Your session has expired. Please log in again.',
-    'auth.refresh': 'Refresh',
-    'auth.login': 'Log in',
-  }
-  return strings[key] ?? key
-}
 
 const WARN_AT_MINUTES = 5
 
 export function ExpiryWarning() {
+  const t = useTranslations()
   const router = useRouter()
   const { expiresAt, logout } = useAuthStore()
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)

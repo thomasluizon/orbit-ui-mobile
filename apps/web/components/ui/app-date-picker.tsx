@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useId, useRef, useCallback } from 'react'
+import { useState, useEffect, useId, useRef, useCallback, useMemo } from 'react'
 import {
   addMonths,
   subMonths,
@@ -14,7 +14,10 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
+import { useProfile } from '@/hooks/use-profile'
 
 interface AppDatePickerProps {
   value: string
@@ -27,8 +30,12 @@ interface AppDatePickerProps {
 export function AppDatePicker({
   value,
   onChange,
-  placeholder = 'Select date',
+  placeholder,
 }: AppDatePickerProps) {
+  const t = useTranslations()
+  const locale = useLocale()
+  const { profile } = useProfile()
+  const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const [isOpen, setIsOpen] = useState(false)
   const [viewDate, setViewDate] = useState(new Date())
   const dialogLabelId = useId()
@@ -40,17 +47,24 @@ export function AppDatePicker({
     if (value) setViewDate(parseISO(value))
   }, [value])
 
-  const monthLabel = format(viewDate, 'MMMM yyyy')
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const monthLabel = format(viewDate, 'MMMM yyyy', { locale: dateFnsLocale })
 
-  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  const weekDays = useMemo(() => {
+    const sundayFirst = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const keys = weekStartsOn === 1
+      ? [...sundayFirst.slice(1), sundayFirst[0]]
+      : sundayFirst
+    return keys.map((k) => t(`dates.daysShort.${k}`).charAt(0))
+  }, [weekStartsOn, t])
 
-  const calendarDays = (() => {
+  const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(viewDate)
     const monthEnd = endOfMonth(viewDate)
-    const calStart = startOfWeek(monthStart, { weekStartsOn: 0 })
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
+    const calStart = startOfWeek(monthStart, { weekStartsOn })
+    const calEnd = endOfWeek(monthEnd, { weekStartsOn })
     return eachDayOfInterval({ start: calStart, end: calEnd })
-  })()
+  }, [viewDate, weekStartsOn])
 
   const calendarWeeks = (() => {
     const weeks: Date[][] = []
@@ -73,7 +87,8 @@ export function AppDatePicker({
     setIsOpen(false)
   }
 
-  const displayValue = value ? format(parseISO(value), 'MM/dd/yyyy') : ''
+  const dateFormat = locale === 'pt-BR' ? 'dd/MM/yyyy' : 'MM/dd/yyyy'
+  const displayValue = value ? format(parseISO(value), dateFormat) : ''
 
   // Close on click outside
   const handleClickOutside = useCallback(
@@ -96,13 +111,13 @@ export function AppDatePicker({
     <div className="relative" ref={containerRef}>
       <button
         type="button"
-        aria-label={displayValue ? `Selected date: ${displayValue}` : placeholder}
+        aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors duration-[var(--duration-fast)]"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span>{displayValue || placeholder}</span>
+        <span>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar className="size-4 text-text-muted" />
       </button>
 
@@ -125,7 +140,7 @@ export function AppDatePicker({
               <button
                 type="button"
                 className="p-1.5 rounded-lg hover:bg-white/10"
-                aria-label="Previous month"
+                aria-label={t('common.previousMonth')}
                 onClick={prevMonth}
               >
                 <ChevronLeft className="size-4 text-text-muted" />
@@ -140,7 +155,7 @@ export function AppDatePicker({
               <button
                 type="button"
                 className="p-1.5 rounded-lg hover:bg-white/10"
-                aria-label="Next month"
+                aria-label={t('common.nextMonth')}
                 onClick={nextMonth}
               >
                 <ChevronRight className="size-4 text-text-muted" />
@@ -173,7 +188,7 @@ export function AppDatePicker({
                         <td key={day.toISOString()} className="p-0">
                           <button
                             type="button"
-                            aria-label={format(day, 'MMMM d, yyyy')}
+                            aria-label={format(day, 'MMMM d, yyyy', { locale: dateFnsLocale })}
                             aria-pressed={!!isSelected}
                             aria-current={isToday ? 'date' : undefined}
                             className={`flex aspect-square w-full items-center justify-center rounded-lg text-xs transition-colors ${

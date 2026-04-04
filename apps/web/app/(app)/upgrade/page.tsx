@@ -3,12 +3,15 @@
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import {
   ArrowLeft, Loader2, BadgeCheck, Sparkles, CreditCard,
   Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
   AlertTriangle, Download, CheckCircle2, Clock, Check, X as XIcon,
+  Megaphone, Tag, Info,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
@@ -82,16 +85,19 @@ const featureCategories: FeatureCategory[] = [
   },
 ]
 
-function formatBillingDate(isoDate: string): string {
-  return format(parseISO(isoDate), 'MMM d, yyyy')
-}
-
 function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
 }
 
 export default function UpgradePage() {
   const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+
+  function formatBillingDate(isoDate: string): string {
+    return format(parseISO(isoDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
+  }
+
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const trialExpired = useTrialExpired()
@@ -442,7 +448,7 @@ export default function UpgradePage() {
               <p className={`text-sm font-medium ${trialUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
                 {trialDaysLeft === 0
                   ? t('trial.banner.lastDay')
-                  : t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 })}
+                  : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
               </p>
             </div>
           )}
@@ -526,6 +532,10 @@ export default function UpgradePage() {
                   <li className="flex items-center gap-2.5">
                     <Palette className="size-3.5 text-text-muted/60 shrink-0" />
                     <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.theme')}</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Megaphone className="size-3.5 text-amber-400/80 shrink-0" />
+                    <span className="text-xs text-amber-400/80 font-medium">{t('upgrade.plans.free.features.ads')}</span>
                   </li>
                 </ul>
                 {!hasProAccess && (
@@ -643,6 +653,7 @@ export default function UpgradePage() {
                 </div>
                 {plans.couponPercentOff && (
                   <p className="text-[10px] text-emerald-400/70 mb-3 flex items-center gap-1.5">
+                    <Tag className="size-3 shrink-0" />
                     {t('upgrade.plans.coupon.appliedNote')}
                   </p>
                 )}
@@ -663,68 +674,72 @@ export default function UpgradePage() {
           )}
 
           {/* Feature comparison - grouped by category */}
-          {plans && (
-            <div className="space-y-4 mb-6">
-              {/* Column headers */}
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('upgrade.feature')}</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-center w-16">{t('upgrade.free')}</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-primary text-center w-16">{t('common.proBadge')}</span>
-              </div>
-
-              {/* Category groups */}
-              {featureCategories.map((group) => (
-                <div key={group.category} className="space-y-1.5">
-                  {/* Category header */}
-                  <div className="px-4 pt-2 pb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
-                      {t(`upgrade.categories.${group.category}`)}
-                    </span>
-                  </div>
-
-                  {/* Feature rows */}
-                  {group.features.map((feat) => (
-                    <div
-                      key={feat.key}
-                      className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
-                    >
-                      {/* Feature label with icon */}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <feat.Icon className="size-4 text-text-muted shrink-0" />
-                        <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
-                      </div>
-
-                      {/* Free value */}
-                      <div className="w-16 flex justify-center">
-                        {feat.type === 'boolean' ? (
-                          feat.freeEnabled ? (
-                            <Check className="size-4 text-text-muted" />
-                          ) : (
-                            <XIcon className="size-4 text-text-muted/40" />
-                          )
-                        ) : (
-                          <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>
-                        )}
-                      </div>
-
-                      {/* Pro value */}
-                      <div className="w-16 flex justify-center">
-                        {feat.type === 'boolean' ? (
-                          feat.proEnabled ? (
-                            <Check className="size-4 text-primary" />
-                          ) : (
-                            <XIcon className="size-4 text-text-muted/40" />
-                          )
-                        ) : (
-                          <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
+          <div className="space-y-4 mb-6">
+            {/* Column headers */}
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('upgrade.feature')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-center w-16">{t('upgrade.free')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary text-center w-16">{t('common.proBadge')}</span>
             </div>
-          )}
+
+            {/* Category groups */}
+            {featureCategories.map((group) => (
+              <div key={group.category} className="space-y-1.5">
+                {/* Category header */}
+                <div className="px-4 pt-2 pb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
+                    {t(`upgrade.categories.${group.category}`)}
+                  </span>
+                </div>
+
+                {/* Feature rows */}
+                {group.features.map((feat) => (
+                  <div
+                    key={feat.key}
+                    className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
+                  >
+                    {/* Feature label with icon and info popover */}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <feat.Icon className="size-4 text-text-muted shrink-0" />
+                      <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
+                      <button
+                        className="shrink-0 p-0.5 rounded-full text-text-muted/60 hover:text-text-secondary transition-colors"
+                        title={t(`upgrade.features.${feat.key}.tooltip`)}
+                      >
+                        <Info className="size-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Free value */}
+                    <div className="w-16 flex justify-center">
+                      {feat.type === 'boolean' ? (
+                        feat.freeEnabled ? (
+                          <Check className="size-4 text-text-muted" />
+                        ) : (
+                          <XIcon className="size-4 text-text-muted/40" />
+                        )
+                      ) : (
+                        <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>
+                      )}
+                    </div>
+
+                    {/* Pro value */}
+                    <div className="w-16 flex justify-center">
+                      {feat.type === 'boolean' ? (
+                        feat.proEnabled ? (
+                          <Check className="size-4 text-primary" />
+                        ) : (
+                          <XIcon className="size-4 text-text-muted/40" />
+                        )
+                      ) : (
+                        <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>

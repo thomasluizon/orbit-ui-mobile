@@ -1,25 +1,14 @@
 'use client'
 
 import { useMutation } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { updateWeekStartDay, updateColorScheme as updateColorSchemeAction } from '@/app/actions/profile'
 
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.welcome.title': 'Welcome to Orbit',
-    'onboarding.flow.welcome.subtitle': 'Build better habits, one day at a time. Let\'s set up a few things first.',
-    'onboarding.flow.welcome.weekStart': 'Week starts on',
-    'onboarding.flow.welcome.colorScheme': 'Pick your color',
-    'settings.weekStartDay.monday': 'Monday',
-    'settings.weekStartDay.sunday': 'Sunday',
-  }
-  return strings[key] ?? key
-}
-
 export function OnboardingWelcome() {
+  const t = useTranslations()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const { currentScheme, applyScheme } = useColorScheme()

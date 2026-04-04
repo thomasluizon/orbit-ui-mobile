@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Clock, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 
 export function TrialBanner() {
@@ -29,7 +30,7 @@ export function TrialBanner() {
       <span className={`text-sm font-medium flex-1 ${trialUrgent ? 'text-amber-400' : 'text-primary'}`}>
         {trialDaysLeft === 0
           ? t('trial.banner.lastDay')
-          : t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 })}
+          : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
       </span>
       <Link
         href="/upgrade"

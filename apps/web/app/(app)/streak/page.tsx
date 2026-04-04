@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo, useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
@@ -154,7 +155,7 @@ export default function StreakPage() {
                 {streak}
               </p>
               <p className="text-sm text-text-secondary mt-1">
-                {t('streakDisplay.detail.daysUnit', { count: streak })}
+                {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
               </p>
               {encouragement && (
                 <p className="text-sm text-text-secondary mt-2 font-medium">
@@ -227,7 +228,7 @@ export default function StreakPage() {
                 <span className="text-sm font-bold text-text-primary">{t('streakDisplay.freeze.title')}</span>
               </div>
               <span className="text-xs text-text-muted">
-                {t('streakDisplay.freeze.available', { count: freezesAvailable })}
+                {plural(t('streakDisplay.freeze.available', { count: freezesAvailable }), freezesAvailable)}
               </span>
             </div>
 
@@ -286,7 +287,7 @@ export default function StreakPage() {
                       key={date}
                       className="text-[10px] text-text-muted bg-surface-elevated px-2 py-0.5 rounded-full"
                     >
-                      {format(parseISO(date), 'MMM d')}
+                      {format(parseISO(date), locale === 'pt-BR' ? 'dd MMM' : 'MMM d', { locale: dateFnsLocale })}
                     </span>
                   ))}
                 </div>
@@ -304,7 +305,7 @@ export default function StreakPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary leading-relaxed">
-            {t('streakDisplay.freeze.confirmBody', { count: freezesAvailable, remaining: freezesAvailable, streak })}
+            {plural(t('streakDisplay.freeze.confirmBody', { count: freezesAvailable, remaining: freezesAvailable, streak }), freezesAvailable)}
           </p>
           <div className="flex flex-col gap-2">
             <button

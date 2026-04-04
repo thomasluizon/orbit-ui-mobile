@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Bell, BellOff, Trash2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
   useNotifications,
@@ -64,7 +65,7 @@ export function NotificationBell() {
   return (
     <div className="relative">
       <button
-        aria-label={unreadCount > 0 ? t('notifications.bellWithCount', { count: unreadCount }) : t('notifications.bell')}
+        aria-label={unreadCount > 0 ? plural(t('notifications.bellWithCount', { count: unreadCount }), unreadCount) : t('notifications.bell')}
         aria-expanded={isOpen}
         aria-controls="notification-dropdown"
         className="relative size-9 flex items-center justify-center rounded-full bg-surface-elevated/60 hover:bg-surface-elevated border border-border-muted hover:border-border transition-all duration-200 text-text-secondary hover:text-text-primary"

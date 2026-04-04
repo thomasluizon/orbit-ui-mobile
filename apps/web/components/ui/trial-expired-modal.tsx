@@ -3,25 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Sparkles, CheckCircle2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'trial.expired.title': 'Your trial has ended',
-    'trial.expired.subtitle': 'You had 7 days to explore all Pro features. Here\'s what you\'ll miss:',
-    'trial.expired.dontLose': 'Don\'t lose access to:',
-    'trial.expired.unlimitedHabits': 'Unlimited habits',
-    'trial.expired.aiChat': 'Unlimited AI chat messages',
-    'trial.expired.allColors': 'All color schemes',
-    'trial.expired.aiSummary': 'AI daily summary',
-    'trial.expired.subHabits': 'Sub-habits & checklists',
-    'trial.expired.subscribe': 'Subscribe to Pro',
-    'trial.expired.continueFree': 'Continue with Free',
-  }
-  return strings[key] ?? key
-}
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -34,6 +19,7 @@ const features = [
 ]
 
 export function TrialExpiredModal() {
+  const t = useTranslations()
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -84,10 +70,10 @@ export function TrialExpiredModal() {
       }
     >
       <p className="text-text-secondary text-sm mb-4">
-        {t('trial.expired.subtitle')}
+        {plural(t('trial.expired.subtitle', { days: 7 }), 7)}
       </p>
 
-      <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
+      <p className="form-label mb-3">
         {t('trial.expired.dontLose')}
       </p>
 

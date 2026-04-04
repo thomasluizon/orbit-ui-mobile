@@ -1,7 +1,8 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import type { Achievement } from '@orbit/shared/types/gamification'
 
 function rarityColor(rarity: string): string {
@@ -22,6 +23,8 @@ interface AchievementCardProps {
 
 export function AchievementCard({ achievement, earned, earnedDate }: AchievementCardProps) {
   const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
   return (
     <div
@@ -56,7 +59,7 @@ export function AchievementCard({ achievement, earned, earnedDate }: Achievement
 
       {earned && earnedDate && (
         <p className="text-[10px] text-text-muted mt-1">
-          {t('gamification.page.earnedOn', { date: format(new Date(earnedDate), 'MMM d, yyyy') })}
+          {t('gamification.page.earnedOn', { date: format(new Date(earnedDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale }) })}
         </p>
       )}
     </div>

@@ -2,17 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { BellRing, X } from 'lucide-react'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'pushPrompt.title': 'Enable notifications',
-    'pushPrompt.description': 'Get reminders for your habits so you never miss a day.',
-    'pushPrompt.enable': 'Enable',
-    'pushPrompt.later': 'Later',
-  }
-  return strings[key] ?? key
-}
+import { useTranslations } from 'next-intl'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -27,6 +17,7 @@ function setCookie(name: string, value: string, maxAge: number) {
 }
 
 export function PushPrompt() {
+  const t = useTranslations()
   const [show, setShow] = useState(false)
   const [visible, setVisible] = useState(false)
 

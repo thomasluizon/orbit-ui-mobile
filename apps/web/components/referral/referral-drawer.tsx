@@ -2,28 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Clipboard, Check, Share2, Sparkles } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
 import { AppOverlay } from '@/components/ui/app-overlay'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, string | number>) => {
-  const strings: Record<string, string> = {
-    'referral.drawer.title': 'Refer a Friend',
-    'referral.drawer.yourLink': 'Your referral link',
-    'referral.drawer.copy': 'Copy',
-    'referral.drawer.copied': 'Copied!',
-    'referral.drawer.share': 'Share Link',
-    'referral.drawer.completed': 'Completed referrals',
-    'referral.drawer.pending': 'Pending',
-    'referral.drawer.couponsEarned': 'Coupons earned',
-    'referral.drawer.howItWorks': 'How it works',
-    'referral.drawer.explanation': `Share your link with friends. When they sign up and subscribe, you both get ${params?.discount ?? 10}% off.`,
-    'referral.drawer.disclaimer': `Each successful referral earns a ${params?.discount ?? 10}% discount coupon. Limited to available referral slots.`,
-    'referral.share.title': 'Try Orbit',
-    'referral.share.text': `Build better habits with Orbit. Sign up and get ${params?.discount ?? 10}% off!`,
-  }
-  return strings[key] ?? key
-}
 
 interface ReferralDrawerProps {
   open: boolean
@@ -31,6 +12,7 @@ interface ReferralDrawerProps {
 }
 
 export function ReferralDrawer({ open, onOpenChange }: ReferralDrawerProps) {
+  const t = useTranslations()
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
   const [canShare, setCanShare] = useState(false)
@@ -85,7 +67,7 @@ export function ReferralDrawer({ open, onOpenChange }: ReferralDrawerProps) {
         {/* Error state */}
         {isError && !isLoading && (
           <div role="alert" className="bg-red-500/10 border border-red-500/20 rounded-[var(--radius-lg)] p-4">
-            <p className="text-sm text-red-400">{error?.message ?? 'Failed to load referral data'}</p>
+            <p className="text-sm text-red-400">{error?.message ?? t('errors.loadReferral')}</p>
           </div>
         )}
 
@@ -94,7 +76,7 @@ export function ReferralDrawer({ open, onOpenChange }: ReferralDrawerProps) {
           <>
             {/* Referral link */}
             <div>
-              <p id="referral-link-label" className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
+              <p id="referral-link-label" className="form-label mb-1.5">
                 {t('referral.drawer.yourLink')}
               </p>
               <div className="flex gap-2">

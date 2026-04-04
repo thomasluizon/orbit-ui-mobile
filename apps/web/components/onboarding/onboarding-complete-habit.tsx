@@ -2,18 +2,8 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useLogHabit } from '@/hooks/use-habits'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.completeHabit.title': 'Complete your first habit',
-    'onboarding.flow.completeHabit.instruction': 'Tap the circle to mark it done. This is how you\'ll track habits every day.',
-    'onboarding.flow.completeHabit.tapHint': 'Tap the circle to complete',
-    'onboarding.flow.completeHabit.success': '1-day streak started!',
-  }
-  return strings[key] ?? key
-}
 
 interface OnboardingCompleteHabitProps {
   habitId: string | null
@@ -29,6 +19,7 @@ const sparks = [
 ]
 
 export function OnboardingCompleteHabit({ habitId, habitTitle, onCompleted }: OnboardingCompleteHabitProps) {
+  const t = useTranslations()
   const [isCompleted, setIsCompleted] = useState(false)
   const [showStreak, setShowStreak] = useState(false)
   const [showSparks, setShowSparks] = useState(false)
@@ -91,7 +82,7 @@ export function OnboardingCompleteHabit({ habitId, habitTitle, onCompleted }: On
 
           {/* Completion circle */}
           <button
-            className={`relative shrink-0 size-11 rounded-full transition-all duration-200 ${
+            className={`relative shrink-0 size-11 rounded-full transition-all duration-200 touch-target ${
               isCompleted
                 ? 'animate-complete-pop'
                 : 'border-2 border-border-emphasis animate-[gentle-pulse_2s_ease-in-out_infinite] hover:ring-[3px] hover:ring-primary/15'

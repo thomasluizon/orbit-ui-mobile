@@ -90,12 +90,12 @@ export const API = {
 
   // -- Subscription / Billing ------------------------------------------------
   subscription: {
-    checkout: '/api/subscription/checkout',
-    portal: '/api/subscription/portal',
-    status: '/api/subscription/status',
-    plans: '/api/subscription/plans',
-    billing: '/api/subscription/billing',
-    adReward: '/api/subscription/ad-reward',
+    checkout: '/api/subscriptions/checkout',
+    portal: '/api/subscriptions/portal',
+    status: '/api/subscriptions/status',
+    plans: '/api/subscriptions/plans',
+    billing: '/api/subscriptions/billing',
+    adReward: '/api/subscriptions/ad-reward',
   },
 
   // -- Gamification ----------------------------------------------------------
@@ -130,7 +130,7 @@ export const API = {
 
   // -- Referrals -------------------------------------------------------------
   referral: {
-    dashboard: '/api/referral/dashboard',
+    dashboard: '/api/referrals/dashboard',
   },
 
   // -- API Keys --------------------------------------------------------------

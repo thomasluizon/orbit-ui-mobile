@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   addDays,
   subDays,
@@ -15,17 +16,32 @@ import {
   ChevronRight,
   Search,
   X,
-  Plus,
+  MoreVertical,
+  CheckCircle,
   Eye,
-  EyeOff,
+  Check,
+  RefreshCw,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  PlusCircle,
+  MinusCircle,
+  Forward,
+  Trash2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { GoalsView } from '@/components/goals/goals-view'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { StreakBadge } from '@/components/gamification/streak-badge'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
+import { useStreakInfo } from '@/hooks/use-gamification'
+import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
@@ -34,8 +50,6 @@ import type { HabitsFilter } from '@orbit/shared/types/habit'
 // ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
-type ViewTab = (typeof TAB_VIEWS)[number]
-
 // ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
@@ -45,6 +59,12 @@ export default function TodayPage() {
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
+  const { data: streakInfo } = useStreakInfo()
+
+  // Bulk mutation hooks
+  const bulkDelete = useBulkDeleteHabits()
+  const bulkLog = useBulkLogHabits()
+  const bulkSkip = useBulkSkipHabits()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -59,30 +79,115 @@ export default function TodayPage() {
   const toggleHabitSelection = useUIStore((s) => s.toggleHabitSelection)
   const clearSelection = useUIStore((s) => s.clearSelection)
 
+  // Create modal (shared with layout's BottomNav via store)
+  const showCreateModal = useUIStore((s) => s.showCreateModal)
+  const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+
   // Local state
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
+  const [selectedFrequency, setSelectedFrequency] = useState<'Day' | 'Week' | 'Month' | 'Year' | 'none' | null>(null)
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [showControlsMenu, setShowControlsMenu] = useState(false)
+  const [controlsMenuPosition, setControlsMenuPosition] = useState({ top: 0, left: 0 })
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
+  const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
+  const [allCollapsed, setAllCollapsed] = useState(false)
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const controlsMenuRef = useRef<HTMLDivElement>(null)
+  const controlsMenuPanelRef = useRef<HTMLDivElement>(null)
+  const habitListRef = useRef<{
+    collapseAll: () => void
+    expandAll: () => void
+    allCollapsed: boolean
+    markRecentlyCompleted: (habitId: string) => void
+    checkAndPromptParentLog: (childHabitId: string) => void
+  } | null>(null)
+
+  const CONTROLS_MENU_WIDTH_PX = 200
+  const CONTROLS_MENU_MARGIN_PX = 8
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
     [selectedDateStr],
   )
 
+  type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+  const frequencyOptions = useMemo<Array<{ key: FreqKey; label: string }>>(
+    () => [
+      { key: 'Day', label: t('habits.filter.daily') },
+      { key: 'Week', label: t('habits.filter.weekly') },
+      { key: 'Month', label: t('habits.filter.monthly') },
+      { key: 'Year', label: t('habits.filter.yearly') },
+      { key: 'none', label: t('habits.filter.oneTime') },
+    ],
+    [t],
+  )
+
   // Date navigation
   const goToPreviousDay = useCallback(() => {
+    setSlideDirection('left')
     setSelectedDate(formatAPIDate(subDays(selectedDate, 1)))
   }, [selectedDate, setSelectedDate])
 
   const goToNextDay = useCallback(() => {
+    setSlideDirection('right')
     setSelectedDate(formatAPIDate(addDays(selectedDate, 1)))
   }, [selectedDate, setSelectedDate])
 
   const goToToday = useCallback(() => {
+    if (isToday(selectedDate)) {
+      setSlideDirection('right')
+    } else if (selectedDate > new Date()) {
+      setSlideDirection('left')
+    } else {
+      setSlideDirection('right')
+    }
     setSelectedDate(formatAPIDate(new Date()))
     setActiveView('today')
-  }, [setSelectedDate, setActiveView])
+  }, [selectedDate, setSelectedDate, setActiveView])
+
+  // Controls menu
+  const toggleControlsMenu = useCallback(() => {
+    if (!showControlsMenu) {
+      const rect = controlsMenuRef.current?.getBoundingClientRect()
+      if (rect) {
+        const preferredLeft = rect.right - CONTROLS_MENU_WIDTH_PX
+        const maxLeft = window.innerWidth - CONTROLS_MENU_WIDTH_PX - CONTROLS_MENU_MARGIN_PX
+        setControlsMenuPosition({
+          top: rect.bottom + CONTROLS_MENU_MARGIN_PX,
+          left: Math.min(Math.max(preferredLeft, CONTROLS_MENU_MARGIN_PX), Math.max(CONTROLS_MENU_MARGIN_PX, maxLeft)),
+        })
+      }
+    }
+    setShowControlsMenu((prev) => !prev)
+  }, [showControlsMenu])
+
+  const closeControlsMenu = useCallback(() => {
+    setShowControlsMenu(false)
+  }, [])
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!showControlsMenu) return
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (controlsMenuRef.current?.contains(target)) return
+      if (controlsMenuPanelRef.current?.contains(target)) return
+      setShowControlsMenu(false)
+    }
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setShowControlsMenu(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeydown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeydown)
+    }
+  }, [showControlsMenu])
 
   const dateLabel = useMemo(() => {
     if (isToday(selectedDate)) return t('dates.today')
@@ -113,6 +218,7 @@ export default function TodayPage() {
     if (activeView === 'general') {
       const f: HabitsFilter = { isGeneral: true }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
+      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
       return f
     }
 
@@ -126,14 +232,18 @@ export default function TodayPage() {
         includeGeneral: true,
       }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
+      if (selectedFrequency) f.frequencyUnit = selectedFrequency
+      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
       return f
     }
 
     // 'all' view
     const f: HabitsFilter = {}
     if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
+    if (selectedFrequency) f.frequencyUnit = selectedFrequency
+    if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [activeView, selectedDate, searchQueryStore])
+  }, [activeView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds])
 
   // Tab keyboard navigation
   const handleTabKeydown = useCallback(
@@ -155,12 +265,71 @@ export default function TodayPage() {
   // Clear select mode when view changes
   useEffect(() => {
     if (isSelectMode) clearSelection()
+    setSelectedFrequency(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView])
 
+  // Tag filter toggle
+  const toggleTagFilter = useCallback((tagId: string) => {
+    setSelectedTagIds((prev) => {
+      const idx = prev.indexOf(tagId)
+      if (idx >= 0) return prev.filter((id) => id !== tagId)
+      return [...prev, tagId]
+    })
+  }, [])
+
+  // Select all / deselect all
+  const allSelected = selectedHabitIds.size > 0
+  const selectAll = useCallback(() => {
+    // Toggle all currently visible -- store manages
+  }, [])
+  const deselectAll = useCallback(() => {
+    clearSelection()
+  }, [clearSelection])
+
+  // Bulk actions
+  const confirmBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkDelete.mutateAsync(ids)
+    } catch {
+      // Error handled in hook
+    } finally {
+      clearSelection()
+      setShowBulkDeleteConfirm(false)
+    }
+  }, [selectedHabitIds, bulkDelete, clearSelection])
+
+  const confirmBulkLog = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkLog.mutateAsync(ids.map((id) => ({ habitId: id })))
+    } catch {
+      // Error handled in hook
+    } finally {
+      clearSelection()
+      setShowBulkLogConfirm(false)
+    }
+  }, [selectedHabitIds, bulkLog, clearSelection])
+
+  const confirmBulkSkip = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkSkip.mutateAsync(ids.map((id) => ({ habitId: id })))
+    } catch {
+      // Error handled in hook
+    } finally {
+      clearSelection()
+      setShowBulkSkipConfirm(false)
+    }
+  }, [selectedHabitIds, bulkSkip, clearSelection])
+
   return (
     <div className="relative">
-      {/* Header: Orbit logo */}
+      {/* Header: Orbit logo + streak badge + bell */}
       <header className="flex items-center justify-between pt-8 pb-2">
         <button
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -177,6 +346,11 @@ export default function TodayPage() {
             Orbit
           </span>
         </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <StreakBadge streak={streakInfo?.currentStreak ?? 0} />
+          <NotificationBell />
+        </div>
       </header>
 
       {/* Tabs: Today / All / General / Goals */}
@@ -198,7 +372,7 @@ export default function TodayPage() {
               }
               className={`flex-1 text-center py-2 text-sm font-bold transition-all duration-200 rounded-[var(--radius-md)] ${
                 activeView === view
-                  ? 'text-primary bg-surface shadow-sm'
+                  ? 'text-primary bg-surface shadow-[var(--shadow-sm)]'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
               onClick={() => setActiveView(view)}
@@ -293,80 +467,277 @@ export default function TodayPage() {
             </div>
           </div>
 
-          {/* Controls row */}
-          <div className="pb-2 flex items-center justify-end gap-2">
-            <button
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                showCompleted
-                  ? 'bg-primary text-white'
-                  : 'bg-surface border border-border text-text-faded hover:text-text-primary'
-              }`}
-              onClick={() => setShowCompleted(!showCompleted)}
-            >
-              {showCompleted ? (
-                <Eye className="size-3" />
-              ) : (
-                <EyeOff className="size-3" />
-              )}
-              {t('habits.showCompleted')}
-            </button>
-          </div>
-
-          {/* Select mode bar */}
-          {isSelectMode && (
-            <div className="flex items-center gap-2 pb-3">
-              <span className="text-xs font-bold text-text-muted">
-                {selectedHabitIds.size} {t('common.selected')}
-              </span>
-              <div className="flex-1" />
+          {/* Filter chips + controls row */}
+          <div className="pb-2 flex items-center gap-2">
+            <div className="flex-1 overflow-x-auto thin-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
+              <div className="flex gap-2 min-w-max">
+                {/* Frequency chips (hidden in general view) */}
+                {activeView !== 'general' && (
+                  <>
+                    <button
+                      className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
+                        !selectedFrequency
+                          ? 'bg-primary text-white'
+                          : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                      }`}
+                      onClick={() => setSelectedFrequency(null)}
+                    >
+                      {t('common.all')}
+                    </button>
+                    {frequencyOptions.map((opt) => (
+                      <button
+                        key={opt.key}
+                        className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
+                          selectedFrequency === opt.key
+                            ? 'bg-primary text-white'
+                            : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                        }`}
+                        onClick={() =>
+                          setSelectedFrequency(
+                            selectedFrequency === opt.key ? null : opt.key,
+                          )
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+            <div ref={controlsMenuRef} className="shrink-0">
               <button
-                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface border border-border text-text-secondary hover:text-text-primary transition-all"
-                onClick={clearSelection}
+                className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface"
+                title={t('habits.actions.more')}
+                aria-label={t('habits.actions.more')}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleControlsMenu()
+                }}
               >
-                {t('common.cancel')}
+                <MoreVertical className="size-5" />
               </button>
             </div>
-          )}
+          </div>
+
+          {/* Controls dropdown menu (portal) */}
+          {showControlsMenu &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <div
+                ref={controlsMenuPanelRef}
+                className="fixed z-[70] min-w-[12.5rem] rounded-[var(--radius-lg)] border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1"
+                style={{
+                  left: `${controlsMenuPosition.left}px`,
+                  top: `${controlsMenuPosition.top}px`,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+                  onClick={() => {
+                    toggleSelectMode()
+                    closeControlsMenu()
+                  }}
+                >
+                  {isSelectMode ? (
+                    <X className="size-4 text-text-muted" />
+                  ) : (
+                    <CheckCircle className="size-4 text-text-muted" />
+                  )}
+                  {isSelectMode ? t('common.cancel') : t('common.select')}
+                </button>
+                <button
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+                  onClick={() => {
+                    if (allCollapsed) {
+                      habitListRef.current?.expandAll()
+                    } else {
+                      habitListRef.current?.collapseAll()
+                    }
+                    setAllCollapsed(!allCollapsed)
+                    closeControlsMenu()
+                  }}
+                >
+                  {allCollapsed ? (
+                    <ChevronsUpDown className="size-4 text-text-muted" />
+                  ) : (
+                    <ChevronsDownUp className="size-4 text-text-muted" />
+                  )}
+                  {allCollapsed
+                    ? t('habits.expandAll')
+                    : t('habits.collapseAll')}
+                </button>
+                <button
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+                  onClick={() => {
+                    closeControlsMenu()
+                  }}
+                >
+                  <RefreshCw className="size-4 text-text-muted" />
+                  {t('habits.refresh')}
+                </button>
+                <button
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+                  onClick={() => {
+                    setShowCompleted(!showCompleted)
+                    closeControlsMenu()
+                  }}
+                >
+                  {showCompleted ? (
+                    <Check className="size-4 text-text-muted" />
+                  ) : (
+                    <Eye className="size-4 text-text-muted" />
+                  )}
+                  {t('habits.showCompleted')}
+                </button>
+              </div>,
+              document.body,
+            )}
 
           {/* Habit list */}
-          <HabitList
-            view={activeView === 'today' || activeView === 'all' || activeView === 'general' ? activeView : 'today'}
-            selectedDate={selectedDate}
-            showCompleted={showCompleted}
-            isSelectMode={isSelectMode}
-            selectedHabitIds={selectedHabitIds}
-            searchQuery={searchQueryStore}
-            filters={filters}
-            onToggleSelection={toggleHabitSelection}
-            onEnterSelectMode={(habitId) => {
-              if (!isSelectMode) toggleSelectMode()
-              toggleHabitSelection(habitId)
-            }}
-            onCreate={() => setShowCreateModal(true)}
-            onSeeUpcoming={() => setActiveView('all')}
-          />
+          <div
+            className={`overflow-x-hidden overflow-y-visible pt-2 transition-opacity duration-200 ${
+              isSelectMode ? 'pb-20' : ''
+            }`}
+          >
+            <HabitList
+              view={
+                activeView === 'today' ||
+                activeView === 'all' ||
+                activeView === 'general'
+                  ? activeView
+                  : 'today'
+              }
+              selectedDate={selectedDate}
+              showCompleted={showCompleted}
+              isSelectMode={isSelectMode}
+              selectedHabitIds={selectedHabitIds}
+              searchQuery={searchQueryStore}
+              filters={filters}
+              onToggleSelection={toggleHabitSelection}
+              onEnterSelectMode={(habitId) => {
+                if (!isSelectMode) toggleSelectMode()
+                toggleHabitSelection(habitId)
+              }}
+              onCreate={() => setShowCreateModal(true)}
+              onSeeUpcoming={goToNextDay}
+            />
+          </div>
         </div>
       )}
 
-      {/* Floating action button */}
-      {activeView !== 'goals' && !isSelectMode && (
-        <button
-          className="fixed bottom-24 right-6 z-50 size-14 rounded-full bg-primary text-white shadow-[var(--shadow-glow)] flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all duration-150"
-          aria-label={t('habits.createHabit')}
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus className="size-6" />
-        </button>
-      )}
+      {/* Floating bulk action bar */}
+      {isSelectMode &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] bg-surface-overlay border border-border-muted rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] backdrop-blur-xl px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium shrink-0">
+                {plural(t('common.selected', { n: selectedHabitIds.size }), selectedHabitIds.size)}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
+                  aria-label={
+                    allSelected
+                      ? t('common.deselectAll')
+                      : t('common.selectAll')
+                  }
+                  onClick={() =>
+                    allSelected ? deselectAll() : selectAll()
+                  }
+                >
+                  {allSelected ? (
+                    <MinusCircle className="size-5" />
+                  ) : (
+                    <PlusCircle className="size-5" />
+                  )}
+                </button>
+                <button
+                  className="p-2 text-primary hover:text-primary/80 transition-colors rounded-xl hover:bg-primary/10"
+                  aria-label={t('habits.logHabit')}
+                  onClick={() => setShowBulkLogConfirm(true)}
+                >
+                  <CheckCircle className="size-5" />
+                </button>
+                <button
+                  className="p-2 text-amber-400 hover:text-amber-300 transition-colors rounded-xl hover:bg-amber-500/10"
+                  aria-label={t('habits.skipHabit')}
+                  onClick={() => setShowBulkSkipConfirm(true)}
+                >
+                  <Forward className="size-5" />
+                </button>
+                <button
+                  className="p-2 text-red-400 hover:text-red-300 transition-colors rounded-xl hover:bg-red-500/10"
+                  aria-label={t('common.delete')}
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                >
+                  <Trash2 className="size-5" />
+                </button>
+                <div className="w-px h-5 bg-border mx-0.5" />
+                <button
+                  className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
+                  aria-label={t('common.cancel')}
+                  onClick={toggleSelectMode}
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
-      {/* Create habit modal */}
-      <CreateHabitModal
-        open={showCreateModal}
-        onOpenChange={setShowCreateModal}
-        initialDate={
-          activeView === 'today' ? formatAPIDate(selectedDate) : null
-        }
+      {/* Bulk delete confirmation */}
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        onOpenChange={setShowBulkDeleteConfirm}
+        title={t('habits.bulkDeleteTitle')}
+        description={plural(t('habits.bulkDeleteMessage', { count: selectedHabitIds.size }), selectedHabitIds.size)}
+        confirmLabel={t('habits.bulkDeleteConfirm')}
+        cancelLabel={t('common.cancel')}
+        variant="danger"
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setShowBulkDeleteConfirm(false)}
       />
+
+      {/* Bulk log confirmation */}
+      <ConfirmDialog
+        open={showBulkLogConfirm}
+        onOpenChange={setShowBulkLogConfirm}
+        title={t('habits.bulkLogTitle')}
+        description={plural(t('habits.bulkLogMessage', { count: selectedHabitIds.size }), selectedHabitIds.size)}
+        confirmLabel={t('habits.bulkLogConfirm')}
+        cancelLabel={t('common.cancel')}
+        variant="warning"
+        onConfirm={confirmBulkLog}
+        onCancel={() => setShowBulkLogConfirm(false)}
+      />
+
+      {/* Bulk skip confirmation */}
+      <ConfirmDialog
+        open={showBulkSkipConfirm}
+        onOpenChange={setShowBulkSkipConfirm}
+        title={t('habits.bulkSkipTitle')}
+        description={plural(t('habits.bulkSkipMessage', { count: selectedHabitIds.size }), selectedHabitIds.size)}
+        confirmLabel={t('habits.bulkSkipConfirm')}
+        cancelLabel={t('common.cancel')}
+        variant="warning"
+        onConfirm={confirmBulkSkip}
+        onCancel={() => setShowBulkSkipConfirm(false)}
+      />
+
+      {/* Create habit modal (triggered from HabitList empty state) */}
+      {showCreateModal && (
+        <CreateHabitModal
+          open={showCreateModal}
+          onOpenChange={setShowCreateModal}
+          initialDate={
+            activeView === 'today' ? formatAPIDate(selectedDate) : null
+          }
+        />
+      )}
     </div>
   )
 }

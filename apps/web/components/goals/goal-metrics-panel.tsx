@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
-import { useTranslations } from 'next-intl'
+import { enUS, ptBR } from 'date-fns/locale'
+import { useTranslations, useLocale } from 'next-intl'
 import type { GoalMetrics } from '@orbit/shared/types/goal'
 
 // ---------------------------------------------------------------------------
@@ -25,6 +26,8 @@ export function GoalMetricsPanel({
   isLoading,
 }: GoalMetricsPanelProps) {
   const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
   const statusConfig = useMemo(() => {
     const status = metrics?.trackingStatus
@@ -63,7 +66,7 @@ export function GoalMetricsPanel({
   }, [metrics?.trackingStatus, t])
 
   function formatMetricDate(dateStr: string) {
-    return format(parseISO(dateStr), 'MMM d, yyyy')
+    return format(parseISO(dateStr), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
   }
 
   // Loading skeleton

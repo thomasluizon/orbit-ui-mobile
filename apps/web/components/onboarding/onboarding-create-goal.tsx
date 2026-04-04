@@ -2,30 +2,9 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { getErrorMessage } from '@orbit/shared/utils'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.createGoal.title': 'Set a goal',
-    'onboarding.flow.createGoal.optional': 'Optional',
-    'onboarding.flow.createGoal.subtitle': 'Goals give your habits a bigger purpose.',
-    'onboarding.flow.createGoal.suggestions.run': 'Run 100 km',
-    'onboarding.flow.createGoal.suggestions.books': 'Read 12 books',
-    'onboarding.flow.createGoal.suggestions.booksUnit': 'books',
-    'onboarding.flow.createGoal.suggestions.save': 'Save $5,000',
-    'onboarding.flow.createGoal.targetPlaceholder': 'Target',
-    'onboarding.flow.createGoal.unitPlaceholder': 'Unit (km, books...)',
-    'onboarding.flow.createGoal.descriptionPlaceholder': 'Description (optional)',
-    'onboarding.flow.createGoal.creating': 'Creating...',
-    'onboarding.flow.createGoal.create': 'Create goal',
-    'onboarding.flow.createGoal.skipStep': 'Skip for now',
-    'onboarding.flow.createGoal.success': 'Goal created!',
-    'goals.errors.create': 'Failed to create goal. Please try again.',
-  }
-  return strings[key] ?? key
-}
 
 interface GoalSuggestion {
   key: string
@@ -40,6 +19,7 @@ interface OnboardingCreateGoalProps {
 }
 
 export function OnboardingCreateGoal({ onCreated, onSkip }: OnboardingCreateGoalProps) {
+  const t = useTranslations()
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState<number | undefined>(undefined)
   const [unit, setUnit] = useState('')

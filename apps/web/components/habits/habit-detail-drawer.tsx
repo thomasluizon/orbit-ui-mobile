@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { Clock, Bell, CalendarDays, Flame, Trophy, BarChart3, Trash2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
@@ -38,6 +39,8 @@ export function HabitDetailDrawer({
   onLogged,
 }: HabitDetailDrawerProps) {
   const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const habitId = habit?.id ?? ''
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
@@ -188,7 +191,7 @@ export function HabitDetailDrawer({
                 <CalendarDays className="size-4 text-primary" />
                 <span>
                   {t('habits.detail.endsOn')}{' '}
-                  {format(new Date(habit.endDate), 'MMM d, yyyy')}
+                  {format(new Date(habit.endDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })}
                 </span>
               </div>
             )}
@@ -275,7 +278,7 @@ export function HabitDetailDrawer({
                       className="bg-surface-ground border border-border-muted rounded-lg p-3 shadow-[var(--shadow-sm)]"
                     >
                       <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                        {format(new Date(log.date), 'MMM d, yyyy')}
+                        {format(new Date(log.date), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })}
                       </p>
                       <p className="text-sm text-text-secondary">{log.note}</p>
                     </div>

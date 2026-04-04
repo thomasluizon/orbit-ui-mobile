@@ -2,19 +2,24 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 
 export default function CalendarPage() {
+  const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showDayDetail, setShowDayDetail] = useState(false)
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
-  const monthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy'), [currentMonth])
+  const monthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }), [currentMonth, dateFnsLocale])
 
   const prevMonth = useCallback(() => {
     setCurrentMonth((m) => subMonths(m, 1))
@@ -44,7 +49,7 @@ export default function CalendarPage() {
       <header className="pt-8 pb-2 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-            Calendar
+            {t('nav.calendar')}
           </h1>
           <button
             className="p-2 rounded-full hover:bg-surface transition-colors"
@@ -115,15 +120,15 @@ export default function CalendarPage() {
       <div className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
         <div className="flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-green-500" />
-          <span>Done</span>
+          <span>{t('calendar.legend.done')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-primary" />
-          <span>Upcoming</span>
+          <span>{t('calendar.legend.upcoming')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-orange-500" />
-          <span>Missed</span>
+          <span>{t('calendar.legend.missed')}</span>
         </div>
       </div>
 

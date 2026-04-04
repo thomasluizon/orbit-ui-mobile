@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { completeOnboarding } from '@/app/actions/profile'
 import { OnboardingWelcome } from './onboarding-welcome'
@@ -12,20 +13,10 @@ import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
 
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string, params?: Record<string, number>) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.step': `${params?.current ?? 0} of ${params?.total ?? 0}`,
-    'onboarding.flow.skip': 'Skip',
-    'onboarding.flow.back': 'Back',
-    'onboarding.flow.next': 'Next',
-  }
-  return strings[key] ?? key
-}
-
 const TOTAL_STEPS = 6
 
 export function OnboardingFlow() {
+  const t = useTranslations()
   const router = useRouter()
   const hasProAccess = useHasProAccess()
 

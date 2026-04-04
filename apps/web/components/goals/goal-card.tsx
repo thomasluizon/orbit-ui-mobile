@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { GoalDetailDrawer } from './goal-detail-drawer'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -46,12 +47,12 @@ export function GoalCard({ goal }: GoalCardProps) {
     }
     if (daysLeft <= 7) {
       return {
-        text: t('goals.deadline.daysLeft', { n: daysLeft }),
+        text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
         className: 'text-amber-400 bg-amber-500/10',
       }
     }
     return {
-      text: t('goals.deadline.daysLeft', { n: daysLeft }),
+      text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
       className: 'text-text-muted bg-surface-elevated',
     }
   }, [goal.deadline, goal.status, t])

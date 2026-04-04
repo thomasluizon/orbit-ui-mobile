@@ -152,6 +152,10 @@
     "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
     "backToLogin": "Back to login",
+    "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "refresh": "Refresh",
+    "login": "Log in",
     "codeDigit": "Digit {n} of 6",
     "tagline": "Track your habits, build your streaks",
     "errors": {

@@ -3,21 +3,14 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { RefreshCw } from 'lucide-react'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'profile.freshStart.successTitle': 'Fresh Start',
-    'profile.freshStart.successSubtitle': 'Your account has been reset. Let\'s begin again.',
-  }
-  return strings[key] ?? key
-}
+import { useTranslations } from 'next-intl'
 
 interface FreshStartAnimationProps {
   onComplete: () => void
 }
 
 export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
+  const t = useTranslations()
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
   const [mounted, setMounted] = useState(false)

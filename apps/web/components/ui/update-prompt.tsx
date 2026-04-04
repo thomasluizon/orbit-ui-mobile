@@ -2,17 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { RefreshCw, X } from 'lucide-react'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'updatePrompt.title': 'Update available',
-    'updatePrompt.description': 'A new version of Orbit is available with bug fixes and improvements.',
-    'updatePrompt.update': 'Update',
-    'updatePrompt.later': 'Later',
-  }
-  return strings[key] ?? key
-}
+import { useTranslations } from 'next-intl'
 
 interface UpdatePromptProps {
   show: boolean
@@ -21,6 +11,7 @@ interface UpdatePromptProps {
 }
 
 export function UpdatePrompt({ show, onUpdate, onDismiss }: UpdatePromptProps) {
+  const t = useTranslations()
   const [visible, setVisible] = useState(show)
 
   const handleDismiss = useCallback(() => {

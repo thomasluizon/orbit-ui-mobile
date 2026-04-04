@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useUIStore } from '@/stores/ui-store'
 import './streak-celebration.css'
 
@@ -108,7 +109,7 @@ export function StreakCelebration() {
 
         {/* Subtitle */}
         <p className="text-sm font-bold uppercase tracking-widest mt-1.5" style={{ color: '#fdba74' }}>
-          {t('streakDisplay.celebration.subtitle', { count: streakCount })}
+          {plural(t('streakDisplay.celebration.subtitle', { count: streakCount }), streakCount)}
         </p>
 
         {/* Encouragement */}

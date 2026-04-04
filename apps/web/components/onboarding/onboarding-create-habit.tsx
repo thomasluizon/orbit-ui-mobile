@@ -2,30 +2,10 @@
 
 import { useState, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useCreateHabit } from '@/hooks/use-habits'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'onboarding.flow.createHabit.title': 'Create your first habit',
-    'onboarding.flow.createHabit.subtitle': 'Start small. You can always add more later.',
-    'onboarding.flow.createHabit.placeholder': 'e.g. Drink water, Read 10 pages...',
-    'onboarding.flow.createHabit.frequency.daily': 'Daily',
-    'onboarding.flow.createHabit.frequency.weekly': 'Weekly',
-    'onboarding.flow.createHabit.frequency.oneTime': 'One-time',
-    'onboarding.flow.createHabit.suggestions.water': 'Drink water',
-    'onboarding.flow.createHabit.suggestions.read': 'Read 10 pages',
-    'onboarding.flow.createHabit.suggestions.exercise': 'Exercise',
-    'onboarding.flow.createHabit.suggestions.meditate': 'Meditate',
-    'onboarding.flow.createHabit.creating': 'Creating...',
-    'onboarding.flow.createHabit.create': 'Create habit',
-    'onboarding.flow.createHabit.success': 'Habit created!',
-    'errors.createHabit': 'Failed to create habit. Please try again.',
-  }
-  return strings[key] ?? key
-}
 
 interface Suggestion {
   key: string
@@ -50,6 +30,7 @@ interface OnboardingCreateHabitProps {
 }
 
 export function OnboardingCreateHabit({ onCreated }: OnboardingCreateHabitProps) {
+  const t = useTranslations()
   const [title, setTitle] = useState('')
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
   const [isCreated, setIsCreated] = useState(false)

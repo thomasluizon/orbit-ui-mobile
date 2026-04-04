@@ -17,18 +17,28 @@ import {
   Check,
 } from 'lucide-react'
 import { parseISO, format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import { useTranslations, useLocale } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
+import { ProfileStreakCard } from '@/components/gamification/profile-streak-card'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import { resetAccount } from '@/app/actions/profile'
 import { requestDeletion, confirmDeletion } from '@/app/actions/auth'
 
 export default function ProfilePage() {
+  const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile, isLoading, error, invalidate } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
+  const { profile: gamificationProfile } = useGamificationProfile()
 
   // --- Fresh Start ---
   const [showResetModal, setShowResetModal] = useState(false)
@@ -36,6 +46,7 @@ export default function ProfilePage() {
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
+  const [showFreshStartAnimation, setShowFreshStartAnimation] = useState(false)
 
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
 
@@ -55,14 +66,20 @@ export default function ProfilePage() {
       await resetAccount()
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
+      // Close modal, show animation (matches Vue flow)
       setShowResetModal(false)
-      window.location.href = '/'
+      setShowFreshStartAnimation(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      const msg = err instanceof Error ? err.message : t('profile.freshStart.errorGeneric')
       setResetError(msg)
     } finally {
       setResetLoading(false)
     }
+  }
+
+  function handleFreshStartComplete() {
+    setShowFreshStartAnimation(false)
+    window.location.href = '/'
   }
 
   // --- Delete Account ---
@@ -89,7 +106,7 @@ export default function ProfilePage() {
       await requestDeletion()
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -106,7 +123,7 @@ export default function ProfilePage() {
       setScheduledDeletionDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -145,22 +162,22 @@ export default function ProfilePage() {
 
   const deleteWarningMessage = useMemo(() => {
     if (profile?.hasProAccess && profile?.planExpiresAt) {
-      return `Your Pro subscription is active until ${format(parseISO(profile.planExpiresAt), 'PPP')}. Deleting your account will cancel it.`
+      return t('profile.deleteAccount.warningPro', { date: format(parseISO(profile.planExpiresAt), 'PPP', { locale: dateFnsLocale }) })
     }
-    return 'This will permanently delete your account and all data.'
-  }, [profile?.hasProAccess, profile?.planExpiresAt])
+    return t('profile.deleteAccount.warningFree')
+  }, [profile?.hasProAccess, profile?.planExpiresAt, dateFnsLocale, t])
 
   const formattedDeletionDate = useMemo(() => {
     if (!scheduledDeletionDate) return ''
-    return format(parseISO(scheduledDeletionDate), 'PPP')
-  }, [scheduledDeletionDate])
+    return format(parseISO(scheduledDeletionDate), 'PPP', { locale: dateFnsLocale })
+  }, [scheduledDeletionDate, dateFnsLocale])
 
   return (
     <div className="pb-8">
       {/* Header */}
       <header className="pt-8 pb-6 flex items-center justify-between">
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          Profile
+          {t('profile.title')}
         </h1>
         <ThemeToggle />
       </header>
@@ -168,13 +185,13 @@ export default function ProfilePage() {
       {/* Store error */}
       {error && (
         <p className="mb-4 text-sm text-red-400 text-center">
-          {error instanceof Error ? error.message : 'Failed to load profile'}
+          {error instanceof Error ? error.message : t('errors.loadProfile')}
         </p>
       )}
 
       <div className="space-y-4">
         {/* ==================== ACCOUNT ==================== */}
-        <h2 className="form-label pt-2">Account</h2>
+        <h2 className="form-label pt-2">{t('profile.sections.account')}</h2>
 
         {/* User info card */}
         <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
@@ -192,7 +209,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Streak display */}
-        {/* TODO: Replace with ProfileStreakCard component */}
+        <ProfileStreakCard />
 
         {/* Subscription */}
         <Link
@@ -221,21 +238,21 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-text-primary">
               {profile?.isTrialActive
-                ? 'Pro Trial'
+                ? t('profile.subscription.trial')
                 : profile?.hasProAccess
-                  ? 'Orbit Pro'
+                  ? t('profile.subscription.pro')
                   : trialExpired
-                    ? 'Trial Ended'
-                    : 'Free Plan'}
+                    ? t('profile.subscription.trialEnded')
+                    : t('profile.subscription.free')}
             </p>
             <p className="text-xs text-text-secondary mt-0.5">
               {profile?.isTrialActive
-                ? `${trialDaysLeft} days left in trial`
+                ? plural(t('profile.subscription.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
                 : profile?.hasProAccess
-                  ? 'All features unlocked'
+                  ? t('profile.subscription.proHint')
                   : trialExpired
-                    ? 'Upgrade to unlock all features'
-                    : 'Upgrade for more features'}
+                    ? t('profile.subscription.trialEndedHint')
+                    : t('profile.subscription.freeHint')}
             </p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
@@ -252,8 +269,8 @@ export default function ProfilePage() {
             <Settings className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">Preferences</p>
-            <p className="text-xs text-text-secondary mt-0.5">Theme, language, notifications</p>
+            <p className="text-sm font-bold text-text-primary">{t('profile.sections.preferences')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.sections.preferencesHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </Link>
@@ -267,14 +284,14 @@ export default function ProfilePage() {
             <Sparkles className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">AI Features</p>
-            <p className="text-xs text-text-secondary mt-0.5">Memory, summaries, and more</p>
+            <p className="text-sm font-bold text-text-primary">{t('profile.sections.aiFeatures')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.sections.aiFeaturesHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </Link>
 
         {/* ==================== FEATURES ==================== */}
-        <h2 className="form-label pt-2">Features</h2>
+        <h2 className="form-label pt-2">{t('profile.sections.features')}</h2>
 
         {/* Retrospective */}
         <Link
@@ -288,10 +305,10 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-text-primary">Retrospective</p>
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">PRO</span>
+              <p className="text-sm font-bold text-text-primary">{t('profile.retrospectiveTitle')}</p>
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
             </div>
-            <p className="text-xs text-text-secondary mt-0.5">Weekly and monthly reports</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.retrospectiveHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-primary transition-colors shrink-0" />
         </Link>
@@ -308,10 +325,18 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-text-primary">Achievements & Level</p>
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">PRO</span>
+              <p className="text-sm font-bold text-text-primary">{t('gamification.profileCard.title')}</p>
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
             </div>
-            <p className="text-xs text-text-secondary mt-0.5">Track your progress and earn rewards</p>
+            {profile?.hasProAccess && gamificationProfile ? (
+              <p className="text-xs text-text-secondary mt-0.5">
+                {t('gamification.profileCard.level', { level: gamificationProfile.level })}
+                {' \u00B7 '}
+                {t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}
+              </p>
+            ) : (
+              <p className="text-xs text-text-secondary mt-0.5">{t('gamification.profileCard.hint')}</p>
+            )}
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-primary transition-colors shrink-0" />
         </Link>
@@ -327,8 +352,8 @@ export default function ProfilePage() {
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">Google Calendar</p>
-            <p className="text-xs text-text-secondary mt-0.5">Sync events as habits</p>
+            <p className="text-sm font-bold text-text-primary">{t('calendar.profileButton')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('calendar.profileHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-primary transition-colors shrink-0" />
         </Link>
@@ -342,8 +367,8 @@ export default function ProfilePage() {
             <Info className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">About & Help</p>
-            <p className="text-xs text-text-secondary mt-0.5">Feature guide, support, privacy</p>
+            <p className="text-sm font-bold text-text-primary">{t('profile.sections.aboutHelp')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.sections.aboutHelpHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </Link>
@@ -357,14 +382,14 @@ export default function ProfilePage() {
             <Wrench className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">Advanced</p>
-            <p className="text-xs text-text-secondary mt-0.5">Timezone, developer tools</p>
+            <p className="text-sm font-bold text-text-primary">{t('profile.sections.advanced')}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('profile.sections.advancedHint')}</p>
           </div>
           <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
         </Link>
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <h2 className="form-label pt-2">Account Actions</h2>
+        <h2 className="form-label pt-2">{t('profile.sections.accountActions')}</h2>
 
         {/* Logout */}
         <button
@@ -372,7 +397,7 @@ export default function ProfilePage() {
           onClick={() => logout()}
         >
           <LogOut className="size-4" />
-          Log Out
+          {t('profile.logout')}
         </button>
 
         {/* Fresh Start */}
@@ -381,7 +406,7 @@ export default function ProfilePage() {
           onClick={openResetModal}
         >
           <RotateCcw className="size-4" />
-          Fresh Start
+          {t('profile.freshStart.button')}
         </button>
 
         {/* Delete Account */}
@@ -390,7 +415,7 @@ export default function ProfilePage() {
           onClick={openDeleteModal}
         >
           <Trash2 className="size-3.5" />
-          Delete Account
+          {t('profile.deleteAccount.button')}
         </button>
       </div>
 
@@ -398,29 +423,29 @@ export default function ProfilePage() {
       <AppOverlay
         open={showResetModal}
         onOpenChange={setShowResetModal}
-        title="Fresh Start"
+        title={t('profile.freshStart.title')}
       >
         {resetStep === 'info' ? (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary">
-              Start over with a clean slate. This will delete all your data but keep your account and subscription.
+              {t('profile.freshStart.description')}
             </p>
 
             {/* What gets deleted */}
             <div className="border border-primary/20 rounded-2xl p-4">
               <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
-                What gets deleted
+                {t('profile.freshStart.whatDeleted')}
               </p>
               <ul className="space-y-1.5">
                 {[
-                  'All habits and logs',
-                  'All goals and progress',
-                  'Chat history',
-                  'AI memory (user facts)',
-                  'Achievements and XP',
-                  'Notifications',
-                  'Checklist templates',
-                  'Onboarding progress',
+                  t('profile.freshStart.deleteHabits'),
+                  t('profile.freshStart.deleteGoals'),
+                  t('profile.freshStart.deleteChat'),
+                  t('profile.freshStart.deleteUserFacts'),
+                  t('profile.freshStart.deleteAchievements'),
+                  t('profile.freshStart.deleteNotifications'),
+                  t('profile.freshStart.deleteChecklist'),
+                  t('profile.freshStart.deleteOnboarding'),
                 ].map((item) => (
                   <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
                     <X className="size-3.5 text-red-400 shrink-0 mt-0.5" />
@@ -433,13 +458,13 @@ export default function ProfilePage() {
             {/* What stays */}
             <div className="bg-success/10 border border-success/20 rounded-2xl p-4">
               <p className="text-xs font-bold text-success uppercase tracking-wider mb-2">
-                What stays
+                {t('profile.freshStart.whatPreserved')}
               </p>
               <ul className="space-y-1.5">
                 {[
-                  'Your account and email',
-                  'Your subscription',
-                  'Your preferences',
+                  t('profile.freshStart.preserveAccount'),
+                  t('profile.freshStart.preserveSubscription'),
+                  t('profile.freshStart.preservePreferences'),
                 ].map((item) => (
                   <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
                     <Check className="size-3.5 text-success shrink-0 mt-0.5" />
@@ -453,20 +478,20 @@ export default function ProfilePage() {
               className="w-full py-3 rounded-2xl bg-primary text-text-inverse font-bold text-sm hover:bg-primary/90 transition-colors"
               onClick={() => setResetStep('confirm')}
             >
-              Continue
+              {t('common.continue')}
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary text-center">
-              Type <strong>ORBIT</strong> to confirm
+              {t('profile.freshStart.confirmInstruction')}
             </p>
             <input
               type="text"
               value={resetConfirmText}
               onChange={(e) => setResetConfirmText(e.target.value)}
               className="form-input text-center"
-              placeholder="ORBIT"
+              placeholder={t('profile.freshStart.confirmPlaceholder')}
               autoComplete="off"
             />
             {resetError && (
@@ -477,24 +502,29 @@ export default function ProfilePage() {
               disabled={!isResetConfirmed || resetLoading}
               onClick={handleResetAccount}
             >
-              {resetLoading ? 'Processing...' : 'Reset My Account'}
+              {resetLoading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
             </button>
           </div>
         )}
       </AppOverlay>
 
+      {/* Fresh Start Animation */}
+      {showFreshStartAnimation && (
+        <FreshStartAnimation onComplete={handleFreshStartComplete} />
+      )}
+
       {/* Delete Account Modal */}
       <AppOverlay
         open={showDeleteModal}
         onOpenChange={setShowDeleteModal}
-        title="Delete Account"
+        title={t('profile.deleteAccount.title')}
       >
         {deleteStep === 'confirm' ? (
           <div className="space-y-4">
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
               <p className="text-sm text-red-400 font-bold mb-2">{deleteWarningMessage}</p>
               <p className="text-xs text-text-secondary leading-relaxed">
-                You will receive a confirmation code via email. Your account will be deactivated immediately and permanently deleted after 30 days.
+                {t('profile.deleteAccount.warningDetail')}
               </p>
             </div>
             {deleteError && (
@@ -505,19 +535,19 @@ export default function ProfilePage() {
               disabled={deleteLoading}
               onClick={handleRequestDeletion}
             >
-              {deleteLoading ? 'Sending...' : 'Send Confirmation Code'}
+              {deleteLoading ? t('profile.deleteAccount.sending') : t('profile.deleteAccount.sendCode')}
             </button>
           </div>
         ) : deleteStep === 'code' ? (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary text-center">
-              Enter the 6-digit code sent to your email
+              {t('profile.deleteAccount.codeInstructions')}
             </p>
             <div className="flex justify-center gap-2" onPaste={handleDeleteCodePaste}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <input
                   key={i}
-                  aria-label={`Code digit ${i + 1}`}
+                  aria-label={t('auth.codeDigit', { n: i + 1 })}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
@@ -536,7 +566,7 @@ export default function ProfilePage() {
               disabled={deleteLoading || deleteCode.join('').length !== 6}
               onClick={handleConfirmDeletion}
             >
-              {deleteLoading ? 'Deleting...' : 'Confirm Deletion'}
+              {deleteLoading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}
             </button>
           </div>
         ) : (
@@ -545,18 +575,18 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="size-5 text-amber-400" />
                 <p className="text-sm text-amber-400 font-bold">
-                  Account Scheduled for Deletion
+                  {t('profile.deleteAccount.title')}
                 </p>
               </div>
               <p className="text-sm text-text-secondary leading-relaxed">
-                Your account has been deactivated and will be permanently deleted on {formattedDeletionDate}. Log in before then to cancel.
+                {t('profile.deleteAccount.deactivated', { date: formattedDeletionDate })}
               </p>
             </div>
             <button
               className="w-full py-3 rounded-2xl bg-surface-elevated text-text-primary font-bold text-sm hover:bg-border transition-colors"
               onClick={() => logout()}
             >
-              Log Out
+              {t('profile.logout')}
             </button>
           </div>
         )}

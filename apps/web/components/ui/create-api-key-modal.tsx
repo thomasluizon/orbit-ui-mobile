@@ -2,23 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Clipboard, Check, AlertTriangle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
-
-// TODO: Replace with next-intl when i18n is wired up
-const t = (key: string) => {
-  const strings: Record<string, string> = {
-    'orbitMcp.createKey': 'Create API Key',
-    'orbitMcp.keyCreated': 'Key Created',
-    'orbitMcp.keyName': 'Key name',
-    'orbitMcp.keyNamePlaceholder': 'e.g. My MCP Server',
-    'orbitMcp.keyNameRequired': 'Key name is required.',
-    'orbitMcp.keyNameMaxLength': 'Key name must be 50 characters or less.',
-    'orbitMcp.keyCreatedWarning': 'Copy this key now. You won\'t be able to see it again.',
-    'orbitMcp.copied': 'Copied to clipboard!',
-    'orbitMcp.done': 'Done',
-  }
-  return strings[key] ?? key
-}
 
 interface ApiKeyCreateResponse {
   id: string
@@ -41,6 +26,7 @@ export function CreateApiKeyModal({
   apiError,
   onCreated,
 }: CreateApiKeyModalProps) {
+  const t = useTranslations()
   const [keyName, setKeyName] = useState('')
   const [validationError, setValidationError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -120,7 +106,7 @@ export function CreateApiKeyModal({
       {!isRevealState ? (
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="api-key-name" className="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
+            <label htmlFor="api-key-name" className="form-label">
               {t('orbitMcp.keyName')}
             </label>
             <input

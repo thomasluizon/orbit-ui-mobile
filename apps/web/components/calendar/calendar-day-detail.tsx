@@ -3,8 +3,10 @@
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { ArrowRight, Check } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import { plural } from '@/lib/plural'
 import { parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -63,11 +65,13 @@ export function CalendarDayDetail({
   const locale = useLocale()
   const [showRecurring, setShowRecurring] = useState(true)
 
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
     const date = parseAPIDate(dateStr)
-    return format(date, locale === 'pt-BR' ? "EEEE, dd 'de' MMMM 'de' yyyy" : 'EEEE, MMMM d, yyyy')
-  }, [dateStr, locale])
+    return format(date, locale === 'pt-BR' ? "EEEE, dd 'de' MMMM 'de' yyyy" : 'EEEE, MMMM d, yyyy', { locale: dateFnsLocale })
+  }, [dateStr, locale, dateFnsLocale])
 
   const filteredEntries = useMemo(() => {
     if (showRecurring) return entries
@@ -111,10 +115,10 @@ export function CalendarDayDetail({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-text-faded">
-              {t('calendar.dayDetail.completionSummary', {
+              {plural(t('calendar.dayDetail.completionSummary', {
                 done: completedCount,
                 total: filteredEntries.length,
-              })}
+              }), filteredEntries.length)}
             </p>
             <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
               <input
