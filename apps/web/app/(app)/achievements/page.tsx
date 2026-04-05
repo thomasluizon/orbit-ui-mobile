@@ -123,7 +123,7 @@ export default function AchievementsPage() {
                 {achievementsByCategory.map((category) => (
                   <div key={category.key}>
                     <h2 className="form-label mb-3">
-                      {t(`gamification.categories.${category.key}` as Parameters<typeof t>[0])}
+                      {t(`gamification.categories.${category.key}` as Parameters<typeof t>[0])} {/* NOSONAR - dynamic i18n key requires assertion */}
                     </h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {category.items.map((achievement) => (

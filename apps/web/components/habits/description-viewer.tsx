@@ -33,7 +33,7 @@ export function DescriptionViewer({
       setRenderedHtml('')
       return
     }
-    const raw = marked.parse(description, { async: false }) as string
+    const raw = marked.parse(description, { async: false }) as string // NOSONAR - marked.parse with async:false returns string but typed as string | Promise<string>
     setRenderedHtml(DOMPurify.sanitize(raw))
   }, [open, description])
 

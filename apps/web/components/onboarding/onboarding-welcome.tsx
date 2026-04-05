@@ -126,7 +126,7 @@ export function OnboardingWelcome() {
                   backgroundColor: option.color,
                   boxShadow: currentScheme === option.value ? `0 0 12px ${option.color}66` : 'none',
                 }}
-                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])}
+                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
                 onClick={() => handleSchemeSelect(option.value)}
               />
             ))}

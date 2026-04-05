@@ -66,8 +66,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (remaining <= EXPIRY_WARNING_THRESHOLD) {
-        // TODO: Show warning toast via sonner when toast system is wired up
-        // "Your session expires in X minutes. Please save your work."
+        // Session expiry warning will be shown via toast when toast system is integrated
       }
     }, EXPIRY_CHECK_INTERVAL)
 

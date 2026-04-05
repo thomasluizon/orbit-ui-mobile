@@ -187,6 +187,244 @@ function invoiceStatusLabelFn(status: string, t: ReturnType<typeof useTranslatio
   return statuses[status] ?? status
 }
 
+// ---------------------------------------------------------------------------
+// Feature comparison table (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
+  return (
+    <div className="space-y-4 mb-6">
+      {/* Column headers */}
+      <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('upgrade.feature')}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-center w-16">{t('upgrade.free')}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-primary text-center w-16">{t('common.proBadge')}</span>
+      </div>
+
+      {/* Category groups */}
+      {featureCategories.map((group) => (
+        <div key={group.category} className="space-y-1.5">
+          {/* Category header */}
+          <div className="px-4 pt-2 pb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
+              {t(`upgrade.categories.${group.category}`)}
+            </span>
+          </div>
+
+          {/* Feature rows */}
+          {group.features.map((feat) => (
+            <div
+              key={feat.key}
+              className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
+            >
+              {/* Feature label with icon and info popover */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <feat.Icon className="size-4 text-text-muted shrink-0" />
+                <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
+                <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
+              </div>
+
+              {/* Free value */}
+              <div className="w-16 flex justify-center">
+                {feat.type === 'boolean'
+                  ? <FeatureBooleanCell enabled={feat.freeEnabled} className="text-text-muted" />
+                  : <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>}
+              </div>
+
+              {/* Pro value */}
+              <div className="w-16 flex justify-center">
+                {feat.type === 'boolean'
+                  ? <FeatureBooleanCell enabled={feat.proEnabled} className="text-primary" />
+                  : <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Plan cards (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface PlanCardsProps {
+  plans: NonNullable<ReturnType<typeof useSubscriptionPlans>['plans']>
+  hasProAccess: boolean
+  checkoutLoading: string | null
+  discountedAmount: (amount: number) => number
+  onCheckout: (interval: 'monthly' | 'yearly') => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onCheckout, t }: Readonly<PlanCardsProps>) {
+  return (
+    <div className="space-y-3 mb-6">
+      {/* FREE PLAN */}
+      <div className="rounded-[var(--radius-xl)] border border-dashed border-border-emphasis bg-surface-ground p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider">
+            {t('upgrade.plans.free.name')}
+          </h3>
+          <span className="text-lg font-bold text-text-muted">
+            {formatPrice(0, plans.currency)}
+          </span>
+        </div>
+        <ul className="space-y-2 mb-4">
+          <li className="flex items-center gap-2.5">
+            <Flame className="size-3.5 text-text-muted/60 shrink-0" />
+            <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.habits')}</span>
+          </li>
+          <li className="flex items-center gap-2.5">
+            <MessageSquare className="size-3.5 text-text-muted/60 shrink-0" />
+            <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.ai')}</span>
+          </li>
+          <li className="flex items-center gap-2.5">
+            <Palette className="size-3.5 text-text-muted/60 shrink-0" />
+            <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.theme')}</span>
+          </li>
+          <li className="flex items-center gap-2.5">
+            <Megaphone className="size-3.5 text-amber-400/80 shrink-0" />
+            <span className="text-xs text-amber-400/80 font-medium">{t('upgrade.plans.free.features.ads')}</span>
+          </li>
+        </ul>
+        {!hasProAccess && (
+          <button
+            disabled
+            className="w-full py-2.5 rounded-[var(--radius-lg)] bg-surface text-text-muted text-xs font-semibold border border-border-muted cursor-default opacity-60"
+          >
+            {t('upgrade.plans.free.cta')}
+          </button>
+        )}
+      </div>
+
+      {/* PRO MONTHLY */}
+      <div className="rounded-[var(--radius-xl)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-text-primary">
+            {t('upgrade.plans.monthly.name')}
+          </h3>
+        </div>
+        <div className="mb-4">
+          {plans.couponPercentOff ? (
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-text-primary">
+                {formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency)}
+                <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
+              </span>
+              <span className="text-sm text-text-muted line-through">
+                {formatPrice(plans.monthly.unitAmount, plans.currency)}
+              </span>
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-baseline">
+              <span className="text-2xl font-extrabold text-text-primary">
+                {formatPrice(plans.monthly.unitAmount, plans.currency)}
+                <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
+              </span>
+            </div>
+          )}
+        </div>
+        <ul className="space-y-2 mb-4">
+          {proFeatures.map((feat) => (
+            <li key={feat.key} className="flex items-center gap-2.5">
+              <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
+              <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
+            </li>
+          ))}
+        </ul>
+        <button
+          className="w-full py-3 rounded-[var(--radius-lg)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+          disabled={!!checkoutLoading}
+          onClick={() => onCheckout('monthly')}
+        >
+          {checkoutLoading === 'monthly' && <Loader2 className="size-4 animate-spin" />}
+          {t('upgrade.plans.monthly.cta')}
+        </button>
+      </div>
+
+      {/* PRO YEARLY (Recommended) */}
+      <div className="relative rounded-[var(--radius-xl)] border border-primary/30 bg-surface p-5 shadow-[var(--shadow-glow-sm)]">
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/20">
+            {t('upgrade.plans.yearly.recommended')}
+          </span>
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+            {t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
+          </span>
+        </div>
+        <h3 className="text-sm font-bold text-text-primary mb-1">
+          {t('upgrade.plans.yearly.name')}
+        </h3>
+        <div className="mb-1">
+          {plans.couponPercentOff ? (
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-2xl font-extrabold text-text-primary">
+                {formatPrice(discountedAmount(plans.yearly.unitAmount), plans.currency)}
+                <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
+              </span>
+              <span className="text-sm text-text-muted line-through">
+                {formatPrice(plans.yearly.unitAmount, plans.currency)}
+              </span>
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-baseline">
+              <span className="text-2xl font-extrabold text-text-primary">
+                {formatPrice(plans.yearly.unitAmount, plans.currency)}
+                <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
+              </span>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-text-muted mb-4">
+          {plans.couponPercentOff
+            ? t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(discountedAmount(plans.yearly.unitAmount)), plans.currency) })
+            : t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency) })}
+        </p>
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center gap-2.5 rounded-[var(--radius-lg)] bg-primary/[0.04] border border-primary/10 px-3 py-2">
+            <BadgeCheck className="size-4 text-primary/50 shrink-0" />
+            <span className="text-xs text-text-secondary">{t('upgrade.plans.yearly.includesMonthly')}</span>
+          </div>
+          <ul className="space-y-2">
+            {yearlyExtraFeatures.map((feat) => (
+              <li key={feat.key} className="flex items-center gap-2.5">
+                <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
+                <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {plans.couponPercentOff && (
+          <p className="text-[10px] text-emerald-400/70 mb-3 flex items-center gap-1.5">
+            <Tag className="size-3 shrink-0" />
+            {t('upgrade.plans.coupon.appliedNote')}
+          </p>
+        )}
+        <button
+          className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2"
+          disabled={!!checkoutLoading}
+          onClick={() => onCheckout('yearly')}
+        >
+          {checkoutLoading === 'yearly' && <Loader2 className="size-4 animate-spin" />}
+          {t('upgrade.plans.yearly.cta')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 export default function UpgradePage() {
   const t = useTranslations()
   const locale = useLocale()
@@ -537,220 +775,22 @@ export default function UpgradePage() {
 
           {/* Plan cards */}
           {plans && (
-            <div className="space-y-3 mb-6">
-              {/* FREE PLAN */}
-              <div className="rounded-[var(--radius-xl)] border border-dashed border-border-emphasis bg-surface-ground p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider">
-                    {t('upgrade.plans.free.name')}
-                  </h3>
-                  <span className="text-lg font-bold text-text-muted">
-                    {formatPrice(0, plans.currency)}
-                  </span>
-                </div>
-                <ul className="space-y-2 mb-4">
-                  <li className="flex items-center gap-2.5">
-                    <Flame className="size-3.5 text-text-muted/60 shrink-0" />
-                    <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.habits')}</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <MessageSquare className="size-3.5 text-text-muted/60 shrink-0" />
-                    <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.ai')}</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <Palette className="size-3.5 text-text-muted/60 shrink-0" />
-                    <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.theme')}</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <Megaphone className="size-3.5 text-amber-400/80 shrink-0" />
-                    <span className="text-xs text-amber-400/80 font-medium">{t('upgrade.plans.free.features.ads')}</span>
-                  </li>
-                </ul>
-                {!hasProAccess && (
-                  <button
-                    disabled
-                    className="w-full py-2.5 rounded-[var(--radius-lg)] bg-surface text-text-muted text-xs font-semibold border border-border-muted cursor-default opacity-60"
-                  >
-                    {t('upgrade.plans.free.cta')}
-                  </button>
-                )}
-              </div>
-
-              {/* PRO MONTHLY */}
-              <div className="rounded-[var(--radius-xl)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-sm font-bold text-text-primary">
-                    {t('upgrade.plans.monthly.name')}
-                  </h3>
-                </div>
-                <div className="mb-4">
-                  {plans.couponPercentOff ? (
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-extrabold text-text-primary">
-                        {formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency)}
-                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
-                      </span>
-                      <span className="text-sm text-text-muted line-through">
-                        {formatPrice(plans.monthly.unitAmount, plans.currency)}
-                      </span>
-                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                        {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-baseline">
-                      <span className="text-2xl font-extrabold text-text-primary">
-                        {formatPrice(plans.monthly.unitAmount, plans.currency)}
-                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.monthly.period')}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <ul className="space-y-2 mb-4">
-                  {proFeatures.map((feat) => (
-                    <li key={feat.key} className="flex items-center gap-2.5">
-                      <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
-                      <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full py-3 rounded-[var(--radius-lg)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                  disabled={!!checkoutLoading}
-                  onClick={() => handleCheckout('monthly')}
-                >
-                  {checkoutLoading === 'monthly' && <Loader2 className="size-4 animate-spin" />}
-                  {t('upgrade.plans.monthly.cta')}
-                </button>
-              </div>
-
-              {/* PRO YEARLY (Recommended) */}
-              <div className="relative rounded-[var(--radius-xl)] border border-primary/30 bg-surface p-5 shadow-[var(--shadow-glow-sm)]">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/20">
-                    {t('upgrade.plans.yearly.recommended')}
-                  </span>
-                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                    {t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-text-primary mb-1">
-                  {t('upgrade.plans.yearly.name')}
-                </h3>
-                <div className="mb-1">
-                  {plans.couponPercentOff ? (
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-2xl font-extrabold text-text-primary">
-                        {formatPrice(discountedAmount(plans.yearly.unitAmount), plans.currency)}
-                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
-                      </span>
-                      <span className="text-sm text-text-muted line-through">
-                        {formatPrice(plans.yearly.unitAmount, plans.currency)}
-                      </span>
-                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                        {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-baseline">
-                      <span className="text-2xl font-extrabold text-text-primary">
-                        {formatPrice(plans.yearly.unitAmount, plans.currency)}
-                        <span className="text-sm font-semibold text-text-secondary">{t('upgrade.plans.yearly.period')}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-text-muted mb-4">
-                  {plans.couponPercentOff
-                    ? t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(discountedAmount(plans.yearly.unitAmount)), plans.currency) })
-                    : t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency) })}
-                </p>
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center gap-2.5 rounded-[var(--radius-lg)] bg-primary/[0.04] border border-primary/10 px-3 py-2">
-                    <BadgeCheck className="size-4 text-primary/50 shrink-0" />
-                    <span className="text-xs text-text-secondary">{t('upgrade.plans.yearly.includesMonthly')}</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {yearlyExtraFeatures.map((feat) => (
-                      <li key={feat.key} className="flex items-center gap-2.5">
-                        <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
-                        <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {plans.couponPercentOff && (
-                  <p className="text-[10px] text-emerald-400/70 mb-3 flex items-center gap-1.5">
-                    <Tag className="size-3 shrink-0" />
-                    {t('upgrade.plans.coupon.appliedNote')}
-                  </p>
-                )}
-                <button
-                  className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2"
-                  disabled={!!checkoutLoading}
-                  onClick={() => handleCheckout('yearly')}
-                >
-                  {checkoutLoading === 'yearly' && <Loader2 className="size-4 animate-spin" />}
-                  {t('upgrade.plans.yearly.cta')}
-                </button>
-              </div>
-            </div>
+            <PlanCards
+              plans={plans}
+              hasProAccess={hasProAccess}
+              checkoutLoading={checkoutLoading}
+              discountedAmount={discountedAmount}
+              onCheckout={handleCheckout}
+              t={t}
+            />
           )}
 
           {checkoutError && (
             <p className="text-xs text-red-400 text-center">{checkoutError}</p>
           )}
 
-          {/* Feature comparison - grouped by category */}
-          <div className="space-y-4 mb-6">
-            {/* Column headers */}
-            <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('upgrade.feature')}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-center w-16">{t('upgrade.free')}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary text-center w-16">{t('common.proBadge')}</span>
-            </div>
-
-            {/* Category groups */}
-            {featureCategories.map((group) => (
-              <div key={group.category} className="space-y-1.5">
-                {/* Category header */}
-                <div className="px-4 pt-2 pb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
-                    {t(`upgrade.categories.${group.category}`)}
-                  </span>
-                </div>
-
-                {/* Feature rows */}
-                {group.features.map((feat) => (
-                  <div
-                    key={feat.key}
-                    className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
-                  >
-                    {/* Feature label with icon and info popover */}
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <feat.Icon className="size-4 text-text-muted shrink-0" />
-                      <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
-                      <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
-                    </div>
-
-                    {/* Free value */}
-                    <div className="w-16 flex justify-center">
-                      {feat.type === 'boolean'
-                        ? <FeatureBooleanCell enabled={feat.freeEnabled} className="text-text-muted" />
-                        : <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>}
-                    </div>
-
-                    {/* Pro value */}
-                    <div className="w-16 flex justify-center">
-                      {feat.type === 'boolean'
-                        ? <FeatureBooleanCell enabled={feat.proEnabled} className="text-primary" />
-                        : <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+          {/* Feature comparison */}
+          <FeatureComparisonTable t={t} />
         </>
       )}
     </div>

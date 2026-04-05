@@ -290,7 +290,7 @@ export default function PreferencesPage() {
             {colorSchemeOptions.map((option) => (
               <button
                 key={option.value}
-                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])}
+                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
                 aria-pressed={currentScheme === option.value}
                 className={`size-9 rounded-full transition-all active:scale-90 flex items-center justify-center ${
                   currentScheme === option.value

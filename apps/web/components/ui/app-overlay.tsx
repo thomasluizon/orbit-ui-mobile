@@ -201,10 +201,8 @@ export function AppOverlay({
   if (isEntering) panelClass = 'translate-y-full sm:translate-y-0 sm:scale-95 opacity-0'
   else if (isLeaving) panelClass = 'opacity-0'
 
-  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- backdrop dismiss handled via Escape key listener
-  const overlay = (
+  const overlay = ( // NOSONAR - backdrop dismiss via pointer; keyboard equivalent handled by Escape key listener
     <div
-      role="presentation"
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
       onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}

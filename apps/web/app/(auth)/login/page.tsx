@@ -84,6 +84,21 @@ function extractError(err: unknown, t: ReturnType<typeof useTranslations>): stri
   return backendError ? translateBackendError(backendError, t) : t('auth.genericError')
 }
 
+/** Fill code digits from a multi-char string input (typing or paste) */
+function fillCodeDigits(
+  startIndex: number,
+  cleanValue: string,
+  current: string[],
+): { digits: string[]; nextFocusIndex: number } {
+  const chars = cleanValue.split('')
+  const newDigits = [...current]
+  for (let i = 0; i < chars.length && startIndex + i < 6; i++) {
+    newDigits[startIndex + i] = chars[i] ?? ''
+  }
+  const nextFocusIndex = Math.min(startIndex + chars.length, 5)
+  return { digits: newDigits, nextFocusIndex }
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components (S3776: extracted to reduce cognitive complexity)
 // ---------------------------------------------------------------------------
@@ -194,7 +209,7 @@ function CodeStep({
         <div className="flex justify-center gap-1.5 sm:gap-2">
           {codeDigits.map((digit, index) => (
             <input
-              key={`code-digit-${index}`}
+              key={`code-digit-${index}`} // NOSONAR - fixed-length array where position is identity
               ref={(el) => { codeInputRefs.current[index] = el }}
               value={digit}
               data-code-index={index}
@@ -419,18 +434,11 @@ export default function LoginPage() {
     const cleanValue = value.replaceAll(/\D/g, '')
 
     if (cleanValue.length > 1) {
-      const digits = cleanValue.split('')
-      const newCodeDigits = [...codeDigits]
-      for (let i = 0; i < digits.length && index + i < 6; i++) {
-        newCodeDigits[index + i] = digits[i] ?? ''
-      }
+      const { digits: newCodeDigits, nextFocusIndex } = fillCodeDigits(index, cleanValue, codeDigits)
       setCodeDigits(newCodeDigits)
-      const nextIndex = Math.min(index + digits.length, 5)
-      codeInputRefs.current[nextIndex]?.focus()
-
+      codeInputRefs.current[nextFocusIndex]?.focus()
       if (newCodeDigits.join('').length === 6) {
-        const fullCode = newCodeDigits.join('')
-        setTimeout(() => verifyCode(fullCode), 0)
+        setTimeout(() => verifyCode(newCodeDigits.join('')), 0)
       }
       return
     }
@@ -448,17 +456,11 @@ export default function LoginPage() {
     event.preventDefault()
     const pasted = event.clipboardData.getData('text').replaceAll(/\D/g, '')
     if (!pasted) return
-    const digits = pasted.slice(0, 6).split('')
-    const newCodeDigits = ['', '', '', '', '', '']
-    for (let i = 0; i < digits.length && i < 6; i++) {
-      newCodeDigits[i] = digits[i] ?? ''
-    }
+    const { digits: newCodeDigits, nextFocusIndex } = fillCodeDigits(0, pasted.slice(0, 6), ['', '', '', '', '', ''])
     setCodeDigits(newCodeDigits)
-    const focusIndex = Math.min(digits.length, 5)
-    codeInputRefs.current[focusIndex]?.focus()
-    if (digits.length === 6) {
-      const fullCode = newCodeDigits.join('')
-      setTimeout(() => verifyCode(fullCode), 0)
+    codeInputRefs.current[nextFocusIndex]?.focus()
+    if (pasted.length >= 6) {
+      setTimeout(() => verifyCode(newCodeDigits.join('')), 0)
     }
   }
 

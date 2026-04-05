@@ -259,7 +259,7 @@ export function BreakdownSuggestion({
                       className="w-8 bg-transparent text-[11px] text-text-secondary text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-text-muted">
-                      {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])}
+                      {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {/* NOSONAR - dynamic i18n key requires assertion */}
                     </span>
                   </>
                 )}
