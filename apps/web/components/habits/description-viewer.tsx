@@ -19,7 +19,7 @@ export function DescriptionViewer({
   onOpenChange,
   title,
   description,
-}: DescriptionViewerProps) {
+}: Readonly<DescriptionViewerProps>) {
   const t = useTranslations()
   const [mounted, setMounted] = useState(false)
   const [renderedHtml, setRenderedHtml] = useState('')

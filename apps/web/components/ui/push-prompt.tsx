@@ -8,7 +8,7 @@ const STORAGE_KEY = 'orbit_push_prompted'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
   return match?.[1] ? decodeURIComponent(match[1]) : null
 }
 

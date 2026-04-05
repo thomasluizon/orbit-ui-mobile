@@ -70,7 +70,7 @@ export default function RetrospectivePage() {
       }
       const data = await res.json()
       if (data?.url) {
-        window.location.href = data.url
+        globalThis.location.href = data.url
       }
     } catch (err: unknown) {
       setPortalError(getErrorMessage(err, t('auth.genericError')))

@@ -7,10 +7,10 @@ import { useTranslations } from 'next-intl'
 export default function AppError({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string }
   reset: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   useEffect(() => {

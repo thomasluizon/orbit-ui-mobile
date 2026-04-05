@@ -5,9 +5,9 @@ import { Providers } from '@/lib/providers'
 
 export default function ChatLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   const t = useTranslations()
 
   return (

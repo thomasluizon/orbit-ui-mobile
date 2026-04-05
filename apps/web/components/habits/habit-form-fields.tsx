@@ -62,7 +62,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   children,
-}: HabitFormFieldsProps) {
+}: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
   const reminderLabelId = useId()
   const scheduledReminderLabelId = useId()
@@ -188,7 +188,7 @@ export function HabitFormFields({
   const atScheduledReminderLimit = (watchedScheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
 
   function formatScheduledTimeInput(value: string): string {
-    let v = value.replace(/\D/g, '')
+    let v = value.replaceAll(/\D/g, '')
     if (v.length > 4) v = v.slice(0, 4)
     if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
     return v

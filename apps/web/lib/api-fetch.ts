@@ -41,7 +41,7 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
     // 403 - redirect to /upgrade (no toast)
     if (status === 403) {
       if (typeof window !== 'undefined') {
-        window.location.href = '/upgrade'
+        globalThis.location.href = '/upgrade'
       }
       throw new ApiError(status, 'Forbidden', body)
     }

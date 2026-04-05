@@ -9,10 +9,10 @@ import { useTranslations } from 'next-intl'
 export default function AuthError({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string }
   reset: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (

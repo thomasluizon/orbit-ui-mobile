@@ -57,7 +57,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = 'danger',
-}: ConfirmDialogProps) {
+}: Readonly<ConfirmDialogProps>) {
   const t = useTranslations()
   const config = variantConfig[variant]
   const Icon = config.icon

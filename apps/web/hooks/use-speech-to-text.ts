@@ -41,10 +41,10 @@ interface SpeechRecognitionInstance extends EventTarget {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance
 
 declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor
-    webkitSpeechRecognition?: SpeechRecognitionConstructor
-  }
+  // eslint-disable-next-line no-var
+  var SpeechRecognition: SpeechRecognitionConstructor | undefined
+  // eslint-disable-next-line no-var
+  var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ export function useSpeechToText() {
 
   // Check browser support and create recognition instance
   useEffect(() => {
-    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition
+    const Ctor = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition
     setIsSupported(!!Ctor)
 
     if (Ctor) {
@@ -146,8 +146,7 @@ export function useSpeechToText() {
       let finalText = ''
       let interimText = ''
 
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i]
+      for (const result of Array.from({ length: event.results.length }, (_, i) => event.results[i])) {
         if (!result?.[0]) continue
         if (result.isFinal) {
           finalText += result[0].transcript

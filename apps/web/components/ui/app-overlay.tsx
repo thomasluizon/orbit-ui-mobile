@@ -61,7 +61,7 @@ export function AppOverlay({
   children,
   footer,
   onExpandDescription,
-}: AppOverlayProps) {
+}: Readonly<AppOverlayProps>) {
   const t = useTranslations()
   const titleId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)

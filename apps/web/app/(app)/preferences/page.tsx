@@ -35,7 +35,7 @@ export default function PreferencesPage() {
   // --- Language ---
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
     if (typeof document === 'undefined') return 'en'
-    const match = document.cookie.match(/(?:^|; )i18n_locale=([^;]*)/)
+    const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
     return match?.[1] ? decodeURIComponent(match[1]) : 'en'
   })
 
@@ -51,7 +51,7 @@ export default function PreferencesPage() {
     }
     // Hard reload to re-trigger next-intl middleware with the new locale cookie
     // (router.refresh() alone does not re-evaluate middleware)
-    window.location.reload()
+    globalThis.location.reload()
   }
 
   // --- Week Start Day ---
@@ -105,7 +105,7 @@ export default function PreferencesPage() {
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>(() => {
     if (typeof document === 'undefined') return '12h'
     // Check cookie first
-    const match = document.cookie.match(/(?:^|; )orbit_time_format=([^;]*)/)
+    const match = /(?:^|; )orbit_time_format=([^;]*)/.exec(document.cookie)
     if (match?.[1]) return match[1] as '12h' | '24h'
     // Migrate from localStorage if present
     const stored = localStorage.getItem('orbit_time_format') as '12h' | '24h' | null
@@ -443,7 +443,7 @@ export default function PreferencesPage() {
 /** Convert a VAPID public key from URL-safe base64 to a Uint8Array for pushManager.subscribe */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - base64String.length % 4) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const base64 = (base64String + padding).replaceAll('-', '+').replaceAll('_', '/')
   const rawData = atob(base64)
   const outputArray = new Uint8Array(rawData.length)
   for (let i = 0; i < rawData.length; ++i) {

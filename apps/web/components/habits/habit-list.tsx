@@ -104,10 +104,10 @@ interface MoveParentOption {
 function SortableHabitItem({
   id,
   children,
-}: {
+}: Readonly<{
   id: string
   children: React.ReactNode
-}) {
+}>) {
   const {
     attributes,
     listeners,
@@ -479,7 +479,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   // -------------------------------------------------------------------------
 
   const [isDragging, setIsDragging] = useState(false)
-  const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
+  const [, setDraggedItemId] = useState<string | null>(null)
   const autoCollapsedOnDragRef = useReactRef<string | null>(null)
 
   // Mutable ref for drag items so onDragEnd always sees latest after collapse

@@ -128,7 +128,7 @@ export function BreakdownSuggestion({
           validHabits
             .map((h) => h.dueDate)
             .filter((d): d is string => !!d)
-            .sort()[0] ?? new Date().toISOString().slice(0, 10)
+            .sort((a, b) => a.localeCompare(b))[0] ?? new Date().toISOString().slice(0, 10)
 
         let parentFreqQty: number | undefined
         if (firstWithFreq?.frequencyUnit) {

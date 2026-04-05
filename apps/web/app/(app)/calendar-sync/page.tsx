@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, Check, Link as LinkIcon, CalendarDays, AlertTriangle, Bell } from 'lucide-react'
@@ -49,9 +49,9 @@ function parseRRule(rule: string | null): { frequencyUnit?: FrequencyUnit; frequ
   }
   const result: { frequencyUnit?: FrequencyUnit; frequencyQuantity?: number; days?: string[] } = {}
   if (parts.FREQ) result.frequencyUnit = freqMap[parts.FREQ]
-  result.frequencyQuantity = parts.INTERVAL ? Number.parseInt(parts.INTERVAL as string) : 1
+  result.frequencyQuantity = parts.INTERVAL ? Number.parseInt(parts.INTERVAL) : 1
   if (parts.BYDAY) {
-    const days = (parts.BYDAY as string).split(',').map((d: string) => dayMap[d.trim()]).filter((d): d is string => !!d)
+    const days = parts.BYDAY.split(',').map((d: string) => dayMap[d.trim()]).filter((d): d is string => !!d)
     if (days.length > 0) result.days = days
   }
   return result
@@ -78,7 +78,7 @@ export default function CalendarSyncPage() {
   }
 
   function formatWeeklyRecurrence(upper: string, interval: number): string {
-    const dayMatch = upper.match(/BYDAY=([A-Z,]+)/)
+    const dayMatch = /BYDAY=([A-Z,]+)/.exec(upper)
     const days = dayMatch ? dayMatch[1] : ''
     if (interval > 1) {
       const base = plural(t('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
@@ -96,7 +96,7 @@ export default function CalendarSyncPage() {
   function formatRecurrence(rule: string | null): string {
     if (!rule) return ''
     const upper = rule.toUpperCase()
-    const intervalMatch = upper.match(/INTERVAL=(\d+)/)
+    const intervalMatch = /INTERVAL=(\d+)/.exec(upper)
     const interval = intervalMatch?.[1] ? Number.parseInt(intervalMatch[1]) : 1
 
     if (upper.includes('FREQ=DAILY')) return formatDailyRecurrence(interval)
@@ -217,7 +217,7 @@ export default function CalendarSyncPage() {
 
   async function connectGoogle() {
     const supabase = getSupabaseClient()
-    const redirectTo = `${window.location.origin}/auth-callback`
+    const redirectTo = `${globalThis.location.origin}/auth-callback`
     sessionStorage.setItem('auth_return_url', '/calendar-sync')
 
     await supabase.auth.signInWithOAuth({

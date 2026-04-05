@@ -10,9 +10,9 @@ import type { LoginResponse } from '@orbit/shared/types/auth'
 
 function getCookieValue(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
   const value = match?.[1]
-  return value !== undefined ? decodeURIComponent(value) : undefined
+  return value === undefined ? undefined : decodeURIComponent(value)
 }
 
 export default function AuthCallbackPage() {
@@ -35,12 +35,12 @@ export default function AuthCallbackPage() {
     let extractedProviderToken: string | undefined
     let extractedProviderRefreshToken: string | undefined
 
-    if (window.location.hash) {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    if (globalThis.location.hash) {
+      const hashParams = new URLSearchParams(globalThis.location.hash.substring(1))
       extractedProviderToken = hashParams.get('provider_token') ?? undefined
       extractedProviderRefreshToken = hashParams.get('provider_refresh_token') ?? undefined
     }
-    const query = new URLSearchParams(window.location.search)
+    const query = new URLSearchParams(globalThis.location.search)
     extractedProviderToken ??= query.get('provider_token') ?? undefined
     extractedProviderRefreshToken ??= query.get('provider_refresh_token') ?? undefined
 

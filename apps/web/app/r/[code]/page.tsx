@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 
 interface ReferralRedirectPageProps {
   params: Promise<{ code: string }>
