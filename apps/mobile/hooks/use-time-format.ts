@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export type TimeFormat = '12h' | '24h'
@@ -28,7 +28,7 @@ export function useTimeFormat() {
   const [currentFormat, setCurrentFormat] = useState<TimeFormat>(detectDefaultFormat)
 
   // Load saved format on init
-  useMemo(() => {
+  useEffect(() => {
     AsyncStorage.getItem('orbit_time_format').then((saved) => {
       if (saved === '12h' || saved === '24h') {
         setCurrentFormat(saved)

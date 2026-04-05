@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ExternalLink,
 } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
 
 // ---------------------------------------------------------------------------
 // Colors
@@ -36,41 +37,18 @@ const colors = {
 
 export default function PrivacyScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
 
   const PRIVACY_URL = 'https://useorbit.org/privacy'
 
-  const sections = [
-    {
-      title: 'Data Collection',
-      content:
-        'Orbit collects only the data necessary to provide our service: your email, habit data, and optional AI conversation history. We never sell your data.',
-    },
-    {
-      title: 'Data Storage',
-      content:
-        'Your data is stored securely on encrypted servers. Habit logs, goals, and profile data are associated with your account and accessible only by you.',
-    },
-    {
-      title: 'AI & Privacy',
-      content:
-        'When AI features are enabled, your habit data is processed to generate summaries and insights. This data is never used to train AI models or shared with third parties.',
-    },
-    {
-      title: 'Third Parties',
-      content:
-        'We use essential third-party services for authentication (Google OAuth), payments (Stripe), and infrastructure. These services only receive the minimum data required.',
-    },
-    {
-      title: 'Data Deletion',
-      content:
-        'You can delete your account at any time from Profile > Account Actions. Your data will be permanently deleted within 30 days. You can also use "Fresh Start" to wipe your data while keeping your account.',
-    },
-    {
-      title: 'Your Rights',
-      content:
-        'You have the right to access, export, and delete your data. Contact support@useorbit.org for any data-related requests.',
-    },
-  ]
+  const SECTION_KEYS = [
+    'dataCollection',
+    'dataStorage',
+    'aiPrivacy',
+    'thirdParties',
+    'dataDeletion',
+    'yourRights',
+  ] as const
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -88,24 +66,23 @@ export default function PrivacyScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Privacy Policy</Text>
+          <Text style={styles.headerTitle}>{t('privacy.title')}</Text>
         </View>
 
         {/* Shield badge */}
         <View style={styles.shieldCard}>
           <ShieldCheck size={32} color={colors.green} />
-          <Text style={styles.shieldTitle}>Your privacy matters</Text>
+          <Text style={styles.shieldTitle}>{t('privacy.badge')}</Text>
           <Text style={styles.shieldSubtitle}>
-            Orbit is designed with privacy first. We collect minimal data and
-            never sell it.
+            {t('privacy.badgeDescription')}
           </Text>
         </View>
 
         {/* Sections */}
-        {sections.map((section) => (
-          <View key={section.title} style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <Text style={styles.sectionContent}>{section.content}</Text>
+        {SECTION_KEYS.map((key) => (
+          <View key={key} style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{t(`privacy.${key}.title`)}</Text>
+            <Text style={styles.sectionContent}>{t(`privacy.${key}.content`)}</Text>
           </View>
         ))}
 
@@ -117,7 +94,7 @@ export default function PrivacyScreen() {
         >
           <ExternalLink size={16} color={colors.primary} />
           <Text style={styles.linkButtonText}>
-            Read Full Privacy Policy
+            {t('privacy.fullPolicy')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

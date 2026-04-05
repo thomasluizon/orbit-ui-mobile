@@ -277,11 +277,11 @@ export default function TodayPage() {
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
 
-  // Show general on today preference (local storage)
-  const [showGeneralOnToday, _setShowGeneralOnToday] = useState(() => {
+  // Show general on today preference (local storage, read-only)
+  const showGeneralOnToday = useMemo(() => {
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true // NOSONAR - SSR guard
     return localStorage.getItem('orbit_show_general_on_today') !== 'false'
-  })
+  }, [])
 
   // Bulk mutation hooks
   const bulkDelete = useBulkDeleteHabits()
@@ -308,7 +308,7 @@ export default function TodayPage() {
 
   // Local state
   const [showCompleted, setShowCompleted] = useState(false)
-  const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [selectedFrequency, setSelectedFrequency] = useState<'Day' | 'Week' | 'Month' | 'Year' | 'none' | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [showControlsMenu, setShowControlsMenu] = useState(false)
@@ -438,13 +438,13 @@ export default function TodayPage() {
     if (searchDebounceTimer.current)
       clearTimeout(searchDebounceTimer.current)
     searchDebounceTimer.current = setTimeout(() => {
-      setSearchQuery(searchQuery)
+      setSearchQuery(localSearchQuery)
     }, 300)
     return () => {
       if (searchDebounceTimer.current)
         clearTimeout(searchDebounceTimer.current)
     }
-  }, [searchQuery, setSearchQuery])
+  }, [localSearchQuery, setSearchQuery])
 
   // Build filters
   const filters = useMemo<HabitsFilter>(() => {
@@ -753,14 +753,14 @@ export default function TodayPage() {
             <div className="relative">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-5 text-text-muted pointer-events-none" />
               <input
-                value={searchQuery}
+                value={localSearchQuery}
                 type="text"
                 aria-label={t('habits.searchPlaceholder')}
                 placeholder={t('habits.searchPlaceholder')}
                 className="w-full bg-surface text-text-primary placeholder-text-muted rounded-full py-3 pl-12 pr-12 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
               />
-              {searchQuery && (
+              {localSearchQuery && (
                 <button
                   aria-label={t('common.clear')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-text-secondary hover:text-text-primary transition-colors"

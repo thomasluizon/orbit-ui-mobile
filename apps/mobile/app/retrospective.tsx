@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React from 'react'
 import {
   View,
   Text,
@@ -9,12 +9,9 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { ArrowLeft, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react-native'
-import { useQuery } from '@tanstack/react-query'
-import { format, subWeeks, addWeeks, startOfWeek, endOfWeek } from 'date-fns'
-import { habitKeys } from '@orbit/shared/query'
-import { formatAPIDate } from '@orbit/shared/utils'
-import { apiClient } from '@/lib/api-client'
+import { ArrowLeft, Sparkles } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
+import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 
 // ---------------------------------------------------------------------------
 // Colors
@@ -35,22 +32,20 @@ const colors = {
 // Retrospective Screen
 // ---------------------------------------------------------------------------
 
+const PERIODS: RetrospectivePeriod[] = ['week', 'month', 'quarter', 'semester', 'year']
+
 export default function RetrospectiveScreen() {
   const router = useRouter()
-  const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date()))
-
-  const weekStart = formatAPIDate(currentWeek)
-  const weekEnd = formatAPIDate(endOfWeek(currentWeek))
-  const periodLabel = `${format(currentWeek, 'MMM d')} - ${format(endOfWeek(currentWeek), 'MMM d, yyyy')}`
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: habitKeys.retrospective(weekStart),
-    queryFn: () =>
-      apiClient<{ retrospective: string }>(
-        `/api/habits/retrospective?period=week&date=${weekStart}`,
-      ),
-    staleTime: 10 * 60 * 1000,
-  })
+  const { t } = useTranslation()
+  const {
+    retrospective,
+    isLoading,
+    error,
+    fromCache,
+    period,
+    setPeriod,
+    generate,
+  } = useRetrospective()
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -68,54 +63,71 @@ export default function RetrospectiveScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Retrospective</Text>
+          <Text style={styles.headerTitle}>{t('retrospective.title')}</Text>
         </View>
 
-        {/* Week navigation */}
-        <View style={styles.weekNav}>
-          <TouchableOpacity
-            style={styles.weekNavButton}
-            onPress={() => setCurrentWeek((w) => subWeeks(w, 1))}
-            activeOpacity={0.7}
-          >
-            <ChevronLeft size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-          <Text style={styles.weekLabel}>{periodLabel}</Text>
-          <TouchableOpacity
-            style={styles.weekNavButton}
-            onPress={() => setCurrentWeek((w) => addWeeks(w, 1))}
-            activeOpacity={0.7}
-          >
-            <ChevronRight size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
+        {/* Period selector */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.periodScroll}
+          contentContainerStyle={styles.periodScrollContent}
+        >
+          {PERIODS.map((p) => (
+            <TouchableOpacity
+              key={p}
+              style={[styles.periodChip, period === p && styles.periodChipActive]}
+              onPress={() => setPeriod(p)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.periodChipText, period === p && styles.periodChipTextActive]}>
+                {t(`retrospective.periods.${p}`)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Generate button */}
+        <TouchableOpacity
+          style={[styles.generateButton, isLoading && styles.generateButtonDisabled]}
+          onPress={generate}
+          disabled={isLoading}
+          activeOpacity={0.8}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Sparkles size={16} color="#fff" />
+          )}
+          <Text style={styles.generateButtonText}>{t('retrospective.generate')}</Text>
+        </TouchableOpacity>
 
         {/* Content */}
         {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>
-              Generating your retrospective...
+              {t('retrospective.generating')}
             </Text>
           </View>
         )}
 
         {error && (
           <View style={styles.errorCard}>
-            <Text style={styles.errorText}>
-              Failed to generate retrospective. This feature requires a Pro
-              subscription and completed habits for the selected week.
-            </Text>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
-        {data?.retrospective && (
+        {retrospective && (
           <View style={styles.retroCard}>
             <View style={styles.retroHeader}>
               <Sparkles size={18} color={colors.primary} />
-              <Text style={styles.retroLabel}>AI Retrospective</Text>
+              <Text style={styles.retroLabel}>
+                {t('retrospective.aiTitle')}
+                {fromCache && <Text style={styles.cacheIndicator}> ({t('retrospective.cached')})</Text>}
+              </Text>
             </View>
-            <Text style={styles.retroText}>{data.retrospective}</Text>
+            <Text style={styles.retroText}>{retrospective}</Text>
           </View>
         )}
       </ScrollView>
@@ -145,28 +157,55 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
-  weekNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  periodScroll: {
+    marginBottom: 12,
+  },
+  periodScrollContent: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  periodChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     backgroundColor: colors.surface,
-    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 4,
-    marginBottom: 16,
   },
-  weekNavButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  periodChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  periodChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  periodChipTextActive: {
+    color: '#fff',
+  },
+  generateButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
   },
-  weekLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
+  generateButtonDisabled: {
+    opacity: 0.5,
+  },
+  generateButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  cacheIndicator: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: colors.textMuted,
   },
   loadingContainer: {
     alignItems: 'center',

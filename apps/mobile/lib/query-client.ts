@@ -4,13 +4,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 2, // 2 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes
-      retry: 2,
-      refetchOnWindowFocus: false, // not applicable on mobile, but set explicitly
+      staleTime: 1000 * 60 * 5, // 5 minutes (matches web)
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours (matches web, supports offline)
+      retry: (failureCount, error) => {
+        // Don't retry on 401 (auth errors)
+        if (error instanceof Error && error.message.includes('401')) return false
+        return failureCount < 3
+      },
+      refetchOnWindowFocus: false, // not applicable on mobile
+      refetchOnReconnect: true,
     },
     mutations: {
-      retry: 1,
+      retry: false,
     },
   },
 })

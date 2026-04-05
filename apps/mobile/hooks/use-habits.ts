@@ -18,6 +18,7 @@ import type {
   HabitMetrics,
   HabitFullDetail,
   LogHabitResponse,
+  LinkedGoalUpdate,
   CreateHabitRequest,
   UpdateHabitRequest,
   ReorderHabitsRequest,
@@ -32,6 +33,9 @@ import type {
   BulkSkipItemRequest,
   BulkSkipResult,
 } from '@orbit/shared/types/habit'
+import type { Goal } from '@orbit/shared/types/goal'
+import type { Profile } from '@orbit/shared/types/profile'
+import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { CalendarDayEntry, HabitDayStatus } from '@orbit/shared/types/calendar'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
@@ -43,6 +47,20 @@ import { useUIStore } from '@/stores/ui-store'
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function applyLinkedGoalUpdates(goals: Goal[], updates: LinkedGoalUpdate[]): Goal[] {
+  return goals.map((goal) => {
+    const update = updates.find(u => u.goalId === goal.id)
+    if (!update) return goal
+    return {
+      ...goal,
+      currentValue: update.newProgress,
+      progressPercentage: update.targetValue > 0
+        ? Math.min(100, Math.round(update.newProgress / update.targetValue * 1000) / 10)
+        : 0,
+    }
+  })
+}
 
 function buildQueryString(filters: HabitsFilter): string {
   const params = new URLSearchParams()
@@ -381,9 +399,28 @@ export function useLogHabit() {
     },
 
     onSuccess: (response) => {
-      // Streak celebration
+      // Streak celebration + update profile streak immediately so StreakBadge reflects it
       if (response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+          old ? { ...old, currentStreak: response.currentStreak } : old,
+        )
+      }
+
+      // Apply targeted goal updates from enriched response (instant, no refetch needed)
+      if (response?.linkedGoalUpdates?.length) {
+        queryClient.setQueriesData<Goal[]>(
+          { queryKey: goalKeys.lists() },
+          (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
+        )
+      }
+
+      // Apply gamification XP/achievement updates from enriched response (instant)
+      if (response?.xpEarned || response?.newAchievementIds?.length) {
+        queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
+          if (!old) return old
+          return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
+        })
       }
 
       // Check all-done celebration

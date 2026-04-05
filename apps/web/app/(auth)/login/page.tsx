@@ -24,6 +24,20 @@ function getCookieValue(name: string): string | undefined {
   return value === undefined ? undefined : decodeURIComponent(value)
 }
 
+/** Extract first FluentValidation error from an errors object */
+function extractFirstValidationError(errors: unknown): string | undefined {
+  if (!errors || typeof errors !== 'object') return undefined
+  const firstField = Object.values(errors as Record<string, unknown>)[0]
+  if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
+  return undefined
+}
+
+/** Extract error string or validation error from a plain object */
+function extractErrorFromRecord(obj: Record<string, unknown>): string | undefined {
+  if (typeof obj.error === 'string') return obj.error
+  return extractFirstValidationError(obj.errors)
+}
+
 /**
  * Extract a backend error message from a fetch response body.
  *
@@ -35,40 +49,22 @@ function getCookieValue(name: string): string | undefined {
  */
 function extractFetchError(err: unknown): string | undefined {
   if (!err || typeof err !== 'object') return undefined
-
   const obj = err as Record<string, unknown>
 
-  // Direct error string
-  if (typeof obj.error === 'string') return obj.error
+  // Direct level
+  const direct = extractErrorFromRecord(obj)
+  if (direct) return direct
 
-  // Nested data.error
+  // Nested in data
   if (obj.data && typeof obj.data === 'object') {
     const data = obj.data as Record<string, unknown>
-    if (typeof data.error === 'string') return data.error
+    const fromData = extractErrorFromRecord(data)
+    if (fromData) return fromData
 
-    // Deeper: data.data.error
+    // Deeper: data.data
     if (data.data && typeof data.data === 'object') {
-      const inner = data.data as Record<string, unknown>
-      if (typeof inner.error === 'string') return inner.error
-
-      // FluentValidation at data.data.errors
-      if (inner.errors && typeof inner.errors === 'object') {
-        const firstField = Object.values(inner.errors as Record<string, unknown>)[0]
-        if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
-      }
+      return extractErrorFromRecord(data.data as Record<string, unknown>)
     }
-
-    // FluentValidation at data.errors
-    if (data.errors && typeof data.errors === 'object') {
-      const firstField = Object.values(data.errors as Record<string, unknown>)[0]
-      if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
-    }
-  }
-
-  // Top-level FluentValidation
-  if (obj.errors && typeof obj.errors === 'object') {
-    const firstField = Object.values(obj.errors as Record<string, unknown>)[0]
-    if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
   }
 
   return undefined

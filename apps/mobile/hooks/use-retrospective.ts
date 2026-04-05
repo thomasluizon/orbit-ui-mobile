@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18n from '@/lib/i18n'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
@@ -27,7 +28,7 @@ export function useRetrospective() {
     try {
       const params = new URLSearchParams({
         period,
-        language: 'en',
+        language: i18n.language ?? 'en',
       })
       const data = await apiClient<RetrospectiveResponse>(
         `${API.habits.retrospective}?${params.toString()}`,
