@@ -13,7 +13,7 @@ interface OnboardingCompleteProps {
   onFinish: () => void
 }
 
-export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: OnboardingCompleteProps) {
+export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: Readonly<OnboardingCompleteProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS

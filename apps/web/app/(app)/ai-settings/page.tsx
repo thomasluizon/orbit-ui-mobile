@@ -52,6 +52,143 @@ async function bulkDeleteUserFacts(ids: string[]): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers (pure functions -- outer scope per SonarQube S7721)
+// ---------------------------------------------------------------------------
+
+function factCategoryColor(category: string | null): string {
+  switch (category?.toLowerCase()) {
+    case 'preference':
+      return 'text-primary bg-primary/10'
+    case 'routine':
+      return 'text-emerald-400 bg-emerald-400/10'
+    case 'context':
+      return 'text-blue-400 bg-blue-400/10'
+    default:
+      return 'text-text-secondary bg-surface-elevated'
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components (reduce cognitive complexity per SonarQube S3776)
+// ---------------------------------------------------------------------------
+
+function ToggleSwitch({
+  enabled,
+  disabled,
+  onToggle,
+}: {
+  enabled: boolean
+  disabled: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      disabled={disabled}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
+        enabled ? 'bg-primary' : 'bg-surface-elevated'
+      }`}
+      onClick={onToggle}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+          enabled ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  )
+}
+
+function ProUpgradeLink({ label }: { label: string }) {
+  return (
+    <Link
+      href="/upgrade"
+      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
+    >
+      <Lock className="size-3.5" />
+      {label}
+    </Link>
+  )
+}
+
+function FactItem({
+  fact,
+  selectMode,
+  isSelected,
+  onToggleSelection,
+  onDelete,
+}: {
+  fact: UserFact
+  selectMode: boolean
+  isSelected: boolean
+  onToggleSelection: () => void
+  onDelete: () => void
+}) {
+  const content = (
+    <>
+      {selectMode && (
+        <button
+          className="shrink-0 mt-0.5"
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleSelection()
+          }}
+        >
+          <div
+            className={`size-5 rounded-md border-2 transition-colors flex items-center justify-center ${
+              isSelected
+                ? 'bg-primary border-primary'
+                : 'border-border'
+            }`}
+          >
+            {isSelected && (
+              <Check className="size-3 text-white" />
+            )}
+          </div>
+        </button>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-text-primary">{fact.factText}</p>
+        {fact.category && (
+          <span
+            className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${factCategoryColor(fact.category)}`}
+          >
+            {fact.category}
+          </span>
+        )}
+      </div>
+      {!selectMode && (
+        <button
+          className="shrink-0 p-1.5 text-text-muted hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+          onClick={onDelete}
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      )}
+    </>
+  )
+
+  if (selectMode) {
+    return (
+      <button
+        type="button"
+        className={`flex items-start gap-3 rounded-2xl bg-background p-3 transition-colors w-full text-left cursor-pointer ${
+          isSelected ? 'ring-1 ring-primary/40' : ''
+        }`}
+        onClick={onToggleSelection}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-start gap-3 rounded-2xl bg-background p-3 transition-colors">
+      {content}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // AI Settings Page
 // ---------------------------------------------------------------------------
 
@@ -161,19 +298,6 @@ export default function AiSettingsPage() {
     }
   }
 
-  function factCategoryColor(category: string | null): string {
-    switch (category?.toLowerCase()) {
-      case 'preference':
-        return 'text-primary bg-primary/10'
-      case 'routine':
-        return 'text-emerald-400 bg-emerald-400/10'
-      case 'context':
-        return 'text-blue-400 bg-blue-400/10'
-      default:
-        return 'text-text-secondary bg-surface-elevated'
-    }
-  }
-
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
@@ -200,27 +324,13 @@ export default function AiSettingsPage() {
               <ProBadge />
             </div>
             {profile?.hasProAccess ? (
-              <button
+              <ToggleSwitch
+                enabled={!!profile?.aiMemoryEnabled}
                 disabled={aiMemoryMutation.isPending}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
-                  profile?.aiMemoryEnabled ? 'bg-primary' : 'bg-surface-elevated'
-                }`}
-                onClick={() => aiMemoryMutation.mutate(!profile?.aiMemoryEnabled)}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                    profile?.aiMemoryEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+                onToggle={() => aiMemoryMutation.mutate(!profile?.aiMemoryEnabled)}
+              />
             ) : (
-              <Link
-                href="/upgrade"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
-              >
-                <Lock className="size-3.5" />
-                {t('common.proBadge')}
-              </Link>
+              <ProUpgradeLink label={t('common.proBadge')} />
             )}
           </div>
           <p className="text-sm text-text-secondary">
@@ -249,27 +359,13 @@ export default function AiSettingsPage() {
               <ProBadge />
             </div>
             {profile?.hasProAccess ? (
-              <button
+              <ToggleSwitch
+                enabled={!!profile?.aiSummaryEnabled}
                 disabled={aiSummaryMutation.isPending}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
-                  profile?.aiSummaryEnabled ? 'bg-primary' : 'bg-surface-elevated'
-                }`}
-                onClick={() => aiSummaryMutation.mutate(!profile?.aiSummaryEnabled)}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                    profile?.aiSummaryEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+                onToggle={() => aiSummaryMutation.mutate(!profile?.aiSummaryEnabled)}
+              />
             ) : (
-              <Link
-                href="/upgrade"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
-              >
-                <Lock className="size-3.5" />
-                {t('common.proBadge')}
-              </Link>
+              <ProUpgradeLink label={t('common.proBadge')} />
             )}
           </div>
           <p className="text-sm text-text-secondary">
@@ -354,61 +450,14 @@ export default function AiSettingsPage() {
           {!factsQuery.isLoading && facts.length > 0 && (
             <div className="space-y-2">
               {pagedFacts.map((fact) => (
-                <div
+                <FactItem
                   key={fact.id}
-                  role={selectMode ? 'button' : undefined}
-                  tabIndex={selectMode ? 0 : undefined}
-                  className={`flex items-start gap-3 rounded-2xl bg-background p-3 transition-colors ${
-                    selectMode && selectedFactIds.has(fact.id) ? 'ring-1 ring-primary/40' : ''
-                  } ${selectMode ? 'cursor-pointer' : ''}`}
-                  onClick={selectMode ? () => toggleFactSelection(fact.id) : undefined}
-                  onKeyDown={selectMode ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      toggleFactSelection(fact.id)
-                    }
-                  } : undefined}
-                >
-                  {selectMode && (
-                    <button
-                      className="shrink-0 mt-0.5"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleFactSelection(fact.id)
-                      }}
-                    >
-                      <div
-                        className={`size-5 rounded-md border-2 transition-colors flex items-center justify-center ${
-                          selectedFactIds.has(fact.id)
-                            ? 'bg-primary border-primary'
-                            : 'border-border'
-                        }`}
-                      >
-                        {selectedFactIds.has(fact.id) && (
-                          <Check className="size-3 text-white" />
-                        )}
-                      </div>
-                    </button>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary">{fact.factText}</p>
-                    {fact.category && (
-                      <span
-                        className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${factCategoryColor(fact.category)}`}
-                      >
-                        {fact.category}
-                      </span>
-                    )}
-                  </div>
-                  {!selectMode && (
-                    <button
-                      className="shrink-0 p-1.5 text-text-muted hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
-                      onClick={() => deleteMutation.mutate(fact.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  )}
-                </div>
+                  fact={fact}
+                  selectMode={selectMode}
+                  isSelected={selectedFactIds.has(fact.id)}
+                  onToggleSelection={() => toggleFactSelection(fact.id)}
+                  onDelete={() => deleteMutation.mutate(fact.id)}
+                />
               ))}
 
               {/* Pagination */}

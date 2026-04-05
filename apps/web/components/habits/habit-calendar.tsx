@@ -35,7 +35,7 @@ interface HabitCalendarProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function HabitCalendar({ habitId, logs: externalLogs }: HabitCalendarProps) {
+export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCalendarProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS

@@ -101,7 +101,7 @@ function dotClass(cell: GridDay): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: CalendarGridProps) {
+export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS

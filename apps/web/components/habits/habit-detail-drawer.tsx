@@ -38,7 +38,7 @@ export function HabitDetailDrawer({
   onDelete,
   onEdit,
   onLogged,
-}: HabitDetailDrawerProps) {
+}: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -207,7 +207,7 @@ export function HabitDetailDrawer({
             )}
 
             {/* Stats grid (3-column) */}
-            {metrics && !metricsLoading ? (
+            {metrics && !metricsLoading && (
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
                   <Flame className="size-5 text-primary" />
@@ -241,7 +241,8 @@ export function HabitDetailDrawer({
                   </span>
                 </div>
               </div>
-            ) : metricsLoading ? (
+            )}
+            {!metrics && metricsLoading && (
               <div className="grid grid-cols-3 gap-3">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -254,7 +255,7 @@ export function HabitDetailDrawer({
                   </div>
                 ))}
               </div>
-            ) : null}
+            )}
 
             {/* Calendar heatmap */}
             <div>

@@ -10,7 +10,6 @@ export function GoalCompletedCelebration() {
   const t = useTranslations()
   const goalCompletedCelebration = useUIStore((s) => s.goalCompletedCelebration)
   const setGoalCompletedCelebration = useUIStore((s) => s.setGoalCompletedCelebration)
-  const [visible, setVisible] = useState(false)
   const [goalName, setGoalName] = useState('')
   const [mounted, setMounted] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
@@ -27,12 +26,10 @@ export function GoalCompletedCelebration() {
   useEffect(() => {
     if (goalCompletedCelebration) {
       setGoalName(goalCompletedCelebration.name)
-      setVisible(true)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
-        setVisible(false)
         setIsVisible(false)
         setGoalCompletedCelebration(null)
         setTimeout(() => setShouldRender(false), 300)
@@ -41,7 +38,6 @@ export function GoalCompletedCelebration() {
   }, [goalCompletedCelebration, setGoalCompletedCelebration])
 
   function dismiss() {
-    setVisible(false)
     setIsVisible(false)
     setGoalCompletedCelebration(null)
     setTimeout(() => setShouldRender(false), 300)

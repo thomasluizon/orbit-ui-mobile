@@ -144,7 +144,7 @@ export function AppOverlay({
       const focusable = getFocusableElements()
       if (focusable.length === 0) return
       const first = focusable[0]!
-      const last = focusable[focusable.length - 1]!
+      const last = focusable.at(-1)!
       if (e.shiftKey) {
         if (document.activeElement === first) {
           e.preventDefault()
@@ -205,7 +205,6 @@ export function AppOverlay({
 
   const overlay = (
     <div
-      role="presentation"
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
       onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}

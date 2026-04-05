@@ -11,9 +11,8 @@ interface LevelUpOverlayProps {
   onClear: () => void
 }
 
-export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayProps) {
+export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelUpOverlayProps>) {
   const t = useTranslations()
-  const [visible, setVisible] = useState(false)
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
   const [mounted, setMounted] = useState(false)
@@ -32,11 +31,9 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: LevelUpOverlayP
     if (leveledUp && newLevel) {
       setLevel(newLevel)
       setTitle(t(`gamification.levels.${newLevel}`))
-      setVisible(true)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       timerRef.current = setTimeout(() => {
-        setVisible(false)
         setIsVisible(false)
         onClear()
         setTimeout(() => setShouldRender(false), 400)

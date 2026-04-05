@@ -31,7 +31,7 @@ export function EditHabitModal({
   open,
   onOpenChange,
   habit,
-}: EditHabitModalProps) {
+}: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
   const updateHabit = useUpdateHabit()
 

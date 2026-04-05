@@ -5,11 +5,14 @@ import React from 'react'
 import {
   useGoals,
   useGoalDetail,
+  useGoalMetrics,
   useCreateGoal,
   useUpdateGoal,
   useDeleteGoal,
   useUpdateGoalProgress,
   useUpdateGoalStatus,
+  useReorderGoals,
+  useLinkHabitsToGoal,
 } from '@/hooks/use-goals'
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -291,5 +294,138 @@ describe('useUpdateGoalStatus', () => {
     })
 
     expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' })
+  })
+})
+
+describe('useGoalDetail', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('fetches goal detail when id is provided', async () => {
+    const goalDetail = {
+      ...createMockGoal({ id: 'g-1', title: 'Read 12 Books' }),
+      metrics: { completionRate: 0.5, daysRemaining: 30 },
+    }
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(goalDetail),
+    })
+
+    const { result } = renderHook(() => useGoalDetail('g-1'), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toBeDefined()
+  })
+
+  it('does not fetch when id is null', () => {
+    const { result } = renderHook(() => useGoalDetail(null), {
+      wrapper: createWrapper(),
+    })
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('useGoalMetrics', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('fetches goal metrics when id is provided', async () => {
+    const metrics = { completionRate: 0.75, daysRemaining: 15 }
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(metrics),
+    })
+
+    const { result } = renderHook(() => useGoalMetrics('g-1'), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toBeDefined()
+  })
+
+  it('does not fetch when id is null', () => {
+    const { result } = renderHook(() => useGoalMetrics(null), {
+      wrapper: createWrapper(),
+    })
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('useReorderGoals', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('calls reorderGoals action', async () => {
+    const { reorderGoals } = await import('@/app/actions/goals')
+    const mockedReorder = vi.mocked(reorderGoals)
+    mockedReorder.mockResolvedValue(undefined as any)
+
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useReorderGoals(), { wrapper })
+
+    const positions = [
+      { id: 'g-1', position: 0 },
+      { id: 'g-2', position: 1 },
+    ]
+
+    await act(async () => {
+      await result.current.mutateAsync(positions)
+    })
+
+    expect(mockedReorder).toHaveBeenCalledWith(positions)
+  })
+
+  it('rolls back on error', async () => {
+    const { reorderGoals } = await import('@/app/actions/goals')
+    const mockedReorder = vi.mocked(reorderGoals)
+    mockedReorder.mockRejectedValue(new Error('Server error'))
+
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useReorderGoals(), { wrapper })
+
+    const positions = [
+      { id: 'g-1', position: 1 },
+      { id: 'g-2', position: 0 },
+    ]
+
+    act(() => {
+      result.current.mutate(positions)
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+  })
+})
+
+describe('useLinkHabitsToGoal', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('calls linkHabitsToGoal action', async () => {
+    const { linkHabitsToGoal } = await import('@/app/actions/goals')
+    const mockedLink = vi.mocked(linkHabitsToGoal)
+    mockedLink.mockResolvedValue(undefined as any)
+
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useLinkHabitsToGoal(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        goalId: 'g-1',
+        habitIds: ['h-1', 'h-2'],
+      })
+    })
+
+    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'])
   })
 })

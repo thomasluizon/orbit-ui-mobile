@@ -28,11 +28,10 @@ export function OnboardingFlow() {
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
   const [createdHabitTitle, setCreatedHabitTitle] = useState('')
   const [createdGoal, setCreatedGoal] = useState(false)
-  const [transitionDirection, setTransitionDirection] = useState<'forward' | 'back'>('forward')
   const [mounted, setMounted] = useState(false)
 
   // SSR guard
-  if (typeof window !== 'undefined' && !mounted) {
+  if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) {
     setMounted(true)
   }
 
@@ -49,7 +48,6 @@ export function OnboardingFlow() {
 
   const goNext = useCallback(() => {
     if (currentStep < TOTAL_STEPS - 1) {
-      setTransitionDirection('forward')
       let next = currentStep + 1
       // Skip goal step for free users
       if (next === 3 && !hasProAccess) {
@@ -61,7 +59,6 @@ export function OnboardingFlow() {
 
   const goPrev = useCallback(() => {
     if (currentStep > 0) {
-      setTransitionDirection('back')
       let prev = currentStep - 1
       // Skip goal step for free users
       if (prev === 3 && !hasProAccess) {
@@ -105,7 +102,6 @@ export function OnboardingFlow() {
 
   function handleSkip() {
     // Jump to the complete step so trial info is shown
-    setTransitionDirection('forward')
     setCurrentStep(5)
   }
 

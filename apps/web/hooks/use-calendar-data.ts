@@ -8,8 +8,7 @@ import {
   isAfter,
   isToday,
 } from 'date-fns'
-import { habitKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry, HabitDayStatus } from '@orbit/shared/types/calendar'

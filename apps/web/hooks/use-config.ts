@@ -51,7 +51,7 @@ export function isFeatureEnabled(
   userPlan: PlanType,
 ): boolean {
   const flag: FeatureFlag | undefined = config.features[key]
-  if (!flag || !flag.enabled) return false
+  if (!flag?.enabled) return false
   if (flag.plan === null) return true // No plan restriction
   return userPlan === 'pro'
 }

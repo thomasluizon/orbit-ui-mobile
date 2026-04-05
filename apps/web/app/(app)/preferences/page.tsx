@@ -133,7 +133,7 @@ export default function PreferencesPage() {
 
   // --- Home Screen Toggle (local-only preference) ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(() => {
-    if (typeof window === 'undefined') return true
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true
     return localStorage.getItem('orbit_show_general_on_today') !== 'false'
   })
 
@@ -150,7 +150,7 @@ export default function PreferencesPage() {
   const [pushLoading, setPushLoading] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (typeof globalThis === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in globalThis)) {
       setPushSupported(false)
       return
     }

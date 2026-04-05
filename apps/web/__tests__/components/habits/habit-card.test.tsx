@@ -74,18 +74,18 @@ describe('HabitCard', () => {
     expect(screen.queryByText('Run for 30 minutes')).toBeNull()
   })
 
-  it('renders the article with role="button"', () => {
+  it('renders the article with aria-label', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} />)
-    const article = screen.getByRole('button', { name: 'Exercise' })
-    expect(article).toBeDefined()
+    const article = screen.getByLabelText('Exercise')
+    expect(article.tagName).toBe('ARTICLE')
   })
 
   it('calls onDetail when card is clicked', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
     render(<HabitCard habit={habit} onDetail={onDetail} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Exercise' }))
+    fireEvent.click(screen.getByLabelText('Exercise'))
     expect(onDetail).toHaveBeenCalledOnce()
   })
 
@@ -101,7 +101,7 @@ describe('HabitCard', () => {
         onToggleSelection={onToggleSelection}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Exercise' }))
+    fireEvent.click(screen.getByLabelText('Exercise'))
     expect(onToggleSelection).toHaveBeenCalledOnce()
     expect(onDetail).not.toHaveBeenCalled()
   })
@@ -196,16 +196,16 @@ describe('HabitCard', () => {
   it('renders select checkbox in select mode', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} isSelectMode={true} isSelected={false} />)
-    const checkbox = screen.getByRole('checkbox')
+    const checkbox = screen.getByRole('checkbox') as HTMLInputElement
     expect(checkbox).toBeDefined()
-    expect(checkbox.getAttribute('aria-checked')).toBe('false')
+    expect(checkbox.checked).toBe(false)
   })
 
   it('renders selected checkbox in select mode when selected', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} isSelectMode={true} isSelected={true} />)
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox.getAttribute('aria-checked')).toBe('true')
+    const checkbox = screen.getByRole('checkbox') as HTMLInputElement
+    expect(checkbox.checked).toBe(true)
   })
 
   it('does not show the actions menu trigger in select mode', () => {
@@ -356,7 +356,7 @@ describe('HabitCard', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
     render(<HabitCard habit={habit} onDetail={onDetail} />)
-    const article = screen.getByRole('button', { name: 'Exercise' })
+    const article = screen.getByLabelText('Exercise')
     fireEvent.keyDown(article, { key: 'Enter' })
     expect(onDetail).toHaveBeenCalledOnce()
   })
@@ -365,7 +365,7 @@ describe('HabitCard', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
     render(<HabitCard habit={habit} onDetail={onDetail} />)
-    const article = screen.getByRole('button', { name: 'Exercise' })
+    const article = screen.getByLabelText('Exercise')
     fireEvent.keyDown(article, { key: ' ' })
     expect(onDetail).toHaveBeenCalledOnce()
   })

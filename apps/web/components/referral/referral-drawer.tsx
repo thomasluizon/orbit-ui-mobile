@@ -11,7 +11,7 @@ interface ReferralDrawerProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function ReferralDrawer({ open, onOpenChange }: ReferralDrawerProps) {
+export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerProps>) {
   const t = useTranslations()
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)

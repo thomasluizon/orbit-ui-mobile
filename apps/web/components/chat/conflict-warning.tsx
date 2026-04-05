@@ -33,7 +33,7 @@ function severityStyle(severity: ConflictWarningType['severity']): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function ConflictWarning({ warning }: ConflictWarningProps) {
+export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
   const t = useTranslations()
 
   return (

@@ -2,8 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { formatAPIDate } from '@orbit/shared/utils'
-import { getErrorMessage } from '@orbit/shared/api'
-import { API } from '@orbit/shared/api'
+import { getErrorMessage, API } from '@orbit/shared/api'
 import type {
   NormalizedHabit,
   HabitDetail,

@@ -25,7 +25,7 @@ export function CreateApiKeyModal({
   onCreateKey,
   apiError,
   onCreated,
-}: CreateApiKeyModalProps) {
+}: Readonly<CreateApiKeyModalProps>) {
   const t = useTranslations()
   const [keyName, setKeyName] = useState('')
   const [validationError, setValidationError] = useState('')

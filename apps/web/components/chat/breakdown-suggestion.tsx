@@ -40,7 +40,7 @@ export function BreakdownSuggestion({
   subHabits,
   onConfirmed,
   onCancelled,
-}: BreakdownSuggestionProps) {
+}: Readonly<BreakdownSuggestionProps>) {
   const t = useTranslations()
   const bulkCreate = useBulkCreateHabits()
 
@@ -194,14 +194,14 @@ export function BreakdownSuggestion({
     <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-text-primary">
         {t.rich('habits.breakdown.breakInto', {
-          name: () => <span className="text-primary font-bold">{parentName}</span>,
+          name: (chunks) => <span className="text-primary font-bold">{chunks}</span>,
         })}
       </p>
 
       <div className="space-y-3">
         {habits.map((habit, index) => (
           <div
-            key={index}
+            key={`${habit.title}-${index}`}
             className="bg-surface-elevated border border-border-muted rounded-[var(--radius-lg)] p-3 flex items-center justify-between gap-3"
           >
             <div className="flex-1 min-w-0 space-y-1">

@@ -24,7 +24,7 @@ export function GoalMetricsPanel({
   metrics,
   unit,
   isLoading,
-}: GoalMetricsPanelProps) {
+}: Readonly<GoalMetricsPanelProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -145,11 +145,11 @@ export function GoalMetricsPanel({
                     <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          habit.weeklyCompletionRate >= 80
-                            ? 'bg-green-500'
-                            : habit.weeklyCompletionRate >= 50
-                              ? 'bg-primary'
-                              : 'bg-amber-500'
+                          (() => {
+                            if (habit.weeklyCompletionRate >= 80) return 'bg-green-500'
+                            if (habit.weeklyCompletionRate >= 50) return 'bg-primary'
+                            return 'bg-amber-500'
+                          })()
                         }`}
                         style={{
                           width: `${Math.min(100, habit.weeklyCompletionRate)}%`,

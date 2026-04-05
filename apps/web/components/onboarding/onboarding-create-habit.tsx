@@ -29,7 +29,7 @@ interface OnboardingCreateHabitProps {
   onCreated: (habitId: string, title: string) => void
 }
 
-export function OnboardingCreateHabit({ onCreated }: OnboardingCreateHabitProps) {
+export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHabitProps>) {
   const t = useTranslations()
   const [title, setTitle] = useState('')
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
@@ -98,9 +98,12 @@ export function OnboardingCreateHabit({ onCreated }: OnboardingCreateHabitProps)
             {/* Habit info */}
             <p className="text-lg font-bold text-text-primary">{title}</p>
             <p className="text-xs text-text-secondary mt-1">
-              {frequencyUnit
-                ? t(`onboarding.flow.createHabit.frequency.${frequencyUnit === 'Day' ? 'daily' : frequencyUnit === 'Week' ? 'weekly' : 'oneTime'}`)
-                : t('onboarding.flow.createHabit.frequency.oneTime')}
+              {(() => {
+                if (!frequencyUnit) return t('onboarding.flow.createHabit.frequency.oneTime')
+                if (frequencyUnit === 'Day') return t('onboarding.flow.createHabit.frequency.daily')
+                if (frequencyUnit === 'Week') return t('onboarding.flow.createHabit.frequency.weekly')
+                return t('onboarding.flow.createHabit.frequency.oneTime')
+              })()}
             </p>
             <p className="text-sm text-success font-medium mt-3">
               {t('onboarding.flow.createHabit.success')}

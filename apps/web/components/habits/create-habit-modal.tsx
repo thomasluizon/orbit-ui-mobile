@@ -14,6 +14,69 @@ import type { NormalizedHabit, ScheduledReminderTime } from '@orbit/shared/types
 import { buildSubHabitRequest, buildCreateHabitRequest, type HabitFormData } from '@/lib/habit-request-builders'
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface SubHabitEntry {
+  id: string
+  value: string
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function prefillFromParent(
+  parent: NormalizedHabit,
+  formHelpers: ReturnType<typeof useHabitForm>,
+  tags: ReturnType<typeof useTagSelection>,
+  initialDate: string | null | undefined,
+  setReminderTimes: (times: number[]) => void,
+  setSelectedGoalIds: (ids: string[]) => void,
+) {
+  const { form } = formHelpers
+  const fallbackDate = initialDate ?? formatAPIDate(new Date())
+
+  form.setValue('frequencyUnit', parent.frequencyUnit)
+  form.setValue('frequencyQuantity', parent.frequencyQuantity)
+  if (parent.days?.length) {
+    form.setValue('days', [...parent.days])
+  }
+  form.setValue('isBadHabit', parent.isBadHabit)
+  form.setValue('isGeneral', parent.isGeneral ?? false)
+  form.setValue('isFlexible', parent.isFlexible ?? false)
+  form.setValue('slipAlertEnabled', parent.slipAlertEnabled ?? false)
+  form.setValue('dueDate', parent.dueDate ?? fallbackDate)
+  form.setValue('dueTime', parent.dueTime?.slice(0, 5) ?? '')
+  form.setValue('dueEndTime', parent.dueEndTime?.slice(0, 5) ?? '')
+  form.setValue('endDate', parent.endDate ?? '')
+  form.setValue('reminderEnabled', parent.reminderEnabled ?? false)
+  setReminderTimes(parent.reminderTimes?.length ? [...parent.reminderTimes] : [0, 15])
+  form.setValue('scheduledReminders',
+    parent.scheduledReminders?.length
+      ? parent.scheduledReminders.map((sr: ScheduledReminderTime) => ({ ...sr }))
+      : []
+  )
+
+  if (parent.isGeneral) {
+    formHelpers.setGeneral()
+  } else if (parent.isFlexible) {
+    formHelpers.setFlexible()
+  } else if (parent.frequencyUnit) {
+    formHelpers.setRecurring()
+  } else {
+    formHelpers.setOneTime()
+  }
+
+  tags.resetTags(parent.tags?.map((t) => t.id) ?? [])
+  setSelectedGoalIds(parent.linkedGoals?.map((g) => g.id) ?? [])
+}
+
+function createSubHabitEntry(value = ''): SubHabitEntry {
+  return { id: crypto.randomUUID(), value }
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
@@ -33,7 +96,7 @@ export function CreateHabitModal({
   onOpenChange,
   initialDate,
   parentHabit,
-}: CreateHabitModalProps) {
+}: Readonly<CreateHabitModalProps>) {
   const t = useTranslations()
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
@@ -48,7 +111,7 @@ export function CreateHabitModal({
 
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
-  const [subHabits, setSubHabits] = useState<string[]>([])
+  const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [validationError, setValidationError] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
 
@@ -64,72 +127,38 @@ export function CreateHabitModal({
 
   // Reset form when modal opens/closes
   useEffect(() => {
-    if (open) {
-      formHelpers.form.reset({
-        title: '',
-        description: '',
-        frequencyUnit: null,
-        frequencyQuantity: null,
-        days: [],
-        isBadHabit: false,
-        isGeneral: false,
-        isFlexible: false,
-        dueDate: initialDate ?? formatAPIDate(new Date()),
-        dueTime: '',
-        dueEndTime: '',
-        endDate: '',
-        reminderEnabled: false,
-        scheduledReminders: [],
-        slipAlertEnabled: false,
-        checklistItems: [],
-      })
-      tags.resetTags()
-      setSelectedGoalIds([])
-      setSubHabits([])
-      setValidationError('')
-      setReminderTimes([0, 15])
+    if (!open) return
 
-      // Prefill from parent if sub-habit mode
-      if (parentHabit) {
-        formHelpers.form.setValue('frequencyUnit', parentHabit.frequencyUnit)
-        formHelpers.form.setValue('frequencyQuantity', parentHabit.frequencyQuantity)
-        if (parentHabit.days?.length) {
-          formHelpers.form.setValue('days', [...parentHabit.days])
-        }
-        formHelpers.form.setValue('isBadHabit', parentHabit.isBadHabit)
-        formHelpers.form.setValue('isGeneral', parentHabit.isGeneral ?? false)
-        formHelpers.form.setValue('isFlexible', parentHabit.isFlexible ?? false)
-        formHelpers.form.setValue('slipAlertEnabled', parentHabit.slipAlertEnabled ?? false)
-        formHelpers.form.setValue('dueDate', parentHabit.dueDate ?? initialDate ?? formatAPIDate(new Date()))
-        formHelpers.form.setValue('dueTime', parentHabit.dueTime?.slice(0, 5) ?? '')
-        formHelpers.form.setValue('dueEndTime', parentHabit.dueEndTime?.slice(0, 5) ?? '')
-        formHelpers.form.setValue('endDate', parentHabit.endDate ?? '')
-        formHelpers.form.setValue('reminderEnabled', parentHabit.reminderEnabled ?? false)
-        setReminderTimes(parentHabit.reminderTimes?.length ? [...parentHabit.reminderTimes] : [0, 15])
-        formHelpers.form.setValue('scheduledReminders',
-          parentHabit.scheduledReminders?.length
-            ? parentHabit.scheduledReminders.map((sr: ScheduledReminderTime) => ({ ...sr }))
-            : []
-        )
+    formHelpers.form.reset({
+      title: '',
+      description: '',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isBadHabit: false,
+      isGeneral: false,
+      isFlexible: false,
+      dueDate: initialDate ?? formatAPIDate(new Date()),
+      dueTime: '',
+      dueEndTime: '',
+      endDate: '',
+      reminderEnabled: false,
+      scheduledReminders: [],
+      slipAlertEnabled: false,
+      checklistItems: [],
+    })
+    tags.resetTags()
+    setSelectedGoalIds([])
+    setSubHabits([])
+    setValidationError('')
+    setReminderTimes([0, 15])
 
-        if (parentHabit.isGeneral) {
-          formHelpers.setGeneral()
-        } else if (parentHabit.isFlexible) {
-          formHelpers.setFlexible()
-        } else if (parentHabit.frequencyUnit) {
-          formHelpers.setRecurring()
-        } else {
-          formHelpers.setOneTime()
-        }
+    if (parentHabit) {
+      prefillFromParent(parentHabit, formHelpers, tags, initialDate, setReminderTimes, setSelectedGoalIds)
+    }
 
-        tags.resetTags(parentHabit.tags?.map((t) => t.id) ?? [])
-        setSelectedGoalIds(parentHabit.linkedGoals?.map((g) => g.id) ?? [])
-      }
-
-      // Auto-set general mode when on the general view
-      if (activeView === 'general') {
-        formHelpers.setGeneral()
-      }
+    if (activeView === 'general') {
+      formHelpers.setGeneral()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -146,13 +175,14 @@ export function CreateHabitModal({
       }
 
       const data = formHelpers.form.getValues() as unknown as HabitFormData
+      const subHabitValues = subHabits.map((entry) => entry.value)
 
       try {
         if (isSubHabitMode && parentHabit) {
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
           await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
-          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabits)
+          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
         onOpenChange(false)
@@ -194,24 +224,24 @@ export function CreateHabitModal({
               </span>
               {subHabits.length > 0 && (
                 <div className="space-y-1.5">
-                  {subHabits.map((_, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                  {subHabits.map((entry) => (
+                    <div key={entry.id} className="flex items-center gap-2">
                       <input
-                        value={subHabits[index]}
+                        value={entry.value}
                         type="text"
                         placeholder={t('habits.form.subHabitPlaceholder')}
                         className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                         onChange={(e) => {
-                          const next = [...subHabits]
-                          next[index] = e.target.value
-                          setSubHabits(next)
+                          setSubHabits((prev) =>
+                            prev.map((s) => s.id === entry.id ? { ...s, value: e.target.value } : s)
+                          )
                         }}
                       />
                       <button
                         type="button"
                         className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 rounded-full"
                         onClick={() =>
-                          setSubHabits(subHabits.filter((_, i) => i !== index))
+                          setSubHabits((prev) => prev.filter((s) => s.id !== entry.id))
                         }
                       >
                         <Trash2 className="size-4" />
@@ -224,7 +254,7 @@ export function CreateHabitModal({
                 type="button"
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
                 disabled={subHabits.length >= 20}
-                onClick={() => setSubHabits([...subHabits, ''])}
+                onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
               >
                 <Plus className="size-3.5" />
                 {t('habits.form.addSubHabit')}

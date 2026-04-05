@@ -27,7 +27,7 @@ export function LogHabitModal({
   onOpenChange,
   habit,
   onLogged,
-}: LogHabitModalProps) {
+}: Readonly<LogHabitModalProps>) {
   const t = useTranslations()
   const logHabit = useLogHabit()
 

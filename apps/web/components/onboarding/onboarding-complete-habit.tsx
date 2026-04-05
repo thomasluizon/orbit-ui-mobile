@@ -18,7 +18,7 @@ const sparks = [
   { x: '12px', y: '12px', delay: '150ms' },
 ]
 
-export function OnboardingCompleteHabit({ habitId, habitTitle, onCompleted }: OnboardingCompleteHabitProps) {
+export function OnboardingCompleteHabit({ habitId, habitTitle, onCompleted }: Readonly<OnboardingCompleteHabitProps>) {
   const t = useTranslations()
   const [isCompleted, setIsCompleted] = useState(false)
   const [showStreak, setShowStreak] = useState(false)
@@ -100,9 +100,9 @@ export function OnboardingCompleteHabit({ habitId, habitTitle, onCompleted }: On
             )}
 
             {/* Spark particles */}
-            {showSparks && sparks.map((spark, i) => (
+            {showSparks && sparks.map((spark) => (
               <span
-                key={i}
+                key={`${spark.x}-${spark.y}`}
                 className="absolute top-1/2 left-1/2 size-1.5 rounded-full bg-primary animate-complete-spark"
                 style={{
                   '--spark-x': spark.x,

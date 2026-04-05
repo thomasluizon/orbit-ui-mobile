@@ -37,7 +37,7 @@ export default function AppLayout({
   )
 }
 
-function AppLayoutContent({ children }: { children: React.ReactNode }) {
+function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
@@ -122,13 +122,6 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     [showCalendarPrompt, handleDismissCalendarPrompt],
   )
 
-  // ---------------------------------------------------------------------------
-  // Gamification clear handlers
-  // ---------------------------------------------------------------------------
-  const clearLevelUp = useCallback(() => {
-    // Level-up is tracked via ref diff in the hook -- no explicit clear needed
-  }, [])
-
   return (
     <div className="min-h-dvh bg-background text-text-primary pb-28 pt-[var(--safe-top)] ambient-glow">
       <a
@@ -175,7 +168,7 @@ function GlobalOverlays({
   onCalendarPromptOpenChange,
   onCalendarImport,
   onDismissCalendarPrompt,
-}: {
+}: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
   gamification: ReturnType<typeof useGamificationProfile>
@@ -184,7 +177,7 @@ function GlobalOverlays({
   onCalendarPromptOpenChange: (open: boolean) => void
   onCalendarImport: () => void
   onDismissCalendarPrompt: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (

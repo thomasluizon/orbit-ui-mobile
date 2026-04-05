@@ -50,6 +50,33 @@ const REMINDER_PRESETS = [
 ] as const
 
 // ---------------------------------------------------------------------------
+// Pure utility functions (extracted to module scope -- S7721)
+// ---------------------------------------------------------------------------
+
+function isValidTime(time: string): boolean {
+  if (time.length !== 5) return true
+  const [hStr, mStr] = time.split(':')
+  const h = Number.parseInt(hStr ?? "", 10)
+  const m = Number.parseInt(mStr ?? "", 10)
+  return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+}
+
+function formatScheduledTimeInput(value: string): string {
+  let v = value.replaceAll(/\D/g, '')
+  if (v.length > 4) v = v.slice(0, 4)
+  if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
+  return v
+}
+
+function isValidScheduledTime(time: string): boolean {
+  if (time.length !== 5) return false
+  const [hStr, mStr] = time.split(':')
+  const h = Number.parseInt(hStr ?? "", 10)
+  const m = Number.parseInt(mStr ?? "", 10)
+  return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -88,7 +115,7 @@ export function HabitFormFields({
     formatEndTimeInput,
   } = formHelpers
 
-  const { register, watch, setValue, getValues } = form
+  const { register, watch, setValue } = form
 
   const watchedFrequencyUnit = watch('frequencyUnit')
   const watchedFrequencyQuantity = watch('frequencyQuantity')
@@ -115,15 +142,6 @@ export function HabitFormFields({
   })
 
   const availableTags = tagsData ?? []
-
-  // Time validation
-  function isValidTime(time: string): boolean {
-    if (time.length !== 5) return true
-    const [hStr, mStr] = time.split(':')
-    const h = Number.parseInt(hStr ?? "", 10)
-    const m = Number.parseInt(mStr ?? "", 10)
-    return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
-  }
 
   // Reminder state
   const [showAddReminder, setShowAddReminder] = useState(false)
@@ -186,21 +204,6 @@ export function HabitFormFields({
   const [scheduledReminderTime, setScheduledReminderTime] = useState('')
 
   const atScheduledReminderLimit = (watchedScheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
-
-  function formatScheduledTimeInput(value: string): string {
-    let v = value.replaceAll(/\D/g, '')
-    if (v.length > 4) v = v.slice(0, 4)
-    if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
-    return v
-  }
-
-  function isValidScheduledTime(time: string): boolean {
-    if (time.length !== 5) return false
-    const [hStr, mStr] = time.split(':')
-    const h = Number.parseInt(hStr ?? "", 10)
-    const m = Number.parseInt(mStr ?? "", 10)
-    return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
-  }
 
   function addScheduledReminder() {
     if (!isValidScheduledTime(scheduledReminderTime)) return
@@ -941,22 +944,7 @@ export function HabitFormFields({
       {/* Slip alert toggle (only when bad habit) */}
       {watchedIsBadHabit && (
         <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
-          {!hasProAccess ? (
-            /* Pro locked state */
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="size-4 text-text-muted" />
-                  <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
-                </div>
-                <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
-              </div>
-              <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
-                <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
-              </div>
-            </div>
-          ) : (
+          {hasProAccess ? (
             /* Pro unlocked state */
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
@@ -977,6 +965,21 @@ export function HabitFormFields({
               >
                 <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedSlipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
               </button>
+            </div>
+          ) : (
+            /* Pro locked state */
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-4 text-text-muted" />
+                  <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
+                </div>
+                <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+              </div>
+              <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
+                <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
+              </div>
             </div>
           )}
         </div>

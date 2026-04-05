@@ -222,5 +222,77 @@ describe('auth store', () => {
       expect(state.isAuthenticated).toBe(false)
       cleanup()
     })
+
+    it('enters warning zone when remaining time is under 5 minutes', async () => {
+      const now = Date.now()
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ expiresAt: now + 3600000 }),
+      })
+
+      const { setAuth, startExpiryMonitor } = useAuthStore.getState()
+      setAuth(makeLoginResponse())
+
+      // Set expiry to 3 minutes from now (under the 5-minute warning threshold)
+      useAuthStore.setState({ expiresAt: now + 3 * 60 * 1000 })
+
+      const cleanup = startExpiryMonitor()
+
+      // Advance past one check interval (60s)
+      await vi.advanceTimersByTimeAsync(61000)
+
+      // Should still be authenticated -- warning branch doesn't logout
+      const state = useAuthStore.getState()
+      expect(state.isAuthenticated).toBe(true)
+      cleanup()
+    })
+
+    it('skips interval check when not authenticated', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ expiresAt: null }),
+      })
+
+      const { startExpiryMonitor } = useAuthStore.getState()
+      // Not authenticated, no expiresAt
+      useAuthStore.setState({ isAuthenticated: false, expiresAt: null })
+
+      const cleanup = startExpiryMonitor()
+
+      await vi.advanceTimersByTimeAsync(61000)
+
+      // Should remain unauthenticated
+      const state = useAuthStore.getState()
+      expect(state.isAuthenticated).toBe(false)
+      cleanup()
+    })
+
+    it('skips interval check when expiresAt is null', async () => {
+      // Return a valid session so the initial checkSession keeps us authenticated
+      const future = Date.now() + 3600000
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ expiresAt: future }),
+      })
+
+      const { setAuth, startExpiryMonitor } = useAuthStore.getState()
+      setAuth(makeLoginResponse())
+
+      const cleanup = startExpiryMonitor()
+
+      // Wait for the initial checkSession to complete
+      await vi.advanceTimersByTimeAsync(0)
+
+      // Now clear expiresAt to simulate the condition we want to test
+      useAuthStore.setState({ expiresAt: null })
+
+      // Advance past the interval
+      await vi.advanceTimersByTimeAsync(61000)
+
+      // Should still be authenticated -- interval check bails early when expiresAt is null
+      const state = useAuthStore.getState()
+      expect(state.isAuthenticated).toBe(true)
+      cleanup()
+    })
   })
 })

@@ -8,7 +8,7 @@ interface ReferralCardProps {
   onOpen: () => void
 }
 
-export function ReferralCard({ onOpen }: ReferralCardProps) {
+export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
   const t = useTranslations()
   const { stats, isLoading } = useReferral()
 

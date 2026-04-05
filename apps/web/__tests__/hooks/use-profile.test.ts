@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired } from '@/hooks/use-profile'
+import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -264,5 +264,132 @@ describe('useTrialExpired', () => {
     })
 
     await waitFor(() => expect(result.current).toBe(false))
+  })
+})
+
+describe('useTrialUrgent', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('returns true when trial ends within 2 days', async () => {
+    const soon = new Date()
+    soon.setDate(soon.getDate() + 1)
+    mockProfileResponse(
+      createMockProfile({
+        trialEndsAt: soon.toISOString(),
+        isTrialActive: true,
+      }),
+    )
+
+    const { result } = renderHook(() => useTrialUrgent(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(true))
+  })
+
+  it('returns false when trial has more than 2 days left', async () => {
+    const future = new Date()
+    future.setDate(future.getDate() + 10)
+    mockProfileResponse(
+      createMockProfile({
+        trialEndsAt: future.toISOString(),
+        isTrialActive: true,
+      }),
+    )
+
+    const { result } = renderHook(() => useTrialUrgent(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(false))
+  })
+
+  it('returns false when not in trial', async () => {
+    mockProfileResponse(createMockProfile({ trialEndsAt: null }))
+
+    const { result } = renderHook(() => useTrialUrgent(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(false))
+  })
+})
+
+describe('useIsYearlyPro', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('returns true for yearly subscription', async () => {
+    mockProfileResponse(
+      createMockProfile({
+        hasProAccess: true,
+        plan: 'pro',
+        subscriptionInterval: 'yearly',
+        isLifetimePro: false,
+      }),
+    )
+
+    const { result } = renderHook(() => useIsYearlyPro(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(true))
+  })
+
+  it('returns true for lifetime pro', async () => {
+    mockProfileResponse(
+      createMockProfile({
+        hasProAccess: true,
+        plan: 'pro',
+        isLifetimePro: true,
+        subscriptionInterval: null,
+      }),
+    )
+
+    const { result } = renderHook(() => useIsYearlyPro(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(true))
+  })
+
+  it('returns false for monthly pro', async () => {
+    mockProfileResponse(
+      createMockProfile({
+        hasProAccess: true,
+        plan: 'pro',
+        subscriptionInterval: 'monthly',
+        isLifetimePro: false,
+      }),
+    )
+
+    const { result } = renderHook(() => useIsYearlyPro(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(false))
+  })
+
+  it('returns false for free user', async () => {
+    mockProfileResponse(createMockProfile({ hasProAccess: false, plan: 'free' }))
+
+    const { result } = renderHook(() => useIsYearlyPro(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current).toBe(false))
+  })
+
+  it('returns false when profile is not loaded', () => {
+    mockFetch.mockReturnValue(new Promise(() => {})) // Never resolves
+
+    const { result } = renderHook(() => useIsYearlyPro(), {
+      wrapper: createWrapper(),
+    })
+
+    expect(result.current).toBe(false)
   })
 })

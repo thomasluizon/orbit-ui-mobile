@@ -12,7 +12,6 @@ export interface StreakFreezeCelebrationHandle {
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
   function StreakFreezeCelebration(_props, ref) {
     const t = useTranslations()
-    const [visible, setVisible] = useState(false)
     const [mounted, setMounted] = useState(false)
     const [shouldRender, setShouldRender] = useState(false)
     const [isVisible, setIsVisible] = useState(false)
@@ -26,19 +25,16 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
     }, [])
 
     function show() {
-      setVisible(true)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
-        setVisible(false)
         setIsVisible(false)
         setTimeout(() => setShouldRender(false), 300)
       }, 3000)
     }
 
     function dismiss() {
-      setVisible(false)
       setIsVisible(false)
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       setTimeout(() => setShouldRender(false), 300)

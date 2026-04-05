@@ -72,7 +72,7 @@ interface ActionChipsProps {
   actions: ActionResult[]
 }
 
-export function ActionChips({ actions }: ActionChipsProps) {
+export function ActionChips({ actions }: Readonly<ActionChipsProps>) {
   const t = useTranslations()
 
   function actionLabel(action: ActionResult): string {

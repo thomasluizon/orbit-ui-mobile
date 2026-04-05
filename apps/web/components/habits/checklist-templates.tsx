@@ -18,7 +18,7 @@ interface ChecklistTemplate {
 const STORAGE_KEY = 'orbit-checklist-templates'
 
 function loadTemplates(): ChecklistTemplate[] {
-  if (typeof window === 'undefined') return []
+  if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return []
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? (JSON.parse(raw) as ChecklistTemplate[]) : []
@@ -44,7 +44,7 @@ interface ChecklistTemplatesProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function ChecklistTemplates({ items, onLoad }: ChecklistTemplatesProps) {
+export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplatesProps>) {
   const t = useTranslations()
   const [templates, setTemplates] = useState<ChecklistTemplate[]>(loadTemplates)
   const [showSave, setShowSave] = useState(false)

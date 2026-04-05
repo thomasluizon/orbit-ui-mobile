@@ -27,7 +27,7 @@ export function EditGoalModal({
   open,
   onOpenChange,
   goal,
-}: EditGoalModalProps) {
+}: Readonly<EditGoalModalProps>) {
   const t = useTranslations()
   const updateGoal = useUpdateGoal()
 

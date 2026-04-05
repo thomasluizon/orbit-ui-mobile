@@ -34,7 +34,7 @@ export function NotificationDetailModal({
   notification,
   onMarkAsRead,
   onDelete,
-}: NotificationDetailModalProps) {
+}: Readonly<NotificationDetailModalProps>) {
   const t = useTranslations()
   const router = useRouter()
 

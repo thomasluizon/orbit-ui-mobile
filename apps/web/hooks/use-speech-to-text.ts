@@ -80,7 +80,7 @@ export function useSpeechToText() {
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [selectedLanguage, setSelectedLanguageState] = useState(() => {
-    if (typeof window === 'undefined') return locale === 'pt-BR' ? 'pt-BR' : 'en-US'
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return locale === 'pt-BR' ? 'pt-BR' : 'en-US'
     return localStorage.getItem(SPEECH_LANG_KEY) ?? (locale === 'pt-BR' ? 'pt-BR' : 'en-US')
   })
   const [recordingDuration, setRecordingDuration] = useState(0)

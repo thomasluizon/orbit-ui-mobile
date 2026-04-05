@@ -9,6 +9,7 @@ import {
   isBefore,
   startOfDay,
 } from 'date-fns'
+import type { Locale } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
   ArrowLeft,
@@ -95,6 +96,184 @@ interface MoveParentOption {
   depth: number
   disabled: boolean
   reason: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Drag item shape
+// ---------------------------------------------------------------------------
+
+interface DragItem {
+  id: string
+  habit: NormalizedHabit
+  depth: number
+  parentId: string | null
+  hasChildren: boolean
+  hasSubHabits: boolean
+  isLastChild: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Date group shape
+// ---------------------------------------------------------------------------
+
+interface DateGroup {
+  key: string
+  label: string
+  isOverdue: boolean
+  habits: NormalizedHabit[]
+}
+
+// ---------------------------------------------------------------------------
+// Pure helpers (outer scope -- no component state dependency)
+// ---------------------------------------------------------------------------
+
+function formatDateGroupLabel(
+  key: string,
+  locale: string,
+  dateFnsLocale: Locale,
+  t: (key: string) => string,
+): string {
+  if (!key) return t('common.unknown')
+
+  const date = new Date(key + 'T00:00:00')
+  const todayDate = startOfDay(new Date())
+
+  if (isDateToday(date)) return t('dates.today')
+  if (isTomorrow(date)) return t('dates.tomorrow')
+  if (isYesterday(date)) return t('dates.yesterday')
+
+  if (isBefore(date, todayDate)) {
+    return format(date, locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy', {
+      locale: dateFnsLocale,
+    })
+  }
+
+  return format(
+    date,
+    locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
+    { locale: dateFnsLocale },
+  )
+}
+
+function computeReorderPositions(
+  items: DragItem[],
+  oldIndex: number,
+  newIndex: number,
+  habitsById: Map<string, NormalizedHabit>,
+  getChildren: (parentId: string) => NormalizedHabit[],
+): { habitId: string; position: number }[] {
+  const reordered = [...items]
+  const removed = reordered.splice(oldIndex, 1)
+  const moved = removed[0]
+  if (!moved) return []
+  reordered.splice(newIndex, 0, moved)
+
+  const positions: { habitId: string; position: number }[] = []
+  const positionByParent = new Map<string | null, number>()
+  const includedIds = new Set(reordered.map((i) => i.id))
+
+  // Assign positions to visible items in drag order
+  for (const item of reordered) {
+    const storeHabit = habitsById.get(item.id)
+    const parentId = storeHabit?.parentId ?? item.parentId
+    const nextPosition = positionByParent.get(parentId) ?? 0
+    positions.push({ habitId: item.id, position: nextPosition })
+    positionByParent.set(parentId, nextPosition + 1)
+  }
+
+  // Assign positions to hidden siblings after visible ones
+  for (const parentId of positionByParent.keys()) {
+    const allSiblings =
+      parentId === null
+        ? Array.from(habitsById.values()).filter((h) => h.parentId === null)
+        : getChildren(parentId)
+
+    for (const sibling of allSiblings) {
+      if (!includedIds.has(sibling.id)) {
+        const nextPosition = positionByParent.get(parentId) ?? 0
+        positions.push({ habitId: sibling.id, position: nextPosition })
+        positionByParent.set(parentId, nextPosition + 1)
+      }
+    }
+  }
+
+  return positions
+}
+
+function getEmptyHabitsMessage(
+  view: 'today' | 'all' | 'general',
+  t: (key: string) => string,
+): string {
+  if (view === 'general') return t('habits.emptyGeneral')
+  if (view === 'today') return t('habits.noDueToday')
+  return t('habits.noHabitsYet')
+}
+
+type HabitView = 'today' | 'all' | 'general'
+
+function buildDragItemsFlat(
+  habits: NormalizedHabit[],
+  collapsedIds: Set<string>,
+  getVisibleChildrenForView: (habitId: string, view: HabitView) => NormalizedHabit[],
+  view: HabitView,
+): DragItem[] {
+  const items: DragItem[] = []
+
+  function addHabitTree(habit: NormalizedHabit, depth: number, parentId: string | null) {
+    const visChildren = getVisibleChildrenForView(habit.id, view)
+    items.push({
+      id: habit.id,
+      habit,
+      depth,
+      parentId,
+      hasChildren: visChildren.length > 0,
+      hasSubHabits: habit.hasSubHabits,
+      isLastChild: false,
+    })
+    if (!collapsedIds.has(habit.id)) {
+      for (const child of visChildren) {
+        addHabitTree(child, depth + 1, habit.id)
+      }
+    }
+  }
+
+  for (const h of habits) {
+    addHabitTree(h, 0, null)
+  }
+
+  // Post-pass: compute isLastChild
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const next = items[i + 1]
+    if (item) {
+      item.isLastChild = !next || next.depth <= item.depth
+    }
+  }
+
+  return items
+}
+
+// ---------------------------------------------------------------------------
+// Loading skeleton (stateless)
+// ---------------------------------------------------------------------------
+
+function HabitListSkeleton() {
+  return (
+    <div className="space-y-3 pt-2">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="habit-card-parent rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+        >
+          <div className="size-10 sm:size-11 rounded-full bg-surface-elevated animate-pulse" />
+          <div className="flex-1 space-y-2.5">
+            <div className="h-4 w-3/4 bg-surface-elevated rounded-lg animate-pulse" />
+            <div className="h-3 w-2/5 bg-surface-elevated/60 rounded-lg animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -349,13 +528,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   )
 
   // Date groups for "all" view
-  interface DateGroup {
-    key: string
-    label: string
-    isOverdue: boolean
-    habits: NormalizedHabit[]
-  }
-
   const dateGroups = useMemo<DateGroup[]>(() => {
     if (view !== 'all') return []
 
@@ -383,7 +555,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         key: '__overdue__',
         label: t('habits.overdue'),
         isOverdue: true,
-        habits: overdueHabits.sort((a, b) =>
+        habits: [...overdueHabits].sort((a, b) =>
           a.dueDate.localeCompare(b.dueDate),
         ),
       })
@@ -393,29 +565,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       a.localeCompare(b),
     )
     for (const [key, groupHabits] of sorted) {
-      let label: string
-      if (!key) {
-        label = t('common.unknown')
-      } else {
-        const date = new Date(key + 'T00:00:00')
-        const todayDate = startOfDay(new Date())
-        if (isDateToday(date)) label = t('dates.today')
-        else if (isTomorrow(date)) label = t('dates.tomorrow')
-        else if (isYesterday(date)) label = t('dates.yesterday')
-        else if (isBefore(date, todayDate))
-          label = format(date, locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy', {
-            locale: dateFnsLocale,
-          })
-        else
-          label = format(
-            date,
-            locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
-            { locale: dateFnsLocale },
-          )
-      }
       result.push({
         key,
-        label,
+        label: formatDateGroupLabel(key, locale, dateFnsLocale, t),
         isOverdue: false,
         habits: groupHabits,
       })
@@ -425,53 +577,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [view, habits, t, locale, dateFnsLocale])
 
   // Flat drag items for rendering
-  interface DragItem {
-    id: string
-    habit: NormalizedHabit
-    depth: number
-    parentId: string | null
-    hasChildren: boolean
-    hasSubHabits: boolean
-    isLastChild: boolean
-  }
-
   const dragItems = useMemo<DragItem[]>(() => {
-    if (view === 'all') return [] // all view uses date groups
-
-    const items: DragItem[] = []
-
-    function addHabitTree(habit: NormalizedHabit, depth: number, parentId: string | null) {
-      const visChildren = visibility.getVisibleChildren(habit.id, view)
-      items.push({
-        id: habit.id,
-        habit,
-        depth,
-        parentId,
-        hasChildren: visChildren.length > 0,
-        hasSubHabits: habit.hasSubHabits,
-        isLastChild: false,
-      })
-      if (!collapsedIds.has(habit.id)) {
-        for (const child of visChildren) {
-          addHabitTree(child, depth + 1, habit.id)
-        }
-      }
-    }
-
-    for (const h of habits) {
-      addHabitTree(h, 0, null)
-    }
-
-    // Post-pass: compute isLastChild for each item (matches Nuxt logic)
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]
-      const next = items[i + 1]
-      if (item) {
-        item.isLastChild = !next || next.depth <= item.depth
-      }
-    }
-
-    return items
+    if (view === 'all') return []
+    return buildDragItemsFlat(habits, collapsedIds, visibility.getVisibleChildren, view)
   }, [habits, collapsedIds, visibility, view])
 
   // -------------------------------------------------------------------------
@@ -479,7 +587,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   // -------------------------------------------------------------------------
 
   const [isDragging, setIsDragging] = useState(false)
-  const [, setDraggedItemId] = useState<string | null>(null)
   const autoCollapsedOnDragRef = useReactRef<string | null>(null)
 
   // Mutable ref for drag items so onDragEnd always sees latest after collapse
@@ -507,7 +614,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     autoCollapsedOnDragRef.current = null
 
     const draggedId = String(event.active.id)
-    setDraggedItemId(draggedId)
 
     // Find the dragged item in current drag items
     const currentItems = dragItemsRef.current
@@ -542,47 +648,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const items = dragOverrideItems ?? dragItemsRef.current
 
     if (over && active.id !== over.id) {
-      // Find old and new index in current items list
       const oldIndex = items.findIndex((item) => item.id === active.id)
       const newIndex = items.findIndex((item) => item.id === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        // Reorder the flat list (move item from oldIndex to newIndex)
-        const reordered = [...items]
-        const removed = reordered.splice(oldIndex, 1)
-        const moved = removed[0]
-        if (!moved) return
-        reordered.splice(newIndex, 0, moved)
-
-        // Compute positions for visible items (preserves user's drag order)
-        const positions: { habitId: string; position: number }[] = []
-        const positionByParent = new Map<string | null, number>()
-        const includedIds = new Set(reordered.map((i) => i.id))
-
-        for (const item of reordered) {
-          const storeHabit = habitsById.get(item.id)
-          const parentId = storeHabit?.parentId ?? item.parentId
-          const nextPosition = positionByParent.get(parentId) ?? 0
-          positions.push({ habitId: item.id, position: nextPosition })
-          positionByParent.set(parentId, nextPosition + 1)
-        }
-
-        // Assign positions to hidden siblings after visible ones
-        for (const parentId of positionByParent.keys()) {
-          const allSiblings =
-            parentId === null
-              ? Array.from(habitsById.values()).filter((h) => h.parentId === null)
-              : getChildren(parentId)
-
-          for (const sibling of allSiblings) {
-            if (!includedIds.has(sibling.id)) {
-              const nextPosition = positionByParent.get(parentId) ?? 0
-              positions.push({ habitId: sibling.id, position: nextPosition })
-              positionByParent.set(parentId, nextPosition + 1)
-            }
-          }
-        }
-
+        const positions = computeReorderPositions(
+          items, oldIndex, newIndex, habitsById, getChildren,
+        )
         try {
           if (positions.length > 0) {
             await reorderHabitsMut.mutateAsync({ positions })
@@ -595,7 +667,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     // Clean up drag state
     setIsDragging(false)
-    setDraggedItemId(null)
     setDragOverrideItems(null)
 
     // Re-expand any parent that was auto-collapsed during drag start
@@ -984,28 +1055,77 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // Loading skeleton
   if (habitsQuery.isLoading && !habitsQuery.data) {
-    return (
-      <div className="space-y-3 pt-2">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="habit-card-parent rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+    return <HabitListSkeleton />
+  }
+
+  // Render nested children in all-view (avoids depth > 4 nesting)
+  function renderAllViewChildren(parentId: string, depth: number): React.ReactNode {
+    if (collapsedIds.has(parentId) || depth >= 3) return null
+    const children = getVisibleChildren(parentId)
+    if (children.length === 0) return null
+
+    return children.map((child) => (
+      <div key={child.id} className="mb-1.5">
+        {renderHabitCard(
+          child,
+          depth,
+          getVisibleChildren(child.id).length > 0,
+          habitsById.get(child.id)?.hasSubHabits ?? false,
+        )}
+        {renderAllViewChildren(child.id, depth + 1)}
+      </div>
+    ))
+  }
+
+  // Drill-down sub-content (loading / children / empty)
+  function renderDrillContent(): React.ReactNode {
+    if (drill.drillLoading) {
+      return <HabitListSkeleton />
+    }
+
+    if (drill.drillChildren.length > 0) {
+      return (
+        <div className="space-y-2.5 pt-2">
+          {drill.drillChildren.map((child) =>
+            renderHabitCard(
+              child,
+              0,
+              drill.getDrillChildren(child.id).length > 0,
+              child.hasSubHabits || drill.getDrillChildren(child.id).length > 0,
+            ),
+          )}
+          <button
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
+            onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
           >
-            <div className="size-10 sm:size-11 rounded-full bg-surface-elevated animate-pulse" />
-            <div className="flex-1 space-y-2.5">
-              <div className="h-4 w-3/4 bg-surface-elevated rounded-lg animate-pulse" />
-              <div className="h-3 w-2/5 bg-surface-elevated/60 rounded-lg animate-pulse" />
-            </div>
-          </div>
-        ))}
+            <Plus className="size-4" />
+            {t('habits.form.addSubHabit')}
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="text-center py-8">
+        <p className="text-text-muted text-sm">
+          {t('habits.noSubHabits')}
+        </p>
+        <button
+          className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
+          onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
+        >
+          <Plus className="size-4" />
+          {t('habits.form.addSubHabit')}
+        </button>
       </div>
     )
   }
 
-  return (
-    <div className="space-y-2.5">
-      {/* Drill-down view */}
-      {drill.currentParent ? (
+  // Main content area (replaces nested ternary chain)
+  function renderMainContent(): React.ReactNode {
+    // Drill-down view
+    if (drill.currentParent) {
+      return (
         <>
           <div className="flex items-center gap-3 pb-1">
             <button
@@ -1036,56 +1156,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             </button>
           )}
 
-          {drill.drillLoading ? (
-            <div className="space-y-3 pt-2">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="habit-card-parent rounded-2xl p-4 sm:p-5 flex items-center gap-4"
-                >
-                  <div className="size-10 sm:size-11 rounded-full bg-surface-elevated animate-pulse" />
-                  <div className="flex-1 space-y-2.5">
-                    <div className="h-4 w-3/4 bg-surface-elevated rounded-lg animate-pulse" />
-                    <div className="h-3 w-2/5 bg-surface-elevated/60 rounded-lg animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : drill.drillChildren.length > 0 ? (
-            <div className="space-y-2.5 pt-2">
-              {drill.drillChildren.map((child) =>
-                renderHabitCard(
-                  child,
-                  0,
-                  drill.getDrillChildren(child.id).length > 0,
-                  child.hasSubHabits || drill.getDrillChildren(child.id).length > 0,
-                ),
-              )}
-              <button
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
-                onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
-              >
-                <Plus className="size-4" />
-                {t('habits.form.addSubHabit')}
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-text-muted text-sm">
-                {t('habits.noSubHabits')}
-              </p>
-              <button
-                className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
-                onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
-              >
-                <Plus className="size-4" />
-                {t('habits.form.addSubHabit')}
-              </button>
-            </div>
-          )}
+          {renderDrillContent()}
         </>
-      ) : habits.length === 0 && view === 'today' && (data?.totalCount ?? 0) > 0 ? (
-        /* Empty: all done today */
+      )
+    }
+
+    // Empty: all done today
+    if (habits.length === 0 && view === 'today' && (data?.totalCount ?? 0) > 0) {
+      return (
         <div className="text-center py-16">
           <div className="bg-success/10 rounded-full size-20 flex items-center justify-center mx-auto mb-4 border border-success/20">
             <CheckCircle2 className="size-10 text-success" />
@@ -1103,18 +1181,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             {t('habits.seeUpcoming')}
           </button>
         </div>
-      ) : habits.length === 0 ? (
-        /* Empty: no habits */
+      )
+    }
+
+    // Empty: no habits
+    if (habits.length === 0) {
+      return (
         <div className="text-center py-16">
           <div className="bg-surface-ground rounded-full size-20 flex items-center justify-center mx-auto mb-4 border border-border-muted">
             <ClipboardList className="size-10 text-text-muted" />
           </div>
           <p className="text-text-secondary mb-6">
-            {view === 'general'
-              ? t('habits.emptyGeneral')
-              : view === 'today'
-                ? t('habits.noDueToday')
-                : t('habits.noHabitsYet')}
+            {getEmptyHabitsMessage(view, t)}
           </p>
           {(view === 'all' || view === 'general') && (
             <button
@@ -1125,8 +1203,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             </button>
           )}
         </div>
-      ) : view === 'all' ? (
-        /* ALL VIEW: date-grouped list with nested children (up to depth 2) */
+      )
+    }
+
+    // ALL VIEW: date-grouped list with nested children
+    if (view === 'all') {
+      return (
         <>
           {dateGroups.map((group) => (
             <div key={group.key} className="mb-4">
@@ -1153,36 +1235,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
                       getChildren(habit.id).length > 0,
                       habit.hasSubHabits,
                     )}
-                    {/* Children (depth 1) when expanded */}
-                    {!collapsedIds.has(habit.id) && getVisibleChildren(habit.id).map((child) => (
-                      <div key={child.id} className="mb-1.5">
-                        {renderHabitCard(
-                          child,
-                          1,
-                          getVisibleChildren(child.id).length > 0,
-                          habitsById.get(child.id)?.hasSubHabits ?? false,
-                        )}
-                        {/* Grandchildren (depth 2) when child expanded */}
-                        {!collapsedIds.has(child.id) && getVisibleChildren(child.id).map((grandchild) => (
-                          <div key={grandchild.id} className="mb-1.5">
-                            {renderHabitCard(
-                              grandchild,
-                              2,
-                              getVisibleChildren(grandchild.id).length > 0,
-                              habitsById.get(grandchild.id)?.hasSubHabits ?? false,
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                    {renderAllViewChildren(habit.id, 1)}
                   </div>
                 ))}
               </div>
             </div>
           ))}
         </>
-      ) : isDndEnabled ? (
-        /* TODAY / GENERAL VIEW: draggable list (not in select mode) */
+      )
+    }
+
+    // TODAY / GENERAL VIEW: draggable list (not in select mode)
+    if (isDndEnabled) {
+      return (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -1208,22 +1273,30 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             </div>
           </SortableContext>
         </DndContext>
-      ) : (
-        /* TODAY / GENERAL VIEW: select mode (no drag) */
-        <>
-          {dragItems.map((item) => (
-            <div key={item.id} className="mb-2.5">
-              {renderHabitCard(
-                item.habit,
-                item.depth,
-                item.hasChildren,
-                item.hasSubHabits,
-                { isLastChild: item.isLastChild },
-              )}
-            </div>
-          ))}
-        </>
-      )}
+      )
+    }
+
+    // TODAY / GENERAL VIEW: select mode (no drag)
+    return (
+      <>
+        {dragItems.map((item) => (
+          <div key={item.id} className="mb-2.5">
+            {renderHabitCard(
+              item.habit,
+              item.depth,
+              item.hasChildren,
+              item.hasSubHabits,
+              { isLastChild: item.isLastChild },
+            )}
+          </div>
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {renderMainContent()}
 
       {/* General habits section (shown on Today view when toggle is on) */}
       {view === 'today' && generalHabits && generalHabits.length > 0 && (
@@ -1391,7 +1464,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-text-primary truncate">{option.label}</span>
-                  {movingHabit && option.id === movingHabit.parentId && (
+                  {option.id === movingHabit?.parentId && (
                     <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-text-muted">
                       {t('habits.moveParent.currentParent')}
                     </span>

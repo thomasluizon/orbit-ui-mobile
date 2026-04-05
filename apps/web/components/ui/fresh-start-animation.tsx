@@ -9,7 +9,7 @@ interface FreshStartAnimationProps {
   onComplete: () => void
 }
 
-export function FreshStartAnimation({ onComplete }: FreshStartAnimationProps) {
+export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimationProps>) {
   const t = useTranslations()
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)

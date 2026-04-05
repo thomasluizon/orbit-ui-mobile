@@ -10,7 +10,6 @@ export function AllDoneCelebration() {
   const t = useTranslations()
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
-  const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -25,12 +24,12 @@ export function AllDoneCelebration() {
 
   useEffect(() => {
     if (allDoneCelebration) {
-      setVisible(true)
+
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
-        setVisible(false)
+
         setIsVisible(false)
         setAllDoneCelebration(false)
         setTimeout(() => setShouldRender(false), 300)
@@ -39,7 +38,7 @@ export function AllDoneCelebration() {
   }, [allDoneCelebration, setAllDoneCelebration])
 
   function dismiss() {
-    setVisible(false)
+
     setIsVisible(false)
     setAllDoneCelebration(false)
     setTimeout(() => setShouldRender(false), 300)

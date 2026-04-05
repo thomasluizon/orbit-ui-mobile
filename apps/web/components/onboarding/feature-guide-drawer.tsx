@@ -102,7 +102,7 @@ interface FeatureGuideDrawerProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function FeatureGuideDrawer({ open, onOpenChange }: FeatureGuideDrawerProps) {
+export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuideDrawerProps>) {
   const t = useTranslations()
   const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 

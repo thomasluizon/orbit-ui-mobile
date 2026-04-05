@@ -85,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isAuthenticated: false, user: null, expiresAt: null })
 
     // Redirect to login (only in browser)
-    if (typeof window !== 'undefined') {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.location !== 'undefined') {
       globalThis.location.href = '/login'
     }
   },

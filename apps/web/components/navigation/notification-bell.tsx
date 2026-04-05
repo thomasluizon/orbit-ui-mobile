@@ -85,9 +85,8 @@ export function NotificationBell() {
       {/* Dropdown */}
       {isOpen && (
         <>
-          <div
+          <section
             id="notification-dropdown"
-            role="region"
             aria-label={t('notifications.title')}
             className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-surface-overlay border border-border-emphasis rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] overflow-hidden z-50 flex flex-col"
           >
@@ -135,7 +134,7 @@ export function NotificationBell() {
                   <li
                     key={item.id}
                     className={`px-4 py-3 flex items-start gap-3 transition-all duration-150 hover:bg-surface-elevated ${
-                      !item.isRead ? 'bg-primary/5' : ''
+                      item.isRead ? '' : 'bg-primary/5'
                     }`}
                   >
                     <div
@@ -167,10 +166,10 @@ export function NotificationBell() {
                 ))
               )}
             </ul>
-          </div>
+          </section>
 
           {/* Backdrop to close */}
-          <div role="presentation" className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setIsOpen(false)} />
         </>
       )}
 
