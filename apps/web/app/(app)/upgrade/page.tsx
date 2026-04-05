@@ -422,6 +422,348 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
 }
 
 // ---------------------------------------------------------------------------
+// Billing dashboard (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface BillingDashboardProps {
+  billing: ReturnType<typeof useBilling>['billing']
+  isBillingLoading: boolean
+  isBillingError: boolean
+  profile: { aiMessagesUsed: number; aiMessagesLimit: number; isLifetimePro?: boolean } | null
+  locale: string
+  dateFnsLocale: Locale
+  usagePercent: number
+  usageUrgent: boolean
+  portalError: string
+  onOpenPortal: () => void
+  onRetryBilling: () => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function BillingDashboard({
+  billing, isBillingLoading, isBillingError, profile, locale, dateFnsLocale,
+  usagePercent, usageUrgent, portalError, onOpenPortal, onRetryBilling, t,
+}: Readonly<BillingDashboardProps>) {
+  return (
+    <div className="space-y-3">
+      {/* Loading */}
+      {isBillingLoading && (
+        <>
+          <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+            <div className="flex items-center gap-4">
+              <div className="size-12 rounded-full bg-surface-elevated skeleton-shimmer shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-28 bg-surface-elevated rounded skeleton-shimmer" />
+                <div className="h-3 w-44 bg-surface-elevated rounded skeleton-shimmer" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
+            <div className="h-3 w-20 bg-surface-elevated rounded skeleton-shimmer" />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="h-3.5 w-24 bg-surface-elevated rounded skeleton-shimmer" />
+                <div className="h-3.5 w-16 bg-surface-elevated rounded skeleton-shimmer" />
+              </div>
+              <div className="h-1.5 w-full bg-surface-elevated rounded-full skeleton-shimmer" />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Error */}
+      {isBillingError && !billing && !isBillingLoading && (
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted p-8 text-center space-y-3">
+          <AlertTriangle className="size-8 text-text-muted mx-auto" />
+          <p className="text-sm text-text-secondary">{t('upgrade.billing.error')}</p>
+          <button className="text-primary text-sm font-semibold hover:underline" onClick={onRetryBilling}>
+            {t('upgrade.billing.retry')}
+          </button>
+        </div>
+      )}
+
+      {/* Loaded: billing data available (Stripe Pro) */}
+      {billing && (
+        <>
+          {/* Plan card */}
+          <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
+                <BadgeCheck className="size-6 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-text-primary">
+                    {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
+                  </h2>
+                  {billing.cancelAtPeriodEnd && (
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                      {t('upgrade.billing.plan.canceledBadge')}
+                    </span>
+                  )}
+                  {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">
+                      {t('upgrade.billing.plan.pastDue')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-text-secondary mt-0.5">
+                  {billing.cancelAtPeriodEnd
+                    ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })
+                    : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })}
+                  {billing.amountPerPeriod > 0 && (
+                    <span className="text-text-muted">
+                      {' '}&middot;{' '}{formatPrice(billing.amountPerPeriod, billing.currency)}
+                      {billing.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment method */}
+          {billing.paymentMethod && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CreditCard className="size-8 text-text-muted shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary">
+                      {t('upgrade.billing.payment.card', {
+                        brand: formatCardBrand(billing.paymentMethod.brand),
+                        last4: billing.paymentMethod.last4,
+                      })}
+                    </p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      {t('upgrade.billing.payment.expires', {
+                        month: String(billing.paymentMethod.expMonth).padStart(2, '0'),
+                        year: billing.paymentMethod.expYear,
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold text-text-secondary bg-surface-elevated border border-border hover:bg-surface-overlay transition-colors shrink-0"
+                  onClick={onOpenPortal}
+                >
+                  {t('upgrade.billing.payment.change')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
+
+          {/* Invoice history */}
+          {billing.recentInvoices.length > 0 && (
+            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] overflow-hidden">
+              <div className="p-5 pb-3">
+                <h3 className="form-label">{t('upgrade.billing.invoices.title')}</h3>
+              </div>
+              <div className="divide-y divide-border-muted">
+                {billing.recentInvoices.map((invoice) => (
+                  <div key={invoice.id} className="px-5 py-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm text-text-primary font-medium">
+                          {formatBillingDate(invoice.date, locale, dateFnsLocale)}
+                        </span>
+                        <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded-full bg-surface-elevated text-text-muted border border-border-muted">
+                          {invoiceReasonLabelFn(invoice.billingReason, t)}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${invoiceStatusClassName(invoice.status)}`}
+                      >
+                        {invoiceStatusLabelFn(invoice.status, t)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-semibold text-text-primary">
+                        {formatPrice(invoice.amountPaid, invoice.currency)}
+                      </span>
+                      {(invoice.invoicePdf ?? invoice.hostedInvoiceUrl) && (
+                        <a
+                          href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-text-muted hover:text-text-primary transition-colors"
+                          title={t('upgrade.billing.invoices.download')}
+                        >
+                          <Download className="size-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Manage subscription */}
+          <div className="space-y-2 pt-1">
+            <button
+              className="w-full py-3 rounded-[var(--radius-xl)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98]"
+              onClick={onOpenPortal}
+            >
+              {t('upgrade.billing.actions.manage')}
+            </button>
+            <p className="text-xs text-text-muted text-center">{t('upgrade.billing.actions.manageHint')}</p>
+            {portalError && <p className="text-xs text-red-400 text-center">{portalError}</p>}
+          </div>
+        </>
+      )}
+
+      {/* Loaded: no billing data (lifetime Pro or no Stripe subscription) */}
+      {!isBillingLoading && !isBillingError && !billing && (
+        <>
+          {/* Plan card */}
+          <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
+                <Sparkles className="size-6 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-text-primary">
+                  {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetime') : t('upgrade.alreadyPro')}
+                </h2>
+                <p className="text-sm text-text-secondary mt-0.5">
+                  {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetimeHint') : t('upgrade.manageHint')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Pricing section (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface PricingSectionProps {
+  profile: { isTrialActive?: boolean } | null
+  plans: ReturnType<typeof useSubscriptionPlans>['plans']
+  isLoadingPlans: boolean
+  isPlansError: boolean
+  trialExpired: boolean
+  trialDaysLeft: number | null
+  trialUrgent: boolean
+  hasProAccess: boolean
+  checkoutLoading: string | null
+  checkoutError: string
+  discountedAmount: (amount: number) => number
+  onCheckout: (interval: 'monthly' | 'yearly') => void
+  onRetryPlans: () => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function PricingSection({
+  profile, plans, isLoadingPlans, isPlansError, trialExpired, trialDaysLeft, trialUrgent,
+  hasProAccess, checkoutLoading, checkoutError, discountedAmount, onCheckout, onRetryPlans, t,
+}: Readonly<PricingSectionProps>) {
+  return (
+    <>
+      {/* Trial countdown banner */}
+      {profile?.isTrialActive && (
+        <div
+          className={`rounded-[var(--radius-xl)] p-4 mb-4 flex items-center gap-3 border ${
+            trialUrgent
+              ? 'bg-amber-500/10 border-amber-500/20'
+              : 'bg-primary/10 border-primary/20'
+          }`}
+        >
+          <Clock className={`size-5 shrink-0 ${trialUrgent ? 'text-amber-400' : 'text-primary'}`} />
+          <p className={`text-sm font-medium ${trialUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+            {trialDaysLeft === 0
+              ? t('trial.banner.lastDay')
+              : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
+          </p>
+        </div>
+      )}
+
+      {/* Trial expired emotional section */}
+      {trialExpired && (
+        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 mb-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-5 text-primary" />
+            <span className="text-sm font-bold text-text-primary">{t('trial.expired.title')}</span>
+          </div>
+          <p className="form-label">
+            {t('trial.expired.dontLose')}
+          </p>
+          <ul className="space-y-2">
+            {trialExpiredFeatures.map((feature) => (
+              <li key={feature} className="flex items-center gap-2.5">
+                <CheckCircle2 className="size-4 text-primary shrink-0" />
+                <span className="text-sm text-text-secondary">{t(feature)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* PRICING PLAN CARDS */}
+
+      {/* Loading skeletons */}
+      {isLoadingPlans && (
+        <div className="space-y-3 mb-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-[var(--radius-xl)] p-5 border border-border-muted">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-4 w-20 bg-surface-elevated rounded skeleton-shimmer" />
+                <div className="h-6 w-16 bg-surface-elevated rounded-full skeleton-shimmer" />
+              </div>
+              <div className="space-y-2.5 mb-4">
+                <div className="h-3 w-3/4 bg-surface-elevated rounded skeleton-shimmer" />
+                <div className="h-3 w-1/2 bg-surface-elevated rounded skeleton-shimmer" />
+                <div className="h-3 w-2/3 bg-surface-elevated rounded skeleton-shimmer" />
+              </div>
+              <div className="h-10 w-full bg-surface-elevated rounded-[var(--radius-lg)] skeleton-shimmer" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error state */}
+      {isPlansError && !plans && !isLoadingPlans && (
+        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted p-8 text-center space-y-3 mb-6">
+          <AlertTriangle className="size-8 text-text-muted mx-auto" />
+          <p className="text-sm text-text-secondary">{t('upgrade.plans.error')}</p>
+          <button className="text-primary text-sm font-semibold hover:underline" onClick={onRetryPlans}>
+            {t('upgrade.plans.retry')}
+          </button>
+        </div>
+      )}
+
+      {/* Plan cards */}
+      {plans && (
+        <PlanCards
+          plans={plans}
+          hasProAccess={hasProAccess}
+          checkoutLoading={checkoutLoading}
+          discountedAmount={discountedAmount}
+          onCheckout={onCheckout}
+          t={t}
+        />
+      )}
+
+      {checkoutError && (
+        <p className="text-xs text-red-400 text-center">{checkoutError}</p>
+      )}
+
+      {/* Feature comparison */}
+      <FeatureComparisonTable t={t} />
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -505,293 +847,37 @@ export default function UpgradePage() {
 
       {/* Already Pro: Billing Dashboard */}
       {hasProAccess && !profile?.isTrialActive ? (
-        <div className="space-y-3">
-          {/* Loading */}
-          {isBillingLoading && (
-            <>
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
-                <div className="flex items-center gap-4">
-                  <div className="size-12 rounded-full bg-surface-elevated skeleton-shimmer shrink-0" />
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 w-28 bg-surface-elevated rounded skeleton-shimmer" />
-                    <div className="h-3 w-44 bg-surface-elevated rounded skeleton-shimmer" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <div className="h-3 w-20 bg-surface-elevated rounded skeleton-shimmer" />
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="h-3.5 w-24 bg-surface-elevated rounded skeleton-shimmer" />
-                    <div className="h-3.5 w-16 bg-surface-elevated rounded skeleton-shimmer" />
-                  </div>
-                  <div className="h-1.5 w-full bg-surface-elevated rounded-full skeleton-shimmer" />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Error */}
-          {isBillingError && !billing && !isBillingLoading && (
-            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted p-8 text-center space-y-3">
-              <AlertTriangle className="size-8 text-text-muted mx-auto" />
-              <p className="text-sm text-text-secondary">{t('upgrade.billing.error')}</p>
-              <button className="text-primary text-sm font-semibold hover:underline" onClick={() => refetchBilling()}>
-                {t('upgrade.billing.retry')}
-              </button>
-            </div>
-          )}
-
-          {/* Loaded: billing data available (Stripe Pro) */}
-          {billing && (
-            <>
-              {/* Plan card */}
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
-                    <BadgeCheck className="size-6 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-text-primary">
-                        {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
-                      </h2>
-                      {billing.cancelAtPeriodEnd && (
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                          {t('upgrade.billing.plan.canceledBadge')}
-                        </span>
-                      )}
-                      {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">
-                          {t('upgrade.billing.plan.pastDue')}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-text-secondary mt-0.5">
-                      {billing.cancelAtPeriodEnd
-                        ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })
-                        : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })}
-                      {billing.amountPerPeriod > 0 && (
-                        <span className="text-text-muted">
-                          {' '}&middot;{' '}{formatPrice(billing.amountPerPeriod, billing.currency)}
-                          {billing.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment method */}
-              {billing.paymentMethod && (
-                <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <CreditCard className="size-8 text-text-muted shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary">
-                          {t('upgrade.billing.payment.card', {
-                            brand: formatCardBrand(billing.paymentMethod.brand),
-                            last4: billing.paymentMethod.last4,
-                          })}
-                        </p>
-                        <p className="text-xs text-text-muted mt-0.5">
-                          {t('upgrade.billing.payment.expires', {
-                            month: String(billing.paymentMethod.expMonth).padStart(2, '0'),
-                            year: billing.paymentMethod.expYear,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      className="px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold text-text-secondary bg-surface-elevated border border-border hover:bg-surface-overlay transition-colors shrink-0"
-                      onClick={handleOpenPortal}
-                    >
-                      {t('upgrade.billing.payment.change')}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile ?? null} t={t} />
-
-              {/* Invoice history */}
-              {billing.recentInvoices.length > 0 && (
-                <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] overflow-hidden">
-                  <div className="p-5 pb-3">
-                    <h3 className="form-label">{t('upgrade.billing.invoices.title')}</h3>
-                  </div>
-                  <div className="divide-y divide-border-muted">
-                    {billing.recentInvoices.map((invoice) => (
-                      <div key={invoice.id} className="px-5 py-3 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-text-primary font-medium">
-                              {formatBillingDate(invoice.date, locale, dateFnsLocale)}
-                            </span>
-                            <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded-full bg-surface-elevated text-text-muted border border-border-muted">
-                              {invoiceReasonLabelFn(invoice.billingReason, t)}
-                            </span>
-                          </div>
-                          <span
-                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${invoiceStatusClassName(invoice.status)}`}
-                          >
-                            {invoiceStatusLabelFn(invoice.status, t)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-sm font-semibold text-text-primary">
-                            {formatPrice(invoice.amountPaid, invoice.currency)}
-                          </span>
-                          {(invoice.invoicePdf ?? invoice.hostedInvoiceUrl) && (
-                            <a
-                              href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-text-muted hover:text-text-primary transition-colors"
-                              title={t('upgrade.billing.invoices.download')}
-                            >
-                              <Download className="size-4" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Manage subscription */}
-              <div className="space-y-2 pt-1">
-                <button
-                  className="w-full py-3 rounded-[var(--radius-xl)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98]"
-                  onClick={handleOpenPortal}
-                >
-                  {t('upgrade.billing.actions.manage')}
-                </button>
-                <p className="text-xs text-text-muted text-center">{t('upgrade.billing.actions.manageHint')}</p>
-                {portalError && <p className="text-xs text-red-400 text-center">{portalError}</p>}
-              </div>
-            </>
-          )}
-
-          {/* Loaded: no billing data (lifetime Pro or no Stripe subscription) */}
-          {!isBillingLoading && !isBillingError && !billing && (
-            <>
-              {/* Plan card */}
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/15 rounded-full size-12 flex items-center justify-center shrink-0">
-                    <Sparkles className="size-6 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-base font-bold text-text-primary">
-                      {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetime') : t('upgrade.alreadyPro')}
-                    </h2>
-                    <p className="text-sm text-text-secondary mt-0.5">
-                      {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetimeHint') : t('upgrade.manageHint')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile ?? null} t={t} />
-            </>
-          )}
-        </div>
+        <BillingDashboard
+          billing={billing}
+          isBillingLoading={isBillingLoading}
+          isBillingError={isBillingError}
+          profile={profile ?? null}
+          locale={locale}
+          dateFnsLocale={dateFnsLocale}
+          usagePercent={usagePercent}
+          usageUrgent={usageUrgent}
+          portalError={portalError}
+          onOpenPortal={handleOpenPortal}
+          onRetryBilling={() => refetchBilling()}
+          t={t}
+        />
       ) : (
-        <>
-          {/* Trial countdown banner */}
-          {profile?.isTrialActive && (
-            <div
-              className={`rounded-[var(--radius-xl)] p-4 mb-4 flex items-center gap-3 border ${
-                trialUrgent
-                  ? 'bg-amber-500/10 border-amber-500/20'
-                  : 'bg-primary/10 border-primary/20'
-              }`}
-            >
-              <Clock className={`size-5 shrink-0 ${trialUrgent ? 'text-amber-400' : 'text-primary'}`} />
-              <p className={`text-sm font-medium ${trialUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
-                {trialDaysLeft === 0
-                  ? t('trial.banner.lastDay')
-                  : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
-              </p>
-            </div>
-          )}
-
-          {/* Trial expired emotional section */}
-          {trialExpired && (
-            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 mb-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-5 text-primary" />
-                <span className="text-sm font-bold text-text-primary">{t('trial.expired.title')}</span>
-              </div>
-              <p className="form-label">
-                {t('trial.expired.dontLose')}
-              </p>
-              <ul className="space-y-2">
-                {trialExpiredFeatures.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2.5">
-                    <CheckCircle2 className="size-4 text-primary shrink-0" />
-                    <span className="text-sm text-text-secondary">{t(feature)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* PRICING PLAN CARDS */}
-
-          {/* Loading skeletons */}
-          {isLoadingPlans && (
-            <div className="space-y-3 mb-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-[var(--radius-xl)] p-5 border border-border-muted">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-4 w-20 bg-surface-elevated rounded skeleton-shimmer" />
-                    <div className="h-6 w-16 bg-surface-elevated rounded-full skeleton-shimmer" />
-                  </div>
-                  <div className="space-y-2.5 mb-4">
-                    <div className="h-3 w-3/4 bg-surface-elevated rounded skeleton-shimmer" />
-                    <div className="h-3 w-1/2 bg-surface-elevated rounded skeleton-shimmer" />
-                    <div className="h-3 w-2/3 bg-surface-elevated rounded skeleton-shimmer" />
-                  </div>
-                  <div className="h-10 w-full bg-surface-elevated rounded-[var(--radius-lg)] skeleton-shimmer" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Error state */}
-          {isPlansError && !plans && !isLoadingPlans && (
-            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted p-8 text-center space-y-3 mb-6">
-              <AlertTriangle className="size-8 text-text-muted mx-auto" />
-              <p className="text-sm text-text-secondary">{t('upgrade.plans.error')}</p>
-              <button className="text-primary text-sm font-semibold hover:underline" onClick={() => refetchPlans()}>
-                {t('upgrade.plans.retry')}
-              </button>
-            </div>
-          )}
-
-          {/* Plan cards */}
-          {plans && (
-            <PlanCards
-              plans={plans}
-              hasProAccess={hasProAccess}
-              checkoutLoading={checkoutLoading}
-              discountedAmount={discountedAmount}
-              onCheckout={handleCheckout}
-              t={t}
-            />
-          )}
-
-          {checkoutError && (
-            <p className="text-xs text-red-400 text-center">{checkoutError}</p>
-          )}
-
-          {/* Feature comparison */}
-          <FeatureComparisonTable t={t} />
-        </>
+        <PricingSection
+          profile={profile ?? null}
+          plans={plans}
+          isLoadingPlans={isLoadingPlans}
+          isPlansError={isPlansError}
+          trialExpired={trialExpired}
+          trialDaysLeft={trialDaysLeft}
+          trialUrgent={trialUrgent}
+          hasProAccess={hasProAccess}
+          checkoutLoading={checkoutLoading}
+          checkoutError={checkoutError}
+          discountedAmount={discountedAmount}
+          onCheckout={handleCheckout}
+          onRetryPlans={() => refetchPlans()}
+          t={t}
+        />
       )}
     </div>
   )

@@ -278,7 +278,7 @@ export default function TodayPage() {
   const { tags } = useTags()
 
   // Show general on today preference (local storage)
-  const [showGeneralOnToday] = useState(() => {
+  const [showGeneralOnToday, _setShowGeneralOnToday] = useState(() => {
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true // NOSONAR - SSR guard
     return localStorage.getItem('orbit_show_general_on_today') !== 'false'
   })
