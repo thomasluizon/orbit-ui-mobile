@@ -1,14 +1,22 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { View } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useProfile } from '@/hooks/use-profile'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
-import { PushPrompt } from '@/components/ui/push-prompt'
 import { colors } from '@/lib/theme'
+
+// Push notifications are not supported in Expo Go (removed in SDK 53).
+// Only import PushPrompt in dev builds / standalone.
+const isExpoGo = Constants.executionEnvironment === 'storeClient'
+const PushPrompt = isExpoGo
+  ? () => null
+  : lazy(() => import('@/components/ui/push-prompt').then(m => ({ default: m.PushPrompt })))
 
 function AuthGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -99,7 +107,9 @@ function RootLayoutNav() {
         <OnboardingFlow />
       )}
       {isAuthenticated && profile?.hasCompletedOnboarding && (
-        <PushPrompt />
+        <Suspense fallback={null}>
+          <PushPrompt />
+        </Suspense>
       )}
     </>
   )
@@ -107,10 +117,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <Providers>
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <RootLayoutNav />
-      </View>
-    </Providers>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Providers>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          <RootLayoutNav />
+        </View>
+      </Providers>
+    </GestureHandlerRootView>
   )
 }
