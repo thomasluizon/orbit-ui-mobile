@@ -27,9 +27,9 @@ import { dismissCalendarImport } from '@/app/actions/profile'
 
 export default function AppLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
     <Providers>
       <AppLayoutContent>{children}</AppLayoutContent>

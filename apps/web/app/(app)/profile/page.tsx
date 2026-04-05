@@ -93,7 +93,7 @@ export default function ProfilePage() {
     setShowFreshStartAnimation(false)
     // Clear all query caches so stale pre-reset data doesn't linger
     queryClient.clear()
-    window.location.href = '/'
+    globalThis.location.href = '/'
   }
 
   // --- Delete Account ---
@@ -143,7 +143,7 @@ export default function ProfilePage() {
   }
 
   function handleDeleteCodeInput(index: number, event: React.ChangeEvent<HTMLInputElement>) {
-    const value = event.target.value.replace(/\D/g, '')
+    const value = event.target.value.replaceAll(/\D/g, '')
     const next = [...deleteCode]
     next[index] = value.slice(-1)
     setDeleteCode(next)
@@ -161,7 +161,7 @@ export default function ProfilePage() {
   }
 
   function handleDeleteCodePaste(event: React.ClipboardEvent) {
-    const paste = event.clipboardData?.getData('text')?.replace(/\D/g, '')?.slice(0, 6)
+    const paste = event.clipboardData?.getData('text')?.replaceAll(/\D/g, '')?.slice(0, 6)
     if (paste) {
       const next = [...deleteCode]
       for (let i = 0; i < 6; i++) {

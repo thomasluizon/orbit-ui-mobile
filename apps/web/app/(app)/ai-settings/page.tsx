@@ -356,10 +356,18 @@ export default function AiSettingsPage() {
               {pagedFacts.map((fact) => (
                 <div
                   key={fact.id}
+                  role={selectMode ? 'button' : undefined}
+                  tabIndex={selectMode ? 0 : undefined}
                   className={`flex items-start gap-3 rounded-2xl bg-background p-3 transition-colors ${
                     selectMode && selectedFactIds.has(fact.id) ? 'ring-1 ring-primary/40' : ''
-                  }`}
+                  } ${selectMode ? 'cursor-pointer' : ''}`}
                   onClick={selectMode ? () => toggleFactSelection(fact.id) : undefined}
+                  onKeyDown={selectMode ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      toggleFactSelection(fact.id)
+                    }
+                  } : undefined}
                 >
                   {selectMode && (
                     <button

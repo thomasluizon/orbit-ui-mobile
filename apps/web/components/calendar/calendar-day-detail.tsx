@@ -54,7 +54,7 @@ export function CalendarDayDetail({
   onOpenChange,
   dateStr,
   entries,
-}: CalendarDayDetailProps) {
+}: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()

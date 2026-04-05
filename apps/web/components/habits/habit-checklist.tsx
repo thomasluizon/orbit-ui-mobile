@@ -144,9 +144,8 @@ export function HabitChecklist({
       )}
 
       {/* Items list (editable) */}
-      {/* NOTE: Nuxt source uses VueDraggable for drag-to-reorder in editable mode.
-         The GripHorizontal icon below is currently decorative only.
-         TODO: Add drag-to-reorder via @dnd-kit/core or react-beautiful-dnd. */}
+      {/* NOTE: The GripHorizontal icon below is currently decorative only.
+         Drag-to-reorder will be added via @dnd-kit/core in a future iteration. */}
       {editable ? (
         <div className="space-y-1">
           {items.map((item, index) => (

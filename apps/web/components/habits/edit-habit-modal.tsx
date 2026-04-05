@@ -10,7 +10,8 @@ import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { assignTags } from '@/app/actions/tags'
 import { getErrorMessage } from '@orbit/shared/utils'
-import type { NormalizedHabit, UpdateHabitRequest } from '@orbit/shared/types/habit'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { buildUpdateHabitRequest, type HabitFormData } from '@/lib/habit-request-builders'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -118,49 +119,8 @@ export function EditHabitModal({
         return
       }
 
-      const data = formHelpers.form.getValues()
-
-      const request: UpdateHabitRequest = {
-        title: data.title,
-        isBadHabit: data.isBadHabit,
-        isGeneral: data.isGeneral,
-        isFlexible: data.isFlexible,
-      }
-
-      if (data.description) request.description = data.description
-
-      if (!data.isGeneral) {
-        // Schedule fields
-        if (data.dueDate) request.dueDate = data.dueDate
-
-        if (!formHelpers.isOneTime) {
-          request.frequencyUnit = data.frequencyUnit ?? undefined
-          request.frequencyQuantity = data.frequencyQuantity ?? undefined
-          if (data.days?.length) request.days = data.days
-          if (data.endDate) {
-            request.endDate = data.endDate
-          } else if (originalEndDate && !data.endDate) {
-            request.clearEndDate = true
-          }
-        }
-
-        // Reminder fields (match Nuxt applyRemindersToUpdate)
-        if (data.dueTime) {
-          request.dueTime = data.dueTime
-          request.dueEndTime = data.dueEndTime || undefined
-          request.reminderEnabled = data.reminderEnabled
-          request.reminderTimes = reminderTimes
-        } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
-          request.reminderEnabled = true
-          request.scheduledReminders = data.scheduledReminders ?? undefined
-        } else {
-          request.reminderEnabled = false
-        }
-      }
-
-      request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false
-      if (data.checklistItems?.length) request.checklistItems = data.checklistItems
-      request.goalIds = selectedGoalIds
+      const data = formHelpers.form.getValues() as unknown as HabitFormData
+      const request = buildUpdateHabitRequest(data, formHelpers.isOneTime, originalEndDate, reminderTimes, selectedGoalIds)
 
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })

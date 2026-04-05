@@ -101,49 +101,49 @@ async function proxyRequest(
   return fetch(targetUrl, { method, headers, body })
 }
 
+const SAFE_FORWARD_HEADERS = [
+  'content-type',
+  'x-ratelimit-limit',
+  'x-ratelimit-remaining',
+  'x-ratelimit-reset',
+  'x-total-count',
+  'x-total-pages',
+  'retry-after',
+]
+
+function buildResponseHeaders(source: Response): Headers {
+  const result = new Headers()
+  for (const name of SAFE_FORWARD_HEADERS) {
+    const value = source.headers.get(name)
+    if (value) result.set(name, value)
+  }
+  if (!result.has('content-type')) {
+    result.set('content-type', 'application/json')
+  }
+  return result
+}
+
+async function toNextResponse(source: Response): Promise<NextResponse> {
+  const body = await source.text()
+  return new NextResponse(body, {
+    status: source.status,
+    headers: buildResponseHeaders(source),
+  })
+}
+
 async function handleProxy(request: NextRequest, path: string) {
   const token = await getAuthToken()
-
   const response = await proxyRequest(request, path, token)
 
   if (response.status === 401) {
-    // Try refresh-token rotation
     const newToken = await tryRefreshSession()
     if (newToken) {
       const retryResponse = await proxyRequest(request, path, newToken)
-      const retryData = await retryResponse.text()
-      const retryHeaders = new Headers()
-      const forwardHeaders = ['content-type', 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset', 'x-total-count', 'x-total-pages', 'retry-after']
-      for (const name of forwardHeaders) {
-        const value = retryResponse.headers.get(name)
-        if (value) retryHeaders.set(name, value)
-      }
-      if (!retryHeaders.has('content-type')) {
-        retryHeaders.set('content-type', 'application/json')
-      }
-      return new NextResponse(retryData, {
-        status: retryResponse.status,
-        headers: retryHeaders,
-      })
+      return toNextResponse(retryResponse)
     }
   }
 
-  const data = await response.text()
-  const responseHeaders = new Headers()
-  // Forward safe response headers from backend
-  const forwardHeaders = ['content-type', 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset', 'x-total-count', 'x-total-pages', 'retry-after']
-  for (const name of forwardHeaders) {
-    const value = response.headers.get(name)
-    if (value) responseHeaders.set(name, value)
-  }
-  if (!responseHeaders.has('content-type')) {
-    responseHeaders.set('content-type', 'application/json')
-  }
-
-  return new NextResponse(data, {
-    status: response.status,
-    headers: responseHeaders,
-  })
+  return toNextResponse(response)
 }
 
 export async function GET(

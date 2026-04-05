@@ -74,8 +74,10 @@ export function WelcomeBackToast() {
   if (!mounted || !shouldRender) return null
 
   return createPortal(
-    <div
-      className="fixed top-4 left-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] bg-surface-overlay border border-border-muted rounded-2xl shadow-[var(--shadow-lg)] backdrop-blur-xl px-5 py-4 cursor-pointer"
+    <button
+      type="button"
+      aria-label={toastMessage}
+      className="fixed top-4 left-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)] bg-surface-overlay border border-border-muted rounded-2xl shadow-[var(--shadow-lg)] backdrop-blur-xl px-5 py-4 cursor-pointer text-left"
       style={{
         transition: 'opacity 0.4s var(--ease-spring), transform 0.4s var(--ease-spring)',
         opacity: isVisible ? 1 : 0,
@@ -91,7 +93,7 @@ export function WelcomeBackToast() {
           {toastMessage}
         </p>
       </div>
-    </div>,
+    </button>,
     document.body
   )
 }

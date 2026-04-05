@@ -19,9 +19,9 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
 
 function getCookieValue(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
   const value = match?.[1]
-  return value !== undefined ? decodeURIComponent(value) : undefined
+  return value === undefined ? undefined : decodeURIComponent(value)
 }
 
 /**
@@ -259,7 +259,7 @@ export default function LoginPage() {
   }
 
   function onCodeInput(index: number, value: string) {
-    const cleanValue = value.replace(/\D/g, '')
+    const cleanValue = value.replaceAll(/\D/g, '')
 
     if (cleanValue.length > 1) {
       const digits = cleanValue.split('')
@@ -289,7 +289,7 @@ export default function LoginPage() {
 
   function onCodePaste(event: React.ClipboardEvent) {
     event.preventDefault()
-    const pasted = event.clipboardData.getData('text').replace(/\D/g, '')
+    const pasted = event.clipboardData.getData('text').replaceAll(/\D/g, '')
     if (!pasted) return
     const digits = pasted.slice(0, 6).split('')
     const newCodeDigits = ['', '', '', '', '', '']
@@ -317,7 +317,7 @@ export default function LoginPage() {
 
     try {
       const supabase = getSupabaseClient()
-      const redirectTo = `${window.location.origin}/auth-callback`
+      const redirectTo = `${globalThis.location.origin}/auth-callback`
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

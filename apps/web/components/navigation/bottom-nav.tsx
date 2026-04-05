@@ -18,7 +18,7 @@ interface BottomNavProps {
   onCreate?: () => void
 }
 
-export function BottomNav({ onCreate }: BottomNavProps) {
+export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const t = useTranslations()
   const pathname = usePathname()
   const setSelectedDate = useUIStore((s) => s.setSelectedDate)

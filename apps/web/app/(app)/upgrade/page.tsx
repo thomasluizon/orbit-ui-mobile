@@ -89,7 +89,7 @@ function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
 }
 
-function FeatureTooltip({ text }: { text: string }) {
+function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -187,7 +187,7 @@ export default function UpgradePage() {
       }
       const data = await res.json()
       if (data?.url) {
-        window.location.href = data.url
+        globalThis.location.href = data.url
       }
     } catch (err: unknown) {
       setCheckoutError(getErrorMessage(err, t('auth.genericError')))
@@ -206,7 +206,7 @@ export default function UpgradePage() {
       }
       const data = await res.json()
       if (data?.url) {
-        window.location.href = data.url
+        globalThis.location.href = data.url
       }
     } catch (err: unknown) {
       setPortalError(getErrorMessage(err, t('auth.genericError')))

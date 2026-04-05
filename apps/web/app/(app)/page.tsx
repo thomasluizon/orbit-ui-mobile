@@ -179,7 +179,7 @@ export default function TodayPage() {
       const rect = controlsMenuRef.current?.getBoundingClientRect()
       if (rect) {
         const preferredLeft = rect.right - CONTROLS_MENU_WIDTH_PX
-        const maxLeft = window.innerWidth - CONTROLS_MENU_WIDTH_PX - CONTROLS_MENU_MARGIN_PX
+        const maxLeft = globalThis.innerWidth - CONTROLS_MENU_WIDTH_PX - CONTROLS_MENU_MARGIN_PX
         setControlsMenuPosition({
           top: rect.bottom + CONTROLS_MENU_MARGIN_PX,
           left: Math.min(Math.max(preferredLeft, CONTROLS_MENU_MARGIN_PX), Math.max(CONTROLS_MENU_MARGIN_PX, maxLeft)),
@@ -454,6 +454,7 @@ export default function TodayPage() {
       <div className="pt-4">
         <div
           role="tablist"
+          tabIndex={0}
           aria-label={t('habits.viewsLabel')}
           className="flex bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1"
           onKeyDown={handleTabKeydown}
@@ -661,6 +662,7 @@ export default function TodayPage() {
             createPortal(
               <div
                 ref={controlsMenuPanelRef}
+                role="menu"
                 className="fixed z-[70] min-w-[12.5rem] rounded-[var(--radius-lg)] border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1"
                 style={{
                   left: `${controlsMenuPosition.left}px`,

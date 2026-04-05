@@ -353,17 +353,8 @@ export default function AdvancedPage() {
                           </div>
                         </div>
 
-                        {/* Revoke: normal state */}
-                        {revokingKeyId !== key.id ? (
-                          <div className="flex justify-end">
-                            <button
-                              className="text-xs font-semibold text-text-muted hover:text-red-500 transition-colors"
-                              onClick={() => setRevokingKeyId(key.id)}
-                            >
-                              {t('orbitMcp.revoke')}
-                            </button>
-                          </div>
-                        ) : (
+                        {/* Revoke */}
+                        {revokingKeyId === key.id ? (
                           /* Revoke: confirmation state */
                           <div className="flex items-center justify-between rounded-xl bg-red-500/5 border border-red-500/20 px-3 py-2">
                             <p className="text-xs text-red-400">{t('orbitMcp.revokeConfirm')}</p>
@@ -381,6 +372,16 @@ export default function AdvancedPage() {
                                 {t('orbitMcp.confirm')}
                               </button>
                             </div>
+                          </div>
+                        ) : (
+                          /* Revoke: normal state */
+                          <div className="flex justify-end">
+                            <button
+                              className="text-xs font-semibold text-text-muted hover:text-red-500 transition-colors"
+                              onClick={() => setRevokingKeyId(key.id)}
+                            >
+                              {t('orbitMcp.revoke')}
+                            </button>
                           </div>
                         )}
                       </div>

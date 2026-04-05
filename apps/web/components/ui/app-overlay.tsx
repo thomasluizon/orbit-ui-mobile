@@ -61,7 +61,7 @@ export function AppOverlay({
   children,
   footer,
   onExpandDescription,
-}: AppOverlayProps) {
+}: Readonly<AppOverlayProps>) {
   const t = useTranslations()
   const titleId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)
@@ -92,7 +92,7 @@ export function AppOverlay({
   }, [open, mounted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lockBodyScroll = useCallback(() => {
-    savedScrollY.current = window.scrollY
+    savedScrollY.current = globalThis.scrollY
     document.body.style.position = 'fixed'
     document.body.style.top = `-${savedScrollY.current}px`
     document.body.style.width = '100%'
@@ -108,7 +108,7 @@ export function AppOverlay({
     document.body.style.overflow = ''
     document.documentElement.style.overflow = ''
     document.documentElement.style.overscrollBehavior = ''
-    window.scrollTo(0, savedScrollY.current)
+    globalThis.scrollTo(0, savedScrollY.current)
   }, [])
 
   // Focus trap
@@ -205,12 +205,14 @@ export function AppOverlay({
 
   const overlay = (
     <div
+      role="presentation"
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
       onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}
     >
       {/* Backdrop */}
       <div
+        aria-hidden="true"
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-[var(--ease-out)] ${backdropClass}`}
       />
 
