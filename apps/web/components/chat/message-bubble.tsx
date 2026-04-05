@@ -94,7 +94,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
           <div className="space-y-3 mt-3 w-full">
             {suggestionActions.map((action) => {
               const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
-              return !dismissedBreakdowns.has(actionKey) ? (
+              return dismissedBreakdowns.has(actionKey) ? null : (
                 <BreakdownSuggestion
                   key={actionKey}
                   parentName={action.entityName || 'Habit'}
@@ -102,7 +102,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
                   onConfirmed={() => onBreakdownConfirmed?.()}
                   onCancelled={() => dismissBreakdown(actionKey)}
                 />
-              ) : null
+              )
             })}
           </div>
         )}

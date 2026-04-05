@@ -537,7 +537,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     for (const habit of habits) {
       const key = habit.dueDate ?? ''
-      if (key) {
+      if (!key) {
         if (!groups.has('')) groups.set('', [])
         groups.get('')!.push(habit)
       } else if (key < today && !habit.isCompleted) {

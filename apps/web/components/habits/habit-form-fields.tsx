@@ -944,22 +944,7 @@ export function HabitFormFields({
       {/* Slip alert toggle (only when bad habit) */}
       {watchedIsBadHabit && (
         <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
-          {!hasProAccess ? (
-            /* Pro locked state */
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="size-4 text-text-muted" />
-                  <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
-                </div>
-                <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
-              </div>
-              <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
-                <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
-              </div>
-            </div>
-          ) : (
+          {hasProAccess ? (
             /* Pro unlocked state */
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
@@ -980,6 +965,21 @@ export function HabitFormFields({
               >
                 <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedSlipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
               </button>
+            </div>
+          ) : (
+            /* Pro locked state */
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-4 text-text-muted" />
+                  <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
+                </div>
+                <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+              </div>
+              <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
+                <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
+              </div>
             </div>
           )}
         </div>
