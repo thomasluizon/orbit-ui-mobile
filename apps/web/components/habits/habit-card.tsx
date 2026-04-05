@@ -117,7 +117,7 @@ function StreakBadgeInline({ streak }: { streak: number | null | undefined }) {
 }
 
 function ChecklistBadge({ items, checkedCount, hasBorder }: {
-  items: Array<{ label: string; isChecked: boolean }> | undefined | null
+  items: Array<{ text: string; isChecked: boolean }> | undefined | null
   checkedCount: number
   hasBorder?: boolean
 }) {
@@ -259,7 +259,7 @@ export function HabitCard({
   onToggleExpand,
   onForceLogParent,
   onEnterSelectMode,
-}: HabitCardProps) {
+}: Readonly<HabitCardProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
 
@@ -737,140 +737,22 @@ export function HabitCard({
                 </p>
               )}
 
-              {/* Badges row -- 3 branches matching Vue exactly */}
+              {/* Badges row -- 3 branches via extracted sub-components */}
               {!isChild ? (
-                /* Top-level habit badges */
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted/70">
-                    {frequencyLabel}
-                  </span>
-                  {flexibleProgressLabel && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10">
-                      {flexibleProgressLabel}
-                    </span>
-                  )}
-                  {habit.dueTime && (
-                    <span className="text-[10px] font-medium text-text-secondary">
-                      {displayTime(habit.dueTime)}
-                      {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
-                    </span>
-                  )}
-                  {statusBadge && (
-                    <span
-                      className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusBadge.color} ${statusBadge.bg}`}
-                    >
-                      {statusBadge.text}
-                    </span>
-                  )}
-                  {habit.isBadHabit && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase text-red-400 bg-red-500/10 border border-red-500/10">
-                      {t('habits.badHabit')}
-                    </span>
-                  )}
-                  {habit.tags?.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white/95"
-                      style={{ backgroundColor: tag.color }}
-                    >
-                      <HighlightText text={tag.name} query={searchQuery} />
-                    </span>
-                  ))}
-                  {(habit.linkedGoals ?? []).map((goal) => (
-                    <span
-                      key={goal.id}
-                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10"
-                    >
-                      {goal.title}
-                    </span>
-                  ))}
-                  {habit.currentStreak != null && habit.currentStreak >= 2 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/10">
-                      <Flame className="size-3" />
-                      {habit.currentStreak}
-                    </span>
-                  )}
-                  {habit.checklistItems &&
-                    habit.checklistItems.length > 0 && (
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-text-secondary bg-surface-elevated/60 border border-border-muted">
-                        <ClipboardCheck className="size-3" />
-                        {checkedCount}/{habit.checklistItems.length}
-                      </span>
-                    )}
-                  {matchBadges.map((badge, i) => (
-                    <span
-                      key={`match-${i}`}
-                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10"
-                    >
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
+                <TopLevelBadges
+                  habit={habit}
+                  frequencyLabel={frequencyLabel}
+                  flexibleProgressLabel={flexibleProgressLabel}
+                  statusBadge={statusBadge}
+                  checkedCount={checkedCount}
+                  searchQuery={searchQuery}
+                  matchBadges={matchBadges}
+                  displayTime={displayTime}
+                />
               ) : isChild && habit.isBadHabit ? (
-                /* Child habit with bad habit badge */
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase text-red-400 bg-red-500/10">
-                    {t('habits.badHabit')}
-                  </span>
-                  {habit.tags?.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white/95"
-                      style={{ backgroundColor: tag.color }}
-                    >
-                      <HighlightText text={tag.name} query={searchQuery} />
-                    </span>
-                  ))}
-                  {habit.currentStreak != null && habit.currentStreak >= 2 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-400 bg-amber-400/10">
-                      <Flame className="size-3" />
-                      {habit.currentStreak}
-                    </span>
-                  )}
-                  {habit.checklistItems &&
-                    habit.checklistItems.length > 0 && (
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-text-secondary bg-surface-elevated/60">
-                        <ClipboardCheck className="size-3" />
-                        {checkedCount}/{habit.checklistItems.length}
-                      </span>
-                    )}
-                </div>
+                <ChildBadHabitBadges habit={habit} searchQuery={searchQuery} checkedCount={checkedCount} />
               ) : (
-                /* Child habit default badges */
-                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                  <span className="text-[9px] font-semibold uppercase tracking-widest text-text-muted/60">
-                    {frequencyLabel}
-                  </span>
-                  {statusBadge && (
-                    <span
-                      className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusBadge.color} ${statusBadge.bg}`}
-                    >
-                      {statusBadge.text}
-                    </span>
-                  )}
-                  {habit.tags?.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white/95"
-                      style={{ backgroundColor: tag.color }}
-                    >
-                      <HighlightText text={tag.name} query={searchQuery} />
-                    </span>
-                  ))}
-                  {habit.currentStreak != null && habit.currentStreak >= 2 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-400 bg-amber-400/10">
-                      <Flame className="size-3" />
-                      {habit.currentStreak}
-                    </span>
-                  )}
-                  {habit.checklistItems &&
-                    habit.checklistItems.length > 0 && (
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-text-secondary bg-surface-elevated/60">
-                        <ClipboardCheck className="size-3" />
-                        {checkedCount}/{habit.checklistItems.length}
-                      </span>
-                    )}
-                </div>
+                <ChildDefaultBadges habit={habit} frequencyLabel={frequencyLabel} statusBadge={statusBadge} searchQuery={searchQuery} checkedCount={checkedCount} />
               )}
             </div>
 

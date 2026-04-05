@@ -11,6 +11,7 @@ import { QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
+import { optimisticToggleCompletion, optimisticUpdateChecklist } from '@/lib/habit-optimistic-helpers'
 import type {
   HabitsFilter,
   HabitScheduleItem,
@@ -354,41 +355,11 @@ export function useLogHabit() {
         queryKey: habitKeys.lists(),
       })
 
-      // Optimistic toggle: find the habit in any list cache and flip isCompleted
-      // Also reset checklist items for recurring habits on completion (matching Nuxt behavior)
+      // Optimistic toggle via extracted helper (reduces nesting depth - S2004)
       if (!date) {
         queryClient.setQueriesData<HabitScheduleItem[]>(
           { queryKey: habitKeys.lists() },
-          (old) => {
-            if (!old) return old
-            return old.map((item) => {
-              if (item.id === habitId) {
-                const wasCompleted = item.isCompleted
-                const updated = { ...item, isCompleted: !item.isCompleted }
-                // Reset checklist for recurring habits when logging (not unlogging)
-                if (!wasCompleted && item.frequencyUnit && item.checklistItems?.length > 0) {
-                  updated.checklistItems = item.checklistItems.map(i => ({ ...i, isChecked: false }))
-                }
-                return updated
-              }
-              // Check children
-              if (item.children.some((c) => c.id === habitId)) {
-                return {
-                  ...item,
-                  children: item.children.map((c) => {
-                    if (c.id !== habitId) return c
-                    const wasCompleted = c.isCompleted
-                    const updated = { ...c, isCompleted: !c.isCompleted }
-                    if (!wasCompleted && c.frequencyUnit && c.checklistItems?.length > 0) {
-                      updated.checklistItems = c.checklistItems.map(i => ({ ...i, isChecked: false }))
-                    }
-                    return updated
-                  }),
-                }
-              }
-              return item
-            })
-          },
+          (old) => old ? optimisticToggleCompletion(old, habitId) : old,
         )
       }
 
@@ -522,6 +493,7 @@ export function useCreateHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
@@ -550,6 +522,7 @@ export function useDeleteHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
@@ -600,26 +573,10 @@ export function useUpdateChecklist() {
         queryKey: habitKeys.lists(),
       })
 
-      // Optimistic: update checklist items in cache
+      // Optimistic checklist update via extracted helper (reduces nesting - S2004)
       queryClient.setQueriesData<HabitScheduleItem[]>(
         { queryKey: habitKeys.lists() },
-        (old) => {
-          if (!old) return old
-          return old.map((item) => {
-            if (item.id === habitId) {
-              return { ...item, checklistItems: items }
-            }
-            if (item.children.some((c) => c.id === habitId)) {
-              return {
-                ...item,
-                children: item.children.map((c) =>
-                  c.id === habitId ? { ...c, checklistItems: items } : c,
-                ),
-              }
-            }
-            return item
-          })
-        },
+        (old) => old ? optimisticUpdateChecklist(old, habitId, items) : old,
       )
 
       return { previousLists }
@@ -694,6 +651,7 @@ export function useBulkCreateHabits() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
     },
   })
@@ -707,6 +665,7 @@ export function useBulkDeleteHabits() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
@@ -747,7 +706,7 @@ export function useBulkSkipHabits() {
 
 export function useTotalHabitCount(): number {
   const query = useQuery({
-    queryKey: habitKeys.list({ _count: true } as Record<string, unknown>),
+    queryKey: habitKeys.count(),
     queryFn: async () => {
       const url = buildUrl(API.habits.list, 'pageSize=1')
       const data = await fetchJson<PaginatedResponse<HabitScheduleItem>>(url)

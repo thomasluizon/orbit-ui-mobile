@@ -10,7 +10,8 @@ import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
-import type { NormalizedHabit, CreateHabitRequest, CreateSubHabitRequest, ScheduledReminderTime } from '@orbit/shared/types/habit'
+import type { NormalizedHabit, ScheduledReminderTime } from '@orbit/shared/types/habit'
+import { buildSubHabitRequest, buildCreateHabitRequest, type HabitFormData } from '@/lib/habit-request-builders'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -144,99 +145,19 @@ export function CreateHabitModal({
         return
       }
 
-      const data = formHelpers.form.getValues()
+      const data = formHelpers.form.getValues() as unknown as HabitFormData
 
-      if (isSubHabitMode && parentHabit) {
-        const subRequest: CreateSubHabitRequest = {
-          title: data.title,
-        }
-        if (data.description) subRequest.description = data.description
-        if (!data.isGeneral) {
-          // Schedule fields
-          if (data.dueDate) subRequest.dueDate = data.dueDate
-          if (data.isFlexible) {
-            subRequest.isFlexible = true
-            if (data.frequencyUnit) subRequest.frequencyUnit = data.frequencyUnit
-            if (data.frequencyQuantity) subRequest.frequencyQuantity = data.frequencyQuantity ?? undefined
-          } else if (data.frequencyUnit) {
-            subRequest.frequencyUnit = data.frequencyUnit
-            subRequest.frequencyQuantity = data.frequencyQuantity ?? undefined
-            if (data.days?.length) subRequest.days = data.days
-            if (data.endDate) subRequest.endDate = data.endDate
-          }
-          // Reminder fields
-          if (data.dueTime) {
-            subRequest.dueTime = data.dueTime
-            if (data.dueEndTime) subRequest.dueEndTime = data.dueEndTime
-            subRequest.reminderEnabled = data.reminderEnabled
-            subRequest.reminderTimes = reminderTimes
-          } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
-            subRequest.reminderEnabled = true
-            subRequest.scheduledReminders = data.scheduledReminders ?? undefined
-          }
-        }
-        if (data.isBadHabit) {
-          subRequest.isBadHabit = true
-          subRequest.slipAlertEnabled = data.slipAlertEnabled
-        }
-        if (data.checklistItems?.length) subRequest.checklistItems = data.checklistItems
-        if (tags.selectedTagIds.length) subRequest.tagIds = tags.selectedTagIds
-
-        try {
-          await createSubHabit.mutateAsync({
-            parentId: parentHabit.id,
-            data: subRequest,
-          })
-          onOpenChange(false)
-        } catch {
-          // Error handled by mutation
-        }
-      } else {
-        const request: CreateHabitRequest = {
-          title: data.title,
-          isBadHabit: data.isBadHabit,
-        }
-        if (data.description) request.description = data.description
-        if (data.isGeneral) {
-          request.isGeneral = true
+      try {
+        if (isSubHabitMode && parentHabit) {
+          const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
+          await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
-          // Schedule fields
-          request.dueDate = data.dueDate
-          if (data.isFlexible) {
-            request.isFlexible = true
-            request.frequencyUnit = data.frequencyUnit ?? undefined
-            request.frequencyQuantity = data.frequencyQuantity ?? undefined
-          } else if (data.frequencyUnit) {
-            request.frequencyUnit = data.frequencyUnit
-            request.frequencyQuantity = data.frequencyQuantity ?? undefined
-            if (data.days?.length) request.days = data.days
-            if (data.endDate) request.endDate = data.endDate
-          }
-          // Reminder fields (match Nuxt applyReminderFields)
-          if (data.dueTime) {
-            request.dueTime = data.dueTime
-            if (data.dueEndTime) request.dueEndTime = data.dueEndTime
-            request.reminderEnabled = data.reminderEnabled
-            request.reminderTimes = reminderTimes
-          } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
-            request.reminderEnabled = true
-            request.scheduledReminders = data.scheduledReminders ?? undefined
-          }
-        }
-        if (data.isBadHabit) request.slipAlertEnabled = data.slipAlertEnabled
-        if (data.checklistItems?.length) request.checklistItems = data.checklistItems
-        if (tags.selectedTagIds.length) request.tagIds = tags.selectedTagIds
-        if (selectedGoalIds.length) request.goalIds = selectedGoalIds
-        // Sub-habits
-        const filteredSubHabits = subHabits.filter((s) => s.trim())
-        if (filteredSubHabits.length) request.subHabits = filteredSubHabits
-
-        try {
+          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabits)
           await createHabit.mutateAsync(request)
-          onOpenChange(false)
-        } catch {
-          // Error handled by mutation
         }
+        onOpenChange(false)
+      } catch {
+        // Error handled by mutation
       }
     },
     [formHelpers, isSubHabitMode, parentHabit, tags, selectedGoalIds, subHabits, reminderTimes, createHabit, createSubHabit, onOpenChange],
