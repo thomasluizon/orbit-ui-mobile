@@ -1,13 +1,12 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useCallback } from 'react'
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, goalKeys, gamificationKeys, profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
@@ -21,7 +20,6 @@ import type {
   HabitDetail,
   HabitMetrics,
   HabitFullDetail,
-  LogHabitResponse,
   CreateHabitRequest,
   UpdateHabitRequest,
   ReorderHabitsRequest,
@@ -29,15 +27,11 @@ import type {
   CreateSubHabitRequest,
   MoveHabitParentRequest,
   BulkCreateRequest,
-  BulkCreateResponse,
-  BulkDeleteResponse,
   BulkLogItemRequest,
-  BulkLogResult,
   BulkSkipItemRequest,
-  BulkSkipResult,
+  LinkedGoalUpdate,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
-import type { LinkedGoalUpdate } from '@orbit/shared/types/habit'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'

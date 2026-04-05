@@ -197,14 +197,14 @@ export function AppOverlay({
   const isEntering = animState === 'entering'
   const isLeaving = animState === 'leaving'
   const backdropClass = isEntering || isLeaving ? 'opacity-0' : 'opacity-100'
-  const panelClass = isEntering
-    ? 'translate-y-full sm:translate-y-0 sm:scale-95 opacity-0'
-    : isLeaving
-      ? 'opacity-0'
-      : 'translate-y-0 sm:scale-100 opacity-100'
+  let panelClass = 'translate-y-0 sm:scale-100 opacity-100'
+  if (isEntering) panelClass = 'translate-y-full sm:translate-y-0 sm:scale-95 opacity-0'
+  else if (isLeaving) panelClass = 'opacity-0'
 
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- backdrop dismiss handled via Escape key listener
   const overlay = (
     <div
+      role="presentation"
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
       onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}
@@ -223,6 +223,7 @@ export function AppOverlay({
         aria-labelledby={hasTitle ? titleId : undefined}
         className={`relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain transition-all duration-300 ease-[var(--ease-out)] ${panelClass}`}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Drag handle (mobile) */}
         <div className="flex justify-center pt-3 pb-2 sm:hidden">

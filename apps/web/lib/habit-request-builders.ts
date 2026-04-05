@@ -134,6 +134,44 @@ export function buildCreateHabitRequest(
 // Update: edit habit request
 // ---------------------------------------------------------------------------
 
+function applyUpdateScheduleFields(
+  request: UpdateHabitRequest,
+  data: HabitFormData,
+  isOneTime: boolean,
+  originalEndDate: string,
+): void {
+  if (data.dueDate) request.dueDate = data.dueDate
+  if (isOneTime) return
+  request.frequencyUnit = data.frequencyUnit ?? undefined
+  request.frequencyQuantity = data.frequencyQuantity ?? undefined
+  if (data.days?.length) request.days = data.days
+  if (data.endDate) {
+    request.endDate = data.endDate
+  } else if (originalEndDate) {
+    request.clearEndDate = true
+  }
+}
+
+function applyUpdateReminderFields(
+  request: UpdateHabitRequest,
+  data: HabitFormData,
+  reminderTimes: number[],
+): void {
+  if (data.dueTime) {
+    request.dueTime = data.dueTime
+    request.dueEndTime = data.dueEndTime || undefined
+    request.reminderEnabled = data.reminderEnabled
+    request.reminderTimes = reminderTimes
+    return
+  }
+  if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
+    request.reminderEnabled = true
+    request.scheduledReminders = data.scheduledReminders ?? undefined
+    return
+  }
+  request.reminderEnabled = false
+}
+
 export function buildUpdateHabitRequest(
   data: HabitFormData,
   isOneTime: boolean,
@@ -150,30 +188,8 @@ export function buildUpdateHabitRequest(
   if (data.description) request.description = data.description
 
   if (!data.isGeneral) {
-    // Schedule fields
-    if (data.dueDate) request.dueDate = data.dueDate
-    if (!isOneTime) {
-      request.frequencyUnit = data.frequencyUnit ?? undefined
-      request.frequencyQuantity = data.frequencyQuantity ?? undefined
-      if (data.days?.length) request.days = data.days
-      if (data.endDate) {
-        request.endDate = data.endDate
-      } else if (originalEndDate && !data.endDate) {
-        request.clearEndDate = true
-      }
-    }
-    // Reminder fields
-    if (data.dueTime) {
-      request.dueTime = data.dueTime
-      request.dueEndTime = data.dueEndTime || undefined
-      request.reminderEnabled = data.reminderEnabled
-      request.reminderTimes = reminderTimes
-    } else if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
-      request.reminderEnabled = true
-      request.scheduledReminders = data.scheduledReminders ?? undefined
-    } else {
-      request.reminderEnabled = false
-    }
+    applyUpdateScheduleFields(request, data, isOneTime, originalEndDate)
+    applyUpdateReminderFields(request, data, reminderTimes)
   }
 
   request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false

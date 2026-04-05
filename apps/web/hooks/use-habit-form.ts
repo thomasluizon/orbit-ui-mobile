@@ -8,14 +8,9 @@ import { useTranslations } from 'next-intl'
 import {
   habitFormSchema,
   type HabitFormData,
-  validateEndDate,
-  validateEndTime,
-  validateTime,
-  validateFrequency,
-  validateScheduledReminders,
   validateHabitForm,
 } from '@orbit/shared/validation'
-import type { FrequencyUnit, ChecklistItem, ScheduledReminderTime } from '@orbit/shared/types/habit'
+import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
 // Types

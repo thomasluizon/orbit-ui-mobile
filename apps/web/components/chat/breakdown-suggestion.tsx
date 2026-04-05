@@ -32,6 +32,14 @@ interface BreakdownSuggestionProps {
 }
 
 // ---------------------------------------------------------------------------
+// Rich text renderer (S6478: extracted outside component to avoid re-creation)
+// ---------------------------------------------------------------------------
+
+function RichBoldPrimary(chunks: React.ReactNode): React.ReactNode {
+  return <span className="text-primary font-bold">{chunks}</span>
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -194,7 +202,7 @@ export function BreakdownSuggestion({
     <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-text-primary">
         {t.rich('habits.breakdown.breakInto', {
-          name: (chunks) => <span className="text-primary font-bold">{chunks}</span>,
+          name: RichBoldPrimary,
         })}
       </p>
 

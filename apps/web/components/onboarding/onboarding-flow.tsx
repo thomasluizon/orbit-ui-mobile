@@ -31,7 +31,7 @@ export function OnboardingFlow() {
   const [mounted, setMounted] = useState(false)
 
   // SSR guard
-  if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) {
+  if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) { // NOSONAR - SSR guard
     setMounted(true)
   }
 

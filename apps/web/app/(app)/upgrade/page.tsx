@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
+import type { Locale } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
   ArrowLeft, Loader2, BadgeCheck, Sparkles, CreditCard,
@@ -89,6 +90,47 @@ function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
 }
 
+function invoiceStatusClassName(status: string): string {
+  if (status === 'paid') return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+  if (status === 'open') return 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+  return 'bg-surface-elevated text-text-muted border border-border-muted'
+}
+
+function FeatureBooleanCell({ enabled, className }: Readonly<{ enabled: boolean | undefined; className: string }>) {
+  if (enabled) return <Check className={`size-4 ${className}`} />
+  return <XIcon className="size-4 text-text-muted/40" />
+}
+
+function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
+  usagePercent: number
+  usageUrgent: boolean
+  profile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
+  t: ReturnType<typeof useTranslations>
+}>) {
+  return (
+    <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
+      <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
+          <span className={`text-sm font-semibold ${usageUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+            {t('upgrade.billing.usage.aiMessagesOf', {
+              used: profile?.aiMessagesUsed ?? 0,
+              limit: profile?.aiMessagesLimit ?? 0,
+            })}
+          </span>
+        </div>
+        <div className="w-full h-1.5 rounded-full bg-surface-elevated">
+          <div
+            className={`h-1.5 rounded-full transition-all duration-500 ${usageUrgent ? 'bg-amber-400' : 'bg-primary'}`}
+            style={{ width: `${usagePercent}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -122,14 +164,33 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   )
 }
 
+function formatBillingDate(isoDate: string, locale: string, dateFnsLocale: Locale): string {
+  return format(parseISO(isoDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
+}
+
+function invoiceReasonLabelFn(reason: string, t: ReturnType<typeof useTranslations>): string {
+  const reasons: Record<string, string> = {
+    subscription_create: t('upgrade.billing.invoices.reasonCreate'),
+    subscription_cycle: t('upgrade.billing.invoices.reasonCycle'),
+    subscription_update: t('upgrade.billing.invoices.reasonUpdate'),
+    manual: t('upgrade.billing.invoices.reasonManual'),
+  }
+  return reasons[reason] ?? reason
+}
+
+function invoiceStatusLabelFn(status: string, t: ReturnType<typeof useTranslations>): string {
+  const statuses: Record<string, string> = {
+    paid: t('upgrade.billing.invoices.statusPaid'),
+    open: t('upgrade.billing.invoices.statusOpen'),
+    void: t('upgrade.billing.invoices.statusVoid'),
+  }
+  return statuses[status] ?? status
+}
+
 export default function UpgradePage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
-
-  function formatBillingDate(isoDate: string): string {
-    return format(parseISO(isoDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
-  }
 
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
@@ -145,32 +206,12 @@ export default function UpgradePage() {
   const [checkoutError, setCheckoutError] = useState('')
   const [portalError, setPortalError] = useState('')
 
-  const featureBadgeLabel = profile?.isTrialActive ? t('trial.proBadge') : t('common.proBadge')
-
   const usagePercent = useMemo(() => {
     if (!profile || profile.aiMessagesLimit === 0) return 0
     return Math.min(100, Math.round((profile.aiMessagesUsed / profile.aiMessagesLimit) * 100))
   }, [profile])
   const usageUrgent = usagePercent > 80
 
-  function invoiceReasonLabel(reason: string): string {
-    const reasons: Record<string, string> = {
-      subscription_create: t('upgrade.billing.invoices.reasonCreate'),
-      subscription_cycle: t('upgrade.billing.invoices.reasonCycle'),
-      subscription_update: t('upgrade.billing.invoices.reasonUpdate'),
-      manual: t('upgrade.billing.invoices.reasonManual'),
-    }
-    return reasons[reason] ?? reason
-  }
-
-  function invoiceStatusLabel(status: string): string {
-    const statuses: Record<string, string> = {
-      paid: t('upgrade.billing.invoices.statusPaid'),
-      open: t('upgrade.billing.invoices.statusOpen'),
-      void: t('upgrade.billing.invoices.statusVoid'),
-    }
-    return statuses[status] ?? status
-  }
 
   const handleCheckout = useCallback(async (interval: 'monthly' | 'yearly') => {
     setCheckoutLoading(interval)
@@ -290,8 +331,8 @@ export default function UpgradePage() {
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">
                       {billing.cancelAtPeriodEnd
-                        ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd) })
-                        : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd) })}
+                        ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })
+                        : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })}
                       {billing.amountPerPeriod > 0 && (
                         <span className="text-text-muted">
                           {' '}&middot;{' '}{formatPrice(billing.amountPerPeriod, billing.currency)}
@@ -334,27 +375,7 @@ export default function UpgradePage() {
                 </div>
               )}
 
-              {/* Usage stats */}
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
-                    <span className={`text-sm font-semibold ${usageUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
-                      {t('upgrade.billing.usage.aiMessagesOf', {
-                        used: profile?.aiMessagesUsed ?? 0,
-                        limit: profile?.aiMessagesLimit ?? 0,
-                      })}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-surface-elevated">
-                    <div
-                      className={`h-1.5 rounded-full transition-all duration-500 ${usageUrgent ? 'bg-amber-400' : 'bg-primary'}`}
-                      style={{ width: `${usagePercent}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile ?? null} t={t} />
 
               {/* Invoice history */}
               {billing.recentInvoices.length > 0 && (
@@ -368,22 +389,16 @@ export default function UpgradePage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm text-text-primary font-medium">
-                              {formatBillingDate(invoice.date)}
+                              {formatBillingDate(invoice.date, locale, dateFnsLocale)}
                             </span>
                             <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded-full bg-surface-elevated text-text-muted border border-border-muted">
-                              {invoiceReasonLabel(invoice.billingReason)}
+                              {invoiceReasonLabelFn(invoice.billingReason, t)}
                             </span>
                           </div>
                           <span
-                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                              invoice.status === 'paid'
-                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                                : invoice.status === 'open'
-                                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                                  : 'bg-surface-elevated text-text-muted border border-border-muted'
-                            }`}
+                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${invoiceStatusClassName(invoice.status)}`}
                           >
-                            {invoiceStatusLabel(invoice.status)}
+                            {invoiceStatusLabelFn(invoice.status, t)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -442,27 +457,7 @@ export default function UpgradePage() {
                 </div>
               </div>
 
-              {/* Usage stats */}
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
-                    <span className={`text-sm font-semibold ${usageUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
-                      {t('upgrade.billing.usage.aiMessagesOf', {
-                        used: profile?.aiMessagesUsed ?? 0,
-                        limit: profile?.aiMessagesLimit ?? 0,
-                      })}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-surface-elevated">
-                    <div
-                      className={`h-1.5 rounded-full transition-all duration-500 ${usageUrgent ? 'bg-amber-400' : 'bg-primary'}`}
-                      style={{ width: `${usagePercent}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile ?? null} t={t} />
             </>
           )}
         </div>
@@ -740,28 +735,16 @@ export default function UpgradePage() {
 
                     {/* Free value */}
                     <div className="w-16 flex justify-center">
-                      {feat.type === 'boolean' ? (
-                        feat.freeEnabled ? (
-                          <Check className="size-4 text-text-muted" />
-                        ) : (
-                          <XIcon className="size-4 text-text-muted/40" />
-                        )
-                      ) : (
-                        <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>
-                      )}
+                      {feat.type === 'boolean'
+                        ? <FeatureBooleanCell enabled={feat.freeEnabled} className="text-text-muted" />
+                        : <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>}
                     </div>
 
                     {/* Pro value */}
                     <div className="w-16 flex justify-center">
-                      {feat.type === 'boolean' ? (
-                        feat.proEnabled ? (
-                          <Check className="size-4 text-primary" />
-                        ) : (
-                          <XIcon className="size-4 text-text-muted/40" />
-                        )
-                      ) : (
-                        <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>
-                      )}
+                      {feat.type === 'boolean'
+                        ? <FeatureBooleanCell enabled={feat.proEnabled} className="text-primary" />
+                        : <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>}
                     </div>
                   </div>
                 ))}

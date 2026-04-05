@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo } from 'react'
 export type TimeFormat = '12h' | '24h'
 
 function detectDefaultFormat(): TimeFormat {
-  if (typeof globalThis === 'undefined' || typeof globalThis.document === 'undefined') return '24h'
+  if (typeof globalThis === 'undefined' || typeof globalThis.document === 'undefined') return '24h' // NOSONAR - SSR guard
   try {
     const resolved = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions()
     return (resolved as { hour12?: boolean }).hour12 ? '12h' : '24h'
@@ -28,7 +28,7 @@ export function formatTime(time: string, fmt: TimeFormat): string {
 
 export function useTimeFormat() {
   const [currentFormat, setCurrentFormat] = useState<TimeFormat>(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return '24h'
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return '24h' // NOSONAR - SSR guard
     return (localStorage.getItem('orbit_time_format') as TimeFormat) ?? detectDefaultFormat()
   })
 

@@ -76,11 +76,11 @@ function ToggleSwitch({
   enabled,
   disabled,
   onToggle,
-}: {
+}: Readonly<{
   enabled: boolean
   disabled: boolean
   onToggle: () => void
-}) {
+}>) {
   return (
     <button
       disabled={disabled}
@@ -98,7 +98,7 @@ function ToggleSwitch({
   )
 }
 
-function ProUpgradeLink({ label }: { label: string }) {
+function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   return (
     <Link
       href="/upgrade"
@@ -116,13 +116,13 @@ function FactItem({
   isSelected,
   onToggleSelection,
   onDelete,
-}: {
+}: Readonly<{
   fact: UserFact
   selectMode: boolean
   isSelected: boolean
   onToggleSelection: () => void
   onDelete: () => void
-}) {
+}>) {
   const content = (
     <>
       {selectMode && (

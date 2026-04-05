@@ -92,11 +92,11 @@ function NavLink({
   item,
   active,
   onClick,
-}: {
+}: Readonly<{
   item: NavItem
   active: boolean
   onClick?: (e: React.MouseEvent) => void
-}) {
+}>) {
   const Icon = item.icon
 
   return (

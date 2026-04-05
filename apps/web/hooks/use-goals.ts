@@ -5,8 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { goalKeys, habitKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { goalKeys, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
   Goal,
@@ -273,7 +272,7 @@ export function useReorderGoals() {
           const positionMap = new Map(positions.map((p) => [p.id, p.position]))
           return old.map((g) => {
             const newPos = positionMap.get(g.id)
-            return newPos !== undefined ? { ...g, position: newPos } : g
+            return newPos === undefined ? g : { ...g, position: newPos }
           })
         },
       )

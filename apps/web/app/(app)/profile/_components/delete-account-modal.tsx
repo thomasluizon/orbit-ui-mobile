@@ -17,7 +17,7 @@ interface DeleteAccountModalProps {
   profile: Profile | undefined
 }
 
-export function DeleteAccountModal({ open, onOpenChange, profile }: DeleteAccountModalProps) {
+export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -167,12 +167,12 @@ function DeleteConfirmStep({
   error,
   loading,
   onRequestDeletion,
-}: {
+}: Readonly<{
   warningMessage: string
   error: string
   loading: boolean
   onRequestDeletion: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (
@@ -205,7 +205,7 @@ function DeleteCodeStep({
   onCodeKeydown,
   onCodePaste,
   onConfirmDeletion,
-}: {
+}: Readonly<{
   code: string[]
   error: string
   loading: boolean
@@ -213,7 +213,7 @@ function DeleteCodeStep({
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
   onCodePaste: (event: React.ClipboardEvent) => void
   onConfirmDeletion: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (
@@ -253,10 +253,10 @@ function DeleteCodeStep({
 function DeleteDeactivatedStep({
   formattedDeletionDate,
   onLogout,
-}: {
+}: Readonly<{
   formattedDeletionDate: string
   onLogout: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (

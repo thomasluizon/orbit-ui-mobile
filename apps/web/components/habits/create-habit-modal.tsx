@@ -195,6 +195,14 @@ export function CreateHabitModal({
 
   const isPending = createHabit.isPending || createSubHabit.isPending
 
+  const updateSubHabitValue = useCallback((id: string, value: string) => {
+    setSubHabits((prev) => prev.map((s) => s.id === id ? { ...s, value } : s))
+  }, [])
+
+  const removeSubHabit = useCallback((id: string) => {
+    setSubHabits((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
   return (
     <AppOverlay
       open={open}
@@ -231,18 +239,12 @@ export function CreateHabitModal({
                         type="text"
                         placeholder={t('habits.form.subHabitPlaceholder')}
                         className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                        onChange={(e) => {
-                          setSubHabits((prev) =>
-                            prev.map((s) => s.id === entry.id ? { ...s, value: e.target.value } : s)
-                          )
-                        }}
+                        onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
                       />
                       <button
                         type="button"
                         className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 rounded-full"
-                        onClick={() =>
-                          setSubHabits((prev) => prev.filter((s) => s.id !== entry.id))
-                        }
+                        onClick={() => removeSubHabit(entry.id)}
                       >
                         <Trash2 className="size-4" />
                       </button>

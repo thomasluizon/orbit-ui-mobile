@@ -120,6 +120,7 @@ function ControlsMenu({
         top: `${position.top}px`,
       }}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
     >
       <button
         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
@@ -277,8 +278,8 @@ export default function TodayPage() {
   const { tags } = useTags()
 
   // Show general on today preference (local storage)
-  const [showGeneralOnToday] = useState(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true
+  const [showGeneralOnToday, _setShowGeneralOnToday] = useState(() => {
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true // NOSONAR - SSR guard
     return localStorage.getItem('orbit_show_general_on_today') !== 'false'
   })
 
@@ -782,9 +783,9 @@ export default function TodayPage() {
                     <button
                       aria-pressed={!selectedFrequency}
                       className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
-                        !selectedFrequency
-                          ? 'bg-primary text-white'
-                          : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                        selectedFrequency
+                          ? 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                          : 'bg-primary text-white'
                       }`}
                       onClick={() => setSelectedFrequency(null)}
                     >

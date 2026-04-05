@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
@@ -106,6 +106,66 @@ describe('useProfile', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(typeof result.current.patchProfile).toBe('function')
+  })
+
+  it('patchProfile updates the profile in query cache', async () => {
+    const profile = createMockProfile({ name: 'Thomas' })
+    mockProfileResponse(profile)
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        children,
+      )
+    }
+
+    const { result } = renderHook(() => useProfile(), { wrapper: Wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const { profileKeys } = await import('@orbit/shared/query')
+    act(() => {
+      result.current.patchProfile({ name: 'Updated' })
+    })
+
+    const cached = queryClient.getQueryData<Profile>(profileKeys.detail())
+    expect(cached?.name).toBe('Updated')
+  })
+
+  it('auto-detects timezone when profile returns UTC', async () => {
+    const { updateTimezone } = await import('@/app/actions/profile')
+    const mockedUpdateTimezone = vi.mocked(updateTimezone)
+    mockedUpdateTimezone.mockResolvedValue(undefined)
+
+    const profile = createMockProfile({ timeZone: 'UTC' })
+    mockProfileResponse(profile)
+
+    // Mock Intl to return a real timezone
+    const originalIntl = globalThis.Intl
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      locale: 'en-US',
+      calendar: 'gregory',
+      numberingSystem: 'latn',
+      timeZone: 'America/Sao_Paulo',
+    } as Intl.ResolvedDateTimeFormatOptions)
+
+    const { result } = renderHook(() => useProfile(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Give the useEffect time to fire
+    await waitFor(() => {
+      expect(mockedUpdateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    })
+
+    vi.restoreAllMocks()
   })
 })
 

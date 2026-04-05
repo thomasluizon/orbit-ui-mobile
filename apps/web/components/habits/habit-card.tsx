@@ -148,16 +148,19 @@ function computeMatchBadges(
 }
 
 /** Build article className from flags (replaces long ternary chain). */
-function buildArticleClassName(
-  isChild: boolean,
-  status: HabitStatus,
-  isDoneForRange: boolean,
-  isNotDueToday: boolean,
-  showActionsMenu: boolean,
-  isSelected: boolean,
-  justCompleted: boolean,
-  justCreated: boolean,
-): string {
+interface ArticleClassNameOptions {
+  isChild: boolean
+  status: HabitStatus
+  isDoneForRange: boolean
+  isNotDueToday: boolean
+  showActionsMenu: boolean
+  isSelected: boolean
+  justCompleted: boolean
+  justCreated: boolean
+}
+
+function buildArticleClassName(opts: ArticleClassNameOptions): string {
+  const { isChild, status, isDoneForRange, isNotDueToday, showActionsMenu, isSelected, justCompleted, justCreated } = opts
   const classes: string[] = ['cursor-pointer']
 
   if (isChild) {
@@ -1073,15 +1076,16 @@ export function HabitCard({
 
   const indentStyle = depth > 0 ? { marginLeft: `${depth * 1.5}rem` } : undefined
 
-  const articleClassName = buildArticleClassName(
+  const articleClassName = buildArticleClassName({
     isChild, status, isDoneForRange, isNotDueToday,
     showActionsMenu, isSelected, justCompleted, justCreated,
-  )
+  })
 
   return (
     <>
       <div style={isChild ? indentStyle : undefined}>
         <article
+          role="button"
           className={articleClassName}
           tabIndex={0}
           onClick={handleCardClick}
