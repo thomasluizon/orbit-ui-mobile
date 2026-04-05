@@ -253,6 +253,71 @@ function CodeStep({
 }
 
 // ---------------------------------------------------------------------------
+// API helpers (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+async function fetchAuthEndpoint(
+  url: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    throw data ?? { error: 'Authentication failed' }
+  }
+  return response.json()
+}
+
+function handleVerifySuccess(
+  loginResponse: LoginResponse,
+  referralCode: string | undefined,
+  setAuth: (lr: LoginResponse) => void,
+  setSuccessMessage: (msg: string | null) => void,
+  t: ReturnType<typeof useTranslations>,
+  router: ReturnType<typeof useRouter>,
+  getReturnUrl: () => string,
+) {
+  setAuth(loginResponse)
+  if (referralCode) {
+    localStorage.setItem('orbit_referral_applied', '1')
+    document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
+  }
+  if (loginResponse.wasReactivated) {
+    setSuccessMessage(t('profile.deleteAccount.reactivated'))
+  }
+  router.push(getReturnUrl())
+}
+
+function handleCodeDigitInput(
+  index: number,
+  cleanValue: string,
+  codeDigits: string[],
+  setCodeDigits: (digits: string[]) => void,
+  codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>,
+  verifyCode: (code: string) => void,
+) {
+  if (cleanValue.length > 1) {
+    const { digits: newCodeDigits, nextFocusIndex } = fillCodeDigits(index, cleanValue, codeDigits)
+    setCodeDigits(newCodeDigits)
+    codeInputRefs.current[nextFocusIndex]?.focus()
+    if (newCodeDigits.join('').length === 6) {
+      setTimeout(() => verifyCode(newCodeDigits.join('')), 0)
+    }
+    return
+  }
+  const newCodeDigits = [...codeDigits]
+  newCodeDigits[index] = cleanValue
+  setCodeDigits(newCodeDigits)
+  if (cleanValue && index < 5) {
+    codeInputRefs.current[index + 1]?.focus()
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -330,17 +395,7 @@ export default function LoginPage() {
     setErrorMessage(null)
 
     try {
-      const response = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, language: locale }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null)
-        throw data ?? { error: 'Authentication failed' }
-      }
-
+      await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
@@ -359,36 +414,13 @@ export default function LoginPage() {
     setSuccessMessage(null)
 
     try {
-      const response = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          code,
-          language: locale,
-          ...(referralCode ? { referralCode } : {}),
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null)
-        throw data ?? { error: 'Authentication failed' }
-      }
-
-      const loginResponse = (await response.json()) as LoginResponse
-
-      setAuth(loginResponse)
-
-      if (referralCode) {
-        localStorage.setItem('orbit_referral_applied', '1')
-        document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
-      }
-
-      if (loginResponse.wasReactivated) {
-        setSuccessMessage(t('profile.deleteAccount.reactivated'))
-      }
-
-      router.push(getReturnUrl())
+      const loginResponse = await fetchAuthEndpoint('/api/auth/verify-code', {
+        email,
+        code,
+        language: locale,
+        ...(referralCode ? { referralCode } : {}),
+      }) as LoginResponse
+      handleVerifySuccess(loginResponse, referralCode, setAuth, setSuccessMessage, t, router, getReturnUrl)
     } catch (err: unknown) {
       setErrorMessage(extractError(err, t))
     } finally {
@@ -403,17 +435,7 @@ export default function LoginPage() {
     setSuccessMessage(null)
 
     try {
-      const response = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, language: locale }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null)
-        throw data ?? { error: 'Authentication failed' }
-      }
-
+      await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
@@ -432,24 +454,7 @@ export default function LoginPage() {
 
   function onCodeInput(index: number, value: string) {
     const cleanValue = value.replaceAll(/\D/g, '')
-
-    if (cleanValue.length > 1) {
-      const { digits: newCodeDigits, nextFocusIndex } = fillCodeDigits(index, cleanValue, codeDigits)
-      setCodeDigits(newCodeDigits)
-      codeInputRefs.current[nextFocusIndex]?.focus()
-      if (newCodeDigits.join('').length === 6) {
-        setTimeout(() => verifyCode(newCodeDigits.join('')), 0)
-      }
-      return
-    }
-
-    const newCodeDigits = [...codeDigits]
-    newCodeDigits[index] = cleanValue
-    setCodeDigits(newCodeDigits)
-
-    if (cleanValue && index < 5) {
-      codeInputRefs.current[index + 1]?.focus()
-    }
+    handleCodeDigitInput(index, cleanValue, codeDigits, setCodeDigits, codeInputRefs, (c) => verifyCode(c))
   }
 
   function onCodePaste(event: React.ClipboardEvent) {

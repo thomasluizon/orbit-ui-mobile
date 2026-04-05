@@ -78,7 +78,7 @@ describe('HabitCard', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} />)
     const article = screen.getByLabelText('Exercise')
-    expect(article.tagName).toBe('ARTICLE')
+    expect(article.tagName).toBe('BUTTON')
   })
 
   it('calls onDetail when card is clicked', () => {
@@ -129,7 +129,7 @@ describe('HabitCard', () => {
   it('applies opacity-40 when habit is completed', () => {
     const habit = createMockHabit({ isCompleted: true })
     const { container } = render(<HabitCard habit={habit} />)
-    const article = container.querySelector('article')
+    const article = container.querySelector('button[aria-label]')
     expect(article?.className).toContain('opacity-40')
   })
 
@@ -352,21 +352,13 @@ describe('HabitCard', () => {
     expect(screen.getByText('habits.actions.openSubHabits')).toBeDefined()
   })
 
-  it('handles keyboard Enter to trigger card click', () => {
+  it('card button is focusable and clickable (Enter/Space handled natively)', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
     render(<HabitCard habit={habit} onDetail={onDetail} />)
-    const article = screen.getByLabelText('Exercise')
-    fireEvent.keyDown(article, { key: 'Enter' })
-    expect(onDetail).toHaveBeenCalledOnce()
-  })
-
-  it('handles keyboard Space to trigger card click', () => {
-    const onDetail = vi.fn()
-    const habit = createMockHabit()
-    render(<HabitCard habit={habit} onDetail={onDetail} />)
-    const article = screen.getByLabelText('Exercise')
-    fireEvent.keyDown(article, { key: ' ' })
+    const card = screen.getByLabelText('Exercise')
+    expect(card.tagName).toBe('BUTTON')
+    fireEvent.click(card)
     expect(onDetail).toHaveBeenCalledOnce()
   })
 
@@ -380,14 +372,14 @@ describe('HabitCard', () => {
   it('uses child CSS classes at depth > 0', () => {
     const habit = createMockHabit()
     const { container } = render(<HabitCard habit={habit} depth={1} />)
-    const article = container.querySelector('article')
+    const article = container.querySelector('button[aria-label]')
     expect(article?.className).toContain('habit-card-child')
   })
 
   it('uses parent CSS classes at depth 0', () => {
     const habit = createMockHabit()
     const { container } = render(<HabitCard habit={habit} depth={0} />)
-    const article = container.querySelector('article')
+    const article = container.querySelector('button[aria-label]')
     expect(article?.className).toContain('habit-card-parent')
   })
 
@@ -396,7 +388,7 @@ describe('HabitCard', () => {
     const { container } = render(
       <HabitCard habit={habit} isSelectMode={true} isSelected={true} />,
     )
-    const article = container.querySelector('article')
+    const article = container.querySelector('button[aria-label]')
     expect(article?.className).toContain('ring-2')
   })
 

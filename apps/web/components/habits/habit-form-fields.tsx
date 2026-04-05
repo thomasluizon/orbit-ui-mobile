@@ -409,6 +409,66 @@ function ScheduledReminderSection({
 }
 
 // ---------------------------------------------------------------------------
+// Slip alert sub-component (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface SlipAlertSectionProps {
+  hasProAccess: boolean
+  slipAlertEnabled: boolean
+  slipAlertLabelId: string
+  slipAlertDescriptionId: string
+  onToggle: () => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function SlipAlertSection({
+  hasProAccess, slipAlertEnabled, slipAlertLabelId, slipAlertDescriptionId, onToggle, t,
+}: Readonly<SlipAlertSectionProps>) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+      {hasProAccess ? (
+        /* Pro unlocked state */
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-4 text-primary" />
+              <span id={slipAlertLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.slipAlert')}</span>
+            </div>
+            <span id={slipAlertDescriptionId} className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={slipAlertEnabled}
+            aria-labelledby={slipAlertLabelId}
+            aria-describedby={slipAlertDescriptionId}
+            className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${slipAlertEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+            onClick={onToggle}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${slipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+          </button>
+        </div>
+      ) : (
+        /* Pro locked state */
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-4 text-text-muted" />
+              <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
+            </div>
+            <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+          </div>
+          <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
+            <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -1000,46 +1060,14 @@ export function HabitFormFields({
 
       {/* Slip alert toggle (only when bad habit) */}
       {watchedIsBadHabit && (
-        <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
-          {hasProAccess ? (
-            /* Pro unlocked state */
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="size-4 text-primary" />
-                  <span id={slipAlertLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.slipAlert')}</span>
-                </div>
-                <span id={slipAlertDescriptionId} className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={watchedSlipAlertEnabled}
-                aria-labelledby={slipAlertLabelId}
-                aria-describedby={slipAlertDescriptionId}
-                className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${watchedSlipAlertEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
-                onClick={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedSlipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-          ) : (
-            /* Pro locked state */
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="size-4 text-text-muted" />
-                  <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
-                </div>
-                <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
-              </div>
-              <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
-                <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
-              </div>
-            </div>
-          )}
-        </div>
+        <SlipAlertSection
+          hasProAccess={hasProAccess}
+          slipAlertEnabled={watchedSlipAlertEnabled}
+          slipAlertLabelId={slipAlertLabelId}
+          slipAlertDescriptionId={slipAlertDescriptionId}
+          onToggle={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
+          t={t}
+        />
       )}
 
       {/* Slot for extra fields (e.g. sub-habits) */}

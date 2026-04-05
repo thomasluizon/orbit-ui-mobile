@@ -201,16 +201,18 @@ export function AppOverlay({
   if (isEntering) panelClass = 'translate-y-full sm:translate-y-0 sm:scale-95 opacity-0'
   else if (isLeaving) panelClass = 'opacity-0'
 
-  const overlay = ( // NOSONAR - backdrop dismiss via pointer; keyboard equivalent handled by Escape key listener
+  const overlay = (
     <div
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
-      onPointerDown={handlePointerDown}
-      onClick={handleBackdropClick}
     >
-      {/* Backdrop */}
-      <div
-        aria-hidden="true"
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-[var(--ease-out)] ${backdropClass}`}
+      {/* Backdrop dismiss button -- covers the full overlay area behind the panel */}
+      <button
+        type="button"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-[var(--ease-out)] cursor-default ${backdropClass}`}
+        aria-label="Close"
+        tabIndex={-1}
+        onPointerDown={handlePointerDown}
+        onClick={handleBackdropClick}
       />
 
       {/* Panel - bottom sheet on mobile, centered modal on desktop */}
