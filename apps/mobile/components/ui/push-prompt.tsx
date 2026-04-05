@@ -24,12 +24,22 @@ const STORAGE_KEY = 'orbit_push_prompted'
 
 export function PushPrompt() {
   const { t } = useTranslation()
-  const { requestPermission } = usePushNotifications()
+  const {
+    isEnabled,
+    isSupported,
+    permissionStatus,
+    requestPermission,
+  } = usePushNotifications()
   const [show, setShow] = useState(false)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
 
   useEffect(() => {
+    if (!isSupported || permissionStatus === null || permissionStatus === 'denied' || isEnabled) {
+      setShow(false)
+      return
+    }
+
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
       if (value === '1') return
       setShow(true)
@@ -46,7 +56,7 @@ export function PushPrompt() {
         }),
       ]).start()
     })
-  }, [fadeAnim, slideAnim])
+  }, [fadeAnim, isEnabled, isSupported, permissionStatus, slideAnim])
 
   const dismiss = useCallback(() => {
     Animated.parallel([

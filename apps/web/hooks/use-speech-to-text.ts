@@ -2,6 +2,12 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import {
+  CHAT_SPEECH_LANG_KEY,
+  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
+  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
+  getDefaultChatSpeechLanguage,
+} from '@orbit/shared/chat'
 
 // ---------------------------------------------------------------------------
 // Web Speech API type declarations (not in default TS DOM lib)
@@ -47,25 +53,7 @@ declare global {
   var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const SPEECH_LANG_KEY = 'orbit:speech-lang'
-
-export const SPEECH_LANGUAGES = [
-  { value: 'en-US', label: 'English', flag: '\u{1F1FA}\u{1F1F8}' },
-  { value: 'pt-BR', label: 'Portugues', flag: '\u{1F1E7}\u{1F1F7}' },
-  { value: 'es-ES', label: 'Espanol', flag: '\u{1F1EA}\u{1F1F8}' },
-  { value: 'fr-FR', label: 'Francais', flag: '\u{1F1EB}\u{1F1F7}' },
-  { value: 'de-DE', label: 'Deutsch', flag: '\u{1F1E9}\u{1F1EA}' },
-  { value: 'it-IT', label: 'Italiano', flag: '\u{1F1EE}\u{1F1F9}' },
-  { value: 'ja-JP', label: '\u65E5\u672C\u8A9E', flag: '\u{1F1EF}\u{1F1F5}' },
-  { value: 'ko-KR', label: '\uD55C\uAD6D\uC5B4', flag: '\u{1F1F0}\u{1F1F7}' },
-  { value: 'zh-CN', label: '\u4E2D\u6587', flag: '\u{1F1E8}\u{1F1F3}' },
-] as const
-
-export const VISUALIZER_BAR_OFFSETS = [0, 0.08, 0.16, 0.04, 0.12, 0.2, 0.06, 0.14, 0.22]
+export { SPEECH_LANGUAGES, VISUALIZER_BAR_OFFSETS }
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -80,8 +68,9 @@ export function useSpeechToText() {
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [selectedLanguage, setSelectedLanguageRaw] = useState(() => { // NOSONAR - setter wrapped by useCallback below
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return locale === 'pt-BR' ? 'pt-BR' : 'en-US' // NOSONAR - SSR guard
-    return localStorage.getItem(SPEECH_LANG_KEY) ?? (locale === 'pt-BR' ? 'pt-BR' : 'en-US')
+    const defaultLanguage = getDefaultChatSpeechLanguage(locale)
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return defaultLanguage // NOSONAR - SSR guard
+    return localStorage.getItem(CHAT_SPEECH_LANG_KEY) ?? defaultLanguage
   })
   const [recordingDuration, setRecordingDuration] = useState(0)
 
@@ -112,7 +101,7 @@ export function useSpeechToText() {
   // Set language and persist
   const setSelectedLanguage = useCallback((newLang: string) => {
     setSelectedLanguageRaw(newLang)
-    localStorage.setItem(SPEECH_LANG_KEY, newLang)
+    localStorage.setItem(CHAT_SPEECH_LANG_KEY, newLang)
     if (recognitionRef.current) {
       recognitionRef.current.lang = newLang
     }

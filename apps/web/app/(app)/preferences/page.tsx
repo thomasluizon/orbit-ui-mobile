@@ -32,12 +32,18 @@ export default function PreferencesPage() {
 
   const { currentScheme, applyScheme } = useColorScheme()
 
+  // Hydration guard: cookie/localStorage reads differ between server and client.
+  // Defer client-only state until after mount to prevent aria-pressed mismatches.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   // --- Language ---
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    if (typeof document === 'undefined') return 'en'
+  const [selectedLanguage, setSelectedLanguage] = useState('en')
+
+  useEffect(() => {
     const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
-    return match?.[1] ? decodeURIComponent(match[1]) : 'en'
-  })
+    if (match?.[1]) setSelectedLanguage(decodeURIComponent(match[1]))
+  }, [])
 
   async function handleLanguageChange(locale: SupportedLocale) {
     setSelectedLanguage(locale)
@@ -102,22 +108,21 @@ export default function PreferencesPage() {
   }
 
   // --- Time Format (local-only preference, cookie for SSR safety) ---
-  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>(() => {
-    if (typeof document === 'undefined') return '12h'
+  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
+
+  useEffect(() => {
     // Check cookie first
     const match = /(?:^|; )orbit_time_format=([^;]*)/.exec(document.cookie)
-    if (match?.[1]) return match[1] as '12h' | '24h'
+    if (match?.[1]) { setTimeFormat(match[1] as '12h' | '24h'); return }
     // Migrate from localStorage if present
     const stored = localStorage.getItem('orbit_time_format') as '12h' | '24h' | null
-    if (stored) return stored
+    if (stored) { setTimeFormat(stored); return }
     // Auto-detect from browser locale
     try {
       const resolved = new Intl.DateTimeFormat(navigator.language, { hour: 'numeric' }).resolvedOptions()
-      return resolved.hour12 ? '12h' : '24h'
-    } catch {
-      return '12h'
-    }
-  })
+      setTimeFormat(resolved.hour12 ? '12h' : '24h')
+    } catch { /* keep default */ }
+  }, [])
 
   function handleTimeFormatChange(format: '12h' | '24h') {
     setTimeFormat(format)
@@ -132,10 +137,11 @@ export default function PreferencesPage() {
   ]
 
   // --- Home Screen Toggle (local-only preference) ---
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true // NOSONAR - SSR guard
-    return localStorage.getItem('orbit_show_general_on_today') !== 'false'
-  })
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
+
+  useEffect(() => {
+    setShowGeneralOnToday(localStorage.getItem('orbit_show_general_on_today') !== 'false')
+  }, [])
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday
@@ -258,20 +264,23 @@ export default function PreferencesPage() {
             {t('profile.language.description')}
           </p>
           <div className="flex gap-2">
-            {LANGUAGE_OPTIONS.map((lang) => (
-              <button
-                key={lang.value}
-                aria-pressed={selectedLanguage === lang.value}
-                className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                  selectedLanguage === lang.value
-                    ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                    : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                }`}
-                onClick={() => handleLanguageChange(lang.value)}
-              >
-                {lang.label}
-              </button>
-            ))}
+            {LANGUAGE_OPTIONS.map((lang) => {
+              const isActive = mounted && selectedLanguage === lang.value
+              return (
+                <button
+                  key={lang.value}
+                  aria-pressed={isActive}
+                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
+                    isActive
+                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                  }`}
+                  onClick={() => handleLanguageChange(lang.value)}
+                >
+                  {lang.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -287,30 +296,33 @@ export default function PreferencesPage() {
             {t('profile.colorScheme.description')}
           </p>
           <div className="flex gap-3">
-            {colorSchemeOptions.map((option) => (
-              <button
-                key={option.value}
-                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
-                aria-pressed={currentScheme === option.value}
-                className={`size-9 rounded-full transition-all active:scale-90 flex items-center justify-center ${
-                  currentScheme === option.value
-                    ? 'ring-2 ring-offset-2 ring-offset-surface scale-110'
-                    : 'hover:scale-105 opacity-70 hover:opacity-100'
-                }`}
-                style={{
-                  backgroundColor: option.color,
-                  '--tw-ring-color': currentScheme === option.value ? option.color : undefined,
-                } as React.CSSProperties}
-                onClick={() => handleSchemeChange(option.value)}
-              >
-                {currentScheme === option.value && (
-                  <Check className="size-4 text-white" />
-                )}
-                {!profile?.hasProAccess && option.value !== 'purple' && currentScheme !== option.value && (
-                  <Lock className="size-3 text-white/70" />
-                )}
-              </button>
-            ))}
+            {colorSchemeOptions.map((option) => {
+              const isActive = mounted && currentScheme === option.value
+              return (
+                <button
+                  key={option.value}
+                  aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
+                  aria-pressed={isActive}
+                  className={`size-9 rounded-full transition-all active:scale-90 flex items-center justify-center ${
+                    isActive
+                      ? 'ring-2 ring-offset-2 ring-offset-surface scale-110'
+                      : 'hover:scale-105 opacity-70 hover:opacity-100'
+                  }`}
+                  style={{
+                    backgroundColor: option.color,
+                    '--tw-ring-color': isActive ? option.color : undefined,
+                  } as React.CSSProperties}
+                  onClick={() => handleSchemeChange(option.value)}
+                >
+                  {isActive && (
+                    <Check className="size-4 text-white" />
+                  )}
+                  {!profile?.hasProAccess && option.value !== 'purple' && !isActive && (
+                    <Lock className="size-3 text-white/70" />
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -323,20 +335,23 @@ export default function PreferencesPage() {
             {t('settings.timeFormat.description')}
           </p>
           <div className="flex gap-2">
-            {timeFormatOptions.map((opt) => (
-              <button
-                key={opt.value}
-                aria-pressed={timeFormat === opt.value}
-                className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                  timeFormat === opt.value
-                    ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                    : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                }`}
-                onClick={() => handleTimeFormatChange(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {timeFormatOptions.map((opt) => {
+              const isActive = mounted && timeFormat === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  aria-pressed={isActive}
+                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
+                    isActive
+                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                  }`}
+                  onClick={() => handleTimeFormatChange(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -349,20 +364,23 @@ export default function PreferencesPage() {
             {t('settings.weekStartDay.description')}
           </p>
           <div className="flex gap-2">
-            {weekStartOptions.map((opt) => (
-              <button
-                key={opt.value}
-                aria-pressed={profile?.weekStartDay === opt.value}
-                className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                  profile?.weekStartDay === opt.value
-                    ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                    : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                }`}
-                onClick={() => weekStartMutation.mutate(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {weekStartOptions.map((opt) => {
+              const isActive = mounted && profile?.weekStartDay === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  aria-pressed={isActive}
+                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
+                    isActive
+                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                  }`}
+                  onClick={() => weekStartMutation.mutate(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -379,16 +397,16 @@ export default function PreferencesPage() {
             </div>
             <button
               role="switch"
-              aria-checked={showGeneralOnToday}
+              aria-checked={mounted && showGeneralOnToday}
               aria-label={t('settings.homeScreen.showGeneral')}
               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                showGeneralOnToday ? 'bg-primary' : 'bg-surface-elevated'
+                mounted && showGeneralOnToday ? 'bg-primary' : 'bg-surface-elevated'
               }`}
               onClick={toggleShowGeneral}
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                  showGeneralOnToday ? 'translate-x-5' : 'translate-x-0'
+                  mounted && showGeneralOnToday ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
             </button>

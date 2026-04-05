@@ -5,35 +5,24 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Linking,
 } from 'react-native'
+import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
-import {
-  ArrowLeft,
-  ShieldCheck,
-  ExternalLink,
-} from 'lucide-react-native'
+import { ArrowLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Privacy Screen
-// ---------------------------------------------------------------------------
+type AppColors = ReturnType<typeof createColors>
 
 export default function PrivacyScreen() {
   const router = useRouter()
   const { t } = useTranslation()
-
-  const PRIVACY_URL = 'https://useorbit.org/privacy'
-
-  const SECTION_KEYS = [
-    'dataCollection',
-    'dataStorage',
-    'aiPrivacy',
-    'thirdParties',
-    'dataDeletion',
-    'yourRights',
-  ] as const
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
+  const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences'] as const
+  const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
+  const thirdPartyKeys = ['google', 'stripe', 'firebase', 'openai', 'resend'] as const
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,7 +31,6 @@ export default function PrivacyScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -54,112 +42,123 @@ export default function PrivacyScreen() {
           <Text style={styles.headerTitle}>{t('privacy.title')}</Text>
         </View>
 
-        {/* Shield badge */}
-        <View style={styles.shieldCard}>
-          <ShieldCheck size={32} color={colors.green} />
-          <Text style={styles.shieldTitle}>{t('privacy.badge')}</Text>
-          <Text style={styles.shieldSubtitle}>
-            {t('privacy.badgeDescription')}
-          </Text>
-        </View>
+        <Text style={styles.lastUpdated}>{t('privacy.lastUpdated')}</Text>
 
-        {/* Sections */}
-        {SECTION_KEYS.map((key) => (
-          <View key={key} style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{t(`privacy.${key}.title`)}</Text>
-            <Text style={styles.sectionContent}>{t(`privacy.${key}.content`)}</Text>
+        <View style={styles.card}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.intro.title')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.intro.body')}</Text>
           </View>
-        ))}
 
-        {/* Full policy link */}
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => Linking.openURL(PRIVACY_URL)}
-          activeOpacity={0.7}
-        >
-          <ExternalLink size={16} color={colors.primary} />
-          <Text style={styles.linkButtonText}>
-            {t('privacy.fullPolicy')}
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.dataCollected.title')}</Text>
+            {dataCollectedKeys.map((key) => (
+              <Text key={key} style={styles.listItem}>
+                • {t(`privacy.dataCollected.${key}`)}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.howWeUse.title')}</Text>
+            {howWeUseKeys.map((key) => (
+              <Text key={key} style={styles.listItem}>
+                • {t(`privacy.howWeUse.${key}`)}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.thirdParty.title')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.thirdParty.intro')}</Text>
+            {thirdPartyKeys.map((key) => (
+              <Text key={key} style={styles.listItem}>
+                • {t(`privacy.thirdParty.${key}`)}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.noSell.title')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.noSell.body')}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.security.title')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.security.body')}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.deletion.title')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.deletion.body')}</Text>
+            <Text style={styles.stepText}>{t('privacy.deletion.step1')}</Text>
+            <Text style={styles.stepText}>{t('privacy.deletion.step2')}</Text>
+            <Text style={styles.stepText}>{t('privacy.deletion.step3')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.deletion.step4')}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('privacy.contact.title')}</Text>
+            <Text style={styles.sectionBody}>{t('privacy.contact.body')}</Text>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  shieldCard: {
-    backgroundColor: `${colors.green}08`,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: `${colors.green}20`,
-    padding: 24,
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  shieldTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  shieldSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 20,
-    marginBottom: 8,
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  sectionContent: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    marginTop: 8,
-  },
-  linkButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-})
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1 },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingTop: 32,
+      paddingBottom: 24,
+    },
+    backButton: { padding: 8, marginLeft: -8 },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      letterSpacing: -0.5,
+    },
+    lastUpdated: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 20,
+      gap: 16,
+    },
+    section: {
+      gap: 6,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sectionBody: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 22,
+    },
+    listItem: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 22,
+    },
+    stepText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 22,
+    },
+  })
+}

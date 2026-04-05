@@ -9,7 +9,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useProfile } from '@/hooks/use-profile'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
-import { colors } from '@/lib/theme'
+import { syncWidgetTheme } from '@/lib/orbit-widget'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // Push notifications are not supported in Expo Go (removed in SDK 53).
 // Only import PushPrompt in dev builds / standalone.
@@ -42,6 +43,12 @@ function AuthGuard() {
 function RootLayoutNav() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
+  const { colors } = useAppTheme()
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    syncWidgetTheme(profile?.colorScheme ?? 'purple', 'dark').catch(() => {})
+  }, [isAuthenticated, profile?.colorScheme])
 
   return (
     <>
@@ -115,13 +122,21 @@ function RootLayoutNav() {
   )
 }
 
+function RootLayoutContent() {
+  const { colors } = useAppTheme()
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <RootLayoutNav />
+    </View>
+  )
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Providers>
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
-          <RootLayoutNav />
-        </View>
+        <RootLayoutContent />
       </Providers>
     </GestureHandlerRootView>
   )

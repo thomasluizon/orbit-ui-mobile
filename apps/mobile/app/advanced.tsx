@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -23,15 +24,19 @@ import {
   Clock,
   List,
   RotateCcw,
+  Clipboard as ClipboardIcon,
+  Check,
   X,
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
+import { API } from '@orbit/shared/api'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 
 // ---------------------------------------------------------------------------
 // API Keys types
@@ -43,6 +48,12 @@ interface ApiKey {
   keyPrefix: string
   createdAtUtc: string
   lastUsedAtUtc: string | null
+}
+
+interface ApiKeyCreateResponse {
+  id: string
+  key: string
+  name: string
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +109,7 @@ export default function AdvancedScreen() {
   // --- API Keys ---
   const apiKeysQuery = useQuery({
     queryKey: apiKeyKeys.lists(),
-    queryFn: () => apiClient<ApiKey[]>('/api/api-keys'),
+    queryFn: () => apiClient<ApiKey[]>(API.apiKeys.list),
     enabled: profile?.hasProAccess ?? false,
     staleTime: 5 * 60 * 1000,
   })
@@ -107,10 +118,12 @@ export default function AdvancedScreen() {
   const MAX_API_KEYS = 5
   const canCreateKey = apiKeys.length < MAX_API_KEYS
 
+  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
+  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useMutation({
-    mutationFn: (id: string) => apiClient(`/api/api-keys/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiClient(API.apiKeys.delete(id), { method: 'DELETE' }),
     onSuccess: () => {
       setRevokingKeyId(null)
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
@@ -120,6 +133,8 @@ export default function AdvancedScreen() {
   // --- Connection Instructions ---
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [activeConfigTab, setActiveConfigTab] = useState<'web' | 'desktop' | 'code'>('web')
+  const [configCopied, setConfigCopied] = useState(false)
+  const [endpointCopied, setEndpointCopied] = useState(false)
 
   const mcpConfigJson = `{
   "mcpServers": {
@@ -134,6 +149,33 @@ export default function AdvancedScreen() {
 
   function formatKeyDate(dateStr: string): string {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true })
+  }
+
+  async function handleCreateKey(name: string): Promise<ApiKeyCreateResponse | null> {
+    setCreateKeyError(null)
+    try {
+      const result = await apiClient<ApiKeyCreateResponse>(API.apiKeys.create, {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+      await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      return result
+    } catch (err: unknown) {
+      setCreateKeyError(err instanceof Error ? err.message : t('orbitMcp.apiKeysError'))
+      return null
+    }
+  }
+
+  async function copyEndpoint() {
+    await Clipboard.setStringAsync('https://api.useorbit.org/mcp')
+    setEndpointCopied(true)
+    setTimeout(() => setEndpointCopied(false), 2000)
+  }
+
+  async function copyConfig() {
+    await Clipboard.setStringAsync(mcpConfigJson)
+    setConfigCopied(true)
+    setTimeout(() => setConfigCopied(false), 2000)
   }
 
   // Widget steps and features
@@ -286,12 +328,10 @@ export default function AdvancedScreen() {
                   {canCreateKey && (
                     <TouchableOpacity
                       style={styles.createKeyButton}
-                      onPress={() => {
-                        // Would open create key modal
-                      }}
+                      onPress={() => setCreateKeyModalOpen(true)}
                     >
                       <Plus size={14} color={colors.primary} />
-                      <Text style={styles.createKeyText}>{t('common.create')}</Text>
+                      <Text style={styles.createKeyText}>{t('orbitMcp.createKey')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -415,6 +455,17 @@ export default function AdvancedScreen() {
                         </Text>
                         <View style={styles.codeBlock}>
                           <Text style={styles.codeText}>https://api.useorbit.org/mcp</Text>
+                          <TouchableOpacity
+                            style={styles.codeCopyButton}
+                            onPress={copyEndpoint}
+                            activeOpacity={0.8}
+                          >
+                            {endpointCopied ? (
+                              <Check size={16} color={colors.emerald400} />
+                            ) : (
+                              <ClipboardIcon size={16} color={colors.textSecondary} />
+                            )}
+                          </TouchableOpacity>
                         </View>
                         <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
                           {t('orbitMcp.webNoApiKey')}
@@ -427,6 +478,17 @@ export default function AdvancedScreen() {
                         </Text>
                         <View style={styles.codeBlock}>
                           <Text style={styles.codeText}>{mcpConfigJson}</Text>
+                          <TouchableOpacity
+                            style={styles.codeCopyButton}
+                            onPress={copyConfig}
+                            activeOpacity={0.8}
+                          >
+                            {configCopied ? (
+                              <Check size={16} color={colors.emerald400} />
+                            ) : (
+                              <ClipboardIcon size={16} color={colors.textSecondary} />
+                            )}
+                          </TouchableOpacity>
                         </View>
                         <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
                           {t('orbitMcp.replaceKey')}
@@ -481,6 +543,12 @@ export default function AdvancedScreen() {
           </View>
         </View>
       </Modal>
+      <CreateApiKeyModal
+        open={createKeyModalOpen}
+        onOpenChange={setCreateKeyModalOpen}
+        onCreateKey={handleCreateKey}
+        apiError={createKeyError}
+      />
     </SafeAreaView>
   )
 }
@@ -713,12 +781,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 16,
     padding: 16,
+    paddingRight: 48,
   },
   codeText: {
     fontSize: 12,
     fontFamily: 'monospace',
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  codeCopyButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
   },
 
   // Modal

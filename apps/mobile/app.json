@@ -16,11 +16,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "org.useorbit.app",
-      "infoPlist": {
-        "NSMicrophoneUsageDescription": "Orbit uses the microphone for voice input in AI chat.",
-        "NSSpeechRecognitionUsageDescription": "Orbit uses speech recognition for voice input."
-      }
+      "bundleIdentifier": "org.useorbit.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -46,6 +42,26 @@
           "color": "#8b5cf6"
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos so you can attach images in AI chat.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone for voice input in AI chat.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to use speech recognition for voice input in AI chat.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts",
+            "com.google.android.as"
+          ]
+        }
+      ],
       "expo-sqlite"
     ],
     "experiments": {
@@ -58,6 +74,6 @@
       "eas": {
         "projectId": "84b3535b-5957-42b7-bda3-4ed9dfde3734"
       }
-    },
+    }
   }
 }

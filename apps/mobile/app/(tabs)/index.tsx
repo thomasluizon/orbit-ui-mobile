@@ -6,6 +6,7 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
+  Modal,
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,6 +19,16 @@ import {
   Sparkles,
   MoreVertical,
   Flame,
+  CheckCircle2,
+  RefreshCw,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  PlusCircle,
+  MinusCircle,
+  FastForward,
+  Trash2,
+  Check,
+  Eye,
 } from 'lucide-react-native'
 import {
   addDays,
@@ -32,11 +43,17 @@ import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
-import { useSummary } from '@/hooks/use-habits'
+import {
+  useSummary,
+  useHabits,
+  useBulkDeleteHabits,
+  useBulkLogHabits,
+  useBulkSkipHabits,
+} from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
 import { useStreakInfo, useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { HabitList } from '@/components/habit-list'
+import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { LogHabitModal } from '@/components/habits/log-habit-modal'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
@@ -48,6 +65,7 @@ import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { colors, radius, shadows } from '@/lib/theme'
@@ -60,6 +78,112 @@ const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 type ViewTab = (typeof TAB_VIEWS)[number]
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+
+function ControlsMenu({
+  open,
+  isSelectMode,
+  showCompleted,
+  isFetching,
+  allCollapsed,
+  onToggleSelectMode,
+  onToggleCollapse,
+  onRefresh,
+  onToggleCompleted,
+  onClose,
+}: {
+  open: boolean
+  isSelectMode: boolean
+  showCompleted: boolean
+  isFetching: boolean
+  allCollapsed: boolean
+  onToggleSelectMode: () => void
+  onToggleCollapse: () => void
+  onRefresh: () => void
+  onToggleCompleted: () => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.controlsMenuBackdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View
+          style={styles.controlsMenuPanel}
+          onStartShouldSetResponder={() => true}
+        >
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onToggleSelectMode}
+            activeOpacity={0.75}
+          >
+            {isSelectMode ? (
+              <X size={16} color={colors.textMuted} />
+            ) : (
+              <CheckCircle2 size={16} color={colors.textMuted} />
+            )}
+            <Text style={styles.controlsMenuLabel}>
+              {isSelectMode ? t('common.cancel') : t('common.select')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onToggleCollapse}
+            activeOpacity={0.75}
+          >
+            {allCollapsed ? (
+              <ChevronsUpDown size={16} color={colors.textMuted} />
+            ) : (
+              <ChevronsDownUp size={16} color={colors.textMuted} />
+            )}
+            <Text style={styles.controlsMenuLabel}>
+              {allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onRefresh}
+            activeOpacity={0.75}
+          >
+            <RefreshCw
+              size={16}
+              color={colors.textMuted}
+              style={isFetching ? styles.rotatingIcon : undefined}
+            />
+            <Text style={styles.controlsMenuLabel}>
+              {t('habits.refresh')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onToggleCompleted}
+            activeOpacity={0.75}
+          >
+            {showCompleted ? (
+              <Check size={16} color={colors.textMuted} />
+            ) : (
+              <Eye size={16} color={colors.textMuted} />
+            )}
+            <Text style={styles.controlsMenuLabel}>
+              {t('habits.showCompleted')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Today Screen
@@ -75,6 +199,9 @@ export default function TodayScreen() {
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
   const { leveledUp, newLevel } = useGamificationProfile()
+  const bulkDeleteHabits = useBulkDeleteHabits()
+  const bulkLogHabits = useBulkLogHabits()
+  const bulkSkipHabits = useBulkSkipHabits()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -83,13 +210,23 @@ export default function TodayScreen() {
   const setActiveView = useUIStore((s) => s.setActiveView)
   const searchQueryStore = useUIStore((s) => s.searchQuery)
   const setSearchQueryStore = useUIStore((s) => s.setSearchQuery)
+  const isSelectMode = useUIStore((s) => s.isSelectMode)
+  const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
+  const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
+  const selectAllHabits = useUIStore((s) => s.selectAllHabits)
+  const clearSelection = useUIStore((s) => s.clearSelection)
 
   // Local state
   const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [showControlsMenu, setShowControlsMenu] = useState(false)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
+  const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const habitListRef = useRef<HabitListHandle>(null)
 
   // Modal state
   const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
@@ -187,6 +324,37 @@ export default function TodayScreen() {
     return f
   }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds])
 
+  const habitsQuery = useHabits(filters)
+
+  const visibleTopLevelHabits = useMemo(() => {
+    const habits = habitsQuery.data?.topLevelHabits ?? []
+    if (showCompleted) return habits
+    return habits.filter((habit) => !habit.isCompleted)
+  }, [habitsQuery.data?.topLevelHabits, showCompleted])
+
+  const visibleHabitIds = useMemo(() => {
+    const ids = new Set<string>()
+
+    const visit = (habit: NormalizedHabit) => {
+      ids.add(habit.id)
+      for (const child of habitsQuery.getChildren(habit.id)) {
+        visit(child)
+      }
+    }
+
+    for (const habit of visibleTopLevelHabits) {
+      visit(habit)
+    }
+
+    return ids
+  }, [habitsQuery, visibleTopLevelHabits])
+
+  const allSelected =
+    visibleHabitIds.size > 0 &&
+    Array.from(visibleHabitIds).every((id) => selectedHabitIds.has(id))
+
+  const selectedCount = selectedHabitIds.size
+
   // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
@@ -213,7 +381,88 @@ export default function TodayScreen() {
   // Clear filters on view change
   useEffect(() => {
     setSelectedFrequency(null)
-  }, [activeView])
+    setShowControlsMenu(false)
+    if (isSelectMode) clearSelection()
+  }, [activeView, clearSelection, isSelectMode])
+
+  const handleToggleSelectMode = useCallback(() => {
+    if (isSelectMode) {
+      clearSelection()
+    } else {
+      toggleSelectMode()
+    }
+    setShowControlsMenu(false)
+  }, [clearSelection, isSelectMode, toggleSelectMode])
+
+  const handleToggleCollapse = useCallback(() => {
+    if (habitListRef.current?.allCollapsed) {
+      habitListRef.current.expandAll()
+    } else {
+      habitListRef.current?.collapseAll()
+    }
+    setShowControlsMenu(false)
+  }, [])
+
+  const handleRefresh = useCallback(() => {
+    habitListRef.current?.refetch()
+    setShowControlsMenu(false)
+  }, [])
+
+  const handleSelectAll = useCallback(() => {
+    selectAllHabits(Array.from(visibleHabitIds))
+  }, [selectAllHabits, visibleHabitIds])
+
+  const handleDeselectAll = useCallback(() => {
+    clearSelection()
+  }, [clearSelection])
+
+  const handleOpenBulkDelete = useCallback(() => {
+    if (selectedCount === 0) return
+    setShowBulkDeleteConfirm(true)
+  }, [selectedCount])
+
+  const handleOpenBulkLog = useCallback(() => {
+    if (selectedCount === 0) return
+    setShowBulkLogConfirm(true)
+  }, [selectedCount])
+
+  const handleOpenBulkSkip = useCallback(() => {
+    if (selectedCount === 0) return
+    setShowBulkSkipConfirm(true)
+  }, [selectedCount])
+
+  const confirmBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkDeleteHabits.mutateAsync(ids)
+    } finally {
+      clearSelection()
+      setShowBulkDeleteConfirm(false)
+    }
+  }, [bulkDeleteHabits, clearSelection, selectedHabitIds])
+
+  const confirmBulkLog = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkLogHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+    } finally {
+      clearSelection()
+      setShowBulkLogConfirm(false)
+    }
+  }, [bulkLogHabits, clearSelection, selectedHabitIds])
+
+  const confirmBulkSkip = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkSkipHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+    } finally {
+      clearSelection()
+      setShowBulkSkipConfirm(false)
+    }
+  }, [bulkSkipHabits, clearSelection, selectedHabitIds])
 
   // Profile avatar initials
   const avatarInitials = useMemo(() => {
@@ -480,18 +729,102 @@ export default function TodayScreen() {
               <TouchableOpacity
                 style={styles.controlsButton}
                 activeOpacity={0.7}
+                onPress={() => setShowControlsMenu((prev) => !prev)}
               >
                 <MoreVertical size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
+            <ControlsMenu
+              open={showControlsMenu}
+              isSelectMode={isSelectMode}
+              showCompleted={showCompleted}
+              isFetching={habitsQuery.isFetching}
+              allCollapsed={!!habitListRef.current?.allCollapsed}
+              onToggleSelectMode={handleToggleSelectMode}
+              onToggleCollapse={handleToggleCollapse}
+              onRefresh={handleRefresh}
+              onToggleCompleted={() => setShowCompleted((prev) => !prev)}
+              onClose={() => setShowControlsMenu(false)}
+            />
+
+            {isSelectMode && (
+              <View
+                style={[
+                  styles.bulkActionBar,
+                  { bottom: 20 + insets.bottom },
+                ]}
+              >
+                <Text style={styles.bulkSelectionText}>
+                  {t('common.selected', { n: selectedCount })}
+                </Text>
+                <View style={styles.bulkActionRow}>
+                  <TouchableOpacity
+                    style={styles.bulkActionButton}
+                    onPress={allSelected ? handleDeselectAll : handleSelectAll}
+                    activeOpacity={0.75}
+                  >
+                    {allSelected ? (
+                      <MinusCircle size={18} color={colors.textSecondary} />
+                    ) : (
+                      <PlusCircle size={18} color={colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bulkActionButton,
+                      selectedCount === 0 && styles.bulkActionButtonDisabled,
+                    ]}
+                    onPress={handleOpenBulkLog}
+                    activeOpacity={0.75}
+                    disabled={selectedCount === 0}
+                  >
+                    <CheckCircle2 size={18} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bulkActionButton,
+                      selectedCount === 0 && styles.bulkActionButtonDisabled,
+                    ]}
+                    onPress={handleOpenBulkSkip}
+                    activeOpacity={0.75}
+                    disabled={selectedCount === 0}
+                  >
+                    <FastForward size={18} color={colors.amber400} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bulkActionButton,
+                      selectedCount === 0 && styles.bulkActionButtonDisabled,
+                    ]}
+                    onPress={handleOpenBulkDelete}
+                    activeOpacity={0.75}
+                    disabled={selectedCount === 0}
+                  >
+                    <Trash2 size={18} color={colors.red400} />
+                  </TouchableOpacity>
+                  <View style={styles.bulkDivider} />
+                  <TouchableOpacity
+                    style={styles.bulkActionButton}
+                    onPress={clearSelection}
+                    activeOpacity={0.75}
+                  >
+                    <X size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Habit list (using HabitList component with all handlers wired) */}
             <HabitList
+              ref={habitListRef}
               filters={filters}
               dateStr={dateStr}
               selectedDate={activeView === 'today' ? selectedDate : undefined}
               showCompleted={showCompleted}
               searchQuery={searchQueryStore}
+              isSelectMode={isSelectMode}
+              selectedHabitIds={selectedHabitIds}
               scrollEnabled={false}
               onCreatePress={() => setShowCreateModal(true)}
               onSeeUpcoming={goToNextDay}
@@ -517,16 +850,18 @@ export default function TodayScreen() {
           <Plus size={24} color="#fff" />
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { bottom: 24 + insets.bottom },
-          ]}
-          activeOpacity={0.8}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <Plus size={24} color="#fff" />
-        </TouchableOpacity>
+        !isSelectMode && (
+          <TouchableOpacity
+            style={[
+              styles.fab,
+              { bottom: 24 + insets.bottom },
+            ]}
+            activeOpacity={0.8}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <Plus size={24} color="#fff" />
+          </TouchableOpacity>
+        )
       )}
 
       {/* ============================================================
@@ -559,6 +894,36 @@ export default function TodayScreen() {
         open={!!editHabit}
         onClose={() => setEditHabit(null)}
         habit={editHabit}
+      />
+
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        onOpenChange={setShowBulkDeleteConfirm}
+        title={t('habits.bulkDeleteTitle')}
+        description={t('habits.bulkDeleteMessage', { count: selectedCount })}
+        confirmLabel={t('habits.bulkDeleteConfirm')}
+        onConfirm={confirmBulkDelete}
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        open={showBulkLogConfirm}
+        onOpenChange={setShowBulkLogConfirm}
+        title={t('habits.bulkLogTitle')}
+        description={t('habits.bulkLogMessage', { count: selectedCount })}
+        confirmLabel={t('habits.bulkLogConfirm')}
+        onConfirm={confirmBulkLog}
+        variant="success"
+      />
+
+      <ConfirmDialog
+        open={showBulkSkipConfirm}
+        onOpenChange={setShowBulkSkipConfirm}
+        title={t('habits.bulkSkipTitle')}
+        description={t('habits.bulkSkipMessage', { count: selectedCount })}
+        confirmLabel={t('habits.bulkSkipConfirm')}
+        onConfirm={confirmBulkSkip}
+        variant="warning"
       />
 
       <CreateGoalModal
@@ -862,6 +1227,83 @@ const styles = StyleSheet.create({
   controlsButton: {
     padding: 8,
     borderRadius: radius.xl,
+  },
+  controlsMenuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    paddingTop: 120,
+    paddingRight: 16,
+    alignItems: 'flex-end',
+  },
+  controlsMenuPanel: {
+    minWidth: 210,
+    backgroundColor: colors.surfaceOverlay,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    padding: 6,
+    ...shadows.lg,
+    elevation: 12,
+  },
+  controlsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+  },
+  controlsMenuLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  rotatingIcon: {
+    transform: [{ rotate: '180deg' }],
+  },
+  bulkActionBar: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 20,
+    backgroundColor: colors.surfaceOverlay,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radius.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    ...shadows.lg,
+    elevation: 12,
+  },
+  bulkSelectionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 10,
+  },
+  bulkActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bulkActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bulkActionButtonDisabled: {
+    opacity: 0.45,
+  },
+  bulkDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+    marginHorizontal: 2,
   },
 
   // Habit card - matches web .habit-card-parent

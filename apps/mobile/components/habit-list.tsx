@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 import {
   View,
   Text,
@@ -15,7 +21,6 @@ import {
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
-import { colors } from '@/lib/theme'
 import {
   useHabits,
   useLogHabit,
@@ -24,6 +29,7 @@ import {
   useDuplicateHabit,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitCard } from './habit-card'
 
@@ -46,11 +52,22 @@ interface HabitListProps {
   onDetailHabit?: (habit: NormalizedHabit) => void
 }
 
+export interface HabitListHandle {
+  allCollapsed: boolean
+  allLoadedIds: Set<string>
+  collapseAll: () => void
+  expandAll: () => void
+  refetch: () => void
+}
+
 // ---------------------------------------------------------------------------
 // Skeleton card for loading state
 // ---------------------------------------------------------------------------
 
-function SkeletonCard() {
+type ThemeColors = ReturnType<typeof useAppTheme>['colors']
+type HabitListStyles = ReturnType<typeof createStyles>
+
+function SkeletonCard({ styles }: { styles: HabitListStyles }) {
   return (
     <View style={styles.skeletonCard}>
       <View style={styles.skeletonCircle} />
@@ -66,22 +83,28 @@ function SkeletonCard() {
 // HabitList
 // ---------------------------------------------------------------------------
 
-export function HabitList({
-  filters,
-  dateStr,
-  selectedDate,
-  showCompleted,
-  searchQuery,
-  isSelectMode,
-  selectedHabitIds,
-  scrollEnabled = true,
-  onCreatePress,
-  onSeeUpcoming,
-  onLogHabit,
-  onDetailHabit,
-}: HabitListProps) {
+export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList(
+  {
+    filters,
+    dateStr,
+    selectedDate,
+    showCompleted,
+    searchQuery,
+    isSelectMode,
+    selectedHabitIds,
+    scrollEnabled = true,
+    onCreatePress,
+    onSeeUpcoming,
+    onLogHabit,
+    onDetailHabit,
+  },
+  ref,
+) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const habitsQuery = useHabits(filters)
+  const habitsById = habitsQuery.data?.habitsById ?? new Map<string, NormalizedHabit>()
   const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
   const totalCount = habitsQuery.data?.totalCount ?? 0
   const isLoading = habitsQuery.isLoading
@@ -95,10 +118,108 @@ export function HabitList({
   const duplicateMutation = useDuplicateHabit()
   const moveParentMutation = useMoveHabitParent()
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
-  const toggleHabitSelection = useUIStore((s) => s.toggleHabitSelection)
+  const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
   // Collapse state
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
+  const selectedIds = selectedHabitIds ?? new Set<string>()
+
+  const getDescendantIds = useCallback(
+    (parentId: string): string[] => {
+      const descendantIds: string[] = []
+      const stack: string[] = [parentId]
+
+      while (stack.length > 0) {
+        const currentId = stack.pop()
+        if (!currentId) continue
+
+        const children = getChildren(currentId)
+        for (const child of children) {
+          descendantIds.push(child.id)
+          stack.push(child.id)
+        }
+      }
+
+      return descendantIds
+    },
+    [getChildren],
+  )
+
+  const isAncestorSelected = useCallback(
+    (habitId: string): boolean => {
+      let current = habitsById.get(habitId)?.parentId ?? null
+      while (current) {
+        if (selectedIds.has(current)) return true
+        current = habitsById.get(current)?.parentId ?? null
+      }
+      return false
+    },
+    [habitsById, selectedIds],
+  )
+
+  const allLoadedIds = useMemo(() => {
+    const ids = new Set<string>()
+
+    const visit = (habit: NormalizedHabit) => {
+      ids.add(habit.id)
+      for (const child of getChildren(habit.id)) {
+        visit(child)
+      }
+    }
+
+    for (const habit of topLevelHabits) {
+      visit(habit)
+    }
+
+    return ids
+  }, [getChildren, topLevelHabits])
+
+  const expandableIds = useMemo(() => {
+    const ids: string[] = []
+
+    const visit = (habit: NormalizedHabit) => {
+      const children = getChildren(habit.id)
+      if (children.length > 0) {
+        ids.push(habit.id)
+        for (const child of children) {
+          visit(child)
+        }
+      }
+    }
+
+    for (const habit of topLevelHabits) {
+      visit(habit)
+    }
+
+    return ids
+  }, [getChildren, topLevelHabits])
+
+  const allCollapsed = useMemo(
+    () => expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id)),
+    [collapsedIds, expandableIds],
+  )
+
+  const collapseAll = useCallback(() => {
+    setCollapsedIds(new Set(expandableIds))
+  }, [expandableIds])
+
+  const expandAll = useCallback(() => {
+    setCollapsedIds(new Set())
+  }, [])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      allCollapsed,
+      allLoadedIds,
+      collapseAll,
+      expandAll,
+      refetch: () => {
+        refetch()
+      },
+    }),
+    [allCollapsed, allLoadedIds, collapseAll, expandAll, refetch],
+  )
 
   const toggleExpand = useCallback((habitId: string) => {
     setCollapsedIds((prev) => {
@@ -192,7 +313,7 @@ export function HabitList({
           showAddSubHabit
           searchQuery={searchQuery}
           isSelectMode={isSelectMode}
-          isSelected={selectedHabitIds?.has(item.habit.id)}
+          isSelected={selectedIds.has(item.habit.id)}
           onLog={() => logMutation.mutate({ habitId: item.habit.id })}
           onUnlog={() => logMutation.mutate({ habitId: item.habit.id })}
           onSkip={() => skipMutation.mutate({ habitId: item.habit.id })}
@@ -221,10 +342,20 @@ export function HabitList({
           onForceLogParent={() => logMutation.mutate({ habitId: item.habit.id })}
           onEnterSelectMode={() => {
             if (!isSelectMode) toggleSelectMode()
-            toggleHabitSelection(item.habit.id)
+            toggleSelectionCascade(
+              item.habit.id,
+              getDescendantIds,
+              isAncestorSelected,
+            )
           }}
           onDetail={() => onDetailHabit?.(item.habit)}
-          onToggleSelection={() => toggleHabitSelection(item.habit.id)}
+          onToggleSelection={() =>
+            toggleSelectionCascade(
+              item.habit.id,
+              getDescendantIds,
+              isAncestorSelected,
+            )
+          }
         />
       )
     },
@@ -239,10 +370,12 @@ export function HabitList({
       moveParentMutation,
       toggleExpand,
       toggleSelectMode,
-      toggleHabitSelection,
+      toggleSelectionCascade,
+      getDescendantIds,
+      isAncestorSelected,
       searchQuery,
       isSelectMode,
-      selectedHabitIds,
+      selectedIds,
       onDetailHabit,
       t,
     ],
@@ -257,9 +390,9 @@ export function HabitList({
   if (isLoading) {
     return (
       <View style={styles.skeletonContainer}>
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
+        <SkeletonCard styles={styles} />
+        <SkeletonCard styles={styles} />
+        <SkeletonCard styles={styles} />
       </View>
     )
   }
@@ -335,145 +468,170 @@ export function HabitList({
       showsVerticalScrollIndicator={false}
     />
   )
-}
+})
 
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  // Skeleton loading (matches web skeleton)
-  skeletonContainer: {
-    paddingTop: 8,
-    gap: 12,
-  },
-  skeletonCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  skeletonCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceElevated,
-  },
-  skeletonContent: {
-    flex: 1,
-    gap: 10,
-  },
-  skeletonTitle: {
-    height: 16,
-    width: '75%',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 8,
-  },
-  skeletonSubtitle: {
-    height: 12,
-    width: '40%',
-    backgroundColor: 'rgba(26, 24, 41, 0.6)',
-    borderRadius: 8,
-  },
+function alpha(color: string, opacity: number): string {
+  const normalized = color.trim()
 
-  // List
-  listContent: {
-    paddingBottom: 100,
-  },
-  emptyContainer: {
-    flex: 1,
-  },
+  if (normalized.startsWith('rgba(')) {
+    const channels = normalized.slice(5, -1).split(',').slice(0, 3).join(',').trim()
+    return `rgba(${channels}, ${opacity})`
+  }
 
-  // Empty: all done today (matches web allDoneToday state)
-  emptyAllDone: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 64,
-  },
-  allDoneIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(52, 211, 153, 0.1)', // bg-success/10
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.2)', // border-success/20
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  allDoneTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  allDoneSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  seeUpcomingButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12, // rounded-xl
-    backgroundColor: 'rgba(139, 92, 246, 0.1)', // bg-primary/10
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)', // border-primary/20
-  },
-  seeUpcomingText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
+  if (normalized.startsWith('rgb(')) {
+    const channels = normalized.slice(4, -1).trim()
+    return `rgba(${channels}, ${opacity})`
+  }
 
-  // Empty: no habits (matches web no habits state)
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 64,
-  },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surfaceGround, // bg-surface-ground
-    borderWidth: 1,
-    borderColor: colors.borderMuted, // border-border-muted
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  createButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    // Glow shadow
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  createButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
-})
+  const hex = normalized.replace('#', '')
+  if (hex.length !== 6) {
+    return normalized
+  }
+
+  const r = Number.parseInt(hex.slice(0, 2), 16)
+  const g = Number.parseInt(hex.slice(2, 4), 16)
+  const b = Number.parseInt(hex.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`
+}
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    // Skeleton loading (matches web skeleton)
+    skeletonContainer: {
+      paddingTop: 8,
+      gap: 12,
+    },
+    skeletonCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    skeletonCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surfaceElevated,
+    },
+    skeletonContent: {
+      flex: 1,
+      gap: 10,
+    },
+    skeletonTitle: {
+      height: 16,
+      width: '75%',
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 8,
+    },
+    skeletonSubtitle: {
+      height: 12,
+      width: '40%',
+      backgroundColor: alpha(colors.surfaceElevated, 0.6),
+      borderRadius: 8,
+    },
+
+    // List
+    listContent: {
+      paddingBottom: 100,
+    },
+    emptyContainer: {
+      flex: 1,
+    },
+
+    // Empty: all done today (matches web allDoneToday state)
+    emptyAllDone: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 64,
+    },
+    allDoneIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: colors.emeraldBg,
+      borderWidth: 1,
+      borderColor: colors.emerald500_20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    allDoneTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    allDoneSubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    seeUpcomingButton: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+    },
+    seeUpcomingText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+
+    // Empty: no habits (matches web no habits state)
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 64,
+    },
+    emptyIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: colors.surfaceGround,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    createButton: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    createButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.white,
+    },
+  })
+}

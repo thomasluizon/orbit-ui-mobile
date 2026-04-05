@@ -28,6 +28,10 @@ function AuthInitializer({ children }: { children: ReactNode }) {
       if (nextState === 'background' || nextState === 'inactive') {
         persistQueryCache()
       }
+
+      if (nextState === 'active') {
+        useAuthStore.getState().checkAuth().catch(() => {})
+      }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()

@@ -1,0 +1,25 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'org.useorbit.app.widget'
+version = '0.7.10'
+
+android {
+  namespace "org.useorbit.app.widget"
+  defaultConfig {
+    versionCode 1
+    versionName "0.7.10"
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  implementation 'androidx.work:work-runtime-ktx:2.10.1'
+  implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+  implementation 'com.google.code.gson:gson:2.11.0'
+}

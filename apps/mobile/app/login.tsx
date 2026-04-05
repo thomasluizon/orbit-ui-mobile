@@ -15,16 +15,28 @@ import {
   type TextInputKeyPressEventData,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import * as WebBrowser from 'expo-web-browser'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import Svg, { Path } from 'react-native-svg'
+import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { colors } from '@/lib/theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
+import {
+  clearStoredReferralCode,
+  consumeStoredAuthReturnUrl,
+  getSafeReturnUrl,
+  getStoredReferralCode,
+  isSafeReturnUrl,
+  isValidReferralCode,
+  isValidVerificationCode,
+  markReferralApplied,
+  storeAuthReturnUrl,
+  storeReferralCode,
+} from '@/lib/auth-flow'
+import { startMobileGoogleAuth } from '@/lib/google-auth'
 
 const BACKEND_ERROR_MAP: Record<string, string> = {
   'Please wait before requesting a new code': 'auth.errors.rateLimited',
@@ -37,6 +49,13 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
+  const params = useLocalSearchParams<{
+    ref?: string
+    returnUrl?: string
+    email?: string
+    code?: string
+  }>()
+  const router = useRouter()
   const login = useAuthStore((s) => s.login)
 
   const [step, setStep] = useState<'email' | 'code'>('email')
@@ -48,8 +67,40 @@ export default function LoginScreen() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
+  const [showReferralBanner, setShowReferralBanner] = useState(false)
 
   const codeInputRefs = useRef<(TextInput | null)[]>([])
+
+  useEffect(() => {
+    async function hydrateAuthFlowState() {
+      const refCode = typeof params.ref === 'string' ? params.ref : undefined
+      const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+      const deepLinkEmail = typeof params.email === 'string' ? params.email : undefined
+      const deepLinkCode = typeof params.code === 'string' ? params.code : undefined
+
+      if (refCode && isValidReferralCode(refCode)) {
+        await storeReferralCode(refCode)
+        setShowReferralBanner(true)
+      } else {
+        setShowReferralBanner(Boolean(await getStoredReferralCode()))
+      }
+
+      if (returnUrl && isSafeReturnUrl(returnUrl)) {
+        await storeAuthReturnUrl(returnUrl)
+      }
+
+      if (deepLinkEmail) {
+        setEmail(deepLinkEmail)
+      }
+
+      if (deepLinkEmail && isValidVerificationCode(deepLinkCode)) {
+        setCodeDigits(deepLinkCode.split(''))
+        setStep('code')
+      }
+    }
+
+    hydrateAuthFlowState().catch(() => {})
+  }, [params.code, params.email, params.ref, params.returnUrl])
 
   function translateBackendError(error: string): string {
     const key = BACKEND_ERROR_MAP[error]
@@ -89,7 +140,7 @@ export default function LoginScreen() {
     setErrorMessage(null)
 
     try {
-      await apiClient('/api/auth/send-code', {
+      await apiClient(API.auth.sendCode, {
         method: 'POST',
         body: JSON.stringify({ email: trimmed, language: i18n.language }),
       })
@@ -111,12 +162,14 @@ export default function LoginScreen() {
     setSuccessMessage(null)
 
     try {
-      const res = await apiClient<BackendLoginResponse>('/api/auth/verify-code', {
+      const referralCode = await getStoredReferralCode()
+      const res = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim(),
           code,
           language: i18n.language,
+          ...(referralCode ? { referralCode } : {}),
         }),
       })
       await login(res.token, res.refreshToken, {
@@ -124,7 +177,13 @@ export default function LoginScreen() {
         name: res.name,
         email: res.email,
       })
-      // Auth guard in root layout handles navigation to (tabs)
+      if (referralCode) {
+        await markReferralApplied()
+        await clearStoredReferralCode()
+        setShowReferralBanner(false)
+      }
+      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+      router.replace(returnUrl as Href)
     } catch (err: unknown) {
       setErrorMessage(extractError(err))
     } finally {
@@ -139,7 +198,7 @@ export default function LoginScreen() {
     setSuccessMessage(null)
 
     try {
-      await apiClient('/api/auth/send-code', {
+      await apiClient(API.auth.sendCode, {
         method: 'POST',
         body: JSON.stringify({ email: email.trim(), language: i18n.language }),
       })
@@ -212,26 +271,32 @@ export default function LoginScreen() {
     setErrorMessage(null)
 
     try {
-      const redirectUri = `${API_BASE}/api/auth/google/mobile-callback`
-      const result = await WebBrowser.openAuthSessionAsync(
-        `${API_BASE}/api/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`,
-        redirectUri,
-      )
+      const referralCode = await getStoredReferralCode()
+      const pendingReturnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+      const response = await startMobileGoogleAuth({
+        language: i18n.language,
+        referralCode: referralCode ?? undefined,
+        returnUrl: pendingReturnUrl,
+      })
 
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url)
-        const token = url.searchParams.get('token')
-        const refreshToken = url.searchParams.get('refreshToken')
-        const userId = url.searchParams.get('userId')
-        const name = url.searchParams.get('name')
-        const userEmail = url.searchParams.get('email')
+      if (!response) return
 
-        if (token && userId && name && userEmail) {
-          await login(token, refreshToken, { userId, name, email: userEmail })
-        }
+      await login(response.token, response.refreshToken, {
+        userId: response.userId,
+        name: response.name,
+        email: response.email,
+      })
+
+      if (referralCode) {
+        await markReferralApplied()
+        await clearStoredReferralCode()
+        setShowReferralBanner(false)
       }
-    } catch {
-      setErrorMessage(t('auth.googleError'))
+
+      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+      router.replace(returnUrl as Href)
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : t('auth.googleError'))
     } finally {
       setIsGoogleLoading(false)
     }
@@ -297,6 +362,12 @@ export default function LoginScreen() {
         <View style={styles.card}>
           {/* Welcome heading */}
           <Text style={styles.welcomeHeading}>{t('auth.welcomeBack')}</Text>
+
+          {showReferralBanner && (
+            <View style={styles.successAlert}>
+              <Text style={styles.successAlertText}>{t('referral.loginBanner')}</Text>
+            </View>
+          )}
 
           {/* Success alert */}
           {successMessage && (

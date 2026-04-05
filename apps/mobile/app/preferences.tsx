@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -7,21 +7,29 @@ import {
   SafeAreaView,
   ScrollView,
   Switch,
+  Linking,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
-import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { apiClient } from '@/lib/api-client'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // Language options (labels are proper nouns, not translated)
 const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'pt-BR', label: 'Português' },
 ]
+
+type AppColors = ReturnType<typeof createColors>
 
 // ---------------------------------------------------------------------------
 // Preferences Screen
@@ -31,19 +39,35 @@ export default function PreferencesScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
+  const { colors } = useAppTheme()
+  const {
+    currentFormat: timeFormat,
+    setFormat: setTimeFormat,
+  } = useTimeFormat()
+  const {
+    isEnabled: pushEnabled,
+    isLoading: pushLoading,
+    isSupported: pushSupported,
+    permissionStatus,
+    requestPermission,
+  } = usePushNotifications()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const currentScheme = profile?.colorScheme ?? 'purple'
 
   // --- Language ---
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>(
-    (profile?.language as 'en' | 'pt-BR') ?? 'en'
-  )
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
+
+  useEffect(() => {
+    const nextLanguage = profile?.language === 'pt-BR' ? 'pt-BR' : 'en'
+    setSelectedLanguage(nextLanguage)
+  }, [profile?.language])
 
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {
     setSelectedLanguage(locale)
     i18n.changeLanguage(locale)
     try {
-      await apiClient('/api/profile/language', {
+      await apiClient(API.profile.language, {
         method: 'PUT',
         body: JSON.stringify({ language: locale }),
       })
@@ -61,24 +85,38 @@ export default function PreferencesScreen() {
 
   const weekStartMutation = useMutation({
     mutationFn: (day: number) =>
-      apiClient('/api/profile/week-start-day', {
+      apiClient(API.profile.weekStartDay, {
         method: 'PUT',
         body: JSON.stringify({ weekStartDay: day }),
       }),
     onMutate: (day) => {
+      const previous = profile?.weekStartDay
       patchProfile({ weekStartDay: day })
+      return { previous }
+    },
+    onError: (_err, _day, context) => {
+      if (context?.previous !== undefined) {
+        patchProfile({ weekStartDay: context.previous })
+      }
     },
   })
 
   // --- Color Scheme ---
   const colorSchemeMutation = useMutation({
     mutationFn: (scheme: string) =>
-      apiClient('/api/profile/color-scheme', {
+      apiClient(API.profile.colorScheme, {
         method: 'PUT',
         body: JSON.stringify({ colorScheme: scheme }),
       }),
     onMutate: (scheme) => {
+      const previous = profile?.colorScheme
       patchProfile({ colorScheme: scheme })
+      return { previous }
+    },
+    onError: (_err, _scheme, context) => {
+      if (context?.previous) {
+        patchProfile({ colorScheme: context.previous })
+      }
     },
   })
 
@@ -90,9 +128,6 @@ export default function PreferencesScreen() {
     colorSchemeMutation.mutate(scheme)
   }
 
-  // --- Time Format (local only) ---
-  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
-
   const timeFormatOptions = [
     { value: '12h' as const, label: t('settings.timeFormat.12h') },
     { value: '24h' as const, label: t('settings.timeFormat.24h') },
@@ -101,8 +136,35 @@ export default function PreferencesScreen() {
   // --- Home Screen Toggle ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
 
-  // --- Push Notifications (mobile uses expo-notifications) ---
-  const [pushEnabled, setPushEnabled] = useState(false)
+  useEffect(() => {
+    AsyncStorage.getItem('orbit_show_general_on_today').then((saved) => {
+      if (saved === 'false') {
+        setShowGeneralOnToday(false)
+      } else if (saved === 'true') {
+        setShowGeneralOnToday(true)
+      }
+    }).catch(() => {})
+  }, [])
+
+  async function handleShowGeneralToggle(nextValue: boolean) {
+    setShowGeneralOnToday(nextValue)
+    try {
+      await AsyncStorage.setItem('orbit_show_general_on_today', String(nextValue))
+    } catch {
+      // Best-effort local preference persistence
+    }
+  }
+
+  async function handlePushToggle(nextValue: boolean) {
+    if (nextValue) {
+      await requestPermission()
+      return
+    }
+
+    if (permissionStatus === 'granted') {
+      await Linking.openSettings().catch(() => {})
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -263,7 +325,7 @@ export default function PreferencesScreen() {
             </View>
             <Switch
               value={showGeneralOnToday}
-              onValueChange={setShowGeneralOnToday}
+              onValueChange={handleShowGeneralToggle}
               trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
               thumbColor="#fff"
             />
@@ -271,30 +333,46 @@ export default function PreferencesScreen() {
         </View>
 
         {/* Push Notifications */}
-        <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardLabel}>{t('settings.notifications.title')}</Text>
-              <Text style={[styles.cardDescription, { marginTop: 4 }]}>
-                {t('settings.notifications.description')}
-              </Text>
+        {pushSupported && (
+          <View style={styles.card}>
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardLabel}>{t('settings.notifications.title')}</Text>
+                <Text style={[styles.cardDescription, { marginTop: 4 }]}>
+                  {t('settings.notifications.description')}
+                </Text>
+              </View>
+              {permissionStatus !== 'denied' && (
+                <Switch
+                  value={pushEnabled}
+                  onValueChange={handlePushToggle}
+                  disabled={pushLoading}
+                  trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                  thumbColor="#fff"
+                />
+              )}
             </View>
-            <Switch
-              value={pushEnabled}
-              onValueChange={setPushEnabled}
-              trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-              thumbColor="#fff"
-            />
+            <Text
+              style={[
+                styles.statusText,
+                {
+                  color:
+                    permissionStatus === 'denied'
+                      ? colors.red400
+                      : pushEnabled
+                        ? colors.primary
+                        : colors.textMuted,
+                },
+              ]}
+            >
+              {permissionStatus === 'denied'
+                ? t('settings.notifications.denied')
+                : pushEnabled
+                  ? t('settings.notifications.enabled')
+                  : t('settings.notifications.disabled')}
+            </Text>
           </View>
-          <Text
-            style={[
-              styles.statusText,
-              { color: pushEnabled ? colors.primary : colors.textMuted },
-            ]}
-          >
-            {pushEnabled ? t('settings.notifications.enabled') : t('settings.notifications.disabled')}
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
@@ -304,122 +382,124 @@ export default function PreferencesScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1 },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: 32,
-    paddingBottom: 24,
-  },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingTop: 32,
+      paddingBottom: 24,
+    },
+    backButton: { padding: 8, marginLeft: -8 },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      letterSpacing: -0.5,
+    },
 
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-    marginBottom: 12,
-    gap: 10,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  cardHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 20,
+      marginBottom: 12,
+      gap: 10,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    cardLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.textMuted,
+    },
+    cardDescription: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    cardHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
 
-  proBadge: {
-    backgroundColor: 'rgba(139,92,246,0.20)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  proBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
+    proBadge: {
+      backgroundColor: colors.primary_20,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 999,
+    },
+    proBadgeText: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: colors.primary,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
 
-  schemeRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingTop: 4,
-  },
-  schemeDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.7,
-  },
-  schemeDotActive: {
-    opacity: 1,
-    borderWidth: 3,
-    transform: [{ scale: 1.1 }],
-  },
+    schemeRow: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingTop: 4,
+    },
+    schemeDot: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      opacity: 0.7,
+    },
+    schemeDotActive: {
+      opacity: 1,
+      borderWidth: 3,
+      transform: [{ scale: 1.1 }],
+    },
 
-  optionRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  optionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  optionButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  optionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  optionTextActive: {
-    color: '#fff',
-  },
+    optionRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    optionButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    optionButtonActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    optionText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    optionTextActive: {
+      color: '#fff',
+    },
 
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
 
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-})
+    statusText: {
+      fontSize: 12,
+      fontWeight: '500',
+    },
+  })
+}

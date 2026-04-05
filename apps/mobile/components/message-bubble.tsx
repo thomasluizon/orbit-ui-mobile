@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { ActionChips } from '@/components/chat/action-chips'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
-import { colors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // MessageBubble
@@ -18,6 +18,8 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
 
   const isUser = message.role === 'user'
@@ -121,6 +123,8 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
 // ---------------------------------------------------------------------------
 
 function AnimatedDot({ delay }: { delay: number }) {
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const opacity = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -148,6 +152,8 @@ function AnimatedDot({ delay }: { delay: number }) {
 
 export function TypingIndicator() {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   return (
     <View style={[styles.container, styles.aiContainer]}>
@@ -177,145 +183,149 @@ export function TypingIndicator() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  userContainer: {
-    justifyContent: 'flex-end',
-  },
-  aiContainer: {
-    justifyContent: 'flex-start',
-  },
+type ThemeColors = ReturnType<typeof useAppTheme>['colors']
 
-  // Avatars (matching web: size-10 = 40px)
-  aiAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary_20,
-    borderWidth: 1,
-    borderColor: colors.primary_30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-end',
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 2,
-    borderColor: colors.primary_20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-end',
-  },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      marginBottom: 24,
+      paddingHorizontal: 16,
+      gap: 12,
+    },
+    userContainer: {
+      justifyContent: 'flex-end',
+    },
+    aiContainer: {
+      justifyContent: 'flex-start',
+    },
 
-  // Bubble column layout
-  bubbleColumn: {
-    maxWidth: '70%',
-    flexDirection: 'column',
-  },
-  bubbleColumnUser: {
-    alignItems: 'flex-end',
-  },
-  bubbleColumnAI: {
-    alignItems: 'flex-start',
-  },
+    // Avatars (matching web: size-10 = 40px)
+    aiAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary_20,
+      borderWidth: 1,
+      borderColor: colors.primary_30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'flex-end',
+    },
+    userAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 2,
+      borderColor: colors.primary_20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'flex-end',
+    },
 
-  // Sender label
-  senderLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginBottom: 4,
-    paddingHorizontal: 8,
-  },
+    // Bubble column layout
+    bubbleColumn: {
+      maxWidth: '70%',
+      flexDirection: 'column',
+    },
+    bubbleColumnUser: {
+      alignItems: 'flex-end',
+    },
+    bubbleColumnAI: {
+      alignItems: 'flex-start',
+    },
 
-  // Bubble
-  bubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-  },
-  userBubble: {
-    backgroundColor: colors.primary,
-    borderBottomRightRadius: 6,
-    // shadow-sm
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  aiBubble: {
-    backgroundColor: colors.surfaceElevated,
-    borderBottomLeftRadius: 6,
-    // shadow-sm
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 2,
-  },
+    // Sender label
+    senderLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginBottom: 4,
+      paddingHorizontal: 8,
+    },
 
-  // Image attachment
-  imageAttachment: {
-    width: 200,
-    height: 192,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
+    // Bubble
+    bubble: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 16,
+    },
+    userBubble: {
+      backgroundColor: colors.primary,
+      borderBottomRightRadius: 6,
+      // shadow-sm
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.4,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    aiBubble: {
+      backgroundColor: colors.surfaceElevated,
+      borderBottomLeftRadius: 6,
+      // shadow-sm
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.4,
+      shadowRadius: 3,
+      elevation: 2,
+    },
 
-  // Message text
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textPrimary,
-  },
-  userText: {
-    color: '#ffffff',
-  },
+    // Image attachment
+    imageAttachment: {
+      width: 200,
+      height: 192,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
 
-  // Breakdown suggestions container
-  breakdownContainer: {
-    gap: 12,
-    marginTop: 12,
-    width: '100%',
-  },
+    // Message text
+    messageText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textPrimary,
+    },
+    userText: {
+      color: colors.white,
+    },
 
-  // Typing indicator
-  typingBubble: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 16,
-    borderBottomLeftRadius: 6,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    // shadow-sm
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-  },
-  typingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.textSecondary,
-  },
-})
+    // Breakdown suggestions container
+    breakdownContainer: {
+      gap: 12,
+      marginTop: 12,
+      width: '100%',
+    },
+
+    // Typing indicator
+    typingBubble: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 16,
+      borderBottomLeftRadius: 6,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderBottomRightRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      // shadow-sm
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.4,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    dotsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      alignItems: 'center',
+    },
+    typingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.textSecondary,
+    },
+  })
+}

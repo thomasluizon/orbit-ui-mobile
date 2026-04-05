@@ -109,17 +109,24 @@ function applySchemeToDOM(scheme: ColorScheme, theme: ThemeMode, animate = false
 const VALID_SCHEMES = new Set<ColorScheme>(['purple', 'blue', 'green', 'rose', 'orange', 'cyan'])
 
 export function useColorScheme() {
-  const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() => {
-    const cookie = getCookie('orbit_color_scheme')
-    return cookie && VALID_SCHEMES.has(cookie as ColorScheme) ? (cookie as ColorScheme) : 'purple'
-  })
+  // Initialize with safe defaults to match SSR. Real values sync from cookies on mount.
+  const [currentScheme, setCurrentScheme] = useState<ColorScheme>('purple')
+  const [currentTheme, setCurrentTheme] = useState<ThemeMode>('dark')
 
-  const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => {
-    const cookie = getCookie('orbit_theme_mode')
-    return cookie === 'light' ? 'light' : 'dark'
-  })
+  // Sync from cookies on mount (avoids hydration mismatch from reading document.cookie in initializer)
+  useEffect(() => {
+    const schemeCookie = getCookie('orbit_color_scheme')
+    const scheme = schemeCookie && VALID_SCHEMES.has(schemeCookie as ColorScheme)
+      ? (schemeCookie as ColorScheme)
+      : 'purple'
+    const themeCookie = getCookie('orbit_theme_mode')
+    const theme: ThemeMode = themeCookie === 'light' ? 'light' : 'dark'
+    setCurrentScheme(scheme)
+    setCurrentTheme(theme)
+    applySchemeToDOM(scheme, theme, false)
+  }, [])
 
-  // Apply scheme on mount and when values change
+  // Apply scheme when values change (after initial mount sync)
   useEffect(() => {
     applySchemeToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])

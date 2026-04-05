@@ -3,11 +3,12 @@ import { Platform, type ViewStyle } from 'react-native'
 import { Sun, Calendar, MessageCircle, User } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { colors, nav } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
+  const { colors, nav } = useAppTheme()
 
   const tabBarStyle: ViewStyle = {
     backgroundColor: nav.tabBarBg,

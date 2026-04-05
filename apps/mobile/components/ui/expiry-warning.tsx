@@ -19,24 +19,40 @@ const WARN_AT_MINUTES = 5
 export function ExpiryWarning() {
   const { t } = useTranslation()
   const router = useRouter()
+  const expiresAt = useAuthStore((s) => s.expiresAt)
   const logout = useAuthStore((s) => s.logout)
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
   useEffect(() => {
-    // Mobile uses token-based auth without a client-side expiry timestamp,
-    // so we rely on the auth store's checkAuth mechanism.
-    // This component provides a visual warning if the token check fails.
-    const interval = setInterval(async () => {
-      const isValid = await useAuthStore.getState().checkAuth()
-      if (!isValid) {
+    if (!expiresAt) {
+      setMinutesLeft(null)
+      setIsExpired(false)
+      return
+    }
+
+    const sessionExpiresAt = expiresAt
+
+    function check() {
+      const remaining = sessionExpiresAt - Date.now()
+      const mins = Math.floor(remaining / 60000)
+
+      if (remaining <= 0) {
         setIsExpired(true)
         setMinutesLeft(0)
+      } else if (mins <= WARN_AT_MINUTES) {
+        setMinutesLeft(mins)
+        setIsExpired(false)
+      } else {
+        setMinutesLeft(null)
+        setIsExpired(false)
       }
-    }, 30000)
+    }
 
+    check()
+    const interval = setInterval(check, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [expiresAt])
 
   const handleLogin = useCallback(async () => {
     await logout()

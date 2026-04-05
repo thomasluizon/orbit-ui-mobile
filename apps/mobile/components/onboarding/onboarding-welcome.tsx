@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -7,17 +8,24 @@ import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
-import { colors, radius, shadows } from '@/lib/theme'
+import { createColors, radius as themeRadius, shadows as themeShadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+
+type AppColors = ReturnType<typeof createColors>
+type AppRadius = typeof themeRadius
+type AppShadows = typeof themeShadows
 
 export function OnboardingWelcome() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
+  const { colors, radius, shadows } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors, radius, shadows), [colors, radius, shadows])
 
   // Currently selected scheme -- defaults to purple
   const currentScheme = (profile as Profile & { colorScheme?: string })?.colorScheme ?? 'purple'
@@ -52,6 +60,22 @@ export function OnboardingWelcome() {
         method: 'PUT',
         body: JSON.stringify({ colorScheme: scheme }),
       }),
+    onMutate: async (scheme) => {
+      await queryClient.cancelQueries({ queryKey: profileKeys.all })
+      const prev = queryClient.getQueryData<Profile>(profileKeys.detail())
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+        old ? { ...old, colorScheme: scheme } : old,
+      )
+      return { prev }
+    },
+    onError: (_err, _scheme, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData<Profile>(profileKeys.detail(), context.prev)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    },
   })
 
   function handleWeekStartDaySelect(day: number) {
@@ -60,10 +84,6 @@ export function OnboardingWelcome() {
 
   function handleSchemeSelect(scheme: ColorScheme) {
     colorSchemeMutation.mutate(scheme)
-    // Optimistically update local cache
-    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-      old ? { ...old, colorScheme: scheme } : old,
-    )
   }
 
   const weekStartDay = profile?.weekStartDay ?? 1
@@ -159,95 +179,101 @@ export function OnboardingWelcome() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  logoContainer: {
-    marginBottom: 24,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoGlow: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primary_15,
-    opacity: 0.6,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  section: {
-    width: '100%',
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  weekDayRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  weekDayBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  weekDayBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    ...shadows.sm,
-    elevation: 3,
-  },
-  weekDayText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  weekDayTextActive: {
-    color: colors.white,
-  },
-  schemeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  schemeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  schemeBtnActive: {
-    borderWidth: 3,
-    borderColor: colors.primary,
-    transform: [{ scale: 1.1 }],
-  },
-})
+function createStyles(
+  colors: AppColors,
+  radius: AppRadius,
+  shadows: AppShadows,
+) {
+  return StyleSheet.create({
+    container: {
+      alignItems: 'center',
+    },
+    logoContainer: {
+      marginBottom: 24,
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    logoGlow: {
+      position: 'absolute',
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.primary_15,
+      opacity: 0.6,
+    },
+    logo: {
+      width: 80,
+      height: 80,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: 32,
+    },
+    section: {
+      width: '100%',
+      marginBottom: 24,
+      alignItems: 'center',
+    },
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginBottom: 12,
+    },
+    weekDayRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    weekDayBtn: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: radius.xl,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    weekDayBtnActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      ...shadows.sm,
+      elevation: 3,
+    },
+    weekDayText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    weekDayTextActive: {
+      color: colors.white,
+    },
+    schemeRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    schemeBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+    },
+    schemeBtnActive: {
+      borderWidth: 3,
+      borderColor: colors.primary,
+      transform: [{ scale: 1.1 }],
+    },
+  })
+}

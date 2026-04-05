@@ -28,7 +28,8 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useCalendarData } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +48,7 @@ interface GridDay {
 }
 
 type DayStatus = 'empty' | 'done' | 'missed' | 'upcoming'
+type AppColors = ReturnType<typeof createColors>
 
 // ---------------------------------------------------------------------------
 // Helpers (matching web CalendarGrid logic exactly)
@@ -60,7 +62,7 @@ function dayStatus(cell: GridDay): DayStatus {
   return 'upcoming'
 }
 
-function getDayBgColor(cell: GridDay): string {
+function getDayBgColor(cell: GridDay, colors: AppColors): string {
   const status = dayStatus(cell)
   switch (status) {
     case 'done':
@@ -74,7 +76,7 @@ function getDayBgColor(cell: GridDay): string {
   }
 }
 
-function getDayTextColor(cell: GridDay): string {
+function getDayTextColor(cell: GridDay, colors: AppColors): string {
   if (!cell.isCurrentMonth) return colors.textFaded40
   const status = dayStatus(cell)
   switch (status) {
@@ -103,7 +105,7 @@ function getDayFontWeight(cell: GridDay): '400' | '500' | '700' {
   }
 }
 
-function getDotColor(cell: GridDay): string | null {
+function getDotColor(cell: GridDay, colors: AppColors): string | null {
   const status = dayStatus(cell)
   switch (status) {
     case 'done':
@@ -117,7 +119,7 @@ function getDotColor(cell: GridDay): string | null {
   }
 }
 
-function statusBadgeColors(entry: CalendarDayEntry): { text: string; bg: string } {
+function statusBadgeColors(entry: CalendarDayEntry, colors: AppColors): { text: string; bg: string } {
   if (entry.isBadHabit) {
     if (entry.status === 'completed') return { text: colors.red400, bg: colors.red400_10 }
     if (entry.status === 'missed') return { text: colors.emerald400, bg: colors.emerald400_10 }
@@ -128,7 +130,7 @@ function statusBadgeColors(entry: CalendarDayEntry): { text: string; bg: string 
   return { text: colors.primary, bg: colors.primary_10 }
 }
 
-function statusIconBgColor(entry: CalendarDayEntry): {
+function statusIconBgColor(entry: CalendarDayEntry, colors: AppColors): {
   bg: string
   border: string
   showCheck: boolean
@@ -157,7 +159,9 @@ function statusLabel(entry: CalendarDayEntry, t: (key: string) => string): strin
 export default function CalendarScreen() {
   const { t } = useTranslation()
   const { profile } = useProfile()
+  const { colors } = useAppTheme()
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -329,10 +333,10 @@ export default function CalendarScreen() {
             {calendarWeeks.map((week, wi) => (
               <View key={wi} style={styles.weekRow}>
                 {week.map((cell) => {
-                  const bgColor = getDayBgColor(cell)
-                  const textColor = getDayTextColor(cell)
+                  const bgColor = getDayBgColor(cell, colors)
+                  const textColor = getDayTextColor(cell, colors)
                   const fontWeight = getDayFontWeight(cell)
-                  const dotColor = getDotColor(cell)
+                  const dotColor = getDotColor(cell, colors)
                   const canSelect = cell.isCurrentMonth
 
                   return (
@@ -405,8 +409,8 @@ export default function CalendarScreen() {
 
             {/* Entries */}
             {selectedEntries.map((entry, idx) => {
-              const badge = statusBadgeColors(entry)
-              const icon = statusIconBgColor(entry)
+              const badge = statusBadgeColors(entry, colors)
+              const icon = statusIconBgColor(entry, colors)
 
               return (
                 <View key={`${entry.habitId}-${idx}`}>
@@ -470,7 +474,8 @@ export default function CalendarScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -699,4 +704,5 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.borderDivider,
   },
-})
+  })
+}

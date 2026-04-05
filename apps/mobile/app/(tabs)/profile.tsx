@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   TextInput,
   Modal,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
 import {
   Settings,
   Sparkles,
@@ -24,7 +26,6 @@ import {
   BadgeCheck,
   X,
   Check,
-  BookOpen,
 } from 'lucide-react-native'
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
@@ -32,11 +33,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
 import { colors } from '@/lib/theme'
-import { ReferralCard } from '@/components/referral/referral-card'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
-import { StreakBadge } from '@/components/gamification/streak-badge'
-import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 
 // ---------------------------------------------------------------------------
 // ProfileStreakCard (inline -- matches web ProfileStreakCard)
@@ -177,17 +174,13 @@ function NavCard({
 export default function ProfileScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { subscription } = useLocalSearchParams<{ subscription?: string | string[] }>()
   const { profile, isLoading, error } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile()
-
-  // --- Referral ---
-  const [showReferralDrawer, setShowReferralDrawer] = useState(false)
-
-  // --- Feature Guide ---
-  const [showFeatureGuide, setShowFeatureGuide] = useState(false)
 
   // --- Fresh Start ---
   const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
@@ -291,6 +284,12 @@ export default function ProfileScreen() {
     t('profile.freshStart.preservePreferences'),
   ]
 
+  useEffect(() => {
+    if (subscription === 'success') {
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    }
+  }, [queryClient, subscription])
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -301,9 +300,6 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('profile.title')}</Text>
-          {(profile?.currentStreak ?? 0) > 0 && (
-            <StreakBadge streak={profile?.currentStreak ?? 0} />
-          )}
         </View>
 
         {/* Error */}
@@ -436,19 +432,16 @@ export default function ProfileScreen() {
           title={t('gamification.title')}
           hint={
             profile?.hasProAccess && gamificationProfile
-              ? `Level ${gamificationProfile.level} - ${gamificationProfile.totalXp} XP`
-              : t('profile.retrospectiveHint')
+              ? `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
+              : t('gamification.profileCard.hint')
           }
           variant="primary"
           proBadge
         />
 
-        {/* Referral */}
-        <ReferralCard onOpen={() => setShowReferralDrawer(true)} />
-
         {/* Google Calendar Sync */}
         <NavCard
-          onPress={() => router.push('/calendar-sync')}
+          onPress={() => router.push('/calendar-sync' as Href)}
           icon={
             <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={colors.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <Path d="M8 2v4" />
@@ -460,14 +453,6 @@ export default function ProfileScreen() {
           title={t('calendar.profileButton')}
           hint={t('calendar.profileHint')}
           variant="primary"
-        />
-
-        {/* Feature Guide */}
-        <NavCard
-          onPress={() => setShowFeatureGuide(true)}
-          icon={<BookOpen size={20} color={colors.primary} />}
-          title={t('onboarding.featureGuide.openButton')}
-          hint={t('profile.featureGuideHint')}
         />
 
         {/* About & Help */}
@@ -610,12 +595,6 @@ export default function ProfileScreen() {
       {showFreshStartAnim && (
         <FreshStartAnimation onComplete={() => setShowFreshStartAnim(false)} />
       )}
-
-      {/* Referral Drawer */}
-      <ReferralDrawer open={showReferralDrawer} onClose={() => setShowReferralDrawer(false)} />
-
-      {/* Feature Guide Drawer */}
-      <FeatureGuideDrawer open={showFeatureGuide} onClose={() => setShowFeatureGuide(false)} />
 
       {/* Delete Account Modal */}
       <Modal
