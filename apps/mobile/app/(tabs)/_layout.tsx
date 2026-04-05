@@ -2,18 +2,16 @@ import { Tabs } from 'expo-router'
 import { Platform, type ViewStyle } from 'react-native'
 import { Sun, Calendar, MessageCircle, User } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
-const ACTIVE_COLOR = '#8b5cf6'
-const INACTIVE_COLOR = '#7a7490'
-const TAB_BAR_BG = '#0d0b16'
-const TAB_BAR_BORDER = 'rgba(255, 255, 255, 0.07)'
+import { useTranslation } from 'react-i18next'
+import { colors, nav } from '@/lib/theme'
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets()
+  const { t } = useTranslation()
 
   const tabBarStyle: ViewStyle = {
-    backgroundColor: TAB_BAR_BG,
-    borderTopColor: TAB_BAR_BORDER,
+    backgroundColor: nav.tabBarBg,
+    borderTopColor: nav.tabBarBorder,
     borderTopWidth: 1,
     height: 60 + insets.bottom,
     paddingBottom: insets.bottom,
@@ -36,20 +34,21 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: ACTIVE_COLOR,
-        tabBarInactiveTintColor: INACTIVE_COLOR,
+        tabBarActiveTintColor: nav.activeColor,
+        tabBarInactiveTintColor: nav.inactiveColor,
         tabBarStyle,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
           marginTop: 2,
         },
+        sceneStyle: { backgroundColor: colors.background },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Today',
+          title: t('nav.today'),
           tabBarIcon: ({ color, size }) => (
             <Sun color={color} size={size} strokeWidth={2} />
           ),
@@ -58,7 +57,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="calendar"
         options={{
-          title: 'Calendar',
+          title: t('nav.calendar'),
           tabBarIcon: ({ color, size }) => (
             <Calendar color={color} size={size} strokeWidth={2} />
           ),
@@ -67,7 +66,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
+          title: t('nav.chat'),
           tabBarIcon: ({ color, size }) => (
             <MessageCircle color={color} size={size} strokeWidth={2} />
           ),
@@ -76,7 +75,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('nav.profile'),
           tabBarIcon: ({ color, size }) => (
             <User color={color} size={size} strokeWidth={2} />
           ),

@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   Settings,
   Sparkles,
@@ -30,51 +31,27 @@ import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profi
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceGround: '#0d0b16',
-  surfaceElevated: '#1a1829',
-  surfaceOverlay: '#211f33',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  textInverse: '#07060e',
-  red: '#ef4444',
-  redLight: '#f87171',
-  amber: '#f59e0b',
-  amberDark: '#d97706',
-  green: '#34d399',
-  success: '#34d399',
-  blue: '#3b82f6',
-}
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // ProfileStreakCard (inline -- matches web ProfileStreakCard)
 // ---------------------------------------------------------------------------
 
 function ProfileStreakCard() {
+  const { t } = useTranslation()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
   const router = useRouter()
 
   const encouragement = useMemo(() => {
-    if (streak >= 365) return 'Legendary dedication!'
-    if (streak >= 100) return 'Incredible consistency!'
-    if (streak >= 30) return 'You are on fire!'
-    if (streak >= 14) return 'Two weeks strong!'
-    if (streak >= 7) return 'One week down!'
-    if (streak >= 1) return 'Keep it going!'
+    if (streak >= 365) return t('streak.profile.encouragement365')
+    if (streak >= 100) return t('streak.profile.encouragement100')
+    if (streak >= 30) return t('streak.profile.encouragement30')
+    if (streak >= 14) return t('streak.profile.encouragement14')
+    if (streak >= 7) return t('streak.profile.encouragement7')
+    if (streak >= 1) return t('streak.profile.encouragement1')
     return ''
-  }, [streak])
+  }, [streak, t])
 
   return (
     <TouchableOpacity
@@ -114,13 +91,13 @@ function ProfileStreakCard() {
 
         {/* Streak info */}
         <View style={{ flex: 1 }}>
-          <Text style={styles.streakLabel}>STREAK</Text>
+          <Text style={styles.streakLabel}>{t('streak.detail.currentStreak').toUpperCase()}</Text>
           {streak > 0 ? (
             <Text style={styles.streakCount}>
-              {streak} {streak === 1 ? 'day' : 'days'}
+              {t('streak.profile.currentStreak', { count: streak })}
             </Text>
           ) : (
-            <Text style={styles.streakEmpty}>Start your streak today!</Text>
+            <Text style={styles.streakEmpty}>{t('streak.profile.noStreak')}</Text>
           )}
           {encouragement && streak > 0 ? (
             <Text style={styles.streakEncouragement}>{encouragement}</Text>
@@ -193,6 +170,7 @@ function NavCard({
 // ---------------------------------------------------------------------------
 
 export default function ProfileScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { profile, isLoading, error } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
@@ -224,9 +202,9 @@ export default function ProfileScreen() {
     try {
       await apiClient('/api/profile/reset', { method: 'POST' })
       setShowResetModal(false)
-      Alert.alert('Fresh Start', 'Your account has been reset successfully.')
+      Alert.alert(t('profile.freshStart.title'), t('profile.freshStart.successTitle'))
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      const msg = err instanceof Error ? err.message : t('profile.freshStart.errorGeneric')
       setResetError(msg)
     } finally {
       setResetLoading(false)
@@ -255,7 +233,7 @@ export default function ProfileScreen() {
       await apiClient('/api/auth/request-deletion', { method: 'POST' })
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -273,7 +251,7 @@ export default function ProfileScreen() {
       })
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -282,6 +260,24 @@ export default function ProfileScreen() {
 
   // Subscription card logic
   const isActiveSubscription = profile?.isTrialActive || profile?.hasProAccess
+
+  // Deleted items for Fresh Start
+  const deletedItems = [
+    t('profile.freshStart.deleteHabits'),
+    t('profile.freshStart.deleteGoals'),
+    t('profile.freshStart.deleteChat'),
+    t('profile.freshStart.deleteUserFacts'),
+    t('profile.freshStart.deleteAchievements'),
+    t('profile.freshStart.deleteNotifications'),
+    t('profile.freshStart.deleteChecklist'),
+    t('profile.freshStart.deleteOnboarding'),
+  ]
+
+  const preservedItems = [
+    t('profile.freshStart.preserveAccount'),
+    t('profile.freshStart.preserveSubscription'),
+    t('profile.freshStart.preservePreferences'),
+  ]
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -292,18 +288,18 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}>{t('profile.title')}</Text>
         </View>
 
         {/* Error */}
         {error && (
           <Text style={styles.errorText}>
-            {error instanceof Error ? error.message : 'Failed to load profile'}
+            {error instanceof Error ? error.message : t('common.error')}
           </Text>
         )}
 
         {/* ==================== ACCOUNT ==================== */}
-        <Text style={styles.sectionLabel}>Account</Text>
+        <Text style={styles.sectionLabel}>{t('profile.sections.account')}</Text>
 
         {/* User info card */}
         <View style={styles.card}>
@@ -353,21 +349,21 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.subscriptionTitle}>
               {profile?.isTrialActive
-                ? 'Pro Trial'
+                ? t('profile.subscription.trial')
                 : profile?.hasProAccess
-                  ? 'Orbit Pro'
+                  ? t('profile.subscription.pro')
                   : trialExpired
-                    ? 'Trial Ended'
-                    : 'Free Plan'}
+                    ? t('profile.subscription.trialEnded')
+                    : t('profile.subscription.free')}
             </Text>
             <Text style={styles.subscriptionHint}>
               {profile?.isTrialActive
-                ? `${trialDaysLeft ?? 0} ${(trialDaysLeft ?? 0) === 1 ? 'day' : 'days'} left in trial`
+                ? t('profile.subscription.trialDaysLeft', { days: trialDaysLeft ?? 0 })
                 : profile?.hasProAccess
-                  ? 'All features unlocked'
+                  ? t('profile.subscription.proHint')
                   : trialExpired
-                    ? 'Upgrade to unlock all features'
-                    : 'Upgrade for more features'}
+                    ? t('profile.subscription.trialEndedHint')
+                    : t('profile.subscription.freeHint')}
             </Text>
           </View>
           <ChevronRight size={16} color={colors.textMuted} />
@@ -379,20 +375,20 @@ export default function ProfileScreen() {
         <NavCard
           onPress={() => router.push('/preferences')}
           icon={<Settings size={20} color={colors.primary} />}
-          title="Preferences"
-          hint="Theme, language, notifications"
+          title={t('profile.sections.preferences')}
+          hint={t('profile.sections.preferencesHint')}
         />
 
         {/* AI Features */}
         <NavCard
           onPress={() => router.push('/ai-settings')}
           icon={<Sparkles size={20} color={colors.primary} />}
-          title="AI Features"
-          hint="Memory, summaries, and more"
+          title={t('profile.sections.aiFeatures')}
+          hint={t('profile.sections.aiFeaturesHint')}
         />
 
         {/* ==================== FEATURES ==================== */}
-        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>Features</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.features')}</Text>
 
         {/* Retrospective */}
         <NavCard
@@ -403,8 +399,8 @@ export default function ProfileScreen() {
               <Path d="M18 9l-5 5-4-4-3 3" />
             </Svg>
           }
-          title="Retrospective"
-          hint="AI-powered analysis of your habits"
+          title={t('profile.retrospectiveTitle')}
+          hint={t('profile.retrospectiveHint')}
           variant="primary"
           proBadge
         />
@@ -422,11 +418,11 @@ export default function ProfileScreen() {
               <Path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
             </Svg>
           }
-          title="Achievements & Level"
+          title={t('gamification.title')}
           hint={
             profile?.hasProAccess && gamificationProfile
               ? `Level ${gamificationProfile.level} - ${gamificationProfile.totalXp} XP`
-              : 'Earn XP and unlock achievements'
+              : t('profile.retrospectiveHint')
           }
           variant="primary"
           proBadge
@@ -443,8 +439,8 @@ export default function ProfileScreen() {
               <Path d="M3 10h18" />
             </Svg>
           }
-          title="Google Calendar"
-          hint="Sync habits with your calendar"
+          title={t('calendar.profileButton')}
+          hint={t('calendar.profileHint')}
           variant="primary"
         />
 
@@ -452,20 +448,20 @@ export default function ProfileScreen() {
         <NavCard
           onPress={() => router.push('/about')}
           icon={<Info size={20} color={colors.primary} />}
-          title="About & Help"
-          hint="Feature guide, support, privacy"
+          title={t('profile.sections.aboutHelp')}
+          hint={t('profile.sections.aboutHelpHint')}
         />
 
         {/* Advanced */}
         <NavCard
           onPress={() => router.push('/advanced')}
           icon={<Wrench size={20} color={colors.primary} />}
-          title="Advanced"
-          hint="Timezone, developer tools"
+          title={t('profile.sections.advanced')}
+          hint={t('profile.sections.advancedHint')}
         />
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>Account Actions</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.accountActions')}</Text>
 
         {/* Logout */}
         <TouchableOpacity
@@ -474,7 +470,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <LogOut size={16} color={colors.red} />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t('profile.logout')}</Text>
         </TouchableOpacity>
 
         {/* Fresh Start */}
@@ -484,7 +480,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <RotateCcw size={16} color={colors.primary} />
-          <Text style={styles.resetText}>Fresh Start</Text>
+          <Text style={styles.resetText}>{t('profile.freshStart.button')}</Text>
         </TouchableOpacity>
 
         {/* Delete Account */}
@@ -494,7 +490,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <Trash2 size={14} color="rgba(239,68,68,0.6)" />
-          <Text style={styles.deleteText}>Delete Account</Text>
+          <Text style={styles.deleteText}>{t('profile.deleteAccount.button')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -508,7 +504,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Fresh Start</Text>
+              <Text style={styles.modalTitle}>{t('profile.freshStart.title')}</Text>
               <TouchableOpacity onPress={() => setShowResetModal(false)}>
                 <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -517,22 +513,13 @@ export default function ProfileScreen() {
             {resetStep === 'info' ? (
               <View style={{ gap: 16 }}>
                 <Text style={styles.modalDescription}>
-                  Start over with a clean slate. This will reset your habits, goals, and chat history while keeping your account settings.
+                  {t('profile.freshStart.description')}
                 </Text>
 
                 {/* What gets deleted */}
                 <View style={styles.freshStartDeletedBox}>
-                  <Text style={styles.freshStartBoxLabel}>WHAT GETS DELETED</Text>
-                  {[
-                    'All habits and their logs',
-                    'All goals and progress',
-                    'Chat history',
-                    'AI memories about you',
-                    'Achievements and XP',
-                    'Notifications',
-                    'Checklist templates',
-                    'Onboarding progress',
-                  ].map((item) => (
+                  <Text style={styles.freshStartBoxLabel}>{t('profile.freshStart.whatDeleted')}</Text>
+                  {deletedItems.map((item) => (
                     <View key={item} style={styles.freshStartItem}>
                       <X size={14} color={colors.red} />
                       <Text style={styles.freshStartItemText}>{item}</Text>
@@ -542,12 +529,8 @@ export default function ProfileScreen() {
 
                 {/* What stays */}
                 <View style={styles.freshStartPreservedBox}>
-                  <Text style={styles.freshStartPreservedLabel}>WHAT STAYS</Text>
-                  {[
-                    'Your account & login',
-                    'Your subscription',
-                    'Your preferences',
-                  ].map((item) => (
+                  <Text style={styles.freshStartPreservedLabel}>{t('profile.freshStart.whatPreserved')}</Text>
+                  {preservedItems.map((item) => (
                     <View key={item} style={styles.freshStartItem}>
                       <Check size={14} color={colors.success} />
                       <Text style={styles.freshStartItemText}>{item}</Text>
@@ -560,19 +543,19 @@ export default function ProfileScreen() {
                   onPress={() => setResetStep('confirm')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.primaryButtonText}>Continue</Text>
+                  <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={{ gap: 16 }}>
                 <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
-                  Type ORBIT to confirm the reset.
+                  {t('profile.freshStart.confirmInstruction')}
                 </Text>
                 <TextInput
                   style={styles.confirmInput}
                   value={resetConfirmText}
                   onChangeText={setResetConfirmText}
-                  placeholder="ORBIT"
+                  placeholder={t('profile.freshStart.confirmPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   autoCapitalize="characters"
                   autoCorrect={false}
@@ -588,7 +571,7 @@ export default function ProfileScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={styles.primaryButtonText}>
-                    {resetLoading ? 'Processing...' : 'Reset My Account'}
+                    {resetLoading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -607,7 +590,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Delete Account</Text>
+              <Text style={styles.modalTitle}>{t('profile.deleteAccount.title')}</Text>
               <TouchableOpacity onPress={() => setShowDeleteModal(false)}>
                 <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -618,11 +601,11 @@ export default function ProfileScreen() {
                 <View style={styles.deleteWarningBox}>
                   <Text style={styles.deleteWarningTitle}>
                     {profile?.hasProAccess
-                      ? 'Your Pro subscription will be cancelled.'
-                      : 'This action cannot be undone.'}
+                      ? t('profile.deleteAccount.warningPro', { date: '' })
+                      : t('profile.deleteAccount.warning')}
                   </Text>
                   <Text style={styles.deleteWarningDetail}>
-                    Your account will be deactivated immediately and permanently deleted after 30 days. You can cancel deletion by logging in within this period.
+                    {t('profile.deleteAccount.warningDetail')}
                   </Text>
                 </View>
                 {deleteError ? <Text style={styles.errorTextSmall}>{deleteError}</Text> : null}
@@ -633,14 +616,14 @@ export default function ProfileScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={styles.dangerButtonText}>
-                    {deleteLoading ? 'Sending...' : 'Send Confirmation Code'}
+                    {deleteLoading ? t('profile.deleteAccount.sending') : t('profile.deleteAccount.sendCode')}
                   </Text>
                 </TouchableOpacity>
               </View>
             ) : deleteStep === 'code' ? (
               <View style={{ gap: 16 }}>
                 <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
-                  Enter the 6-digit code sent to your email.
+                  {t('profile.deleteAccount.codeInstructions')}
                 </Text>
                 <TextInput
                   style={styles.confirmInput}
@@ -660,7 +643,7 @@ export default function ProfileScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={styles.dangerButtonText}>
-                    {deleteLoading ? 'Deleting...' : 'Confirm Deletion'}
+                    {deleteLoading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -668,9 +651,9 @@ export default function ProfileScreen() {
               <View style={{ gap: 16 }}>
                 <View style={styles.deactivatedBox}>
                   <Clock size={20} color={colors.amber} />
-                  <Text style={styles.deactivatedTitle}>Account Deactivated</Text>
+                  <Text style={styles.deactivatedTitle}>{t('profile.deleteAccount.title')}</Text>
                   <Text style={styles.deactivatedDetail}>
-                    Your account will be permanently deleted in 30 days. Log in again to cancel.
+                    {t('profile.deleteAccount.warningFree')}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -678,7 +661,7 @@ export default function ProfileScreen() {
                   onPress={() => logout()}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.secondaryButtonText}>Log Out</Text>
+                  <Text style={styles.secondaryButtonText}>{t('profile.logout')}</Text>
                 </TouchableOpacity>
               </View>
             )}

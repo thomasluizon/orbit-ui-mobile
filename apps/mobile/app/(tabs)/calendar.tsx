@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Search, Check } from 'lucide-react-native'
 import {
   addMonths,
@@ -27,47 +28,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useCalendarData } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design tokens)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  primaryLight: 'rgba(139, 92, 246, 0.20)',
-  primaryRing: 'rgba(139, 92, 246, 0.30)',
-  background: '#07060e',
-  surfaceGround: '#0d0b16',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  textFaded: '#a59cba',
-  textFaded40: 'rgba(165, 156, 186, 0.40)',
-  green500: '#22c55e',
-  green400: '#4ade80',
-  green500bg: 'rgba(34, 197, 94, 1)',
-  green500_60: 'rgba(34, 197, 94, 0.60)',
-  orange500: '#f97316',
-  orange400: '#fb923c',
-  orange300: '#fdba74',
-  orange500_30: 'rgba(249, 115, 22, 0.30)',
-  emerald400: '#34d399',
-  emerald500_20: 'rgba(52, 211, 153, 0.20)',
-  emerald500_30: 'rgba(52, 211, 153, 0.30)',
-  emerald400_10: 'rgba(52, 211, 153, 0.10)',
-  orange400_10: 'rgba(251, 146, 60, 0.10)',
-  primary400: '#c084fc',
-  primary_10: 'rgba(139, 92, 246, 0.10)',
-  primary_20: 'rgba(139, 92, 246, 0.20)',
-  red400: '#f87171',
-  red400_10: 'rgba(248, 113, 113, 0.10)',
-  borderFaded30: 'rgba(165, 156, 186, 0.30)',
-  borderDivider: 'rgba(255,255,255,0.02)',
-}
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -178,15 +139,15 @@ function statusIconBgColor(entry: CalendarDayEntry): {
   return { bg: 'transparent', border: colors.borderFaded30, showCheck: false }
 }
 
-function statusLabel(entry: CalendarDayEntry): string {
+function statusLabel(entry: CalendarDayEntry, t: (key: string) => string): string {
   if (entry.isBadHabit) {
-    if (entry.status === 'completed') return 'INDULGED'
-    if (entry.status === 'missed') return 'RESISTED'
-    return 'SCHEDULED'
+    if (entry.status === 'completed') return t('calendar.status.indulged').toUpperCase()
+    if (entry.status === 'missed') return t('calendar.status.resisted').toUpperCase()
+    return t('calendar.status.scheduled').toUpperCase()
   }
-  if (entry.status === 'completed') return 'COMPLETED'
-  if (entry.status === 'missed') return 'MISSED'
-  return 'UPCOMING'
+  if (entry.status === 'completed') return t('calendar.status.completed').toUpperCase()
+  if (entry.status === 'missed') return t('calendar.status.missed').toUpperCase()
+  return t('calendar.status.upcoming').toUpperCase()
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +155,7 @@ function statusLabel(entry: CalendarDayEntry): string {
 // ---------------------------------------------------------------------------
 
 export default function CalendarScreen() {
+  const { t } = useTranslation()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
 
@@ -227,12 +189,20 @@ export default function CalendarScreen() {
 
   // Build weekday headers (matching web CalendarGrid: localized, respecting weekStartDay)
   const weekdayHeaders = useMemo(() => {
-    const mondayFirst = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    const mondayFirst = [
+      { key: 'monday', label: t('dates.daysShort.monday') },
+      { key: 'tuesday', label: t('dates.daysShort.tuesday') },
+      { key: 'wednesday', label: t('dates.daysShort.wednesday') },
+      { key: 'thursday', label: t('dates.daysShort.thursday') },
+      { key: 'friday', label: t('dates.daysShort.friday') },
+      { key: 'saturday', label: t('dates.daysShort.saturday') },
+      { key: 'sunday', label: t('dates.daysShort.sunday') },
+    ]
     if (weekStartsOn === 0) {
-      return ['Sun', ...mondayFirst.slice(0, 6)]
+      return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)]
     }
     return mondayFirst
-  }, [weekStartsOn])
+  }, [weekStartsOn, t])
 
   // Build grid days (matching web CalendarGrid exactly)
   const gridDays = useMemo<GridDay[]>(() => {
@@ -299,7 +269,7 @@ export default function CalendarScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>Calendar</Text>
+            <Text style={styles.headerTitle}>{t('nav.calendar')}</Text>
             <TouchableOpacity
               style={styles.searchButton}
               onPress={goToToday}
@@ -349,8 +319,8 @@ export default function CalendarScreen() {
             {/* Weekday headers */}
             <View style={styles.weekDayRow}>
               {weekdayHeaders.map((d) => (
-                <View key={d} style={styles.weekDayCell}>
-                  <Text style={styles.weekDayText}>{d}</Text>
+                <View key={d.key} style={styles.weekDayCell}>
+                  <Text style={styles.weekDayText}>{d.label}</Text>
                 </View>
               ))}
             </View>
@@ -402,15 +372,15 @@ export default function CalendarScreen() {
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.green500 }]} />
-            <Text style={styles.legendText}>Done</Text>
+            <Text style={styles.legendText}>{t('calendar.legend.done')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-            <Text style={styles.legendText}>Upcoming</Text>
+            <Text style={styles.legendText}>{t('calendar.legend.upcoming')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.orange500 }]} />
-            <Text style={styles.legendText}>Missed</Text>
+            <Text style={styles.legendText}>{t('calendar.legend.missed')}</Text>
           </View>
         </View>
       </ScrollView>
@@ -424,13 +394,13 @@ export default function CalendarScreen() {
       >
         {selectedEntries.length === 0 ? (
           <View style={styles.emptyDay}>
-            <Text style={styles.emptyDayText}>No habits scheduled for this day</Text>
+            <Text style={styles.emptyDayText}>{t('calendar.noHabitsScheduled')}</Text>
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Summary line */}
             <Text style={styles.summaryText}>
-              {completedCount}/{selectedEntries.length} completed
+              {t('calendar.dayDetail.completionSummary', { done: completedCount, total: selectedEntries.length, count: selectedEntries.length })}
             </Text>
 
             {/* Entries */}
@@ -477,7 +447,7 @@ export default function CalendarScreen() {
                     {/* Status badge */}
                     <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
                       <Text style={[styles.statusBadgeText, { color: badge.text }]}>
-                        {statusLabel(entry)}
+                        {statusLabel(entry, t)}
                       </Text>
                     </View>
                   </View>

@@ -8,31 +8,12 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Lock } from 'lucide-react-native'
 import { format } from 'date-fns'
+import { colors } from '@/lib/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceGround: '#0d0b16',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  amber: '#fbbf24',
-  emerald: '#34d399',
-  blue: '#60a5fa',
-  purple: '#c084fc',
-}
 
 function rarityColor(rarity: string): { text: string; bg: string } {
   switch (rarity.toLowerCase()) {
@@ -54,6 +35,7 @@ function rarityColor(rarity: string): { text: string; bg: string } {
 // ---------------------------------------------------------------------------
 
 export default function AchievementsScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { profile: userProfile, isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
@@ -81,9 +63,9 @@ export default function AchievementsScreen() {
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>Achievements</Text>
+            <Text style={styles.headerTitle}>{t('gamification.title')}</Text>
             <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO</Text>
+              <Text style={styles.proBadgeText}>{t('common.proBadge').toUpperCase()}</Text>
             </View>
           </View>
         </View>
@@ -94,16 +76,16 @@ export default function AchievementsScreen() {
             <View style={styles.lockedIconCircle}>
               <Lock size={32} color={colors.primary} />
             </View>
-            <Text style={styles.lockedTitle}>Achievements Locked</Text>
+            <Text style={styles.lockedTitle}>{t('gamification.page.lockedTitle')}</Text>
             <Text style={styles.lockedDescription}>
-              Upgrade to Pro to unlock achievements, earn XP, and level up.
+              {t('gamification.page.lockedDescription')}
             </Text>
             <TouchableOpacity
               style={styles.upgradeButton}
               onPress={() => router.push('/upgrade')}
               activeOpacity={0.8}
             >
-              <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+              <Text style={styles.upgradeButtonText}>{t('gamification.page.upgradeButton')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -125,7 +107,7 @@ export default function AchievementsScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.levelTitle}>{profile.levelTitle}</Text>
-                      <Text style={styles.levelSubtitle}>Level {profile.level}</Text>
+                      <Text style={styles.levelSubtitle}>{t('gamification.profileCard.level', { level: profile.level })}</Text>
                     </View>
                   </View>
 
@@ -138,17 +120,17 @@ export default function AchievementsScreen() {
                     </View>
                     <View style={styles.xpTextRow}>
                       <Text style={styles.xpText}>
-                        {profile.totalXp.toLocaleString()} / {profile.xpForNextLevel.toLocaleString()} XP
+                        {t('gamification.profileCard.xp', { current: profile.totalXp.toLocaleString(), next: profile.xpForNextLevel.toLocaleString() })}
                       </Text>
                       <Text style={styles.xpTotal}>
-                        {profile.totalXp.toLocaleString()} total
+                        {t('gamification.profileCard.totalXp', { total: profile.totalXp.toLocaleString() })}
                       </Text>
                     </View>
                   </View>
 
                   {/* Earned count */}
                   <Text style={styles.earnedCount}>
-                    {profile.achievementsEarned} of {profile.achievementsTotal} earned
+                    {t('gamification.profileCard.earned', { count: profile.achievementsEarned, total: profile.achievementsTotal })}
                   </Text>
                 </View>
 
@@ -156,7 +138,7 @@ export default function AchievementsScreen() {
                 {achievementsByCategory.map((category) => (
                   <View key={category.key} style={styles.categorySection}>
                     <Text style={styles.categoryLabel}>
-                      {category.key.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
+                      {t(`gamification.categories.${category.key}`, { defaultValue: category.key.replace(/([A-Z])/g, ' $1').trim() }).toUpperCase()}
                     </Text>
                     <View style={styles.achievementGrid}>
                       {category.items.map((achievement) => {
@@ -184,14 +166,14 @@ export default function AchievementsScreen() {
                             <View style={styles.achievementMeta}>
                               <View style={[styles.rarityBadge, { backgroundColor: rarity.bg }]}>
                                 <Text style={[styles.rarityText, { color: rarity.text }]}>
-                                  {achievement.rarity}
+                                  {t(`gamification.rarity.${achievement.rarity.toLowerCase()}`, { defaultValue: achievement.rarity })}
                                 </Text>
                               </View>
-                              <Text style={styles.xpReward}>+{achievement.xpReward} XP</Text>
+                              <Text style={styles.xpReward}>{t('gamification.xpReward', { n: achievement.xpReward })}</Text>
                             </View>
                             {earned && achievement.earnedAtUtc ? (
                               <Text style={styles.earnedDate}>
-                                {format(new Date(achievement.earnedAtUtc), 'MMM d, yyyy')}
+                                {t('gamification.page.earnedOn', { date: format(new Date(achievement.earnedAtUtc), 'MMM d, yyyy') })}
                               </Text>
                             ) : null}
                           </View>

@@ -3,30 +3,7 @@ import { View, Text, Image, StyleSheet, Animated } from 'react-native'
 import { Sparkles, User, CheckCircle2, XCircle } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChatMessage, ActionResult } from '@orbit/shared/types/chat'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design tokens)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  primary_20: 'rgba(139, 92, 246, 0.20)',
-  primary_30: 'rgba(139, 92, 246, 0.30)',
-  primary_80: 'rgba(139, 92, 246, 0.80)',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  emerald400: '#34d399',
-  emerald500_10: 'rgba(52, 211, 153, 0.10)',
-  emerald500_30: 'rgba(52, 211, 153, 0.30)',
-  red400: '#f87171',
-  red500_10: 'rgba(248, 113, 113, 0.10)',
-  red500_30: 'rgba(248, 113, 113, 0.30)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  border: 'rgba(255,255,255,0.07)',
-}
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Action chip styles

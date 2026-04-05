@@ -9,41 +9,20 @@ import {
   Modal,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, X } from 'lucide-react-native'
 import { subDays, isToday, format, parseISO } from 'date-fns'
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
+import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakFreeze, useActivateStreakFreeze } from '@/hooks/use-gamification'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceGround: '#0d0b16',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  amber400: '#fbbf24',
-  amber500: '#f59e0b',
-  green400: '#4ade80',
-  green500: '#22c55e',
-  blue400: '#60a5fa',
-  blue500: '#3b82f6',
-  red400: '#f87171',
-}
 
 // ---------------------------------------------------------------------------
 // Streak Screen
 // ---------------------------------------------------------------------------
 
 export default function StreakScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
@@ -54,14 +33,14 @@ export default function StreakScreen() {
   const [freezeSuccess, setFreezeSuccess] = useState(false)
 
   const encouragement = useMemo(() => {
-    if (streak >= 365) return 'Legendary dedication!'
-    if (streak >= 100) return 'Incredible consistency!'
-    if (streak >= 30) return 'You are on fire!'
-    if (streak >= 14) return 'Two weeks strong!'
-    if (streak >= 7) return 'One week down!'
-    if (streak >= 1) return 'Keep it going!'
+    if (streak >= 365) return t('streakDisplay.profile.encouragement365')
+    if (streak >= 100) return t('streakDisplay.profile.encouragement100')
+    if (streak >= 30) return t('streakDisplay.profile.encouragement30')
+    if (streak >= 14) return t('streakDisplay.profile.encouragement14')
+    if (streak >= 7) return t('streakDisplay.profile.encouragement7')
+    if (streak >= 1) return t('streakDisplay.profile.encouragement1')
     return ''
-  }, [streak])
+  }, [streak, t])
 
   const tier = useMemo(() => {
     if (streak >= 100) return 'legendary'
@@ -164,7 +143,7 @@ export default function StreakScreen() {
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Streak</Text>
+          <Text style={styles.headerTitle}>{t('streakDisplay.detail.title')}</Text>
         </View>
 
         {/* Loading */}
@@ -211,7 +190,7 @@ export default function StreakScreen() {
                 {/* Count */}
                 <Text style={styles.heroCount}>{streak}</Text>
                 <Text style={styles.heroDaysUnit}>
-                  {streak === 1 ? 'day' : 'days'}
+                  {t('streakDisplay.detail.daysUnit', { count: streak })}
                 </Text>
                 {encouragement ? (
                   <Text style={styles.heroEncouragement}>{encouragement}</Text>
@@ -221,7 +200,7 @@ export default function StreakScreen() {
 
             {/* Weekly timeline */}
             <View style={styles.card}>
-              <Text style={styles.sectionLabelSmall}>THIS WEEK</Text>
+              <Text style={styles.sectionLabelSmall}>{t('streakDisplay.detail.thisWeek').toUpperCase()}</Text>
               <View style={styles.weekGrid}>
                 {weekDays.map((day) => {
                   const dayStyle = getDayStyle(day.status)
@@ -251,15 +230,15 @@ export default function StreakScreen() {
               <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: colors.green500 }]} />
-                  <Text style={styles.legendText}>Active</Text>
+                  <Text style={styles.legendText}>{t('streakDisplay.detail.dayActive')}</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: colors.blue500 }]} />
-                  <Text style={styles.legendText}>Frozen</Text>
+                  <Text style={styles.legendText}>{t('streakDisplay.detail.dayFrozen')}</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: colors.textMuted }]} />
-                  <Text style={styles.legendText}>Missed</Text>
+                  <Text style={styles.legendText}>{t('streakDisplay.detail.dayMissed')}</Text>
                 </View>
               </View>
             </View>
@@ -268,11 +247,11 @@ export default function StreakScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
                 <Text style={[styles.statValue, { color: colors.amber400 }]}>{streak}</Text>
-                <Text style={styles.statLabel}>CURRENT STREAK</Text>
+                <Text style={styles.statLabel}>{t('streakDisplay.detail.currentStreak').toUpperCase()}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={[styles.statValue, { color: 'rgba(245,158,11,0.6)' }]}>{streakInfo?.longestStreak ?? 0}</Text>
-                <Text style={styles.statLabel}>LONGEST STREAK</Text>
+                <Text style={styles.statLabel}>{t('streakDisplay.detail.longestStreak').toUpperCase()}</Text>
               </View>
             </View>
 
@@ -283,10 +262,10 @@ export default function StreakScreen() {
                   <Svg viewBox="0 0 12 14" width={16} height={16}>
                     <Path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
-                  <Text style={styles.freezeTitle}>Streak Freezes</Text>
+                  <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.title')}</Text>
                 </View>
                 <Text style={styles.freezeAvailable}>
-                  {freezesAvailable} {freezesAvailable === 1 ? 'freeze' : 'freezes'} available
+                  {t('streakDisplay.freeze.available', { count: freezesAvailable })}
                 </Text>
               </View>
 
@@ -296,7 +275,7 @@ export default function StreakScreen() {
                   <Svg viewBox="0 0 12 14" width={16} height={16}>
                     <Path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#60a5fa" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
-                  <Text style={styles.frozenTodayText}>Streak is frozen today</Text>
+                  <Text style={styles.frozenTodayText}>{t('streakDisplay.freeze.activeToday')}</Text>
                 </View>
               ) : streak > 0 ? (
                 <TouchableOpacity
@@ -309,7 +288,7 @@ export default function StreakScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.freezeButtonText, !canFreeze && { color: colors.textMuted }]}>
-                    Activate Freeze
+                    {t('streakDisplay.freeze.activate')}
                   </Text>
                 </TouchableOpacity>
               ) : null}
@@ -317,14 +296,14 @@ export default function StreakScreen() {
               {/* Already completed today hint */}
               {hasCompletedToday && !isFrozenToday && streak > 0 ? (
                 <Text style={styles.completedTodayText}>
-                  You already completed habits today!
+                  {t('streakDisplay.freeze.completedToday')}
                 </Text>
               ) : null}
 
               {/* Success message */}
               {freezeSuccess ? (
                 <Text style={styles.freezeSuccessText}>
-                  Streak freeze activated!
+                  {t('streakDisplay.freeze.success')}
                 </Text>
               ) : null}
 
@@ -338,7 +317,7 @@ export default function StreakScreen() {
               {/* Recent freeze dates */}
               {streakInfo?.recentFreezeDates && streakInfo.recentFreezeDates.length > 0 ? (
                 <View style={styles.recentFreezes}>
-                  <Text style={styles.recentLabel}>RECENT FREEZES</Text>
+                  <Text style={styles.recentLabel}>{t('streakDisplay.freeze.recentLabel').toUpperCase()}</Text>
                   <View style={styles.recentDateRow}>
                     {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
                       <View key={date} style={styles.recentDateChip}>
@@ -365,13 +344,13 @@ export default function StreakScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Activate Streak Freeze</Text>
+              <Text style={styles.modalTitle}>{t('streakDisplay.freeze.confirmTitle')}</Text>
               <TouchableOpacity onPress={() => setShowConfirm(false)}>
                 <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalDescription}>
-              This will use 1 of your {freezesAvailable} remaining freezes to protect your {streak}-day streak for today.
+              {t('streakDisplay.freeze.confirmBody', { streak, remaining: freezesAvailable, count: freezesAvailable })}
             </Text>
             <View style={{ gap: 8, marginTop: 16 }}>
               <TouchableOpacity
@@ -381,7 +360,7 @@ export default function StreakScreen() {
                 activeOpacity={0.8}
               >
                 <Text style={styles.freezeConfirmButtonText}>
-                  {activateFreezeMutation.isPending ? '...' : 'Activate Freeze'}
+                  {activateFreezeMutation.isPending ? '...' : t('streakDisplay.freeze.activate')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -389,7 +368,7 @@ export default function StreakScreen() {
                 onPress={() => setShowConfirm(false)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>

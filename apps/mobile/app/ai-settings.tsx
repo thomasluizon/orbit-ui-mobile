@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   ShieldCheck,
@@ -23,29 +24,9 @@ import {
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { userFactKeys } from '@orbit/shared/query'
+import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  surfaceOverlay: '#211f33',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  green: '#34d399',
-  emerald: '#34d399',
-  red: '#ef4444',
-  blue: '#60a5fa',
-}
 
 interface UserFact {
   id: string
@@ -58,6 +39,7 @@ interface UserFact {
 // ---------------------------------------------------------------------------
 
 export default function AiSettingsScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
@@ -204,16 +186,16 @@ export default function AiSettingsScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>AI Features</Text>
+          <Text style={styles.headerTitle}>{t('aiSettings.title')}</Text>
         </View>
 
         {/* AI Memory */}
         <View style={styles.card}>
           <View style={styles.toggleHeader}>
             <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>AI Memory</Text>
+              <Text style={styles.cardLabel}>{t('profile.aiMemory.title')}</Text>
               <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>PRO</Text>
+                <Text style={styles.proBadgeText}>{t('common.proBadge').toUpperCase()}</Text>
               </View>
             </View>
             {profile?.hasProAccess ? (
@@ -230,17 +212,17 @@ export default function AiSettingsScreen() {
                 style={styles.lockRow}
               >
                 <Lock size={14} color={colors.primary} />
-                <Text style={styles.lockText}>PRO</Text>
+                <Text style={styles.lockText}>{t('common.proBadge').toUpperCase()}</Text>
               </TouchableOpacity>
             )}
           </View>
           <Text style={styles.cardDescription}>
-            Orbit remembers what you share in conversations to give more personalized advice.
+            {t('profile.aiMemory.description')}
           </Text>
           <View style={styles.privacyRow}>
             <ShieldCheck size={14} color={colors.emerald} />
             <Text style={styles.privacyText}>
-              Your data is never shared with third parties or used to train models.
+              {t('profile.aiMemory.privacy')}
             </Text>
           </View>
           <Text
@@ -249,7 +231,7 @@ export default function AiSettingsScreen() {
               { color: profile?.aiMemoryEnabled ? colors.primary : colors.textMuted },
             ]}
           >
-            {profile?.aiMemoryEnabled ? 'Enabled' : 'Disabled'}
+            {profile?.aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
           </Text>
         </View>
 
@@ -257,9 +239,9 @@ export default function AiSettingsScreen() {
         <View style={styles.card}>
           <View style={styles.toggleHeader}>
             <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>AI Daily Summary</Text>
+              <Text style={styles.cardLabel}>{t('profile.aiSummary.title')}</Text>
               <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>PRO</Text>
+                <Text style={styles.proBadgeText}>{t('common.proBadge').toUpperCase()}</Text>
               </View>
             </View>
             {profile?.hasProAccess ? (
@@ -276,12 +258,12 @@ export default function AiSettingsScreen() {
                 style={styles.lockRow}
               >
                 <Lock size={14} color={colors.primary} />
-                <Text style={styles.lockText}>PRO</Text>
+                <Text style={styles.lockText}>{t('common.proBadge').toUpperCase()}</Text>
               </TouchableOpacity>
             )}
           </View>
           <Text style={styles.cardDescription}>
-            Get a personalized AI-generated summary of your day based on your habit logs.
+            {t('profile.aiSummary.description')}
           </Text>
           <Text
             style={[
@@ -289,7 +271,7 @@ export default function AiSettingsScreen() {
               { color: profile?.aiSummaryEnabled ? colors.primary : colors.textMuted },
             ]}
           >
-            {profile?.aiSummaryEnabled ? 'Enabled' : 'Disabled'}
+            {profile?.aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
           </Text>
         </View>
 
@@ -297,7 +279,7 @@ export default function AiSettingsScreen() {
         <View style={styles.card}>
           <View style={styles.factsHeader}>
             <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>What Orbit Knows</Text>
+              <Text style={styles.cardLabel}>{t('profile.facts.title')}</Text>
               {facts.length > 0 && (
                 <View style={styles.countBadge}>
                   <Text style={styles.countBadgeText}>{facts.length}</Text>
@@ -315,7 +297,7 @@ export default function AiSettingsScreen() {
                   <CheckCircle size={12} color={colors.textMuted} />
                 )}
                 <Text style={[styles.selectButtonText, selectMode && { color: colors.textSecondary }]}>
-                  {selectMode ? 'Cancel' : 'Select'}
+                  {selectMode ? t('common.cancel') : t('profile.facts.select')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -326,7 +308,7 @@ export default function AiSettingsScreen() {
             <View style={styles.bulkActionsBar}>
               <TouchableOpacity onPress={toggleSelectAll}>
                 <Text style={styles.selectAllText}>
-                  {selectedFactIds.size === facts.length ? 'Deselect All' : 'Select All'}
+                  {selectedFactIds.size === facts.length ? t('profile.facts.deselectAll') : t('profile.facts.selectAll')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -335,7 +317,7 @@ export default function AiSettingsScreen() {
                 onPress={() => bulkDeleteMutation.mutate([...selectedFactIds])}
               >
                 <Text style={styles.deleteSelectedText}>
-                  Delete ({selectedFactIds.size})
+                  {t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -353,7 +335,7 @@ export default function AiSettingsScreen() {
           {!factsQuery.isLoading && facts.length === 0 && (
             <View style={{ paddingVertical: 24, alignItems: 'center' }}>
               <Text style={styles.emptyText}>
-                No memories yet. Chat with Orbit to start building your profile.
+                {t('profile.facts.empty')}
               </Text>
             </View>
           )}
@@ -395,7 +377,7 @@ export default function AiSettingsScreen() {
                       {fact.category && (
                         <View style={[styles.factCategory, { backgroundColor: catColor.bg }]}>
                           <Text style={[styles.factCategoryText, { color: catColor.text }]}>
-                            {fact.category}
+                            {t(`profile.facts.${fact.category?.toLowerCase()}`, { defaultValue: fact.category })}
                           </Text>
                         </View>
                       )}

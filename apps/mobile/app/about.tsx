@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   View,
   Text,
@@ -8,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   BookOpen,
@@ -16,22 +16,7 @@ import {
   ChevronRight,
   Gift,
 } from 'lucide-react-native'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-}
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // NavRow component
@@ -69,6 +54,7 @@ function NavRow({
 // ---------------------------------------------------------------------------
 
 export default function AboutScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
 
   return (
@@ -87,14 +73,14 @@ export default function AboutScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>About & Help</Text>
+          <Text style={styles.headerTitle}>{t('about.title')}</Text>
         </View>
 
         {/* Feature Guide */}
         <NavRow
           icon={<BookOpen size={20} color={colors.primary} />}
-          title="Feature Guide"
-          hint="Learn how to get the most out of Orbit"
+          title={t('onboarding.featureGuide.title')}
+          hint={t('profile.featureGuideHint')}
           onPress={() => {
             // Feature guide -- could navigate or open a bottom sheet
           }}
@@ -103,8 +89,8 @@ export default function AboutScreen() {
         {/* Referral */}
         <NavRow
           icon={<Gift size={20} color={colors.primary} />}
-          title="Refer a Friend"
-          hint="Share Orbit and earn rewards"
+          title={t('referral.card.title')}
+          hint={t('referral.card.hint')}
           onPress={() => {
             // Referral flow
           }}
@@ -113,16 +99,16 @@ export default function AboutScreen() {
         {/* Support */}
         <NavRow
           icon={<MessageSquare size={20} color={colors.primary} />}
-          title="Support"
-          hint="Get help or send feedback"
+          title={t('profile.support.title')}
+          hint={t('profile.support.hint')}
           onPress={() => router.push('/support')}
         />
 
         {/* Privacy Policy */}
         <NavRow
           icon={<ShieldCheck size={20} color={colors.primary} />}
-          title="Privacy Policy"
-          hint="How we handle your data"
+          title={t('privacy.title')}
+          hint={t('privacy.hint')}
           onPress={() => router.push('/privacy')}
         />
       </ScrollView>

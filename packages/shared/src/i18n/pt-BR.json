@@ -1638,6 +1638,26 @@
   "advancedSettings": {
     "title": "Avançado"
   },
+  "calendarSync": {
+    "title": "Sincronização de Calendário",
+    "connected": "Google Calendar Conectado",
+    "notConnected": "Não Conectado",
+    "connectedDesc": "Seus eventos do Google Calendar estão sincronizados com o Orbit. Os eventos aparecerão junto com seus hábitos.",
+    "notConnectedDesc": "Conecte seu Google Calendar para ver eventos junto com seus hábitos na visualização do calendário.",
+    "connect": "Conectar Google Calendar",
+    "refresh": "Atualizar Calendário",
+    "disconnect": "Desconectar Calendário",
+    "disconnectConfirmTitle": "Desconectar Calendário",
+    "disconnectConfirmMessage": "Tem certeza que deseja desconectar seu Google Calendar?",
+    "disconnectError": "Falha ao desconectar calendário.",
+    "connectMessage": "Isso abriria um fluxo OAuth do Google para conectar seu calendário. Este recurso estará disponível em breve no celular.",
+    "howItWorks": "Como funciona",
+    "step1": "Conecte sua conta Google",
+    "step2": "O Orbit importa seus eventos do calendário",
+    "step3": "Os eventos aparecem na aba Calendário junto com os hábitos",
+    "step4": "Seus dados permanecem privados e nunca são compartilhados",
+    "error": "Erro"
+  },
   "apiKeys": {
     "errors": {
       "load": "Falha ao carregar chaves de API",

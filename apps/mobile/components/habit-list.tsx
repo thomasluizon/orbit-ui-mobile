@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  Alert,
 } from 'react-native'
 import {
   Plus,
@@ -14,7 +15,16 @@ import {
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
-import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
+import { colors } from '@/lib/theme'
+import {
+  useHabits,
+  useLogHabit,
+  useSkipHabit,
+  useDeleteHabit,
+  useDuplicateHabit,
+  useMoveHabitParent,
+} from '@/hooks/use-habits'
+import { useUIStore } from '@/stores/ui-store'
 import { HabitCard } from './habit-card'
 
 // ---------------------------------------------------------------------------
@@ -26,27 +36,12 @@ interface HabitListProps {
   dateStr: string
   selectedDate?: Date
   showCompleted: boolean
+  searchQuery?: string
+  isSelectMode?: boolean
+  selectedHabitIds?: Set<string>
+  scrollEnabled?: boolean
   onCreatePress: () => void
   onSeeUpcoming?: () => void
-}
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design tokens)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  background: '#07060e',
-  surfaceGround: '#0d0b16',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  primary: '#8b5cf6',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  border: 'rgba(255, 255, 255, 0.07)',
-  borderMuted: 'rgba(255, 255, 255, 0.04)',
-  success: '#34d399',
-  white: '#ffffff',
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +69,10 @@ export function HabitList({
   dateStr,
   selectedDate,
   showCompleted,
+  searchQuery,
+  isSelectMode,
+  selectedHabitIds,
+  scrollEnabled = true,
   onCreatePress,
   onSeeUpcoming,
 }: HabitListProps) {
@@ -88,6 +87,11 @@ export function HabitList({
 
   const logMutation = useLogHabit()
   const skipMutation = useSkipHabit()
+  const deleteMutation = useDeleteHabit()
+  const duplicateMutation = useDuplicateHabit()
+  const moveParentMutation = useMoveHabitParent()
+  const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
+  const toggleHabitSelection = useUIStore((s) => s.toggleHabitSelection)
 
   // Collapse state
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
@@ -182,10 +186,40 @@ export function HabitList({
           childrenDone={progress.done}
           childrenTotal={progress.total}
           showAddSubHabit
+          searchQuery={searchQuery}
+          isSelectMode={isSelectMode}
+          isSelected={selectedHabitIds?.has(item.habit.id)}
           onLog={() => logMutation.mutate({ habitId: item.habit.id })}
           onUnlog={() => logMutation.mutate({ habitId: item.habit.id })}
           onSkip={() => skipMutation.mutate({ habitId: item.habit.id })}
           onToggleExpand={() => toggleExpand(item.habit.id)}
+          onDelete={() => {
+            Alert.alert(
+              t('common.confirm'),
+              t('habits.actions.deleteConfirm'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('common.delete'),
+                  style: 'destructive',
+                  onPress: () => deleteMutation.mutate(item.habit.id),
+                },
+              ],
+            )
+          }}
+          onDuplicate={() => duplicateMutation.mutate(item.habit.id)}
+          onMoveParent={() => {
+            moveParentMutation.mutate({
+              habitId: item.habit.id,
+              data: { parentId: null },
+            })
+          }}
+          onForceLogParent={() => logMutation.mutate({ habitId: item.habit.id })}
+          onEnterSelectMode={() => {
+            if (!isSelectMode) toggleSelectMode()
+            toggleHabitSelection(item.habit.id)
+          }}
+          onToggleSelection={() => toggleHabitSelection(item.habit.id)}
         />
       )
     },
@@ -195,7 +229,16 @@ export function HabitList({
       getChildrenProgress,
       logMutation,
       skipMutation,
+      deleteMutation,
+      duplicateMutation,
+      moveParentMutation,
       toggleExpand,
+      toggleSelectMode,
+      toggleHabitSelection,
+      searchQuery,
+      isSelectMode,
+      selectedHabitIds,
+      t,
     ],
   )
 
@@ -252,6 +295,8 @@ export function HabitList({
       data={flatItems}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
+      scrollEnabled={scrollEnabled}
+      nestedScrollEnabled
       contentContainerStyle={
         flatItems.length === 0 ? styles.emptyContainer : styles.listContent
       }

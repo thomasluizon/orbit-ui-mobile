@@ -23,6 +23,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -56,31 +57,6 @@ interface HabitCardProps {
   onToggleExpand?: () => void
   onForceLogParent?: () => void
   onEnterSelectMode?: () => void
-}
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design tokens)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  background: '#07060e',
-  surfaceGround: '#0d0b16',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  surfaceOverlay: '#211f33',
-  primary: '#8b5cf6',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  border: 'rgba(255, 255, 255, 0.07)',
-  borderMuted: 'rgba(255, 255, 255, 0.04)',
-  borderEmphasis: 'rgba(255, 255, 255, 0.12)',
-  red400: '#f87171',
-  red500: '#ef4444',
-  amber400: '#fbbf24',
-  amber500: '#f59e0b',
-  green500: '#22c55e',
-  white: '#ffffff',
 }
 
 // ---------------------------------------------------------------------------

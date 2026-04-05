@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   CalendarDays,
@@ -15,31 +16,16 @@ import {
   Unlink,
   RefreshCcw,
 } from 'lucide-react-native'
+import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  green: '#22c55e',
-  red: '#ef4444',
-}
 
 // ---------------------------------------------------------------------------
 // Calendar Sync Screen
 // ---------------------------------------------------------------------------
 
 export default function CalendarSyncScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { profile, invalidate } = useProfile()
 
@@ -49,26 +35,26 @@ export default function CalendarSyncScreen() {
   async function handleConnect() {
     // In a real implementation this would trigger Google OAuth
     Alert.alert(
-      'Google Calendar',
-      'This would open a Google OAuth flow to connect your calendar. This feature is coming soon on mobile.',
+      t('calendar.title'),
+      t('calendarSync.connectMessage'),
     )
   }
 
   async function handleDisconnect() {
     Alert.alert(
-      'Disconnect Calendar',
-      'Are you sure you want to disconnect your Google Calendar?',
+      t('calendarSync.disconnectConfirmTitle'),
+      t('calendarSync.disconnectConfirmMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Disconnect',
+          text: t('calendarSync.disconnect'),
           style: 'destructive',
           onPress: async () => {
             try {
               await apiClient('/api/calendar/dismiss', { method: 'POST' })
               invalidate()
             } catch {
-              Alert.alert('Error', 'Failed to disconnect calendar.')
+              Alert.alert(t('calendarSync.error'), t('calendarSync.disconnectError'))
             }
           },
         },
@@ -92,7 +78,7 @@ export default function CalendarSyncScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Calendar Sync</Text>
+          <Text style={styles.headerTitle}>{t('calendarSync.title')}</Text>
         </View>
 
         {/* Status card */}
@@ -113,12 +99,12 @@ export default function CalendarSyncScreen() {
             />
           </View>
           <Text style={styles.statusTitle}>
-            {isConnected ? 'Google Calendar Connected' : 'Not Connected'}
+            {isConnected ? t('calendarSync.connected') : t('calendarSync.notConnected')}
           </Text>
           <Text style={styles.statusDescription}>
             {isConnected
-              ? 'Your Google Calendar events are synced with Orbit. Events will show alongside your habits.'
-              : 'Connect your Google Calendar to see events alongside your habits in the calendar view.'}
+              ? t('calendarSync.connectedDesc')
+              : t('calendarSync.notConnectedDesc')}
           </Text>
         </View>
 
@@ -131,7 +117,7 @@ export default function CalendarSyncScreen() {
               activeOpacity={0.7}
             >
               <RefreshCcw size={16} color={colors.primary} />
-              <Text style={styles.actionButtonText}>Refresh Calendar</Text>
+              <Text style={styles.actionButtonText}>{t('calendarSync.refresh')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -141,7 +127,7 @@ export default function CalendarSyncScreen() {
             >
               <Unlink size={16} color={colors.red} />
               <Text style={styles.disconnectButtonText}>
-                Disconnect Calendar
+                {t('calendarSync.disconnect')}
               </Text>
             </TouchableOpacity>
           </>
@@ -153,19 +139,19 @@ export default function CalendarSyncScreen() {
           >
             <Link2 size={18} color="#fff" />
             <Text style={styles.connectButtonText}>
-              Connect Google Calendar
+              {t('calendarSync.connect')}
             </Text>
           </TouchableOpacity>
         )}
 
         {/* Info */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>How it works</Text>
+          <Text style={styles.infoLabel}>{t('calendarSync.howItWorks')}</Text>
           <Text style={styles.infoText}>
-            1. Connect your Google account{'\n'}
-            2. Orbit imports your calendar events{'\n'}
-            3. Events appear in the Calendar tab alongside habits{'\n'}
-            4. Your data stays private and is never shared
+            {'1. '}{t('calendarSync.step1')}{'\n'}
+            {'2. '}{t('calendarSync.step2')}{'\n'}
+            {'3. '}{t('calendarSync.step3')}{'\n'}
+            {'4. '}{t('calendarSync.step4')}
           </Text>
         </View>
       </ScrollView>

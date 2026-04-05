@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
+import { colors } from '@/lib/theme'
 
 function AuthGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -31,7 +32,7 @@ function RootLayoutNav() {
     <>
       <AuthGuard />
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="login"
@@ -93,7 +94,7 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <Providers>
-      <View style={{ flex: 1, backgroundColor: '#07060e' }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <RootLayoutNav />
       </View>
     </Providers>

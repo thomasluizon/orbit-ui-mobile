@@ -12,25 +12,9 @@ import { useRouter } from 'expo-router'
 import { ArrowLeft, Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  red: '#ef4444',
-}
 
 // Language options
 const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
