@@ -106,7 +106,7 @@ export function LevelUpOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [leveledUp, newLevel, onClear, t, overlayOpacity, contentScale, contentOpacity])
+  }, [leveledUp, newLevel, t, overlayOpacity, contentScale, contentOpacity]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const outerSpin = outerRingRotation.interpolate({
     inputRange: [0, 1],

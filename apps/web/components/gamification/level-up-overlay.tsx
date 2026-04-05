@@ -39,7 +39,7 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
         setTimeout(() => setShouldRender(false), 400)
       }, 3000)
     }
-  }, [leveledUp, newLevel, onClear, t])
+  }, [leveledUp, newLevel, t]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!mounted || !shouldRender) return null
 
