@@ -15,11 +15,20 @@ import {
   Alert,
 } from 'react-native'
 import {
-  Plus,
+  format,
+  isBefore,
+  isToday as isDateToday,
+  isTomorrow,
+  isYesterday,
+  startOfDay,
+} from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import {
   ClipboardList,
   CheckCircle2,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import {
   useHabits,
@@ -29,8 +38,10 @@ import {
   useDuplicateHabit,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitCard } from './habit-card'
 
 // ---------------------------------------------------------------------------
@@ -38,8 +49,8 @@ import { HabitCard } from './habit-card'
 // ---------------------------------------------------------------------------
 
 interface HabitListProps {
+  view?: 'today' | 'all' | 'general'
   filters: HabitsFilter
-  dateStr: string
   selectedDate?: Date
   showCompleted: boolean
   searchQuery?: string
@@ -57,6 +68,8 @@ export interface HabitListHandle {
   allLoadedIds: Set<string>
   collapseAll: () => void
   expandAll: () => void
+  markRecentlyCompleted: (habitId: string) => void
+  checkAndPromptParentLog: (childHabitId: string) => void
   refetch: () => void
 }
 
@@ -79,14 +92,56 @@ function SkeletonCard({ styles }: { styles: HabitListStyles }) {
   )
 }
 
+function getEmptyHabitsMessage(
+  view: 'today' | 'all' | 'general',
+  t: (key: string) => string,
+): string {
+  return t(getHabitEmptyStateKey(view))
+}
+
+interface DateGroup {
+  key: string
+  label: string
+  isOverdue: boolean
+  habits: NormalizedHabit[]
+}
+
+function formatDateGroupLabel(
+  key: string,
+  locale: string,
+  t: (key: string) => string,
+): string {
+  if (!key) return t('common.unknown')
+
+  const date = new Date(`${key}T00:00:00`)
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const todayDate = startOfDay(new Date())
+
+  if (isDateToday(date)) return t('dates.today')
+  if (isTomorrow(date)) return t('dates.tomorrow')
+  if (isYesterday(date)) return t('dates.yesterday')
+
+  if (isBefore(date, todayDate)) {
+    return format(date, locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy', {
+      locale: dateFnsLocale,
+    })
+  }
+
+  return format(
+    date,
+    locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
+    { locale: dateFnsLocale },
+  )
+}
+
 // ---------------------------------------------------------------------------
 // HabitList
 // ---------------------------------------------------------------------------
 
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList(
   {
+    view = 'today',
     filters,
-    dateStr,
     selectedDate,
     showCompleted,
     searchQuery,
@@ -100,17 +155,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   },
   ref,
 ) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const habitsQuery = useHabits(filters)
-  const habitsById = habitsQuery.data?.habitsById ?? new Map<string, NormalizedHabit>()
-  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
+  const habitsById = useMemo(
+    () => habitsQuery.data?.habitsById ?? new Map<string, NormalizedHabit>(),
+    [habitsQuery.data?.habitsById],
+  )
+  const topLevelHabits = useMemo(
+    () => habitsQuery.data?.topLevelHabits ?? [],
+    [habitsQuery.data?.topLevelHabits],
+  )
   const totalCount = habitsQuery.data?.totalCount ?? 0
   const isLoading = habitsQuery.isLoading
   const isFetching = habitsQuery.isFetching
   const refetch = habitsQuery.refetch
   const getChildren = habitsQuery.getChildren
+  const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map<string, string[]>()
 
   const logMutation = useLogHabit()
   const skipMutation = useSkipHabit()
@@ -122,7 +184,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // Collapse state
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
-  const selectedIds = selectedHabitIds ?? new Set<string>()
+  const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<Set<string>>(new Set())
+  const [showAutoLogParent, setShowAutoLogParent] = useState(false)
+  const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
+  const selectedIds = useMemo(
+    () => selectedHabitIds ?? new Set<string>(),
+    [selectedHabitIds],
+  )
+  const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
+  const autoLogParentHabit = autoLogParentId ? habitsById.get(autoLogParentId) ?? null : null
+
+  const visibility = useHabitVisibility({
+    habitsById,
+    childrenByParent,
+    selectedDate: selectedDateStr,
+    searchQuery: searchQuery ?? '',
+    showCompleted,
+    recentlyCompletedIds,
+  })
 
   const getDescendantIds = useCallback(
     (parentId: string): string[] => {
@@ -157,28 +236,112 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [habitsById, selectedIds],
   )
 
+  const markRecentlyCompleted = useCallback((habitId: string) => {
+    setRecentlyCompletedIds((previous) => new Set(previous).add(habitId))
+    setTimeout(() => {
+      setRecentlyCompletedIds((previous) => {
+        const next = new Set(previous)
+        next.delete(habitId)
+        return next
+      })
+    }, 1400)
+  }, [])
+
+  const getVisibleChildren = useCallback(
+    (parentId: string): NormalizedHabit[] => visibility.getVisibleChildren(parentId, view),
+    [view, visibility],
+  )
+
+  const visibleHabits = useMemo(() => {
+    if (view === 'today') {
+      const todayHabits = topLevelHabits.filter((habit) => !habit.isGeneral)
+      if (showCompleted) return todayHabits
+      return todayHabits.filter((habit) => visibility.hasVisibleContent(habit))
+    }
+
+    if (showCompleted) return topLevelHabits
+    return topLevelHabits.filter(
+      (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
+    )
+  }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
+
+  const generalHabits = useMemo(() => {
+    if (view !== 'today') return []
+    return topLevelHabits.filter((habit) => habit.isGeneral)
+  }, [topLevelHabits, view])
+
+  const dateGroups = useMemo<DateGroup[]>(() => {
+    if (view !== 'all') return []
+
+    const today = formatAPIDate(new Date())
+    const overdueHabits: NormalizedHabit[] = []
+    const groups = new Map<string, NormalizedHabit[]>()
+
+    for (const habit of visibleHabits) {
+      const key = habit.dueDate ?? ''
+      if (!key) {
+        const group = groups.get('') ?? []
+        group.push(habit)
+        groups.set('', group)
+        continue
+      }
+
+      if (key < today && !habit.isCompleted) {
+        overdueHabits.push(habit)
+        continue
+      }
+
+      const group = groups.get(key) ?? []
+      group.push(habit)
+      groups.set(key, group)
+    }
+
+    const result: DateGroup[] = []
+
+    if (overdueHabits.length > 0) {
+      result.push({
+        key: '__overdue__',
+        label: t('habits.overdue'),
+        isOverdue: true,
+        habits: [...overdueHabits].sort((left, right) => left.dueDate.localeCompare(right.dueDate)),
+      })
+    }
+
+    const sortedGroups = Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right))
+    for (const [key, habits] of sortedGroups) {
+      result.push({
+        key,
+        label: formatDateGroupLabel(key, i18n.language, t),
+        isOverdue: false,
+        habits,
+      })
+    }
+
+    return result
+  }, [i18n.language, t, view, visibleHabits])
+
   const allLoadedIds = useMemo(() => {
     const ids = new Set<string>()
 
     const visit = (habit: NormalizedHabit) => {
       ids.add(habit.id)
-      for (const child of getChildren(habit.id)) {
+      for (const child of getVisibleChildren(habit.id)) {
         visit(child)
       }
     }
 
-    for (const habit of topLevelHabits) {
+    for (const habit of visibleHabits) {
       visit(habit)
     }
 
     return ids
-  }, [getChildren, topLevelHabits])
+  }, [getVisibleChildren, visibleHabits])
 
   const expandableIds = useMemo(() => {
     const ids: string[] = []
 
     const visit = (habit: NormalizedHabit) => {
-      const children = getChildren(habit.id)
+      const children = getVisibleChildren(habit.id)
       if (children.length > 0) {
         ids.push(habit.id)
         for (const child of children) {
@@ -187,12 +350,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       }
     }
 
-    for (const habit of topLevelHabits) {
+    for (const habit of visibleHabits) {
       visit(habit)
     }
 
     return ids
-  }, [getChildren, topLevelHabits])
+  }, [getVisibleChildren, visibleHabits])
 
   const allCollapsed = useMemo(
     () => expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id)),
@@ -207,20 +370,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setCollapsedIds(new Set())
   }, [])
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      allCollapsed,
-      allLoadedIds,
-      collapseAll,
-      expandAll,
-      refetch: () => {
-        refetch()
-      },
-    }),
-    [allCollapsed, allLoadedIds, collapseAll, expandAll, refetch],
-  )
-
   const toggleExpand = useCallback((habitId: string) => {
     setCollapsedIds((prev) => {
       const next = new Set(prev)
@@ -232,12 +381,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       return next
     })
   }, [])
-
-  // Filter habits
-  const visibleHabits = useMemo(() => {
-    if (showCompleted) return topLevelHabits
-    return topLevelHabits.filter((h) => !h.isCompleted)
-  }, [topLevelHabits, showCompleted])
 
   // Build flat drag items (tree flattening with depth)
   interface DragItem {
@@ -252,7 +395,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const items: DragItem[] = []
 
     function addHabitTree(habit: NormalizedHabit, depth: number) {
-      const children = getChildren(habit.id)
+      const children = getVisibleChildren(habit.id)
       items.push({
         id: habit.id,
         habit,
@@ -272,7 +415,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
 
     return items
-  }, [visibleHabits, collapsedIds, getChildren])
+  }, [visibleHabits, collapsedIds, getVisibleChildren])
 
   // Children progress
   const getChildrenProgress = useCallback(
@@ -294,30 +437,107 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [getChildren],
   )
 
-  const renderItem = useCallback(
-    ({ item }: { item: DragItem }) => {
-      const progress = item.hasChildren
-        ? getChildrenProgress(item.habit.id)
+  const checkAndPromptParentLog = useCallback((childHabitId: string) => {
+    const childHabit = habitsById.get(childHabitId)
+    if (!childHabit?.parentId) return
+
+    const parentHabit = habitsById.get(childHabit.parentId)
+    if (!parentHabit || parentHabit.isCompleted) return
+
+    const progress = getChildrenProgress(parentHabit.id)
+    if (progress.total > 0 && progress.done >= progress.total) {
+      setAutoLogParentId(parentHabit.id)
+      setShowAutoLogParent(true)
+    }
+  }, [getChildrenProgress, habitsById])
+
+  const confirmAutoLogParent = useCallback(async () => {
+    const parentId = autoLogParentId
+    if (!parentId) return
+
+    setShowAutoLogParent(false)
+    setAutoLogParentId(null)
+    markRecentlyCompleted(parentId)
+
+    try {
+      await logMutation.mutateAsync({ habitId: parentId })
+      checkAndPromptParentLog(parentId)
+    } catch {
+      // Error handled by mutation
+    }
+  }, [autoLogParentId, checkAndPromptParentLog, logMutation, markRecentlyCompleted])
+
+  const handleSkip = useCallback(async (habitId: string) => {
+    try {
+      await skipMutation.mutateAsync({ habitId })
+      markRecentlyCompleted(habitId)
+      checkAndPromptParentLog(habitId)
+    } catch {
+      // Error handled by mutation
+    }
+  }, [checkAndPromptParentLog, markRecentlyCompleted, skipMutation])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      allCollapsed,
+      allLoadedIds,
+      collapseAll,
+      expandAll,
+      markRecentlyCompleted,
+      checkAndPromptParentLog,
+      refetch: () => {
+        refetch()
+      },
+    }),
+    [
+      allCollapsed,
+      allLoadedIds,
+      checkAndPromptParentLog,
+      collapseAll,
+      expandAll,
+      markRecentlyCompleted,
+      refetch,
+    ],
+  )
+
+  const renderHabitCard = useCallback(
+    (
+      habit: NormalizedHabit,
+      depth: number,
+      hasChildren: boolean,
+      hasSubHabits: boolean,
+    ) => {
+      const progress = hasChildren
+        ? getChildrenProgress(habit.id)
         : { done: 0, total: 0 }
 
       return (
         <HabitCard
-          habit={item.habit}
+          habit={habit}
           selectedDate={selectedDate}
-          depth={item.depth}
-          hasChildren={item.hasChildren}
-          hasSubHabits={item.hasSubHabits}
-          isExpanded={!collapsedIds.has(item.habit.id)}
+          depth={depth}
+          hasChildren={hasChildren}
+          hasSubHabits={hasSubHabits}
+          isExpanded={!collapsedIds.has(habit.id)}
           childrenDone={progress.done}
           childrenTotal={progress.total}
           showAddSubHabit
           searchQuery={searchQuery}
           isSelectMode={isSelectMode}
-          isSelected={selectedIds.has(item.habit.id)}
-          onLog={() => logMutation.mutate({ habitId: item.habit.id })}
-          onUnlog={() => logMutation.mutate({ habitId: item.habit.id })}
-          onSkip={() => skipMutation.mutate({ habitId: item.habit.id })}
-          onToggleExpand={() => toggleExpand(item.habit.id)}
+          isSelected={selectedIds.has(habit.id)}
+          onLog={() => {
+            if (onLogHabit) {
+              onLogHabit(habit)
+              return
+            }
+            logMutation.mutate({ habitId: habit.id })
+          }}
+          onUnlog={() => logMutation.mutate({ habitId: habit.id })}
+          onSkip={() => {
+            void handleSkip(habit.id)
+          }}
+          onToggleExpand={() => toggleExpand(habit.id)}
           onDelete={() => {
             Alert.alert(
               t('common.confirm'),
@@ -327,31 +547,31 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
                 {
                   text: t('common.delete'),
                   style: 'destructive',
-                  onPress: () => deleteMutation.mutate(item.habit.id),
+                  onPress: () => deleteMutation.mutate(habit.id),
                 },
               ],
             )
           }}
-          onDuplicate={() => duplicateMutation.mutate(item.habit.id)}
+          onDuplicate={() => duplicateMutation.mutate(habit.id)}
           onMoveParent={() => {
             moveParentMutation.mutate({
-              habitId: item.habit.id,
+              habitId: habit.id,
               data: { parentId: null },
             })
           }}
-          onForceLogParent={() => logMutation.mutate({ habitId: item.habit.id })}
+          onForceLogParent={() => logMutation.mutate({ habitId: habit.id })}
           onEnterSelectMode={() => {
             if (!isSelectMode) toggleSelectMode()
             toggleSelectionCascade(
-              item.habit.id,
+              habit.id,
               getDescendantIds,
               isAncestorSelected,
             )
           }}
-          onDetail={() => onDetailHabit?.(item.habit)}
+          onDetail={() => onDetailHabit?.(habit)}
           onToggleSelection={() =>
             toggleSelectionCascade(
-              item.habit.id,
+              habit.id,
               getDescendantIds,
               isAncestorSelected,
             )
@@ -363,22 +583,69 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       selectedDate,
       collapsedIds,
       getChildrenProgress,
+      searchQuery,
+      isSelectMode,
+      selectedIds,
+      onLogHabit,
       logMutation,
-      skipMutation,
+      handleSkip,
+      toggleExpand,
+      t,
       deleteMutation,
       duplicateMutation,
       moveParentMutation,
-      toggleExpand,
       toggleSelectMode,
       toggleSelectionCascade,
       getDescendantIds,
       isAncestorSelected,
-      searchQuery,
-      isSelectMode,
-      selectedIds,
       onDetailHabit,
-      t,
     ],
+  )
+
+  const generalHabitSection = useMemo(() => {
+    if (view !== 'today' || generalHabits.length === 0) return null
+
+    return (
+      <View style={styles.generalSection}>
+        <View style={styles.generalSectionHeader}>
+          <Text style={styles.generalSectionLabel}>{t('habits.generalSection')}</Text>
+          <View style={styles.generalSectionDivider} />
+        </View>
+        <View style={styles.generalSectionList}>
+          {generalHabits.map((habit) => renderHabitCard(habit, 0, false, false))}
+        </View>
+      </View>
+    )
+  }, [generalHabits, renderHabitCard, styles, t, view])
+
+  const renderAllViewChildren = useCallback(
+    (parentId: string, depth: number) => {
+      if (collapsedIds.has(parentId) || depth >= 3) return null
+      const children = getVisibleChildren(parentId)
+      if (children.length === 0) return null
+
+      return children.map((child) => {
+        const visibleChildren = getVisibleChildren(child.id)
+        return (
+          <View key={child.id} style={styles.allViewChild}>
+            {renderHabitCard(
+              child,
+              depth,
+              visibleChildren.length > 0,
+              child.hasSubHabits,
+            )}
+            {renderAllViewChildren(child.id, depth + 1)}
+          </View>
+        )
+      })
+    },
+    [collapsedIds, getVisibleChildren, renderHabitCard, styles.allViewChild],
+  )
+
+  const renderItem = useCallback(
+    ({ item }: { item: DragItem }) =>
+      renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits),
+    [renderHabitCard],
   )
 
   const keyExtractor = useCallback(
@@ -401,72 +668,155 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   if (
     flatItems.length === 0 &&
     totalCount > 0 &&
-    !showCompleted
+    !showCompleted &&
+    view === 'today'
   ) {
     return (
-      <View style={styles.emptyAllDone}>
-        <View style={styles.allDoneIconContainer}>
-          <CheckCircle2 size={40} color={colors.success} />
-        </View>
-        <Text style={styles.allDoneTitle}>
-          {t('habits.allDoneToday')}
-        </Text>
-        <Text style={styles.allDoneSubtitle}>
-          {t('habits.allDoneHint')}
-        </Text>
-        {onSeeUpcoming && (
-          <TouchableOpacity
-            style={styles.seeUpcomingButton}
-            onPress={onSeeUpcoming}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.seeUpcomingText}>
-              {t('habits.seeUpcoming')}
+      <>
+        <View>
+          <View style={styles.emptyAllDone}>
+            <View style={styles.allDoneIconContainer}>
+              <CheckCircle2 size={40} color={colors.success} />
+            </View>
+            <Text style={styles.allDoneTitle}>
+              {t('habits.allDoneToday')}
             </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+            <Text style={styles.allDoneSubtitle}>
+              {t('habits.allDoneHint')}
+            </Text>
+            {onSeeUpcoming && (
+              <TouchableOpacity
+                style={styles.seeUpcomingButton}
+                onPress={onSeeUpcoming}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.seeUpcomingText}>
+                  {t('habits.seeUpcoming')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {generalHabitSection}
+        </View>
+        <ConfirmDialog
+          open={showAutoLogParent}
+          onOpenChange={setShowAutoLogParent}
+          title={t('habits.autoLogParentTitle')}
+          description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
+          confirmLabel={t('habits.autoLogParentConfirm')}
+          onConfirm={confirmAutoLogParent}
+          variant="success"
+        />
+      </>
+    )
+  }
+
+  if (view === 'all' && visibleHabits.length > 0) {
+    return (
+      <>
+        <View style={styles.groupedList}>
+          {dateGroups.map((group) => (
+            <View key={group.key} style={styles.groupSection}>
+              <View style={styles.groupHeader}>
+                <Text
+                  style={[
+                    styles.groupLabel,
+                    group.isOverdue ? styles.groupLabelOverdue : null,
+                  ]}
+                >
+                  {group.isOverdue ? t('habits.overdue') : group.label}
+                </Text>
+                <View
+                  style={[
+                    styles.groupDivider,
+                    group.isOverdue ? styles.groupDividerOverdue : null,
+                  ]}
+                />
+              </View>
+              <View style={styles.groupItems}>
+                {group.habits.map((habit) => {
+                  const children = getVisibleChildren(habit.id)
+                  return (
+                    <View key={habit.id} style={styles.groupItem}>
+                      {renderHabitCard(
+                        habit,
+                        0,
+                        children.length > 0,
+                        habit.hasSubHabits,
+                      )}
+                      {renderAllViewChildren(habit.id, 1)}
+                    </View>
+                  )
+                })}
+              </View>
+            </View>
+          ))}
+        </View>
+        <ConfirmDialog
+          open={showAutoLogParent}
+          onOpenChange={setShowAutoLogParent}
+          title={t('habits.autoLogParentTitle')}
+          description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
+          confirmLabel={t('habits.autoLogParentConfirm')}
+          onConfirm={confirmAutoLogParent}
+          variant="success"
+        />
+      </>
     )
   }
 
   return (
-    <FlatList
-      data={flatItems}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      scrollEnabled={scrollEnabled}
-      nestedScrollEnabled
-      contentContainerStyle={
-        flatItems.length === 0 ? styles.emptyContainer : styles.listContent
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={isFetching && !isLoading}
-          onRefresh={refetch}
-          tintColor={colors.primary}
-        />
-      }
-      ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconContainer}>
-            <ClipboardList size={40} color={colors.textMuted} />
-          </View>
-          <Text style={styles.emptySubtitle}>
-            {t('habits.noHabitsYet')}
-          </Text>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={onCreatePress}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.createButtonText}>
-              {t('habits.createHabit')}
+    <>
+      <FlatList
+        data={flatItems}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        scrollEnabled={scrollEnabled}
+        nestedScrollEnabled
+        contentContainerStyle={
+          flatItems.length === 0 ? styles.emptyContainer : styles.listContent
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={refetch}
+            tintColor={colors.primary}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <ClipboardList size={40} color={colors.textMuted} />
+            </View>
+            <Text style={styles.emptySubtitle}>
+              {getEmptyHabitsMessage(view, t)}
             </Text>
-          </TouchableOpacity>
-        </View>
-      }
-      showsVerticalScrollIndicator={false}
-    />
+            {(view === 'all' || view === 'general') ? (
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={onCreatePress}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.createButtonText}>
+                  {t('habits.createHabit')}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        }
+        ListFooterComponent={generalHabitSection}
+        showsVerticalScrollIndicator={false}
+      />
+      <ConfirmDialog
+        open={showAutoLogParent}
+        onOpenChange={setShowAutoLogParent}
+        title={t('habits.autoLogParentTitle')}
+        description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
+        confirmLabel={t('habits.autoLogParentConfirm')}
+        onConfirm={confirmAutoLogParent}
+        variant="success"
+      />
+    </>
   )
 })
 
@@ -546,6 +896,73 @@ function createStyles(colors: ThemeColors) {
     // List
     listContent: {
       paddingBottom: 100,
+    },
+    groupedList: {
+      paddingBottom: 100,
+      gap: 16,
+    },
+    groupSection: {
+      marginBottom: 16,
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    groupLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.textMuted,
+    },
+    groupLabelOverdue: {
+      color: colors.red400,
+    },
+    groupDivider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    groupDividerOverdue: {
+      backgroundColor: alpha(colors.red400, 0.2),
+    },
+    groupItems: {
+      gap: 10,
+    },
+    groupItem: {
+      gap: 6,
+    },
+    allViewChild: {
+      gap: 6,
+    },
+    generalSection: {
+      marginTop: 24,
+      marginBottom: 16,
+    },
+    generalSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 12,
+    },
+    generalSectionLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.primary,
+      opacity: 0.7,
+    },
+    generalSectionDivider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.primary_20,
+    },
+    generalSectionList: {
+      gap: 10,
     },
     emptyContainer: {
       flex: 1,

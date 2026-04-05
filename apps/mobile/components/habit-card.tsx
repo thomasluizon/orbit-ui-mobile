@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   type ViewStyle,
-  type TextStyle,
 } from 'react-native'
 import {
   ChevronRight,
@@ -23,6 +22,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
@@ -60,14 +60,6 @@ interface HabitCardProps {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function truncate(text: string, max = 20): string {
-  return text.length > max ? text.slice(0, max) + '...' : text
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -101,6 +93,7 @@ export function HabitCard({
   onEnterSelectMode,
 }: HabitCardProps) {
   const { t } = useTranslation()
+  const { displayTime } = useTimeFormat()
 
   const isChild = depth > 0
   const checkedCount =
@@ -227,11 +220,6 @@ export function HabitCard({
 
   // Indent for children
   const indentMargin = depth > 0 ? { marginLeft: depth * 24 } : undefined
-
-  // SVG progress ring dimensions
-  const RING_SIZE = isChild ? 32 : 44
-  const RING_R = 15
-  const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R
 
   return (
     <View style={indentMargin}>
@@ -430,8 +418,8 @@ export function HabitCard({
 
                 {habit.dueTime ? (
                   <Text style={styles.dueTimeText}>
-                    {habit.dueTime}
-                    {habit.dueEndTime ? ` - ${habit.dueEndTime}` : ''}
+                    {displayTime(habit.dueTime)}
+                    {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
                   </Text>
                 ) : null}
 

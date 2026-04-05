@@ -48,6 +48,7 @@ function getNotificationsModule(): ExpoNotificationsModule | null {
   if (Constants.executionEnvironment === 'storeClient') return null
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps Expo Go from importing unsupported notifications code
     return require('expo-notifications') as ExpoNotificationsModule
   } catch {
     return null
@@ -86,8 +87,10 @@ async function getPushToken(): Promise<string | null> {
   if (!notificationsModule || !Device.isDevice) return null
 
   await ensureAndroidChannel()
+  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID
+  if (!projectId) return null
   const tokenData = await notificationsModule.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+    projectId,
   })
 
   return tokenData.data

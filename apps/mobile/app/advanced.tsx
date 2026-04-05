@@ -87,7 +87,7 @@ export default function AdvancedScreen() {
     setTimezoneSaving(true)
     setTimezoneSaved(false)
     try {
-      await apiClient('/api/profile/timezone', {
+      await apiClient(API.profile.timezone, {
         method: 'PUT',
         body: JSON.stringify({ timeZone: newTimezone }),
       })
@@ -301,7 +301,7 @@ export default function AdvancedScreen() {
             <View style={styles.labelRow}>
               <Text style={styles.cardLabel}>{t('orbitMcp.title')}</Text>
               <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>PRO</Text>
+                <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
               </View>
             </View>
             {!profile?.hasProAccess && (
@@ -310,7 +310,7 @@ export default function AdvancedScreen() {
                 style={styles.lockRow}
               >
                 <Lock size={14} color={colors.primary} />
-                <Text style={styles.lockText}>PRO</Text>
+                <Text style={styles.lockText}>{t('common.proBadge')}</Text>
               </TouchableOpacity>
             )}
           </View>

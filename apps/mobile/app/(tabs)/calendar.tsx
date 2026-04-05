@@ -7,9 +7,11 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Switch,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Search, Check } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
 import {
   addMonths,
   subMonths,
@@ -23,10 +25,12 @@ import {
   format,
   getDate,
 } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useCalendarData } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -57,7 +61,7 @@ type AppColors = ReturnType<typeof createColors>
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return 'empty'
   if (cell.completedCount === cell.totalCount) return 'done'
-  const hasMissed = cell.entries.some((e) => e.status === 'missed')
+  const hasMissed = cell.entries.some((entry: CalendarDayEntry) => entry.status === 'missed')
   if (hasMissed) return 'missed'
   return 'upcoming'
 }
@@ -157,8 +161,10 @@ function statusLabel(entry: CalendarDayEntry, t: (key: string) => string): strin
 // ---------------------------------------------------------------------------
 
 export default function CalendarScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const router = useRouter()
   const { profile } = useProfile()
+  const { displayTime } = useTimeFormat()
   const { colors } = useAppTheme()
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
   const styles = useMemo(() => createStyles(colors), [colors])
@@ -166,6 +172,7 @@ export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showDayDetail, setShowDayDetail] = useState(false)
+  const [showRecurring, setShowRecurring] = useState(true)
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
@@ -188,6 +195,7 @@ export default function CalendarScreen() {
 
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr)
+    setShowRecurring(true)
     setShowDayDetail(true)
   }, [])
 
@@ -219,8 +227,10 @@ export default function CalendarScreen() {
     let day = gridStart
     while (day <= gridEnd) {
       const dateStr = formatAPIDate(day)
-      const entries = dayMap.get(dateStr) ?? []
-      const completedCount = entries.filter((e) => e.status === 'completed').length
+      const entries: CalendarDayEntry[] = dayMap.get(dateStr) ?? []
+      const completedCount = entries.filter(
+        (entry: CalendarDayEntry) => entry.status === 'completed',
+      ).length
       const totalCount = entries.length
 
       days.push({
@@ -255,13 +265,22 @@ export default function CalendarScreen() {
     return dayMap.get(selectedDay) ?? []
   }, [selectedDay, dayMap])
 
+  const filteredEntries = useMemo(() => {
+    if (showRecurring) return selectedEntries
+    return selectedEntries.filter((entry: CalendarDayEntry) => entry.isOneTime)
+  }, [selectedEntries, showRecurring])
+
   const formattedSelectedDate = useMemo(() => {
     if (!selectedDay) return ''
     const date = parseAPIDate(selectedDay)
-    return format(date, 'EEEE, MMMM d, yyyy')
-  }, [selectedDay])
+    return format(date, 'EEEE, MMM d', {
+      locale: i18n.language === 'pt-BR' ? ptBR : enUS,
+    })
+  }, [i18n.language, selectedDay])
 
-  const completedCount = selectedEntries.filter((e) => e.status === 'completed').length
+  const completedCount = filteredEntries.filter(
+    (entry: CalendarDayEntry) => entry.status === 'completed',
+  ).length
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -311,6 +330,12 @@ export default function CalendarScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         )}
+
+        {isFetching && !isLoading ? (
+          <View style={styles.fetchingBar}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : null}
 
         {/* Calendar grid */}
         {!isLoading && (
@@ -403,12 +428,33 @@ export default function CalendarScreen() {
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Summary line */}
-            <Text style={styles.summaryText}>
-              {t('calendar.dayDetail.completionSummary', { done: completedCount, total: selectedEntries.length, count: selectedEntries.length })}
-            </Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryText}>
+                {t('calendar.dayDetail.completionSummary', {
+                  done: completedCount,
+                  total: filteredEntries.length,
+                  count: filteredEntries.length,
+                })}
+              </Text>
+              <View style={styles.recurringToggleRow}>
+                <Switch
+                  value={showRecurring}
+                  onValueChange={setShowRecurring}
+                  trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+                <Text style={styles.recurringToggleText}>{t('calendar.showRecurring')}</Text>
+              </View>
+            </View>
+
+            {filteredEntries.length === 0 ? (
+              <View style={styles.emptyDay}>
+                <Text style={styles.emptyDayText}>{t('calendar.noHabitsScheduled')}</Text>
+              </View>
+            ) : null}
 
             {/* Entries */}
-            {selectedEntries.map((entry, idx) => {
+            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
               const badge = statusBadgeColors(entry, colors)
               const icon = statusIconBgColor(entry, colors)
 
@@ -443,7 +489,7 @@ export default function CalendarScreen() {
                           {entry.title}
                         </Text>
                         {entry.dueTime && (
-                          <Text style={styles.dayEntryTime}>{entry.dueTime}</Text>
+                          <Text style={styles.dayEntryTime}>{displayTime(entry.dueTime)}</Text>
                         )}
                       </View>
                     </View>
@@ -457,12 +503,24 @@ export default function CalendarScreen() {
                   </View>
 
                   {/* Divider */}
-                  {idx < selectedEntries.length - 1 && (
+                  {idx < filteredEntries.length - 1 && (
                     <View style={styles.divider} />
                   )}
                 </View>
               )
             })}
+
+            <TouchableOpacity
+              style={styles.goToDayButton}
+              onPress={() => {
+                if (!selectedDay) return
+                setShowDayDetail(false)
+                router.push(`/(tabs)?date=${selectedDay}`)
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.goToDayButtonText}>{t('calendar.goToDay')}</Text>
+            </TouchableOpacity>
           </ScrollView>
         )}
       </BottomSheetModal>
@@ -548,6 +606,11 @@ function createStyles(colors: AppColors) {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
+  },
+  fetchingBar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
   },
 
   // Calendar card
@@ -649,7 +712,22 @@ function createStyles(colors: AppColors) {
   summaryText: {
     fontSize: 14,
     color: colors.textFaded,
+    flex: 1,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 12,
+  },
+  recurringToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  recurringToggleText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 
   // Day detail: entries
@@ -703,6 +781,18 @@ function createStyles(colors: AppColors) {
   divider: {
     height: 1,
     backgroundColor: colors.borderDivider,
+  },
+  goToDayButton: {
+    marginTop: 16,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  goToDayButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
   },
   })
 }

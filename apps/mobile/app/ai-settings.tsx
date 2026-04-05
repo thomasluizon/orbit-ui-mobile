@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   Switch,
-  ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +22,7 @@ import {
   X,
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import { userFactKeys } from '@orbit/shared/query'
 import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -47,7 +47,7 @@ export default function AiSettingsScreen() {
   // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      apiClient('/api/profile/ai-memory', {
+      apiClient(API.profile.aiMemory, {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
@@ -66,7 +66,7 @@ export default function AiSettingsScreen() {
   // --- AI Summary toggle ---
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      apiClient('/api/profile/ai-summary', {
+      apiClient(API.profile.aiSummary, {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
@@ -85,15 +85,15 @@ export default function AiSettingsScreen() {
   // --- User Facts ---
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
-    queryFn: () => apiClient<UserFact[]>('/api/user-facts'),
+    queryFn: () => apiClient<UserFact[]>(API.userFacts.list),
     staleTime: 5 * 60 * 1000,
   })
 
-  const facts = factsQuery.data ?? []
+  const facts = useMemo(() => factsQuery.data ?? [], [factsQuery.data])
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiClient(`/api/user-facts/${id}`, { method: 'DELETE' }),
+      apiClient(API.userFacts.delete(id), { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userFactKeys.all })
     },
@@ -101,7 +101,7 @@ export default function AiSettingsScreen() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) =>
-      apiClient('/api/user-facts/bulk', {
+      apiClient(API.userFacts.bulk, {
         method: 'DELETE',
         body: JSON.stringify({ ids }),
       }),

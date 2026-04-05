@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { ActionChips } from '@/components/chat/action-chips'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
+import { formatChatMessage } from '@/components/chat/format-chat-message'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -14,6 +15,61 @@ import { useAppTheme } from '@/lib/use-app-theme'
 interface MessageBubbleProps {
   message: ChatMessage
   onBreakdownConfirmed?: () => void
+}
+
+interface FormattedSegment {
+  text: string
+  bold?: boolean
+  italic?: boolean
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&amp;', '&')
+}
+
+function parseFormattedSegments(value: string): FormattedSegment[] {
+  const html = formatChatMessage(value)
+  const segments: FormattedSegment[] = []
+  let cursor = 0
+
+  while (cursor < html.length) {
+    if (html.startsWith('<strong>', cursor)) {
+      const end = html.indexOf('</strong>', cursor)
+      if (end === -1) break
+      segments.push({
+        text: decodeHtmlEntities(html.slice(cursor + 8, end)),
+        bold: true,
+      })
+      cursor = end + 9
+      continue
+    }
+
+    if (html.startsWith('<em>', cursor)) {
+      const end = html.indexOf('</em>', cursor)
+      if (end === -1) break
+      segments.push({
+        text: decodeHtmlEntities(html.slice(cursor + 4, end)),
+        italic: true,
+      })
+      cursor = end + 5
+      continue
+    }
+
+    const nextStrong = html.indexOf('<strong>', cursor)
+    const nextEm = html.indexOf('<em>', cursor)
+    const nextTagCandidates = [nextStrong, nextEm].filter((index) => index >= 0)
+    const nextTag = nextTagCandidates.length > 0 ? Math.min(...nextTagCandidates) : html.length
+    segments.push({
+      text: decodeHtmlEntities(html.slice(cursor, nextTag)),
+    })
+    cursor = nextTag
+  }
+
+  return segments.filter((segment) => segment.text.length > 0)
 }
 
 export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<MessageBubbleProps>) {
@@ -35,6 +91,10 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
   const nonSuggestionActions = useMemo(
     () => message.actions?.filter((a) => a.status !== 'Suggestion') ?? [],
     [message.actions],
+  )
+  const formattedSegments = useMemo(
+    () => parseFormattedSegments(message.content ?? ''),
+    [message.content],
   )
 
   function dismissBreakdown(key: string) {
@@ -79,7 +139,18 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
 
           {/* Message text */}
           <Text style={[styles.messageText, isUser && styles.userText]}>
-            {message.content}
+            {formattedSegments.map((segment, index) => (
+              <Text
+                key={`${message.id}-segment-${index}`}
+                style={[
+                  isUser && styles.userText,
+                  segment.bold ? styles.messageTextBold : null,
+                  segment.italic ? styles.messageTextItalic : null,
+                ]}
+              >
+                {segment.text}
+              </Text>
+            ))}
           </Text>
         </View>
 
@@ -285,6 +356,12 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       lineHeight: 20,
       color: colors.textPrimary,
+    },
+    messageTextBold: {
+      fontWeight: '700',
+    },
+    messageTextItalic: {
+      fontStyle: 'italic',
     },
     userText: {
       color: colors.white,

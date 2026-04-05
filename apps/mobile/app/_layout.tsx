@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, useState } from 'react'
 import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack, useRouter, useSegments } from 'expo-router'
@@ -7,8 +7,17 @@ import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useProfile } from '@/hooks/use-profile'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
+import { AchievementToast } from '@/components/gamification/achievement-toast'
+import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
+import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
+import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
+import { StreakCelebration } from '@/components/gamification/streak-celebration'
+import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
+import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -43,7 +52,13 @@ function AuthGuard() {
 function RootLayoutNav() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
+  const { leveledUp, newLevel } = useGamificationProfile()
   const { colors } = useAppTheme()
+  const [levelUpCleared, setLevelUpCleared] = useState(false)
+
+  useEffect(() => {
+    setLevelUpCleared(false)
+  }, [newLevel])
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -118,6 +133,24 @@ function RootLayoutNav() {
           <PushPrompt />
         </Suspense>
       )}
+      {isAuthenticated ? (
+        <>
+          <TrialExpiredModal />
+          <StreakCelebration />
+          <AllDoneCelebration />
+          <GoalCompletedCelebration />
+          {profile?.hasProAccess ? <AchievementToast /> : null}
+          <WelcomeBackToast />
+          {profile?.hasProAccess ? (
+            <LevelUpOverlay
+              leveledUp={leveledUp && !levelUpCleared}
+              newLevel={newLevel}
+              onClear={() => setLevelUpCleared(true)}
+            />
+          ) : null}
+          <CalendarImportPrompt />
+        </>
+      ) : null}
     </>
   )
 }

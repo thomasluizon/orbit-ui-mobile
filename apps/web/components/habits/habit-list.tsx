@@ -55,7 +55,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/stores/ui-store'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -204,9 +204,7 @@ function getEmptyHabitsMessage(
   view: 'today' | 'all' | 'general',
   t: (key: string) => string,
 ): string {
-  if (view === 'general') return t('habits.emptyGeneral')
-  if (view === 'today') return t('habits.noDueToday')
-  return t('habits.noHabitsYet')
+  return t(getHabitEmptyStateKey(view))
 }
 
 type HabitView = 'today' | 'all' | 'general'

@@ -9,6 +9,8 @@ import {
   Modal,
   Platform,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   ChevronLeft,
@@ -16,9 +18,7 @@ import {
   Search,
   X,
   Plus,
-  Sparkles,
   MoreVertical,
-  Flame,
   CheckCircle2,
   RefreshCw,
   ChevronsDownUp,
@@ -44,28 +44,26 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
 import {
-  useSummary,
   useHabits,
   useBulkDeleteHabits,
   useBulkLogHabits,
   useBulkSkipHabits,
+  useTotalHabitCount,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
-import { useStreakInfo, useGamificationProfile } from '@/hooks/use-gamification'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { LogHabitModal } from '@/components/habits/log-habit-modal'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
-import { GoalList } from '@/components/goals/goal-list'
+import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
+import { GoalsView } from '@/components/goals/goals-view'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
-import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
-import { StreakCelebration } from '@/components/gamification/streak-celebration'
-import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
-import { AchievementToast } from '@/components/gamification/achievement-toast'
-import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { StreakBadge } from '@/components/gamification/streak-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { colors, radius, shadows } from '@/lib/theme'
@@ -75,7 +73,6 @@ import { colors, radius, shadows } from '@/lib/theme'
 // ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
-type ViewTab = (typeof TAB_VIEWS)[number]
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
 
@@ -194,11 +191,13 @@ export default function TodayScreen() {
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const insets = useSafeAreaInsets()
+  const router = useRouter()
+  const { date } = useLocalSearchParams<{ date?: string | string[] }>()
 
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
-  const { leveledUp, newLevel } = useGamificationProfile()
+  const totalHabitCount = useTotalHabitCount()
   const bulkDeleteHabits = useBulkDeleteHabits()
   const bulkLogHabits = useBulkLogHabits()
   const bulkSkipHabits = useBulkSkipHabits()
@@ -218,6 +217,7 @@ export default function TodayScreen() {
 
   // Local state
   const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
@@ -232,14 +232,30 @@ export default function TodayScreen() {
   const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
-  const [levelUpCleared, setLevelUpCleared] = useState(false)
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
     [selectedDateStr],
   )
 
-  const frequencyOptions = useMemo<Array<{ key: FreqKey; label: string }>>(
+  useEffect(() => {
+    AsyncStorage.getItem('orbit_show_general_on_today')
+      .then((storedValue) => {
+        setShowGeneralOnToday(storedValue !== 'false')
+      })
+      .catch(() => {
+        setShowGeneralOnToday(true)
+      })
+  }, [])
+
+  useEffect(() => {
+    const dateParam = Array.isArray(date) ? date[0] : date
+    if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return
+    setSelectedDate(dateParam)
+    setActiveView('today')
+  }, [date, setActiveView, setSelectedDate])
+
+  const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(
     () => [
       { key: 'Day', label: t('habits.filter.daily') },
       { key: 'Week', label: t('habits.filter.weekly') },
@@ -309,7 +325,7 @@ export default function TodayScreen() {
         dateFrom: dateStr,
         dateTo: dateStr,
         includeOverdue: isToday(selectedDate),
-        includeGeneral: true,
+        includeGeneral: showGeneralOnToday || undefined,
       }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
       if (selectedFrequency) f.frequencyUnit = selectedFrequency
@@ -322,7 +338,7 @@ export default function TodayScreen() {
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
     if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds])
+  }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   const habitsQuery = useHabits(filters)
 
@@ -361,17 +377,10 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
-  useMemo(() => {
+  useEffect(() => {
     setFilters(filters)
   }, [filters, setFilters])
 
-  // AI Summary
-  const { summary } = useSummary({
-    date: dateStr,
-    locale: profile?.language ?? 'en',
-    hasProAccess: profile?.hasProAccess ?? false,
-    aiSummaryEnabled: profile?.aiSummaryEnabled ?? false,
-  })
   const showSummary =
     activeView === 'today' &&
     isToday(selectedDate) &&
@@ -464,17 +473,11 @@ export default function TodayScreen() {
     }
   }, [bulkSkipHabits, clearSelection, selectedHabitIds])
 
-  // Profile avatar initials
-  const avatarInitials = useMemo(() => {
-    if (!profile?.name) return '?'
-    const parts = profile.name.trim().split(/\s+/)
-    const first = parts[0] ?? ''
-    const last = parts.length >= 2 ? (parts[parts.length - 1] ?? '') : ''
-    if (last) return ((first[0] ?? '') + (last[0] ?? '')).toUpperCase()
-    return (first[0] ?? '?').toUpperCase()
-  }, [profile?.name])
-
   const currentStreak = streakInfo?.currentStreak ?? 0
+  const handleHabitLogged = useCallback((habitId: string) => {
+    habitListRef.current?.markRecentlyCompleted(habitId)
+    habitListRef.current?.checkAndPromptParentLog(habitId)
+  }, [])
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -504,19 +507,9 @@ export default function TodayScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerRight}>
-            {/* Streak badge */}
-            {currentStreak > 0 && (
-              <View style={styles.streakBadge}>
-                <Flame size={14} color="#fbbf24" />
-                <Text style={styles.streakText}>{currentStreak}</Text>
-              </View>
-            )}
-            {/* Notification bell */}
+            <ThemeToggle />
+            <StreakBadge streak={currentStreak} />
             <NotificationBell />
-            {/* Profile avatar */}
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarInitials}</Text>
-            </View>
           </View>
         </View>
 
@@ -556,7 +549,7 @@ export default function TodayScreen() {
             GOALS VIEW
             ============================================================ */}
         {activeView === 'goals' && (
-          <GoalList onCreatePress={() => setShowCreateGoalModal(true)} />
+          <GoalsView />
         )}
 
         {/* ============================================================
@@ -596,14 +589,8 @@ export default function TodayScreen() {
             AI SUMMARY CARD
             Matches web: bg-surface border border-primary/30 rounded-2xl p-4
             ============================================================ */}
-        {showSummary && summary ? (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Sparkles size={16} color={colors.primary} />
-              <Text style={styles.summaryTitle}>{t('summary.title')}</Text>
-            </View>
-            <Text style={styles.summaryText}>{summary}</Text>
-          </View>
+        {showSummary ? (
+          <HabitSummaryCard date={dateStr} />
         ) : null}
 
         {/* ============================================================
@@ -818,8 +805,8 @@ export default function TodayScreen() {
             {/* Habit list (using HabitList component with all handlers wired) */}
             <HabitList
               ref={habitListRef}
+              view={activeView}
               filters={filters}
-              dateStr={dateStr}
               selectedDate={activeView === 'today' ? selectedDate : undefined}
               showCompleted={showCompleted}
               searchQuery={searchQueryStore}
@@ -857,7 +844,13 @@ export default function TodayScreen() {
               { bottom: 24 + insets.bottom },
             ]}
             activeOpacity={0.8}
-            onPress={() => setShowCreateModal(true)}
+            onPress={() => {
+              if (!(profile?.hasProAccess ?? false) && totalHabitCount >= 10) {
+                router.push('/upgrade')
+                return
+              }
+              setShowCreateModal(true)
+            }}
           >
             <Plus size={24} color="#fff" />
           </TouchableOpacity>
@@ -877,12 +870,14 @@ export default function TodayScreen() {
         open={!!logHabit}
         onClose={() => setLogHabit(null)}
         habit={logHabit}
+        onLogged={handleHabitLogged}
       />
 
       <HabitDetailDrawer
         open={!!detailHabit}
         onClose={() => setDetailHabit(null)}
         habit={detailHabit}
+        onLogged={handleHabitLogged}
         onEdit={(habitId) => {
           const habit = detailHabit?.id === habitId ? detailHabit : null
           setDetailHabit(null)
@@ -930,19 +925,6 @@ export default function TodayScreen() {
         open={showCreateGoalModal}
         onClose={() => setShowCreateGoalModal(false)}
       />
-
-      {/* ============================================================
-          CELEBRATIONS & TOASTS
-          ============================================================ */}
-      <AllDoneCelebration />
-      <StreakCelebration />
-      <LevelUpOverlay
-        leveledUp={leveledUp && !levelUpCleared}
-        newLevel={newLevel}
-        onClear={() => setLevelUpCleared(true)}
-      />
-      <AchievementToast />
-      <WelcomeBackToast />
     </View>
   )
 }

@@ -12,7 +12,11 @@ import {
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { format, parseISO } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
+import { getErrorMessage } from '@orbit/shared/utils'
 import {
   Settings,
   Sparkles,
@@ -32,6 +36,7 @@ import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profi
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { colors } from '@/lib/theme'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 
@@ -134,6 +139,7 @@ function NavCard({
   proBadge?: boolean
   rightText?: string
 }) {
+  const { t } = useTranslation()
   const isPrimary = variant === 'primary'
   return (
     <TouchableOpacity
@@ -152,7 +158,7 @@ function NavCard({
           <Text style={styles.navCardTitle}>{title}</Text>
           {proBadge && (
             <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO</Text>
+              <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
             </View>
           )}
         </View>
@@ -172,7 +178,7 @@ function NavCard({
 // ---------------------------------------------------------------------------
 
 export default function ProfileScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const queryClient = useQueryClient()
   const { subscription } = useLocalSearchParams<{ subscription?: string | string[] }>()
@@ -181,6 +187,7 @@ export default function ProfileScreen() {
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile()
+  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
 
   // --- Fresh Start ---
   const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
@@ -205,11 +212,11 @@ export default function ProfileScreen() {
     setResetLoading(true)
     setResetError('')
     try {
-      await apiClient('/api/profile/reset', { method: 'POST' })
+      await apiClient(API.profile.reset, { method: 'POST' })
       setShowResetModal(false)
       setShowFreshStartAnim(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.freshStart.errorGeneric')
+      const msg = getErrorMessage(err, t('profile.freshStart.errorGeneric'))
       setResetError(msg)
     } finally {
       setResetLoading(false)
@@ -222,12 +229,14 @@ export default function ProfileScreen() {
   const [deleteCode, setDeleteCode] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
 
   function openDeleteModal() {
     setDeleteStep('confirm')
     setDeleteCode('')
     setDeleteError('')
     setDeleteLoading(false)
+    setScheduledDeletionDate(null)
     setShowDeleteModal(true)
   }
 
@@ -235,10 +244,10 @@ export default function ProfileScreen() {
     setDeleteLoading(true)
     setDeleteError('')
     try {
-      await apiClient('/api/auth/request-deletion', { method: 'POST' })
+      await apiClient(API.auth.requestDeletion, { method: 'POST' })
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
+      const msg = getErrorMessage(err, t('profile.deleteAccount.errorGeneric'))
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -250,13 +259,14 @@ export default function ProfileScreen() {
     setDeleteLoading(true)
     setDeleteError('')
     try {
-      await apiClient('/api/auth/confirm-deletion', {
+      const response = await apiClient<{ scheduledDeletionAt?: string | null }>(API.auth.confirmDeletion, {
         method: 'POST',
         body: JSON.stringify({ code: deleteCode }),
       })
+      setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
+      const msg = getErrorMessage(err, t('profile.deleteAccount.errorGeneric'))
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -300,6 +310,7 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('profile.title')}</Text>
+          <ThemeToggle />
         </View>
 
         {/* Error */}
@@ -617,8 +628,12 @@ export default function ProfileScreen() {
                 <View style={styles.deleteWarningBox}>
                   <Text style={styles.deleteWarningTitle}>
                     {profile?.hasProAccess
-                      ? t('profile.deleteAccount.warningPro', { date: '' })
-                      : t('profile.deleteAccount.warning')}
+                      ? t('profile.deleteAccount.warningPro', {
+                          date: profile.planExpiresAt
+                            ? format(parseISO(profile.planExpiresAt), 'PPP', { locale: dateFnsLocale })
+                            : '',
+                        })
+                      : t('profile.deleteAccount.warningFree')}
                   </Text>
                   <Text style={styles.deleteWarningDetail}>
                     {t('profile.deleteAccount.warningDetail')}
@@ -669,7 +684,11 @@ export default function ProfileScreen() {
                   <Clock size={20} color={colors.amber} />
                   <Text style={styles.deactivatedTitle}>{t('profile.deleteAccount.title')}</Text>
                   <Text style={styles.deactivatedDetail}>
-                    {t('profile.deleteAccount.warningFree')}
+                    {t('profile.deleteAccount.deactivated', {
+                      date: scheduledDeletionDate
+                        ? format(parseISO(scheduledDeletionDate), 'PPP', { locale: dateFnsLocale })
+                        : '',
+                    })}
                   </Text>
                 </View>
                 <TouchableOpacity

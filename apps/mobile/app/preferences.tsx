@@ -220,7 +220,7 @@ export default function PreferencesScreen() {
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardLabel}>{t('profile.colorScheme.title')}</Text>
             <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO</Text>
+              <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
             </View>
           </View>
           <Text style={styles.cardDescription}>

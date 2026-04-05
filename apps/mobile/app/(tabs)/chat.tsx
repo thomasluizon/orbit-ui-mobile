@@ -42,6 +42,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { apiClient } from '@/lib/api-client'
 import { MessageBubble, TypingIndicator } from '@/components/message-bubble'
+import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { useChatStore } from '@/stores/chat-store'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -50,7 +51,16 @@ import { useAppTheme } from '@/lib/use-app-theme'
 // Animated Sparkle Icon for empty state
 // ---------------------------------------------------------------------------
 
-function AnimatedSparkle() {
+type AppColors = ReturnType<typeof createColors>
+type ChatStyles = ReturnType<typeof createStyles>
+
+function AnimatedSparkle({
+  primaryColor,
+  styles,
+}: Readonly<{
+  primaryColor: string
+  styles: ChatStyles
+}>) {
   const scale = useRef(new Animated.Value(1)).current
   const opacity = useRef(new Animated.Value(0.7)).current
 
@@ -91,13 +101,19 @@ function AnimatedSparkle() {
     <View style={styles.sparkleOuter}>
       <View style={styles.sparkleGlow} />
       <Animated.View style={{ transform: [{ scale }], opacity }}>
-        <Sparkles size={28} color={colors.primary} />
+        <Sparkles size={28} color={primaryColor} />
       </Animated.View>
     </View>
   )
 }
 
-function AnimatedVisualizerBar({ delay }: Readonly<{ delay: number }>) {
+function AnimatedVisualizerBar({
+  delay,
+  styles,
+}: Readonly<{
+  delay: number
+  styles: ChatStyles
+}>) {
   const scale = useRef(new Animated.Value(0.45)).current
 
   useEffect(() => {
@@ -133,13 +149,14 @@ function AnimatedVisualizerBar({ delay }: Readonly<{ delay: number }>) {
   )
 }
 
-function RecordingVisualizer() {
+function RecordingVisualizer({ styles }: Readonly<{ styles: ChatStyles }>) {
   return (
     <View style={styles.visualizer}>
       {VISUALIZER_BAR_OFFSETS.map((offset) => (
         <AnimatedVisualizerBar
           key={`bar-${offset}`}
           delay={Math.round(offset * 1000)}
+          styles={styles}
         />
       ))}
     </View>
@@ -197,15 +214,6 @@ export default function ChatScreen() {
     [t],
   )
 
-  const suggestionChips = useMemo(
-    () => [
-      { key: 'meditated', label: t('chat.suggestion.meditated') },
-      { key: 'exercise', label: t('chat.suggestion.exercise') },
-      { key: 'groceries', label: t('chat.suggestion.groceries') },
-    ],
-    [t],
-  )
-
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)
     const secs = recordingDuration % 60
@@ -241,7 +249,7 @@ export default function ChatScreen() {
     }
   }, [isRecording])
 
-  function validateImageAsset(asset: ImagePicker.ImagePickerAsset): string | null {
+  const validateImageAsset = useCallback((asset: ImagePicker.ImagePickerAsset): string | null => {
     const validationError = getChatImageValidationError({
       mimeType: asset.mimeType,
       fileSize: asset.fileSize,
@@ -252,7 +260,7 @@ export default function ChatScreen() {
     if (validationError === 'type') return t('chat.imageError')
     if (validationError === 'size') return t('chat.imageSizeError')
     return null
-  }
+  }, [t])
 
   const openFilePicker = useCallback(async () => {
     setShowLangPicker(false)
@@ -283,7 +291,7 @@ export default function ChatScreen() {
     setSendError(null)
     setSelectedImage(asset)
     setImagePreview(asset.uri)
-  }, [t])
+  }, [t, validateImageAsset])
 
   const removeImage = useCallback(() => {
     setSelectedImage(null)
@@ -451,20 +459,12 @@ export default function ChatScreen() {
 
         {showSuggestions ? (
           <View style={styles.emptyState}>
-            <AnimatedSparkle />
+            <AnimatedSparkle primaryColor={colors.primary} styles={styles} />
             <Text style={styles.emptyText}>{t('chat.suggestion.prompt')}</Text>
-            <View style={styles.suggestionsContainer}>
-              {suggestionChips.map((chip) => (
-                <TouchableOpacity
-                  key={chip.key}
-                  style={styles.suggestionChip}
-                  onPress={() => sendMessage(chip.label)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.suggestionChipText}>{chip.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SuggestionChips onSelect={(suggestion) => {
+              void sendMessage(suggestion)
+            }}
+            />
           </View>
         ) : (
           <FlatList
@@ -527,7 +527,7 @@ export default function ChatScreen() {
                     <View style={styles.recordingDot} />
                     <Text style={styles.recordingTime}>{recordingTime}</Text>
                   </View>
-                  <RecordingVisualizer />
+                  <RecordingVisualizer styles={styles} />
                 </View>
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -650,8 +650,6 @@ export default function ChatScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-type AppColors = ReturnType<typeof createColors>
-
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
   safeArea: {
@@ -709,27 +707,6 @@ function createStyles(colors: AppColors) {
   emptyText: {
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  suggestionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    paddingTop: 0,
-    maxWidth: 320,
-  },
-  suggestionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 9999,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  suggestionChipText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textPrimary,
   },
   messageList: {
     paddingVertical: 16,
