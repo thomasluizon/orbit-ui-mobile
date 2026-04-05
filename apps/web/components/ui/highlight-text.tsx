@@ -40,18 +40,18 @@ function highlightText(text: string, query: string): Segment[] {
   return segments.length > 0 ? segments : [{ text, isMatch: false }]
 }
 
-export function HighlightText({ text, query }: HighlightTextProps) {
+export function HighlightText({ text, query }: Readonly<HighlightTextProps>) {
   const segments = highlightText(text, query)
 
   return (
     <>
       {segments.map((seg, i) =>
         seg.isMatch ? (
-          <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5 transition-all duration-150">
+          <mark key={`segment-${i}-${seg.text}`} className="bg-primary/30 text-inherit rounded-sm px-0.5 transition-all duration-150">
             {seg.text}
           </mark>
         ) : (
-          <span key={i}>{seg.text}</span>
+          <span key={`segment-${i}-${seg.text}`}>{seg.text}</span>
         )
       )}
     </>

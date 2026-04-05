@@ -18,7 +18,7 @@ interface HabitSummaryCardProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function HabitSummaryCard({ date }: HabitSummaryCardProps) {
+export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()

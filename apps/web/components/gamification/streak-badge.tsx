@@ -10,7 +10,7 @@ interface StreakBadgeProps {
   isFrozen?: boolean
 }
 
-export function StreakBadge({ streak, isFrozen }: StreakBadgeProps) {
+export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const t = useTranslations()
 
   const tier = useMemo(() => {

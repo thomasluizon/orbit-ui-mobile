@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { schemes, type ColorScheme, type ColorSchemeDefinition } from '@orbit/shared'
-import type { ThemeMode } from '@orbit/shared'
+import { schemes, type ColorScheme, type ColorSchemeDefinition, type ThemeMode } from '@orbit/shared'
 import { updateColorScheme as updateColorSchemeAction } from '@/app/actions/profile'
 
 function getCookie(name: string): string | null {
@@ -107,12 +106,12 @@ function applySchemeToDOM(scheme: ColorScheme, theme: ThemeMode, animate = false
   }
 }
 
-const VALID_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+const VALID_SCHEMES = new Set<ColorScheme>(['purple', 'blue', 'green', 'rose', 'orange', 'cyan'])
 
 export function useColorScheme() {
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() => {
     const cookie = getCookie('orbit_color_scheme')
-    return cookie && VALID_SCHEMES.includes(cookie as ColorScheme) ? (cookie as ColorScheme) : 'purple'
+    return cookie && VALID_SCHEMES.has(cookie as ColorScheme) ? (cookie as ColorScheme) : 'purple'
   })
 
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => {
@@ -151,7 +150,7 @@ export function useColorScheme() {
    * Call this after profile loads to ensure cross-device sync.
    */
   const syncSchemeFromProfile = useCallback((dbColorScheme: string | null) => {
-    const dbScheme = (dbColorScheme && VALID_SCHEMES.includes(dbColorScheme as ColorScheme))
+    const dbScheme = (dbColorScheme && VALID_SCHEMES.has(dbColorScheme as ColorScheme))
       ? (dbColorScheme as ColorScheme)
       : null
     if (dbScheme && dbScheme !== currentScheme) {

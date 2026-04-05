@@ -146,7 +146,8 @@ async function handleProxy(request: NextRequest, path: string) {
   return toNextResponse(response)
 }
 
-export async function GET(
+/** Single handler for all HTTP methods -- eliminates S4144 duplicate functions */
+async function handler(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
@@ -159,54 +160,10 @@ export async function GET(
   return handleProxy(request, validated)
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const { path: segments } = await params
-  const path = segments.join('/')
-  const validated = validatePath(path)
-  if (!validated) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-  return handleProxy(request, validated)
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const { path: segments } = await params
-  const path = segments.join('/')
-  const validated = validatePath(path)
-  if (!validated) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-  return handleProxy(request, validated)
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const { path: segments } = await params
-  const path = segments.join('/')
-  const validated = validatePath(path)
-  if (!validated) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-  return handleProxy(request, validated)
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const { path: segments } = await params
-  const path = segments.join('/')
-  const validated = validatePath(path)
-  if (!validated) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-  return handleProxy(request, validated)
+export {
+  handler as GET,
+  handler as POST,
+  handler as PUT,
+  handler as PATCH,
+  handler as DELETE,
 }

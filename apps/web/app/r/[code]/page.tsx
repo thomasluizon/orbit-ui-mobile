@@ -4,7 +4,7 @@ interface ReferralRedirectPageProps {
   params: Promise<{ code: string }>
 }
 
-export default async function ReferralRedirectPage({ params }: ReferralRedirectPageProps) {
+export default async function ReferralRedirectPage({ params }: Readonly<ReferralRedirectPageProps>) {
   const { code } = await params
 
   // Validate referral code format

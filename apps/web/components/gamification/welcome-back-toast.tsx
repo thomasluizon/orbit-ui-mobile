@@ -8,7 +8,6 @@ import { useProfile } from '@/hooks/use-profile'
 export function WelcomeBackToast() {
   const t = useTranslations()
   const { profile } = useProfile()
-  const [visible, setVisible] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [toastEmoji, setToastEmoji] = useState('\uD83D\uDC4B')
   const [mounted, setMounted] = useState(false)
@@ -27,19 +26,16 @@ export function WelcomeBackToast() {
   function showToast(message: string, emoji = '\uD83D\uDC4B') {
     setToastMessage(message)
     setToastEmoji(emoji)
-    setVisible(true)
     setShouldRender(true)
     requestAnimationFrame(() => setIsVisible(true))
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     dismissTimerRef.current = setTimeout(() => {
-      setVisible(false)
       setIsVisible(false)
       setTimeout(() => setShouldRender(false), 300)
     }, 4000)
   }
 
   function dismiss() {
-    setVisible(false)
     setIsVisible(false)
     setTimeout(() => setShouldRender(false), 300)
   }

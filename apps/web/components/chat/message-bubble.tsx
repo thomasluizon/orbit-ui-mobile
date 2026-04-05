@@ -21,9 +21,9 @@ interface MessageBubbleProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubbleProps) {
+export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
-  const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<number>>(new Set())
+  const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
 
   const suggestionActions = useMemo(
     () =>
@@ -38,8 +38,8 @@ export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubblePr
     [message.actions],
   )
 
-  function dismissBreakdown(index: number) {
-    setDismissedBreakdowns((prev) => new Set([...prev, index]))
+  function dismissBreakdown(key: string) {
+    setDismissedBreakdowns((prev) => new Set([...prev, key]))
   }
 
   const isUser = message.role === 'user'
@@ -92,17 +92,18 @@ export function MessageBubble({ message, onBreakdownConfirmed }: MessageBubblePr
         {/* Breakdown suggestions */}
         {!isUser && suggestionActions.length > 0 && (
           <div className="space-y-3 mt-3 w-full">
-            {suggestionActions.map((action, idx) =>
-              !dismissedBreakdowns.has(idx) ? (
+            {suggestionActions.map((action) => {
+              const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
+              return !dismissedBreakdowns.has(actionKey) ? (
                 <BreakdownSuggestion
-                  key={idx}
+                  key={actionKey}
                   parentName={action.entityName || 'Habit'}
                   subHabits={action.suggestedSubHabits ?? []}
                   onConfirmed={() => onBreakdownConfirmed?.()}
-                  onCancelled={() => dismissBreakdown(idx)}
+                  onCancelled={() => dismissBreakdown(actionKey)}
                 />
-              ) : null,
-            )}
+              ) : null
+            })}
           </div>
         )}
       </div>

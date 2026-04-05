@@ -141,7 +141,7 @@ describe('HabitChecklist', () => {
       ]
       render(<HabitChecklist items={items} interactive />)
       const progressbar = screen.getByRole('progressbar')
-      expect(progressbar.getAttribute('aria-valuenow')).toBe('100')
+      expect(progressbar.getAttribute('value')).toBe('100')
     })
   })
 

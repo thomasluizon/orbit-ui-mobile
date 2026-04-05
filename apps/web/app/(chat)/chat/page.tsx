@@ -499,9 +499,9 @@ export default function ChatPage() {
                     aria-label={t('chat.listening')}
                   >
                     <div className="mic-visualizer" aria-hidden="true">
-                      {VISUALIZER_BAR_OFFSETS.map((offset, index) => (
+                      {VISUALIZER_BAR_OFFSETS.map((offset) => (
                         <span
-                          key={`bar-${index}`}
+                          key={`bar-${offset}`}
                           className="mic-visualizer__bar"
                           style={{ animationDelay: `${offset}s` }}
                         />

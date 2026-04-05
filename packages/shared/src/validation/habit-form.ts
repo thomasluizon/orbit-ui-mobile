@@ -53,7 +53,7 @@ export function validateEndTime(dueTime: string, dueEndTime: string): string | n
  * Pass the field name to distinguish error keys.
  */
 export function validateTime(time: string): string | null {
-  if (!time || time.length !== 5) return null
+  if (time?.length !== 5) return null
   const parts = time.split(':')
   const h = Number.parseInt(parts[0] ?? '', 10)
   const m = Number.parseInt(parts[1] ?? '', 10)

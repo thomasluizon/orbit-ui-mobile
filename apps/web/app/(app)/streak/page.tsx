@@ -233,14 +233,15 @@ export default function StreakPage() {
             </div>
 
             {/* Frozen today indicator */}
-            {isFrozenToday ? (
+            {isFrozenToday && (
               <div className="flex items-center gap-2 bg-blue-500/8 border border-blue-500/15 rounded-[var(--radius-lg)] px-3.5 py-2.5">
                 <svg viewBox="0 0 12 14" fill="none" className="size-4">
                   <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span className="text-xs font-bold text-blue-400">{t('streakDisplay.freeze.activeToday')}</span>
               </div>
-            ) : streak > 0 ? (
+            )}
+            {!isFrozenToday && streak > 0 && (
               <button
                 className={`w-full py-3 rounded-[var(--radius-lg)] text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
                   canFreeze
@@ -252,7 +253,7 @@ export default function StreakPage() {
               >
                 {t('streakDisplay.freeze.activate')}
               </button>
-            ) : null}
+            )}
 
             {/* Already completed today hint */}
             {hasCompletedToday && !isFrozenToday && streak > 0 && (

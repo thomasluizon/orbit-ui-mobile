@@ -13,7 +13,6 @@ export function StreakCelebration() {
   const t = useTranslations()
   const streakCelebration = useUIStore((s) => s.streakCelebration)
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
-  const [visible, setVisible] = useState(false)
   const [streakCount, setStreakCount] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
@@ -30,12 +29,10 @@ export function StreakCelebration() {
   useEffect(() => {
     if (streakCelebration) {
       setStreakCount(streakCelebration.streak)
-      setVisible(true)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {
-        setVisible(false)
         setIsVisible(false)
         setStreakCelebration(null)
         setTimeout(() => setShouldRender(false), 300)
@@ -56,7 +53,6 @@ export function StreakCelebration() {
   }, [streakCount, t])
 
   function dismiss() {
-    setVisible(false)
     setIsVisible(false)
     setStreakCelebration(null)
     setTimeout(() => setShouldRender(false), 300)

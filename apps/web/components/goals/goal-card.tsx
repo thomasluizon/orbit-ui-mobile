@@ -19,7 +19,7 @@ interface GoalCardProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function GoalCard({ goal }: GoalCardProps) {
+export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const t = useTranslations()
   const [showDetail, setShowDetail] = useState(false)
 
@@ -126,20 +126,24 @@ export function GoalCard({ goal }: GoalCardProps) {
             </p>
 
             {/* Progress bar */}
-            <div
-              className="h-2 bg-surface-elevated rounded-full overflow-hidden mb-2"
-              role="progressbar"
-              aria-valuenow={Math.min(goal.progressPercentage, 100)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
-            >
-              <div
-                className={`h-full rounded-full transition-all duration-500 animate-[progress-fill_0.6s_ease-out] ${progressColor}`}
-                style={{
-                  width: `${Math.min(goal.progressPercentage, 100)}%`,
-                }}
+            <div className="relative mb-2">
+              <progress
+                className="sr-only"
+                value={Math.min(goal.progressPercentage, 100)}
+                max={100}
+                aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
               />
+              <div
+                className="h-2 bg-surface-elevated rounded-full overflow-hidden"
+                aria-hidden="true"
+              >
+                <div
+                  className={`h-full rounded-full transition-all duration-500 animate-[progress-fill_0.6s_ease-out] ${progressColor}`}
+                  style={{
+                    width: `${Math.min(goal.progressPercentage, 100)}%`,
+                  }}
+                />
+              </div>
             </div>
 
             {/* Footer: percentage + deadline */}

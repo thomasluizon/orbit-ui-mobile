@@ -37,6 +37,7 @@ import type {
   BulkSkipResult,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
+import type { LinkedGoalUpdate } from '@orbit/shared/types/habit'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
@@ -181,6 +182,21 @@ function buildChildrenIndex(habitsById: Map<string, NormalizedHabit>): Map<strin
   return index
 }
 
+// Apply linked goal progress updates from a log response (extracted to reduce nesting - S2004)
+function applyLinkedGoalUpdates(goals: Goal[], updates: LinkedGoalUpdate[]): Goal[] {
+  return goals.map((goal) => {
+    const update = updates.find(u => u.goalId === goal.id)
+    if (!update) return goal
+    return {
+      ...goal,
+      currentValue: update.newProgress,
+      progressPercentage: update.targetValue > 0
+        ? Math.min(100, Math.round(update.newProgress / update.targetValue * 1000) / 10)
+        : 0,
+    }
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Normalized data type returned from select
 // ---------------------------------------------------------------------------
@@ -199,8 +215,6 @@ export interface NormalizedHabitsData {
 // ---------------------------------------------------------------------------
 
 export function useHabits(filters: HabitsFilter) {
-  const queryClient = useQueryClient()
-
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
@@ -390,20 +404,7 @@ export function useLogHabit() {
       if (response?.linkedGoalUpdates?.length) {
         queryClient.setQueriesData<Goal[]>(
           { queryKey: goalKeys.lists() },
-          (old) => {
-            if (!old) return old
-            return old.map((goal) => {
-              const update = response.linkedGoalUpdates!.find(u => u.goalId === goal.id)
-              if (!update) return goal
-              return {
-                ...goal,
-                currentValue: update.newProgress,
-                progressPercentage: update.targetValue > 0
-                  ? Math.min(100, Math.round(update.newProgress / update.targetValue * 1000) / 10)
-                  : 0,
-              }
-            })
-          },
+          (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
         )
       }
 

@@ -69,7 +69,7 @@ function truncate(text: string, max = 20): string {
 // Sub-components (extracted to reduce cognitive complexity - S3776)
 // ---------------------------------------------------------------------------
 
-function CompletionSparks({ positions }: { positions: Array<{ x: string; y: string }> }) {
+function CompletionSparks({ positions }: Readonly<{ positions: Array<{ x: string; y: string }> }>) {
   return (
     <>
       {positions.map((pos, i) => (
@@ -98,7 +98,7 @@ function BadHabitBadge() {
   )
 }
 
-function TagBadge({ tag, searchQuery }: { tag: { id: string; name: string; color: string }; searchQuery: string }) {
+function TagBadge({ tag, searchQuery }: Readonly<{ tag: { id: string; name: string; color: string }; searchQuery: string }>) {
   return (
     <span className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white/95" style={{ backgroundColor: tag.color }}>
       <HighlightText text={tag.name} query={searchQuery} />
@@ -106,7 +106,7 @@ function TagBadge({ tag, searchQuery }: { tag: { id: string; name: string; color
   )
 }
 
-function StreakBadgeInline({ streak }: { streak: number | null | undefined }) {
+function StreakBadgeInline({ streak }: Readonly<{ streak: number | null | undefined }>) {
   if (streak == null || streak < 2) return null
   return (
     <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/10">
@@ -116,11 +116,11 @@ function StreakBadgeInline({ streak }: { streak: number | null | undefined }) {
   )
 }
 
-function ChecklistBadge({ items, checkedCount, hasBorder }: {
+function ChecklistBadge({ items, checkedCount, hasBorder }: Readonly<{
   items: Array<{ text: string; isChecked: boolean }> | undefined | null
   checkedCount: number
   hasBorder?: boolean
-}) {
+}>) {
   if (!items || items.length === 0) return null
   return (
     <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-text-secondary bg-surface-elevated/60 ${hasBorder ? 'border border-border-muted' : ''}`}>
@@ -144,7 +144,7 @@ interface TopLevelBadgesProps {
 function TopLevelBadges({
   habit, frequencyLabel, flexibleProgressLabel, statusBadge,
   checkedCount, searchQuery, matchBadges, displayTime,
-}: TopLevelBadgesProps) {
+}: Readonly<TopLevelBadgesProps>) {
   return (
     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
       <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted/70">
@@ -186,9 +186,9 @@ function TopLevelBadges({
   )
 }
 
-function ChildBadHabitBadges({ habit, searchQuery, checkedCount }: {
+function ChildBadHabitBadges({ habit, searchQuery, checkedCount }: Readonly<{
   habit: NormalizedHabit; searchQuery: string; checkedCount: number
-}) {
+}>) {
   return (
     <div className="flex items-center gap-1.5 mt-0.5">
       <BadHabitBadge />
@@ -201,11 +201,11 @@ function ChildBadHabitBadges({ habit, searchQuery, checkedCount }: {
   )
 }
 
-function ChildDefaultBadges({ habit, frequencyLabel, statusBadge, searchQuery, checkedCount }: {
+function ChildDefaultBadges({ habit, frequencyLabel, statusBadge, searchQuery, checkedCount }: Readonly<{
   habit: NormalizedHabit; frequencyLabel: string
   statusBadge: { text: string; color: string; bg: string } | null
   searchQuery: string; checkedCount: number
-}) {
+}>) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
       <span className="text-[9px] font-semibold uppercase tracking-widest text-text-muted/60">
@@ -497,7 +497,6 @@ export function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <article
-          role="button"
           aria-label={habit.title}
           className={`cursor-pointer ${
             !isChild
@@ -558,18 +557,11 @@ export function HabitCard({
               </button>
             )}
 
-            {/* Selection checkbox */}
+            {/* Selection checkbox - uses native input for a11y (S6819) */}
             {isSelectMode ? (
-              <button
+              <label
                 data-no-drag
-                role="checkbox"
-                aria-checked={isSelected}
-                aria-label={`${t('common.select')}: ${habit.title}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleSelection?.()
-                }}
-                className={`shrink-0 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                className={`shrink-0 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   isChild ? 'size-8' : 'size-10 sm:size-11'
                 } ${
                   isSelected
@@ -577,10 +569,21 @@ export function HabitCard({
                     : 'border-border-emphasis hover:border-primary/40 hover:bg-primary/5'
                 }`}
               >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  aria-label={`${t('common.select')}: ${habit.title}`}
+                  className="sr-only"
+                  onChange={(e) => {
+                    e.stopPropagation()
+                    onToggleSelection?.()
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
                 {isSelected && (
-                  <Check className={isChild ? 'size-4' : 'size-5'} />
+                  <Check className={isChild ? 'size-4' : 'size-5'} aria-hidden="true" />
                 )}
-              </button>
+              </label>
             ) : isParentWithChildren ? (
               /* Progress ring for parent habits */
               <button

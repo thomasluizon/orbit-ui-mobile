@@ -21,7 +21,7 @@ interface AchievementCardProps {
   earnedDate: string | null
 }
 
-export function AchievementCard({ achievement, earned, earnedDate }: AchievementCardProps) {
+export function AchievementCard({ achievement, earned, earnedDate }: Readonly<AchievementCardProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS

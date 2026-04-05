@@ -196,6 +196,30 @@ describe('ui store', () => {
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
       })
 
+      it('delays allDone celebration when streak celebration is active', () => {
+        vi.useFakeTimers()
+        const today = formatAPIDate(new Date())
+        useUIStore.setState({
+          activeFilters: { dateFrom: today, dateTo: today },
+          allDoneCelebratedDate: '',
+          streakCelebration: { streak: 7 },
+        })
+
+        const { checkAllDoneCelebration } = useUIStore.getState()
+        const habits = new Map([
+          ['h1', { parentId: null, isCompleted: true }],
+        ])
+        checkAllDoneCelebration(habits)
+
+        // Should NOT be immediately true because of the streak celebration delay
+        expect(useUIStore.getState().allDoneCelebration).toBe(false)
+
+        // After the 3s delay, it fires
+        vi.advanceTimersByTime(3000)
+        expect(useUIStore.getState().allDoneCelebration).toBe(true)
+        vi.useRealTimers()
+      })
+
       it('does not trigger when some habits are incomplete', () => {
         const today = formatAPIDate(new Date())
         useUIStore.setState({
@@ -285,6 +309,99 @@ describe('ui store', () => {
       expect(state.isSelectMode).toBe(false)
       expect(state.selectedHabitIds.size).toBe(0)
     })
+
+    it('selectAllHabits selects all provided IDs', () => {
+      useUIStore.setState({ isSelectMode: true })
+
+      const { selectAllHabits } = useUIStore.getState()
+      selectAllHabits(['h1', 'h2', 'h3'])
+
+      const state = useUIStore.getState()
+      expect(state.selectedHabitIds.size).toBe(3)
+      expect(state.selectedHabitIds.has('h1')).toBe(true)
+      expect(state.selectedHabitIds.has('h2')).toBe(true)
+      expect(state.selectedHabitIds.has('h3')).toBe(true)
+      expect(state.manuallySelectedIds.size).toBe(3)
+    })
+
+    describe('toggleSelectionCascade', () => {
+      const getDescendantIds = (id: string) => {
+        const tree: Record<string, string[]> = {
+          parent: ['child-1', 'child-2'],
+          'child-1': ['grandchild-1'],
+        }
+        return tree[id] ?? []
+      }
+      const neverSelected = () => false
+
+      it('selects habit and all descendants', () => {
+        useUIStore.setState({
+          isSelectMode: true,
+          selectedHabitIds: new Set<string>(),
+          manuallySelectedIds: new Set<string>(),
+        })
+
+        const { toggleSelectionCascade } = useUIStore.getState()
+        toggleSelectionCascade('parent', getDescendantIds, neverSelected)
+
+        const state = useUIStore.getState()
+        expect(state.selectedHabitIds.has('parent')).toBe(true)
+        expect(state.selectedHabitIds.has('child-1')).toBe(true)
+        expect(state.selectedHabitIds.has('child-2')).toBe(true)
+        expect(state.manuallySelectedIds.has('parent')).toBe(true)
+      })
+
+      it('deselects habit and auto-selected descendants', () => {
+        useUIStore.setState({
+          isSelectMode: true,
+          selectedHabitIds: new Set(['parent', 'child-1', 'child-2']),
+          manuallySelectedIds: new Set(['parent']),
+        })
+
+        const { toggleSelectionCascade } = useUIStore.getState()
+        toggleSelectionCascade('parent', getDescendantIds, neverSelected)
+
+        const state = useUIStore.getState()
+        expect(state.selectedHabitIds.has('parent')).toBe(false)
+        expect(state.selectedHabitIds.has('child-1')).toBe(false)
+        expect(state.selectedHabitIds.has('child-2')).toBe(false)
+      })
+
+      it('keeps manually selected descendants when deselecting parent', () => {
+        useUIStore.setState({
+          isSelectMode: true,
+          selectedHabitIds: new Set(['parent', 'child-1', 'child-2']),
+          manuallySelectedIds: new Set(['parent', 'child-1']),
+        })
+
+        const { toggleSelectionCascade } = useUIStore.getState()
+        toggleSelectionCascade('parent', getDescendantIds, neverSelected)
+
+        const state = useUIStore.getState()
+        expect(state.selectedHabitIds.has('parent')).toBe(false)
+        // child-1 was manually selected, so it stays
+        expect(state.selectedHabitIds.has('child-1')).toBe(true)
+        // child-2 was auto-selected, so it's removed
+        expect(state.selectedHabitIds.has('child-2')).toBe(false)
+      })
+
+      it('does nothing when ancestor is already selected', () => {
+        useUIStore.setState({
+          isSelectMode: true,
+          selectedHabitIds: new Set(['parent']),
+          manuallySelectedIds: new Set(['parent']),
+        })
+
+        const isAncestorSelected = (id: string) => id === 'child-1'
+        const { toggleSelectionCascade } = useUIStore.getState()
+        toggleSelectionCascade('child-1', getDescendantIds, isAncestorSelected)
+
+        // State should be unchanged
+        const state = useUIStore.getState()
+        expect(state.selectedHabitIds.has('parent')).toBe(true)
+        expect(state.selectedHabitIds.size).toBe(1)
+      })
+    })
   })
 
   // -------------------------------------------------------------------------
@@ -320,6 +437,38 @@ describe('ui store', () => {
       setLastCreatedHabitId('new-habit')
       setLastCreatedHabitId(null)
       expect(useUIStore.getState().lastCreatedHabitId).toBeNull()
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // Create modals
+  // -------------------------------------------------------------------------
+
+  describe('create modals', () => {
+    it('starts with create modal hidden', () => {
+      expect(useUIStore.getState().showCreateModal).toBe(false)
+    })
+
+    it('toggles create modal', () => {
+      const { setShowCreateModal } = useUIStore.getState()
+      setShowCreateModal(true)
+      expect(useUIStore.getState().showCreateModal).toBe(true)
+
+      setShowCreateModal(false)
+      expect(useUIStore.getState().showCreateModal).toBe(false)
+    })
+
+    it('starts with create goal modal hidden', () => {
+      expect(useUIStore.getState().showCreateGoalModal).toBe(false)
+    })
+
+    it('toggles create goal modal', () => {
+      const { setShowCreateGoalModal } = useUIStore.getState()
+      setShowCreateGoalModal(true)
+      expect(useUIStore.getState().showCreateGoalModal).toBe(true)
+
+      setShowCreateGoalModal(false)
+      expect(useUIStore.getState().showCreateGoalModal).toBe(false)
     })
   })
 

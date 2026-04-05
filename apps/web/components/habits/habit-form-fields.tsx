@@ -50,6 +50,33 @@ const REMINDER_PRESETS = [
 ] as const
 
 // ---------------------------------------------------------------------------
+// Pure utility functions (extracted to module scope -- S7721)
+// ---------------------------------------------------------------------------
+
+function isValidTime(time: string): boolean {
+  if (time.length !== 5) return true
+  const [hStr, mStr] = time.split(':')
+  const h = Number.parseInt(hStr ?? "", 10)
+  const m = Number.parseInt(mStr ?? "", 10)
+  return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+}
+
+function formatScheduledTimeInput(value: string): string {
+  let v = value.replaceAll(/\D/g, '')
+  if (v.length > 4) v = v.slice(0, 4)
+  if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
+  return v
+}
+
+function isValidScheduledTime(time: string): boolean {
+  if (time.length !== 5) return false
+  const [hStr, mStr] = time.split(':')
+  const h = Number.parseInt(hStr ?? "", 10)
+  const m = Number.parseInt(mStr ?? "", 10)
+  return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -88,7 +115,7 @@ export function HabitFormFields({
     formatEndTimeInput,
   } = formHelpers
 
-  const { register, watch, setValue, getValues } = form
+  const { register, watch, setValue } = form
 
   const watchedFrequencyUnit = watch('frequencyUnit')
   const watchedFrequencyQuantity = watch('frequencyQuantity')
@@ -115,15 +142,6 @@ export function HabitFormFields({
   })
 
   const availableTags = tagsData ?? []
-
-  // Time validation
-  function isValidTime(time: string): boolean {
-    if (time.length !== 5) return true
-    const [hStr, mStr] = time.split(':')
-    const h = Number.parseInt(hStr ?? "", 10)
-    const m = Number.parseInt(mStr ?? "", 10)
-    return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
-  }
 
   // Reminder state
   const [showAddReminder, setShowAddReminder] = useState(false)
@@ -186,21 +204,6 @@ export function HabitFormFields({
   const [scheduledReminderTime, setScheduledReminderTime] = useState('')
 
   const atScheduledReminderLimit = (watchedScheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
-
-  function formatScheduledTimeInput(value: string): string {
-    let v = value.replaceAll(/\D/g, '')
-    if (v.length > 4) v = v.slice(0, 4)
-    if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
-    return v
-  }
-
-  function isValidScheduledTime(time: string): boolean {
-    if (time.length !== 5) return false
-    const [hStr, mStr] = time.split(':')
-    const h = Number.parseInt(hStr ?? "", 10)
-    const m = Number.parseInt(mStr ?? "", 10)
-    return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
-  }
 
   function addScheduledReminder() {
     if (!isValidScheduledTime(scheduledReminderTime)) return

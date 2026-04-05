@@ -29,7 +29,7 @@ export function GoalLinkingField({
   selectedGoalIds,
   atGoalLimit,
   onToggleGoal,
-}: GoalLinkingFieldProps) {
+}: Readonly<GoalLinkingFieldProps>) {
   const t = useTranslations()
 
   const { data: goals } = useQuery({

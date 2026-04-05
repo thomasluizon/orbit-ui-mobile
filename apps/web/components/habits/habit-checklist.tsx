@@ -33,7 +33,7 @@ export function HabitChecklist({
   onToggle,
   onReset,
   onClear,
-}: HabitChecklistProps) {
+}: Readonly<HabitChecklistProps>) {
   const t = useTranslations()
   const newItemInputId = useId()
   const [newItemText, setNewItemText] = useState('')
@@ -104,20 +104,24 @@ export function HabitChecklist({
       {/* Progress + actions */}
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
-          <div
-            className="flex-1 h-1.5 bg-surface-elevated rounded-full overflow-hidden"
-            role="progressbar"
-            aria-valuenow={items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`${checkedCount}/${items.length}`}
-          >
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-300"
-              style={{
-                width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%`,
-              }}
+          <div className="flex-1 relative">
+            <progress
+              className="sr-only"
+              value={items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0}
+              max={100}
+              aria-label={`${checkedCount}/${items.length}`}
             />
+            <div
+              className="h-1.5 bg-surface-elevated rounded-full overflow-hidden"
+              aria-hidden="true"
+            >
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{
+                  width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%`,
+                }}
+              />
+            </div>
           </div>
           <span className="text-[10px] font-bold text-text-muted tabular-nums" aria-hidden="true">
             {checkedCount}/{items.length}
@@ -149,7 +153,7 @@ export function HabitChecklist({
       {editable ? (
         <div className="space-y-1">
           {items.map((item, index) => (
-            <div key={index} className="flex items-center gap-2 group py-0.5">
+            <div key={`${item.text}-${index}`} className="flex items-center gap-2 group py-0.5">
               {/* Drag handle - decorative, drag is handled by library */}
               <div
                 aria-hidden="true"
@@ -196,7 +200,7 @@ export function HabitChecklist({
         /* Items list (interactive / read-only) */
         <div className="space-y-1">
           {items.map((item, index) => (
-            <div key={index} className="flex items-center gap-2 group py-1">
+            <div key={`${item.text}-${index}`} className="flex items-center gap-2 group py-1">
               {interactive ? (
                 <label className="shrink-0 cursor-pointer">
                   <input

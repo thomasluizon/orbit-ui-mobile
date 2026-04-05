@@ -18,7 +18,7 @@ interface OnboardingCreateGoalProps {
   onSkip: () => void
 }
 
-export function OnboardingCreateGoal({ onCreated, onSkip }: OnboardingCreateGoalProps) {
+export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingCreateGoalProps>) {
   const t = useTranslations()
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState<number | undefined>(undefined)

@@ -54,6 +54,214 @@ import type { HabitsFilter } from '@orbit/shared/types/habit'
 // ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
+const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
+
+type TabView = (typeof TAB_VIEWS)[number]
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getTabLabel(
+  view: TabView,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (view) {
+    case 'today':
+      return t('habits.viewToday')
+    case 'all':
+      return t('habits.viewAll')
+    case 'general':
+      return t('habits.viewGeneral')
+    case 'goals':
+      return t('goals.tab')
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function ControlsMenu({
+  menuPanelRef,
+  position,
+  isSelectMode,
+  showCompleted,
+  isFetching,
+  allCollapsed,
+  onToggleSelect,
+  onToggleCollapse,
+  onRefresh,
+  onToggleCompleted,
+  onClose,
+}: {
+  menuPanelRef: React.RefObject<HTMLDivElement | null>
+  position: { top: number; left: number }
+  isSelectMode: boolean
+  showCompleted: boolean
+  isFetching: boolean
+  allCollapsed: boolean
+  onToggleSelect: () => void
+  onToggleCollapse: () => void
+  onRefresh: () => void
+  onToggleCompleted: () => void
+  onClose: () => void
+}) {
+  const t = useTranslations()
+
+  return createPortal(
+    <div
+      ref={menuPanelRef}
+      role="menu"
+      tabIndex={0}
+      className="fixed z-[70] min-w-[12.5rem] rounded-[var(--radius-lg)] border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1"
+      style={{
+        left: `${position.left}px`,
+        top: `${position.top}px`,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        onClick={() => {
+          onToggleSelect()
+          onClose()
+        }}
+      >
+        {isSelectMode ? (
+          <X className="size-4 text-text-muted" />
+        ) : (
+          <CheckCircle className="size-4 text-text-muted" />
+        )}
+        {isSelectMode ? t('common.cancel') : t('common.select')}
+      </button>
+      <button
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        onClick={() => {
+          onToggleCollapse()
+          onClose()
+        }}
+      >
+        {allCollapsed ? (
+          <ChevronsUpDown className="size-4 text-text-muted" />
+        ) : (
+          <ChevronsDownUp className="size-4 text-text-muted" />
+        )}
+        {allCollapsed
+          ? t('habits.expandAll')
+          : t('habits.collapseAll')}
+      </button>
+      <button
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        disabled={isFetching}
+        onClick={() => {
+          onRefresh()
+          onClose()
+        }}
+      >
+        <RefreshCw className={`size-4 text-text-muted${isFetching ? ' animate-spin' : ''}`} />
+        {t('habits.refresh')}
+      </button>
+      <button
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        onClick={() => {
+          onToggleCompleted()
+          onClose()
+        }}
+      >
+        {showCompleted ? (
+          <Check className="size-4 text-text-muted" />
+        ) : (
+          <Eye className="size-4 text-text-muted" />
+        )}
+        {t('habits.showCompleted')}
+      </button>
+    </div>,
+    document.body,
+  )
+}
+
+function BulkActionBar({
+  selectedCount,
+  allSelected,
+  onSelectAll,
+  onDeselectAll,
+  onBulkLog,
+  onBulkSkip,
+  onBulkDelete,
+  onCancel,
+}: {
+  selectedCount: number
+  allSelected: boolean
+  onSelectAll: () => void
+  onDeselectAll: () => void
+  onBulkLog: () => void
+  onBulkSkip: () => void
+  onBulkDelete: () => void
+  onCancel: () => void
+}) {
+  const t = useTranslations()
+
+  return createPortal(
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] bg-surface-overlay border border-border-muted rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] backdrop-blur-xl px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium shrink-0">
+          {plural(t('common.selected', { n: selectedCount }), selectedCount)}
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
+            aria-label={
+              allSelected
+                ? t('common.deselectAll')
+                : t('common.selectAll')
+            }
+            onClick={() =>
+              allSelected ? onDeselectAll() : onSelectAll()
+            }
+          >
+            {allSelected ? (
+              <MinusCircle className="size-5" />
+            ) : (
+              <PlusCircle className="size-5" />
+            )}
+          </button>
+          <button
+            className="p-2 text-primary hover:text-primary/80 transition-colors rounded-xl hover:bg-primary/10"
+            aria-label={t('habits.logHabit')}
+            onClick={onBulkLog}
+          >
+            <CheckCircle className="size-5" />
+          </button>
+          <button
+            className="p-2 text-amber-400 hover:text-amber-300 transition-colors rounded-xl hover:bg-amber-500/10"
+            aria-label={t('habits.skipHabit')}
+            onClick={onBulkSkip}
+          >
+            <Forward className="size-5" />
+          </button>
+          <button
+            className="p-2 text-red-400 hover:text-red-300 transition-colors rounded-xl hover:bg-red-500/10"
+            aria-label={t('common.delete')}
+            onClick={onBulkDelete}
+          >
+            <Trash2 className="size-5" />
+          </button>
+          <div className="w-px h-5 bg-border mx-0.5" />
+          <button
+            className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
+            aria-label={t('common.cancel')}
+            onClick={onCancel}
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
@@ -70,7 +278,7 @@ export default function TodayPage() {
 
   // Show general on today preference (local storage)
   const [showGeneralOnToday] = useState(() => {
-    if (typeof window === 'undefined') return true
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true
     return localStorage.getItem('orbit_show_general_on_today') !== 'false'
   })
 
@@ -475,13 +683,7 @@ export default function TodayPage() {
               }`}
               onClick={() => setActiveView(view)}
             >
-              {view === 'today'
-                ? t('habits.viewToday')
-                : view === 'all'
-                  ? t('habits.viewAll')
-                  : view === 'general'
-                    ? t('habits.viewGeneral')
-                    : t('goals.tab')}
+              {getTabLabel(view, t)}
             </button>
           ))}
         </div>
@@ -657,88 +859,34 @@ export default function TodayPage() {
           </div>
 
           {/* Controls dropdown menu (portal) */}
-          {showControlsMenu &&
-            typeof document !== 'undefined' &&
-            createPortal(
-              <div
-                ref={controlsMenuPanelRef}
-                role="menu"
-                className="fixed z-[70] min-w-[12.5rem] rounded-[var(--radius-lg)] border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1"
-                style={{
-                  left: `${controlsMenuPosition.left}px`,
-                  top: `${controlsMenuPosition.top}px`,
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-                  onClick={() => {
-                    toggleSelectMode()
-                    closeControlsMenu()
-                  }}
-                >
-                  {isSelectMode ? (
-                    <X className="size-4 text-text-muted" />
-                  ) : (
-                    <CheckCircle className="size-4 text-text-muted" />
-                  )}
-                  {isSelectMode ? t('common.cancel') : t('common.select')}
-                </button>
-                <button
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-                  onClick={() => {
-                    if (habitListRef.current?.allCollapsed) {
-                      habitListRef.current.expandAll()
-                    } else {
-                      habitListRef.current?.collapseAll()
-                    }
-                    closeControlsMenu()
-                  }}
-                >
-                  {habitListRef.current?.allCollapsed ? (
-                    <ChevronsUpDown className="size-4 text-text-muted" />
-                  ) : (
-                    <ChevronsDownUp className="size-4 text-text-muted" />
-                  )}
-                  {habitListRef.current?.allCollapsed
-                    ? t('habits.expandAll')
-                    : t('habits.collapseAll')}
-                </button>
-                <button
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-                  disabled={habitsQuery.isFetching}
-                  onClick={() => {
-                    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-                    closeControlsMenu()
-                  }}
-                >
-                  <RefreshCw className={`size-4 text-text-muted${habitsQuery.isFetching ? ' animate-spin' : ''}`} />
-                  {t('habits.refresh')}
-                </button>
-                <button
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-                  onClick={() => {
-                    setShowCompleted(!showCompleted)
-                    closeControlsMenu()
-                  }}
-                >
-                  {showCompleted ? (
-                    <Check className="size-4 text-text-muted" />
-                  ) : (
-                    <Eye className="size-4 text-text-muted" />
-                  )}
-                  {t('habits.showCompleted')}
-                </button>
-              </div>,
-              document.body,
-            )}
+          {showControlsMenu && typeof document !== 'undefined' && (
+            <ControlsMenu
+              menuPanelRef={controlsMenuPanelRef}
+              position={controlsMenuPosition}
+              isSelectMode={isSelectMode}
+              showCompleted={showCompleted}
+              isFetching={habitsQuery.isFetching}
+              allCollapsed={!!habitListRef.current?.allCollapsed}
+              onToggleSelect={toggleSelectMode}
+              onToggleCollapse={() => {
+                if (habitListRef.current?.allCollapsed) {
+                  habitListRef.current.expandAll()
+                } else {
+                  habitListRef.current?.collapseAll()
+                }
+              }}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: habitKeys.lists() })}
+              onToggleCompleted={() => setShowCompleted(!showCompleted)}
+              onClose={closeControlsMenu}
+            />
+          )}
 
           {/* Loading skeleton (before first fetch) */}
           {!hasFetched && (
             <div className="space-y-3 pt-2">
-              {Array.from({ length: 5 }).map((_, i) => (
+              {SKELETON_KEYS.map((key) => (
                 <div
-                  key={`skeleton-${i}`}
+                  key={key}
                   className="bg-surface rounded-[var(--radius-xl)] p-4 flex items-center gap-4"
                 >
                   <div className="size-10 rounded-full bg-surface-elevated animate-pulse" />
@@ -793,66 +941,18 @@ export default function TodayPage() {
       )}
 
       {/* Floating bulk action bar */}
-      {isSelectMode &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] bg-surface-overlay border border-border-muted rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] backdrop-blur-xl px-4 py-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium shrink-0">
-                {plural(t('common.selected', { n: selectedHabitIds.size }), selectedHabitIds.size)}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
-                  aria-label={
-                    allSelected
-                      ? t('common.deselectAll')
-                      : t('common.selectAll')
-                  }
-                  onClick={() =>
-                    allSelected ? deselectAll() : selectAll()
-                  }
-                >
-                  {allSelected ? (
-                    <MinusCircle className="size-5" />
-                  ) : (
-                    <PlusCircle className="size-5" />
-                  )}
-                </button>
-                <button
-                  className="p-2 text-primary hover:text-primary/80 transition-colors rounded-xl hover:bg-primary/10"
-                  aria-label={t('habits.logHabit')}
-                  onClick={() => setShowBulkLogConfirm(true)}
-                >
-                  <CheckCircle className="size-5" />
-                </button>
-                <button
-                  className="p-2 text-amber-400 hover:text-amber-300 transition-colors rounded-xl hover:bg-amber-500/10"
-                  aria-label={t('habits.skipHabit')}
-                  onClick={() => setShowBulkSkipConfirm(true)}
-                >
-                  <Forward className="size-5" />
-                </button>
-                <button
-                  className="p-2 text-red-400 hover:text-red-300 transition-colors rounded-xl hover:bg-red-500/10"
-                  aria-label={t('common.delete')}
-                  onClick={() => setShowBulkDeleteConfirm(true)}
-                >
-                  <Trash2 className="size-5" />
-                </button>
-                <div className="w-px h-5 bg-border mx-0.5" />
-                <button
-                  className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
-                  aria-label={t('common.cancel')}
-                  onClick={toggleSelectMode}
-                >
-                  <X className="size-5" />
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      {isSelectMode && typeof document !== 'undefined' && (
+        <BulkActionBar
+          selectedCount={selectedHabitIds.size}
+          allSelected={allSelected}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onBulkLog={() => setShowBulkLogConfirm(true)}
+          onBulkSkip={() => setShowBulkSkipConfirm(true)}
+          onBulkDelete={() => setShowBulkDeleteConfirm(true)}
+          onCancel={toggleSelectMode}
+        />
+      )}
 
       {/* Bulk delete confirmation */}
       <ConfirmDialog

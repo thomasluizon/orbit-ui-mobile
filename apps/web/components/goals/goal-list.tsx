@@ -27,7 +27,7 @@ const TOUCH_MOVE_THRESHOLD = 5
 // Component
 // ---------------------------------------------------------------------------
 
-export function GoalList({ goals }: GoalListProps) {
+export function GoalList({ goals }: Readonly<GoalListProps>) {
   const listRef = useRef<HTMLDivElement>(null)
   const reorderGoals = useReorderGoals()
 
@@ -43,7 +43,7 @@ export function GoalList({ goals }: GoalListProps) {
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   const touchDragging = useRef(false)
-  const touchItemRef = useRef<HTMLDivElement | null>(null)
+  const touchItemRef = useRef<HTMLElement | null>(null)
 
   // -------------------------------------------------------------------------
   // Reorder logic (shared)
@@ -126,7 +126,7 @@ export function GoalList({ goals }: GoalListProps) {
   }, [])
 
   const handleTouchStart = useCallback(
-    (index: number, e: React.TouchEvent<HTMLDivElement>) => {
+    (index: number, e: React.TouchEvent<HTMLElement>) => {
       const touch = e.touches[0]
       if (!touch) return
       touchStartPos.current = { x: touch.clientX, y: touch.clientY }
@@ -142,7 +142,7 @@ export function GoalList({ goals }: GoalListProps) {
   )
 
   const handleTouchMove = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+    (e: React.TouchEvent<HTMLElement>) => {
       const touch = e.touches[0]
       if (!touch) return
 
@@ -201,10 +201,10 @@ export function GoalList({ goals }: GoalListProps) {
   return (
     <div ref={listRef} className="space-y-3">
       {goals.map((goal, index) => (
-        <div
+        <section
           key={goal.id}
-          role="group"
           aria-roledescription="draggable item"
+          aria-label={goal.title}
           draggable
           className={getDragClasses(index)}
           onDragStart={() => handleDragStart(index)}
@@ -216,7 +216,7 @@ export function GoalList({ goals }: GoalListProps) {
           onTouchEnd={handleTouchEnd}
         >
           <GoalCard goal={goal} />
-        </div>
+        </section>
       ))}
     </div>
   )

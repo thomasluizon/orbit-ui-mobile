@@ -1,0 +1,106 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('dompurify', () => ({
+  default: { sanitize: (html: string) => html },
+}))
+
+vi.mock('@/components/ui/app-overlay', () => ({
+  AppOverlay: ({ open, children, title }: { open: boolean; children: React.ReactNode; title?: string }) => {
+    if (!open) return null
+    return (
+      <div data-testid="overlay">
+        {title && <h2>{title}</h2>}
+        {children}
+      </div>
+    )
+  },
+}))
+
+import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
+
+describe('CreateApiKeyModal', () => {
+  const defaultProps = {
+    open: true,
+    onOpenChange: vi.fn(),
+    onCreateKey: vi.fn(),
+  }
+
+  beforeEach(() => {
+    defaultProps.onOpenChange.mockClear()
+    defaultProps.onCreateKey.mockClear()
+  })
+
+  it('renders nothing when closed', () => {
+    const { container } = render(
+      <CreateApiKeyModal {...defaultProps} open={false} />,
+    )
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('renders the create form when open', () => {
+    render(<CreateApiKeyModal {...defaultProps} />)
+    expect(screen.getByLabelText('orbitMcp.keyName')).toBeInTheDocument()
+  })
+
+  it('shows validation error when submitting empty name', () => {
+    render(<CreateApiKeyModal {...defaultProps} />)
+    const form = screen.getByLabelText('orbitMcp.keyName').closest('form')
+    fireEvent.submit(form!)
+    expect(screen.getByText('orbitMcp.keyNameRequired')).toBeInTheDocument()
+  })
+
+  it('shows validation error for name exceeding 50 chars', () => {
+    render(<CreateApiKeyModal {...defaultProps} />)
+    const input = screen.getByLabelText('orbitMcp.keyName')
+    fireEvent.change(input, { target: { value: 'A'.repeat(51) } })
+    const form = input.closest('form')
+    fireEvent.submit(form!)
+    expect(screen.getByText('orbitMcp.keyNameMaxLength')).toBeInTheDocument()
+  })
+
+  it('calls onCreateKey with trimmed name on submit', async () => {
+    defaultProps.onCreateKey.mockResolvedValue({
+      id: 'key-1',
+      key: 'sk-test-123',
+      name: 'My Key',
+    })
+
+    render(<CreateApiKeyModal {...defaultProps} />)
+    const input = screen.getByLabelText('orbitMcp.keyName')
+    fireEvent.change(input, { target: { value: '  My Key  ' } })
+    const form = input.closest('form')
+    fireEvent.submit(form!)
+
+    await waitFor(() => {
+      expect(defaultProps.onCreateKey).toHaveBeenCalledWith('My Key')
+    })
+  })
+
+  it('shows the key after creation', async () => {
+    defaultProps.onCreateKey.mockResolvedValue({
+      id: 'key-1',
+      key: 'sk-test-secret-123',
+      name: 'My Key',
+    })
+
+    render(<CreateApiKeyModal {...defaultProps} />)
+    const input = screen.getByLabelText('orbitMcp.keyName')
+    fireEvent.change(input, { target: { value: 'My Key' } })
+    const form = input.closest('form')
+    fireEvent.submit(form!)
+
+    await waitFor(() => {
+      expect(screen.getByText('sk-test-secret-123')).toBeInTheDocument()
+    })
+  })
+
+  it('displays API error when present', () => {
+    render(<CreateApiKeyModal {...defaultProps} apiError="Rate limited" />)
+    expect(screen.getByText('Rate limited')).toBeInTheDocument()
+  })
+})

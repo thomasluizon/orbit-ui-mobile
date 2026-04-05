@@ -41,7 +41,7 @@ export function GoalDetailDrawer({
   open,
   onOpenChange,
   goalId,
-}: GoalDetailDrawerProps) {
+}: Readonly<GoalDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -300,9 +300,9 @@ export function GoalDetailDrawer({
                   {t('goals.progressHistory')}
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {detail.progressHistory.map((entry, idx) => (
+                  {detail.progressHistory.map((entry) => (
                     <div
-                      key={idx}
+                      key={`${entry.createdAtUtc}-${entry.value}`}
                       className="flex items-center justify-between text-xs bg-surface-elevated rounded-xl px-3 py-2"
                     >
                       <div>

@@ -22,7 +22,7 @@ interface CreateGoalModalProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function CreateGoalModal({ open, onOpenChange }: CreateGoalModalProps) {
+export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModalProps>) {
   const t = useTranslations()
   const createGoal = useCreateGoal()
 

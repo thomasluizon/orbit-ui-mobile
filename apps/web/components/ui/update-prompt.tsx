@@ -10,7 +10,7 @@ interface UpdatePromptProps {
   onDismiss: () => void
 }
 
-export function UpdatePrompt({ show, onUpdate, onDismiss }: UpdatePromptProps) {
+export function UpdatePrompt({ show, onUpdate, onDismiss }: Readonly<UpdatePromptProps>) {
   const t = useTranslations()
   const [visible, setVisible] = useState(show)
 

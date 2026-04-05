@@ -22,8 +22,6 @@ import { useProfile } from '@/hooks/use-profile'
 interface AppDatePickerProps {
   value: string
   onChange: (value: string) => void
-  minDate?: Date
-  maxDate?: Date
   placeholder?: string
 }
 
@@ -31,7 +29,7 @@ export function AppDatePicker({
   value,
   onChange,
   placeholder,
-}: AppDatePickerProps) {
+}: Readonly<AppDatePickerProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
@@ -125,8 +123,8 @@ export function AppDatePicker({
         <>
           {/* Backdrop to close */}
           <div
-            role="presentation"
             className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            aria-hidden="true"
             onClick={() => setIsOpen(false)}
           />
 
@@ -166,9 +164,9 @@ export function AppDatePicker({
             <table className="w-full border-separate border-spacing-0">
               <thead aria-hidden="true">
                 <tr>
-                  {weekDays.map((day, i) => (
+                  {weekDays.map((day) => (
                     <th
-                      key={i}
+                      key={day}
                       scope="col"
                       className="py-1 text-center text-xs font-normal text-text-muted"
                     >
@@ -178,8 +176,8 @@ export function AppDatePicker({
                 </tr>
               </thead>
               <tbody>
-                {calendarWeeks.map((week, weekIndex) => (
-                  <tr key={weekIndex}>
+                {calendarWeeks.map((week) => (
+                  <tr key={week[0]?.toISOString()}>
                     {week.map((day) => {
                       const isSelected = selectedDate && isSameDay(day, selectedDate)
                       const isToday = isSameDay(day, new Date())

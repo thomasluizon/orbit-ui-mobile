@@ -11,7 +11,6 @@ interface AppSelectProps {
   value: string | null
   onChange: (value: string) => void
   options: AppSelectOption[]
-  placeholder?: string
   label?: string
 }
 
@@ -20,7 +19,7 @@ export function AppSelect({
   onChange,
   options,
   label,
-}: AppSelectProps) {
+}: Readonly<AppSelectProps>) {
   return (
     <div className="relative">
       <select

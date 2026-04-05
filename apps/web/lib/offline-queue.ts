@@ -66,18 +66,14 @@ export async function replayQueue(): Promise<{ succeeded: number; failed: number
         succeeded++
       } else {
         const status = res.status
-        // Entity deleted or conflict -- discard
-        if (status === 404 || status === 409 || status === 410) {
+        // Entity deleted, conflict, or max retries -- discard
+        if (status === 404 || status === 409 || status === 410 || mutation.retries >= mutation.maxRetries) {
           await dequeueMutation(mutation.id)
           failed++
-        } else if (mutation.retries < mutation.maxRetries) {
+        } else {
           // Transient error -- increment retry
           mutation.retries++
           await enqueueMutation(mutation)
-          failed++
-        } else {
-          // Max retries -- discard
-          await dequeueMutation(mutation.id)
           failed++
         }
       }
