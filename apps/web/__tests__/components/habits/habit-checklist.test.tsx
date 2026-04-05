@@ -72,7 +72,7 @@ describe('HabitChecklist', () => {
       render(<HabitChecklist items={items} interactive />)
       const progressbar = screen.getByRole('progressbar')
       expect(progressbar).toBeDefined()
-      expect(progressbar.getAttribute('aria-valuenow')).toBe('33')
+      expect(progressbar.getAttribute('value')).toBe('33')
     })
 
     it('shows progress counter text', () => {

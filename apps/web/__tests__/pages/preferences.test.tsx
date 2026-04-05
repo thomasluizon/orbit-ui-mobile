@@ -120,7 +120,7 @@ describe('PreferencesPage', () => {
   it('renders language buttons', () => {
     render(<PreferencesPage />)
     expect(screen.getByText('English')).toBeInTheDocument()
-    expect(screen.getByText('Portugues')).toBeInTheDocument()
+    expect(screen.getByText('Portugu\u00eas')).toBeInTheDocument()
   })
 
   it('marks selected language with aria-pressed', () => {

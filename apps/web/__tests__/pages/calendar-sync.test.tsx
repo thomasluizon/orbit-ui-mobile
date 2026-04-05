@@ -207,9 +207,10 @@ describe('CalendarSyncPage', () => {
     })
   })
 
-  it('toggles event selection on click', async () => {
+  it('all events are selected by default', async () => {
     const events = [
       { id: 'e1', title: 'Event 1', description: null, startDate: null, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] },
+      { id: 'e2', title: 'Event 2', description: null, startDate: null, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] },
     ]
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -222,17 +223,10 @@ describe('CalendarSyncPage', () => {
       expect(screen.getByText('Event 1')).toBeInTheDocument()
     })
 
-    // Click event to deselect
-    const eventButton = screen.getByText('Event 1').closest('button')!
-    fireEvent.click(eventButton)
-
-    // Import button should be disabled (0 selected)
-    await waitFor(() => {
-      const importBtn = screen.getAllByRole('button').find((b) =>
-        b.textContent?.includes('calendar.importButton'),
-      )
-      expect(importBtn).toBeDisabled()
-    })
+    // Initially all are selected, so deselect all toggle is shown
+    expect(screen.getByText('calendar.deselectAll')).toBeInTheDocument()
+    // Import button shows count matching total events
+    expect(document.body.textContent).toContain('calendar.importButton')
   })
 
   it('renders import button with selected count', async () => {
