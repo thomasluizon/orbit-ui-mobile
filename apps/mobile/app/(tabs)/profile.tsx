@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +24,7 @@ import {
   BadgeCheck,
   X,
   Check,
+  BookOpen,
 } from 'lucide-react-native'
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
@@ -32,6 +32,11 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
 import { colors } from '@/lib/theme'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
+import { StreakBadge } from '@/components/gamification/streak-badge'
+import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 
 // ---------------------------------------------------------------------------
 // ProfileStreakCard (inline -- matches web ProfileStreakCard)
@@ -44,12 +49,12 @@ function ProfileStreakCard() {
   const router = useRouter()
 
   const encouragement = useMemo(() => {
-    if (streak >= 365) return t('streak.profile.encouragement365')
-    if (streak >= 100) return t('streak.profile.encouragement100')
-    if (streak >= 30) return t('streak.profile.encouragement30')
-    if (streak >= 14) return t('streak.profile.encouragement14')
-    if (streak >= 7) return t('streak.profile.encouragement7')
-    if (streak >= 1) return t('streak.profile.encouragement1')
+    if (streak >= 365) return t('streakDisplay.profile.encouragement365')
+    if (streak >= 100) return t('streakDisplay.profile.encouragement100')
+    if (streak >= 30) return t('streakDisplay.profile.encouragement30')
+    if (streak >= 14) return t('streakDisplay.profile.encouragement14')
+    if (streak >= 7) return t('streakDisplay.profile.encouragement7')
+    if (streak >= 1) return t('streakDisplay.profile.encouragement1')
     return ''
   }, [streak, t])
 
@@ -91,13 +96,13 @@ function ProfileStreakCard() {
 
         {/* Streak info */}
         <View style={{ flex: 1 }}>
-          <Text style={styles.streakLabel}>{t('streak.detail.currentStreak').toUpperCase()}</Text>
+          <Text style={styles.streakLabel}>{t('streakDisplay.profile.title').toUpperCase()}</Text>
           {streak > 0 ? (
             <Text style={styles.streakCount}>
-              {t('streak.profile.currentStreak', { count: streak })}
+              {t('streakDisplay.profile.currentStreak', { count: streak })}
             </Text>
           ) : (
-            <Text style={styles.streakEmpty}>{t('streak.profile.noStreak')}</Text>
+            <Text style={styles.streakEmpty}>{t('streakDisplay.profile.noStreak')}</Text>
           )}
           {encouragement && streak > 0 ? (
             <Text style={styles.streakEncouragement}>{encouragement}</Text>
@@ -178,7 +183,14 @@ export default function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile()
 
+  // --- Referral ---
+  const [showReferralDrawer, setShowReferralDrawer] = useState(false)
+
+  // --- Feature Guide ---
+  const [showFeatureGuide, setShowFeatureGuide] = useState(false)
+
   // --- Fresh Start ---
+  const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
   const [resetConfirmText, setResetConfirmText] = useState('')
@@ -202,7 +214,7 @@ export default function ProfileScreen() {
     try {
       await apiClient('/api/profile/reset', { method: 'POST' })
       setShowResetModal(false)
-      Alert.alert(t('profile.freshStart.title'), t('profile.freshStart.successTitle'))
+      setShowFreshStartAnim(true)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('profile.freshStart.errorGeneric')
       setResetError(msg)
@@ -289,6 +301,9 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('profile.title')}</Text>
+          {(profile?.currentStreak ?? 0) > 0 && (
+            <StreakBadge streak={profile?.currentStreak ?? 0} />
+          )}
         </View>
 
         {/* Error */}
@@ -428,6 +443,9 @@ export default function ProfileScreen() {
           proBadge
         />
 
+        {/* Referral */}
+        <ReferralCard onOpen={() => setShowReferralDrawer(true)} />
+
         {/* Google Calendar Sync */}
         <NavCard
           onPress={() => router.push('/calendar-sync')}
@@ -442,6 +460,14 @@ export default function ProfileScreen() {
           title={t('calendar.profileButton')}
           hint={t('calendar.profileHint')}
           variant="primary"
+        />
+
+        {/* Feature Guide */}
+        <NavCard
+          onPress={() => setShowFeatureGuide(true)}
+          icon={<BookOpen size={20} color={colors.primary} />}
+          title={t('onboarding.featureGuide.openButton')}
+          hint={t('profile.featureGuideHint')}
         />
 
         {/* About & Help */}
@@ -579,6 +605,17 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Fresh Start Animation */}
+      {showFreshStartAnim && (
+        <FreshStartAnimation onComplete={() => setShowFreshStartAnim(false)} />
+      )}
+
+      {/* Referral Drawer */}
+      <ReferralDrawer open={showReferralDrawer} onClose={() => setShowReferralDrawer(false)} />
+
+      {/* Feature Guide Drawer */}
+      <FeatureGuideDrawer open={showFeatureGuide} onClose={() => setShowFeatureGuide(false)} />
 
       {/* Delete Account Modal */}
       <Modal

@@ -164,9 +164,9 @@ export function AppDatePicker({
             <table className="w-full border-separate border-spacing-0">
               <thead aria-hidden="true">
                 <tr>
-                  {weekDays.map((day) => (
+                  {weekDays.map((day, index) => (
                     <th
-                      key={day}
+                      key={index}
                       scope="col"
                       className="py-1 text-center text-xs font-normal text-text-muted"
                     >

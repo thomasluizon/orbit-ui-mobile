@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
+import { colors } from '@/lib/theme'
 
 /**
  * Handles the OAuth deep link callback.
@@ -12,6 +14,7 @@ import { useAuthStore } from '@/stores/auth-store'
  * and redirects to the main app.
  */
 export default function AuthCallbackScreen() {
+  const { t } = useTranslation()
   const params = useLocalSearchParams<{
     token?: string
     refreshToken?: string
@@ -51,8 +54,8 @@ export default function AuthCallbackScreen() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#8b5cf6" />
-      <Text style={styles.text}>Signing in...</Text>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.text}>{t('auth.signingIn')}</Text>
     </View>
   )
 }
@@ -60,12 +63,12 @@ export default function AuthCallbackScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#07060e',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   text: {
-    color: '#9b95ad',
+    color: colors.textSecondary,
     fontSize: 16,
     marginTop: 16,
   },

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -14,9 +15,11 @@ import {
   MessageSquare,
   ShieldCheck,
   ChevronRight,
-  Gift,
 } from 'lucide-react-native'
 import { colors } from '@/lib/theme'
+import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
 
 // ---------------------------------------------------------------------------
 // NavRow component
@@ -56,6 +59,8 @@ function NavRow({
 export default function AboutScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const [showGuide, setShowGuide] = useState(false)
+  const [showReferral, setShowReferral] = useState(false)
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -79,22 +84,13 @@ export default function AboutScreen() {
         {/* Feature Guide */}
         <NavRow
           icon={<BookOpen size={20} color={colors.primary} />}
-          title={t('onboarding.featureGuide.title')}
+          title={t('onboarding.featureGuide.openButton')}
           hint={t('profile.featureGuideHint')}
-          onPress={() => {
-            // Feature guide -- could navigate or open a bottom sheet
-          }}
+          onPress={() => setShowGuide(true)}
         />
 
         {/* Referral */}
-        <NavRow
-          icon={<Gift size={20} color={colors.primary} />}
-          title={t('referral.card.title')}
-          hint={t('referral.card.hint')}
-          onPress={() => {
-            // Referral flow
-          }}
-        />
+        <ReferralCard onOpen={() => setShowReferral(true)} />
 
         {/* Support */}
         <NavRow
@@ -112,6 +108,10 @@ export default function AboutScreen() {
           onPress={() => router.push('/privacy')}
         />
       </ScrollView>
+
+      {/* Drawers */}
+      <FeatureGuideDrawer open={showGuide} onClose={() => setShowGuide(false)} />
+      <ReferralDrawer open={showReferral} onClose={() => setShowReferral(false)} />
     </SafeAreaView>
   )
 }

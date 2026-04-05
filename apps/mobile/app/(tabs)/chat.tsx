@@ -203,10 +203,19 @@ export default function ChatScreen() {
     sendMessage()
   }, [sendMessage])
 
+  const handleBreakdownConfirmed = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  }, [queryClient])
+
   // Render message item
   const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => <MessageBubble message={item} />,
-    [],
+    ({ item }: { item: ChatMessage }) => (
+      <MessageBubble
+        message={item}
+        onBreakdownConfirmed={handleBreakdownConfirmed}
+      />
+    ),
+    [handleBreakdownConfirmed],
   )
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, [])

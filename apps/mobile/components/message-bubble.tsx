@@ -1,34 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { View, Text, Image, StyleSheet, Animated } from 'react-native'
-import { Sparkles, User, CheckCircle2, XCircle } from 'lucide-react-native'
+import { Sparkles, User } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import type { ChatMessage, ActionResult } from '@orbit/shared/types/chat'
+import type { ChatMessage } from '@orbit/shared/types/chat'
+import { ActionChips } from '@/components/chat/action-chips'
+import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { colors } from '@/lib/theme'
-
-// ---------------------------------------------------------------------------
-// Action chip styles
-// ---------------------------------------------------------------------------
-
-function chipColors(action: ActionResult): {
-  text: string
-  bg: string
-  border: string
-} {
-  if (action.status === 'Success') {
-    return { text: colors.emerald400, bg: colors.emerald500_10, border: colors.emerald500_30 }
-  }
-  if (action.status === 'Failed') {
-    return { text: colors.red400, bg: colors.red500_10, border: colors.red500_30 }
-  }
-  return { text: '#60a5fa', bg: 'rgba(59,130,246,0.10)', border: 'rgba(59,130,246,0.30)' }
-}
-
-function actionLabel(action: ActionResult): string {
-  const name = action.entityName ?? action.type
-  if (action.status === 'Success') return `\u2713 ${name}`
-  if (action.status === 'Failed') return `\u2717 ${name}`
-  return name
-}
 
 // ---------------------------------------------------------------------------
 // MessageBubble
@@ -36,13 +13,31 @@ function actionLabel(action: ActionResult): string {
 
 interface MessageBubbleProps {
   message: ChatMessage
+  onBreakdownConfirmed?: () => void
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation()
+  const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
+
   const isUser = message.role === 'user'
-  const nonSuggestionActions =
-    message.actions?.filter((a) => a.status !== 'Suggestion') ?? []
+
+  const suggestionActions = useMemo(
+    () =>
+      message.actions?.filter(
+        (a) => a.status === 'Suggestion' && a.suggestedSubHabits?.length,
+      ) ?? [],
+    [message.actions],
+  )
+
+  const nonSuggestionActions = useMemo(
+    () => message.actions?.filter((a) => a.status !== 'Suggestion') ?? [],
+    [message.actions],
+  )
+
+  function dismissBreakdown(key: string) {
+    setDismissedBreakdowns((prev) => new Set([...prev, key]))
+  }
 
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.aiContainer]}>
@@ -88,34 +83,23 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Action chips for AI messages */}
         {!isUser && nonSuggestionActions.length > 0 && (
-          <View style={styles.actionsColumn}>
-            {nonSuggestionActions.map((action, index) => {
-              const chipStyle = chipColors(action)
+          <ActionChips actions={nonSuggestionActions} />
+        )}
+
+        {/* Breakdown suggestions */}
+        {!isUser && suggestionActions.length > 0 && (
+          <View style={styles.breakdownContainer}>
+            {suggestionActions.map((action) => {
+              const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
+              if (dismissedBreakdowns.has(actionKey)) return null
               return (
-                <View key={`${action.type}-${index}`}>
-                  <View
-                    style={[
-                      styles.actionChip,
-                      {
-                        backgroundColor: chipStyle.bg,
-                        borderColor: chipStyle.border,
-                      },
-                    ]}
-                  >
-                    {action.status === 'Success' && (
-                      <CheckCircle2 size={10} color={chipStyle.text} />
-                    )}
-                    {action.status === 'Failed' && (
-                      <XCircle size={10} color={chipStyle.text} />
-                    )}
-                    <Text style={[styles.actionText, { color: chipStyle.text }]}>
-                      {action.entityName ?? action.type}
-                    </Text>
-                  </View>
-                  {action.status === 'Failed' && action.error && (
-                    <Text style={styles.actionError}>{action.error}</Text>
-                  )}
-                </View>
+                <BreakdownSuggestion
+                  key={actionKey}
+                  parentName={action.entityName || 'Habit'}
+                  subHabits={action.suggestedSubHabits ?? []}
+                  onConfirmed={() => onBreakdownConfirmed?.()}
+                  onCancelled={() => dismissBreakdown(actionKey)}
+                />
               )
             })}
           </View>
@@ -297,31 +281,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 
-  // Action chips
-  actionsColumn: {
-    flexDirection: 'column',
-    gap: 8,
-    marginTop: 8,
-  },
-  actionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 9999,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-  },
-  actionText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  actionError: {
-    fontSize: 12,
-    color: colors.red400,
-    marginTop: 4,
-    paddingLeft: 4,
+  // Breakdown suggestions container
+  breakdownContainer: {
+    gap: 12,
+    marginTop: 12,
+    width: '100%',
   },
 
   // Typing indicator

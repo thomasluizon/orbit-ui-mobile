@@ -164,9 +164,9 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
-        {weekdays.map((day) => (
+        {weekdays.map((day, index) => (
           <div
-            key={day}
+            key={index}
             className="text-center text-[10px] font-bold uppercase tracking-wider text-text-muted py-1"
           >
             {day}

@@ -6,7 +6,6 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -31,15 +30,26 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { HabitsFilter } from '@orbit/shared/types/habit'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-habits'
-import { useGoals } from '@/hooks/use-goals'
 import { useTags } from '@/hooks/use-tags'
-import { useStreakInfo } from '@/hooks/use-gamification'
+import { useStreakInfo, useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { GoalCard } from '@/components/goal-card'
 import { HabitList } from '@/components/habit-list'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { LogHabitModal } from '@/components/habits/log-habit-modal'
+import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
+import { EditHabitModal } from '@/components/habits/edit-habit-modal'
+import { GoalList } from '@/components/goals/goal-list'
+import { CreateGoalModal } from '@/components/goals/create-goal-modal'
+import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
+import { StreakCelebration } from '@/components/gamification/streak-celebration'
+import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
+import { AchievementToast } from '@/components/gamification/achievement-toast'
+import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { TrialBanner } from '@/components/ui/trial-banner'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { colors, radius, shadows } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
@@ -64,6 +74,7 @@ export default function TodayScreen() {
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
+  const { leveledUp, newLevel } = useGamificationProfile()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -79,6 +90,12 @@ export default function TodayScreen() {
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Modal state
+  const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
+  const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
+  const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
+  const [levelUpCleared, setLevelUpCleared] = useState(false)
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -172,15 +189,13 @@ export default function TodayScreen() {
 
   // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters)
+  const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
+  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   useMemo(() => {
     setFilters(filters)
   }, [filters, setFilters])
-
-  // Data
-  const goalsQuery = useGoals('Active')
-  const goals = goalsQuery.data?.allGoals ?? []
-  const goalsLoading = goalsQuery.isLoading
 
   // AI Summary
   const { summary } = useSummary({
@@ -220,6 +235,9 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Trial banner */}
+        <TrialBanner />
+
         {/* ============================================================
             HEADER: Orbit logo + streak badge + avatar
             Matches: <header className="flex items-center justify-between pt-8 pb-2">
@@ -244,6 +262,8 @@ export default function TodayScreen() {
                 <Text style={styles.streakText}>{currentStreak}</Text>
               </View>
             )}
+            {/* Notification bell */}
+            <NotificationBell />
             {/* Profile avatar */}
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{avatarInitials}</Text>
@@ -287,24 +307,7 @@ export default function TodayScreen() {
             GOALS VIEW
             ============================================================ */}
         {activeView === 'goals' && (
-          <View style={styles.section}>
-            {goalsLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-              </View>
-            ) : goals.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>{t('goals.empty')}</Text>
-                <Text style={styles.emptySubtitle}>
-                  {t('goals.emptyHint')}
-                </Text>
-              </View>
-            ) : (
-              goals.map((goal) => (
-                <GoalCard key={goal.id} goal={goal} />
-              ))
-            )}
-          </View>
+          <GoalList onCreatePress={() => setShowCreateGoalModal(true)} />
         )}
 
         {/* ============================================================
@@ -348,7 +351,7 @@ export default function TodayScreen() {
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
               <Sparkles size={16} color={colors.primary} />
-              <Text style={styles.summaryTitle}>{t('settings.aiSummary.title')}</Text>
+              <Text style={styles.summaryTitle}>{t('summary.title')}</Text>
             </View>
             <Text style={styles.summaryText}>{summary}</Text>
           </View>
@@ -492,6 +495,8 @@ export default function TodayScreen() {
               scrollEnabled={false}
               onCreatePress={() => setShowCreateModal(true)}
               onSeeUpcoming={goToNextDay}
+              onLogHabit={setLogHabit}
+              onDetailHabit={setDetailHabit}
             />
           </View>
         )}
@@ -500,7 +505,18 @@ export default function TodayScreen() {
       {/* ============================================================
           FAB - floating action button matching web create button
           ============================================================ */}
-      {activeView !== 'goals' && (
+      {activeView === 'goals' ? (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: 24 + insets.bottom },
+          ]}
+          activeOpacity={0.8}
+          onPress={() => setShowCreateGoalModal(true)}
+        >
+          <Plus size={24} color="#fff" />
+        </TouchableOpacity>
+      ) : (
         <TouchableOpacity
           style={[
             styles.fab,
@@ -512,6 +528,56 @@ export default function TodayScreen() {
           <Plus size={24} color="#fff" />
         </TouchableOpacity>
       )}
+
+      {/* ============================================================
+          MODALS
+          ============================================================ */}
+      <CreateHabitModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        initialDate={activeView === 'today' ? formatAPIDate(selectedDate) : null}
+      />
+
+      <LogHabitModal
+        open={!!logHabit}
+        onClose={() => setLogHabit(null)}
+        habit={logHabit}
+      />
+
+      <HabitDetailDrawer
+        open={!!detailHabit}
+        onClose={() => setDetailHabit(null)}
+        habit={detailHabit}
+        onEdit={(habitId) => {
+          const habit = detailHabit?.id === habitId ? detailHabit : null
+          setDetailHabit(null)
+          if (habit) setEditHabit(habit)
+        }}
+      />
+
+      <EditHabitModal
+        open={!!editHabit}
+        onClose={() => setEditHabit(null)}
+        habit={editHabit}
+      />
+
+      <CreateGoalModal
+        open={showCreateGoalModal}
+        onClose={() => setShowCreateGoalModal(false)}
+      />
+
+      {/* ============================================================
+          CELEBRATIONS & TOASTS
+          ============================================================ */}
+      <AllDoneCelebration />
+      <StreakCelebration />
+      <LevelUpOverlay
+        leveledUp={leveledUp && !levelUpCleared}
+        newLevel={newLevel}
+        onClear={() => setLevelUpCleared(true)}
+      />
+      <AchievementToast />
+      <WelcomeBackToast />
     </View>
   )
 }

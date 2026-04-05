@@ -4,6 +4,10 @@ import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
+import { useProfile } from '@/hooks/use-profile'
+import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { ExpiryWarning } from '@/components/ui/expiry-warning'
+import { PushPrompt } from '@/components/ui/push-prompt'
 import { colors } from '@/lib/theme'
 
 function AuthGuard() {
@@ -28,10 +32,14 @@ function AuthGuard() {
 }
 
 function RootLayoutNav() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const { profile } = useProfile()
+
   return (
     <>
       <AuthGuard />
       <StatusBar style="light" />
+      <ExpiryWarning />
       <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
@@ -87,6 +95,12 @@ function RootLayoutNav() {
           options={{ animation: 'slide_from_right' }}
         />
       </Stack>
+      {isAuthenticated && profile && !profile.hasCompletedOnboarding && (
+        <OnboardingFlow />
+      )}
+      {isAuthenticated && profile?.hasCompletedOnboarding && (
+        <PushPrompt />
+      )}
     </>
   )
 }

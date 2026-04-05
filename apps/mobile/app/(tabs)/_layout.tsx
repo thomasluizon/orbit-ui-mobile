@@ -48,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t('nav.today'),
+          title: t('nav.habits'),
           tabBarIcon: ({ color, size }) => (
             <Sun color={color} size={size} strokeWidth={2} />
           ),

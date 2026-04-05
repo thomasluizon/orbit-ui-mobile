@@ -42,6 +42,8 @@ interface HabitListProps {
   scrollEnabled?: boolean
   onCreatePress: () => void
   onSeeUpcoming?: () => void
+  onLogHabit?: (habit: NormalizedHabit) => void
+  onDetailHabit?: (habit: NormalizedHabit) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +77,8 @@ export function HabitList({
   scrollEnabled = true,
   onCreatePress,
   onSeeUpcoming,
+  onLogHabit,
+  onDetailHabit,
 }: HabitListProps) {
   const { t } = useTranslation()
   const habitsQuery = useHabits(filters)
@@ -219,6 +223,7 @@ export function HabitList({
             if (!isSelectMode) toggleSelectMode()
             toggleHabitSelection(item.habit.id)
           }}
+          onDetail={() => onDetailHabit?.(item.habit)}
           onToggleSelection={() => toggleHabitSelection(item.habit.id)}
         />
       )
@@ -238,6 +243,7 @@ export function HabitList({
       searchQuery,
       isSelectMode,
       selectedHabitIds,
+      onDetailHabit,
       t,
     ],
   )

@@ -9,6 +9,7 @@ import {
   Switch,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -16,7 +17,7 @@ import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 
-// Language options
+// Language options (labels are proper nouns, not translated)
 const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'pt-BR', label: 'Português' },
@@ -27,6 +28,7 @@ const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
 // ---------------------------------------------------------------------------
 
 export default function PreferencesScreen() {
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
 
@@ -39,6 +41,7 @@ export default function PreferencesScreen() {
 
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {
     setSelectedLanguage(locale)
+    i18n.changeLanguage(locale)
     try {
       await apiClient('/api/profile/language', {
         method: 'PUT',
@@ -52,8 +55,8 @@ export default function PreferencesScreen() {
 
   // --- Week Start Day ---
   const weekStartOptions = [
-    { value: 1, label: 'Monday' },
-    { value: 0, label: 'Sunday' },
+    { value: 1, label: t('settings.weekStartDay.monday') },
+    { value: 0, label: t('settings.weekStartDay.sunday') },
   ]
 
   const weekStartMutation = useMutation({
@@ -91,8 +94,8 @@ export default function PreferencesScreen() {
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
 
   const timeFormatOptions = [
-    { value: '12h' as const, label: '12-hour' },
-    { value: '24h' as const, label: '24-hour' },
+    { value: '12h' as const, label: t('settings.timeFormat.12h') },
+    { value: '24h' as const, label: t('settings.timeFormat.24h') },
   ]
 
   // --- Home Screen Toggle ---
@@ -117,14 +120,14 @@ export default function PreferencesScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Preferences</Text>
+          <Text style={styles.headerTitle}>{t('preferences.title')}</Text>
         </View>
 
         {/* Language */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Language</Text>
+          <Text style={styles.cardLabel}>{t('profile.language.title')}</Text>
           <Text style={styles.cardDescription}>
-            Choose the display language for the app.
+            {t('profile.language.description')}
           </Text>
           <View style={styles.optionRow}>
             {LANGUAGE_OPTIONS.map((lang) => (
@@ -153,13 +156,13 @@ export default function PreferencesScreen() {
         {/* Color Scheme */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>Color Scheme</Text>
+            <Text style={styles.cardLabel}>{t('profile.colorScheme.title')}</Text>
             <View style={styles.proBadge}>
               <Text style={styles.proBadgeText}>PRO</Text>
             </View>
           </View>
           <Text style={styles.cardDescription}>
-            Choose your accent color. Pro users can pick any scheme.
+            {t('profile.colorScheme.description')}
           </Text>
           <View style={styles.schemeRow}>
             {colorSchemeOptions.map((option) => (
@@ -191,9 +194,9 @@ export default function PreferencesScreen() {
 
         {/* Time Format */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Time Format</Text>
+          <Text style={styles.cardLabel}>{t('settings.timeFormat.title')}</Text>
           <Text style={styles.cardDescription}>
-            Choose how times are displayed throughout the app.
+            {t('settings.timeFormat.description')}
           </Text>
           <View style={styles.optionRow}>
             {timeFormatOptions.map((opt) => (
@@ -221,9 +224,9 @@ export default function PreferencesScreen() {
 
         {/* Week Start Day */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Week Start Day</Text>
+          <Text style={styles.cardLabel}>{t('settings.weekStartDay.title')}</Text>
           <Text style={styles.cardDescription}>
-            Choose which day your week starts on for calendar views.
+            {t('settings.weekStartDay.description')}
           </Text>
           <View style={styles.optionRow}>
             {weekStartOptions.map((opt) => (
@@ -253,9 +256,9 @@ export default function PreferencesScreen() {
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardLabel}>Home Screen</Text>
+              <Text style={styles.cardLabel}>{t('settings.homeScreen.title')}</Text>
               <Text style={[styles.cardHint, { marginTop: 4 }]}>
-                Show "General" habits on today view
+                {t('settings.homeScreen.showGeneralDesc')}
               </Text>
             </View>
             <Switch
@@ -271,9 +274,9 @@ export default function PreferencesScreen() {
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardLabel}>Notifications</Text>
+              <Text style={styles.cardLabel}>{t('settings.notifications.title')}</Text>
               <Text style={[styles.cardDescription, { marginTop: 4 }]}>
-                Receive reminders and updates about your habits.
+                {t('settings.notifications.description')}
               </Text>
             </View>
             <Switch
@@ -289,7 +292,7 @@ export default function PreferencesScreen() {
               { color: pushEnabled ? colors.primary : colors.textMuted },
             ]}
           >
-            {pushEnabled ? 'Enabled' : 'Disabled'}
+            {pushEnabled ? t('settings.notifications.enabled') : t('settings.notifications.disabled')}
           </Text>
         </View>
       </ScrollView>
