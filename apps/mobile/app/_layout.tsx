@@ -1,14 +1,24 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, useRef } from 'react'
 import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Stack, useRouter, useSegments } from 'expo-router'
+import { Stack, usePathname, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
+import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useProfile } from '@/hooks/use-profile'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
+import { StreakCelebration } from '@/components/gamification/streak-celebration'
+import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
+import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
+import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { AchievementToast } from '@/components/gamification/achievement-toast'
+import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
+import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
+import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { colors } from '@/lib/theme'
 
 // Push notifications are not supported in Expo Go (removed in SDK 53).
@@ -23,18 +33,23 @@ function AuthGuard() {
   const isLoading = useAuthStore((s) => s.isLoading)
   const segments = useSegments()
   const router = useRouter()
+  const firstSegment = segments[0] as string | undefined
 
   useEffect(() => {
     if (isLoading) return
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'auth-callback'
+    const inPublicRoute =
+      firstSegment === 'login' ||
+      firstSegment === 'auth-callback' ||
+      firstSegment === 'r' ||
+      firstSegment === 'privacy'
 
-    if (!isAuthenticated && !inAuthGroup) {
+    if (!isAuthenticated && !inPublicRoute) {
       router.replace('/login')
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && (firstSegment === 'login' || firstSegment === 'auth-callback')) {
       router.replace('/(tabs)')
     }
-  }, [isAuthenticated, isLoading, segments, router])
+  }, [firstSegment, isAuthenticated, isLoading, router])
 
   return null
 }
@@ -42,6 +57,8 @@ function AuthGuard() {
 function RootLayoutNav() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
+  const pathname = usePathname()
+  const showSharedCelebrations = pathname !== '/'
 
   return (
     <>
@@ -103,14 +120,50 @@ function RootLayoutNav() {
           options={{ animation: 'slide_from_right' }}
         />
       </Stack>
-      {isAuthenticated && profile && !profile.hasCompletedOnboarding && (
-        <OnboardingFlow />
+      {isAuthenticated && (
+        <GlobalOverlays
+          profile={profile}
+          showSharedCelebrations={showSharedCelebrations}
+        />
       )}
-      {isAuthenticated && profile?.hasCompletedOnboarding && (
+    </>
+  )
+}
+
+function GlobalOverlays({
+  profile,
+  showSharedCelebrations,
+}: Readonly<{
+  profile: ReturnType<typeof useProfile>['profile']
+  showSharedCelebrations: boolean
+}>) {
+  const gamification = useGamificationProfile()
+  const streakFreezeRef = useRef<{ show: () => void }>(null)
+  const hasProAccess = profile?.hasProAccess ?? false
+
+  return (
+    <>
+      <TrialExpiredModal />
+      {profile && !profile.hasCompletedOnboarding && <OnboardingFlow />}
+      {profile?.hasCompletedOnboarding && (
         <Suspense fallback={null}>
           <PushPrompt />
         </Suspense>
       )}
+      {showSharedCelebrations && <StreakCelebration />}
+      {showSharedCelebrations && <AllDoneCelebration />}
+      <GoalCompletedCelebration />
+      {showSharedCelebrations && <WelcomeBackToast />}
+      {showSharedCelebrations && hasProAccess && <AchievementToast />}
+      {showSharedCelebrations && hasProAccess && (
+        <LevelUpOverlay
+          leveledUp={gamification.leveledUp}
+          newLevel={gamification.newLevel}
+          onClear={gamification.clearLevelUp}
+        />
+      )}
+      <StreakFreezeCelebration ref={streakFreezeRef} />
+      <CalendarImportPrompt />
     </>
   )
 }

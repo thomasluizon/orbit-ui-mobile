@@ -100,12 +100,11 @@ export function OnboardingFlow() {
     try {
       await apiClient(API.profile.onboarding, { method: 'PUT' })
     } catch {
-      // Intentionally ignoring onboarding completion errors -- user should proceed
-      // regardless. Set flag locally so user is never stuck re-seeing onboarding.
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-        old ? { ...old, hasCompletedOnboarding: true } : old,
-      )
+      // Ignore -- user should proceed regardless
     }
+    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+      old ? { ...old, hasCompletedOnboarding: true } : old,
+    )
     router.replace('/')
   }
 
