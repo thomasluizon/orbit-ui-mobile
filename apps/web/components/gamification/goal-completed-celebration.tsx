@@ -50,14 +50,17 @@ export function GoalCompletedCelebration() {
   if (!mounted || !shouldRender) return null
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
-      style={{
-        transition: 'opacity 0.3s ease-out',
-        opacity: isVisible ? 1 : 0,
-      }}
-      onClick={dismiss}
-    >
+    <div role="status" aria-live="polite">
+      <button
+        type="button"
+        aria-label={t('goals.completedCelebrationTitle')}
+        className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer appearance-none bg-transparent border-none p-0 w-full"
+        style={{
+          transition: 'opacity 0.3s ease-out',
+          opacity: isVisible ? 1 : 0,
+        }}
+        onClick={dismiss}
+      >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80" />
 
@@ -99,6 +102,7 @@ export function GoalCompletedCelebration() {
           {t('goals.completedCelebrationSubtitle', { name: goalName })}
         </p>
       </div>
+      </button>
     </div>,
     document.body
   )

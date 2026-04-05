@@ -48,15 +48,17 @@ export function AllDoneCelebration() {
   if (!mounted || !shouldRender) return null
 
   return createPortal(
-    <output
-      aria-live="polite"
-      className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer"
-      style={{
-        transition: 'opacity 0.3s ease-out',
-        opacity: isVisible ? 1 : 0,
-      }}
-      onClick={dismiss}
-    >
+    <div role="status" aria-live="polite">
+      <button
+        type="button"
+        aria-label={t('habits.allDoneCelebrationTitle')}
+        className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer appearance-none bg-transparent border-none p-0 w-full"
+        style={{
+          transition: 'opacity 0.3s ease-out',
+          opacity: isVisible ? 1 : 0,
+        }}
+        onClick={dismiss}
+      >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80" />
 
@@ -106,7 +108,8 @@ export function AllDoneCelebration() {
           {t('habits.allDoneCelebrationSubtitle')}
         </p>
       </div>
-    </output>,
+      </button>
+    </div>,
     document.body
   )
 }

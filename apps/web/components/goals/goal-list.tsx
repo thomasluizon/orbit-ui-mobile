@@ -203,6 +203,8 @@ export function GoalList({ goals }: GoalListProps) {
       {goals.map((goal, index) => (
         <div
           key={goal.id}
+          role="group"
+          aria-roledescription="draggable item"
           draggable
           className={getDragClasses(index)}
           onDragStart={() => handleDragStart(index)}

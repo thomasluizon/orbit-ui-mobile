@@ -286,8 +286,8 @@ export function BreakdownSuggestion({
           className="hidden"
         />
         <div
+          aria-hidden="true"
           className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-primary border-primary' : 'border-border'}`}
-          onClick={() => setCreateAsParent(!createAsParent)}
         >
           {createAsParent && <Check className="size-2.5 text-white" />}
         </div>

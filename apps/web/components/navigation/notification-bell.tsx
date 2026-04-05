@@ -170,7 +170,7 @@ export function NotificationBell() {
           </div>
 
           {/* Backdrop to close */}
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div role="presentation" className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
         </>
       )}
 

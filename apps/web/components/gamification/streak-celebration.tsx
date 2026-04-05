@@ -65,15 +65,17 @@ export function StreakCelebration() {
   if (!mounted || !shouldRender) return null
 
   return createPortal(
-    <output
-      aria-live="polite"
-      className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer"
-      style={{
-        transition: 'opacity 0.3s ease-out',
-        opacity: isVisible ? 1 : 0,
-      }}
-      onClick={dismiss}
-    >
+    <div role="status" aria-live="polite">
+      <button
+        type="button"
+        aria-label={t('streakDisplay.celebration.subtitle', { count: streakCount })}
+        className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer appearance-none bg-transparent border-none p-0 w-full"
+        style={{
+          transition: 'opacity 0.3s ease-out',
+          opacity: isVisible ? 1 : 0,
+        }}
+        onClick={dismiss}
+      >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/75" />
 
@@ -129,7 +131,8 @@ export function StreakCelebration() {
           {encouragement}
         </p>
       </div>
-    </output>,
+      </button>
+    </div>,
     document.body
   )
 }

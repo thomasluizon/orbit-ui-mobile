@@ -66,6 +66,166 @@ function truncate(text: string, max = 20): string {
 }
 
 // ---------------------------------------------------------------------------
+// Sub-components (extracted to reduce cognitive complexity - S3776)
+// ---------------------------------------------------------------------------
+
+function CompletionSparks({ positions }: { positions: Array<{ x: string; y: string }> }) {
+  return (
+    <>
+      {positions.map((pos, i) => (
+        <span
+          key={i}
+          className="absolute size-1.5 rounded-full bg-primary animate-complete-spark pointer-events-none"
+          style={
+            {
+              '--spark-x': pos.x,
+              '--spark-y': pos.y,
+              animationDelay: `${i * 50}ms`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </>
+  )
+}
+
+function BadHabitBadge() {
+  const t = useTranslations()
+  return (
+    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase text-red-400 bg-red-500/10 border border-red-500/10">
+      {t('habits.badHabit')}
+    </span>
+  )
+}
+
+function TagBadge({ tag, searchQuery }: { tag: { id: string; name: string; color: string }; searchQuery: string }) {
+  return (
+    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white/95" style={{ backgroundColor: tag.color }}>
+      <HighlightText text={tag.name} query={searchQuery} />
+    </span>
+  )
+}
+
+function StreakBadgeInline({ streak }: { streak: number | null | undefined }) {
+  if (streak == null || streak < 2) return null
+  return (
+    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/10">
+      <Flame className="size-3" />
+      {streak}
+    </span>
+  )
+}
+
+function ChecklistBadge({ items, checkedCount, hasBorder }: {
+  items: Array<{ label: string; isChecked: boolean }> | undefined | null
+  checkedCount: number
+  hasBorder?: boolean
+}) {
+  if (!items || items.length === 0) return null
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-text-secondary bg-surface-elevated/60 ${hasBorder ? 'border border-border-muted' : ''}`}>
+      <ClipboardCheck className="size-3" />
+      {checkedCount}/{items.length}
+    </span>
+  )
+}
+
+interface TopLevelBadgesProps {
+  habit: NormalizedHabit
+  frequencyLabel: string
+  flexibleProgressLabel: string | null
+  statusBadge: { text: string; color: string; bg: string } | null
+  checkedCount: number
+  searchQuery: string
+  matchBadges: Array<{ label: string }>
+  displayTime: (time: string) => string
+}
+
+function TopLevelBadges({
+  habit, frequencyLabel, flexibleProgressLabel, statusBadge,
+  checkedCount, searchQuery, matchBadges, displayTime,
+}: TopLevelBadgesProps) {
+  return (
+    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted/70">
+        {frequencyLabel}
+      </span>
+      {flexibleProgressLabel && (
+        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10">
+          {flexibleProgressLabel}
+        </span>
+      )}
+      {habit.dueTime && (
+        <span className="text-[10px] font-medium text-text-secondary">
+          {displayTime(habit.dueTime)}
+          {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
+        </span>
+      )}
+      {statusBadge && (
+        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusBadge.color} ${statusBadge.bg}`}>
+          {statusBadge.text}
+        </span>
+      )}
+      {habit.isBadHabit && <BadHabitBadge />}
+      {habit.tags?.map((tag) => (
+        <TagBadge key={tag.id} tag={tag} searchQuery={searchQuery} />
+      ))}
+      {(habit.linkedGoals ?? []).map((goal) => (
+        <span key={goal.id} className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10">
+          {goal.title}
+        </span>
+      ))}
+      <StreakBadgeInline streak={habit.currentStreak} />
+      <ChecklistBadge items={habit.checklistItems} checkedCount={checkedCount} hasBorder />
+      {matchBadges.map((badge, i) => (
+        <span key={`match-${i}`} className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10">
+          {badge.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ChildBadHabitBadges({ habit, searchQuery, checkedCount }: {
+  habit: NormalizedHabit; searchQuery: string; checkedCount: number
+}) {
+  return (
+    <div className="flex items-center gap-1.5 mt-0.5">
+      <BadHabitBadge />
+      {habit.tags?.map((tag) => (
+        <TagBadge key={tag.id} tag={tag} searchQuery={searchQuery} />
+      ))}
+      <StreakBadgeInline streak={habit.currentStreak} />
+      <ChecklistBadge items={habit.checklistItems} checkedCount={checkedCount} />
+    </div>
+  )
+}
+
+function ChildDefaultBadges({ habit, frequencyLabel, statusBadge, searchQuery, checkedCount }: {
+  habit: NormalizedHabit; frequencyLabel: string
+  statusBadge: { text: string; color: string; bg: string } | null
+  searchQuery: string; checkedCount: number
+}) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+      <span className="text-[9px] font-semibold uppercase tracking-widest text-text-muted/60">
+        {frequencyLabel}
+      </span>
+      {statusBadge && (
+        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusBadge.color} ${statusBadge.bg}`}>
+          {statusBadge.text}
+        </span>
+      )}
+      {habit.tags?.map((tag) => (
+        <TagBadge key={tag.id} tag={tag} searchQuery={searchQuery} />
+      ))}
+      <StreakBadgeInline streak={habit.currentStreak} />
+      <ChecklistBadge items={habit.checklistItems} checkedCount={checkedCount} />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -298,15 +458,15 @@ export function HabitCard({
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeydown)
     document.addEventListener('scroll', handleScroll, true)
-    window.addEventListener('resize', handleViewportChange)
-    window.addEventListener('orientationchange', handleViewportChange)
+    globalThis.addEventListener('resize', handleViewportChange)
+    globalThis.addEventListener('orientationchange', handleViewportChange)
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('scroll', handleScroll, true)
-      window.removeEventListener('resize', handleViewportChange)
-      window.removeEventListener('orientationchange', handleViewportChange)
+      globalThis.removeEventListener('resize', handleViewportChange)
+      globalThis.removeEventListener('orientationchange', handleViewportChange)
     }
   }, [showActionsMenu])
 
@@ -337,6 +497,7 @@ export function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <article
+          role="button"
           aria-label={habit.title}
           className={`cursor-pointer ${
             !isChild
@@ -401,6 +562,7 @@ export function HabitCard({
             {isSelectMode ? (
               <button
                 data-no-drag
+                role="checkbox"
                 aria-checked={isSelected}
                 aria-label={`${t('common.select')}: ${habit.title}`}
                 onClick={(e) => {
@@ -742,6 +904,7 @@ export function HabitCard({
         createPortal(
           <div
             ref={actionsMenuPanelRef}
+            role="menu"
             className="habit-actions-menu fixed z-[70] min-w-[12rem] rounded-2xl p-1.5"
             style={{
               left: `${menuPosition.left}px`,

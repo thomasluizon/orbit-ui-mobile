@@ -107,22 +107,26 @@ export function ChecklistTemplates({ items, onLoad }: ChecklistTemplatesProps) {
                 {t('habits.form.templates')}:
               </span>
               {templates.map((tmpl) => (
-                <button
+                <span
                   key={tmpl.id}
-                  type="button"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs bg-surface border border-border-muted text-text-secondary hover:text-text-primary hover:border-primary/30 transition-all duration-150"
+                  className="inline-flex items-center gap-1 rounded-lg text-xs bg-surface border border-border-muted"
                 >
-                  <span onClick={() => handleLoad(tmpl.id)}>{tmpl.name}</span>
-                  <span
-                    className="text-text-muted hover:text-red-500 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(tmpl.id)
-                    }}
+                  <button
+                    type="button"
+                    className="px-2 py-0.5 text-text-secondary hover:text-text-primary transition-all duration-150"
+                    onClick={() => handleLoad(tmpl.id)}
+                  >
+                    {tmpl.name}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('common.delete')}
+                    className="px-1 py-0.5 text-text-muted hover:text-red-500 transition-colors"
+                    onClick={() => handleDelete(tmpl.id)}
                   >
                     <X className="size-3" />
-                  </span>
-                </button>
+                  </button>
+                </span>
               ))}
             </div>
           </>
