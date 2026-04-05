@@ -16,6 +16,7 @@ import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 export interface HabitFormOptions {
   initialData?: Partial<HabitFormData>
+  weekStartDay?: number // 0 = Sunday, 1 = Monday (default)
 }
 
 export interface HabitFormHelpers {
@@ -55,7 +56,7 @@ export interface HabitFormHelpers {
 // ---------------------------------------------------------------------------
 
 export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
-  const { initialData } = options
+  const { initialData, weekStartDay = 1 } = options
   const { t } = useTranslation()
 
   const form = useForm<HabitFormData>({
@@ -95,7 +96,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
 
   // -- Day picker list --
   const daysList = useMemo(() => {
-    return [
+    const mondayFirst = [
       { value: 'Monday', label: t('dates.daysShort.monday') },
       { value: 'Tuesday', label: t('dates.daysShort.tuesday') },
       { value: 'Wednesday', label: t('dates.daysShort.wednesday') },
@@ -104,7 +105,12 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       { value: 'Saturday', label: t('dates.daysShort.saturday') },
       { value: 'Sunday', label: t('dates.daysShort.sunday') },
     ]
-  }, [t])
+    // weekStartDay === 0 means Sunday-first
+    if (weekStartDay === 0) {
+      return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)]
+    }
+    return mondayFirst
+  }, [t, weekStartDay])
 
   // -- Frequency units list --
   const frequencyUnits = useMemo(

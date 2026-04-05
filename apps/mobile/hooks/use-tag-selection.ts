@@ -63,7 +63,7 @@ export interface TagSelectionState {
 
 export function useTagSelection(
   initialTagIds: string[] = [],
-  maxTags = 5,
+  maxTags = 10,
 ): TagSelectionState {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([...initialTagIds])
   const [showNewTag, setShowNewTag] = useState(false)

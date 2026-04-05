@@ -35,7 +35,7 @@ const colors = {
 // Language options
 const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
   { value: 'en', label: 'English' },
-  { value: 'pt-BR', label: 'Portugues' },
+  { value: 'pt-BR', label: 'Português' },
 ]
 
 // ---------------------------------------------------------------------------

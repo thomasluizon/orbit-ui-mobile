@@ -222,8 +222,6 @@ export function AppOverlay({
         aria-modal="true"
         aria-labelledby={hasTitle ? titleId : undefined}
         className={`relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain transition-all duration-300 ease-[var(--ease-out)] ${panelClass}`}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Drag handle (mobile) */}
         <div className="flex justify-center pt-3 pb-2 sm:hidden">
