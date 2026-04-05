@@ -103,39 +103,7 @@ export function CreateApiKeyModal({
       dismissible={!isRevealState}
     >
       {/* Create Form */}
-      {!isRevealState ? (
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="api-key-name" className="form-label">
-              {t('orbitMcp.keyName')}
-            </label>
-            <input
-              id="api-key-name"
-              type="text"
-              value={keyName}
-              onChange={(e) => setKeyName(e.target.value)}
-              className="form-input"
-              placeholder={t('orbitMcp.keyNamePlaceholder')}
-              maxLength={50}
-            />
-            {validationError && (
-              <p className="mt-1.5 text-xs text-red-400">{validationError}</p>
-            )}
-          </div>
-
-          {apiError && (
-            <p className="text-xs text-red-400">{apiError}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
-          >
-            {isSubmitting ? '...' : t('orbitMcp.createKey')}
-          </button>
-        </form>
-      ) : (
+      {isRevealState ? (
         <div className="space-y-5">
           {/* Warning */}
           <div className="flex items-start gap-2.5 rounded-[var(--radius-lg)] bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
@@ -179,6 +147,38 @@ export function CreateApiKeyModal({
             {t('orbitMcp.done')}
           </button>
         </div>
+      ) : (
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="api-key-name" className="form-label">
+              {t('orbitMcp.keyName')}
+            </label>
+            <input
+              id="api-key-name"
+              type="text"
+              value={keyName}
+              onChange={(e) => setKeyName(e.target.value)}
+              className="form-input"
+              placeholder={t('orbitMcp.keyNamePlaceholder')}
+              maxLength={50}
+            />
+            {validationError && (
+              <p className="mt-1.5 text-xs text-red-400">{validationError}</p>
+            )}
+          </div>
+
+          {apiError && (
+            <p className="text-xs text-red-400">{apiError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
+          >
+            {isSubmitting ? '...' : t('orbitMcp.createKey')}
+          </button>
+        </form>
       )}
     </AppOverlay>
   )

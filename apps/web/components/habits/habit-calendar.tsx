@@ -195,7 +195,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             ) : (
               <div
                 className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
-                  !day.inMonth ? 'opacity-0' : ''
+                  day.inMonth ? '' : 'opacity-0'
                 } ${
                   day.inMonth && day.isToday
                     ? 'ring-1 ring-primary/50 text-text-primary'

@@ -57,6 +57,27 @@ function parseRRule(rule: string | null): { frequencyUnit?: FrequencyUnit; frequ
   return result
 }
 
+// ---------------------------------------------------------------------------
+// Standalone helpers (S7721: moved to module scope)
+// ---------------------------------------------------------------------------
+
+async function connectGoogle(): Promise<void> {
+  const supabase = getSupabaseClient()
+  const redirectTo = `${globalThis.location.origin}/auth-callback`
+  sessionStorage.setItem('auth_return_url', '/calendar-sync')
+
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+      queryParams: {
+        access_type: 'offline',
+      },
+    },
+  })
+}
+
 export default function CalendarSyncPage() {
   const t = useTranslations()
   const router = useRouter()
@@ -213,23 +234,6 @@ export default function CalendarSyncPage() {
       setErrorMessage(getErrorMessage(err, t('calendar.importError')))
       setStep('error')
     }
-  }
-
-  async function connectGoogle() {
-    const supabase = getSupabaseClient()
-    const redirectTo = `${globalThis.location.origin}/auth-callback`
-    sessionStorage.setItem('auth_return_url', '/calendar-sync')
-
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        queryParams: {
-          access_type: 'offline',
-        },
-      },
-    })
   }
 
   return (

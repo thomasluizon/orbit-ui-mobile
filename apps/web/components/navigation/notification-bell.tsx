@@ -119,17 +119,19 @@ export function NotificationBell() {
               className="flex-1 overflow-y-auto list-none m-0 p-0"
               aria-label={t('notifications.title')}
             >
-              {isLoading && notifications.length === 0 ? (
+              {isLoading && notifications.length === 0 && (
                 <li className="p-4 space-y-3" aria-label={t('common.loading')}>
                   <div className="h-12 bg-surface-elevated rounded-xl animate-pulse" />
                   <div className="h-12 bg-surface-elevated rounded-xl animate-pulse" />
                 </li>
-              ) : notifications.length === 0 ? (
+              )}
+              {!isLoading && notifications.length === 0 && (
                 <li className="p-6 text-center">
                   <BellOff className="size-8 text-text-muted mx-auto mb-2" aria-hidden="true" />
                   <p className="text-sm text-text-muted">{t('notifications.empty')}</p>
                 </li>
-              ) : (
+              )}
+              {notifications.length > 0 && (
                 notifications.map((item) => (
                   <li
                     key={item.id}

@@ -1,16 +1,14 @@
 'use client'
 
-import { useMemo, useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { notificationKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { notificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
-  NotificationItem,
   NotificationsResponse,
 } from '@orbit/shared/types/notification'
 import {
@@ -52,11 +50,9 @@ export function useNotifications() {
         // Refetch immediately on tab focus
         queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
         // Restart polling
-        if (!intervalRef.current) {
-          intervalRef.current = setInterval(() => {
-            queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
-          }, 60000)
-        }
+        intervalRef.current ??= setInterval(() => {
+          queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+        }, 60000)
       }
     }
 

@@ -98,6 +98,34 @@ describe('useNotifications', () => {
     expect(result.current.notifications).toEqual([])
     expect(result.current.unreadCount).toBe(0)
   })
+
+  it('registers visibilitychange event listener', () => {
+    mockNotificationsResponse({ items: [], unreadCount: 0 })
+
+    renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
+    })
+
+    expect(document.addEventListener).toHaveBeenCalledWith(
+      'visibilitychange',
+      expect.any(Function),
+    )
+  })
+
+  it('removes visibilitychange listener on unmount', () => {
+    mockNotificationsResponse({ items: [], unreadCount: 0 })
+
+    const { unmount } = renderHook(() => useNotifications(), {
+      wrapper: createWrapper(),
+    })
+
+    unmount()
+
+    expect(document.removeEventListener).toHaveBeenCalledWith(
+      'visibilitychange',
+      expect.any(Function),
+    )
+  })
 })
 
 describe('useMarkNotificationRead', () => {

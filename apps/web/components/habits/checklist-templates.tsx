@@ -18,7 +18,7 @@ interface ChecklistTemplate {
 const STORAGE_KEY = 'orbit-checklist-templates'
 
 function loadTemplates(): ChecklistTemplate[] {
-  if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return []
+  if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return [] // NOSONAR - SSR guard
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? (JSON.parse(raw) as ChecklistTemplate[]) : []

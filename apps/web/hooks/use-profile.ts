@@ -5,7 +5,7 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useEffect, useCallback, useMemo } from 'react'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { Profile, PlanType } from '@orbit/shared/types/profile'
+import type { Profile } from '@orbit/shared/types/profile'
 import { updateTimezone } from '@/app/actions/profile'
 import { fetchJson } from '@/lib/api-fetch'
 

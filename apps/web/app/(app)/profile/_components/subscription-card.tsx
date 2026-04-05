@@ -64,7 +64,7 @@ export function SubscriptionCard({
   profile,
   trialDaysLeft,
   trialExpired,
-}: SubscriptionCardProps) {
+}: Readonly<SubscriptionCardProps>) {
   const t = useTranslations()
 
   const isProOrTrial = profile?.isTrialActive || profile?.hasProAccess

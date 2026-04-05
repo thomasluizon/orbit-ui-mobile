@@ -64,6 +64,18 @@ async function revokeApiKey(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Standalone helpers (S7721: moved to module scope)
+// ---------------------------------------------------------------------------
+
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // Clipboard API not available
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Advanced Settings Page
 // ---------------------------------------------------------------------------
 
@@ -151,14 +163,6 @@ export default function AdvancedPage() {
   }
 }`
 
-  async function copyToClipboard(text: string) {
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      // Clipboard API not available
-    }
-  }
-
   async function copyConfig() {
     await copyToClipboard(mcpConfigJson)
     setConfigCopied(true)
@@ -179,10 +183,6 @@ export default function AdvancedPage() {
       setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
       return null
     }
-  }
-
-  function handleKeyCreated() {
-    // Keys list already updated by composable
   }
 
   return (
@@ -543,7 +543,7 @@ export default function AdvancedPage() {
       </AppOverlay>
 
       {/* Create API Key Modal */}
-      <CreateApiKeyModal open={createKeyModalOpen} onOpenChange={setCreateKeyModalOpen} onCreateKey={handleCreateKey} apiError={createKeyError} onCreated={handleKeyCreated} />
+      <CreateApiKeyModal open={createKeyModalOpen} onOpenChange={setCreateKeyModalOpen} onCreateKey={handleCreateKey} apiError={createKeyError} />
     </div>
   )
 }

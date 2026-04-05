@@ -14,7 +14,7 @@ interface FreshStartModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function FreshStartModal({ open, onOpenChange }: FreshStartModalProps) {
+export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModalProps>) {
   const t = useTranslations()
   const queryClient = useQueryClient()
 
@@ -114,11 +114,11 @@ function FreshStartInfoStep({
   deletedItems,
   preservedItems,
   onContinue,
-}: {
+}: Readonly<{
   deletedItems: string[]
   preservedItems: string[]
   onContinue: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (
@@ -172,14 +172,14 @@ function FreshStartConfirmStep({
   loading,
   error,
   onReset,
-}: {
+}: Readonly<{
   confirmText: string
   onConfirmTextChange: (value: string) => void
   isConfirmed: boolean
   loading: boolean
   error: string
   onReset: () => void
-}) {
+}>) {
   const t = useTranslations()
 
   return (

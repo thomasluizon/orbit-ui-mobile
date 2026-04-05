@@ -10,7 +10,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 
 export default function AchievementsPage() {
   const t = useTranslations()
-  const { profile: userProfile, isLoading: profileLoading } = useProfile()
+  const { isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
   const {
     profile,
@@ -55,7 +55,7 @@ export default function AchievementsPage() {
       ) : (
         <>
           {/* Loading state */}
-          {isLoading && !profile ? (
+          {isLoading && !profile && (
             <div className="space-y-4">
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
                 <div className="h-8 w-32 bg-surface-elevated rounded animate-pulse" />
@@ -63,7 +63,10 @@ export default function AchievementsPage() {
                 <div className="h-3 w-full bg-surface-elevated rounded-full animate-pulse" />
               </div>
             </div>
-          ) : profile ? (
+          )}
+
+          {/* Profile loaded */}
+          {profile && (
             <>
               {/* Level header section */}
               <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
@@ -136,7 +139,7 @@ export default function AchievementsPage() {
                 ))}
               </div>
             </>
-          ) : null}
+          )}
         </>
       )}
     </div>
