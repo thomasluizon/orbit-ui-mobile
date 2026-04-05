@@ -10,7 +10,9 @@
     "build:ios": "eas build --platform ios",
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
-    "clean": "rm -rf .expo"
+    "clean": "rm -rf .expo",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.1.0",
@@ -22,6 +24,7 @@
     "@tanstack/react-query": "^5.75.0",
     "date-fns": "^4.1.0",
     "expo": "~54.0.0",
+    "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
     "expo-linking": "~8.0.11",
     "expo-notifications": "~0.32.16",

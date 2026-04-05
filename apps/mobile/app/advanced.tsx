@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   CheckCircle,
@@ -28,27 +29,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
+import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  green: '#34d399',
-  red: '#ef4444',
-  amber: '#fbbf24',
-}
 
 // ---------------------------------------------------------------------------
 // API Keys types
@@ -67,6 +50,7 @@ interface ApiKey {
 // ---------------------------------------------------------------------------
 
 export default function AdvancedScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
@@ -152,6 +136,20 @@ export default function AdvancedScreen() {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true })
   }
 
+  // Widget steps and features
+  const widgetSteps = [
+    { num: '1', text: t('profile.widgetHow.step1') },
+    { num: '2', text: t('profile.widgetHow.step2') },
+    { num: '3', text: t('profile.widgetHow.step3') },
+  ]
+
+  const widgetFeatures = [
+    { icon: <CheckCircle size={16} color={colors.primary} />, text: t('profile.widgetHow.feature1') },
+    { icon: <Clock size={16} color={colors.primary} />, text: t('profile.widgetHow.feature2') },
+    { icon: <List size={16} color={colors.primary} />, text: t('profile.widgetHow.feature3') },
+    { icon: <RotateCcw size={16} color={colors.primary} />, text: t('profile.widgetHow.feature4') },
+  ]
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -168,17 +166,17 @@ export default function AdvancedScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Advanced</Text>
+          <Text style={styles.headerTitle}>{t('advancedSettings.title')}</Text>
         </View>
 
         {/* Timezone */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Timezone</Text>
+          <Text style={styles.cardLabel}>{t('profile.timezone.title')}</Text>
           <View style={styles.timezoneRow}>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.timezoneValue}>Current: </Text>
+              <Text style={styles.timezoneValue}>{t('profile.timezone.current')} </Text>
               <Text style={styles.timezoneHighlight}>
-                {profile?.timeZone || 'Not set'}
+                {profile?.timeZone || t('profile.timezone.notSet')}
               </Text>
               {timezoneSaving && (
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -194,7 +192,7 @@ export default function AdvancedScreen() {
               }}
             >
               <Text style={styles.editLink}>
-                {timezoneOpen ? 'Close' : 'Edit'}
+                {timezoneOpen ? t('common.close') : t('common.edit')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -205,7 +203,7 @@ export default function AdvancedScreen() {
                 style={styles.searchInput}
                 value={timezoneSearch}
                 onChangeText={setTimezoneSearch}
-                placeholder="Search timezones..."
+                placeholder={t('profile.timezone.searchPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 autoFocus
               />
@@ -235,7 +233,7 @@ export default function AdvancedScreen() {
           )}
 
           <Text style={styles.hintText}>
-            Your timezone affects when habits reset and when you receive notifications.
+            {t('profile.timezone.description')}
           </Text>
         </View>
 
@@ -249,8 +247,8 @@ export default function AdvancedScreen() {
             <Smartphone size={20} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.navCardTitle}>Home Screen Widget</Text>
-            <Text style={styles.navCardHint}>Quick access to your habits</Text>
+            <Text style={styles.navCardTitle}>{t('profile.widgetTitle')}</Text>
+            <Text style={styles.navCardHint}>{t('profile.widgetHint')}</Text>
           </View>
           <ChevronRight size={16} color={colors.textMuted} />
         </TouchableOpacity>
@@ -259,7 +257,7 @@ export default function AdvancedScreen() {
         <View style={styles.card}>
           <View style={styles.developerHeader}>
             <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>For Developers</Text>
+              <Text style={styles.cardLabel}>{t('orbitMcp.title')}</Text>
               <View style={styles.proBadge}>
                 <Text style={styles.proBadgeText}>PRO</Text>
               </View>
@@ -276,7 +274,7 @@ export default function AdvancedScreen() {
           </View>
 
           <Text style={styles.cardDescription}>
-            Connect Orbit to Claude, Cursor, and other AI assistants via the Model Context Protocol.
+            {t('orbitMcp.description')}
           </Text>
 
           {profile?.hasProAccess && (
@@ -284,7 +282,7 @@ export default function AdvancedScreen() {
               {/* API Keys Sub-section */}
               <View style={{ gap: 10, marginTop: 4 }}>
                 <View style={styles.apiKeysHeaderRow}>
-                  <Text style={styles.subLabel}>API KEYS</Text>
+                  <Text style={styles.subLabel}>{t('orbitMcp.apiKeys')}</Text>
                   {canCreateKey && (
                     <TouchableOpacity
                       style={styles.createKeyButton}
@@ -293,18 +291,18 @@ export default function AdvancedScreen() {
                       }}
                     >
                       <Plus size={14} color={colors.primary} />
-                      <Text style={styles.createKeyText}>Create</Text>
+                      <Text style={styles.createKeyText}>{t('common.create')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
 
                 <Text style={styles.hintText}>
-                  API keys are used to authenticate MCP connections.
+                  {t('orbitMcp.apiKeysDescription')}
                 </Text>
 
                 {!canCreateKey && (
                   <Text style={styles.warningText}>
-                    Maximum of {MAX_API_KEYS} API keys reached.
+                    {t('orbitMcp.maxKeysReached')}
                   </Text>
                 )}
 
@@ -318,13 +316,13 @@ export default function AdvancedScreen() {
 
                 {/* Error */}
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
-                  <Text style={styles.errorText}>Failed to load API keys.</Text>
+                  <Text style={styles.errorText}>{t('orbitMcp.apiKeysError')}</Text>
                 )}
 
                 {/* Empty */}
                 {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
                   <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                    <Text style={styles.emptyText}>No API keys yet.</Text>
+                    <Text style={styles.emptyText}>{t('orbitMcp.noKeys')}</Text>
                   </View>
                 )}
 
@@ -339,9 +337,9 @@ export default function AdvancedScreen() {
                             <Text style={styles.apiKeyPrefix}>{key.keyPrefix}...</Text>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={styles.apiKeyDate}>Created {formatKeyDate(key.createdAtUtc)}</Text>
+                            <Text style={styles.apiKeyDate}>{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</Text>
                             <Text style={styles.apiKeyDate}>
-                              Last used {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : 'Never'}
+                              {t('orbitMcp.lastUsed')} {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </Text>
                           </View>
                         </View>
@@ -349,18 +347,18 @@ export default function AdvancedScreen() {
                         {revokingKeyId !== key.id ? (
                           <View style={{ alignItems: 'flex-end' }}>
                             <TouchableOpacity onPress={() => setRevokingKeyId(key.id)}>
-                              <Text style={styles.revokeText}>Revoke</Text>
+                              <Text style={styles.revokeText}>{t('orbitMcp.revoke')}</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
                           <View style={styles.revokeConfirmBar}>
-                            <Text style={styles.revokeConfirmText}>Revoke this key?</Text>
+                            <Text style={styles.revokeConfirmText}>{t('orbitMcp.revokeConfirm')}</Text>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
                               <TouchableOpacity onPress={() => setRevokingKeyId(null)}>
-                                <Text style={styles.revokeCancelText}>Cancel</Text>
+                                <Text style={styles.revokeCancelText}>{t('orbitMcp.cancel')}</Text>
                               </TouchableOpacity>
                               <TouchableOpacity onPress={() => revokeKeyMutation.mutate(key.id)}>
-                                <Text style={styles.revokeConfirmAction}>Confirm</Text>
+                                <Text style={styles.revokeConfirmAction}>{t('orbitMcp.confirm')}</Text>
                               </TouchableOpacity>
                             </View>
                           </View>
@@ -377,7 +375,7 @@ export default function AdvancedScreen() {
                   style={styles.instructionsToggle}
                   onPress={() => setInstructionsOpen(!instructionsOpen)}
                 >
-                  <Text style={styles.subLabel}>CONNECTION INSTRUCTIONS</Text>
+                  <Text style={styles.subLabel}>{t('orbitMcp.connectionInstructions')}</Text>
                   <ChevronDown
                     size={16}
                     color={colors.textMuted}
@@ -404,7 +402,7 @@ export default function AdvancedScreen() {
                               activeConfigTab === tab && styles.tabButtonTextActive,
                             ]}
                           >
-                            {tab === 'web' ? 'Claude Web' : tab === 'desktop' ? 'Claude Desktop' : 'Claude Code'}
+                            {tab === 'web' ? t('orbitMcp.claudeWeb') : tab === 'desktop' ? t('orbitMcp.claudeDesktop') : t('orbitMcp.claudeCode')}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -413,25 +411,25 @@ export default function AdvancedScreen() {
                     {activeConfigTab === 'web' ? (
                       <View style={{ gap: 8 }}>
                         <Text style={styles.hintText}>
-                          Claude Web uses OAuth -- no API key needed.
+                          {t('orbitMcp.webInstructions')}
                         </Text>
                         <View style={styles.codeBlock}>
                           <Text style={styles.codeText}>https://api.useorbit.org/mcp</Text>
                         </View>
                         <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
-                          OAuth authenticates automatically -- no API key required.
+                          {t('orbitMcp.webNoApiKey')}
                         </Text>
                       </View>
                     ) : (
                       <View style={{ gap: 8 }}>
                         <Text style={styles.hintText}>
-                          Add this to your MCP configuration:
+                          {t('orbitMcp.configInstructions')}
                         </Text>
                         <View style={styles.codeBlock}>
                           <Text style={styles.codeText}>{mcpConfigJson}</Text>
                         </View>
                         <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
-                          Replace YOUR_API_KEY with an actual key from above.
+                          {t('orbitMcp.replaceKey')}
                         </Text>
                       </View>
                     )}
@@ -453,7 +451,7 @@ export default function AdvancedScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Home Screen Widget</Text>
+              <Text style={styles.modalTitle}>{t('profile.widgetTitle')}</Text>
               <TouchableOpacity onPress={() => setShowWidgetInfo(false)}>
                 <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -461,27 +459,18 @@ export default function AdvancedScreen() {
 
             <View style={{ gap: 20 }}>
               <View style={{ gap: 8 }}>
-                <Text style={styles.widgetSectionTitle}>How to add</Text>
-                {[
-                  '1. Long-press on your home screen',
-                  '2. Tap "Widgets" and search for Orbit',
-                  '3. Choose a widget size and place it',
-                ].map((step) => (
-                  <View key={step} style={styles.widgetStep}>
-                    <Text style={styles.widgetStepNumber}>{step.charAt(0)}</Text>
-                    <Text style={styles.widgetStepText}>{step.slice(3)}</Text>
+                <Text style={styles.widgetSectionTitle}>{t('profile.widgetHow.title')}</Text>
+                {widgetSteps.map((step) => (
+                  <View key={step.num} style={styles.widgetStep}>
+                    <Text style={styles.widgetStepNumber}>{step.num}</Text>
+                    <Text style={styles.widgetStepText}>{step.text}</Text>
                   </View>
                 ))}
               </View>
 
               <View style={{ gap: 8 }}>
-                <Text style={styles.widgetSectionTitle}>Features</Text>
-                {[
-                  { icon: <CheckCircle size={16} color={colors.primary} />, text: 'Quick habit completion' },
-                  { icon: <Clock size={16} color={colors.primary} />, text: 'Today\'s progress at a glance' },
-                  { icon: <List size={16} color={colors.primary} />, text: 'Upcoming habits' },
-                  { icon: <RotateCcw size={16} color={colors.primary} />, text: 'Auto-refreshes throughout the day' },
-                ].map((feature) => (
+                <Text style={styles.widgetSectionTitle}>{t('profile.widgetHow.featuresTitle')}</Text>
+                {widgetFeatures.map((feature) => (
                   <View key={feature.text} style={styles.widgetFeatureRow}>
                     {feature.icon}
                     <Text style={styles.widgetFeatureText}>{feature.text}</Text>

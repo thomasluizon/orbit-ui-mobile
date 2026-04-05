@@ -8,30 +8,18 @@ import {
   ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   BookOpen,
   MessageSquare,
   ShieldCheck,
   ChevronRight,
-  Gift,
 } from 'lucide-react-native'
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design system)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-}
+import { colors } from '@/lib/theme'
+import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
 
 // ---------------------------------------------------------------------------
 // NavRow component
@@ -69,7 +57,10 @@ function NavRow({
 // ---------------------------------------------------------------------------
 
 export default function AboutScreen() {
+  const { t } = useTranslation()
   const router = useRouter()
+  const [showGuide, setShowGuide] = useState(false)
+  const [showReferral, setShowReferral] = useState(false)
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -87,45 +78,40 @@ export default function AboutScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>About & Help</Text>
+          <Text style={styles.headerTitle}>{t('about.title')}</Text>
         </View>
 
         {/* Feature Guide */}
         <NavRow
           icon={<BookOpen size={20} color={colors.primary} />}
-          title="Feature Guide"
-          hint="Learn how to get the most out of Orbit"
-          onPress={() => {
-            // Feature guide -- could navigate or open a bottom sheet
-          }}
+          title={t('onboarding.featureGuide.openButton')}
+          hint={t('profile.featureGuideHint')}
+          onPress={() => setShowGuide(true)}
         />
 
         {/* Referral */}
-        <NavRow
-          icon={<Gift size={20} color={colors.primary} />}
-          title="Refer a Friend"
-          hint="Share Orbit and earn rewards"
-          onPress={() => {
-            // Referral flow
-          }}
-        />
+        <ReferralCard onOpen={() => setShowReferral(true)} />
 
         {/* Support */}
         <NavRow
           icon={<MessageSquare size={20} color={colors.primary} />}
-          title="Support"
-          hint="Get help or send feedback"
+          title={t('profile.support.title')}
+          hint={t('profile.support.hint')}
           onPress={() => router.push('/support')}
         />
 
         {/* Privacy Policy */}
         <NavRow
           icon={<ShieldCheck size={20} color={colors.primary} />}
-          title="Privacy Policy"
-          hint="How we handle your data"
+          title={t('privacy.title')}
+          hint={t('privacy.hint')}
           onPress={() => router.push('/privacy')}
         />
       </ScrollView>
+
+      {/* Drawers */}
+      <FeatureGuideDrawer open={showGuide} onClose={() => setShowGuide(false)} />
+      <ReferralDrawer open={showReferral} onClose={() => setShowReferral(false)} />
     </SafeAreaView>
   )
 }

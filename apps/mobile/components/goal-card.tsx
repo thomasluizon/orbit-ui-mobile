@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -11,26 +12,6 @@ import type { Goal } from '@orbit/shared/types/goal'
 interface GoalCardProps {
   goal: Goal
   onPress?: (goalId: string) => void
-}
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design tokens)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  primary: '#8b5cf6',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  borderMuted: 'rgba(255, 255, 255, 0.04)',
-  green400: '#4ade80',
-  green500: '#22c55e',
-  amber400: '#fbbf24',
-  amber500: '#f59e0b',
-  red400: '#f87171',
-  red500: '#ef4444',
 }
 
 // ---------------------------------------------------------------------------

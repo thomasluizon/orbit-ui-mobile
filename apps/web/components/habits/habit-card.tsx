@@ -1086,10 +1086,17 @@ export function HabitCard({
   return (
     <>
       <div style={isChild ? indentStyle : undefined}>
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           className={`${articleClassName} text-left w-full`}
           onClick={handleCardClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleCardClick()
+            }
+          }}
           aria-label={habit.title}
         >
           <div
@@ -1145,7 +1152,7 @@ export function HabitCard({
               />
             )}
           </div>
-        </button>
+        </div>
       </div>
 
       {showActionsMenu && (

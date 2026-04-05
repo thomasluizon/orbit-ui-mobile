@@ -12,6 +12,7 @@ import {
   ScrollView,
   Animated,
 } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import {
   Sparkles,
   SendHorizontal,
@@ -24,43 +25,7 @@ import type { ChatMessage, ChatResponse } from '@orbit/shared/types/chat'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { MessageBubble, TypingIndicator } from '@/components/message-bubble'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const STARTER_CHIPS = [
-  'Log a habit',
-  'Create a routine',
-  'How am I doing?',
-  'Plan my week',
-]
-
-const SUGGESTION_CHIPS = [
-  'I meditated today',
-  'Went to the gym',
-  'Need groceries',
-]
-
-// ---------------------------------------------------------------------------
-// Colors (from globals.css design tokens)
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  primary_15: 'rgba(139, 92, 246, 0.15)',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  border50: 'rgba(255,255,255,0.035)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  amber400: '#fbbf24',
-  red400: '#f87171',
-}
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Animated Sparkle Icon for empty state
@@ -120,9 +85,24 @@ function AnimatedSparkle() {
 // ---------------------------------------------------------------------------
 
 export default function ChatScreen() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
   const flatListRef = useRef<FlatList>(null)
+
+  // Chip arrays using i18n
+  const STARTER_CHIPS = [
+    { key: 'logHabit', label: t('chat.starterChips.logHabit') },
+    { key: 'createRoutine', label: t('chat.starterChips.createRoutine') },
+    { key: 'howAmIDoing', label: t('chat.starterChips.howAmIDoing') },
+    { key: 'planWeek', label: t('chat.starterChips.planWeek') },
+  ]
+
+  const SUGGESTION_CHIPS = [
+    { key: 'meditated', label: t('chat.suggestion.meditated') },
+    { key: 'exercise', label: t('chat.suggestion.exercise') },
+    { key: 'groceries', label: t('chat.suggestion.groceries') },
+  ]
 
   // State
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -202,13 +182,13 @@ export default function ChatScreen() {
         setIsTyping(false)
 
         const errMsg =
-          err instanceof Error ? err.message : 'Failed to send message. Please try again.'
+          err instanceof Error ? err.message : t('chat.sendError')
         setSendError(errMsg)
 
         const errorMessage: ChatMessage = {
           id: `msg-${Date.now()}-err`,
           role: 'ai',
-          content: "Sorry, I couldn't process that. Please try again.",
+          content: t('chat.aiError'),
           timestamp: new Date(),
         }
 
@@ -216,17 +196,26 @@ export default function ChatScreen() {
         scrollToBottom()
       }
     },
-    [input, isTyping, messages, scrollToBottom, queryClient],
+    [input, isTyping, messages, scrollToBottom, queryClient, t],
   )
 
   const handleSend = useCallback(() => {
     sendMessage()
   }, [sendMessage])
 
+  const handleBreakdownConfirmed = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  }, [queryClient])
+
   // Render message item
   const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => <MessageBubble message={item} />,
-    [],
+    ({ item }: { item: ChatMessage }) => (
+      <MessageBubble
+        message={item}
+        onBreakdownConfirmed={handleBreakdownConfirmed}
+      />
+    ),
+    [handleBreakdownConfirmed],
   )
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, [])
@@ -240,7 +229,7 @@ export default function ChatScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>AI Chat</Text>
+          <Text style={styles.headerTitle}>{t('chat.title')}</Text>
         </View>
 
         {/* Messages area */}
@@ -249,18 +238,18 @@ export default function ChatScreen() {
             {/* Animated sparkle icon */}
             <AnimatedSparkle />
 
-            <Text style={styles.emptyText}>How can I help you today?</Text>
+            <Text style={styles.emptyText}>{t('chat.suggestion.prompt')}</Text>
 
             {/* Suggestion chips */}
             <View style={styles.suggestionsContainer}>
               {SUGGESTION_CHIPS.map((chip) => (
                 <TouchableOpacity
-                  key={chip}
+                  key={chip.key}
                   style={styles.suggestionChip}
-                  onPress={() => sendMessage(chip)}
+                  onPress={() => sendMessage(chip.label)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.suggestionChipText}>{chip}</Text>
+                  <Text style={styles.suggestionChipText}>{chip.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -295,12 +284,12 @@ export default function ChatScreen() {
             >
               {STARTER_CHIPS.map((chip) => (
                 <TouchableOpacity
-                  key={chip}
+                  key={chip.key}
                   style={styles.quickChip}
-                  onPress={() => sendMessage(chip)}
+                  onPress={() => sendMessage(chip.label)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.quickChipText}>{chip}</Text>
+                  <Text style={styles.quickChipText}>{chip.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -320,7 +309,7 @@ export default function ChatScreen() {
               style={styles.textInput}
               value={input}
               onChangeText={setInput}
-              placeholder="Type a message..."
+              placeholder={t('chat.placeholder')}
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={2000}
@@ -342,12 +331,12 @@ export default function ChatScreen() {
           {/* Message limit */}
           {!hasProAccess && atMessageLimit && (
             <Text style={styles.limitText}>
-              Message limit reached. Upgrade to Pro for unlimited messages.
+              {t('chat.limitReachedError')}
             </Text>
           )}
           {!hasProAccess && !atMessageLimit && (
             <Text style={styles.usageText}>
-              {aiMessagesUsed}/{aiMessagesLimit} messages used
+              {aiMessagesUsed}/{aiMessagesLimit} {t('chat.messagesUsed')}
             </Text>
           )}
         </View>

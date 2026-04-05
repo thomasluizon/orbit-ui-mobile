@@ -6,6 +6,7 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { X } from 'lucide-react-native'
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -17,19 +18,6 @@ interface BottomSheetModalProps {
   title?: string
   snapPoints?: (string | number)[]
   children: ReactNode
-}
-
-// ---------------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------------
-
-const colors = {
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  textPrimary: '#f0eef6',
-  textMuted: '#7a7490',
-  handle: 'rgba(255,255,255,0.15)',
 }
 
 // ---------------------------------------------------------------------------

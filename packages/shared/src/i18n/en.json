@@ -1638,6 +1638,26 @@
   "advancedSettings": {
     "title": "Advanced"
   },
+  "calendarSync": {
+    "title": "Calendar Sync",
+    "connected": "Google Calendar Connected",
+    "notConnected": "Not Connected",
+    "connectedDesc": "Your Google Calendar events are synced with Orbit. Events will show alongside your habits.",
+    "notConnectedDesc": "Connect your Google Calendar to see events alongside your habits in the calendar view.",
+    "connect": "Connect Google Calendar",
+    "refresh": "Refresh Calendar",
+    "disconnect": "Disconnect Calendar",
+    "disconnectConfirmTitle": "Disconnect Calendar",
+    "disconnectConfirmMessage": "Are you sure you want to disconnect your Google Calendar?",
+    "disconnectError": "Failed to disconnect calendar.",
+    "connectMessage": "This would open a Google OAuth flow to connect your calendar. This feature is coming soon on mobile.",
+    "howItWorks": "How it works",
+    "step1": "Connect your Google account",
+    "step2": "Orbit imports your calendar events",
+    "step3": "Events appear in the Calendar tab alongside habits",
+    "step4": "Your data stays private and is never shared",
+    "error": "Error"
+  },
   "apiKeys": {
     "errors": {
       "load": "Failed to load API keys",

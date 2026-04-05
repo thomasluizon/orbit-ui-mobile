@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   BadgeCheck,
@@ -18,33 +19,8 @@ import {
   Palette,
   BarChart3,
 } from 'lucide-react-native'
+import { colors } from '@/lib/theme'
 import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft } from '@/hooks/use-profile'
-
-// ---------------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  green: '#22c55e',
-  amber: '#f59e0b',
-  red: '#ef4444',
-}
-
-const PRO_FEATURES = [
-  { icon: Sparkles, label: 'Unlimited habits', free: '5 habits' },
-  { icon: MessageSquare, label: 'Unlimited AI chat', free: '10/month' },
-  { icon: Palette, label: 'All color schemes', free: '1 scheme' },
-  { icon: BarChart3, label: 'AI daily summary', free: 'N/A' },
-  { icon: Flame, label: 'AI retrospective', free: 'N/A' },
-]
 
 // ---------------------------------------------------------------------------
 // Upgrade Screen
@@ -52,10 +28,27 @@ const PRO_FEATURES = [
 
 export default function UpgradeScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const trialExpired = useTrialExpired()
   const trialDaysLeft = useTrialDaysLeft()
+
+  const PRO_FEATURES = [
+    { icon: Sparkles, labelKey: 'upgrade.features.habits.label', freeKey: 'upgrade.features.habits.free' },
+    { icon: MessageSquare, labelKey: 'upgrade.features.ai.label', freeKey: 'upgrade.features.ai.free' },
+    { icon: Palette, labelKey: 'upgrade.features.colors.label', freeKey: 'upgrade.features.colors.free' },
+    { icon: BarChart3, labelKey: 'upgrade.features.summary.label', freeKey: 'upgrade.features.summary.free' },
+    { icon: Flame, labelKey: 'upgrade.features.retrospective.label', freeKey: 'upgrade.features.retrospective.free' },
+  ]
+
+  const EXPIRED_FEATURES = [
+    'upgrade.plans.proFeatures.unlimited',
+    'upgrade.plans.proFeatures.ai',
+    'upgrade.plans.proFeatures.themes',
+    'upgrade.plans.proFeatures.retrospective',
+    'upgrade.plans.proFeatures.allFeatures',
+  ]
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -73,16 +66,16 @@ export default function UpgradeScreen() {
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Subscription</Text>
+          <Text style={styles.headerTitle}>{t('upgrade.title')}</Text>
         </View>
 
         {/* Current status */}
         {hasProAccess && (
           <View style={styles.proCard}>
             <BadgeCheck size={32} color={colors.primary} />
-            <Text style={styles.proTitle}>Orbit Pro</Text>
+            <Text style={styles.proTitle}>{t('profile.subscription.pro')}</Text>
             <Text style={styles.proSubtitle}>
-              You have full access to all Pro features.
+              {t('upgrade.alreadyPro')}
             </Text>
           </View>
         )}
@@ -92,8 +85,8 @@ export default function UpgradeScreen() {
           <View style={styles.trialBanner}>
             <Text style={styles.trialBannerText}>
               {trialDaysLeft <= 1
-                ? 'Last day of your Pro trial!'
-                : `${trialDaysLeft} days left in your Pro trial`}
+                ? t('trial.banner.lastDay')
+                : t('trial.banner.daysLeft', { days: trialDaysLeft })}
             </Text>
           </View>
         )}
@@ -101,15 +94,15 @@ export default function UpgradeScreen() {
         {/* Trial expired */}
         {trialExpired && (
           <View style={styles.expiredCard}>
-            <Text style={styles.expiredTitle}>Your trial has ended</Text>
+            <Text style={styles.expiredTitle}>{t('trial.expired.title')}</Text>
             <Text style={styles.expiredSubtitle}>
-              Don't lose access to:
+              {t('trial.expired.dontLose')}
             </Text>
-            {['Unlimited habits', 'Unlimited AI chat', 'All color schemes', 'AI daily summary', 'AI retrospective'].map(
-              (item) => (
-                <View key={item} style={styles.expiredRow}>
+            {EXPIRED_FEATURES.map(
+              (key) => (
+                <View key={key} style={styles.expiredRow}>
                   <XIcon size={14} color={colors.red} />
-                  <Text style={styles.expiredItemText}>{item}</Text>
+                  <Text style={styles.expiredItemText}>{t(key)}</Text>
                 </View>
               ),
             )}
@@ -117,19 +110,19 @@ export default function UpgradeScreen() {
         )}
 
         {/* Feature comparison */}
-        <Text style={styles.sectionLabel}>Features</Text>
+        <Text style={styles.sectionLabel}>{t('profile.sections.features')}</Text>
         <View style={styles.featureCard}>
           {PRO_FEATURES.map((feat) => {
             const Icon = feat.icon
             return (
-              <View key={feat.label} style={styles.featureRow}>
+              <View key={feat.labelKey} style={styles.featureRow}>
                 <Icon size={18} color={colors.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.featureLabel}>{feat.label}</Text>
+                  <Text style={styles.featureLabel}>{t(feat.labelKey)}</Text>
                 </View>
                 <View style={styles.featureBadges}>
                   <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeText}>{feat.free}</Text>
+                    <Text style={styles.freeBadgeText}>{t(feat.freeKey)}</Text>
                   </View>
                   <View style={styles.proBadge}>
                     <Check size={12} color={colors.green} />
@@ -143,17 +136,17 @@ export default function UpgradeScreen() {
         {/* Plan cards */}
         {!hasProAccess && (
           <>
-            <Text style={styles.sectionLabel}>Choose a Plan</Text>
+            <Text style={styles.sectionLabel}>{t('upgrade.subscribe')}</Text>
 
             {/* Monthly */}
             <TouchableOpacity style={styles.planCard} activeOpacity={0.8}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.planName}>Pro Monthly</Text>
+                <Text style={styles.planName}>{t('upgrade.plans.monthly.name')}</Text>
                 <Text style={styles.planPrice}>
-                  $4.99<Text style={styles.planPeriod}>/mo</Text>
+                  $4.99<Text style={styles.planPeriod}>{t('upgrade.plans.monthly.period')}</Text>
                 </Text>
               </View>
-              <Text style={styles.planCta}>Subscribe</Text>
+              <Text style={styles.planCta}>{t('upgrade.plans.monthly.cta')}</Text>
             </TouchableOpacity>
 
             {/* Yearly */}
@@ -163,19 +156,19 @@ export default function UpgradeScreen() {
             >
               <View style={{ flex: 1 }}>
                 <View style={styles.recommendedRow}>
-                  <Text style={styles.planName}>Pro Yearly</Text>
+                  <Text style={styles.planName}>{t('upgrade.plans.yearly.name')}</Text>
                   <View style={styles.recommendedBadge}>
                     <Text style={styles.recommendedBadgeText}>
-                      Recommended
+                      {t('upgrade.plans.yearly.recommended')}
                     </Text>
                   </View>
                 </View>
                 <Text style={styles.planPrice}>
-                  $39.99<Text style={styles.planPeriod}>/yr</Text>
+                  $39.99<Text style={styles.planPeriod}>{t('upgrade.plans.yearly.period')}</Text>
                 </Text>
-                <Text style={styles.planSave}>Save ~33%</Text>
+                <Text style={styles.planSave}>{t('upgrade.save33')}</Text>
               </View>
-              <Text style={styles.planCta}>Subscribe</Text>
+              <Text style={styles.planCta}>{t('upgrade.plans.yearly.cta')}</Text>
             </TouchableOpacity>
           </>
         )}

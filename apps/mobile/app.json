@@ -4,9 +4,7 @@
     "slug": "orbit",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -50,7 +48,13 @@
           "color": "#8b5cf6"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-updates",
+        {
+          "enabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -64,8 +68,8 @@
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/",
-      "fallbackToCacheTimeout": 0
+      "enabled": false,
+      "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734"
     }
   }
 }

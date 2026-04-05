@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient, restoreQueryCache, persistQueryCache } from './query-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
+import { colors } from './theme'
 import './i18n'
 
 interface ProvidersProps {
@@ -34,8 +35,8 @@ function AuthInitializer({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#07060e', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }

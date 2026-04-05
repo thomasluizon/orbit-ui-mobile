@@ -6,7 +6,6 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,9 +17,7 @@ import {
   Plus,
   Sparkles,
   MoreVertical,
-  Check,
   Flame,
-  ClipboardCheck,
 } from 'lucide-react-native'
 import {
   addDays,
@@ -33,76 +30,27 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { HabitsFilter } from '@orbit/shared/types/habit'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
-import { useHabits, useLogHabit, useSkipHabit, useSummary } from '@/hooks/use-habits'
-import { useGoals } from '@/hooks/use-goals'
+import { useSummary } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
-import { useStreakInfo } from '@/hooks/use-gamification'
+import { useStreakInfo, useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { GoalCard } from '@/components/goal-card'
-
-// ---------------------------------------------------------------------------
-// Design tokens (exact match with web globals.css)
-// ---------------------------------------------------------------------------
-
-const C = {
-  // Surface hierarchy
-  background: '#07060e',
-  surfaceGround: '#0d0b16',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  surfaceOverlay: '#211f33',
-
-  // Primary
-  primary: '#8b5cf6',
-  primaryShadow: 'rgba(139,92,246,',
-
-  // Text hierarchy
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  textFaded: '#a59cba',
-
-  // Border hierarchy
-  border: 'rgba(255,255,255,0.07)',
-  borderMuted: 'rgba(255,255,255,0.04)',
-  borderEmphasis: 'rgba(255,255,255,0.12)',
-
-  // Semantic
-  success: '#34d399',
-  warning: '#fbbf24',
-  danger: '#f87171',
-
-  // Radius
-  radiusSm: 8,
-  radiusMd: 12,
-  radiusLg: 16,
-  radiusXl: 20,
-  radius2xl: 24,
-  radiusFull: 9999,
-
-  // Shadows
-  shadowSm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-  },
-  shadowMd: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-  },
-  shadowLg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-  },
-}
+import { HabitList } from '@/components/habit-list'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { LogHabitModal } from '@/components/habits/log-habit-modal'
+import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
+import { EditHabitModal } from '@/components/habits/edit-habit-modal'
+import { GoalList } from '@/components/goals/goal-list'
+import { CreateGoalModal } from '@/components/goals/create-goal-modal'
+import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
+import { StreakCelebration } from '@/components/gamification/streak-celebration'
+import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
+import { AchievementToast } from '@/components/gamification/achievement-toast'
+import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { TrialBanner } from '@/components/ui/trial-banner'
+import { NotificationBell } from '@/components/navigation/notification-bell'
+import { colors, radius, shadows } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -112,203 +60,6 @@ const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 type ViewTab = (typeof TAB_VIEWS)[number]
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
-
-// ---------------------------------------------------------------------------
-// HabitCardMobile - inline component matching web habit-card exactly
-// ---------------------------------------------------------------------------
-
-function HabitCardMobile({
-  habit,
-  selectedDate,
-  dateStr,
-  isCompleted,
-  onLog,
-  onSkip,
-  onPress,
-}: {
-  habit: NormalizedHabit
-  selectedDate?: Date
-  dateStr: string
-  isCompleted: boolean
-  onLog: (habitId: string) => void
-  onSkip: (habitId: string) => void
-  onPress?: (habitId: string) => void
-}) {
-  const { t } = useTranslation()
-
-  const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
-  const isOverdue = habit.isOverdue && !isDoneForRange
-
-  // Status logic matching web
-  const status = useMemo(() => {
-    if (isDoneForRange) return 'completed' as const
-    if (habit.isGeneral) return 'pending' as const
-    if (habit.isOverdue && !habit.frequencyUnit) return 'overdue' as const
-    const sel = formatAPIDate(selectedDate ?? new Date())
-    const hasTodaySchedule = habit.instances?.some((i) => i.date === sel) ?? false
-    if (hasTodaySchedule) return 'due-today' as const
-    return 'pending' as const
-  }, [isDoneForRange, habit, selectedDate])
-
-  const isNotDueToday = useMemo(() => {
-    if (!selectedDate) return false
-    if (status !== 'pending') return false
-    return true
-  }, [selectedDate, status])
-
-  // Frequency label matching web
-  const frequencyLabel = useMemo(() => {
-    if (habit.isGeneral) return t('habits.generalHabit')
-    const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
-    if (!frequencyUnit) return t('habits.oneTimeTask')
-    if (isFlexible) {
-      return t('habits.frequency.flexibleLabel', {
-        n: frequencyQuantity ?? 1,
-        unit: t(`habits.form.unit${frequencyUnit}`),
-      })
-    }
-    if (frequencyQuantity === 1 && days.length > 0) {
-      return days
-        .map((day) => t(`dates.daysShort.${day.toLowerCase()}`))
-        .join(', ')
-    }
-    if (frequencyQuantity === 1)
-      return t(`habits.frequency.every${frequencyUnit}`)
-    return t(`habits.frequency.everyN${frequencyUnit}s`, {
-      n: frequencyQuantity ?? 1,
-    })
-  }, [habit, t])
-
-  // Flexible progress
-  const flexibleProgressLabel = useMemo(() => {
-    if (!habit.isFlexible) return null
-    const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
-    const done = habit.flexibleCompleted ?? 0
-    const unit = habit.frequencyUnit ? t(`habits.form.unit${habit.frequencyUnit}`) : ''
-    return t('habits.frequency.flexibleProgress', { done, target, unit })
-  }, [habit, t])
-
-  const checkedCount = habit.checklistItems?.filter((i) => i.isChecked).length ?? 0
-
-  // Card styles matching web habit-card-parent
-  const cardBorderLeft =
-    status === 'due-today'
-      ? { borderLeftWidth: 3, borderLeftColor: 'rgba(245,158,11,0.7)' }
-      : status === 'overdue'
-        ? { borderLeftWidth: 3, borderLeftColor: 'rgba(239,68,68,0.7)' }
-        : {}
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.habitCard,
-        cardBorderLeft,
-        (isDoneForRange || isNotDueToday) && { opacity: 0.4 },
-      ]}
-      onPress={() => onPress?.(habit.id)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.habitCardRow}>
-        {/* Log button (circle indicator) */}
-        <TouchableOpacity
-          style={[
-            styles.logButton,
-            isDoneForRange && styles.logButtonDone,
-            !isDoneForRange && status === 'overdue' && styles.logButtonOverdue,
-          ]}
-          onPress={() => onLog(habit.id)}
-          activeOpacity={0.7}
-        >
-          {isDoneForRange && <Check size={16} color="#fff" />}
-        </TouchableOpacity>
-
-        {/* Content */}
-        <View style={styles.habitContent}>
-          <Text
-            style={[
-              styles.habitTitle,
-              isDoneForRange && styles.habitTitleDone,
-            ]}
-            numberOfLines={1}
-          >
-            {habit.title}
-          </Text>
-          {habit.description ? (
-            <Text style={styles.habitDescription} numberOfLines={1}>
-              {habit.description}
-            </Text>
-          ) : null}
-
-          {/* Badges row matching web */}
-          <View style={styles.badgesRow}>
-            <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
-
-            {flexibleProgressLabel ? (
-              <View style={styles.badgePrimary}>
-                <Text style={styles.badgePrimaryText}>{flexibleProgressLabel}</Text>
-              </View>
-            ) : null}
-
-            {habit.dueTime ? (
-              <Text style={styles.dueTimeText}>
-                {habit.dueTime}
-                {habit.dueEndTime ? ` - ${habit.dueEndTime}` : ''}
-              </Text>
-            ) : null}
-
-            {status === 'overdue' ? (
-              <View style={styles.badgeOverdue}>
-                <Text style={styles.badgeOverdueText}>{t('habits.overdue')}</Text>
-              </View>
-            ) : null}
-
-            {habit.isBadHabit ? (
-              <View style={styles.badgeBadHabit}>
-                <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
-              </View>
-            ) : null}
-
-            {habit.tags?.map((tag) => (
-              <View
-                key={tag.id}
-                style={[styles.badgeTag, { backgroundColor: tag.color }]}
-              >
-                <Text style={styles.badgeTagText}>{tag.name}</Text>
-              </View>
-            ))}
-
-            {(habit.linkedGoals ?? []).map((goal) => (
-              <View key={goal.id} style={styles.badgePrimary}>
-                <Text style={styles.badgePrimaryText}>{goal.title}</Text>
-              </View>
-            ))}
-
-            {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-              <View style={styles.badgeStreak}>
-                <Flame size={10} color="#fbbf24" />
-                <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-              </View>
-            ) : null}
-
-            {habit.checklistItems && habit.checklistItems.length > 0 ? (
-              <View style={styles.badgeChecklist}>
-                <ClipboardCheck size={10} color={C.textSecondary} />
-                <Text style={styles.badgeChecklistText}>
-                  {checkedCount}/{habit.checklistItems.length}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Drill chevron */}
-        <View style={styles.drillIcon}>
-          <MoreVertical size={16} color="rgba(122,116,144,0.4)" />
-        </View>
-      </View>
-    </TouchableOpacity>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Today Screen
@@ -323,6 +74,7 @@ export default function TodayScreen() {
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
+  const { leveledUp, newLevel } = useGamificationProfile()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -338,6 +90,12 @@ export default function TodayScreen() {
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Modal state
+  const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
+  const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
+  const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
+  const [levelUpCleared, setLevelUpCleared] = useState(false)
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -431,21 +189,13 @@ export default function TodayScreen() {
 
   // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters)
+  const showCreateModal = useUIStore((s) => s.showCreateModal)
+  const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
+  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   useMemo(() => {
     setFilters(filters)
   }, [filters, setFilters])
-
-  // Data
-  const habitsQuery = useHabits(filters)
-  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
-  const isLoading = habitsQuery.isLoading
-
-  const goalsQuery = useGoals('Active')
-  const goals = goalsQuery.data?.allGoals ?? []
-  const goalsLoading = goalsQuery.isLoading
-
-  const logMutation = useLogHabit()
-  const skipMutation = useSkipHabit()
 
   // AI Summary
   const { summary } = useSummary({
@@ -459,26 +209,6 @@ export default function TodayScreen() {
     isToday(selectedDate) &&
     profile?.hasProAccess &&
     profile?.aiSummaryEnabled
-
-  // Filter completed
-  const visibleHabits = useMemo(() => {
-    if (showCompleted) return topLevelHabits
-    return topLevelHabits.filter((h) => !h.isCompleted)
-  }, [topLevelHabits, showCompleted])
-
-  const handleLog = useCallback(
-    (habitId: string) => {
-      logMutation.mutate({ habitId })
-    },
-    [logMutation],
-  )
-
-  const handleSkip = useCallback(
-    (habitId: string) => {
-      skipMutation.mutate({ habitId })
-    },
-    [skipMutation],
-  )
 
   // Clear filters on view change
   useEffect(() => {
@@ -505,6 +235,9 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Trial banner */}
+        <TrialBanner />
+
         {/* ============================================================
             HEADER: Orbit logo + streak badge + avatar
             Matches: <header className="flex items-center justify-between pt-8 pb-2">
@@ -529,6 +262,8 @@ export default function TodayScreen() {
                 <Text style={styles.streakText}>{currentStreak}</Text>
               </View>
             )}
+            {/* Notification bell */}
+            <NotificationBell />
             {/* Profile avatar */}
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{avatarInitials}</Text>
@@ -572,24 +307,7 @@ export default function TodayScreen() {
             GOALS VIEW
             ============================================================ */}
         {activeView === 'goals' && (
-          <View style={styles.section}>
-            {goalsLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={C.primary} />
-              </View>
-            ) : goals.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>{t('goals.empty')}</Text>
-                <Text style={styles.emptySubtitle}>
-                  {t('goals.emptyHint')}
-                </Text>
-              </View>
-            ) : (
-              goals.map((goal) => (
-                <GoalCard key={goal.id} goal={goal} />
-              ))
-            )}
-          </View>
+          <GoalList onCreatePress={() => setShowCreateGoalModal(true)} />
         )}
 
         {/* ============================================================
@@ -603,7 +321,7 @@ export default function TodayScreen() {
               onPress={goToPreviousDay}
               activeOpacity={0.7}
             >
-              <ChevronLeft size={20} color={C.textSecondary} />
+              <ChevronLeft size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
               <Text
@@ -620,7 +338,7 @@ export default function TodayScreen() {
               onPress={goToNextDay}
               activeOpacity={0.7}
             >
-              <ChevronRight size={20} color={C.textSecondary} />
+              <ChevronRight size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
@@ -632,8 +350,8 @@ export default function TodayScreen() {
         {showSummary && summary ? (
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
-              <Sparkles size={16} color={C.primary} />
-              <Text style={styles.summaryTitle}>{t('settings.aiSummary.title')}</Text>
+              <Sparkles size={16} color={colors.primary} />
+              <Text style={styles.summaryTitle}>{t('summary.title')}</Text>
             </View>
             <Text style={styles.summaryText}>{summary}</Text>
           </View>
@@ -647,22 +365,22 @@ export default function TodayScreen() {
             {/* Search bar - matches web: rounded-full py-3 pl-12 pr-12 */}
             <View style={styles.searchWrapper}>
               <View style={styles.searchContainer}>
-                <Search size={18} color={C.textMuted} style={styles.searchIcon} />
+                <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
                   value={searchQuery}
                   onChangeText={setLocalSearchQuery}
                   placeholder={t('habits.searchPlaceholder')}
-                  placeholderTextColor={C.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   returnKeyType="search"
-                  selectionColor={C.primary}
+                  selectionColor={colors.primary}
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity
                     onPress={() => setLocalSearchQuery('')}
                     style={styles.searchClear}
                   >
-                    <X size={16} color={C.textSecondary} />
+                    <X size={16} color={colors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -763,56 +481,23 @@ export default function TodayScreen() {
                 style={styles.controlsButton}
                 activeOpacity={0.7}
               >
-                <MoreVertical size={20} color={C.textSecondary} />
+                <MoreVertical size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Habit list */}
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                {/* Skeleton cards matching web */}
-                {[1, 2, 3].map((i) => (
-                  <View key={i} style={styles.skeletonCard}>
-                    <View style={styles.skeletonCircle} />
-                    <View style={styles.skeletonContent}>
-                      <View style={styles.skeletonLine1} />
-                      <View style={styles.skeletonLine2} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : visibleHabits.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>
-                  {searchQuery
-                    ? t('common.noResults')
-                    : activeView === 'general'
-                      ? t('habits.emptyGeneral')
-                      : activeView === 'today'
-                        ? t('habits.noDueToday')
-                        : t('habits.noHabitsYet')}
-                </Text>
-                <Text style={styles.emptySubtitle}>
-                  {searchQuery
-                    ? t('habits.searchPlaceholder')
-                    : t('habits.noHabitsYet')}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.habitListContainer}>
-                {visibleHabits.map((habit) => (
-                  <HabitCardMobile
-                    key={habit.id}
-                    habit={habit}
-                    selectedDate={activeView === 'today' ? selectedDate : undefined}
-                    dateStr={dateStr}
-                    isCompleted={habit.isCompleted}
-                    onLog={handleLog}
-                    onSkip={handleSkip}
-                  />
-                ))}
-              </View>
-            )}
+            {/* Habit list (using HabitList component with all handlers wired) */}
+            <HabitList
+              filters={filters}
+              dateStr={dateStr}
+              selectedDate={activeView === 'today' ? selectedDate : undefined}
+              showCompleted={showCompleted}
+              searchQuery={searchQueryStore}
+              scrollEnabled={false}
+              onCreatePress={() => setShowCreateModal(true)}
+              onSeeUpcoming={goToNextDay}
+              onLogHabit={setLogHabit}
+              onDetailHabit={setDetailHabit}
+            />
           </View>
         )}
       </ScrollView>
@@ -820,17 +505,79 @@ export default function TodayScreen() {
       {/* ============================================================
           FAB - floating action button matching web create button
           ============================================================ */}
-      {activeView !== 'goals' && (
+      {activeView === 'goals' ? (
         <TouchableOpacity
           style={[
             styles.fab,
             { bottom: 24 + insets.bottom },
           ]}
           activeOpacity={0.8}
+          onPress={() => setShowCreateGoalModal(true)}
+        >
+          <Plus size={24} color="#fff" />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: 24 + insets.bottom },
+          ]}
+          activeOpacity={0.8}
+          onPress={() => setShowCreateModal(true)}
         >
           <Plus size={24} color="#fff" />
         </TouchableOpacity>
       )}
+
+      {/* ============================================================
+          MODALS
+          ============================================================ */}
+      <CreateHabitModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        initialDate={activeView === 'today' ? formatAPIDate(selectedDate) : null}
+      />
+
+      <LogHabitModal
+        open={!!logHabit}
+        onClose={() => setLogHabit(null)}
+        habit={logHabit}
+      />
+
+      <HabitDetailDrawer
+        open={!!detailHabit}
+        onClose={() => setDetailHabit(null)}
+        habit={detailHabit}
+        onEdit={(habitId) => {
+          const habit = detailHabit?.id === habitId ? detailHabit : null
+          setDetailHabit(null)
+          if (habit) setEditHabit(habit)
+        }}
+      />
+
+      <EditHabitModal
+        open={!!editHabit}
+        onClose={() => setEditHabit(null)}
+        habit={editHabit}
+      />
+
+      <CreateGoalModal
+        open={showCreateGoalModal}
+        onClose={() => setShowCreateGoalModal(false)}
+      />
+
+      {/* ============================================================
+          CELEBRATIONS & TOASTS
+          ============================================================ */}
+      <AllDoneCelebration />
+      <StreakCelebration />
+      <LevelUpOverlay
+        leveledUp={leveledUp && !levelUpCleared}
+        newLevel={newLevel}
+        onClear={() => setLevelUpCleared(true)}
+      />
+      <AchievementToast />
+      <WelcomeBackToast />
     </View>
   )
 }
@@ -843,7 +590,7 @@ const styles = StyleSheet.create({
   // Layout
   safeArea: {
     flex: 1,
-    backgroundColor: C.background,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -878,13 +625,13 @@ const styles = StyleSheet.create({
   logoIconText: {
     fontSize: 20,
     fontWeight: '800',
-    color: C.primary,
+    color: colors.primary,
   },
   // text-[length:var(--text-fluid-xl)] = 18-24px, font-extrabold
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: C.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: -0.5,
   },
   headerRight: {
@@ -901,7 +648,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(251,191,36,0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
   },
   streakText: {
     fontSize: 13,
@@ -912,16 +659,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: C.surfaceElevated,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 13,
     fontWeight: '700',
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
 
   // Tabs: pt-4 = 16px
@@ -931,8 +678,8 @@ const styles = StyleSheet.create({
   // bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1
   tabsRow: {
     flexDirection: 'row',
-    backgroundColor: C.surfaceGround,
-    borderRadius: C.radiusLg,
+    backgroundColor: colors.surfaceGround,
+    borderRadius: radius.lg,
     padding: 4,
     gap: 4,
   },
@@ -941,11 +688,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 8,
-    borderRadius: C.radiusMd,
+    borderRadius: radius.md,
   },
   // text-primary bg-surface shadow-[var(--shadow-sm)]
   tabActive: {
-    backgroundColor: C.surface,
+    backgroundColor: colors.surface,
     ...(Platform.OS === 'ios'
       ? {
           shadowColor: '#000',
@@ -958,10 +705,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     fontWeight: '700',
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: C.primary,
+    color: colors.primary,
   },
 
   // Section container
@@ -983,7 +730,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: C.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -991,18 +738,18 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: C.textPrimary,
+    color: colors.textPrimary,
     minWidth: 160,
     textAlign: 'center',
   },
   dateLabelToday: {
-    color: C.primary,
+    color: colors.primary,
   },
 
   // AI Summary card - matches web's summary card
   summaryCard: {
-    backgroundColor: C.surface,
-    borderRadius: C.radiusLg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.3)',
     padding: 16,
@@ -1017,12 +764,12 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: C.primary,
+    color: colors.primary,
   },
   summaryText: {
     fontSize: 14,
     lineHeight: 20,
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
 
   // Habits section
@@ -1039,10 +786,10 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
-    borderRadius: C.radiusFull,
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: colors.border,
     paddingVertical: 10,
     paddingLeft: 44,
     paddingRight: 44,
@@ -1054,7 +801,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: C.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
   },
   searchClear: {
@@ -1082,19 +829,19 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: C.radiusFull,
-    backgroundColor: C.surface,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: colors.border,
   },
   filterChipActive: {
-    backgroundColor: C.primary,
-    borderColor: C.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: C.textFaded,
+    color: colors.textFaded,
   },
   filterChipTextActive: {
     color: '#fff',
@@ -1103,7 +850,7 @@ const styles = StyleSheet.create({
   filterDivider: {
     width: 1,
     height: 24,
-    backgroundColor: C.border,
+    backgroundColor: colors.border,
     alignSelf: 'center',
   },
   tagDot: {
@@ -1114,16 +861,16 @@ const styles = StyleSheet.create({
   // Controls (3-dot) button
   controlsButton: {
     padding: 8,
-    borderRadius: C.radiusXl,
+    borderRadius: radius.xl,
   },
 
   // Habit card - matches web .habit-card-parent
   habitCard: {
-    borderRadius: C.radiusLg,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 10,
     // Glass surface with gradient effect
-    backgroundColor: C.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     // Shadow matching .habit-card-parent box-shadow
@@ -1148,18 +895,18 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: C.borderEmphasis,
+    borderColor: colors.borderEmphasis,
     alignItems: 'center',
     justifyContent: 'center',
   },
   // .log-btn-done gradient
   logButtonDone: {
-    backgroundColor: C.primary,
+    backgroundColor: colors.primary,
     borderColor: 'transparent',
     // Glow shadow matching .log-btn-done
     ...(Platform.OS === 'ios'
       ? {
-          shadowColor: C.primary,
+          shadowColor: colors.primary,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.4,
           shadowRadius: 16,
@@ -1179,7 +926,7 @@ const styles = StyleSheet.create({
   habitTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: C.textPrimary,
+    color: colors.textPrimary,
   },
   habitTitleDone: {
     textDecorationLine: 'line-through',
@@ -1188,7 +935,7 @@ const styles = StyleSheet.create({
   // text-text-muted text-[11px] sm:text-xs
   habitDescription: {
     fontSize: 11,
-    color: C.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
 
@@ -1212,13 +959,13 @@ const styles = StyleSheet.create({
   dueTimeText: {
     fontSize: 10,
     fontWeight: '500',
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
   // Badge styles: px-2 py-0.5 rounded-full text-[9px] font-bold
   badgeOverdue: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
     backgroundColor: 'rgba(239,68,68,0.1)',
   },
   badgeOverdueText: {
@@ -1230,7 +977,7 @@ const styles = StyleSheet.create({
   badgeBadHabit: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
     backgroundColor: 'rgba(239,68,68,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.1)',
@@ -1244,7 +991,7 @@ const styles = StyleSheet.create({
   badgeTag: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
   },
   badgeTagText: {
     fontSize: 9,
@@ -1254,7 +1001,7 @@ const styles = StyleSheet.create({
   badgePrimary: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
     backgroundColor: 'rgba(139,92,246,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.1)',
@@ -1262,7 +1009,7 @@ const styles = StyleSheet.create({
   badgePrimaryText: {
     fontSize: 9,
     fontWeight: '700',
-    color: C.primary,
+    color: colors.primary,
   },
   badgeStreak: {
     flexDirection: 'row',
@@ -1270,7 +1017,7 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
     backgroundColor: 'rgba(251,191,36,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(251,191,36,0.1)',
@@ -1286,15 +1033,15 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: C.radiusFull,
+    borderRadius: radius.full,
     backgroundColor: 'rgba(26,24,41,0.6)',
     borderWidth: 1,
-    borderColor: C.borderMuted,
+    borderColor: colors.borderMuted,
   },
   badgeChecklistText: {
     fontSize: 9,
     fontWeight: '700',
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
 
   // Drill icon (3-dot) on card right
@@ -1316,8 +1063,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: C.surface,
-    borderRadius: C.radiusLg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     padding: 16,
@@ -1326,7 +1073,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: C.surfaceElevated,
+    backgroundColor: colors.surfaceElevated,
   },
   skeletonContent: {
     flex: 1,
@@ -1336,7 +1083,7 @@ const styles = StyleSheet.create({
     height: 16,
     width: '75%',
     borderRadius: 8,
-    backgroundColor: C.surfaceElevated,
+    backgroundColor: colors.surfaceElevated,
   },
   skeletonLine2: {
     height: 12,
@@ -1355,11 +1102,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: C.textPrimary,
+    color: colors.textPrimary,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
@@ -1370,13 +1117,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: C.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     // Glow shadow matching --shadow-glow
     ...(Platform.OS === 'ios'
       ? {
-          shadowColor: C.primary,
+          shadowColor: colors.primary,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 12,

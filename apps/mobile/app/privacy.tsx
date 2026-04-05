@@ -14,22 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-
-// ---------------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------------
-
-const colors = {
-  primary: '#8b5cf6',
-  background: '#07060e',
-  surface: '#13111f',
-  surfaceElevated: '#1a1829',
-  border: 'rgba(255,255,255,0.07)',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  green: '#22c55e',
-}
+import { colors } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Privacy Screen

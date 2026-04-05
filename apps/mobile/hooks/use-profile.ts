@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useEffect } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
+import i18n from 'i18next'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { apiClient } from '@/lib/api-client'
@@ -24,6 +25,14 @@ export function useProfile() {
   })
 
   const profile = query.data
+
+  // Sync i18n language from profile (matches web's cookie-based locale sync)
+  useEffect(() => {
+    if (!profile?.language) return
+    if (i18n.language !== profile.language) {
+      i18n.changeLanguage(profile.language)
+    }
+  }, [profile?.language])
 
   // Auto-detect timezone: if backend says UTC and device has a real timezone, fix it
   useEffect(() => {

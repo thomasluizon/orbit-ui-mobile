@@ -19,6 +19,7 @@ import * as WebBrowser from 'expo-web-browser'
 import { useTranslation } from 'react-i18next'
 import Svg, { Path } from 'react-native-svg'
 import { isValidEmail } from '@orbit/shared/utils/email'
+import { colors } from '@/lib/theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
@@ -32,26 +33,6 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
   'Invalid verification code': 'auth.errors.invalidCode',
   'Invalid email format': 'auth.errors.invalidEmail',
 }
-
-// -- Colors (from globals.css design system) --
-const COLORS = {
-  background: '#07060e',
-  surfaceOverlay: '#211f33',
-  surfaceGround: '#0d0b16',
-  surface: '#13111f',
-  primary: '#8b5cf6',
-  textPrimary: '#f0eef6',
-  textSecondary: '#9b95ad',
-  textMuted: '#7a7490',
-  border: 'rgba(255, 255, 255, 0.07)',
-  borderEmphasis: 'rgba(255, 255, 255, 0.12)',
-  emerald400: '#34d399',
-  emeraldBg: 'rgba(52, 211, 153, 0.1)',
-  emeraldBorder: 'rgba(52, 211, 153, 0.3)',
-  red400: '#f87171',
-  redBg: 'rgba(248, 113, 113, 0.1)',
-  redBorder: 'rgba(248, 113, 113, 0.3)',
-} as const
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()
@@ -342,7 +323,7 @@ export default function LoginScreen() {
                     value={email}
                     onChangeText={setEmail}
                     placeholder={t('auth.emailPlaceholder')}
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -381,7 +362,7 @@ export default function LoginScreen() {
                 activeOpacity={0.8}
               >
                 {isGoogleLoading ? (
-                  <Spinner size={20} color={COLORS.textPrimary} />
+                  <Spinner size={20} color={colors.textPrimary} />
                 ) : (
                   <GoogleIcon />
                 )}
@@ -468,7 +449,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -496,19 +477,19 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 24,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: -0.5,
   },
   tagline: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 
   // -- Card (matches web bg-surface-overlay card) --
   card: {
     width: '100%',
     maxWidth: 384, // max-w-sm = 24rem = 384px
-    backgroundColor: COLORS.surfaceOverlay,
+    backgroundColor: colors.surfaceOverlay,
     borderRadius: 24, // radius-2xl = 1.5rem
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.04)', // border-muted
@@ -526,33 +507,33 @@ const styles = StyleSheet.create({
   welcomeHeading: {
     fontSize: 24, // text-fluid-2xl at mobile
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   // -- Alerts --
   successAlert: {
-    backgroundColor: COLORS.emeraldBg,
+    backgroundColor: colors.emeraldBg,
     borderWidth: 1,
-    borderColor: COLORS.emeraldBorder,
+    borderColor: colors.emeraldBorder,
     borderRadius: 16, // radius-lg
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   successAlertText: {
     fontSize: 14,
-    color: COLORS.emerald400,
+    color: colors.emerald400,
   },
   errorAlert: {
-    backgroundColor: COLORS.redBg,
+    backgroundColor: colors.redBg,
     borderWidth: 1,
-    borderColor: COLORS.redBorder,
+    borderColor: colors.redBorder,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   errorAlertText: {
     fontSize: 14,
-    color: COLORS.red400,
+    color: colors.red400,
   },
 
   // -- Form --
@@ -567,22 +548,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   formInput: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12, // radius-md
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   // -- Primary button (matches web Send Code / Verify) --
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 20, // radius-xl = 1.25rem
     paddingVertical: 14,
     alignItems: 'center',
@@ -590,7 +571,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     // shadow-glow equivalent
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -614,11 +595,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.borderEmphasis,
+    backgroundColor: colors.borderEmphasis,
   },
   dividerText: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
     letterSpacing: 1,
   },
@@ -628,7 +609,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.borderEmphasis,
+    borderColor: colors.borderEmphasis,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -644,10 +625,10 @@ const styles = StyleSheet.create({
   // -- Code verification step --
   codeSentText: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   codeSentEmail: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   codeInputRow: {
@@ -658,14 +639,14 @@ const styles = StyleSheet.create({
   codeInput: {
     width: 44,
     height: 52,
-    backgroundColor: COLORS.surfaceGround,
+    backgroundColor: colors.surfaceGround,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   codeActionsRow: {
     flexDirection: 'row',
@@ -674,11 +655,11 @@ const styles = StyleSheet.create({
   },
   changeEmailText: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   resendText: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   resendDisabled: {
@@ -692,6 +673,6 @@ const styles = StyleSheet.create({
   },
   privacyText: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 })
