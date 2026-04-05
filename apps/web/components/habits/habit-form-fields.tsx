@@ -77,6 +77,338 @@ function isValidScheduledTime(time: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Reminder sub-component (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface ReminderSectionProps {
+  reminderLabelId: string
+  reminderEnabled: boolean
+  reminderTimes: number[]
+  onReminderTimesChange: (times: number[]) => void
+  onToggleReminder: () => void
+  reminderLabel: (minutes: number) => string
+  t: ReturnType<typeof useTranslations>
+}
+
+function ReminderSection({
+  reminderLabelId, reminderEnabled, reminderTimes,
+  onReminderTimesChange, onToggleReminder, reminderLabel, t,
+}: Readonly<ReminderSectionProps>) {
+  const [showAddReminder, setShowAddReminder] = useState(false)
+  const [showCustomInput, setShowCustomInput] = useState(false)
+  const [customValue, setCustomValue] = useState<number | null>(null)
+  const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
+
+  const reminderUnitOptions = useMemo(() => [
+    { value: 'min', label: t('habits.form.reminderUnitMin') },
+    { value: 'hours', label: t('habits.form.reminderUnitHours') },
+    { value: 'days', label: t('habits.form.reminderUnitDays') },
+  ], [t])
+
+  const availablePresets = useMemo(
+    () => REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
+    [reminderTimes],
+  )
+
+  function addPreset(value: number) {
+    if (!reminderTimes.includes(value)) {
+      onReminderTimesChange([...reminderTimes, value].sort((a, b) => b - a))
+    }
+    setShowAddReminder(false)
+  }
+
+  function addCustomReminder() {
+    if (!customValue || customValue <= 0) return
+    let multiplier = 1
+    if (customUnit === 'days') multiplier = 1440
+    else if (customUnit === 'hours') multiplier = 60
+    const minutes = customValue * multiplier
+    if (!reminderTimes.includes(minutes)) {
+      onReminderTimesChange([...reminderTimes, minutes].sort((a, b) => b - a))
+    }
+    setCustomValue(null)
+    setShowCustomInput(false)
+    setShowAddReminder(false)
+  }
+
+  function removeReminder(value: number) {
+    onReminderTimesChange(reminderTimes.filter((v) => v !== value))
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="size-4 text-primary" />
+          <span id={reminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.reminder')}</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={reminderEnabled}
+          aria-labelledby={reminderLabelId}
+          className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${reminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+          onClick={onToggleReminder}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${reminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+        </button>
+      </div>
+      {reminderEnabled && (
+        <div className="space-y-3">
+          {/* Selected reminder chips */}
+          <div className="flex flex-wrap gap-2">
+            {reminderTimes.map((time) => (
+              <span
+                key={time}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
+              >
+                {reminderLabel(time)}
+                <button
+                  type="button"
+                  aria-label={t('habits.form.removeReminder')}
+                  className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-primary/60'}`}
+                  disabled={reminderTimes.length <= 1}
+                  onClick={() => removeReminder(time)}
+                >
+                  <X className="size-3" aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {/* Add reminder */}
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+              onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}
+            >
+              <Plus className="size-3.5" />
+              {t('habits.form.reminderAdd')}
+            </button>
+
+            {showAddReminder && (
+              <div className="mt-2 rounded-lg border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1">
+                {availablePresets.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
+                    onClick={() => addPreset(preset.value)}
+                  >
+                    {t(preset.key as Parameters<typeof t>[0])}
+                  </button>
+                ))}
+                {showCustomInput && (
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <input
+                      value={customValue ?? ''}
+                      type="number"
+                      min={1}
+                      aria-label={t('habits.form.reminderCustomPlaceholder')}
+                      placeholder={t('habits.form.reminderCustomPlaceholder')}
+                      className="w-20 bg-surface text-text-primary rounded-xl py-1.5 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
+                    />
+                    <AppSelect
+                      value={customUnit}
+                      options={reminderUnitOptions}
+                      label={t('habits.form.reminderCustom')}
+                      onChange={(val) => setCustomUnit(val as 'min' | 'hours' | 'days')}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 p-1.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-all duration-150"
+                      onClick={addCustomReminder}
+                    >
+                      <Plus className="size-3.5" />
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-primary font-medium hover:bg-surface-elevated/80 transition-all duration-150"
+                  onClick={() => setShowCustomInput(!showCustomInput)}
+                >
+                  {t('habits.form.reminderCustom')}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Scheduled reminder sub-component (S3776: extracted to reduce cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface ScheduledReminderSectionProps {
+  scheduledReminderLabelId: string
+  reminderEnabled: boolean
+  scheduledReminders: Array<{ when: ScheduledReminderWhen; time: string }> | undefined
+  onToggleReminder: () => void
+  onSetScheduledReminders: (reminders: Array<{ when: ScheduledReminderWhen; time: string }>) => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function ScheduledReminderSection({
+  scheduledReminderLabelId, reminderEnabled, scheduledReminders,
+  onToggleReminder, onSetScheduledReminders, t,
+}: Readonly<ScheduledReminderSectionProps>) {
+  const MAX_SCHEDULED_REMINDERS = 5
+  const [showForm, setShowForm] = useState(false)
+  const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
+  const [time, setTime] = useState('')
+
+  const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
+
+  function addScheduledReminder() {
+    if (!isValidScheduledTime(time)) return
+    if (atLimit) return
+    const current = scheduledReminders ?? []
+    const duplicate = current.some((sr) => sr.when === when && sr.time === time)
+    if (duplicate) return
+    onSetScheduledReminders([...current, { when, time }])
+    setTime('')
+    setShowForm(false)
+  }
+
+  function removeScheduledReminder(index: number) {
+    const current = scheduledReminders ?? []
+    onSetScheduledReminders(current.filter((_, i) => i !== index))
+  }
+
+  function scheduledReminderLabel(sr: { when: ScheduledReminderWhen; time: string }): string {
+    const timeDisplay = sr.time.slice(0, 5)
+    if (sr.when === 'day_before') {
+      return t('habits.form.scheduledReminderDayBeforeAt', { time: timeDisplay })
+    }
+    return t('habits.form.scheduledReminderSameDayAt', { time: timeDisplay })
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="size-4 text-primary" />
+          <span id={scheduledReminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.scheduledReminder')}</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={reminderEnabled}
+          aria-labelledby={scheduledReminderLabelId}
+          className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${reminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+          onClick={onToggleReminder}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${reminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+        </button>
+      </div>
+      {reminderEnabled && (
+        <div className="space-y-3">
+          {(scheduledReminders?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {(scheduledReminders ?? []).map((sr, idx) => (
+                <span
+                  key={`${sr.when}-${sr.time}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
+                >
+                  {scheduledReminderLabel(sr)}
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="hover:text-primary/60 transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                    <X className="size-3" aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div>
+            {!showForm && !atLimit && (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                onClick={() => setShowForm(true)}
+              >
+                <Plus className="size-3.5" />
+                {t('habits.form.scheduledReminderAdd')}
+              </button>
+            )}
+
+            {atLimit && (
+              <p className="text-xs text-text-muted">{t('habits.form.scheduledReminderMax')}</p>
+            )}
+
+            {showForm && (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                      when === 'day_before'
+                        ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                        : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                    }`}
+                    onClick={() => setWhen('day_before')}
+                  >
+                    {t('habits.form.scheduledReminderDayBefore')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                      when === 'same_day'
+                        ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                        : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                    }`}
+                    onClick={() => setWhen('same_day')}
+                  >
+                    {t('habits.form.scheduledReminderSameDay')}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    value={time}
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={t('habits.form.scheduledReminderTimePlaceholder')}
+                    pattern="[0-9]{2}:[0-9]{2}"
+                    placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
+                    maxLength={5}
+                    className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                    onChange={(e) => setTime(formatScheduledTimeInput(e.target.value))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addScheduledReminder() } }}
+                  />
+                  <button
+                    type="button"
+                    className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
+                    disabled={!isValidScheduledTime(time)}
+                    onClick={addScheduledReminder}
+                  >
+                    {t('common.add')}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('common.cancel')}
+                    className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors"
+                    onClick={() => { setShowForm(false); setTime('') }}
+                  >
+                    <X className="size-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -143,23 +475,7 @@ export function HabitFormFields({
 
   const availableTags = tagsData ?? []
 
-  // Reminder state
-  const [showAddReminder, setShowAddReminder] = useState(false)
-  const [showCustomInput, setShowCustomInput] = useState(false)
-  const [customValue, setCustomValue] = useState<number | null>(null)
-  const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
-
-  const reminderUnitOptions = useMemo(() => [
-    { value: 'min', label: t('habits.form.reminderUnitMin') },
-    { value: 'hours', label: t('habits.form.reminderUnitHours') },
-    { value: 'days', label: t('habits.form.reminderUnitDays') },
-  ], [t])
-
-  const availablePresets = useMemo(
-    () => REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
-    [reminderTimes],
-  )
-
+  // Reminder label function (shared with ReminderSection)
   function reminderLabel(minutes: number): string {
     const preset = REMINDER_PRESETS.find((p) => p.value === minutes)
     if (preset) return t(preset.key as Parameters<typeof t>[0])
@@ -170,65 +486,6 @@ export function HabitFormFields({
     }
     const d = Math.floor(minutes / 1440)
     return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
-  }
-
-  function addPreset(value: number) {
-    if (!reminderTimes.includes(value)) {
-      onReminderTimesChange([...reminderTimes, value].sort((a, b) => b - a))
-    }
-    setShowAddReminder(false)
-  }
-
-  function addCustomReminder() {
-    if (!customValue || customValue <= 0) return
-    let multiplier = 1
-    if (customUnit === 'days') multiplier = 1440
-    else if (customUnit === 'hours') multiplier = 60
-    const minutes = customValue * multiplier
-    if (!reminderTimes.includes(minutes)) {
-      onReminderTimesChange([...reminderTimes, minutes].sort((a, b) => b - a))
-    }
-    setCustomValue(null)
-    setShowCustomInput(false)
-    setShowAddReminder(false)
-  }
-
-  function removeReminder(value: number) {
-    onReminderTimesChange(reminderTimes.filter((v) => v !== value))
-  }
-
-  // Scheduled reminders
-  const MAX_SCHEDULED_REMINDERS = 5
-  const [showScheduledReminderForm, setShowScheduledReminderForm] = useState(false)
-  const [scheduledReminderWhen, setScheduledReminderWhen] = useState<ScheduledReminderWhen>('same_day')
-  const [scheduledReminderTime, setScheduledReminderTime] = useState('')
-
-  const atScheduledReminderLimit = (watchedScheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
-
-  function addScheduledReminder() {
-    if (!isValidScheduledTime(scheduledReminderTime)) return
-    if (atScheduledReminderLimit) return
-    const current = watchedScheduledReminders ?? []
-    const duplicate = current.some(
-      (sr) => sr.when === scheduledReminderWhen && sr.time === scheduledReminderTime,
-    )
-    if (duplicate) return
-    setValue('scheduledReminders', [...current, { when: scheduledReminderWhen, time: scheduledReminderTime }], { shouldDirty: true })
-    setScheduledReminderTime('')
-    setShowScheduledReminderForm(false)
-  }
-
-  function removeScheduledReminder(index: number) {
-    const current = watchedScheduledReminders ?? []
-    setValue('scheduledReminders', current.filter((_, i) => i !== index), { shouldDirty: true })
-  }
-
-  function scheduledReminderLabel(sr: { when: string; time: string }): string {
-    const timeDisplay = sr.time.slice(0, 5)
-    if (sr.when === 'day_before') {
-      return t('habits.form.scheduledReminderDayBeforeAt', { time: timeDisplay })
-    }
-    return t('habits.form.scheduledReminderSameDayAt', { time: timeDisplay })
   }
 
   // Tag pop animation
@@ -352,7 +609,7 @@ export function HabitFormFields({
           {t('habits.form.flexibleDescription', {
             n: watchedFrequencyQuantity ?? 3,
             unit: watchedFrequencyUnit
-              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0])
+              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
               : '',
           })}
         </p>
@@ -548,227 +805,27 @@ export function HabitFormFields({
 
       {/* Reminder (only when dueTime is set, hidden for general habits) */}
       {watchedDueTime && !isGeneral && (
-        <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="size-4 text-primary" />
-              <span id={reminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.reminder')}</span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={watchedReminderEnabled}
-              aria-labelledby={reminderLabelId}
-              className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${watchedReminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
-              onClick={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedReminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
-            </button>
-          </div>
-          {watchedReminderEnabled && (
-            <div className="space-y-3">
-              {/* Selected reminder chips */}
-              <div className="flex flex-wrap gap-2">
-                {reminderTimes.map((time) => (
-                  <span
-                    key={time}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
-                  >
-                    {reminderLabel(time)}
-                    <button
-                      type="button"
-                      aria-label={t('habits.form.removeReminder')}
-                      className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-primary/60'}`}
-                      disabled={reminderTimes.length <= 1}
-                      onClick={() => removeReminder(time)}
-                    >
-                      <X className="size-3" aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-
-              {/* Add reminder */}
-              <div className="relative">
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-                  onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}
-                >
-                  <Plus className="size-3.5" />
-                  {t('habits.form.reminderAdd')}
-                </button>
-
-                {showAddReminder && (
-                  <div className="mt-2 rounded-lg border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1">
-                    {availablePresets.map((preset) => (
-                      <button
-                        key={preset.value}
-                        type="button"
-                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
-                        onClick={() => addPreset(preset.value)}
-                      >
-                        {t(preset.key as Parameters<typeof t>[0])}
-                      </button>
-                    ))}
-                    {showCustomInput && (
-                      <div className="flex items-center gap-2 px-3 py-2">
-                        <input
-                          value={customValue ?? ''}
-                          type="number"
-                          min={1}
-                          aria-label={t('habits.form.reminderCustomPlaceholder')}
-                          placeholder={t('habits.form.reminderCustomPlaceholder')}
-                          className="w-20 bg-surface text-text-primary rounded-xl py-1.5 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
-                        />
-                        <AppSelect
-                          value={customUnit}
-                          options={reminderUnitOptions}
-                          label={t('habits.form.reminderCustom')}
-                          onChange={(val) => setCustomUnit(val as 'min' | 'hours' | 'days')}
-                        />
-                        <button
-                          type="button"
-                          className="shrink-0 p-1.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-all duration-150"
-                          onClick={addCustomReminder}
-                        >
-                          <Plus className="size-3.5" />
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 rounded-xl text-sm text-primary font-medium hover:bg-surface-elevated/80 transition-all duration-150"
-                      onClick={() => setShowCustomInput(!showCustomInput)}
-                    >
-                      {t('habits.form.reminderCustom')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <ReminderSection
+          reminderLabelId={reminderLabelId}
+          reminderEnabled={watchedReminderEnabled}
+          reminderTimes={reminderTimes}
+          onReminderTimesChange={onReminderTimesChange}
+          onToggleReminder={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
+          reminderLabel={reminderLabel}
+          t={t}
+        />
       )}
 
       {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
       {!watchedDueTime && !isGeneral && (
-        <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="size-4 text-primary" />
-              <span id={scheduledReminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.scheduledReminder')}</span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={watchedReminderEnabled}
-              aria-labelledby={scheduledReminderLabelId}
-              className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${watchedReminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
-              onClick={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${watchedReminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
-            </button>
-          </div>
-          {watchedReminderEnabled && (
-            <div className="space-y-3">
-              {(watchedScheduledReminders?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {(watchedScheduledReminders ?? []).map((sr, idx) => (
-                    <span
-                      key={`${sr.when}-${sr.time}`}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
-                    >
-                      {scheduledReminderLabel(sr)}
-                      <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="hover:text-primary/60 transition-colors" onClick={() => removeScheduledReminder(idx)}>
-                        <X className="size-3" aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div>
-                {!showScheduledReminderForm && !atScheduledReminderLimit && (
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-                    onClick={() => setShowScheduledReminderForm(true)}
-                  >
-                    <Plus className="size-3.5" />
-                    {t('habits.form.scheduledReminderAdd')}
-                  </button>
-                )}
-
-                {atScheduledReminderLimit && (
-                  <p className="text-xs text-text-muted">{t('habits.form.scheduledReminderMax')}</p>
-                )}
-
-                {showScheduledReminderForm && (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                          scheduledReminderWhen === 'day_before'
-                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                            : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-                        }`}
-                        onClick={() => setScheduledReminderWhen('day_before')}
-                      >
-                        {t('habits.form.scheduledReminderDayBefore')}
-                      </button>
-                      <button
-                        type="button"
-                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                          scheduledReminderWhen === 'same_day'
-                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                            : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-                        }`}
-                        onClick={() => setScheduledReminderWhen('same_day')}
-                      >
-                        {t('habits.form.scheduledReminderSameDay')}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={scheduledReminderTime}
-                        type="text"
-                        inputMode="numeric"
-                        aria-label={t('habits.form.scheduledReminderTimePlaceholder')}
-                        pattern="[0-9]{2}:[0-9]{2}"
-                        placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                        maxLength={5}
-                        className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                        onChange={(e) => setScheduledReminderTime(formatScheduledTimeInput(e.target.value))}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addScheduledReminder() } }}
-                      />
-                      <button
-                        type="button"
-                        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
-                        disabled={!isValidScheduledTime(scheduledReminderTime)}
-                        onClick={addScheduledReminder}
-                      >
-                        {t('common.add')}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('common.cancel')}
-                        className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors"
-                        onClick={() => { setShowScheduledReminderForm(false); setScheduledReminderTime('') }}
-                      >
-                        <X className="size-3.5" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <ScheduledReminderSection
+          scheduledReminderLabelId={scheduledReminderLabelId}
+          reminderEnabled={watchedReminderEnabled}
+          scheduledReminders={watchedScheduledReminders}
+          onToggleReminder={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
+          onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
+          t={t}
+        />
       )}
 
       {/* Tags */}

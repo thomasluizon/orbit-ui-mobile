@@ -79,7 +79,7 @@ export function useSpeechToText() {
   const [isSupported, setIsSupported] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [selectedLanguage, setSelectedLanguageState] = useState(() => {
+  const [selectedLanguage, setSelectedLanguageRaw] = useState(() => { // NOSONAR - setter wrapped by useCallback below
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return locale === 'pt-BR' ? 'pt-BR' : 'en-US' // NOSONAR - SSR guard
     return localStorage.getItem(SPEECH_LANG_KEY) ?? (locale === 'pt-BR' ? 'pt-BR' : 'en-US')
   })
@@ -111,7 +111,7 @@ export function useSpeechToText() {
 
   // Set language and persist
   const setSelectedLanguage = useCallback((newLang: string) => {
-    setSelectedLanguageState(newLang)
+    setSelectedLanguageRaw(newLang)
     localStorage.setItem(SPEECH_LANG_KEY, newLang)
     if (recognitionRef.current) {
       recognitionRef.current.lang = newLang

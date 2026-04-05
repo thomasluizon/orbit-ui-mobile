@@ -32,8 +32,6 @@ export function getQueryClient(): QueryClient {
     return createQueryClient()
   }
   // Browser: reuse the same client
-  if (!browserQueryClient) {
-    browserQueryClient = createQueryClient()
-  }
+  browserQueryClient ??= createQueryClient()
   return browserQueryClient
 }

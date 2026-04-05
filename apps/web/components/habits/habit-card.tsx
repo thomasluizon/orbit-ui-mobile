@@ -104,17 +104,17 @@ function computeFrequencyLabel(
   if (isFlexible) {
     return t('habits.frequency.flexibleLabel', {
       n: frequencyQuantity ?? 1,
-      unit: t(`habits.form.unit${frequencyUnit}` as Parameters<typeof t>[0]),
+      unit: t(`habits.form.unit${frequencyUnit}` as Parameters<typeof t>[0]), // NOSONAR - dynamic i18n key requires assertion
     })
   }
   if (frequencyQuantity === 1 && days.length > 0) {
     return days
-      .map((day) => t(`dates.daysShort.${day.toLowerCase()}` as Parameters<typeof t>[0]))
+      .map((day) => t(`dates.daysShort.${day.toLowerCase()}` as Parameters<typeof t>[0])) // NOSONAR - dynamic i18n key requires assertion
       .join(', ')
   }
   if (frequencyQuantity === 1)
-    return t(`habits.frequency.every${frequencyUnit}` as Parameters<typeof t>[0])
-  return t(`habits.frequency.everyN${frequencyUnit}s` as Parameters<typeof t>[0], {
+    return t(`habits.frequency.every${frequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
+  return t(`habits.frequency.everyN${frequencyUnit}s` as Parameters<typeof t>[0], { // NOSONAR - dynamic i18n key requires assertion
     n: frequencyQuantity ?? 1,
   })
 }
@@ -127,7 +127,7 @@ function computeFlexibleProgressLabel(
   const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
   const done = habit.flexibleCompleted ?? 0
   const unit = habit.frequencyUnit
-    ? t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])
+    ? t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
     : ''
   return t('habits.frequency.flexibleProgress', { done, target, unit })
 }
@@ -548,11 +548,12 @@ function SimpleLogButton({ isChild, isDoneForRange, status, justCompleted, habit
     }
   }, [isDoneForRange, onUnlog, onLog])
 
-  const borderClass = isDoneForRange
-    ? 'log-btn-done text-white'
-    : status === 'overdue'
-      ? 'border-2 border-red-500/20 hover:border-red-500/40'
-      : 'border-2 border-border-emphasis hover:border-primary/35'
+  let borderClass = 'border-2 border-border-emphasis hover:border-primary/35'
+  if (isDoneForRange) {
+    borderClass = 'log-btn-done text-white'
+  } else if (status === 'overdue') {
+    borderClass = 'border-2 border-red-500/20 hover:border-red-500/40'
+  }
 
   return (
     <button
@@ -799,6 +800,7 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit
         transform: menuOpensUp ? 'translateY(-100%)' : 'none',
       }}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => { if (e.key === 'Escape') closeMenu() }}
     >
       {showAddSubHabit && depth < maxHabitDepth - 1 && (
         <button
@@ -1085,7 +1087,6 @@ export function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <article
-          role="button"
           className={articleClassName}
           tabIndex={0}
           onClick={handleCardClick}
