@@ -7,26 +7,14 @@ import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile, PlanType } from '@orbit/shared/types/profile'
 import { updateTimezone } from '@/app/actions/profile'
-
-// ---------------------------------------------------------------------------
-// useProfile -- TanStack Query hook for the user profile
-// ---------------------------------------------------------------------------
-
-async function fetchProfile(): Promise<Profile> {
-  const res = await fetch(API.profile.get)
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? `Failed with status ${res.status}`)
-  }
-  return res.json()
-}
+import { fetchJson } from '@/lib/api-fetch'
 
 export function useProfile() {
   const queryClient = useQueryClient()
 
   const query = useQuery({
     queryKey: profileKeys.detail(),
-    queryFn: fetchProfile,
+    queryFn: () => fetchJson<Profile>(API.profile.get),
     staleTime: 5 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: true,

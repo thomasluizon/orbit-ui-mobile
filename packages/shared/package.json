@@ -23,11 +23,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "zod": "^4.3.6",
+    "@tanstack/query-core": "^5.75.0",
     "date-fns": "^4.1.0",
-    "@tanstack/query-core": "^5.75.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
     "typescript": "^5.8.3",
     "vitest": "^3.1.0"
   }

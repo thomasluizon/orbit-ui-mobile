@@ -26,6 +26,11 @@ import { useTranslations } from 'next-intl'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  useSpeechToText,
+  SPEECH_LANGUAGES,
+  VISUALIZER_BAR_OFFSETS,
+} from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { sendChatMessage } from '@/app/actions/chat'
@@ -68,6 +73,31 @@ export default function ChatPage() {
   const [sendError, setSendError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+  // Speech to text
+  const {
+    isRecording,
+    isSupported: speechSupported,
+    transcript,
+    error: speechError,
+    selectedLanguage: speechLang,
+    setSelectedLanguage: setSpeechLang,
+    toggleRecording,
+    recordingDuration,
+  } = useSpeechToText()
+  const [showLangPicker, setShowLangPicker] = useState(false)
+  const langPickerRef = useRef<HTMLDivElement>(null)
+
+  const currentLangFlag = useMemo(
+    () => SPEECH_LANGUAGES.find((l) => l.value === speechLang)?.flag ?? '\u{1F310}',
+    [speechLang],
+  )
+
+  const recordingTime = useMemo(() => {
+    const mins = Math.floor(recordingDuration / 60)
+    const secs = recordingDuration % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }, [recordingDuration])
 
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -122,6 +152,47 @@ export default function ChatPage() {
     document.addEventListener('keydown', handleKeydown)
     return () => document.removeEventListener('keydown', handleKeydown)
   }, [router])
+
+  // -------------------------------------------------------------------------
+  // Speech: append transcript when recording stops
+  // -------------------------------------------------------------------------
+
+  const prevIsRecording = useRef(false)
+  useEffect(() => {
+    // When recording transitions from true -> false, append transcript
+    if (prevIsRecording.current && !isRecording && transcript.trim()) {
+      setInput((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()))
+    }
+    prevIsRecording.current = isRecording
+  }, [isRecording, transcript])
+
+  // -------------------------------------------------------------------------
+  // Speech: show errors
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (speechError) {
+      setSendError(speechError)
+      const timer = setTimeout(() => {
+        setSendError((current) => (current === speechError ? null : current))
+      }, 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [speechError])
+
+  // -------------------------------------------------------------------------
+  // Speech: close language picker on outside click
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (langPickerRef.current && !langPickerRef.current.contains(e.target as Node)) {
+        setShowLangPicker(false)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
 
   // -------------------------------------------------------------------------
   // Image handling
@@ -415,42 +486,112 @@ export default function ChatPage() {
 
           {/* Input bar */}
           <div className="bg-surface-elevated rounded-[var(--radius-lg)] border border-border-muted flex items-center gap-2 px-3 py-2">
-            <button
-              aria-label={t('chat.attachImage')}
-              className="shrink-0 p-1 text-text-muted hover:text-text-primary transition-colors"
-              onClick={openFilePicker}
-            >
-              <ImageIcon className="size-[15px]" />
-            </button>
-            <button
-              aria-label={t('chat.toggleMic')}
-              className="shrink-0 p-1 text-text-muted hover:text-text-primary transition-colors"
-              disabled={isTyping}
-              onClick={() => {
-                // Voice input placeholder
-              }}
-            >
-              <Mic className="size-4" />
-            </button>
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t('chat.placeholder')}
-              aria-label={t('chat.placeholder')}
-              className="flex-1 resize-none bg-transparent text-text-primary placeholder-text-muted text-sm py-2 px-3 focus:outline-none min-h-[36px] max-h-[120px]"
-              rows={1}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-            />
-            <button
-              disabled={!canSend}
-              aria-label={t('chat.send')}
-              className="shrink-0 flex items-center justify-center bg-primary rounded-[var(--radius-xl)] p-2 text-white transition-all active:scale-95 disabled:opacity-40 shadow-[var(--shadow-glow-sm)]"
-              onClick={() => sendMessage()}
-            >
-              <SendHorizontal className="size-4" aria-hidden="true" />
-            </button>
+            {isRecording ? (
+              <>
+                {/* Recording state */}
+                <div className="flex-1 min-w-0 flex items-center gap-3 px-3 py-1">
+                  <span className="size-2.5 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-sm text-red-400 font-medium tabular-nums">
+                    {recordingTime}
+                  </span>
+                  <div
+                    className="flex-1 min-w-0 text-red-400"
+                    aria-label={t('chat.listening')}
+                  >
+                    <div className="mic-visualizer" aria-hidden="true">
+                      {VISUALIZER_BAR_OFFSETS.map((offset, index) => (
+                        <span
+                          key={`bar-${index}`}
+                          className="mic-visualizer__bar"
+                          style={{ animationDelay: `${offset}s` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  aria-label={t('chat.stopRecording')}
+                  className="shrink-0 p-2 rounded-full bg-red-500 text-white"
+                  onClick={toggleRecording}
+                >
+                  <Square className="size-4" aria-hidden="true" />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Normal state */}
+                <button
+                  aria-label={t('chat.attachImage')}
+                  className="shrink-0 p-1 text-text-muted hover:text-text-primary transition-colors"
+                  onClick={openFilePicker}
+                >
+                  <ImageIcon className="size-[15px]" />
+                </button>
+                {speechSupported && (
+                  <div ref={langPickerRef} className="relative shrink-0 flex items-center">
+                    <button
+                      aria-label={t('chat.toggleMic')}
+                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                      disabled={isTyping}
+                      onClick={toggleRecording}
+                    >
+                      <Mic className="size-4" />
+                    </button>
+                    <button
+                      aria-label={t('chat.speechLanguage')}
+                      className="p-1 text-[10px] leading-none hover:bg-surface rounded transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowLangPicker((prev) => !prev)
+                      }}
+                    >
+                      {currentLangFlag}
+                    </button>
+                    {/* Language picker dropdown */}
+                    {showLangPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 bg-surface-overlay border border-border-muted rounded-[var(--radius-md)] shadow-[var(--shadow-md)] py-1 z-50 min-w-[140px]">
+                        {SPEECH_LANGUAGES.map((lang) => (
+                          <button
+                            key={lang.value}
+                            className={`w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-surface transition-colors ${
+                              speechLang === lang.value
+                                ? 'text-primary font-bold'
+                                : 'text-text-secondary'
+                            }`}
+                            onClick={() => {
+                              setSpeechLang(lang.value)
+                              setShowLangPicker(false)
+                            }}
+                          >
+                            <span>{lang.flag}</span>
+                            <span>{lang.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={t('chat.placeholder')}
+                  aria-label={t('chat.placeholder')}
+                  className="flex-1 resize-none bg-transparent text-text-primary placeholder-text-muted text-sm py-2 px-3 focus:outline-none min-h-[36px] max-h-[120px]"
+                  rows={1}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                />
+                <button
+                  disabled={!canSend}
+                  aria-label={t('chat.send')}
+                  className="shrink-0 flex items-center justify-center bg-primary rounded-[var(--radius-xl)] p-2 text-white transition-all active:scale-95 disabled:opacity-40 shadow-[var(--shadow-glow-sm)]"
+                  onClick={() => sendMessage()}
+                >
+                  <SendHorizontal className="size-4" aria-hidden="true" />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Message limit indicators */}

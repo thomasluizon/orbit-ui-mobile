@@ -273,9 +273,16 @@ export default function TodayPage() {
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? new Map()
   const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
+  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
+
+  // General habits (shown in dedicated section on Today view)
+  const generalHabits = useMemo(
+    () => topLevelHabits.filter((h) => h.isGeneral),
+    [topLevelHabits],
+  )
 
   // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
   const getDescendantIds = useCallback(
@@ -321,7 +328,13 @@ export default function TodayPage() {
           ? (idx + 1) % TAB_VIEWS.length
           : (idx - 1 + TAB_VIEWS.length) % TAB_VIEWS.length
       const nextView = TAB_VIEWS[nextIdx]
-      if (nextView) setActiveView(nextView)
+      if (nextView) {
+        setActiveView(nextView)
+        // Focus the newly selected tab button (a11y: focus follows selection)
+        requestAnimationFrame(() => {
+          document.getElementById(`tab-${nextView}`)?.focus()
+        })
+      }
     },
     [activeView, setActiveView],
   )
@@ -494,8 +507,9 @@ export default function TodayPage() {
               <ChevronLeft className="size-5 text-text-secondary" />
             </button>
             <button
+              key={selectedDateStr}
               aria-label={isToday(selectedDate) ? dateLabel : t('dates.goToToday')}
-              className={`min-w-40 text-center text-[length:var(--text-fluid-base)] font-semibold text-text-primary hover:text-primary transition-colors ${
+              className={`min-w-40 text-center text-[length:var(--text-fluid-base)] font-semibold text-text-primary hover:text-primary transition-colors animate-slide-date-${slideDirection} ${
                 isToday(selectedDate) ? 'text-primary' : ''
               }`}
               onClick={goToToday}
@@ -762,6 +776,7 @@ export default function TodayPage() {
               selectedHabitIds={selectedHabitIds}
               searchQuery={searchQueryStore}
               filters={filters}
+              generalHabits={generalHabits}
               onToggleSelection={handleToggleSelection}
               onEnterSelectMode={(habitId) => {
                 if (!isSelectMode) toggleSelectMode()

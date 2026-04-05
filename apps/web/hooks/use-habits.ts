@@ -10,6 +10,7 @@ import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/share
 import { QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { formatAPIDate } from '@orbit/shared/utils'
+import { fetchJson } from '@/lib/api-fetch'
 import type {
   HabitsFilter,
   HabitScheduleItem,
@@ -34,6 +35,9 @@ import type {
   BulkSkipItemRequest,
   BulkSkipResult,
 } from '@orbit/shared/types/habit'
+import type { Goal } from '@orbit/shared/types/goal'
+import type { Profile } from '@orbit/shared/types/profile'
+import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
   createHabit as createHabitAction,
@@ -80,15 +84,6 @@ function buildQueryString(filters: HabitsFilter): string {
 
 function buildUrl(base: string, qs: string): string {
   return qs ? `${base}?${qs}` : base
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
-  }
-  return res.json() as Promise<T>
 }
 
 // Sort by position asc (nulls last), then createdAtUtc as tiebreaker
@@ -360,6 +355,7 @@ export function useLogHabit() {
       })
 
       // Optimistic toggle: find the habit in any list cache and flip isCompleted
+      // Also reset checklist items for recurring habits on completion (matching Nuxt behavior)
       if (!date) {
         queryClient.setQueriesData<HabitScheduleItem[]>(
           { queryKey: habitKeys.lists() },
@@ -367,15 +363,27 @@ export function useLogHabit() {
             if (!old) return old
             return old.map((item) => {
               if (item.id === habitId) {
-                return { ...item, isCompleted: !item.isCompleted }
+                const wasCompleted = item.isCompleted
+                const updated = { ...item, isCompleted: !item.isCompleted }
+                // Reset checklist for recurring habits when logging (not unlogging)
+                if (!wasCompleted && item.frequencyUnit && item.checklistItems?.length > 0) {
+                  updated.checklistItems = item.checklistItems.map(i => ({ ...i, isChecked: false }))
+                }
+                return updated
               }
               // Check children
               if (item.children.some((c) => c.id === habitId)) {
                 return {
                   ...item,
-                  children: item.children.map((c) =>
-                    c.id === habitId ? { ...c, isCompleted: !c.isCompleted } : c,
-                  ),
+                  children: item.children.map((c) => {
+                    if (c.id !== habitId) return c
+                    const wasCompleted = c.isCompleted
+                    const updated = { ...c, isCompleted: !c.isCompleted }
+                    if (!wasCompleted && c.frequencyUnit && c.checklistItems?.length > 0) {
+                      updated.checklistItems = c.checklistItems.map(i => ({ ...i, isChecked: false }))
+                    }
+                    return updated
+                  }),
                 }
               }
               return item
@@ -399,9 +407,41 @@ export function useLogHabit() {
     },
 
     onSuccess: (response) => {
-      // Streak celebration
+      // Streak celebration + update profile streak immediately so StreakBadge reflects it
       if (response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+          old ? { ...old, currentStreak: response.currentStreak } : old,
+        )
+      }
+
+      // Apply targeted goal updates from enriched response (instant, no refetch needed)
+      if (response?.linkedGoalUpdates?.length) {
+        queryClient.setQueriesData<Goal[]>(
+          { queryKey: goalKeys.lists() },
+          (old) => {
+            if (!old) return old
+            return old.map((goal) => {
+              const update = response.linkedGoalUpdates!.find(u => u.goalId === goal.id)
+              if (!update) return goal
+              return {
+                ...goal,
+                currentValue: update.newProgress,
+                progressPercentage: update.targetValue > 0
+                  ? Math.min(100, Math.round(update.newProgress / update.targetValue * 1000) / 10)
+                  : 0,
+              }
+            })
+          },
+        )
+      }
+
+      // Apply gamification XP/achievement updates from enriched response (instant)
+      if (response?.xpEarned || response?.newAchievementIds?.length) {
+        queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
+          if (!old) return old
+          return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
+        })
       }
 
       // Check all-done celebration

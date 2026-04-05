@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useMemo, useCallback, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
 import {
   isToday as isDateToday,
   isTomorrow,
@@ -37,6 +37,22 @@ import {
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/stores/ui-store'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
@@ -53,6 +69,7 @@ interface HabitListProps {
   selectedHabitIds?: Set<string>
   searchQuery?: string
   filters: HabitsFilter
+  generalHabits?: NormalizedHabit[]
   onToggleSelection?: (habitId: string) => void
   onEnterSelectMode?: (habitId: string) => void
   onCreate?: () => void
@@ -81,6 +98,41 @@ interface MoveParentOption {
 }
 
 // ---------------------------------------------------------------------------
+// Sortable wrapper for drag-and-drop items
+// ---------------------------------------------------------------------------
+
+function SortableHabitItem({
+  id,
+  children,
+}: {
+  id: string
+  children: React.ReactNode
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isItemDragging,
+  } = useSortable({ id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isItemDragging ? 0.5 : 1,
+    position: 'relative' as const,
+    zIndex: isItemDragging ? 50 : 'auto',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-2.5">
+      {children}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -92,6 +144,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   selectedHabitIds,
   searchQuery = '',
   filters,
+  generalHabits,
   onToggleSelection,
   onEnterSelectMode,
   onCreate,
@@ -107,7 +160,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const skipHabit = useSkipHabit()
   const deleteHabitMut = useDeleteHabit()
   const duplicateHabitMut = useDuplicateHabit()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const reorderHabitsMut = useReorderHabits()
   const moveHabitParentMut = useMoveHabitParent()
 
@@ -377,8 +429,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     id: string
     habit: NormalizedHabit
     depth: number
+    parentId: string | null
     hasChildren: boolean
     hasSubHabits: boolean
+    isLastChild: boolean
   }
 
   const dragItems = useMemo<DragItem[]>(() => {
@@ -386,28 +440,174 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     const items: DragItem[] = []
 
-    function addHabitTree(habit: NormalizedHabit, depth: number) {
+    function addHabitTree(habit: NormalizedHabit, depth: number, parentId: string | null) {
       const visChildren = visibility.getVisibleChildren(habit.id, view)
       items.push({
         id: habit.id,
         habit,
         depth,
+        parentId,
         hasChildren: visChildren.length > 0,
         hasSubHabits: habit.hasSubHabits,
+        isLastChild: false,
       })
       if (!collapsedIds.has(habit.id)) {
         for (const child of visChildren) {
-          addHabitTree(child, depth + 1)
+          addHabitTree(child, depth + 1, habit.id)
         }
       }
     }
 
     for (const h of habits) {
-      addHabitTree(h, 0)
+      addHabitTree(h, 0, null)
+    }
+
+    // Post-pass: compute isLastChild for each item (matches Nuxt logic)
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const next = items[i + 1]
+      if (item) {
+        item.isLastChild = !next || next.depth <= item.depth
+      }
     }
 
     return items
   }, [habits, collapsedIds, visibility, view])
+
+  // -------------------------------------------------------------------------
+  // Drag-and-drop state and handlers (matches Nuxt VueDraggable behavior)
+  // -------------------------------------------------------------------------
+
+  const [isDragging, setIsDragging] = useState(false)
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
+  const autoCollapsedOnDragRef = useReactRef<string | null>(null)
+
+  // Mutable ref for drag items so onDragEnd always sees latest after collapse
+  const dragItemsRef = useReactRef<DragItem[]>(dragItems)
+  dragItemsRef.current = dragItems
+
+  // Override drag items during active drag (collapsed descendants removed)
+  const [dragOverrideItems, setDragOverrideItems] = useState<DragItem[] | null>(null)
+  const activeDragItems = dragOverrideItems ?? dragItems
+
+  // DnD sensors: pointer with 5px distance activation, touch with 300ms delay
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 5 },
+  })
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: { delay: 300, tolerance: 5 },
+  })
+  const sensors = useSensors(pointerSensor, touchSensor)
+
+  // Enable DnD only in today/general view when not in select mode
+  const isDndEnabled = view !== 'all' && !isSelectMode
+
+  function handleDragStart(event: DragStartEvent) {
+    setIsDragging(true)
+    autoCollapsedOnDragRef.current = null
+
+    const draggedId = String(event.active.id)
+    setDraggedItemId(draggedId)
+
+    // Find the dragged item in current drag items
+    const currentItems = dragItemsRef.current
+    const draggedItem = currentItems.find((item) => item.id === draggedId)
+    if (!draggedItem) return
+
+    // If dragged item has visible children, collapse them for drag
+    const isCollapsed = collapsedIds.has(draggedItem.id)
+    if (draggedItem.hasChildren && !isCollapsed) {
+      autoCollapsedOnDragRef.current = draggedItem.id
+      const draggedDepth = draggedItem.depth
+      const filtered: DragItem[] = []
+      let stripping = false
+      for (const it of currentItems) {
+        if (it.id === draggedId) {
+          stripping = true
+          filtered.push({ ...it, hasChildren: true })
+          continue
+        }
+        if (stripping && it.depth > draggedDepth) {
+          continue
+        }
+        stripping = false
+        filtered.push(it)
+      }
+      setDragOverrideItems(filtered)
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    const items = dragOverrideItems ?? dragItemsRef.current
+
+    if (over && active.id !== over.id) {
+      // Find old and new index in current items list
+      const oldIndex = items.findIndex((item) => item.id === active.id)
+      const newIndex = items.findIndex((item) => item.id === over.id)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        // Reorder the flat list (move item from oldIndex to newIndex)
+        const reordered = [...items]
+        const removed = reordered.splice(oldIndex, 1)
+        const moved = removed[0]
+        if (!moved) return
+        reordered.splice(newIndex, 0, moved)
+
+        // Compute positions for visible items (preserves user's drag order)
+        const positions: { habitId: string; position: number }[] = []
+        const positionByParent = new Map<string | null, number>()
+        const includedIds = new Set(reordered.map((i) => i.id))
+
+        for (const item of reordered) {
+          const storeHabit = habitsById.get(item.id)
+          const parentId = storeHabit?.parentId ?? item.parentId
+          const nextPosition = positionByParent.get(parentId) ?? 0
+          positions.push({ habitId: item.id, position: nextPosition })
+          positionByParent.set(parentId, nextPosition + 1)
+        }
+
+        // Assign positions to hidden siblings after visible ones
+        for (const parentId of positionByParent.keys()) {
+          const allSiblings =
+            parentId === null
+              ? Array.from(habitsById.values()).filter((h) => h.parentId === null)
+              : getChildren(parentId)
+
+          for (const sibling of allSiblings) {
+            if (!includedIds.has(sibling.id)) {
+              const nextPosition = positionByParent.get(parentId) ?? 0
+              positions.push({ habitId: sibling.id, position: nextPosition })
+              positionByParent.set(parentId, nextPosition + 1)
+            }
+          }
+        }
+
+        try {
+          if (positions.length > 0) {
+            await reorderHabitsMut.mutateAsync({ positions })
+          }
+        } catch {
+          // Error handled by mutation - query will be refetched
+        }
+      }
+    }
+
+    // Clean up drag state
+    setIsDragging(false)
+    setDraggedItemId(null)
+    setDragOverrideItems(null)
+
+    // Re-expand any parent that was auto-collapsed during drag start
+    if (autoCollapsedOnDragRef.current) {
+      setCollapsedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(autoCollapsedOnDragRef.current!)
+        return next
+      })
+      autoCollapsedOnDragRef.current = null
+    }
+  }
 
   // Card selected date (only pass in today view to dim non-due)
   const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
@@ -739,6 +939,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     depth: number,
     hasChildren: boolean,
     hasSubHabits: boolean,
+    options?: { isLastChild?: boolean; isDraggingList?: boolean },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
 
@@ -753,6 +954,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         hasChildren={hasChildren}
         hasSubHabits={hasSubHabits}
         isExpanded={!collapsedIds.has(habit.id)}
+        isLastChild={options?.isLastChild}
+        isDraggingList={options?.isDraggingList}
         childrenDone={progress.done}
         childrenTotal={progress.total}
         isSelectMode={isSelectMode}
@@ -978,18 +1181,70 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             </div>
           ))}
         </>
+      ) : isDndEnabled ? (
+        /* TODAY / GENERAL VIEW: draggable list (not in select mode) */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={activeDragItems.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={isDragging ? 'is-dragging' : undefined}>
+              {activeDragItems.map((item) => (
+                <SortableHabitItem key={item.id} id={item.id}>
+                  {renderHabitCard(
+                    item.habit,
+                    item.depth,
+                    item.hasChildren,
+                    item.hasSubHabits,
+                    { isLastChild: item.isLastChild, isDraggingList: isDragging },
+                  )}
+                </SortableHabitItem>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
-        /* TODAY / GENERAL VIEW: flat list */
+        /* TODAY / GENERAL VIEW: select mode (no drag) */
         <>
-          {dragItems.map((item) =>
-            renderHabitCard(
-              item.habit,
-              item.depth,
-              item.hasChildren,
-              item.hasSubHabits,
-            ),
-          )}
+          {dragItems.map((item) => (
+            <div key={item.id} className="mb-2.5">
+              {renderHabitCard(
+                item.habit,
+                item.depth,
+                item.hasChildren,
+                item.hasSubHabits,
+                { isLastChild: item.isLastChild },
+              )}
+            </div>
+          ))}
         </>
+      )}
+
+      {/* General habits section (shown on Today view when toggle is on) */}
+      {view === 'today' && generalHabits && generalHabits.length > 0 && (
+        <div className="mt-6 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-primary/70 whitespace-nowrap">
+              {t('habits.generalSection')}
+            </span>
+            <div className="flex-1 h-px bg-primary/20" />
+          </div>
+          <div className="space-y-2.5">
+            {generalHabits.map((habit) =>
+              renderHabitCard(
+                habit,
+                0,
+                false,
+                false,
+              ),
+            )}
+          </div>
+        </div>
       )}
 
       {/* Modals */}

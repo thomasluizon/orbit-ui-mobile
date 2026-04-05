@@ -49,8 +49,9 @@ export default function PreferencesPage() {
         // Error handled silently like Vue
       }
     }
-    // Re-render page in the new locale (Nuxt equivalent: navigateTo(switchLocalePath(newLocale)))
-    router.refresh()
+    // Hard reload to re-trigger next-intl middleware with the new locale cookie
+    // (router.refresh() alone does not re-evaluate middleware)
+    window.location.reload()
   }
 
   // --- Week Start Day ---

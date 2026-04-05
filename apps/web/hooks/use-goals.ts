@@ -30,19 +30,11 @@ import {
   linkHabitsToGoal as linkHabitsToGoalAction,
 } from '@/app/actions/goals'
 import { useUIStore } from '@/stores/ui-store'
+import { fetchJson } from '@/lib/api-fetch'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
-  }
-  return res.json() as Promise<T>
-}
 
 function sortByPosition(a: Goal, b: Goal): number {
   if (a.position !== b.position) return a.position - b.position

@@ -16,19 +16,7 @@ import type {
   StreakFreezeResponse,
 } from '@orbit/shared/types/gamification'
 import { formatAPIDate } from '@orbit/shared/utils'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
-  }
-  return res.json() as Promise<T>
-}
+import { fetchJson } from '@/lib/api-fetch'
 
 // ---------------------------------------------------------------------------
 // Gamification profile query

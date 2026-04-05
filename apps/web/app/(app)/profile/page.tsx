@@ -91,6 +91,8 @@ export default function ProfilePage() {
 
   function handleFreshStartComplete() {
     setShowFreshStartAnimation(false)
+    // Clear all query caches so stale pre-reset data doesn't linger
+    queryClient.clear()
     window.location.href = '/'
   }
 

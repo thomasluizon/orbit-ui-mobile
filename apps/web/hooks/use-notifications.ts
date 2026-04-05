@@ -19,19 +19,7 @@ import {
   deleteNotification as deleteNotificationAction,
   deleteAllNotifications as deleteAllNotificationsAction,
 } from '@/app/actions/notifications'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
-  }
-  return res.json() as Promise<T>
-}
+import { fetchJson } from '@/lib/api-fetch'
 
 // ---------------------------------------------------------------------------
 // Notifications list query

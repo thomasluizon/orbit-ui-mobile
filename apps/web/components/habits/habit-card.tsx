@@ -291,14 +291,22 @@ export function HabitCard({
       setShowActionsMenu(false)
     }
 
+    function handleViewportChange() {
+      setShowActionsMenu(false)
+    }
+
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeydown)
     document.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('orientationchange', handleViewportChange)
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('orientationchange', handleViewportChange)
     }
   }, [showActionsMenu])
 

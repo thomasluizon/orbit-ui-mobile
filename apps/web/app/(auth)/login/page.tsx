@@ -179,8 +179,8 @@ export default function LoginPage() {
     }
   }
 
-  async function verifyCode() {
-    const code = codeDigits.join('')
+  async function verifyCode(codeOverride?: string) {
+    const code = codeOverride ?? codeDigits.join('')
     if (code.length !== 6) return
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -272,7 +272,8 @@ export default function LoginPage() {
       codeInputRefs.current[nextIndex]?.focus()
 
       if (newCodeDigits.join('').length === 6) {
-        setTimeout(() => verifyCode(), 0)
+        const fullCode = newCodeDigits.join('')
+        setTimeout(() => verifyCode(fullCode), 0)
       }
       return
     }
@@ -299,7 +300,8 @@ export default function LoginPage() {
     const focusIndex = Math.min(digits.length, 5)
     codeInputRefs.current[focusIndex]?.focus()
     if (digits.length === 6) {
-      setTimeout(() => verifyCode(), 0)
+      const fullCode = newCodeDigits.join('')
+      setTimeout(() => verifyCode(fullCode), 0)
     }
   }
 
@@ -339,7 +341,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full max-w-sm">
       <div className="bg-surface-overlay shadow-[var(--shadow-lg)] border border-border-muted rounded-[var(--radius-2xl)] p-6 space-y-6">
         <h2 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary">
           {t('auth.welcomeBack')}

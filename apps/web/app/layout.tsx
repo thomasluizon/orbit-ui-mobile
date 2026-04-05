@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Manrope } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const manrope = Manrope({
@@ -50,6 +51,17 @@ export default async function RootLayout({
       <body className="bg-background text-text-primary font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
+          <Toaster
+            theme="dark"
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: 'var(--color-surface-elevated)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+              },
+            }}
+          />
         </NextIntlClientProvider>
       </body>
     </html>

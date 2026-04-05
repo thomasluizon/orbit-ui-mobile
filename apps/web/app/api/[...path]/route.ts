@@ -68,6 +68,15 @@ async function proxyRequest(
     headers['Authorization'] = `Bearer ${token}`
   }
 
+  // Forward client IP for rate limiting and geolocation
+  const forwarded = request.headers.get('x-forwarded-for')
+  const realIp = request.headers.get('x-real-ip')
+  if (forwarded) {
+    headers['X-Forwarded-For'] = forwarded
+  } else if (realIp) {
+    headers['X-Forwarded-For'] = realIp
+  }
+
   const hasBody =
     method === 'POST' ||
     method === 'PUT' ||
@@ -103,21 +112,37 @@ async function handleProxy(request: NextRequest, path: string) {
     if (newToken) {
       const retryResponse = await proxyRequest(request, path, newToken)
       const retryData = await retryResponse.text()
+      const retryHeaders = new Headers()
+      const forwardHeaders = ['content-type', 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset', 'x-total-count', 'x-total-pages', 'retry-after']
+      for (const name of forwardHeaders) {
+        const value = retryResponse.headers.get(name)
+        if (value) retryHeaders.set(name, value)
+      }
+      if (!retryHeaders.has('content-type')) {
+        retryHeaders.set('content-type', 'application/json')
+      }
       return new NextResponse(retryData, {
         status: retryResponse.status,
-        headers: {
-          'Content-Type': retryResponse.headers.get('Content-Type') ?? 'application/json',
-        },
+        headers: retryHeaders,
       })
     }
   }
 
   const data = await response.text()
+  const responseHeaders = new Headers()
+  // Forward safe response headers from backend
+  const forwardHeaders = ['content-type', 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset', 'x-total-count', 'x-total-pages', 'retry-after']
+  for (const name of forwardHeaders) {
+    const value = response.headers.get(name)
+    if (value) responseHeaders.set(name, value)
+  }
+  if (!responseHeaders.has('content-type')) {
+    responseHeaders.set('content-type', 'application/json')
+  }
+
   return new NextResponse(data, {
     status: response.status,
-    headers: {
-      'Content-Type': response.headers.get('Content-Type') ?? 'application/json',
-    },
+    headers: responseHeaders,
   })
 }
 

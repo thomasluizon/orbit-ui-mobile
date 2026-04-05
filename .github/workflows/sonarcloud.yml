@@ -24,7 +24,19 @@ jobs:
       - run: npm ci
 
       - name: Run Tests with Coverage
-        run: npx vitest run --coverage
+        run: npx turbo run test -- --coverage
+
+      - name: Merge Coverage Reports
+        run: |
+          mkdir -p coverage
+          # Use the web coverage as primary (it has the most source)
+          if [ -f coverage/web/lcov.info ]; then
+            cp coverage/web/lcov.info coverage/lcov.info
+          fi
+          # Append shared coverage if it exists
+          if [ -f coverage/shared/lcov.info ]; then
+            cat coverage/shared/lcov.info >> coverage/lcov.info
+          fi
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
