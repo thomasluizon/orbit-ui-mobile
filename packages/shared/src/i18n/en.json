@@ -490,6 +490,8 @@
     "toggleMic": "Toggle voice recording",
     "imageError": "Only JPEG, PNG, and WebP images are supported.",
     "imageSizeError": "Image must be under 20MB.",
+    "imagePermissionError": "Photo library access is required to attach images.",
+    "voiceUnsupportedError": "Voice input is not available on this device.",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
     "limitReachedError": "You've reached your message limit. Upgrade to Pro for unlimited messages.",

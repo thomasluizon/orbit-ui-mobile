@@ -4,10 +4,18 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import {
+  habitKeys,
+  goalKeys,
+  gamificationKeys,
+  profileKeys,
+  QUERY_STALE_TIMES,
+} from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  buildCalendarDayMap,
+  formatAPIDate,
+} from '@orbit/shared/utils'
 import type {
   HabitsFilter,
   HabitScheduleItem,
@@ -32,16 +40,15 @@ import type {
   BulkLogResult,
   BulkSkipItemRequest,
   BulkSkipResult,
+  CalendarMonthResponse,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
-import type { CalendarDayEntry, HabitDayStatus } from '@orbit/shared/types/calendar'
-import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
-import { startOfMonth, endOfMonth, isToday, isAfter } from 'date-fns'
-import { parseAPIDate } from '@orbit/shared/utils'
+import { startOfMonth, endOfMonth } from 'date-fns'
 import { apiClient } from '@/lib/api-client'
+import { refreshWidget } from '@/lib/orbit-widget'
 import { useUIStore } from '@/stores/ui-store'
 
 // ---------------------------------------------------------------------------
@@ -181,6 +188,10 @@ function buildChildrenIndex(habitsById: Map<string, NormalizedHabit>): Map<strin
   return index
 }
 
+function triggerWidgetRefresh(): void {
+  void refreshWidget().catch(() => {})
+}
+
 // ---------------------------------------------------------------------------
 // Normalized data type returned from select
 // ---------------------------------------------------------------------------
@@ -199,8 +210,6 @@ export interface NormalizedHabitsData {
 // ---------------------------------------------------------------------------
 
 export function useHabits(filters: HabitsFilter) {
-  const queryClient = useQueryClient()
-
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
@@ -431,6 +440,8 @@ export function useLogHabit() {
         const normalized = normalizeHabits(habitsData)
         checkAllDoneCelebration(normalized)
       }
+
+      triggerWidgetRefresh()
     },
 
     onSettled: () => {
@@ -485,9 +496,12 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -506,9 +520,12 @@ export function useCreateHabit() {
       useUIStore.getState().setLastCreatedHabitId(result.id)
     },
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -523,10 +540,13 @@ export function useUpdateHabit() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: (_data, _err, { habitId }) => {
+    onSettled: (_data, error, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -538,10 +558,13 @@ export function useDeleteHabit() {
     mutationFn: (habitId: string) =>
       apiClient<void>(API.habits.delete(habitId), { method: 'DELETE' }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -556,8 +579,11 @@ export function useReorderHabits() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -569,9 +595,12 @@ export function useDuplicateHabit() {
     mutationFn: (habitId: string) =>
       apiClient<void>(API.habits.duplicate(habitId), { method: 'POST' }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -632,9 +661,12 @@ export function useUpdateChecklist() {
       }
     },
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -659,9 +691,12 @@ export function useCreateSubHabit() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -682,9 +717,12 @@ export function useMoveHabitParent() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -703,9 +741,12 @@ export function useBulkCreateHabits() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -720,10 +761,13 @@ export function useBulkDeleteHabits() {
         body: JSON.stringify({ habitIds }),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -738,11 +782,14 @@ export function useBulkLogHabits() {
         body: JSON.stringify({ items }),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -757,21 +804,14 @@ export function useBulkSkipHabits() {
         body: JSON.stringify({ items }),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
-}
-
-// ---------------------------------------------------------------------------
-// Calendar data
-// ---------------------------------------------------------------------------
-
-function determineStatus(date: Date, wasLogged: boolean): HabitDayStatus {
-  if (wasLogged) return 'completed'
-  if (isToday(date) || isAfter(date, new Date())) return 'upcoming'
-  return 'missed'
 }
 
 export function useCalendarData(currentMonth: Date) {
@@ -788,46 +828,8 @@ export function useCalendarData(currentMonth: Date) {
   })
 
   const dayMap = useMemo(() => {
-    const map = new Map<string, CalendarDayEntry[]>()
-    if (!query.data) return map
-
-    const { habits, logs } = query.data
-
-    // Build log cache: habitId -> Set of date strings
-    const logsByHabit = new Map<string, Set<string>>()
-    for (const [habitId, habitLogs] of Object.entries(logs)) {
-      const dateSet = new Set<string>()
-      for (const log of habitLogs) {
-        dateSet.add(log.date)
-      }
-      logsByHabit.set(habitId, dateSet)
-    }
-
-    for (const habit of habits) {
-      const dates =
-        habit.instances?.map((i: { date: string }) => i.date) ??
-        habit.scheduledDates ??
-        []
-      for (const dateStr of dates) {
-        const date = parseAPIDate(dateStr)
-        const habitLogs = logsByHabit.get(habit.id)
-        const wasLogged = habitLogs?.has(dateStr) ?? false
-        const status = determineStatus(date, wasLogged)
-
-        const entries = map.get(dateStr) ?? []
-        entries.push({
-          habitId: habit.id,
-          title: habit.title,
-          status,
-          isBadHabit: habit.isBadHabit,
-          dueTime: habit.dueTime ?? null,
-          isOneTime: !habit.frequencyUnit,
-        })
-        map.set(dateStr, entries)
-      }
-    }
-
-    return map
+    if (!query.data) return new Map()
+    return buildCalendarDayMap(query.data)
   }, [query.data])
 
   return {
@@ -889,6 +891,24 @@ export function useSummary({
     error: query.error,
     refetch: query.refetch,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Total habit count
+// ---------------------------------------------------------------------------
+
+export function useTotalHabitCount(): number {
+  const query = useQuery({
+    queryKey: habitKeys.count(),
+    queryFn: async () => {
+      const url = buildUrl(API.habits.list, 'pageSize=1')
+      const data = await apiClient<PaginatedResponse<HabitScheduleItem>>(url)
+      return data.totalCount
+    },
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+
+  return query.data ?? 0
 }
 
 // ---------------------------------------------------------------------------

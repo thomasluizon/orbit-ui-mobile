@@ -1,4 +1,4 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react'
+import { useMemo, useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
 } from 'react-native'
 import Svg, { Circle, Path, Line } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 const FROST_COUNT = 12
@@ -36,6 +37,7 @@ export interface StreakFreezeCelebrationHandle {
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
   function StreakFreezeCelebration(_props, ref) {
     const { t } = useTranslation()
+    const { colors } = useAppTheme()
 
     const overlayOpacity = useRef(new Animated.Value(0)).current
     const contentScale = useRef(new Animated.Value(0.7)).current
@@ -55,6 +57,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
         size: randomBetween(3, 7),
       })),
     ).current
+    const styles = useMemo(() => createStyles(colors), [colors])
 
     const dismiss = useCallback(() => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
@@ -261,40 +264,42 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10003,
-  },
-  pressable: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.80)',
-  },
-  frostParticle: {
-    position: 'absolute',
-    backgroundColor: 'rgba(147, 197, 253, 0.6)',
-  },
-  content: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: 16,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: 8,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10003,
+    },
+    pressable: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.80)',
+    },
+    frostParticle: {
+      position: 'absolute',
+      backgroundColor: 'rgba(147, 197, 253, 0.6)',
+    },
+    content: {
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginTop: 16,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginTop: 8,
+      textAlign: 'center',
+      paddingHorizontal: 32,
+    },
+  })
+}

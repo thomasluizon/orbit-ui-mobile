@@ -1,5 +1,5 @@
 import { Text, type TextStyle } from 'react-native'
-import { colors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HighlightTextProps {
   text: string
@@ -45,6 +45,7 @@ function highlightText(text: string, query: string): Segment[] {
 }
 
 export function HighlightText({ text, query, style }: Readonly<HighlightTextProps>) {
+  const { colors } = useAppTheme()
   const segments = highlightText(text, query)
 
   return (
@@ -68,3 +69,4 @@ export function HighlightText({ text, query, style }: Readonly<HighlightTextProp
     </Text>
   )
 }
+

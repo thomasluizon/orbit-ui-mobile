@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Gift, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -18,7 +20,9 @@ interface ReferralCardProps {
 
 export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
   const { t } = useTranslation()
+  const { colors, shadows } = useAppTheme()
   const { stats, isLoading } = useReferral()
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   return (
     <TouchableOpacity
@@ -51,38 +55,43 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-    ...shadows.sm,
-    elevation: 2,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 20,
+      ...shadows.sm,
+      elevation: 2,
+    },
+    iconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    textContainer: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    subtitle: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+  })
+}

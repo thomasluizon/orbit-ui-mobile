@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -9,8 +9,15 @@ import {
   TextInput,
   Modal,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
+import { format, parseISO } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import { API } from '@orbit/shared/api'
+import { profileKeys } from '@orbit/shared/query'
+import { getErrorMessage } from '@orbit/shared/utils'
 import {
   Settings,
   Sparkles,
@@ -24,19 +31,17 @@ import {
   BadgeCheck,
   X,
   Check,
-  BookOpen,
 } from 'lucide-react-native'
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
-import { colors } from '@/lib/theme'
-import { ReferralCard } from '@/components/referral/referral-card'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { createColors } from '@/lib/theme'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
-import { StreakBadge } from '@/components/gamification/streak-badge'
-import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
+import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // ProfileStreakCard (inline -- matches web ProfileStreakCard)
@@ -44,9 +49,11 @@ import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer
 
 function ProfileStreakCard() {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
   const router = useRouter()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const encouragement = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
@@ -99,7 +106,7 @@ function ProfileStreakCard() {
           <Text style={styles.streakLabel}>{t('streakDisplay.profile.title').toUpperCase()}</Text>
           {streak > 0 ? (
             <Text style={styles.streakCount}>
-              {t('streakDisplay.profile.currentStreak', { count: streak })}
+              {plural(t('streakDisplay.profile.currentStreak', { count: streak }), streak)}
             </Text>
           ) : (
             <Text style={styles.streakEmpty}>{t('streakDisplay.profile.noStreak')}</Text>
@@ -137,6 +144,9 @@ function NavCard({
   proBadge?: boolean
   rightText?: string
 }) {
+  const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const isPrimary = variant === 'primary'
   return (
     <TouchableOpacity
@@ -155,7 +165,7 @@ function NavCard({
           <Text style={styles.navCardTitle}>{title}</Text>
           {proBadge && (
             <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO</Text>
+              <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
             </View>
           )}
         </View>
@@ -175,19 +185,18 @@ function NavCard({
 // ---------------------------------------------------------------------------
 
 export default function ProfileScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { subscription } = useLocalSearchParams<{ subscription?: string | string[] }>()
   const { profile, isLoading, error } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile()
-
-  // --- Referral ---
-  const [showReferralDrawer, setShowReferralDrawer] = useState(false)
-
-  // --- Feature Guide ---
-  const [showFeatureGuide, setShowFeatureGuide] = useState(false)
+  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   // --- Fresh Start ---
   const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
@@ -212,11 +221,12 @@ export default function ProfileScreen() {
     setResetLoading(true)
     setResetError('')
     try {
-      await apiClient('/api/profile/reset', { method: 'POST' })
+      await apiClient(API.profile.reset, { method: 'POST' })
+      await AsyncStorage.multiRemove(['orbit:checklist-templates', 'orbit_trial_expired_seen'])
       setShowResetModal(false)
       setShowFreshStartAnim(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.freshStart.errorGeneric')
+      const msg = getErrorMessage(err, t('profile.freshStart.errorGeneric'))
       setResetError(msg)
     } finally {
       setResetLoading(false)
@@ -226,15 +236,18 @@ export default function ProfileScreen() {
   // --- Delete Account ---
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
-  const [deleteCode, setDeleteCode] = useState('')
+  const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
+  const deleteCodeRefs = useRef<Array<TextInput | null>>([])
 
   function openDeleteModal() {
     setDeleteStep('confirm')
-    setDeleteCode('')
+    setDeleteCodeDigits(['', '', '', '', '', ''])
     setDeleteError('')
     setDeleteLoading(false)
+    setScheduledDeletionDate(null)
     setShowDeleteModal(true)
   }
 
@@ -242,10 +255,10 @@ export default function ProfileScreen() {
     setDeleteLoading(true)
     setDeleteError('')
     try {
-      await apiClient('/api/auth/request-deletion', { method: 'POST' })
+      await apiClient(API.auth.requestDeletion, { method: 'POST' })
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
+      const msg = getErrorMessage(err, t('profile.deleteAccount.errorGeneric'))
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -253,17 +266,19 @@ export default function ProfileScreen() {
   }
 
   async function handleConfirmDeletion() {
-    if (deleteCode.length !== 6) return
+    const code = deleteCodeDigits.join('')
+    if (code.length !== 6) return
     setDeleteLoading(true)
     setDeleteError('')
     try {
-      await apiClient('/api/auth/confirm-deletion', {
+      const response = await apiClient<{ scheduledDeletionAt?: string | null }>(API.auth.confirmDeletion, {
         method: 'POST',
-        body: JSON.stringify({ code: deleteCode }),
+        body: JSON.stringify({ code }),
       })
+      setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('profile.deleteAccount.errorGeneric')
+      const msg = getErrorMessage(err, t('profile.deleteAccount.errorGeneric'))
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -291,6 +306,54 @@ export default function ProfileScreen() {
     t('profile.freshStart.preservePreferences'),
   ]
 
+  const handleFreshStartComplete = useCallback(() => {
+    setShowFreshStartAnim(false)
+    queryClient.clear()
+    router.replace('/')
+  }, [queryClient, router])
+
+  function focusDeleteCode(index: number) {
+    deleteCodeRefs.current[index]?.focus()
+  }
+
+  function setDeleteCodeValue(index: number, value: string) {
+    const digits = value.replace(/\D/g, '')
+
+    if (digits.length > 1) {
+      const next = ['0', '1', '2', '3', '4', '5'].map((_, i) => digits[i] ?? '')
+      setDeleteCodeDigits(next)
+      const nextIndex = next.findIndex((digit) => digit === '')
+      if (nextIndex >= 0) {
+        focusDeleteCode(nextIndex)
+      } else {
+        deleteCodeRefs.current[5]?.blur()
+      }
+      return
+    }
+
+    setDeleteCodeDigits((prev) => {
+      const next = [...prev]
+      next[index] = digits.slice(-1)
+      return next
+    })
+
+    if (digits && index < 5) {
+      focusDeleteCode(index + 1)
+    }
+  }
+
+  function handleDeleteCodeKeyPress(index: number, key: string) {
+    if (key === 'Backspace' && !deleteCodeDigits[index] && index > 0) {
+      focusDeleteCode(index - 1)
+    }
+  }
+
+  useEffect(() => {
+    if (subscription === 'success') {
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    }
+  }, [queryClient, subscription])
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -301,15 +364,13 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('profile.title')}</Text>
-          {(profile?.currentStreak ?? 0) > 0 && (
-            <StreakBadge streak={profile?.currentStreak ?? 0} />
-          )}
+          <ThemeToggle />
         </View>
 
         {/* Error */}
         {error && (
           <Text style={styles.errorText}>
-            {error instanceof Error ? error.message : t('common.error')}
+            {error instanceof Error ? error.message : t('errors.loadProfile')}
           </Text>
         )}
 
@@ -373,7 +434,7 @@ export default function ProfileScreen() {
             </Text>
             <Text style={styles.subscriptionHint}>
               {profile?.isTrialActive
-                ? t('profile.subscription.trialDaysLeft', { days: trialDaysLeft ?? 0 })
+                ? plural(t('profile.subscription.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
                 : profile?.hasProAccess
                   ? t('profile.subscription.proHint')
                   : trialExpired
@@ -436,19 +497,16 @@ export default function ProfileScreen() {
           title={t('gamification.title')}
           hint={
             profile?.hasProAccess && gamificationProfile
-              ? `Level ${gamificationProfile.level} - ${gamificationProfile.totalXp} XP`
-              : t('profile.retrospectiveHint')
+              ? `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
+              : t('gamification.profileCard.hint')
           }
           variant="primary"
           proBadge
         />
 
-        {/* Referral */}
-        <ReferralCard onOpen={() => setShowReferralDrawer(true)} />
-
         {/* Google Calendar Sync */}
         <NavCard
-          onPress={() => router.push('/calendar-sync')}
+          onPress={() => router.push('/calendar-sync' as Href)}
           icon={
             <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={colors.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <Path d="M8 2v4" />
@@ -460,14 +518,6 @@ export default function ProfileScreen() {
           title={t('calendar.profileButton')}
           hint={t('calendar.profileHint')}
           variant="primary"
-        />
-
-        {/* Feature Guide */}
-        <NavCard
-          onPress={() => setShowFeatureGuide(true)}
-          icon={<BookOpen size={20} color={colors.primary} />}
-          title={t('onboarding.featureGuide.openButton')}
-          hint={t('profile.featureGuideHint')}
         />
 
         {/* About & Help */}
@@ -608,14 +658,8 @@ export default function ProfileScreen() {
 
       {/* Fresh Start Animation */}
       {showFreshStartAnim && (
-        <FreshStartAnimation onComplete={() => setShowFreshStartAnim(false)} />
+        <FreshStartAnimation onComplete={handleFreshStartComplete} />
       )}
-
-      {/* Referral Drawer */}
-      <ReferralDrawer open={showReferralDrawer} onClose={() => setShowReferralDrawer(false)} />
-
-      {/* Feature Guide Drawer */}
-      <FeatureGuideDrawer open={showFeatureGuide} onClose={() => setShowFeatureGuide(false)} />
 
       {/* Delete Account Modal */}
       <Modal
@@ -638,8 +682,12 @@ export default function ProfileScreen() {
                 <View style={styles.deleteWarningBox}>
                   <Text style={styles.deleteWarningTitle}>
                     {profile?.hasProAccess
-                      ? t('profile.deleteAccount.warningPro', { date: '' })
-                      : t('profile.deleteAccount.warning')}
+                      ? t('profile.deleteAccount.warningPro', {
+                          date: profile.planExpiresAt
+                            ? format(parseISO(profile.planExpiresAt), 'PPP', { locale: dateFnsLocale })
+                            : '',
+                        })
+                      : t('profile.deleteAccount.warningFree')}
                   </Text>
                   <Text style={styles.deleteWarningDetail}>
                     {t('profile.deleteAccount.warningDetail')}
@@ -662,21 +710,32 @@ export default function ProfileScreen() {
                 <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
                   {t('profile.deleteAccount.codeInstructions')}
                 </Text>
-                <TextInput
-                  style={styles.confirmInput}
-                  value={deleteCode}
-                  onChangeText={(text) => setDeleteCode(text.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  textAlign="center"
-                />
+                <View style={styles.deleteCodeRow}>
+                  {deleteCodeDigits.map((digit, index) => (
+                    <TextInput
+                      key={`digit-${index}`}
+                      ref={(node) => {
+                        deleteCodeRefs.current[index] = node
+                      }}
+                      style={styles.deleteCodeInput}
+                      value={digit}
+                      onChangeText={(text) => setDeleteCodeValue(index, text)}
+                      onKeyPress={({ nativeEvent }) => handleDeleteCodeKeyPress(index, nativeEvent.key)}
+                      keyboardType="number-pad"
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      maxLength={1}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      textAlign="center"
+                    />
+                  ))}
+                </View>
                 {deleteError ? <Text style={styles.errorTextSmall}>{deleteError}</Text> : null}
                 <TouchableOpacity
-                  style={[styles.dangerButton, (deleteLoading || deleteCode.length !== 6) && styles.buttonDisabled]}
+                  style={[styles.dangerButton, (deleteLoading || deleteCodeDigits.join('').length !== 6) && styles.buttonDisabled]}
                   onPress={handleConfirmDeletion}
-                  disabled={deleteLoading || deleteCode.length !== 6}
+                  disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.dangerButtonText}>
@@ -690,7 +749,11 @@ export default function ProfileScreen() {
                   <Clock size={20} color={colors.amber} />
                   <Text style={styles.deactivatedTitle}>{t('profile.deleteAccount.title')}</Text>
                   <Text style={styles.deactivatedDetail}>
-                    {t('profile.deleteAccount.warningFree')}
+                    {t('profile.deleteAccount.deactivated', {
+                      date: scheduledDeletionDate
+                        ? format(parseISO(scheduledDeletionDate), 'PPP', { locale: dateFnsLocale })
+                        : '',
+                    })}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -713,7 +776,8 @@ export default function ProfileScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -783,9 +847,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   subscriptionActive: {
-    backgroundColor: 'rgba(139,92,246,0.10)',
+    backgroundColor: colors.primary_10,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.20)',
+    borderColor: colors.primary_20,
   },
   subscriptionInactive: {
     backgroundColor: 'rgba(245,158,11,0.10)',
@@ -799,7 +863,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  subscriptionIconActive: { backgroundColor: 'rgba(139,92,246,0.20)' },
+  subscriptionIconActive: { backgroundColor: colors.primary_20 },
   subscriptionIconInactive: { backgroundColor: 'rgba(245,158,11,0.20)' },
   subscriptionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   subscriptionHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
@@ -817,19 +881,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   navCardPrimary: {
-    backgroundColor: 'rgba(139,92,246,0.10)',
-    borderColor: 'rgba(139,92,246,0.20)',
+    backgroundColor: colors.primary_10,
+    borderColor: colors.primary_20,
   },
   navCardIcon: {
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: 'rgba(139,92,246,0.10)',
+    backgroundColor: colors.primary_10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   navCardIconPrimary: {
-    backgroundColor: 'rgba(139,92,246,0.20)',
+    backgroundColor: colors.primary_20,
   },
   navCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   navCardTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
@@ -837,7 +901,7 @@ const styles = StyleSheet.create({
 
   // Pro badge
   proBadge: {
-    backgroundColor: 'rgba(139,92,246,0.20)',
+    backgroundColor: colors.primary_20,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 999,
@@ -865,7 +929,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.30)',
+    borderColor: colors.primary_30,
     marginBottom: 8,
   },
   resetText: { fontSize: 14, fontWeight: '700', color: colors.primary },
@@ -904,7 +968,7 @@ const styles = StyleSheet.create({
   // Fresh Start boxes
   freshStartDeletedBox: {
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.20)',
+    borderColor: colors.primary_20,
     borderRadius: 16,
     padding: 16,
     gap: 6,
@@ -983,5 +1047,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  deleteCodeRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  deleteCodeInput: {
+    width: 44,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   errorTextSmall: { fontSize: 12, color: colors.red, textAlign: 'center' },
-})
+  })
+}

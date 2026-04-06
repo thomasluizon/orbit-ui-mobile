@@ -1,15 +1,20 @@
+import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { Achievement } from '@orbit/shared/types/gamification'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function rarityColors(rarity: string): { text: string; bg: string } {
+function rarityColors(
+  rarity: string,
+  colors: ReturnType<typeof useAppTheme>['colors'],
+): { text: string; bg: string } {
   switch (rarity.toLowerCase()) {
     case 'uncommon':
       return { text: '#34d399', bg: 'rgba(52, 211, 153, 0.10)' }
@@ -44,8 +49,10 @@ export function AchievementCard({
   earnedDate,
 }: Readonly<AchievementCardProps>) {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
-  const rarity = rarityColors(achievement.rarity)
+  const styles = useMemo(() => createStyles(colors), [colors])
+  const rarity = rarityColors(achievement.rarity, colors)
 
   return (
     <View
@@ -97,61 +104,63 @@ export function AchievementCard({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.lg,
-    padding: 16,
-  },
-  cardEarned: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary_20,
-  },
-  cardLocked: {
-    backgroundColor: colors.surfaceGround,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    opacity: 0.5,
-  },
-  icon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  name: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  description: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  rarityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.lg,
-  },
-  rarityText: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  xpText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  earnedDate: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    card: {
+      borderRadius: radius.lg,
+      padding: 16,
+    },
+    cardEarned: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+    },
+    cardLocked: {
+      backgroundColor: colors.surfaceGround,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      opacity: 0.5,
+    },
+    icon: {
+      fontSize: 24,
+      marginBottom: 8,
+    },
+    name: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    description: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexWrap: 'wrap',
+      marginTop: 8,
+    },
+    rarityBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: radius.lg,
+    },
+    rarityText: {
+      fontSize: 9,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    xpText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    earnedDate: {
+      fontSize: 10,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+  })
+}

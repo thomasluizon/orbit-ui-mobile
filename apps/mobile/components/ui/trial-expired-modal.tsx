@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import { Sparkles, CheckCircle2 } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTrialExpired } from '@/hooks/use-profile'
-import { colors, radius, shadows } from '@/lib/theme'
+import { plural } from '@/lib/plural'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,9 +37,11 @@ const FEATURES = [
 export function TrialExpiredModal() {
   const { t } = useTranslation()
   const router = useRouter()
+  const { colors, shadows } = useAppTheme()
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
   const [alreadySeen, setAlreadySeen] = useState(true)
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
@@ -74,7 +78,7 @@ export function TrialExpiredModal() {
 
             {/* Subtitle */}
             <Text style={styles.subtitle}>
-              {t('trial.expired.subtitle', { days: 7 })}
+              {plural(t('trial.expired.subtitle', { days: 7 }), 7)}
             </Text>
 
             {/* Don't lose */}
@@ -127,94 +131,99 @@ export function TrialExpiredModal() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.60)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: colors.surfaceOverlay,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 24,
-    ...shadows.lg,
-    elevation: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary_10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  featureList: {
-    gap: 10,
-    marginBottom: 24,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  featureText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  subscribeBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.xl,
-    paddingVertical: 14,
-    alignItems: 'center',
-    ...shadows.sm,
-    elevation: 3,
-  },
-  subscribeBtnText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  continueBtn: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  continueBtnText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.60)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    dialog: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: colors.surfaceOverlay,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 24,
+      ...shadows.lg,
+      elevation: 12,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 16,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary_10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+      marginBottom: 16,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 12,
+    },
+    featureList: {
+      gap: 10,
+      marginBottom: 24,
+    },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    featureText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      flex: 1,
+    },
+    subscribeBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.xl,
+      paddingVertical: 14,
+      alignItems: 'center',
+      ...shadows.sm,
+      elevation: 3,
+    },
+    subscribeBtnText: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    continueBtn: {
+      paddingVertical: 8,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    continueBtnText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+  })
+}

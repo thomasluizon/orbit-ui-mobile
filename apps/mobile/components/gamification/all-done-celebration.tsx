@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -10,24 +10,12 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/stores/ui-store'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
 const CONFETTI_COUNT = 20
 const RING_COUNT = 3
-
-// ---------------------------------------------------------------------------
-// Confetti particle helper
-// ---------------------------------------------------------------------------
-
-const CONFETTI_COLORS = [
-  colors.primary,
-  colors.primary400,
-  '#fbbf24',
-  '#34d399',
-  '#f87171',
-  '#60a5fa',
-]
 
 function randomBetween(a: number, b: number): number {
   return a + Math.random() * (b - a)
@@ -39,6 +27,7 @@ function randomBetween(a: number, b: number): number {
 
 export function AllDoneCelebration() {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
 
@@ -47,6 +36,17 @@ export function AllDoneCelebration() {
   const contentOpacity = useRef(new Animated.Value(0)).current
   const checkScale = useRef(new Animated.Value(0)).current
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const confettiColors = useMemo(
+    () => [
+      colors.primary,
+      colors.primary400,
+      '#fbbf24',
+      '#34d399',
+      '#f87171',
+      '#60a5fa',
+    ],
+    [colors],
+  )
 
   // Confetti animations
   const confettiAnims = useRef(
@@ -55,7 +55,7 @@ export function AllDoneCelebration() {
       translateY: new Animated.Value(0),
       opacity: new Animated.Value(1),
       scale: new Animated.Value(0),
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]!,
+      color: confettiColors[Math.floor(Math.random() * confettiColors.length)]!,
       angle: randomBetween(0, Math.PI * 2),
       distance: randomBetween(60, SCREEN_W * 0.45),
       size: randomBetween(4, 8),
@@ -69,6 +69,7 @@ export function AllDoneCelebration() {
       opacity: new Animated.Value(0.6),
     })),
   ).current
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const dismiss = useCallback(() => {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
@@ -284,45 +285,47 @@ export function AllDoneCelebration() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10003,
-  },
-  pressable: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.80)',
-  },
-  ring: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: colors.primary_30,
-  },
-  confettiParticle: {
-    position: 'absolute',
-  },
-  content: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: 16,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: 8,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10003,
+    },
+    pressable: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.80)',
+    },
+    ring: {
+      position: 'absolute',
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      borderWidth: 2,
+      borderColor: colors.primary_30,
+    },
+    confettiParticle: {
+      position: 'absolute',
+    },
+    content: {
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginTop: 16,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+  })
+}

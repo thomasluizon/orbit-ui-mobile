@@ -1,12 +1,12 @@
 import { useCallback, useRef, useMemo, type ReactNode } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native'
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { X } from 'lucide-react-native'
-import { colors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -31,6 +31,8 @@ export function BottomSheetModal({
   snapPoints: snapPointsProp,
   children,
 }: BottomSheetModalProps) {
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const bottomSheetRef = useRef<BottomSheet>(null)
 
   const snapPoints = useMemo(
@@ -63,35 +65,45 @@ export function BottomSheetModal({
   if (!open) return null
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
-      enablePanDownToClose
-      backgroundStyle={styles.background}
-      handleIndicatorStyle={styles.handleIndicator}
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
     >
-      <BottomSheetView style={styles.contentContainer}>
-        {/* Header */}
-        {title && (
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <X size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
+      <View style={styles.modalRoot}>
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          onChange={handleSheetChanges}
+          backdropComponent={renderBackdrop}
+          enablePanDownToClose
+          backgroundStyle={styles.background}
+          handleIndicatorStyle={styles.handleIndicator}
+        >
+          <BottomSheetView style={styles.contentContainer}>
+            {/* Header */}
+            {title && (
+              <View style={styles.header}>
+                <Text style={styles.title}>{title}</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={onClose}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            )}
 
-        {/* Content */}
-        <View style={styles.body}>{children}</View>
-      </BottomSheetView>
-    </BottomSheet>
+            {/* Content */}
+            <View style={styles.body}>{children}</View>
+          </BottomSheetView>
+        </BottomSheet>
+      </View>
+    </Modal>
   )
 }
 
@@ -99,46 +111,53 @@ export function BottomSheetModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  background: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  handleIndicator: {
-    backgroundColor: colors.handle,
-    width: 36,
-    height: 4,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-})
+type ThemeColors = ReturnType<typeof useAppTheme>['colors']
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    modalRoot: {
+      flex: 1,
+    },
+    background: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+    },
+    handleIndicator: {
+      backgroundColor: colors.handle,
+      width: 36,
+      height: 4,
+    },
+    contentContainer: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    body: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+  })
+}

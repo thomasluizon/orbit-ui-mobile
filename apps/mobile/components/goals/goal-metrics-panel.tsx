@@ -4,7 +4,8 @@ import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import type { GoalMetrics } from '@orbit/shared/types/goal'
-import { colors, radius } from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -16,6 +17,8 @@ interface GoalMetricsPanelProps {
   isLoading: boolean
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -26,8 +29,10 @@ export function GoalMetricsPanel({
   isLoading,
 }: GoalMetricsPanelProps) {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const statusConfig = useMemo(() => {
     const status = metrics?.trackingStatus
@@ -189,7 +194,8 @@ export function GoalMetricsPanel({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     gap: 16,
     paddingVertical: 16,
@@ -333,4 +339,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-})
+  })
+}

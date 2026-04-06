@@ -1,10 +1,12 @@
+import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { ArrowRight, Check, Trash2 } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,6 +51,8 @@ export function NotificationDetailModal({
 }: Readonly<NotificationDetailModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   function handleView() {
     const url = notification.url
@@ -130,46 +134,48 @@ export function NotificationDetailModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  body: {
-    gap: 16,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  bodyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 8,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primary_10,
-  },
-  actionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  deleteActionBtn: {
-    backgroundColor: colors.red500_10,
-  },
-  deleteActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.red400,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    body: {
+      gap: 16,
+    },
+    timestamp: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    bodyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    actions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 8,
+    },
+    actionBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: radius.lg,
+      backgroundColor: colors.primary_10,
+    },
+    actionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    deleteActionBtn: {
+      backgroundColor: colors.red500_10,
+    },
+    deleteActionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.red400,
+    },
+  })
+}

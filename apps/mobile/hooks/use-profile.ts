@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useEffect } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import i18n from 'i18next'
+import { API } from '@orbit/shared/api'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { apiClient } from '@/lib/api-client'
@@ -11,7 +12,7 @@ import { apiClient } from '@/lib/api-client'
 // ---------------------------------------------------------------------------
 
 async function fetchProfile(): Promise<Profile> {
-  return apiClient<Profile>('/api/profile')
+  return apiClient<Profile>(API.profile.get)
 }
 
 export function useProfile() {
@@ -30,7 +31,8 @@ export function useProfile() {
   useEffect(() => {
     if (!profile?.language) return
     if (i18n.language !== profile.language) {
-      i18n.changeLanguage(profile.language)
+      // eslint-disable-next-line import/no-named-as-default-member -- i18next default export is the configured singleton instance
+      void i18n.changeLanguage(profile.language)
     }
   }, [profile?.language])
 
@@ -41,7 +43,7 @@ export function useProfile() {
     if (!tz || tz === 'UTC') {
       const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
       if (detected && detected !== 'UTC') {
-        apiClient('/api/profile/timezone', {
+        apiClient(API.profile.timezone, {
           method: 'PUT',
           body: JSON.stringify({ timeZone: detected }),
         })

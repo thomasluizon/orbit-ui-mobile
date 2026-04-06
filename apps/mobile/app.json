@@ -9,6 +9,10 @@
     "userInterfaceStyle": "automatic",
     "scheme": "orbit",
     "newArchEnabled": true,
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,11 +20,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "org.useorbit.app",
-      "infoPlist": {
-        "NSMicrophoneUsageDescription": "Orbit uses the microphone for voice input in AI chat.",
-        "NSSpeechRecognitionUsageDescription": "Orbit uses speech recognition for voice input."
-      }
+      "bundleIdentifier": "org.useorbit.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +28,19 @@
         "backgroundColor": "#07060e"
       },
       "package": "org.useorbit.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.useorbit.org",
+              "pathPrefix": "/auth-callback"
+            }
+          ]
+        }
+      ],
       "permissions": [
         "INTERNET",
         "VIBRATE",
@@ -38,12 +51,41 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-dev-client",
+        {
+          "launchMode": "launcher",
+          "android": {
+            "launchMode": "launcher"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
           "color": "#8b5cf6"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos so you can attach images in AI chat.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone for voice input in AI chat.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to use speech recognition for voice input in AI chat.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts",
+            "com.google.android.as"
+          ]
         }
       ],
       "expo-sqlite"
@@ -58,6 +100,6 @@
       "eas": {
         "projectId": "84b3535b-5957-42b7-bda3-4ed9dfde3734"
       }
-    },
+    }
   }
 }

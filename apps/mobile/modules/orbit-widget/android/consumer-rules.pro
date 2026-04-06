@@ -1,0 +1,1 @@
+-keep class org.useorbit.app.widget.** { *; }

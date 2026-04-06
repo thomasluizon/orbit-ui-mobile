@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -16,14 +16,17 @@ import {
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react-native'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // NavRow component
 // ---------------------------------------------------------------------------
+
+type AppColors = ReturnType<typeof createColors>
 
 function NavRow({
   icon,
@@ -36,6 +39,9 @@ function NavRow({
   hint: string
   onPress: () => void
 }) {
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
+
   return (
     <TouchableOpacity
       style={styles.navCard}
@@ -59,6 +65,8 @@ function NavRow({
 export default function AboutScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const [showGuide, setShowGuide] = useState(false)
   const [showReferral, setShowReferral] = useState(false)
 
@@ -73,7 +81,7 @@ export default function AboutScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />
@@ -120,53 +128,55 @@ export default function AboutScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1 },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: 32,
-    paddingBottom: 24,
-  },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingTop: 32,
+      paddingBottom: 24,
+    },
+    backButton: { padding: 8, marginLeft: -8 },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      letterSpacing: -0.5,
+    },
 
-  navCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-    marginBottom: 8,
-    gap: 16,
-  },
-  navCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(139,92,246,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  navCardHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-})
+    navCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 20,
+      marginBottom: 8,
+      gap: 16,
+    },
+    navCardIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      backgroundColor: colors.primary_10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    navCardTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    navCardHint: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+  })
+}

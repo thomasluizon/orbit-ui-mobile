@@ -10,8 +10,10 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { enUS, ptBR } from 'date-fns/locale'
 import {
   ArrowLeft,
   CheckCircle,
@@ -23,15 +25,19 @@ import {
   Clock,
   List,
   RotateCcw,
+  Clipboard as ClipboardIcon,
+  Check,
   X,
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
+import { API } from '@orbit/shared/api'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
-import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // API Keys types
@@ -45,15 +51,24 @@ interface ApiKey {
   lastUsedAtUtc: string | null
 }
 
+interface ApiKeyCreateResponse {
+  id: string
+  key: string
+  name: string
+}
+
 // ---------------------------------------------------------------------------
 // Advanced Screen
 // ---------------------------------------------------------------------------
 
 export default function AdvancedScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
+  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
 
   // --- Timezone ---
   const [timezoneList, setTimezoneList] = useState<string[]>([])
@@ -76,7 +91,7 @@ export default function AdvancedScreen() {
     setTimezoneSaving(true)
     setTimezoneSaved(false)
     try {
-      await apiClient('/api/profile/timezone', {
+      await apiClient(API.profile.timezone, {
         method: 'PUT',
         body: JSON.stringify({ timeZone: newTimezone }),
       })
@@ -98,7 +113,7 @@ export default function AdvancedScreen() {
   // --- API Keys ---
   const apiKeysQuery = useQuery({
     queryKey: apiKeyKeys.lists(),
-    queryFn: () => apiClient<ApiKey[]>('/api/api-keys'),
+    queryFn: () => apiClient<ApiKey[]>(API.apiKeys.list),
     enabled: profile?.hasProAccess ?? false,
     staleTime: 5 * 60 * 1000,
   })
@@ -107,10 +122,12 @@ export default function AdvancedScreen() {
   const MAX_API_KEYS = 5
   const canCreateKey = apiKeys.length < MAX_API_KEYS
 
+  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
+  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useMutation({
-    mutationFn: (id: string) => apiClient(`/api/api-keys/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiClient(API.apiKeys.delete(id), { method: 'DELETE' }),
     onSuccess: () => {
       setRevokingKeyId(null)
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
@@ -120,6 +137,8 @@ export default function AdvancedScreen() {
   // --- Connection Instructions ---
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [activeConfigTab, setActiveConfigTab] = useState<'web' | 'desktop' | 'code'>('web')
+  const [configCopied, setConfigCopied] = useState(false)
+  const [endpointCopied, setEndpointCopied] = useState(false)
 
   const mcpConfigJson = `{
   "mcpServers": {
@@ -133,7 +152,34 @@ export default function AdvancedScreen() {
 }`
 
   function formatKeyDate(dateStr: string): string {
-    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true })
+    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
+  }
+
+  async function handleCreateKey(name: string): Promise<ApiKeyCreateResponse | null> {
+    setCreateKeyError(null)
+    try {
+      const result = await apiClient<ApiKeyCreateResponse>(API.apiKeys.create, {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+      await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      return result
+    } catch (err: unknown) {
+      setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
+      return null
+    }
+  }
+
+  async function copyEndpoint() {
+    await Clipboard.setStringAsync('https://api.useorbit.org/mcp')
+    setEndpointCopied(true)
+    setTimeout(() => setEndpointCopied(false), 2000)
+  }
+
+  async function copyConfig() {
+    await Clipboard.setStringAsync(mcpConfigJson)
+    setConfigCopied(true)
+    setTimeout(() => setConfigCopied(false), 2000)
   }
 
   // Widget steps and features
@@ -161,7 +207,7 @@ export default function AdvancedScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />
@@ -259,7 +305,7 @@ export default function AdvancedScreen() {
             <View style={styles.labelRow}>
               <Text style={styles.cardLabel}>{t('orbitMcp.title')}</Text>
               <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>PRO</Text>
+                <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
               </View>
             </View>
             {!profile?.hasProAccess && (
@@ -268,7 +314,7 @@ export default function AdvancedScreen() {
                 style={styles.lockRow}
               >
                 <Lock size={14} color={colors.primary} />
-                <Text style={styles.lockText}>PRO</Text>
+                <Text style={styles.lockText}>{t('common.proBadge')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -286,12 +332,10 @@ export default function AdvancedScreen() {
                   {canCreateKey && (
                     <TouchableOpacity
                       style={styles.createKeyButton}
-                      onPress={() => {
-                        // Would open create key modal
-                      }}
+                      onPress={() => setCreateKeyModalOpen(true)}
                     >
                       <Plus size={14} color={colors.primary} />
-                      <Text style={styles.createKeyText}>{t('common.create')}</Text>
+                      <Text style={styles.createKeyText}>{t('orbitMcp.createKey')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -415,6 +459,17 @@ export default function AdvancedScreen() {
                         </Text>
                         <View style={styles.codeBlock}>
                           <Text style={styles.codeText}>https://api.useorbit.org/mcp</Text>
+                          <TouchableOpacity
+                            style={styles.codeCopyButton}
+                            onPress={copyEndpoint}
+                            activeOpacity={0.8}
+                          >
+                            {endpointCopied ? (
+                              <Check size={16} color={colors.emerald400} />
+                            ) : (
+                              <ClipboardIcon size={16} color={colors.textSecondary} />
+                            )}
+                          </TouchableOpacity>
                         </View>
                         <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
                           {t('orbitMcp.webNoApiKey')}
@@ -427,6 +482,17 @@ export default function AdvancedScreen() {
                         </Text>
                         <View style={styles.codeBlock}>
                           <Text style={styles.codeText}>{mcpConfigJson}</Text>
+                          <TouchableOpacity
+                            style={styles.codeCopyButton}
+                            onPress={copyConfig}
+                            activeOpacity={0.8}
+                          >
+                            {configCopied ? (
+                              <Check size={16} color={colors.emerald400} />
+                            ) : (
+                              <ClipboardIcon size={16} color={colors.textSecondary} />
+                            )}
+                          </TouchableOpacity>
                         </View>
                         <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
                           {t('orbitMcp.replaceKey')}
@@ -481,6 +547,12 @@ export default function AdvancedScreen() {
           </View>
         </View>
       </Modal>
+      <CreateApiKeyModal
+        open={createKeyModalOpen}
+        onOpenChange={setCreateKeyModalOpen}
+        onCreateKey={handleCreateKey}
+        apiError={createKeyError}
+      />
     </SafeAreaView>
   )
 }
@@ -489,7 +561,8 @@ export default function AdvancedScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -713,12 +786,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 16,
     padding: 16,
+    paddingRight: 48,
   },
   codeText: {
     fontSize: 12,
     fontFamily: 'monospace',
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  codeCopyButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
   },
 
   // Modal
@@ -749,4 +831,5 @@ const styles = StyleSheet.create({
   widgetStepText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
   widgetFeatureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   widgetFeatureText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
-})
+  })
+}

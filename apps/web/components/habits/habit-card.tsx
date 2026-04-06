@@ -20,6 +20,7 @@ import { HighlightText } from '@/components/ui/highlight-text'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -114,9 +115,12 @@ function computeFrequencyLabel(
   }
   if (frequencyQuantity === 1)
     return t(`habits.frequency.every${frequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
-  return t(`habits.frequency.everyN${frequencyUnit}s` as Parameters<typeof t>[0], { // NOSONAR - dynamic i18n key requires assertion
-    n: frequencyQuantity ?? 1,
-  })
+  return plural(
+    t(`habits.frequency.everyN${frequencyUnit}s` as Parameters<typeof t>[0], { // NOSONAR - dynamic i18n key requires assertion
+      n: frequencyQuantity ?? 1,
+    }),
+    frequencyQuantity ?? 1,
+  )
 }
 
 function computeFlexibleProgressLabel(

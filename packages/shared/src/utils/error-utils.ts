@@ -22,6 +22,9 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   if (isErrorWithData(err)) {
     if (err.data?.error) return err.data.error
   }
+  if (err instanceof Error && err.message.trim()) {
+    return err.message
+  }
   return fallback
 }
 

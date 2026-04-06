@@ -490,6 +490,8 @@
     "toggleMic": "Ativar gravação de voz",
     "imageError": "Apenas imagens JPEG, PNG e WebP são suportadas.",
     "imageSizeError": "A imagem deve ter menos de 20MB.",
+    "imagePermissionError": "É necessário permitir acesso às fotos para anexar imagens.",
+    "voiceUnsupportedError": "A entrada por voz não está disponível neste dispositivo.",
     "sendError": "Falha ao enviar mensagem. Tente novamente.",
     "timeoutError": "A requisição expirou. Tente novamente.",
     "limitReachedError": "Você atingiu o limite de mensagens. Faça upgrade para Pro para mensagens ilimitadas.",

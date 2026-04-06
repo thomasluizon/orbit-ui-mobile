@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   StyleSheet,
   ActivityIndicator,
@@ -15,16 +16,29 @@ import {
   type TextInputKeyPressEventData,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import * as WebBrowser from 'expo-web-browser'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import Svg, { Path } from 'react-native-svg'
+import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
+import {
+  clearStoredReferralCode,
+  consumeStoredAuthReturnUrl,
+  getSafeReturnUrl,
+  getStoredReferralCode,
+  isSafeReturnUrl,
+  isValidReferralCode,
+  isValidVerificationCode,
+  markReferralApplied,
+  storeAuthReturnUrl,
+  storeReferralCode,
+} from '@/lib/auth-flow'
+import { startMobileGoogleAuth } from '@/lib/google-auth'
 
 const BACKEND_ERROR_MAP: Record<string, string> = {
   'Please wait before requesting a new code': 'auth.errors.rateLimited',
@@ -34,9 +48,20 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
   'Invalid email format': 'auth.errors.invalidEmail',
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
+  const params = useLocalSearchParams<{
+    ref?: string
+    returnUrl?: string
+    email?: string
+    code?: string
+  }>()
+  const router = useRouter()
   const login = useAuthStore((s) => s.login)
 
   const [step, setStep] = useState<'email' | 'code'>('email')
@@ -48,8 +73,59 @@ export default function LoginScreen() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
+  const [showReferralBanner, setShowReferralBanner] = useState(false)
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const isCodeStep = step === 'code'
+  const isAndroidKeyboardOpen = Platform.OS === 'android' && keyboardVisible
 
   const codeInputRefs = useRef<(TextInput | null)[]>([])
+
+  useEffect(() => {
+    async function hydrateAuthFlowState() {
+      const refCode = typeof params.ref === 'string' ? params.ref : undefined
+      const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+      const deepLinkEmail = typeof params.email === 'string' ? params.email : undefined
+      const deepLinkCode = typeof params.code === 'string' ? params.code : undefined
+
+      if (refCode && isValidReferralCode(refCode)) {
+        await storeReferralCode(refCode)
+        setShowReferralBanner(true)
+      } else {
+        setShowReferralBanner(Boolean(await getStoredReferralCode()))
+      }
+
+      if (returnUrl && isSafeReturnUrl(returnUrl)) {
+        await storeAuthReturnUrl(returnUrl)
+      }
+
+      if (deepLinkEmail) {
+        setEmail(deepLinkEmail)
+      }
+
+      if (deepLinkEmail && isValidVerificationCode(deepLinkCode)) {
+        setCodeDigits(deepLinkCode.split(''))
+        setStep('code')
+      }
+    }
+
+    hydrateAuthFlowState().catch(() => {})
+  }, [params.code, params.email, params.ref, params.returnUrl])
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return
+
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true)
+    })
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false)
+    })
+
+    return () => {
+      showSubscription.remove()
+      hideSubscription.remove()
+    }
+  }, [])
 
   function translateBackendError(error: string): string {
     const key = BACKEND_ERROR_MAP[error]
@@ -89,7 +165,7 @@ export default function LoginScreen() {
     setErrorMessage(null)
 
     try {
-      await apiClient('/api/auth/send-code', {
+      await apiClient(API.auth.sendCode, {
         method: 'POST',
         body: JSON.stringify({ email: trimmed, language: i18n.language }),
       })
@@ -111,12 +187,14 @@ export default function LoginScreen() {
     setSuccessMessage(null)
 
     try {
-      const res = await apiClient<BackendLoginResponse>('/api/auth/verify-code', {
+      const referralCode = await getStoredReferralCode()
+      const res = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim(),
           code,
           language: i18n.language,
+          ...(referralCode ? { referralCode } : {}),
         }),
       })
       await login(res.token, res.refreshToken, {
@@ -124,7 +202,13 @@ export default function LoginScreen() {
         name: res.name,
         email: res.email,
       })
-      // Auth guard in root layout handles navigation to (tabs)
+      if (referralCode) {
+        await markReferralApplied()
+        await clearStoredReferralCode()
+        setShowReferralBanner(false)
+      }
+      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+      router.replace(returnUrl as Href)
     } catch (err: unknown) {
       setErrorMessage(extractError(err))
     } finally {
@@ -139,7 +223,7 @@ export default function LoginScreen() {
     setSuccessMessage(null)
 
     try {
-      await apiClient('/api/auth/send-code', {
+      await apiClient(API.auth.sendCode, {
         method: 'POST',
         body: JSON.stringify({ email: email.trim(), language: i18n.language }),
       })
@@ -212,26 +296,32 @@ export default function LoginScreen() {
     setErrorMessage(null)
 
     try {
-      const redirectUri = `${API_BASE}/api/auth/google/mobile-callback`
-      const result = await WebBrowser.openAuthSessionAsync(
-        `${API_BASE}/api/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`,
-        redirectUri,
-      )
+      const referralCode = await getStoredReferralCode()
+      const pendingReturnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+      const response = await startMobileGoogleAuth({
+        language: i18n.language,
+        referralCode: referralCode ?? undefined,
+        returnUrl: pendingReturnUrl,
+      })
 
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url)
-        const token = url.searchParams.get('token')
-        const refreshToken = url.searchParams.get('refreshToken')
-        const userId = url.searchParams.get('userId')
-        const name = url.searchParams.get('name')
-        const userEmail = url.searchParams.get('email')
+      if (!response) return
 
-        if (token && userId && name && userEmail) {
-          await login(token, refreshToken, { userId, name, email: userEmail })
-        }
+      await login(response.token, response.refreshToken, {
+        userId: response.userId,
+        name: response.name,
+        email: response.email,
+      })
+
+      if (referralCode) {
+        await markReferralApplied()
+        await clearStoredReferralCode()
+        setShowReferralBanner(false)
       }
-    } catch {
-      setErrorMessage(t('auth.googleError'))
+
+      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+      router.replace(returnUrl as Href)
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : t('auth.googleError'))
     } finally {
       setIsGoogleLoading(false)
     }
@@ -273,10 +363,15 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isCodeStep && styles.scrollContentCode,
+          isAndroidKeyboardOpen && styles.scrollContentKeyboard,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -284,7 +379,7 @@ export default function LoginScreen() {
         <View style={styles.brandingHeader}>
           <View style={styles.brandingRow}>
             <Image
-              source={require('@/assets/icon.png')}
+              source={require('@/assets/logo-no-bg.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />
@@ -297,6 +392,12 @@ export default function LoginScreen() {
         <View style={styles.card}>
           {/* Welcome heading */}
           <Text style={styles.welcomeHeading}>{t('auth.welcomeBack')}</Text>
+
+          {showReferralBanner && (
+            <View style={styles.successAlert}>
+              <Text style={styles.successAlertText}>{t('referral.loginBanner')}</Text>
+            </View>
+          )}
 
           {/* Success alert */}
           {successMessage && (
@@ -446,7 +547,8 @@ export default function LoginScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -458,9 +560,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 24,
   },
+  scrollContentCode: {
+    paddingBottom: 24,
+  },
+  scrollContentKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 24,
+    paddingBottom: 24,
+  },
 
   // -- Branding header (matches web auth layout) --
   brandingHeader: {
+    alignSelf: 'stretch',
     alignItems: 'center',
     marginBottom: 32,
   },
@@ -469,6 +580,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
+    alignSelf: 'center',
   },
   logoImage: {
     width: 48,
@@ -483,6 +595,7 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     color: colors.textMuted,
+    textAlign: 'center',
   },
 
   // -- Card (matches web bg-surface-overlay card) --
@@ -675,4 +788,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textMuted,
   },
-})
+  })
+}

@@ -1,56 +1,115 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
-import * as Notifications from 'expo-notifications'
+import Constants from 'expo-constants'
 import * as Device from 'expo-device'
+import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-})
-
-interface UsePushNotificationsReturn {
-  expoPushToken: string | null
-  notification: Notifications.Notification | null
-  error: string | null
-  requestPermission: () => Promise<boolean>
+interface ExpoNotificationsModule {
+  PermissionStatus: Record<string, string>
+  PermissionResponse: {
+    status: string
+  }
+  AndroidImportance: {
+    MAX: number
+  }
+  setNotificationHandler: (handler: {
+    handleNotification: () => Promise<{
+      shouldShowAlert: boolean
+      shouldPlaySound: boolean
+      shouldSetBadge: boolean
+      shouldShowBanner: boolean
+      shouldShowList: boolean
+    }>
+  }) => void
+  setNotificationChannelAsync: (
+    channelId: string,
+    options: Record<string, unknown>,
+  ) => Promise<void>
+  getPermissionsAsync: () => Promise<{ status: string }>
+  requestPermissionsAsync: () => Promise<{ status: string }>
+  getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>
 }
 
-async function registerForPushNotifications(): Promise<string | null> {
-  if (!Device.isDevice) {
-    // Push notifications only work on physical devices
+type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined'
+interface UsePushNotificationsReturn {
+  expoPushToken: string | null
+  error: string | null
+  isEnabled: boolean
+  isLoading: boolean
+  isSupported: boolean
+  permissionStatus: NotificationPermissionStatus | null
+  requestPermission: () => Promise<boolean>
+  refreshPermissionStatus: () => Promise<void>
+}
+
+function getNotificationsModule(): ExpoNotificationsModule | null {
+  if (Constants.executionEnvironment === 'storeClient') return null
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps Expo Go from importing unsupported notifications code
+    return require('expo-notifications') as ExpoNotificationsModule
+  } catch {
+    return null
+  }
+}
+
+const notificationsModule = getNotificationsModule()
+
+function isGrantedStatus(status: string): status is 'granted' {
+  return status === 'granted'
+}
+
+function getProjectIdFromExpoConfig(): string | null {
+  const extra = Constants.expoConfig?.extra
+  if (!extra || typeof extra !== 'object' || !('eas' in extra)) {
     return null
   }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync()
-  let finalStatus = existingStatus
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    finalStatus = status
-  }
-
-  if (finalStatus !== 'granted') {
+  const eas = extra.eas
+  if (!eas || typeof eas !== 'object' || !('projectId' in eas)) {
     return null
   }
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#8b5cf6',
-    })
-  }
+  const projectId = eas.projectId
+  return typeof projectId === 'string' ? projectId : null
+}
 
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+if (notificationsModule) {
+  notificationsModule.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  })
+}
+
+async function ensureAndroidChannel(): Promise<void> {
+  if (!notificationsModule || Platform.OS !== 'android') return
+  await notificationsModule.setNotificationChannelAsync('default', {
+    name: 'Default',
+    importance: notificationsModule.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#8b5cf6',
+  })
+}
+
+async function getPushToken(): Promise<string | null> {
+  if (!notificationsModule || !Device.isDevice) return null
+
+  await ensureAndroidChannel()
+  const projectId =
+    process.env.EXPO_PUBLIC_PROJECT_ID ??
+    Constants.easConfig?.projectId ??
+    getProjectIdFromExpoConfig()
+
+  if (!projectId) return null
+  const tokenData = await notificationsModule.getExpoPushTokenAsync({
+    projectId,
   })
 
   return tokenData.data
@@ -58,7 +117,7 @@ async function registerForPushNotifications(): Promise<string | null> {
 
 async function sendTokenToBackend(token: string): Promise<void> {
   try {
-    await apiClient('/api/notifications/push-token', {
+    await apiClient(API.notifications.pushToken, {
       method: 'POST',
       body: JSON.stringify({
         token,
@@ -72,65 +131,89 @@ async function sendTokenToBackend(token: string): Promise<void> {
 
 export function usePushNotifications(): UsePushNotificationsReturn {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const notificationListener = useRef<Notifications.EventSubscription>()
-  const responseListener = useRef<Notifications.EventSubscription>()
+  const [isLoading, setIsLoading] = useState(false)
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermissionStatus | null>(null)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isSupported = !!notificationsModule && Device.isDevice
+
+  const syncGrantedPermission = useCallback(async (): Promise<void> => {
+    if (!isSupported) {
+      setPermissionStatus(null)
+      setExpoPushToken(null)
+      return
+    }
+
+    const permissions = await notificationsModule.getPermissionsAsync()
+    setPermissionStatus(permissions.status as NotificationPermissionStatus)
+
+    if (permissions.status !== 'granted') {
+      setExpoPushToken(null)
+      return
+    }
+
+    const token = await getPushToken()
+    setExpoPushToken(token)
+    if (token && isAuthenticated) {
+      await sendTokenToBackend(token)
+    }
+  }, [isAuthenticated, isSupported])
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      const token = await registerForPushNotifications()
-      if (token) {
-        setExpoPushToken(token)
-        if (isAuthenticated) {
-          await sendTokenToBackend(token)
-        }
-        return true
-      }
+    if (!isSupported) {
+      setPermissionStatus(null)
       return false
-    } catch (err) {
+    }
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const existing = await notificationsModule.getPermissionsAsync()
+      let status = existing.status
+
+      if (status !== 'granted') {
+        const requested = await notificationsModule.requestPermissionsAsync()
+        status = requested.status
+      }
+
+      setPermissionStatus(status as NotificationPermissionStatus)
+      if (status !== 'granted') {
+        setExpoPushToken(null)
+        return false
+      }
+
+      const token = await getPushToken()
+      setExpoPushToken(token)
+      if (token && isAuthenticated) {
+        await sendTokenToBackend(token)
+      }
+      return !!token
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to register for push notifications')
       return false
+    } finally {
+      setIsLoading(false)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, isSupported])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      requestPermission()
-    }
-  }, [isAuthenticated, requestPermission])
+    void syncGrantedPermission()
+  }, [syncGrantedPermission])
 
-  // Send token to backend whenever auth state changes and we have a token
   useEffect(() => {
-    if (isAuthenticated && expoPushToken) {
-      sendTokenToBackend(expoPushToken)
+    if (isAuthenticated && expoPushToken && isGrantedStatus(permissionStatus ?? '')) {
+      void sendTokenToBackend(expoPushToken)
     }
-  }, [isAuthenticated, expoPushToken])
+  }, [expoPushToken, isAuthenticated, permissionStatus])
 
-  // Listen for incoming notifications
-  useEffect(() => {
-    notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notif) => {
-        setNotification(notif)
-      },
-    )
-
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (_response) => {
-        // Handle notification tap - navigation can be added here
-      },
-    )
-
-    return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current)
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current)
-      }
-    }
-  }, [])
-
-  return { expoPushToken, notification, error, requestPermission }
+  return {
+    expoPushToken,
+    error,
+    isEnabled: isGrantedStatus(permissionStatus || '') && expoPushToken !== null,
+    isLoading,
+    isSupported,
+    permissionStatus,
+    requestPermission,
+    refreshPermissionStatus: syncGrantedPermission,
+  }
 }

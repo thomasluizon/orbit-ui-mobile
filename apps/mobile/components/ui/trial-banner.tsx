@@ -4,7 +4,9 @@ import { Clock, X } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
-import { colors, radius } from '@/lib/theme'
+import { plural } from '@/lib/plural'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 export function TrialBanner() {
   const { t } = useTranslation()
@@ -12,6 +14,7 @@ export function TrialBanner() {
   const trialDaysLeft = useTrialDaysLeft()
   const trialUrgent = useTrialUrgent()
   const router = useRouter()
+  const { colors } = useAppTheme()
   const [dismissed, setDismissed] = useState(false)
 
   const visible = profile?.isTrialActive && !dismissed
@@ -38,7 +41,7 @@ export function TrialBanner() {
       <Text style={[styles.text, { color: accentColor }]}>
         {trialDaysLeft === 0
           ? t('trial.banner.lastDay')
-          : t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 })}
+          : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
       </Text>
       <TouchableOpacity
         activeOpacity={0.7}

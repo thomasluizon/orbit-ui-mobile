@@ -23,7 +23,8 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface AppDatePickerProps {
   value: string
@@ -38,6 +39,7 @@ export function AppDatePicker({
 }: Readonly<AppDatePickerProps>) {
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
+  const { colors, shadows } = useAppTheme()
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
@@ -51,6 +53,7 @@ export function AppDatePicker({
 
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const monthLabel = format(viewDate, 'MMMM yyyy', { locale: dateFnsLocale })
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   const weekDays = useMemo(() => {
     const sundayFirst = [
@@ -219,92 +222,97 @@ export function AppDatePicker({
 
 const DAY_SIZE = 36
 
-const styles = StyleSheet.create({
-  trigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  triggerText: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 14,
-    marginRight: 8,
-  },
-  triggerPlaceholder: {
-    color: colors.textMuted,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.50)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 320,
-    backgroundColor: colors.surfaceOverlay,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 10,
-    ...shadows.lg,
-    elevation: 12,
-  },
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  monthLabel: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  weekDayText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '400',
-    textAlign: 'center',
-  },
-  dayCell: {
-    width: DAY_SIZE,
-    height: DAY_SIZE,
-    borderRadius: radius.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 1,
-  },
-  dayCellSelected: {
-    backgroundColor: colors.primary,
-  },
-  dayCellToday: {
-    borderWidth: 1,
-    borderColor: colors.primary_30,
-  },
-  dayText: {
-    color: colors.textPrimary,
-    fontSize: 12,
-  },
-  dayTextOutside: {
-    color: colors.textFaded40,
-  },
-  dayTextSelected: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    trigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.sm,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    triggerText: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: 14,
+      marginRight: 8,
+    },
+    triggerPlaceholder: {
+      color: colors.textMuted,
+    },
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.50)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    dialog: {
+      width: '100%',
+      maxWidth: 320,
+      backgroundColor: colors.surfaceOverlay,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 10,
+      ...shadows.lg,
+      elevation: 12,
+    },
+    monthNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+      paddingHorizontal: 4,
+    },
+    monthLabel: {
+      color: colors.textPrimary,
+      fontSize: 13,
+      fontWeight: '500',
+      textTransform: 'capitalize',
+    },
+    weekRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+    },
+    weekDayText: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '400',
+      textAlign: 'center',
+    },
+    dayCell: {
+      width: DAY_SIZE,
+      height: DAY_SIZE,
+      borderRadius: radius.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 1,
+    },
+    dayCellSelected: {
+      backgroundColor: colors.primary,
+    },
+    dayCellToday: {
+      borderWidth: 1,
+      borderColor: colors.primary_30,
+    },
+    dayText: {
+      color: colors.textPrimary,
+      fontSize: 12,
+    },
+    dayTextOutside: {
+      color: colors.textFaded40,
+    },
+    dayTextSelected: {
+      color: colors.white,
+      fontWeight: '600',
+    },
+  })
+}

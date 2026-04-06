@@ -25,11 +25,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
+import {
+  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
+  CHAT_STARTER_CHIP_KEYS,
+  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
+  getChatImageValidationError,
+} from '@orbit/shared/chat'
 import { getErrorMessage } from '@orbit/shared/utils'
 import {
   useSpeechToText,
-  SPEECH_LANGUAGES,
-  VISUALIZER_BAR_OFFSETS,
 } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
@@ -41,16 +45,6 @@ import { TypingIndicator } from '@/components/chat/typing-indicator'
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const MAX_IMAGE_SIZE = 20 * 1024 * 1024
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-
-const STARTER_CHIP_KEYS = [
-  'chat.starterChips.logHabit',
-  'chat.starterChips.createRoutine',
-  'chat.starterChips.howAmIDoing',
-  'chat.starterChips.planWeek',
-] as const
 
 // ---------------------------------------------------------------------------
 // Chat Page
@@ -115,7 +109,7 @@ export default function ChatPage() {
 
   // Translated starter chips
   const starterChips = useMemo(
-    () => STARTER_CHIP_KEYS.map((key) => t(key)),
+    () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
     [t],
   )
 
@@ -199,8 +193,13 @@ export default function ChatPage() {
   // -------------------------------------------------------------------------
 
   function validateImageFile(file: File): string | null {
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) return t('chat.imageError')
-    if (file.size > MAX_IMAGE_SIZE) return t('chat.imageSizeError')
+    const validationError = getChatImageValidationError({
+      mimeType: file.type,
+      fileSize: file.size,
+      name: file.name,
+    })
+    if (validationError === 'type') return t('chat.imageError')
+    if (validationError === 'size') return t('chat.imageSizeError')
     return null
   }
 

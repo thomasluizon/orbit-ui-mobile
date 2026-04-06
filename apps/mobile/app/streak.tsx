@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -12,22 +12,30 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, X } from 'lucide-react-native'
 import { subDays, isToday, format, parseISO } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakFreeze, useActivateStreakFreeze } from '@/hooks/use-gamification'
+import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
+import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // Streak Screen
 // ---------------------------------------------------------------------------
 
 export default function StreakScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const router = useRouter()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
+  const dateFnsLocale = useMemo(() => (i18n.language === 'pt-BR' ? ptBR : enUS), [i18n.language])
+  const styles = useMemo(() => createStyles(colors), [colors])
   const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze()
   const activateFreezeMutation = useActivateStreakFreeze()
+  const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
 
   const [showConfirm, setShowConfirm] = useState(false)
   const [freezeSuccess, setFreezeSuccess] = useState(false)
@@ -60,7 +68,7 @@ export default function StreakScreen() {
     return Array.from({ length: 7 }, (_, i) => {
       const date = subDays(today, 6 - i)
       const dateStr = format(date, 'yyyy-MM-dd')
-      const dayLabel = format(date, 'EEE').slice(0, 3)
+      const dayLabel = format(date, 'EEE', { locale: dateFnsLocale }).slice(0, 3)
       const dayNum = format(date, 'd')
       const isTodayDate = isToday(date)
 
@@ -81,7 +89,7 @@ export default function StreakScreen() {
 
       return { date, dateStr, dayLabel, dayNum, status, isTodayDate }
     })
-  }, [streakInfo, streak, isFrozenToday])
+  }, [streakInfo, streak, isFrozenToday, dateFnsLocale])
 
   async function handleFreeze() {
     setShowConfirm(false)
@@ -89,6 +97,7 @@ export default function StreakScreen() {
       await activateFreezeMutation.mutateAsync()
       setFreezeSuccess(true)
       setTimeout(() => setFreezeSuccess(false), 3000)
+      freezeCelebrationRef.current?.show()
     } catch {
       // Error handled by mutation
     }
@@ -138,7 +147,7 @@ export default function StreakScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
@@ -190,7 +199,7 @@ export default function StreakScreen() {
                 {/* Count */}
                 <Text style={styles.heroCount}>{streak}</Text>
                 <Text style={styles.heroDaysUnit}>
-                  {t('streakDisplay.detail.daysUnit', { count: streak })}
+                  {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
                 </Text>
                 {encouragement ? (
                   <Text style={styles.heroEncouragement}>{encouragement}</Text>
@@ -265,7 +274,10 @@ export default function StreakScreen() {
                   <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.title')}</Text>
                 </View>
                 <Text style={styles.freezeAvailable}>
-                  {t('streakDisplay.freeze.available', { count: freezesAvailable })}
+                  {plural(
+                    t('streakDisplay.freeze.available', { count: freezesAvailable }),
+                    freezesAvailable,
+                  )}
                 </Text>
               </View>
 
@@ -322,7 +334,7 @@ export default function StreakScreen() {
                     {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
                       <View key={date} style={styles.recentDateChip}>
                         <Text style={styles.recentDateText}>
-                          {format(parseISO(date), 'MMM d')}
+                          {format(parseISO(date), i18n.language === 'pt-BR' ? 'dd MMM' : 'MMM d', { locale: dateFnsLocale })}
                         </Text>
                       </View>
                     ))}
@@ -374,6 +386,7 @@ export default function StreakScreen() {
           </View>
         </View>
       </Modal>
+      <StreakFreezeCelebration ref={freezeCelebrationRef} />
     </SafeAreaView>
   )
 }
@@ -382,7 +395,8 @@ export default function StreakScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -652,4 +666,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.textSecondary,
   },
-})
+  })
+}

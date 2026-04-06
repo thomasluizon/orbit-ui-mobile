@@ -1,23 +1,36 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
+  Animated,
+  Easing,
+  Image,
   View,
   Text,
   TouchableOpacity,
   TextInput,
   StyleSheet,
   ScrollView,
+  Modal,
   Platform,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   ChevronLeft,
   ChevronRight,
   Search,
   X,
-  Plus,
-  Sparkles,
   MoreVertical,
-  Flame,
+  CheckCircle2,
+  RefreshCw,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  PlusCircle,
+  MinusCircle,
+  FastForward,
+  Trash2,
+  Check,
+  Eye,
 } from 'lucide-react-native'
 import {
   addDays,
@@ -31,35 +44,147 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
-import { useSummary } from '@/hooks/use-habits'
+import {
+  useHabits,
+  useBulkDeleteHabits,
+  useBulkLogHabits,
+  useBulkSkipHabits,
+} from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
-import { useStreakInfo, useGamificationProfile } from '@/hooks/use-gamification'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { HabitList } from '@/components/habit-list'
+import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { LogHabitModal } from '@/components/habits/log-habit-modal'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
-import { GoalList } from '@/components/goals/goal-list'
+import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
+import { GoalsView } from '@/components/goals/goals-view'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
-import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
-import { StreakCelebration } from '@/components/gamification/streak-celebration'
-import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
-import { AchievementToast } from '@/components/gamification/achievement-toast'
-import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
-import { TrialBanner } from '@/components/ui/trial-banner'
+import { StreakBadge } from '@/components/gamification/streak-badge'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { NotificationBell } from '@/components/navigation/notification-bell'
-import { colors, radius, shadows } from '@/lib/theme'
+import { createColors, radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
-type ViewTab = (typeof TAB_VIEWS)[number]
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+
+function ControlsMenu({
+  open,
+  isSelectMode,
+  showCompleted,
+  isFetching,
+  allCollapsed,
+  onToggleSelectMode,
+  onToggleCollapse,
+  onRefresh,
+  onToggleCompleted,
+  onClose,
+}: {
+  open: boolean
+  isSelectMode: boolean
+  showCompleted: boolean
+  isFetching: boolean
+  allCollapsed: boolean
+  onToggleSelectMode: () => void
+  onToggleCollapse: () => void
+  onRefresh: () => void
+  onToggleCompleted: () => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
+
+  return (
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.controlsMenuBackdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View
+          style={styles.controlsMenuPanel}
+          onStartShouldSetResponder={() => true}
+        >
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onToggleSelectMode}
+            activeOpacity={0.75}
+          >
+            {isSelectMode ? (
+              <X size={16} color={colors.textMuted} />
+            ) : (
+              <CheckCircle2 size={16} color={colors.textMuted} />
+            )}
+            <Text style={styles.controlsMenuLabel}>
+              {isSelectMode ? t('common.cancel') : t('common.select')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onToggleCollapse}
+            activeOpacity={0.75}
+          >
+            {allCollapsed ? (
+              <ChevronsUpDown size={16} color={colors.textMuted} />
+            ) : (
+              <ChevronsDownUp size={16} color={colors.textMuted} />
+            )}
+            <Text style={styles.controlsMenuLabel}>
+              {allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onRefresh}
+            activeOpacity={0.75}
+          >
+            <RefreshCw
+              size={16}
+              color={colors.textMuted}
+              style={isFetching ? styles.rotatingIcon : undefined}
+            />
+            <Text style={styles.controlsMenuLabel}>
+              {t('habits.refresh')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlsMenuItem}
+            onPress={onToggleCompleted}
+            activeOpacity={0.75}
+          >
+            {showCompleted ? (
+              <Check size={16} color={colors.textMuted} />
+            ) : (
+              <Eye size={16} color={colors.textMuted} />
+            )}
+            <Text style={styles.controlsMenuLabel}>
+              {t('habits.showCompleted')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Today Screen
@@ -67,14 +192,19 @@ type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
 
 export default function TodayScreen() {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const insets = useSafeAreaInsets()
+  const { date } = useLocalSearchParams<{ date?: string | string[] }>()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
-  const { leveledUp, newLevel } = useGamificationProfile()
+  const bulkDeleteHabits = useBulkDeleteHabits()
+  const bulkLogHabits = useBulkLogHabits()
+  const bulkSkipHabits = useBulkSkipHabits()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -83,26 +213,55 @@ export default function TodayScreen() {
   const setActiveView = useUIStore((s) => s.setActiveView)
   const searchQueryStore = useUIStore((s) => s.searchQuery)
   const setSearchQueryStore = useUIStore((s) => s.setSearchQuery)
+  const isSelectMode = useUIStore((s) => s.isSelectMode)
+  const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
+  const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
+  const selectAllHabits = useUIStore((s) => s.selectAllHabits)
+  const clearSelection = useUIStore((s) => s.clearSelection)
 
   // Local state
   const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [showControlsMenu, setShowControlsMenu] = useState(false)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
+  const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const habitListRef = useRef<HabitListHandle>(null)
+  const dateLabelAnim = useRef(new Animated.Value(0)).current
 
   // Modal state
   const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
-  const [levelUpCleared, setLevelUpCleared] = useState(false)
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
     [selectedDateStr],
   )
 
-  const frequencyOptions = useMemo<Array<{ key: FreqKey; label: string }>>(
+  useEffect(() => {
+    AsyncStorage.getItem('orbit_show_general_on_today')
+      .then((storedValue) => {
+        setShowGeneralOnToday(storedValue !== 'false')
+      })
+      .catch(() => {
+        setShowGeneralOnToday(true)
+      })
+  }, [])
+
+  useEffect(() => {
+    const dateParam = Array.isArray(date) ? date[0] : date
+    if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return
+    setSelectedDate(dateParam)
+    setActiveView('today')
+  }, [date, setActiveView, setSelectedDate])
+
+  const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(
     () => [
       { key: 'Day', label: t('habits.filter.daily') },
       { key: 'Week', label: t('habits.filter.weekly') },
@@ -115,14 +274,17 @@ export default function TodayScreen() {
 
   // Date navigation
   const goToPreviousDay = useCallback(() => {
+    setSlideDirection('left')
     setSelectedDate(formatAPIDate(subDays(selectedDate, 1)))
   }, [selectedDate, setSelectedDate])
 
   const goToNextDay = useCallback(() => {
+    setSlideDirection('right')
     setSelectedDate(formatAPIDate(addDays(selectedDate, 1)))
   }, [selectedDate, setSelectedDate])
 
   const goToToday = useCallback(() => {
+    setSlideDirection(isToday(selectedDate) ? 'right' : selectedDate > new Date() ? 'left' : 'right')
     setSelectedDate(formatAPIDate(new Date()))
     setActiveView('today')
   }, [setSelectedDate, setActiveView])
@@ -137,6 +299,16 @@ export default function TodayScreen() {
       { locale: dateFnsLocale },
     )
   }, [selectedDate, t, locale, dateFnsLocale])
+
+  useEffect(() => {
+    dateLabelAnim.setValue(0)
+    Animated.timing(dateLabelAnim, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+  }, [dateLabelAnim, selectedDateStr, slideDirection])
 
   // Search debounce
   useEffect(() => {
@@ -172,7 +344,7 @@ export default function TodayScreen() {
         dateFrom: dateStr,
         dateTo: dateStr,
         includeOverdue: isToday(selectedDate),
-        includeGeneral: true,
+        includeGeneral: showGeneralOnToday || undefined,
       }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
       if (selectedFrequency) f.frequencyUnit = selectedFrequency
@@ -185,7 +357,43 @@ export default function TodayScreen() {
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
     if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds])
+  }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
+
+  const habitsQuery = useHabits(filters)
+
+  const visibleTopLevelHabits = useMemo(() => {
+    const habits = habitsQuery.data?.topLevelHabits ?? []
+    if (showCompleted) return habits
+    return habits.filter((habit) => !habit.isCompleted)
+  }, [habitsQuery.data?.topLevelHabits, showCompleted])
+
+  const visibleHabitIds = useMemo(() => {
+    const ids = new Set<string>()
+
+    const visit = (habit: NormalizedHabit) => {
+      ids.add(habit.id)
+      for (const child of habitsQuery.getChildren(habit.id)) {
+        visit(child)
+      }
+    }
+
+    for (const habit of visibleTopLevelHabits) {
+      visit(habit)
+    }
+
+    return ids
+  }, [habitsQuery, visibleTopLevelHabits])
+
+  const allLoadedIds = useMemo(
+    () => habitListRef.current?.allLoadedIds ?? visibleHabitIds,
+    [visibleHabitIds],
+  )
+
+  const allSelected =
+    allLoadedIds.size > 0 &&
+    Array.from(allLoadedIds).every((id) => selectedHabitIds.has(id))
+
+  const selectedCount = selectedHabitIds.size
 
   // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters)
@@ -193,17 +401,10 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
-  useMemo(() => {
+  useEffect(() => {
     setFilters(filters)
   }, [filters, setFilters])
 
-  // AI Summary
-  const { summary } = useSummary({
-    date: dateStr,
-    locale: profile?.language ?? 'en',
-    hasProAccess: profile?.hasProAccess ?? false,
-    aiSummaryEnabled: profile?.aiSummaryEnabled ?? false,
-  })
   const showSummary =
     activeView === 'today' &&
     isToday(selectedDate) &&
@@ -213,19 +414,94 @@ export default function TodayScreen() {
   // Clear filters on view change
   useEffect(() => {
     setSelectedFrequency(null)
-  }, [activeView])
+    setShowControlsMenu(false)
+    if (isSelectMode) clearSelection()
+  }, [activeView, clearSelection, isSelectMode])
 
-  // Profile avatar initials
-  const avatarInitials = useMemo(() => {
-    if (!profile?.name) return '?'
-    const parts = profile.name.trim().split(/\s+/)
-    const first = parts[0] ?? ''
-    const last = parts.length >= 2 ? (parts[parts.length - 1] ?? '') : ''
-    if (last) return ((first[0] ?? '') + (last[0] ?? '')).toUpperCase()
-    return (first[0] ?? '?').toUpperCase()
-  }, [profile?.name])
+  const handleToggleSelectMode = useCallback(() => {
+    if (isSelectMode) {
+      clearSelection()
+    } else {
+      toggleSelectMode()
+    }
+    setShowControlsMenu(false)
+  }, [clearSelection, isSelectMode, toggleSelectMode])
+
+  const handleToggleCollapse = useCallback(() => {
+    if (habitListRef.current?.allCollapsed) {
+      habitListRef.current.expandAll()
+    } else {
+      habitListRef.current?.collapseAll()
+    }
+    setShowControlsMenu(false)
+  }, [])
+
+  const handleRefresh = useCallback(() => {
+    habitListRef.current?.refetch()
+    setShowControlsMenu(false)
+  }, [])
+
+  const handleSelectAll = useCallback(() => {
+    selectAllHabits(Array.from(allLoadedIds))
+  }, [allLoadedIds, selectAllHabits])
+
+  const handleDeselectAll = useCallback(() => {
+    clearSelection()
+  }, [clearSelection])
+
+  const handleOpenBulkDelete = useCallback(() => {
+    if (selectedCount === 0) return
+    setShowBulkDeleteConfirm(true)
+  }, [selectedCount])
+
+  const handleOpenBulkLog = useCallback(() => {
+    if (selectedCount === 0) return
+    setShowBulkLogConfirm(true)
+  }, [selectedCount])
+
+  const handleOpenBulkSkip = useCallback(() => {
+    if (selectedCount === 0) return
+    setShowBulkSkipConfirm(true)
+  }, [selectedCount])
+
+  const confirmBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkDeleteHabits.mutateAsync(ids)
+    } finally {
+      clearSelection()
+      setShowBulkDeleteConfirm(false)
+    }
+  }, [bulkDeleteHabits, clearSelection, selectedHabitIds])
+
+  const confirmBulkLog = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkLogHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+    } finally {
+      clearSelection()
+      setShowBulkLogConfirm(false)
+    }
+  }, [bulkLogHabits, clearSelection, selectedHabitIds])
+
+  const confirmBulkSkip = useCallback(async () => {
+    const ids = Array.from(selectedHabitIds)
+    if (ids.length === 0) return
+    try {
+      await bulkSkipHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+    } finally {
+      clearSelection()
+      setShowBulkSkipConfirm(false)
+    }
+  }, [bulkSkipHabits, clearSelection, selectedHabitIds])
 
   const currentStreak = streakInfo?.currentStreak ?? 0
+  const handleHabitLogged = useCallback((habitId: string) => {
+    habitListRef.current?.markRecentlyCompleted(habitId)
+    habitListRef.current?.checkAndPromptParentLog(habitId)
+  }, [])
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -235,9 +511,6 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Trial banner */}
-        <TrialBanner />
-
         {/* ============================================================
             HEADER: Orbit logo + streak badge + avatar
             Matches: <header className="flex items-center justify-between pt-8 pb-2">
@@ -249,25 +522,19 @@ export default function TodayScreen() {
             activeOpacity={0.8}
           >
             <View style={styles.logoIcon}>
-              <Text style={styles.logoIconText}>O</Text>
+              <Image
+                source={require('../../assets/logo-no-bg.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.headerTitle}>Orbit</Text>
           </TouchableOpacity>
 
           <View style={styles.headerRight}>
-            {/* Streak badge */}
-            {currentStreak > 0 && (
-              <View style={styles.streakBadge}>
-                <Flame size={14} color="#fbbf24" />
-                <Text style={styles.streakText}>{currentStreak}</Text>
-              </View>
-            )}
-            {/* Notification bell */}
+            <ThemeToggle />
+            <StreakBadge streak={currentStreak} />
             <NotificationBell />
-            {/* Profile avatar */}
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarInitials}</Text>
-            </View>
           </View>
         </View>
 
@@ -307,7 +574,7 @@ export default function TodayScreen() {
             GOALS VIEW
             ============================================================ */}
         {activeView === 'goals' && (
-          <GoalList onCreatePress={() => setShowCreateGoalModal(true)} />
+          <GoalsView />
         )}
 
         {/* ============================================================
@@ -324,14 +591,25 @@ export default function TodayScreen() {
               <ChevronLeft size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
-              <Text
+              <Animated.Text
                 style={[
                   styles.dateLabel,
                   isToday(selectedDate) && styles.dateLabelToday,
+                  {
+                    opacity: dateLabelAnim,
+                    transform: [
+                      {
+                        translateX: dateLabelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [slideDirection === 'left' ? -12 : 12, 0],
+                        }),
+                      },
+                    ],
+                  },
                 ]}
               >
                 {dateLabel}
-              </Text>
+              </Animated.Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.dateNavButton}
@@ -347,14 +625,8 @@ export default function TodayScreen() {
             AI SUMMARY CARD
             Matches web: bg-surface border border-primary/30 rounded-2xl p-4
             ============================================================ */}
-        {showSummary && summary ? (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Sparkles size={16} color={colors.primary} />
-              <Text style={styles.summaryTitle}>{t('summary.title')}</Text>
-            </View>
-            <Text style={styles.summaryText}>{summary}</Text>
-          </View>
+        {showSummary ? (
+          <HabitSummaryCard date={dateStr} />
         ) : null}
 
         {/* ============================================================
@@ -480,18 +752,102 @@ export default function TodayScreen() {
               <TouchableOpacity
                 style={styles.controlsButton}
                 activeOpacity={0.7}
+                onPress={() => setShowControlsMenu((prev) => !prev)}
               >
                 <MoreVertical size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
+            <ControlsMenu
+              open={showControlsMenu}
+              isSelectMode={isSelectMode}
+              showCompleted={showCompleted}
+              isFetching={habitsQuery.isFetching}
+              allCollapsed={!!habitListRef.current?.allCollapsed}
+              onToggleSelectMode={handleToggleSelectMode}
+              onToggleCollapse={handleToggleCollapse}
+              onRefresh={handleRefresh}
+              onToggleCompleted={() => setShowCompleted((prev) => !prev)}
+              onClose={() => setShowControlsMenu(false)}
+            />
+
+            {isSelectMode && (
+              <View
+                style={[
+                  styles.bulkActionBar,
+                  { bottom: 20 + insets.bottom },
+                ]}
+              >
+                <Text style={styles.bulkSelectionText}>
+                  {plural(t('common.selected', { n: selectedCount }), selectedCount)}
+                </Text>
+                <View style={styles.bulkActionRow}>
+                  <TouchableOpacity
+                    style={styles.bulkActionButton}
+                    onPress={allSelected ? handleDeselectAll : handleSelectAll}
+                    activeOpacity={0.75}
+                  >
+                    {allSelected ? (
+                      <MinusCircle size={18} color={colors.textSecondary} />
+                    ) : (
+                      <PlusCircle size={18} color={colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bulkActionButton,
+                      selectedCount === 0 && styles.bulkActionButtonDisabled,
+                    ]}
+                    onPress={handleOpenBulkLog}
+                    activeOpacity={0.75}
+                    disabled={selectedCount === 0}
+                  >
+                    <CheckCircle2 size={18} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bulkActionButton,
+                      selectedCount === 0 && styles.bulkActionButtonDisabled,
+                    ]}
+                    onPress={handleOpenBulkSkip}
+                    activeOpacity={0.75}
+                    disabled={selectedCount === 0}
+                  >
+                    <FastForward size={18} color={colors.amber400} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bulkActionButton,
+                      selectedCount === 0 && styles.bulkActionButtonDisabled,
+                    ]}
+                    onPress={handleOpenBulkDelete}
+                    activeOpacity={0.75}
+                    disabled={selectedCount === 0}
+                  >
+                    <Trash2 size={18} color={colors.red400} />
+                  </TouchableOpacity>
+                  <View style={styles.bulkDivider} />
+                  <TouchableOpacity
+                    style={styles.bulkActionButton}
+                    onPress={clearSelection}
+                    activeOpacity={0.75}
+                  >
+                    <X size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Habit list (using HabitList component with all handlers wired) */}
             <HabitList
+              ref={habitListRef}
+              view={activeView}
               filters={filters}
-              dateStr={dateStr}
               selectedDate={activeView === 'today' ? selectedDate : undefined}
               showCompleted={showCompleted}
               searchQuery={searchQueryStore}
+              isSelectMode={isSelectMode}
+              selectedHabitIds={selectedHabitIds}
               scrollEnabled={false}
               onCreatePress={() => setShowCreateModal(true)}
               onSeeUpcoming={goToNextDay}
@@ -501,33 +857,6 @@ export default function TodayScreen() {
           </View>
         )}
       </ScrollView>
-
-      {/* ============================================================
-          FAB - floating action button matching web create button
-          ============================================================ */}
-      {activeView === 'goals' ? (
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { bottom: 24 + insets.bottom },
-          ]}
-          activeOpacity={0.8}
-          onPress={() => setShowCreateGoalModal(true)}
-        >
-          <Plus size={24} color="#fff" />
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { bottom: 24 + insets.bottom },
-          ]}
-          activeOpacity={0.8}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <Plus size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
 
       {/* ============================================================
           MODALS
@@ -542,12 +871,14 @@ export default function TodayScreen() {
         open={!!logHabit}
         onClose={() => setLogHabit(null)}
         habit={logHabit}
+        onLogged={handleHabitLogged}
       />
 
       <HabitDetailDrawer
         open={!!detailHabit}
         onClose={() => setDetailHabit(null)}
         habit={detailHabit}
+        onLogged={handleHabitLogged}
         onEdit={(habitId) => {
           const habit = detailHabit?.id === habitId ? detailHabit : null
           setDetailHabit(null)
@@ -561,23 +892,49 @@ export default function TodayScreen() {
         habit={editHabit}
       />
 
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        onOpenChange={setShowBulkDeleteConfirm}
+        title={t('habits.bulkDeleteTitle')}
+        description={plural(
+          t('habits.bulkDeleteMessage', { count: selectedCount }),
+          selectedCount,
+        )}
+        confirmLabel={t('habits.bulkDeleteConfirm')}
+        onConfirm={confirmBulkDelete}
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        open={showBulkLogConfirm}
+        onOpenChange={setShowBulkLogConfirm}
+        title={t('habits.bulkLogTitle')}
+        description={plural(
+          t('habits.bulkLogMessage', { count: selectedCount }),
+          selectedCount,
+        )}
+        confirmLabel={t('habits.bulkLogConfirm')}
+        onConfirm={confirmBulkLog}
+        variant="success"
+      />
+
+      <ConfirmDialog
+        open={showBulkSkipConfirm}
+        onOpenChange={setShowBulkSkipConfirm}
+        title={t('habits.bulkSkipTitle')}
+        description={plural(
+          t('habits.bulkSkipMessage', { count: selectedCount }),
+          selectedCount,
+        )}
+        confirmLabel={t('habits.bulkSkipConfirm')}
+        onConfirm={confirmBulkSkip}
+        variant="warning"
+      />
+
       <CreateGoalModal
         open={showCreateGoalModal}
         onClose={() => setShowCreateGoalModal(false)}
       />
-
-      {/* ============================================================
-          CELEBRATIONS & TOASTS
-          ============================================================ */}
-      <AllDoneCelebration />
-      <StreakCelebration />
-      <LevelUpOverlay
-        leveledUp={leveledUp && !levelUpCleared}
-        newLevel={newLevel}
-        onClear={() => setLevelUpCleared(true)}
-      />
-      <AchievementToast />
-      <WelcomeBackToast />
     </View>
   )
 }
@@ -586,7 +943,8 @@ export default function TodayScreen() {
 // Styles - pixel-accurate match with web CSS
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   // Layout
   safeArea: {
     flex: 1,
@@ -617,15 +975,12 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(139,92,246,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoIconText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.primary,
+  logoImage: {
+    width: 34,
+    height: 34,
   },
   // text-[length:var(--text-fluid-xl)] = 18-24px, font-extrabold
   headerTitle: {
@@ -751,7 +1106,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.3)',
+    borderColor: colors.primary_30,
     padding: 16,
     marginBottom: 8,
   },
@@ -862,6 +1217,83 @@ const styles = StyleSheet.create({
   controlsButton: {
     padding: 8,
     borderRadius: radius.xl,
+  },
+  controlsMenuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    paddingTop: 120,
+    paddingRight: 16,
+    alignItems: 'flex-end',
+  },
+  controlsMenuPanel: {
+    minWidth: 210,
+    backgroundColor: colors.surfaceOverlay,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    padding: 6,
+    ...shadows.lg,
+    elevation: 12,
+  },
+  controlsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+  },
+  controlsMenuLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  rotatingIcon: {
+    transform: [{ rotate: '180deg' }],
+  },
+  bulkActionBar: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 20,
+    backgroundColor: colors.surfaceOverlay,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radius.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    ...shadows.lg,
+    elevation: 12,
+  },
+  bulkSelectionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 10,
+  },
+  bulkActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bulkActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bulkActionButtonDisabled: {
+    opacity: 0.45,
+  },
+  bulkDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+    marginHorizontal: 2,
   },
 
   // Habit card - matches web .habit-card-parent
@@ -1002,9 +1434,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(139,92,246,0.1)',
+    backgroundColor: colors.primary_10,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.1)',
+    borderColor: colors.primary_20,
   },
   badgePrimaryText: {
     fontSize: 9,
@@ -1034,7 +1466,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(26,24,41,0.6)',
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.borderMuted,
   },
@@ -1066,7 +1498,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.borderMuted,
     padding: 16,
   },
   skeletonCircle: {
@@ -1089,7 +1521,7 @@ const styles = StyleSheet.create({
     height: 12,
     width: '40%',
     borderRadius: 8,
-    backgroundColor: 'rgba(26,24,41,0.6)',
+    backgroundColor: colors.surfaceElevated,
   },
 
   // Empty state
@@ -1109,25 +1541,5 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-
-  // FAB: matches web's primary button
-  fab: {
-    position: 'absolute',
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Glow shadow matching --shadow-glow
-    ...(Platform.OS === 'ios'
-      ? {
-          shadowColor: colors.primary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-        }
-      : { elevation: 8 }),
-  },
-})
+  })
+}

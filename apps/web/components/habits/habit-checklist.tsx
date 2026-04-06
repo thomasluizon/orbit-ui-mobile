@@ -3,6 +3,22 @@
 import { useState, useRef, useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -41,6 +57,27 @@ export function HabitChecklist({
   const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const checkedCount = items.filter((i) => i.isChecked).length
+
+  // -- Drag-to-reorder (editable mode) --
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
+
+  // Stable IDs for sortable context (index-based since checklist items have no unique id)
+  const sortableIds = items.map((_, i) => `checklist-${i}`)
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+      const oldIndex = sortableIds.indexOf(active.id as string)
+      const newIndex = sortableIds.indexOf(over.id as string)
+      if (oldIndex === -1 || newIndex === -1) return
+      onItemsChange?.(arrayMove(items, oldIndex, newIndex))
+    },
+    [items, sortableIds, onItemsChange],
+  )
 
   // -- Editable actions --
 
@@ -147,55 +184,29 @@ export function HabitChecklist({
         </div>
       )}
 
-      {/* Items list (editable) */}
-      {/* NOTE: The GripHorizontal icon below is currently decorative only.
-         Drag-to-reorder will be added via @dnd-kit/core in a future iteration. */}
+      {/* Items list (editable) with drag-to-reorder */}
       {editable ? (
-        <div className="space-y-1">
-          {items.map((item, index) => (
-            <div key={`${item.text}-${index}`} className="flex items-center gap-2 group py-0.5">
-              {/* Drag handle - decorative, drag is handled by library */}
-              <div
-                aria-hidden="true"
-                className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary transition-colors"
-              >
-                <GripHorizontal className="size-3.5" />
-              </div>
-
-              {/* Static checkbox indicator */}
-              <div aria-hidden="true" className="shrink-0 size-4 rounded border-2 border-border" />
-
-              {/* Text input */}
-              <input
-                value={item.text}
-                type="text"
-                aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
-                className="flex-1 min-w-0 bg-transparent text-sm text-text-primary py-1 px-0 border-0 border-b border-transparent focus:border-border focus:outline-none"
-                onChange={(e) => updateItemText(index, e.target.value)}
-              />
-
-              {/* Duplicate button */}
-              <button
-                type="button"
-                aria-label={t('habits.form.duplicateChecklistItem')}
-                className="shrink-0 p-1 text-text-muted hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                onClick={() => duplicateItem(index)}
-              >
-                <Copy className="size-3.5" aria-hidden="true" />
-              </button>
-
-              {/* Delete button */}
-              <button
-                type="button"
-                aria-label={t('habits.form.removeChecklistItem')}
-                className="shrink-0 p-1 text-text-muted hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                onClick={() => removeItem(index)}
-              >
-                <X className="size-3.5" aria-hidden="true" />
-              </button>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+            <div className="space-y-1">
+              {items.map((item, index) => (
+                <SortableChecklistItem
+                  key={sortableIds[index]}
+                  id={sortableIds[index]!}
+                  item={item}
+                  index={index}
+                  onUpdateText={updateItemText}
+                  onDuplicate={duplicateItem}
+                  onRemove={removeItem}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         /* Items list (interactive / read-only) */
         <div className="space-y-1">
@@ -281,6 +292,94 @@ export function HabitChecklist({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Sortable checklist item (editable mode)
+// ---------------------------------------------------------------------------
+
+function SortableChecklistItem({
+  id,
+  item,
+  index,
+  onUpdateText,
+  onDuplicate,
+  onRemove,
+}: Readonly<{
+  id: string
+  item: ChecklistItem
+  index: number
+  onUpdateText: (index: number, text: string) => void
+  onDuplicate: (index: number) => void
+  onRemove: (index: number) => void
+}>) {
+  const t = useTranslations()
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 group py-0.5"
+      {...attributes}
+    >
+      {/* Drag handle */}
+      <div
+        ref={setActivatorNodeRef}
+        {...listeners}
+        aria-hidden="true"
+        className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary transition-colors touch-none"
+      >
+        <GripHorizontal className="size-3.5" />
+      </div>
+
+      {/* Static checkbox indicator */}
+      <div aria-hidden="true" className="shrink-0 size-4 rounded border-2 border-border" />
+
+      {/* Text input */}
+      <input
+        value={item.text}
+        type="text"
+        aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
+        className="flex-1 min-w-0 bg-transparent text-sm text-text-primary py-1 px-0 border-0 border-b border-transparent focus:border-border focus:outline-none"
+        onChange={(e) => onUpdateText(index, e.target.value)}
+      />
+
+      {/* Duplicate button */}
+      <button
+        type="button"
+        aria-label={t('habits.form.duplicateChecklistItem')}
+        className="shrink-0 p-1 text-text-muted hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+        onClick={() => onDuplicate(index)}
+      >
+        <Copy className="size-3.5" aria-hidden="true" />
+      </button>
+
+      {/* Delete button */}
+      <button
+        type="button"
+        aria-label={t('habits.form.removeChecklistItem')}
+        className="shrink-0 p-1 text-text-muted hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+        onClick={() => onRemove(index)}
+      >
+        <X className="size-3.5" aria-hidden="true" />
+      </button>
     </div>
   )
 }

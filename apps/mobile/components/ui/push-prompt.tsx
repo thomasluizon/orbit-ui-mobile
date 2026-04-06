@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BellRing, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -24,12 +25,24 @@ const STORAGE_KEY = 'orbit_push_prompted'
 
 export function PushPrompt() {
   const { t } = useTranslation()
-  const { requestPermission } = usePushNotifications()
+  const { colors, shadows } = useAppTheme()
+  const {
+    isEnabled,
+    isSupported,
+    permissionStatus,
+    requestPermission,
+  } = usePushNotifications()
   const [show, setShow] = useState(false)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   useEffect(() => {
+    if (!isSupported || permissionStatus === null || permissionStatus === 'denied' || isEnabled) {
+      setShow(false)
+      return
+    }
+
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
       if (value === '1') return
       setShow(true)
@@ -46,7 +59,7 @@ export function PushPrompt() {
         }),
       ]).start()
     })
-  }, [fadeAnim, slideAnim])
+  }, [fadeAnim, isEnabled, isSupported, permissionStatus, slideAnim])
 
   const dismiss = useCallback(() => {
     Animated.parallel([
@@ -127,74 +140,79 @@ export function PushPrompt() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    bottom: 96,
-    left: 16,
-    right: 16,
-    zIndex: 50,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: colors.surfaceOverlay,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radius.lg,
-    padding: 16,
-    ...shadows.lg,
-    elevation: 8,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary_10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  description: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  buttons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  enableBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-  },
-  enableBtnText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  laterBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  laterBtnText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    wrapper: {
+      position: 'absolute',
+      bottom: 96,
+      left: 16,
+      right: 16,
+      zIndex: 50,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      backgroundColor: colors.surfaceOverlay,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      borderRadius: radius.lg,
+      padding: 16,
+      ...shadows.lg,
+      elevation: 8,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary_10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    textContainer: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    description: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    buttons: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+    },
+    enableBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary,
+    },
+    enableBtnText: {
+      color: colors.white,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    laterBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+    },
+    laterBtnText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    closeBtn: {
+      padding: 4,
+    },
+  })
+}

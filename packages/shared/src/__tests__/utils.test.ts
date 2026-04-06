@@ -183,6 +183,10 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(undefined, 'Fallback')).toBe('Fallback')
   })
 
+  it('returns the Error message when given an Error instance', () => {
+    expect(getErrorMessage(new Error('Network failed'), 'Fallback')).toBe('Network failed')
+  })
+
   it('returns fallback when error is a plain string', () => {
     expect(getErrorMessage('some error', 'Fallback')).toBe('Fallback')
   })

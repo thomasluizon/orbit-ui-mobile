@@ -4,13 +4,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Switch,
-  ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   ArrowLeft,
   ShieldCheck,
@@ -23,10 +22,11 @@ import {
   X,
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import { userFactKeys } from '@orbit/shared/query'
-import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface UserFact {
   id: string
@@ -43,11 +43,13 @@ export default function AiSettingsScreen() {
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      apiClient('/api/profile/ai-memory', {
+      apiClient(API.profile.aiMemory, {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
@@ -66,7 +68,7 @@ export default function AiSettingsScreen() {
   // --- AI Summary toggle ---
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      apiClient('/api/profile/ai-summary', {
+      apiClient(API.profile.aiSummary, {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
@@ -85,15 +87,15 @@ export default function AiSettingsScreen() {
   // --- User Facts ---
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
-    queryFn: () => apiClient<UserFact[]>('/api/user-facts'),
+    queryFn: () => apiClient<UserFact[]>(API.userFacts.list),
     staleTime: 5 * 60 * 1000,
   })
 
-  const facts = factsQuery.data ?? []
+  const facts = useMemo(() => factsQuery.data ?? [], [factsQuery.data])
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiClient(`/api/user-facts/${id}`, { method: 'DELETE' }),
+      apiClient(API.userFacts.delete(id), { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userFactKeys.all })
     },
@@ -101,7 +103,7 @@ export default function AiSettingsScreen() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) =>
-      apiClient('/api/user-facts/bulk', {
+      apiClient(API.userFacts.bulk, {
         method: 'DELETE',
         body: JSON.stringify({ ids }),
       }),
@@ -171,7 +173,7 @@ export default function AiSettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -181,7 +183,7 @@ export default function AiSettingsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />
@@ -290,15 +292,16 @@ export default function AiSettingsScreen() {
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={toggleSelectMode}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={selectMode ? t('common.cancel') : t('profile.facts.select')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 {selectMode ? (
                   <X size={12} color={colors.textSecondary} />
                 ) : (
                   <CheckCircle size={12} color={colors.textMuted} />
                 )}
-                <Text style={[styles.selectButtonText, selectMode && { color: colors.textSecondary }]}>
-                  {selectMode ? t('common.cancel') : t('profile.facts.select')}
-                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -429,7 +432,8 @@ export default function AiSettingsScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -512,8 +516,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   countBadgeText: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
-  selectButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  selectButtonText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  selectButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   // Bulk actions
   bulkActionsBar: {
@@ -597,4 +607,5 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   paginationText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-})
+  })
+}
