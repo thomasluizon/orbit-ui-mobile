@@ -194,7 +194,7 @@ function GlobalOverlays({
         <LevelUpOverlay
           leveledUp={gamification.leveledUp}
           newLevel={gamification.newLevel}
-          onClear={() => {}}
+          onClear={gamification.clearLevelUp}
         />
       )}
       <StreakFreezeCelebration ref={streakFreezeRef} />

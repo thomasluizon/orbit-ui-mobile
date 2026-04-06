@@ -108,7 +108,7 @@ export function LevelUpOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [leveledUp, newLevel, onClear, t, overlayOpacity, contentScale, contentOpacity])
+  }, [leveledUp, newLevel, t, overlayOpacity, contentScale, contentOpacity]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const styles = useMemo(() => createStyles(colors), [colors])
 
