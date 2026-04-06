@@ -3,11 +3,10 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   Alert,
-  ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import {
   Clock,
   Bell,
@@ -23,6 +22,7 @@ import { enUS, ptBR } from "date-fns/locale";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { HabitChecklist } from "./habit-checklist";
 import { DescriptionViewer } from "./description-viewer";
+import { HabitCalendar } from "./habit-calendar";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import {
   useHabitFullDetail,
@@ -157,13 +157,14 @@ export function HabitDetailDrawer({
         open={open}
         onClose={onClose}
         title={habit?.title}
-        snapPoints={["60%", "90%"]}
+        snapPoints={["68%", "92%"]}
       >
         {habit && (
-          <ScrollView
+          <BottomSheetScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {/* Description (expandable) */}
             {habit.description && (
@@ -287,6 +288,13 @@ export function HabitDetailDrawer({
               </View>
             )}
 
+            <View style={styles.calendarSection}>
+              <Text style={styles.sectionTitle}>
+                {t("habits.detail.activity")}
+              </Text>
+              <HabitCalendar habitId={habit.id} logs={logs} />
+            </View>
+
             {/* Recent notes */}
             {logsWithNotes.length > 0 && (
               <View style={styles.notesSection}>
@@ -330,7 +338,7 @@ export function HabitDetailDrawer({
                 </Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </BottomSheetScrollView>
         )}
       </BottomSheetModal>
     </>
@@ -431,6 +439,9 @@ function createStyles(
       backgroundColor: colors.surfaceElevated,
     },
     notesSection: {
+      gap: 12,
+    },
+    calendarSection: {
       gap: 12,
     },
     sectionTitle: {

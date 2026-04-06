@@ -273,7 +273,7 @@ export default function StreakScreen() {
                   </Svg>
                   <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.title')}</Text>
                 </View>
-                <Text style={styles.freezeAvailable}>
+                <Text style={styles.freezeAvailable} numberOfLines={2}>
                   {plural(
                     t('streakDisplay.freeze.available', { count: freezesAvailable }),
                     freezesAvailable,
@@ -542,12 +542,31 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   // Freeze
   freezeHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: 12,
   },
-  freezeIconRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  freezeTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  freezeAvailable: { fontSize: 12, color: colors.textMuted },
+  freezeIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  freezeTitle: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  freezeAvailable: {
+    flexShrink: 1,
+    maxWidth: '46%',
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
 
   frozenTodayBadge: {
     flexDirection: 'row',

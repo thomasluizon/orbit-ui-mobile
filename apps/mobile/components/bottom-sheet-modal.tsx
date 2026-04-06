@@ -79,6 +79,7 @@ export function BottomSheetModal({
           snapPoints={snapPoints}
           onChange={handleSheetChanges}
           backdropComponent={renderBackdrop}
+          enableContentPanningGesture={false}
           enablePanDownToClose
           backgroundStyle={styles.background}
           handleIndicatorStyle={styles.handleIndicator}
@@ -130,6 +131,7 @@ function createStyles(colors: ThemeColors) {
     },
     contentContainer: {
       flex: 1,
+      minHeight: 0,
     },
     header: {
       flexDirection: 'row',
@@ -156,6 +158,7 @@ function createStyles(colors: ThemeColors) {
     },
     body: {
       flex: 1,
+      minHeight: 0,
       paddingHorizontal: 20,
       paddingTop: 16,
     },

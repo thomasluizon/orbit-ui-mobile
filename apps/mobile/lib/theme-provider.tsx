@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Animated, Easing, StyleSheet, useColorScheme as useSystemColorScheme, View } from 'react-native'
+import { Animated, Easing, Modal, StyleSheet, useColorScheme as useSystemColorScheme, View } from 'react-native'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
@@ -39,6 +39,11 @@ export interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
+interface TransitionSnapshot {
+  background: string
+  accent: string
+}
+
 function normalizeColorScheme(value: string | null | undefined): ColorScheme {
   return value && VALID_COLOR_SCHEMES.has(value as ColorScheme)
     ? (value as ColorScheme)
@@ -54,27 +59,37 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
     systemScheme === 'light' ? 'light' : 'dark',
   )
-  const [transitionColor, setTransitionColor] = useState<string | null>(null)
+  const [transitionSnapshot, setTransitionSnapshot] = useState<TransitionSnapshot | null>(null)
   const transitionOpacity = useRef(new Animated.Value(0)).current
+  const transitionFrameRef = useRef<number | null>(null)
   const hasMountedRef = useRef(false)
   const previousThemeRef = useRef<{ scheme: ColorScheme; theme: ThemeMode }>({
     scheme: currentScheme,
     theme: currentTheme,
   })
 
-  const runThemeTransition = useCallback((overlayColor: string) => {
-    setTransitionColor(overlayColor)
+  const runThemeTransition = useCallback((snapshot: TransitionSnapshot) => {
+    if (transitionFrameRef.current !== null) {
+      cancelAnimationFrame(transitionFrameRef.current)
+      transitionFrameRef.current = null
+    }
+
+    setTransitionSnapshot(snapshot)
     transitionOpacity.stopAnimation()
     transitionOpacity.setValue(1)
-    Animated.timing(transitionOpacity, {
-      toValue: 0,
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }: { finished: boolean }) => {
-      if (finished) {
-        setTransitionColor(null)
-      }
+
+    transitionFrameRef.current = requestAnimationFrame(() => {
+      Animated.timing(transitionOpacity, {
+        toValue: 0,
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }: { finished: boolean }) => {
+        transitionFrameRef.current = null
+        if (finished) {
+          setTransitionSnapshot(null)
+        }
+      })
     })
   }, [transitionOpacity])
 
@@ -105,6 +120,14 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, [currentScheme, currentTheme])
 
   useEffect(() => {
+    return () => {
+      if (transitionFrameRef.current !== null) {
+        cancelAnimationFrame(transitionFrameRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true
       previousThemeRef.current = { scheme: currentScheme, theme: currentTheme }
@@ -113,7 +136,11 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     const previous = previousThemeRef.current
     if (previous.scheme !== currentScheme || previous.theme !== currentTheme) {
-      runThemeTransition(createColors(previous.scheme, previous.theme).background)
+      const previousColors = createColors(previous.scheme, previous.theme)
+      runThemeTransition({
+        background: previousColors.background,
+        accent: previousColors.primary,
+      })
       previousThemeRef.current = { scheme: currentScheme, theme: currentTheme }
     }
   }, [currentScheme, currentTheme, runThemeTransition])
@@ -149,17 +176,36 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     <ThemeContext.Provider value={value}>
       <View style={styles.root}>
         {children}
-        {transitionColor ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.transitionOverlay,
-              {
-                backgroundColor: transitionColor,
-                opacity: transitionOpacity,
-              },
-            ]}
-          />
+        {transitionSnapshot ? (
+          <Modal
+            transparent
+            animationType="none"
+            statusBarTranslucent
+            visible
+          >
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.transitionOverlay,
+                {
+                  opacity: transitionOpacity,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.transitionBase,
+                  { backgroundColor: transitionSnapshot.background },
+                ]}
+              />
+              <View
+                style={[
+                  styles.transitionTint,
+                  { backgroundColor: transitionSnapshot.accent },
+                ]}
+              />
+            </Animated.View>
+          </Modal>
         ) : null}
       </View>
     </ThemeContext.Provider>
@@ -176,7 +222,12 @@ const styles = StyleSheet.create({
   },
   transitionOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 9999,
-    elevation: 9999,
+  },
+  transitionBase: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  transitionTint: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.12,
   },
 })

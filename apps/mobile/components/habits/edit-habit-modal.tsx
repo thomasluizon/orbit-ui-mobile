@@ -3,10 +3,11 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { HabitFormFields } from "./habit-form-fields";
@@ -43,8 +44,9 @@ export function EditHabitModal({
   habit,
 }: Readonly<EditHabitModalProps>) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const updateHabit = useUpdateHabit();
   const assignTags = useAssignTags();
 
@@ -178,7 +180,7 @@ export function EditHabitModal({
       title={t("habits.editHabit")}
       snapPoints={["80%", "95%"]}
     >
-      <ScrollView
+      <BottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -236,7 +238,7 @@ export function EditHabitModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   );
 }
@@ -245,13 +247,16 @@ export function EditHabitModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>["colors"],
+  bottomInset: number,
+) {
   return StyleSheet.create({
     scroll: {
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: 40,
+      paddingBottom: bottomInset + 120,
       gap: 20,
     },
     errorText: {
