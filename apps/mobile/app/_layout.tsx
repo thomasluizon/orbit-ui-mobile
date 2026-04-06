@@ -5,6 +5,7 @@ import { Stack, usePathname, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
+import { usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
@@ -38,6 +39,10 @@ const PushPrompt = isExpoGo
 function AuthGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const isLoading = useAuthStore((s) => s.isLoading)
+  const {
+    callbackUrl: pendingGoogleAuthCallbackUrl,
+    isPending: isPendingGoogleAuthSession,
+  } = usePendingGoogleAuthSession()
   const segments = useSegments()
   const router = useRouter()
   const firstSegment = segments[0] as string | undefined
@@ -50,13 +55,29 @@ function AuthGuard() {
       firstSegment === 'auth-callback' ||
       firstSegment === 'r' ||
       firstSegment === 'privacy'
+    const allowAuthCallbackWhileResolving =
+      firstSegment === 'auth-callback' &&
+      (isPendingGoogleAuthSession || Boolean(pendingGoogleAuthCallbackUrl))
 
     if (!isAuthenticated && !inPublicRoute) {
       router.replace('/login')
-    } else if (isAuthenticated && (firstSegment === 'login' || firstSegment === 'auth-callback')) {
+    } else if (isAuthenticated && firstSegment === 'login') {
+      router.replace('/')
+    } else if (
+      isAuthenticated &&
+      firstSegment === 'auth-callback' &&
+      !allowAuthCallbackWhileResolving
+    ) {
       router.replace('/')
     }
-  }, [firstSegment, isAuthenticated, isLoading, router])
+  }, [
+    firstSegment,
+    isAuthenticated,
+    isLoading,
+    isPendingGoogleAuthSession,
+    pendingGoogleAuthCallbackUrl,
+    router,
+  ])
 
   return null
 }

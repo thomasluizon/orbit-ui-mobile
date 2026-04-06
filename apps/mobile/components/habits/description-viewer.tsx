@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { Text, StyleSheet } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
-import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
@@ -39,13 +39,13 @@ export function DescriptionViewer({
       title={title}
       snapPoints={["70%", "90%"]}
     >
-      <ScrollView
+      <BottomSheetScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.descriptionText}>{description}</Text>
-      </ScrollView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   );
 }
@@ -60,6 +60,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       flex: 1,
     },
     scrollContent: {
+      paddingHorizontal: 20,
       paddingBottom: 32,
     },
     descriptionText: {

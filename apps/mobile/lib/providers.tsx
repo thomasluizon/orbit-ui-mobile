@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react'
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient, restoreQueryCache, persistQueryCache } from './query-client'
 import { useAuthStore } from '@/stores/auth-store'
@@ -48,7 +49,11 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
     )
   }
 
-  return <ThemeProvider>{children}</ThemeProvider>
+  return (
+    <ThemeProvider>
+      <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
+    </ThemeProvider>
+  )
 }
 
 export function Providers({ children }: Readonly<ProvidersProps>) {

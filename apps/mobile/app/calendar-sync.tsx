@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
@@ -24,7 +24,6 @@ import { getErrorMessage } from '@orbit/shared/utils/error-utils'
 import type { BulkCreateRequest, FrequencyUnit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
-import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { radius, shadows } from '@/lib/theme'
 import { plural } from '@/lib/plural'
@@ -210,10 +209,9 @@ function buildImportRequest(events: CalendarEvent[]): BulkCreateRequest {
 export default function CalendarSyncScreen() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
-  const { profile, isLoading: isProfileLoading, invalidate } = useProfile()
+  const { profile, isLoading: isProfileLoading } = useProfile()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const login = useAuthStore((s) => s.login)
   const bulkCreateHabits = useBulkCreateHabits()
 
   const [step, setStep] = useState<Step>('loading')
@@ -222,7 +220,6 @@ export default function CalendarSyncScreen() {
   const [errorMessage, setErrorMessage] = useState('')
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const hasCheckedAccessRef = useRef(false)
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
@@ -253,19 +250,18 @@ export default function CalendarSyncScreen() {
     }
   }, [t])
 
-  useEffect(() => {
-    if (hasCheckedAccessRef.current) return
-    if (!profile) return
+  useFocusEffect(
+    useCallback(() => {
+      if (!profile) return
 
-    hasCheckedAccessRef.current = true
+      if (!profile.hasProAccess) {
+        router.replace('/upgrade')
+        return
+      }
 
-    if (!profile.hasProAccess) {
-      router.replace('/upgrade')
-      return
-    }
-
-    void loadEvents()
-  }, [loadEvents, profile, router])
+      void loadEvents()
+    }, [loadEvents, profile, router]),
+  )
 
   const handleBack = useCallback(() => {
     router.push('/profile')
@@ -297,26 +293,19 @@ export default function CalendarSyncScreen() {
     setErrorMessage('')
 
     try {
-      const response = await startMobileGoogleAuth({
-        language: i18n.language,
+      const result = await startMobileGoogleAuth({
         returnUrl: '/calendar-sync',
       })
 
-      if (!response) return
+      if (result.type !== 'success') return
 
-      await login(response.token, response.refreshToken, {
-        userId: response.userId,
-        name: response.name,
-        email: response.email,
-      })
-      await invalidate()
-      await loadEvents()
+      router.replace('/auth-callback')
     } catch {
       setErrorMessage(t('auth.googleError'))
     } finally {
       setIsConnecting(false)
     }
-  }, [i18n.language, invalidate, isConnecting, loadEvents, login, t])
+  }, [isConnecting, t])
 
   const handleImportSelected = useCallback(async () => {
     if (selectedCount === 0) return

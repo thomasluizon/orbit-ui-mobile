@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Flag } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { GoalStatus } from "@orbit/shared/types/goal";
@@ -57,7 +63,12 @@ export function GoalsView() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.filtersRow}>
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.filtersRow}
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {statusFilters.map((filter) => {
           const active = activeFilter === filter.key;
           return (
@@ -78,7 +89,7 @@ export function GoalsView() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       {!isFetched ? (
         <View style={styles.skeletonContainer}>
@@ -107,9 +118,9 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       paddingTop: 16,
     },
     filtersRow: {
-      flexDirection: "row",
       gap: 8,
       paddingBottom: 16,
+      paddingRight: 20,
     },
     filterChip: {
       paddingHorizontal: 16,
@@ -118,6 +129,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
+      flexShrink: 0,
     },
     filterChipActive: {
       backgroundColor: colors.primary,

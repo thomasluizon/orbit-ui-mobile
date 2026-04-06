@@ -137,7 +137,9 @@ export function NotificationDetailModal({
 function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   return StyleSheet.create({
     body: {
+      paddingHorizontal: 20,
       gap: 16,
+      paddingBottom: 24,
     },
     timestamp: {
       fontSize: 12,

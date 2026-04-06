@@ -95,6 +95,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     content: {
       alignItems: 'center',
       gap: 18,
+      paddingHorizontal: 20,
       paddingBottom: 8,
     },
     iconCircle: {

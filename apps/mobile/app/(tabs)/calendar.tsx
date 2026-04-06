@@ -5,10 +5,8 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Switch,
-  PanResponder,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Search, Check } from "lucide-react-native";
@@ -27,15 +25,18 @@ import {
   getDate,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { formatAPIDate, parseAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { plural } from "@/lib/plural";
 import { useCalendarData } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
+import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -277,22 +278,10 @@ export default function CalendarScreen() {
     setCurrentMonth((m) => addMonths(m, 1));
   }, []);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) =>
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
-          Math.abs(gestureState.dx) > 50,
-        onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dx <= -50) {
-            nextMonth();
-          } else if (gestureState.dx >= 50) {
-            prevMonth();
-          }
-        },
-      }),
-    [nextMonth, prevMonth],
-  );
+  const swipePanResponder = useHorizontalSwipe({
+    onSwipeLeft: nextMonth,
+    onSwipeRight: prevMonth,
+  });
 
   const goToToday = useCallback(() => {
     setCurrentMonth(startOfMonth(new Date()));
@@ -387,7 +376,7 @@ export default function CalendarScreen() {
   ).length;
 
   return (
-    <SafeAreaView style={styles.safeArea} {...panResponder.panHandlers}>
+    <SafeAreaView style={styles.safeArea} {...swipePanResponder.panHandlers}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -547,7 +536,11 @@ export default function CalendarScreen() {
             </Text>
           </View>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <BottomSheetScrollView
+            style={styles.dayDetailScroll}
+            contentContainerStyle={styles.dayDetailContent}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.summaryRow}>
               <Text style={styles.summaryText}>
                 {plural(
@@ -657,7 +650,7 @@ export default function CalendarScreen() {
                 {t("calendar.goToDay")}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </BottomSheetScrollView>
         )}
       </BottomSheetModal>
     </SafeAreaView>
@@ -858,10 +851,18 @@ function createStyles(colors: AppColors) {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 32,
+      paddingHorizontal: 20,
     },
     emptyDayText: {
       fontSize: 14,
       color: colors.textMuted,
+    },
+    dayDetailScroll: {
+      flex: 1,
+    },
+    dayDetailContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 32,
     },
 
     // Day detail: summary

@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Check, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
@@ -71,7 +72,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
       title={t('referral.drawer.title')}
       snapPoints={['65%', '85%']}
     >
-      <View style={styles.content}>
+      <BottomSheetScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Loading */}
         {isLoading && (
           <View style={styles.loadingContainer}>
@@ -194,7 +199,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
             </Text>
           </>
         )}
-      </View>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   )
 }
@@ -208,7 +213,11 @@ function createStyles(
   shadows: ReturnType<typeof useAppTheme>['shadows'],
 ) {
   return StyleSheet.create({
+    scroll: {
+      flex: 1,
+    },
     content: {
+      paddingHorizontal: 20,
       gap: 16,
       paddingBottom: 24,
     },

@@ -4,9 +4,9 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Bell, BellOff, Trash2, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -190,7 +190,8 @@ export function NotificationBell() {
           )}
         </View>
 
-        <ScrollView
+        <BottomSheetScrollView
+          style={styles.listScroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listContent,
@@ -204,7 +205,7 @@ export function NotificationBell() {
           ) : (
             notifications.map((item) => renderNotification({ item }))
           )}
-        </ScrollView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
 
       {/* Detail modal */}
@@ -259,6 +260,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows:
       alignItems: 'center',
       justifyContent: 'flex-end',
       gap: 12,
+      paddingHorizontal: 20,
       marginBottom: 8,
     },
     markAllText: {
@@ -323,7 +325,11 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows:
       fontSize: 14,
       color: colors.textMuted,
     },
+    listScroll: {
+      flex: 1,
+    },
     listContent: {
+      paddingHorizontal: 20,
       paddingBottom: 8,
     },
     emptyListContainer: {

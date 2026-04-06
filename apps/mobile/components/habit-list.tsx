@@ -28,7 +28,12 @@ import {
   CheckCircle2,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
+import {
+  collectSelectableDescendantIds,
+  collectVisibleHabitTreeIds,
+  formatAPIDate,
+  getHabitEmptyStateKey,
+} from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import {
   useHabits,
@@ -39,6 +44,7 @@ import {
   useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
+import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -191,6 +197,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     () => selectedHabitIds ?? new Set<string>(),
     [selectedHabitIds],
   )
+  const listExtraData = useMemo(
+    () =>
+      getHabitListExtraData(
+        Boolean(isSelectMode),
+        selectedIds,
+        recentlyCompletedIds,
+      ),
+    [isSelectMode, recentlyCompletedIds, selectedIds],
+  )
   const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
   const autoLogParentHabit = autoLogParentId ? habitsById.get(autoLogParentId) ?? null : null
 
@@ -202,27 +217,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     showCompleted,
     recentlyCompletedIds,
   })
-
-  const getDescendantIds = useCallback(
-    (parentId: string): string[] => {
-      const descendantIds: string[] = []
-      const stack: string[] = [parentId]
-
-      while (stack.length > 0) {
-        const currentId = stack.pop()
-        if (!currentId) continue
-
-        const children = getChildren(currentId)
-        for (const child of children) {
-          descendantIds.push(child.id)
-          stack.push(child.id)
-        }
-      }
-
-      return descendantIds
-    },
-    [getChildren],
-  )
 
   const isAncestorSelected = useCallback(
     (habitId: string): boolean => {
@@ -321,21 +315,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [i18n.language, t, view, visibleHabits])
 
   const allLoadedIds = useMemo(() => {
-    const ids = new Set<string>()
-
-    const visit = (habit: NormalizedHabit) => {
-      ids.add(habit.id)
-      for (const child of getVisibleChildren(habit.id)) {
-        visit(child)
-      }
-    }
-
-    for (const habit of visibleHabits) {
-      visit(habit)
-    }
-
-    return ids
+    return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)
   }, [getVisibleChildren, visibleHabits])
+
+  const getDescendantIds = useCallback(
+    (parentId: string): string[] => {
+      return collectSelectableDescendantIds(
+        parentId,
+        (habitId) => childrenByParent.get(habitId) ?? [],
+        allLoadedIds,
+      )
+    },
+    [allLoadedIds, childrenByParent],
+  )
 
   const expandableIds = useMemo(() => {
     const ids: string[] = []
@@ -772,6 +764,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         data={flatItems}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        extraData={listExtraData}
         scrollEnabled={scrollEnabled}
         nestedScrollEnabled
         contentContainerStyle={
