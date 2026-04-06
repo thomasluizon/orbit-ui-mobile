@@ -30,16 +30,16 @@ function withAlpha(color: string, opacity: number, fallback: string): string {
   if (normalized.length === 3) {
     const [r, g, b] = normalized.split('')
     const expanded = `${r}${r}${g}${g}${b}${b}`
-    const red = parseInt(expanded.slice(0, 2), 16)
-    const green = parseInt(expanded.slice(2, 4), 16)
-    const blue = parseInt(expanded.slice(4, 6), 16)
+    const red = Number.parseInt(expanded.slice(0, 2), 16)
+    const green = Number.parseInt(expanded.slice(2, 4), 16)
+    const blue = Number.parseInt(expanded.slice(4, 6), 16)
     return `rgba(${red}, ${green}, ${blue}, ${opacity})`
   }
 
   if (normalized.length === 6) {
-    const red = parseInt(normalized.slice(0, 2), 16)
-    const green = parseInt(normalized.slice(2, 4), 16)
-    const blue = parseInt(normalized.slice(4, 6), 16)
+    const red = Number.parseInt(normalized.slice(0, 2), 16)
+    const green = Number.parseInt(normalized.slice(2, 4), 16)
+    const blue = Number.parseInt(normalized.slice(4, 6), 16)
     return `rgba(${red}, ${green}, ${blue}, ${opacity})`
   }
 
@@ -168,11 +168,11 @@ export function createNav(
 
 export const colors = new Proxy({} as ReturnType<typeof createColors>, {
   get: (_target, prop) => createColors()[prop as keyof ReturnType<typeof createColors>],
-}) as ReturnType<typeof createColors>
+})
 
 export const nav = new Proxy({} as ReturnType<typeof createNav>, {
   get: (_target, prop) => createNav()[prop as keyof ReturnType<typeof createNav>],
-}) as ReturnType<typeof createNav>
+})
 
 // ---------------------------------------------------------------------------
 // Radius presets

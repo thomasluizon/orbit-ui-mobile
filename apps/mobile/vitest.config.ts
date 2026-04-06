@@ -11,9 +11,22 @@ export default defineConfig({
       inline: [/^react-native(\/.*)?$/, /^@testing-library\/react-native$/, /^react-native-safe-area-context$/, /^lucide-react-native$/],
     },
     coverage: {
+      all: true,
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: '../../coverage/mobile',
+      include: ['lib/**/*.{ts,tsx}', 'stores/**/*.ts'],
+      exclude: [
+        '**/*.d.ts',
+        'lib/google-auth.ts',
+        'lib/offline-queue.ts',
+        'lib/orbit-widget.ts',
+        'lib/providers.tsx',
+        'lib/supabase.ts',
+        'lib/theme-provider.tsx',
+        'lib/use-app-theme.ts',
+        'stores/auth-store.ts',
+      ],
     },
   },
   resolve: {

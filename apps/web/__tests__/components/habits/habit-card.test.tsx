@@ -74,12 +74,13 @@ describe('HabitCard', () => {
     expect(screen.queryByText('Run for 30 minutes')).toBeNull()
   })
 
-  it('renders the article with aria-label', () => {
+  it('renders the clickable card with aria-label', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} />)
     const article = screen.getByLabelText('Exercise')
     expect(article.tagName).toBe('DIV')
-    expect(article.getAttribute('role')).toBe('button')
+    expect(article.getAttribute('role')).toBeNull()
+    expect(article.getAttribute('tabindex')).toBe('0')
   })
 
   it('calls onDetail when card is clicked', () => {
@@ -129,9 +130,8 @@ describe('HabitCard', () => {
 
   it('applies opacity-40 when habit is completed', () => {
     const habit = createMockHabit({ isCompleted: true })
-    const { container } = render(<HabitCard habit={habit} />)
-    const article = container.querySelector('div[role="button"][aria-label]')
-    expect(article?.className).toContain('opacity-40')
+    render(<HabitCard habit={habit} />)
+    expect(screen.getByLabelText('Exercise').className).toContain('opacity-40')
   })
 
   it('applies line-through to title when completed', () => {
@@ -353,13 +353,14 @@ describe('HabitCard', () => {
     expect(screen.getByText('habits.actions.openSubHabits')).toBeDefined()
   })
 
-  it('card div[role=button] is focusable and clickable (Enter/Space handled via onKeyDown)', () => {
+  it('card div is focusable and clickable (Enter/Space handled via onKeyDown)', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
     render(<HabitCard habit={habit} onDetail={onDetail} />)
     const card = screen.getByLabelText('Exercise')
     expect(card.tagName).toBe('DIV')
-    expect(card.getAttribute('role')).toBe('button')
+    expect(card.getAttribute('role')).toBeNull()
+    expect(card.getAttribute('tabindex')).toBe('0')
     fireEvent.click(card)
     expect(onDetail).toHaveBeenCalledOnce()
   })
@@ -373,25 +374,20 @@ describe('HabitCard', () => {
 
   it('uses child CSS classes at depth > 0', () => {
     const habit = createMockHabit()
-    const { container } = render(<HabitCard habit={habit} depth={1} />)
-    const article = container.querySelector('div[role="button"][aria-label]')
-    expect(article?.className).toContain('habit-card-child')
+    render(<HabitCard habit={habit} depth={1} />)
+    expect(screen.getByLabelText('Exercise').className).toContain('habit-card-child')
   })
 
   it('uses parent CSS classes at depth 0', () => {
     const habit = createMockHabit()
-    const { container } = render(<HabitCard habit={habit} depth={0} />)
-    const article = container.querySelector('div[role="button"][aria-label]')
-    expect(article?.className).toContain('habit-card-parent')
+    render(<HabitCard habit={habit} depth={0} />)
+    expect(screen.getByLabelText('Exercise').className).toContain('habit-card-parent')
   })
 
   it('renders ring highlight when isSelected is true', () => {
     const habit = createMockHabit()
-    const { container } = render(
-      <HabitCard habit={habit} isSelectMode={true} isSelected={true} />,
-    )
-    const article = container.querySelector('div[role="button"][aria-label]')
-    expect(article?.className).toContain('ring-2')
+    render(<HabitCard habit={habit} isSelectMode={true} isSelected={true} />)
+    expect(screen.getByLabelText('Exercise').className).toContain('ring-2')
   })
 
   it('shows streak badge when currentStreak >= 2', () => {

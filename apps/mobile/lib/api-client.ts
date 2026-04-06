@@ -17,9 +17,7 @@ export async function apiClient<T = unknown>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const token = await getToken()
-  const headers: Record<string, string> = {
-    ...(options.headers ?? {}),
-  }
+  const headers: Record<string, string> = options.headers ?? {}
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
