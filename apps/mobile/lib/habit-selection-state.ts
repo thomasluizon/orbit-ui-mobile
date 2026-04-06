@@ -10,8 +10,15 @@ export function getHabitListExtraData(
   selectedHabitIds: ReadonlySet<string>,
   recentlyCompletedIds: ReadonlySet<string>,
 ): string {
-  const selectedKey = Array.from(selectedHabitIds).sort().join(',')
-  const completedKey = Array.from(recentlyCompletedIds).sort().join(',')
+  const sortAlphabetically = (left: string, right: string) =>
+    left.localeCompare(right)
+
+  const selectedKey = Array.from(selectedHabitIds)
+    .sort(sortAlphabetically)
+    .join(',')
+  const completedKey = Array.from(recentlyCompletedIds)
+    .sort(sortAlphabetically)
+    .join(',')
 
   return `${isSelectMode ? '1' : '0'}|${selectedKey}|${completedKey}`
 }

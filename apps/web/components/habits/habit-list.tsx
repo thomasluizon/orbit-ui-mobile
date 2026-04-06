@@ -19,7 +19,11 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
-import { collectVisibleHabitTreeIds } from '@orbit/shared/utils'
+import {
+  collectVisibleHabitTreeIds,
+  formatAPIDate,
+  getHabitEmptyStateKey,
+} from '@orbit/shared/utils'
 import { HabitCard } from './habit-card'
 import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
@@ -56,7 +60,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/stores/ui-store'
-import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
