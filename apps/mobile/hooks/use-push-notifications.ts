@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
-import Constants from 'expo-constants'
+import Constants, { ExecutionEnvironment } from 'expo-constants'
 import * as Device from 'expo-device'
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
@@ -46,7 +46,7 @@ interface UsePushNotificationsReturn {
 }
 
 function getNotificationsModule(): ExpoNotificationsModule | null {
-  if (Constants.appOwnership === 'expo') return null
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return null
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps Expo Go from importing unsupported notifications code
@@ -155,21 +155,25 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setExpoPushToken(null)
       return
     }
+    try {
+      const permissions = await notificationsModule.getPermissionsAsync()
+      setPermissionStatus(permissions.status as NotificationPermissionStatus)
 
-    const permissions = await notificationsModule.getPermissionsAsync()
-    setPermissionStatus(permissions.status as NotificationPermissionStatus)
+      if (permissions.status !== 'granted') {
+        setExpoPushToken(null)
+        return
+      }
 
-    if (permissions.status !== 'granted') {
+      const nativeToken = await getNativeAndroidPushToken()
+      const expoToken = await getPushToken()
+      const tokenToSend = nativeToken ?? expoToken
+      setExpoPushToken(tokenToSend)
+      if (tokenToSend && isAuthenticated) {
+        await sendTokenToBackend(tokenToSend)
+      }
+    } catch {
+      setPermissionStatus(null)
       setExpoPushToken(null)
-      return
-    }
-
-    const nativeToken = await getNativeAndroidPushToken()
-    const expoToken = await getPushToken()
-    const tokenToSend = nativeToken ?? expoToken
-    setExpoPushToken(tokenToSend)
-    if (tokenToSend && isAuthenticated) {
-      await sendTokenToBackend(tokenToSend)
     }
   }, [isAuthenticated, isSupported])
 

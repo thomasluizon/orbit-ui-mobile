@@ -1,11 +1,10 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
   StyleSheet,
-  Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BellRing, X } from 'lucide-react-native'
@@ -34,7 +33,6 @@ export function PushPrompt() {
     requestPermission,
   } = usePushNotifications()
   const [show, setShow] = useState(false)
-  const autoRequestedRef = useRef(false)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
@@ -42,23 +40,6 @@ export function PushPrompt() {
   useEffect(() => {
     if (!isSupported || permissionStatus === null || permissionStatus === 'denied' || isEnabled) {
       setShow(false)
-      return
-    }
-
-    if (
-      permissionStatus === 'undetermined' &&
-      !autoRequestedRef.current
-    ) {
-      autoRequestedRef.current = true
-      const doRequest = () =>
-        requestPermission().finally(() => {
-          AsyncStorage.setItem(STORAGE_KEY, '1')
-        })
-      if (Platform.OS === 'android') {
-        setTimeout(doRequest, 200)
-      } else {
-        doRequest()
-      }
       return
     }
 

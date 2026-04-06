@@ -313,16 +313,7 @@ export function HabitCard({
 
   return (
     <View style={indentMargin}>
-      <TouchableOpacity
-        style={cardStyle}
-        onPress={handleCardPress}
-        onLongPress={
-          !isSelectMode && onEnterSelectMode
-            ? onEnterSelectMode
-            : undefined
-        }
-        activeOpacity={0.85}
-      >
+      <View style={cardStyle}>
         <HabitCardSurface isChild={isChild} colors={colors} />
         <View
           style={[
@@ -333,9 +324,7 @@ export function HabitCard({
           {/* Expand/collapse toggle */}
           {hasChildren && (
             <TouchableOpacity
-              onPress={(e) => {
-                onToggleExpand?.()
-              }}
+              onPress={onToggleExpand}
               style={[
                 styles.expandButton,
                 {
@@ -481,185 +470,196 @@ export function HabitCard({
           )}
 
           {/* Content */}
-          <View style={styles.content}>
-            <Text
-              style={[
-                isChild ? styles.titleChild : styles.titleParent,
-                isDoneForRange && styles.titleDone,
-              ]}
-              numberOfLines={1}
-            >
-              {habit.title}
-            </Text>
-
-            {habit.description ? (
+          <TouchableOpacity
+            style={styles.contentPressable}
+            onPress={handleCardPress}
+            onLongPress={
+              !isSelectMode && onEnterSelectMode
+                ? onEnterSelectMode
+                : undefined
+            }
+            activeOpacity={0.85}
+          >
+            <View style={styles.content}>
               <Text
                 style={[
-                  isChild ? styles.descriptionChild : styles.descriptionParent,
+                  isChild ? styles.titleChild : styles.titleParent,
+                  isDoneForRange && styles.titleDone,
                 ]}
                 numberOfLines={1}
               >
-                {habit.description}
+                {habit.title}
               </Text>
-            ) : null}
 
-            {/* Badges row */}
-            {!isChild ? (
-              /* Top-level habit badges */
-              <View style={styles.badgesRow}>
-                <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
+              {habit.description ? (
+                <Text
+                  style={[
+                    isChild ? styles.descriptionChild : styles.descriptionParent,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {habit.description}
+                </Text>
+              ) : null}
 
-                {flexibleProgressLabel ? (
-                  <View style={styles.badgePrimaryPill}>
-                    <Text style={styles.badgePrimaryText}>
-                      {flexibleProgressLabel}
+              {/* Badges row */}
+              {!isChild ? (
+                /* Top-level habit badges */
+                <View style={styles.badgesRow}>
+                  <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
+
+                  {flexibleProgressLabel ? (
+                    <View style={styles.badgePrimaryPill}>
+                      <Text style={styles.badgePrimaryText}>
+                        {flexibleProgressLabel}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {habit.dueTime ? (
+                    <Text style={styles.dueTimeText}>
+                      {displayTime(habit.dueTime)}
+                      {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
                     </Text>
-                  </View>
-                ) : null}
+                  ) : null}
 
-                {habit.dueTime ? (
-                  <Text style={styles.dueTimeText}>
-                    {displayTime(habit.dueTime)}
-                    {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
-                  </Text>
-                ) : null}
+                  {statusBadge ? (
+                    <View style={styles.badgeOverdue}>
+                      <Text style={styles.badgeOverdueText}>
+                        {statusBadge.text}
+                      </Text>
+                    </View>
+                  ) : null}
 
-                {statusBadge ? (
-                  <View style={styles.badgeOverdue}>
-                    <Text style={styles.badgeOverdueText}>
-                      {statusBadge.text}
-                    </Text>
-                  </View>
-                ) : null}
+                  {habit.isBadHabit ? (
+                    <View style={styles.badgeBadHabit}>
+                      <Text style={styles.badgeBadHabitText}>
+                        {t('habits.badHabit')}
+                      </Text>
+                    </View>
+                  ) : null}
 
-                {habit.isBadHabit ? (
-                  <View style={styles.badgeBadHabit}>
+                  {habit.tags?.map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={[
+                        styles.badgeTag,
+                        { backgroundColor: tag.color },
+                      ]}
+                    >
+                      <Text style={styles.badgeTagText}>{tag.name}</Text>
+                    </View>
+                  ))}
+
+                  {(habit.linkedGoals ?? []).map((goal) => (
+                    <View key={goal.id} style={styles.badgePrimaryPill}>
+                      <Text style={styles.badgePrimaryText}>{goal.title}</Text>
+                    </View>
+                  ))}
+
+                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+                    <View style={styles.badgeStreak}>
+                      <Flame size={12} color={colors.amber400} />
+                      <Text style={styles.badgeStreakText}>
+                        {habit.currentStreak}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {habit.checklistItems && habit.checklistItems.length > 0 ? (
+                    <View style={styles.badgeChecklist}>
+                      <ClipboardCheck
+                        size={12}
+                        color={colors.textSecondary}
+                      />
+                      <Text style={styles.badgeChecklistText}>
+                        {checkedCount}/{habit.checklistItems.length}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : isChild && habit.isBadHabit ? (
+                /* Child habit with bad habit badge */
+                <View style={styles.badgesRowChild}>
+                  <View style={styles.badgeBadHabitNoBorder}>
                     <Text style={styles.badgeBadHabitText}>
                       {t('habits.badHabit')}
                     </Text>
                   </View>
-                ) : null}
-
-                {habit.tags?.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[
-                      styles.badgeTag,
-                      { backgroundColor: tag.color },
-                    ]}
-                  >
-                    <Text style={styles.badgeTagText}>{tag.name}</Text>
-                  </View>
-                ))}
-
-                {(habit.linkedGoals ?? []).map((goal) => (
-                  <View key={goal.id} style={styles.badgePrimaryPill}>
-                    <Text style={styles.badgePrimaryText}>{goal.title}</Text>
-                  </View>
-                ))}
-
-                {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                  <View style={styles.badgeStreak}>
-                    <Flame size={12} color={colors.amber400} />
-                    <Text style={styles.badgeStreakText}>
-                      {habit.currentStreak}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {habit.checklistItems && habit.checklistItems.length > 0 ? (
-                  <View style={styles.badgeChecklist}>
-                    <ClipboardCheck
-                      size={12}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.badgeChecklistText}>
-                      {checkedCount}/{habit.checklistItems.length}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : isChild && habit.isBadHabit ? (
-              /* Child habit with bad habit badge */
-              <View style={styles.badgesRowChild}>
-                <View style={styles.badgeBadHabitNoBorder}>
-                  <Text style={styles.badgeBadHabitText}>
-                    {t('habits.badHabit')}
-                  </Text>
+                  {habit.tags?.map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={[styles.badgeTag, { backgroundColor: tag.color }]}
+                    >
+                      <Text style={styles.badgeTagText}>{tag.name}</Text>
+                    </View>
+                  ))}
+                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+                    <View style={styles.badgeStreakNoBorder}>
+                      <Flame size={12} color={colors.amber400} />
+                      <Text style={styles.badgeStreakText}>
+                        {habit.currentStreak}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {habit.checklistItems &&
+                    habit.checklistItems.length > 0 ? (
+                      <View style={styles.badgeChecklistNoBorder}>
+                        <ClipboardCheck
+                          size={12}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.badgeChecklistText}>
+                          {checkedCount}/{habit.checklistItems.length}
+                        </Text>
+                      </View>
+                    ) : null}
                 </View>
-                {habit.tags?.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[styles.badgeTag, { backgroundColor: tag.color }]}
-                  >
-                    <Text style={styles.badgeTagText}>{tag.name}</Text>
-                  </View>
-                ))}
-                {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                  <View style={styles.badgeStreakNoBorder}>
-                    <Flame size={12} color={colors.amber400} />
-                    <Text style={styles.badgeStreakText}>
-                      {habit.currentStreak}
-                    </Text>
-                  </View>
-                ) : null}
-                {habit.checklistItems &&
-                  habit.checklistItems.length > 0 ? (
-                    <View style={styles.badgeChecklistNoBorder}>
-                      <ClipboardCheck
-                        size={12}
-                        color={colors.textSecondary}
-                      />
-                      <Text style={styles.badgeChecklistText}>
-                        {checkedCount}/{habit.checklistItems.length}
+              ) : (
+                /* Child habit default badges */
+                <View style={styles.badgesRowChild}>
+                  <Text style={styles.frequencyLabelChild}>
+                    {frequencyLabel}
+                  </Text>
+                  {statusBadge ? (
+                    <View style={styles.badgeOverdue}>
+                      <Text style={styles.badgeOverdueText}>
+                        {statusBadge.text}
                       </Text>
                     </View>
                   ) : null}
-              </View>
-            ) : (
-              /* Child habit default badges */
-              <View style={styles.badgesRowChild}>
-                <Text style={styles.frequencyLabelChild}>
-                  {frequencyLabel}
-                </Text>
-                {statusBadge ? (
-                  <View style={styles.badgeOverdue}>
-                    <Text style={styles.badgeOverdueText}>
-                      {statusBadge.text}
-                    </Text>
-                  </View>
-                ) : null}
-                {habit.tags?.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[styles.badgeTag, { backgroundColor: tag.color }]}
-                  >
-                    <Text style={styles.badgeTagText}>{tag.name}</Text>
-                  </View>
-                ))}
-                {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                  <View style={styles.badgeStreakNoBorder}>
-                    <Flame size={12} color={colors.amber400} />
-                    <Text style={styles.badgeStreakText}>
-                      {habit.currentStreak}
-                    </Text>
-                  </View>
-                ) : null}
-                {habit.checklistItems &&
-                  habit.checklistItems.length > 0 ? (
-                    <View style={styles.badgeChecklistNoBorder}>
-                      <ClipboardCheck
-                        size={12}
-                        color={colors.textSecondary}
-                      />
-                      <Text style={styles.badgeChecklistText}>
-                        {checkedCount}/{habit.checklistItems.length}
+                  {habit.tags?.map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={[styles.badgeTag, { backgroundColor: tag.color }]}
+                    >
+                      <Text style={styles.badgeTagText}>{tag.name}</Text>
+                    </View>
+                  ))}
+                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+                    <View style={styles.badgeStreakNoBorder}>
+                      <Flame size={12} color={colors.amber400} />
+                      <Text style={styles.badgeStreakText}>
+                        {habit.currentStreak}
                       </Text>
                     </View>
                   ) : null}
-              </View>
-            )}
-          </View>
+                  {habit.checklistItems &&
+                    habit.checklistItems.length > 0 ? (
+                      <View style={styles.badgeChecklistNoBorder}>
+                        <ClipboardCheck
+                          size={12}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.badgeChecklistText}>
+                          {checkedCount}/{habit.checklistItems.length}
+                        </Text>
+                      </View>
+                    ) : null}
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
 
           {/* Actions menu trigger */}
           {!isSelectMode && (
@@ -680,7 +680,7 @@ export function HabitCard({
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </View>
 
       <AnchoredMenu
         visible={showActionsMenu}
@@ -938,8 +938,11 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   },
 
   // Content area
-  content: {
+  contentPressable: {
     flex: 1,
+    minWidth: 0,
+  },
+  content: {
     minWidth: 0,
   },
 

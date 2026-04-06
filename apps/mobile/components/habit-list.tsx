@@ -28,6 +28,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import {
   ClipboardList,
   CheckCircle2,
+  ChevronLeft,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -45,6 +46,7 @@ import {
   useDuplicateHabit,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
@@ -199,6 +201,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const deleteMutation = useDeleteHabit()
   const duplicateMutation = useDuplicateHabit()
   const moveParentMutation = useMoveHabitParent()
+  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
@@ -747,7 +750,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           onAddSubHabit={() => {
             startAddSubHabit(habit.id)
           }}
-          onForceLogParent={() => logMutation.mutate({ habitId: habit.id })}
+          onDrillInto={hasSubHabits ? () => { void drill.drillInto(habit.id) } : undefined}
+          onForceLogParent={() => {
+            if (onLogHabit) {
+              onLogHabit(habit)
+            } else {
+              logMutation.mutate({ habitId: habit.id })
+            }
+          }}
           onEnterSelectMode={() => {
             if (!isSelectMode) toggleSelectMode()
             toggleSelectionCascade(
@@ -783,6 +793,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       duplicateMutation,
       openMoveParentDialog,
       startAddSubHabit,
+      drill.drillInto,
       toggleSelectMode,
       toggleSelectionCascade,
       getDescendantIds,
@@ -992,6 +1003,87 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       </Modal>
     </>
   )
+
+  // Drill view: when drilled into a parent, show its sub-habits
+  if (drill.currentParentId) {
+    const completedCount = drill.drillChildren.filter(
+      (c) => c.isCompleted || c.isLoggedInRange,
+    ).length
+
+    return (
+      <View style={{ flex: 1 }}>
+        {/* Drill header */}
+        <View style={styles.drillHeader}>
+          <TouchableOpacity
+            onPress={drill.drillBack}
+            style={styles.drillBackBtn}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={20} color={colors.primary} />
+            <Text style={styles.drillBackText}>{t('common.back')}</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.drillTitle} numberOfLines={1}>
+              {drill.currentParent?.title ?? ''}
+            </Text>
+            <Text style={styles.drillProgress}>
+              {completedCount}/{drill.drillChildren.length}{' '}
+              {t('habits.completed')}
+            </Text>
+          </View>
+          {drill.drillStack.length > 1 && (
+            <TouchableOpacity onPress={drill.drillReset} activeOpacity={0.7}>
+              <ChevronLeft size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {drill.drillLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+        ) : drill.drillError ? (
+          <Text style={styles.emptyText}>{drill.drillError}</Text>
+        ) : drill.drillChildren.length === 0 ? (
+          <Text style={styles.emptyText}>{t('habits.emptyState')}</Text>
+        ) : (
+          <FlatList
+            data={drill.drillChildren}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item: child }) => {
+              const grandChildren = drill.getDrillChildren(child.id)
+              return renderHabitCard(
+                child,
+                0,
+                grandChildren.length > 0,
+                child.hasSubHabits || grandChildren.length > 0,
+              )
+            }}
+            contentContainerStyle={styles.listContent}
+            scrollEnabled={scrollEnabled}
+          />
+        )}
+
+        {/* Add sub-habit button */}
+        <TouchableOpacity
+          style={styles.drillAddBtn}
+          onPress={() => {
+            const parent =
+              drill.currentParentId
+                ? (habitsById.get(drill.currentParentId) ?? null)
+                : null
+            setSubHabitParent(parent)
+            setShowSubHabitModal(true)
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.drillAddBtnText}>
+            {t('habits.actions.addSubHabit')}
+          </Text>
+        </TouchableOpacity>
+
+        {commonOverlays}
+      </View>
+    )
+  }
 
   // Loading skeleton (matches web: 3 skeleton cards)
   if (isLoading) {
@@ -1483,6 +1575,60 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: '700',
       color: colors.white,
+    },
+
+    // Drill navigation
+    drillHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderMuted,
+      marginBottom: 8,
+    },
+    drillBackBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingRight: 8,
+    },
+    drillBackText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    drillTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    drillProgress: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    drillAddBtn: {
+      marginHorizontal: 16,
+      marginVertical: 12,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      alignItems: 'center',
+    },
+    drillAddBtnText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 32,
+      paddingHorizontal: 24,
     },
   })
 }

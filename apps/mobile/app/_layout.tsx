@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack, usePathname, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import Constants from 'expo-constants'
+import Constants, { ExecutionEnvironment } from 'expo-constants'
 import { Providers } from '@/lib/providers'
 import { usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useAuthStore } from '@/stores/auth-store'
@@ -30,7 +30,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 
 // Push notifications are not supported in Expo Go (removed in SDK 53).
 // Only import PushPrompt in dev builds / standalone.
-const isExpoGo = Constants.executionEnvironment === 'expoGo'
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient
 const PushPrompt = isExpoGo
   ? () => null
   : lazy(() => import('@/components/ui/push-prompt').then((m) => ({ default: m.PushPrompt })))

@@ -6,17 +6,18 @@
   "scripts": {
     "postinstall": "node scripts/fix-hoisting.js",
     "dev": "expo start",
-    "dev:client": "expo start --dev-client",
+    "dev:client": "node scripts/run-dev-client.js",
     "build:android": "eas build --platform android",
     "android:build-apk": "eas build --platform android --profile preview",
     "android:build-aab": "eas build --platform android --profile production",
     "android:release-apk": "cd android && EXPO_NO_METRO_WORKSPACE_ROOT=1 ./gradlew assembleRelease",
+    "android:device": "node scripts/android-release-device.js",
     "build:ios": "eas build --platform ios",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
     "clean": "rm -rf .expo",
-    "android": "expo run:android",
+    "android": "node scripts/run-android.js",
     "ios": "expo run:ios"
   },
   "dependencies": {
