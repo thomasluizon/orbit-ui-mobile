@@ -95,12 +95,17 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: () => null,
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  formatAPIDate: (date?: Date) => {
-    const d = date ?? new Date()
-    return d.toISOString().split('T')[0]
-  },
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+
+  return {
+    ...actual,
+    formatAPIDate: (date?: Date) => {
+      const d = date ?? new Date()
+      return d.toISOString().split('T')[0]
+    },
+  }
+})
 
 vi.mock('@/components/habits/habit-card', () => ({
   HabitCard: ({ habit }: { habit: NormalizedHabit }) => (

@@ -1,4 +1,4 @@
-import { isAfter, isToday } from 'date-fns'
+import { isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
@@ -17,7 +17,7 @@ export function determineHabitDayStatus(
   now: Date = new Date(),
 ): HabitDayStatus {
   if (wasLogged) return 'completed'
-  if (isToday(date) || isAfter(date, now)) return 'upcoming'
+  if (isSameDay(date, now) || isAfter(date, now)) return 'upcoming'
   return 'missed'
 }
 
@@ -37,10 +37,13 @@ export function buildCalendarDayMap(
   }
 
   for (const habit of calendarMonth.habits) {
-    const dates =
-      (habit.instances.length > 0
+    const instanceDates =
+      Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)
-        : null) ??
+        : null
+
+    const dates =
+      instanceDates ??
       habit.scheduledDates ??
       []
 
