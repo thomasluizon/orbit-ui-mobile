@@ -27,7 +27,7 @@ describe('mobile apiClient', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ ok: true }),
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
     })
 
     await expect(apiClient('/api/test', { method: 'POST', body: '{"a":1}' })).resolves.toEqual({ ok: true })
@@ -50,7 +50,7 @@ describe('mobile apiClient', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ uploaded: true }),
+      text: () => Promise.resolve(JSON.stringify({ uploaded: true })),
     })
 
     const body = new FormData()
@@ -90,9 +90,20 @@ describe('mobile apiClient', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 204,
-      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(''),
     })
 
     await expect(apiClient('/empty')).resolves.toBeUndefined()
+  })
+
+  it('returns undefined for successful empty 200 responses', async () => {
+    getTokenMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(''),
+    })
+
+    await expect(apiClient('/empty-200')).resolves.toBeUndefined()
   })
 })

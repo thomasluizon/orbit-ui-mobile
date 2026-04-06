@@ -95,7 +95,7 @@ export function OnboardingWelcome() {
       <View style={styles.logoContainer}>
         <View style={styles.logoGlow} />
         <Image
-          source={require('@/assets/icon.png')}
+          source={require('@/assets/logo-no-bg.png')}
           style={styles.logo}
           resizeMode="contain"
         />

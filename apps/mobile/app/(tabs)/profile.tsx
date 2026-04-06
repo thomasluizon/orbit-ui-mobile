@@ -7,6 +7,8 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -577,83 +579,89 @@ export default function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowResetModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('profile.freshStart.title')}</Text>
-              <TouchableOpacity onPress={() => setShowResetModal(false)}>
-                <X size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {resetStep === 'info' ? (
-              <View style={{ gap: 16 }}>
-                <Text style={styles.modalDescription}>
-                  {t('profile.freshStart.description')}
-                </Text>
-
-                {/* What gets deleted */}
-                <View style={styles.freshStartDeletedBox}>
-                  <Text style={styles.freshStartBoxLabel}>{t('profile.freshStart.whatDeleted')}</Text>
-                  {deletedItems.map((item) => (
-                    <View key={item} style={styles.freshStartItem}>
-                      <X size={14} color={colors.red} />
-                      <Text style={styles.freshStartItemText}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* What stays */}
-                <View style={styles.freshStartPreservedBox}>
-                  <Text style={styles.freshStartPreservedLabel}>{t('profile.freshStart.whatPreserved')}</Text>
-                  {preservedItems.map((item) => (
-                    <View key={item} style={styles.freshStartItem}>
-                      <Check size={14} color={colors.success} />
-                      <Text style={styles.freshStartItemText}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={() => setResetStep('confirm')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{t('profile.freshStart.title')}</Text>
+                <TouchableOpacity onPress={() => setShowResetModal(false)}>
+                  <X size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-            ) : (
-              <View style={{ gap: 16 }}>
-                <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
-                  {t('profile.freshStart.confirmInstruction')}
-                </Text>
-                <TextInput
-                  style={styles.confirmInput}
-                  value={resetConfirmText}
-                  onChangeText={setResetConfirmText}
-                  placeholder={t('profile.freshStart.confirmPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  textAlign="center"
-                />
-                {resetError ? (
-                  <Text style={styles.errorTextSmall}>{resetError}</Text>
-                ) : null}
-                <TouchableOpacity
-                  style={[styles.primaryButton, (!isResetConfirmed || resetLoading) && styles.buttonDisabled]}
-                  onPress={handleResetAccount}
-                  disabled={!isResetConfirmed || resetLoading}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.primaryButtonText}>
-                    {resetLoading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
+
+              {resetStep === 'info' ? (
+                <View style={{ gap: 16 }}>
+                  <Text style={styles.modalDescription}>
+                    {t('profile.freshStart.description')}
                   </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
+
+                  <View style={styles.freshStartDeletedBox}>
+                    <Text style={styles.freshStartBoxLabel}>{t('profile.freshStart.whatDeleted')}</Text>
+                    {deletedItems.map((item) => (
+                      <View key={item} style={styles.freshStartItem}>
+                        <X size={14} color={colors.red} />
+                        <Text style={styles.freshStartItemText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View style={styles.freshStartPreservedBox}>
+                    <Text style={styles.freshStartPreservedLabel}>{t('profile.freshStart.whatPreserved')}</Text>
+                    {preservedItems.map((item) => (
+                      <View key={item} style={styles.freshStartItem}>
+                        <Check size={14} color={colors.success} />
+                        <Text style={styles.freshStartItemText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={() => setResetStep('confirm')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ gap: 16 }}>
+                  <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
+                    {t('profile.freshStart.confirmInstruction')}
+                  </Text>
+                  <TextInput
+                    style={styles.confirmInput}
+                    value={resetConfirmText}
+                    onChangeText={setResetConfirmText}
+                    placeholder={t('profile.freshStart.confirmPlaceholder')}
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    textAlign="center"
+                  />
+                  {resetError ? (
+                    <Text style={styles.errorTextSmall}>{resetError}</Text>
+                  ) : null}
+                  <TouchableOpacity
+                    style={[styles.primaryButton, (!isResetConfirmed || resetLoading) && styles.buttonDisabled]}
+                    onPress={handleResetAccount}
+                    disabled={!isResetConfirmed || resetLoading}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {resetLoading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Fresh Start Animation */}
@@ -949,12 +957,18 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingTop: 24,
+  },
   modalContent: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
+    maxHeight: '88%',
   },
   modalHeader: {
     flexDirection: 'row',

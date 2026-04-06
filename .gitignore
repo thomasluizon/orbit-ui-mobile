@@ -33,9 +33,14 @@ coverage/
 *.key
 *.mobileprovision
 *.orig.*
+google-services.json
 
-# Android
+# Native build outputs
 apps/mobile/android/
+apps/mobile/modules/*/android/.gradle/
+apps/mobile/modules/*/android/.cxx/
+apps/mobile/modules/*/android/build/
+apps/mobile/modules/*/android/local.properties
 apps/mobile/ios/
 
 # Debug

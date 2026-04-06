@@ -165,7 +165,7 @@ export function NotificationBell() {
         open={isOpen}
         onClose={() => setIsOpen(false)}
         title={t('notifications.title')}
-        snapPoints={['55%', '85%']}
+        snapPoints={['88%', '96%']}
       >
         {/* Actions header */}
         <View style={styles.actionsRow}>

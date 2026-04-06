@@ -14,7 +14,10 @@
       "enabled": "Notifications are enabled",
       "disabled": "Notifications are turned off",
       "denied": "Notifications are blocked. Enable them in your browser settings.",
-      "unsupported": "Push notifications are not supported in this browser"
+      "unsupported": "Push notifications are not supported in this browser",
+      "deniedNative": "Notifications are blocked. Enable them in your device settings.",
+      "unsupportedNative": "Push notifications are not supported on this device.",
+      "openSettings": "Open settings"
     },
     "homeScreen": {
       "title": "Home Screen",
@@ -75,6 +78,7 @@
     "delete": "Delete",
     "dismiss": "Dismiss",
     "confirm": "Confirm",
+    "openSettings": "Open settings",
     "loading": "Loading...",
     "close": "Close",
     "expandDescription": "Expand description",

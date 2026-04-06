@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient, restoreQueryCache, persistQueryCache } from './query-client'
+import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
 import { createColors, getRuntimeTheme } from './theme'
@@ -20,8 +20,20 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
   useEffect(() => {
     async function boot() {
-      try { await restoreQueryCache() } catch {}
-      try { await initialize() } catch {}
+      let isAuthenticated = false
+
+      try {
+        await initialize()
+        isAuthenticated = useAuthStore.getState().isAuthenticated
+      } catch {}
+
+      if (isAuthenticated) {
+        try { await restoreQueryCache() } catch {}
+      } else {
+        queryClient.clear()
+        try { await clearPersistedQueryCache() } catch {}
+      }
+
       setReady(true)
     }
     boot()

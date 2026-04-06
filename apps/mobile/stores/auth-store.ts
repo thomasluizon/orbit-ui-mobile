@@ -13,6 +13,8 @@ import {
 } from '@/lib/secure-store'
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
 import { apiClient } from '@/lib/api-client'
+import { clearPersistedQueryCache, queryClient } from '@/lib/query-client'
+import { useChatStore } from './chat-store'
 
 interface AuthState {
   isAuthenticated: boolean
@@ -86,6 +88,9 @@ function isTokenExpired(token: string): boolean {
 async function clearSessionAndResetAuth(): Promise<void> {
   await clearAllTokens()
   await clearWidgetToken().catch(() => {})
+  queryClient.clear()
+  await clearPersistedQueryCache()
+  useChatStore.getState().clearMessages()
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
 }
 
@@ -119,6 +124,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
+    queryClient.clear()
+    await clearPersistedQueryCache()
+    useChatStore.getState().clearMessages()
     await setToken(token)
     if (refreshToken) {
       await setRefreshToken(refreshToken)
@@ -150,6 +158,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await clearStoredAuthReturnUrl()
     await clearAllTokens()
     await clearWidgetToken().catch(() => {})
+    queryClient.clear()
+    await clearPersistedQueryCache()
+    useChatStore.getState().clearMessages()
     set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
     router.replace('/login')
   },

@@ -14,7 +14,10 @@
       "enabled": "Notificações estão ativadas",
       "disabled": "Notificações estão desativadas",
       "denied": "Notificações estão bloqueadas. Ative nas configurações do navegador.",
-      "unsupported": "Notificações push não são suportadas neste navegador"
+      "unsupported": "Notificações push não são suportadas neste navegador",
+      "deniedNative": "Notificações estão bloqueadas. Ative nas configurações do dispositivo.",
+      "unsupportedNative": "Notificações push não são suportadas neste dispositivo.",
+      "openSettings": "Abrir configurações"
     },
     "homeScreen": {
       "title": "Tela Inicial",
@@ -75,6 +78,7 @@
     "delete": "Excluir",
     "dismiss": "Fechar",
     "confirm": "Confirmar",
+    "openSettings": "Abrir configurações",
     "loading": "Carregando...",
     "close": "Fechar",
     "expandDescription": "Expandir descrição",

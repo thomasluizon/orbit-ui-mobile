@@ -12,6 +12,7 @@ import {
   ScrollView,
   Animated,
   Image,
+  Linking,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -534,6 +535,19 @@ export default function ChatScreen() {
           ]}
         >
           {sendError && <Text style={styles.errorText}>{sendError}</Text>}
+          {speechError === t("speech.micDenied") && (
+            <TouchableOpacity
+              style={styles.permissionAction}
+              onPress={() => {
+                void Linking.openSettings().catch(() => {});
+              }}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.permissionActionText}>
+                {t("common.openSettings")}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {imagePreview && (
             <View style={styles.imagePreviewRow}>
@@ -802,6 +816,16 @@ function createStyles(colors: AppColors) {
       color: colors.red400,
       textAlign: "center",
       marginBottom: 8,
+    },
+    permissionAction: {
+      alignSelf: "center",
+      marginBottom: 8,
+      paddingVertical: 4,
+    },
+    permissionActionText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.primary,
     },
     imagePreviewRow: {
       paddingBottom: 8,

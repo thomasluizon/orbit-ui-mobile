@@ -30,6 +30,7 @@ interface ExpoNotificationsModule {
   getPermissionsAsync: () => Promise<{ status: string }>
   requestPermissionsAsync: () => Promise<{ status: string }>
   getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>
+  getDevicePushTokenAsync: () => Promise<{ type?: string; data: string }>
 }
 
 type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined'
@@ -45,7 +46,7 @@ interface UsePushNotificationsReturn {
 }
 
 function getNotificationsModule(): ExpoNotificationsModule | null {
-  if (Constants.executionEnvironment === 'storeClient') return null
+  if (Constants.appOwnership === 'expo') return null
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps Expo Go from importing unsupported notifications code
@@ -115,13 +116,24 @@ async function getPushToken(): Promise<string | null> {
   return tokenData.data
 }
 
+async function getNativeAndroidPushToken(): Promise<string | null> {
+  if (!notificationsModule || !Device.isDevice || Platform.OS !== 'android') return null
+
+  await ensureAndroidChannel()
+  const tokenData = await notificationsModule.getDevicePushTokenAsync()
+  if (!tokenData.data) return null
+  if (tokenData.type && tokenData.type !== 'fcm') return null
+  return tokenData.data
+}
+
 async function sendTokenToBackend(token: string): Promise<void> {
   try {
-    await apiClient(API.notifications.pushToken, {
+    await apiClient(API.notifications.subscribe, {
       method: 'POST',
       body: JSON.stringify({
-        token,
-        platform: Platform.OS,
+        endpoint: token,
+        p256dh: Platform.OS === 'android' ? 'fcm' : 'native',
+        auth: 'native',
       }),
     })
   } catch {
@@ -152,10 +164,12 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       return
     }
 
-    const token = await getPushToken()
-    setExpoPushToken(token)
-    if (token && isAuthenticated) {
-      await sendTokenToBackend(token)
+    const nativeToken = await getNativeAndroidPushToken()
+    const expoToken = await getPushToken()
+    const tokenToSend = nativeToken ?? expoToken
+    setExpoPushToken(tokenToSend)
+    if (tokenToSend && isAuthenticated) {
+      await sendTokenToBackend(tokenToSend)
     }
   }, [isAuthenticated, isSupported])
 
@@ -182,12 +196,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false
       }
 
-      const token = await getPushToken()
-      setExpoPushToken(token)
-      if (token && isAuthenticated) {
-        await sendTokenToBackend(token)
+      const nativeToken = await getNativeAndroidPushToken()
+      const expoToken = await getPushToken()
+      const tokenToSend = nativeToken ?? expoToken
+      setExpoPushToken(tokenToSend)
+      if (tokenToSend && isAuthenticated) {
+        await sendTokenToBackend(tokenToSend)
       }
-      return !!token
+      return true
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to register for push notifications')
       return false
@@ -209,7 +225,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   return {
     expoPushToken,
     error,
-    isEnabled: isGrantedStatus(permissionStatus || '') && expoPushToken !== null,
+    isEnabled: isGrantedStatus(permissionStatus || ''),
     isLoading,
     isSupported,
     permissionStatus,

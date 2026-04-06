@@ -73,7 +73,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 16,
     marginBottom: 8,
   },
   text: {
