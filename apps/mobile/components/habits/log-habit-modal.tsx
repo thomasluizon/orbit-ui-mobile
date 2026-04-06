@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
@@ -37,8 +38,12 @@ export function LogHabitModal({
   onLogged,
 }: Readonly<LogHabitModalProps>) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(
+    () => createStyles(colors, insets.bottom),
+    [colors, insets.bottom],
+  );
   const logHabit = useLogHabit();
 
   const [note, setNote] = useState("");
@@ -72,7 +77,7 @@ export function LogHabitModal({
       open={open}
       onClose={handleCancel}
       title={t("habits.log.title")}
-      snapPoints={["45%"]}
+      snapPoints={["52%"]}
     >
       {habit && (
         <View style={styles.content}>
@@ -142,10 +147,14 @@ export function LogHabitModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>["colors"],
+  bottomInset: number,
+) {
   return StyleSheet.create({
     content: {
       gap: 16,
+      paddingBottom: bottomInset + 12,
     },
     fieldGroup: {
       gap: 4,

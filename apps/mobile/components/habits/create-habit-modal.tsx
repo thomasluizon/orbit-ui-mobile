@@ -4,10 +4,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Trash2, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -268,7 +268,7 @@ export function CreateHabitModal({
       }
       snapPoints={["80%", "95%"]}
     >
-      <ScrollView
+      <BottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -366,7 +366,7 @@ export function CreateHabitModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   );
 }
