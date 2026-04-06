@@ -11,7 +11,7 @@ interface ProvidersProps {
   children: ReactNode
 }
 
-function AuthInitializer({ children }: { children: ReactNode }) {
+function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const initialize = useAuthStore((s) => s.initialize)
   const [ready, setReady] = useState(false)
   const runtimeTheme = getRuntimeTheme()
@@ -51,7 +51,7 @@ function AuthInitializer({ children }: { children: ReactNode }) {
   return <ThemeProvider>{children}</ThemeProvider>
 }
 
-export function Providers({ children }: ProvidersProps) {
+export function Providers({ children }: Readonly<ProvidersProps>) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthInitializer>{children}</AuthInitializer>
