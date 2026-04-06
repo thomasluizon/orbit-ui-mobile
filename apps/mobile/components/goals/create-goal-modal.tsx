@@ -7,8 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Plus, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -35,8 +37,9 @@ type AppColors = ReturnType<typeof createColors>
 export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const createGoal = useCreateGoal()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Form state
   const [description, setDescription] = useState('')
@@ -120,7 +123,12 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       title={t('goals.create')}
       snapPoints={['70%', '90%']}
     >
-      <View style={styles.form}>
+      <BottomSheetScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.form}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Quantity + Unit */}
         <View style={styles.row}>
           <View style={styles.halfField}>
@@ -234,7 +242,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             <Text style={styles.submitText}>{t('goals.create')}</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   )
 }
@@ -243,15 +251,20 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: AppColors) {
+function createStyles(colors: AppColors, bottomInset: number) {
   return StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   form: {
-    gap: 20,
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingHorizontal: 24,
+    paddingBottom: Math.max(bottomInset, 16) + 24,
+    gap: 24,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   halfField: {
     flex: 1,
@@ -262,7 +275,7 @@ function createStyles(colors: AppColors) {
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   labelOptional: {
     fontWeight: '400',
@@ -279,6 +292,7 @@ function createStyles(colors: AppColors) {
     paddingVertical: 12,
     fontSize: 14,
     color: colors.textPrimary,
+    minHeight: 56,
   },
   deadlineRow: {
     flexDirection: 'row',
@@ -299,13 +313,13 @@ function createStyles(colors: AppColors) {
     fontSize: 12,
     color: colors.amber400,
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: 8,
   },
   addDeadlineButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 6,
+    marginTop: 10,
   },
   addDeadlineText: {
     fontSize: 12,
@@ -315,8 +329,10 @@ function createStyles(colors: AppColors) {
   errorText: {
     fontSize: 12,
     color: colors.red400,
+    lineHeight: 18,
   },
   submitButton: {
+    marginTop: 4,
     backgroundColor: colors.primary,
     borderRadius: radius.xl,
     paddingVertical: 14,

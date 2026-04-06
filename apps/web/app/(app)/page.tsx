@@ -32,6 +32,7 @@ import {
 import { useTranslations, useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
+import { collectSelectableDescendantIds, formatAPIDate } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
@@ -46,7 +47,6 @@ import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
 import { useHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
-import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -496,14 +496,11 @@ export default function TodayPage() {
   // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
   const getDescendantIds = useCallback(
     (parentId: string): string[] => {
-      const childIds = childrenByParent.get(parentId) ?? []
-      const loaded = habitListRef.current?.allLoadedIds
-      const ids: string[] = []
-      for (const cid of childIds) {
-        if (loaded && !loaded.has(cid)) continue
-        ids.push(cid, ...getDescendantIds(cid))
-      }
-      return ids
+      return collectSelectableDescendantIds(
+        parentId,
+        (habitId) => childrenByParent.get(habitId) ?? [],
+        habitListRef.current?.allLoadedIds,
+      )
     },
     [childrenByParent],
   )

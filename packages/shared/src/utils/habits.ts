@@ -67,3 +67,48 @@ export function buildCalendarDayMap(
 
   return map
 }
+
+export function collectSelectableDescendantIds(
+  parentId: string,
+  getChildIds: (id: string) => string[],
+  selectableIds?: ReadonlySet<string>,
+): string[] {
+  const descendantIds: string[] = []
+  const stack: string[] = [parentId]
+
+  while (stack.length > 0) {
+    const currentId = stack.pop()
+    if (!currentId) continue
+
+    for (const childId of getChildIds(currentId)) {
+      if (selectableIds && !selectableIds.has(childId)) {
+        continue
+      }
+
+      descendantIds.push(childId)
+      stack.push(childId)
+    }
+  }
+
+  return descendantIds
+}
+
+export function collectVisibleHabitTreeIds<T extends { id: string }>(
+  habits: Iterable<T>,
+  getVisibleChildren: (id: string) => T[],
+): Set<string> {
+  const ids = new Set<string>()
+
+  const visit = (habit: T) => {
+    ids.add(habit.id)
+    for (const child of getVisibleChildren(habit.id)) {
+      visit(child)
+    }
+  }
+
+  for (const habit of habits) {
+    visit(habit)
+  }
+
+  return ids
+}

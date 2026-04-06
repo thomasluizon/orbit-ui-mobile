@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { radius } from '@/lib/theme'
@@ -167,7 +168,8 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
       </View>
 
       {/* Section content */}
-      <ScrollView
+      <BottomSheetScrollView
+        style={styles.sectionScroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.sectionContent}
       >
@@ -177,7 +179,7 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
             <Text style={styles.sectionDesc}>{t(item.descKey)}</Text>
           </View>
         ))}
-      </ScrollView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   )
 }
@@ -189,6 +191,7 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
 function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   return StyleSheet.create({
     tabBar: {
+      paddingHorizontal: 20,
       marginBottom: 16,
     },
     tabBarContent: {
@@ -215,7 +218,11 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     tabTextActive: {
       color: colors.white,
     },
+    sectionScroll: {
+      flex: 1,
+    },
     sectionContent: {
+      paddingHorizontal: 20,
       gap: 16,
       paddingBottom: 24,
     },

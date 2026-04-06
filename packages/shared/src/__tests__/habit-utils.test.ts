@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCalendarDayMap,
+  collectSelectableDescendantIds,
+  collectVisibleHabitTreeIds,
   determineHabitDayStatus,
   getHabitEmptyStateKey,
 } from '../utils/habits'
@@ -151,5 +153,43 @@ describe('buildCalendarDayMap', () => {
         isOneTime: true,
       },
     ])
+  })
+})
+
+describe('collectSelectableDescendantIds', () => {
+  it('skips descendants that are not currently selectable or visible', () => {
+    const tree = new Map<string, string[]>([
+      ['parent', ['child-1', 'child-2', 'child-3']],
+      ['child-1', []],
+      ['child-2', []],
+      ['child-3', ['grandchild-hidden']],
+      ['grandchild-hidden', []],
+    ])
+
+    const selectableIds = new Set(['parent', 'child-1', 'child-2'])
+
+    expect(
+      collectSelectableDescendantIds(
+        'parent',
+        (habitId) => tree.get(habitId) ?? [],
+        selectableIds,
+      ),
+    ).toEqual(['child-1', 'child-2'])
+  })
+})
+
+describe('collectVisibleHabitTreeIds', () => {
+  it('collects only the ids reachable through visible children', () => {
+    const visibleChildren = new Map<string, { id: string }[]>([
+      ['parent', [{ id: 'child-1' }, { id: 'child-2' }]],
+      ['child-1', []],
+      ['child-2', []],
+    ])
+
+    expect(
+      collectVisibleHabitTreeIds([{ id: 'parent' }], (habitId) => {
+        return visibleChildren.get(habitId) ?? []
+      }),
+    ).toEqual(new Set(['parent', 'child-1', 'child-2']))
   })
 })

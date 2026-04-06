@@ -296,30 +296,14 @@ export default function LoginScreen() {
     setErrorMessage(null)
 
     try {
-      const referralCode = await getStoredReferralCode()
       const pendingReturnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
-      const response = await startMobileGoogleAuth({
-        language: i18n.language,
-        referralCode: referralCode ?? undefined,
+      const result = await startMobileGoogleAuth({
         returnUrl: pendingReturnUrl,
       })
 
-      if (!response) return
+      if (result.type !== 'success') return
 
-      await login(response.token, response.refreshToken, {
-        userId: response.userId,
-        name: response.name,
-        email: response.email,
-      })
-
-      if (referralCode) {
-        await markReferralApplied()
-        await clearStoredReferralCode()
-        setShowReferralBanner(false)
-      }
-
-      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
-      router.replace(returnUrl as Href)
+      router.replace('/auth-callback')
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : t('auth.googleError'))
     } finally {

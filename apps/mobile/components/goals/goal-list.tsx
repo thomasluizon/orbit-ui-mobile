@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { FlatList, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import type { Goal } from '@orbit/shared/types/goal'
 import { GoalCard } from '@/components/goal-card'
 import { GoalDetailDrawer } from './goal-detail-drawer'
@@ -22,22 +22,17 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
     setSelectedGoalId(null)
   }, [])
 
-  const renderItem = useCallback(
-    ({ item }: { item: Goal }) => <GoalCard goal={item} onPress={handleGoalPress} />,
-    [handleGoalPress],
-  )
-
-  const keyExtractor = useCallback((item: Goal) => item.id, [])
-
   return (
     <View style={styles.container}>
-      <FlatList
-        data={goals}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      <View style={styles.listContent}>
+        {goals.map((goal) => (
+          <GoalCard
+            key={goal.id}
+            goal={goal}
+            onPress={handleGoalPress}
+          />
+        ))}
+      </View>
 
       {selectedGoalId ? (
         <GoalDetailDrawer
@@ -55,6 +50,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
+    gap: 12,
     paddingBottom: 100,
   },
 })

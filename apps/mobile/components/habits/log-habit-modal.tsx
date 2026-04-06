@@ -154,6 +154,7 @@ function createStyles(
   return StyleSheet.create({
     content: {
       gap: 16,
+      paddingHorizontal: 20,
       paddingBottom: bottomInset + 12,
     },
     fieldGroup: {

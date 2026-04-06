@@ -384,6 +384,7 @@ function createStyles(
       flex: 1,
     },
     scrollContent: {
+      paddingHorizontal: 20,
       paddingBottom: bottomInset + 120,
       gap: 20,
     },

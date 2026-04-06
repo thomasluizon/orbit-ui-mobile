@@ -9,7 +9,6 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  Modal,
   Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -67,6 +66,10 @@ import { StreakBadge } from '@/components/gamification/streak-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { AnchoredMenu } from '@/components/ui/anchored-menu'
+import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
+import type { MenuAnchorRect } from '@/lib/anchored-menu'
+import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -77,114 +80,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
-
-function ControlsMenu({
-  open,
-  isSelectMode,
-  showCompleted,
-  isFetching,
-  allCollapsed,
-  onToggleSelectMode,
-  onToggleCollapse,
-  onRefresh,
-  onToggleCompleted,
-  onClose,
-}: {
-  open: boolean
-  isSelectMode: boolean
-  showCompleted: boolean
-  isFetching: boolean
-  allCollapsed: boolean
-  onToggleSelectMode: () => void
-  onToggleCollapse: () => void
-  onRefresh: () => void
-  onToggleCompleted: () => void
-  onClose: () => void
-}) {
-  const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
-
-  return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity
-        style={styles.controlsMenuBackdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <View
-          style={styles.controlsMenuPanel}
-          onStartShouldSetResponder={() => true}
-        >
-          <TouchableOpacity
-            style={styles.controlsMenuItem}
-            onPress={onToggleSelectMode}
-            activeOpacity={0.75}
-          >
-            {isSelectMode ? (
-              <X size={16} color={colors.textMuted} />
-            ) : (
-              <CheckCircle2 size={16} color={colors.textMuted} />
-            )}
-            <Text style={styles.controlsMenuLabel}>
-              {isSelectMode ? t('common.cancel') : t('common.select')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlsMenuItem}
-            onPress={onToggleCollapse}
-            activeOpacity={0.75}
-          >
-            {allCollapsed ? (
-              <ChevronsUpDown size={16} color={colors.textMuted} />
-            ) : (
-              <ChevronsDownUp size={16} color={colors.textMuted} />
-            )}
-            <Text style={styles.controlsMenuLabel}>
-              {allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlsMenuItem}
-            onPress={onRefresh}
-            activeOpacity={0.75}
-          >
-            <RefreshCw
-              size={16}
-              color={colors.textMuted}
-              style={isFetching ? styles.rotatingIcon : undefined}
-            />
-            <Text style={styles.controlsMenuLabel}>
-              {t('habits.refresh')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlsMenuItem}
-            onPress={onToggleCompleted}
-            activeOpacity={0.75}
-          >
-            {showCompleted ? (
-              <Check size={16} color={colors.textMuted} />
-            ) : (
-              <Eye size={16} color={colors.textMuted} />
-            )}
-            <Text style={styles.controlsMenuLabel}>
-              {t('habits.showCompleted')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Today Screen
@@ -226,12 +121,16 @@ export default function TodayScreen() {
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [showControlsMenu, setShowControlsMenu] = useState(false)
+  const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
+    useState<MenuAnchorRect | null>(null)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
   const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const habitListRef = useRef<HabitListHandle>(null)
+  const controlsButtonRef = useRef<View>(null)
+  const previousActiveViewRef = useRef(activeView)
   const dateLabelAnim = useRef(new Animated.Value(0)).current
 
   // Modal state
@@ -288,6 +187,11 @@ export default function TodayScreen() {
     setSelectedDate(formatAPIDate(new Date()))
     setActiveView('today')
   }, [setSelectedDate, setActiveView])
+
+  const swipePanResponder = useHorizontalSwipe({
+    onSwipeLeft: goToNextDay,
+    onSwipeRight: goToPreviousDay,
+  })
 
   const dateLabel = useMemo(() => {
     if (isToday(selectedDate)) return t('dates.today')
@@ -384,10 +288,7 @@ export default function TodayScreen() {
     return ids
   }, [habitsQuery, visibleTopLevelHabits])
 
-  const allLoadedIds = useMemo(
-    () => habitListRef.current?.allLoadedIds ?? visibleHabitIds,
-    [visibleHabitIds],
-  )
+  const allLoadedIds = habitListRef.current?.allLoadedIds ?? visibleHabitIds
 
   const allSelected =
     allLoadedIds.size > 0 &&
@@ -413,6 +314,16 @@ export default function TodayScreen() {
 
   // Clear filters on view change
   useEffect(() => {
+    if (
+      !shouldResetSelectionForViewChange(
+        previousActiveViewRef.current,
+        activeView,
+      )
+    ) {
+      return
+    }
+
+    previousActiveViewRef.current = activeView
     setSelectedFrequency(null)
     setShowControlsMenu(false)
     if (isSelectMode) clearSelection()
@@ -440,6 +351,27 @@ export default function TodayScreen() {
     habitListRef.current?.refetch()
     setShowControlsMenu(false)
   }, [])
+
+  const handleToggleCompleted = useCallback(() => {
+    setShowCompleted((prev) => !prev)
+    setShowControlsMenu(false)
+  }, [])
+
+  const measureControlsButton = useCallback(() => {
+    controlsButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setControlsMenuAnchorRect({ x, y, width, height })
+      setShowControlsMenu(true)
+    })
+  }, [])
+
+  const handleToggleControlsMenu = useCallback(() => {
+    if (showControlsMenu) {
+      setShowControlsMenu(false)
+      return
+    }
+
+    measureControlsButton()
+  }, [measureControlsButton, showControlsMenu])
 
   const handleSelectAll = useCallback(() => {
     selectAllHabits(Array.from(allLoadedIds))
@@ -504,12 +436,19 @@ export default function TodayScreen() {
   }, [])
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+    <View
+      style={[styles.safeArea, { paddingTop: insets.top }]}
+      {...(activeView === 'today' ? swipePanResponder.panHandlers : {})}
+    >
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isSelectMode && styles.scrollContentWithBulkBar,
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => setShowControlsMenu(false)}
       >
         {/* ============================================================
             HEADER: Orbit logo + streak badge + avatar
@@ -749,94 +688,84 @@ export default function TodayScreen() {
               </ScrollView>
 
               {/* Controls menu (three dots) */}
-              <TouchableOpacity
-                style={styles.controlsButton}
-                activeOpacity={0.7}
-                onPress={() => setShowControlsMenu((prev) => !prev)}
-              >
-                <MoreVertical size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              <View ref={controlsButtonRef} collapsable={false}>
+                <TouchableOpacity
+                  style={styles.controlsButton}
+                  activeOpacity={0.7}
+                  onPress={handleToggleControlsMenu}
+                >
+                  <MoreVertical size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <ControlsMenu
-              open={showControlsMenu}
-              isSelectMode={isSelectMode}
-              showCompleted={showCompleted}
-              isFetching={habitsQuery.isFetching}
-              allCollapsed={!!habitListRef.current?.allCollapsed}
-              onToggleSelectMode={handleToggleSelectMode}
-              onToggleCollapse={handleToggleCollapse}
-              onRefresh={handleRefresh}
-              onToggleCompleted={() => setShowCompleted((prev) => !prev)}
+            <AnchoredMenu
+              visible={showControlsMenu}
+              anchorRect={controlsMenuAnchorRect}
               onClose={() => setShowControlsMenu(false)}
-            />
-
-            {isSelectMode && (
-              <View
-                style={[
-                  styles.bulkActionBar,
-                  { bottom: 20 + insets.bottom },
-                ]}
+              width={220}
+              estimatedHeight={220}
+            >
+              <TouchableOpacity
+                style={styles.controlsMenuItem}
+                onPress={handleToggleSelectMode}
+                activeOpacity={0.75}
               >
-                <Text style={styles.bulkSelectionText}>
-                  {plural(t('common.selected', { n: selectedCount }), selectedCount)}
+                {isSelectMode ? (
+                  <X size={16} color={colors.textMuted} />
+                ) : (
+                  <CheckCircle2 size={16} color={colors.textMuted} />
+                )}
+                <Text style={styles.controlsMenuLabel}>
+                  {isSelectMode ? t('common.cancel') : t('common.select')}
                 </Text>
-                <View style={styles.bulkActionRow}>
-                  <TouchableOpacity
-                    style={styles.bulkActionButton}
-                    onPress={allSelected ? handleDeselectAll : handleSelectAll}
-                    activeOpacity={0.75}
-                  >
-                    {allSelected ? (
-                      <MinusCircle size={18} color={colors.textSecondary} />
-                    ) : (
-                      <PlusCircle size={18} color={colors.textSecondary} />
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.bulkActionButton,
-                      selectedCount === 0 && styles.bulkActionButtonDisabled,
-                    ]}
-                    onPress={handleOpenBulkLog}
-                    activeOpacity={0.75}
-                    disabled={selectedCount === 0}
-                  >
-                    <CheckCircle2 size={18} color={colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.bulkActionButton,
-                      selectedCount === 0 && styles.bulkActionButtonDisabled,
-                    ]}
-                    onPress={handleOpenBulkSkip}
-                    activeOpacity={0.75}
-                    disabled={selectedCount === 0}
-                  >
-                    <FastForward size={18} color={colors.amber400} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.bulkActionButton,
-                      selectedCount === 0 && styles.bulkActionButtonDisabled,
-                    ]}
-                    onPress={handleOpenBulkDelete}
-                    activeOpacity={0.75}
-                    disabled={selectedCount === 0}
-                  >
-                    <Trash2 size={18} color={colors.red400} />
-                  </TouchableOpacity>
-                  <View style={styles.bulkDivider} />
-                  <TouchableOpacity
-                    style={styles.bulkActionButton}
-                    onPress={clearSelection}
-                    activeOpacity={0.75}
-                  >
-                    <X size={18} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.controlsMenuItem}
+                onPress={handleToggleCollapse}
+                activeOpacity={0.75}
+              >
+                {!!habitListRef.current?.allCollapsed ? (
+                  <ChevronsUpDown size={16} color={colors.textMuted} />
+                ) : (
+                  <ChevronsDownUp size={16} color={colors.textMuted} />
+                )}
+                <Text style={styles.controlsMenuLabel}>
+                  {!!habitListRef.current?.allCollapsed
+                    ? t('habits.expandAll')
+                    : t('habits.collapseAll')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.controlsMenuItem}
+                onPress={handleRefresh}
+                activeOpacity={0.75}
+              >
+                <RefreshCw
+                  size={16}
+                  color={colors.textMuted}
+                  style={habitsQuery.isFetching ? styles.rotatingIcon : undefined}
+                />
+                <Text style={styles.controlsMenuLabel}>{t('habits.refresh')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.controlsMenuItem}
+                onPress={handleToggleCompleted}
+                activeOpacity={0.75}
+              >
+                {showCompleted ? (
+                  <Check size={16} color={colors.textMuted} />
+                ) : (
+                  <Eye size={16} color={colors.textMuted} />
+                )}
+                <Text style={styles.controlsMenuLabel}>
+                  {t('habits.showCompleted')}
+                </Text>
+              </TouchableOpacity>
+            </AnchoredMenu>
 
             {/* Habit list (using HabitList component with all handlers wired) */}
             <HabitList
@@ -857,6 +786,73 @@ export default function TodayScreen() {
           </View>
         )}
       </ScrollView>
+
+      {isSelectMode && (
+        <View
+          style={[
+            styles.bulkActionBar,
+            { bottom: 20 + insets.bottom },
+          ]}
+        >
+          <Text style={styles.bulkSelectionText}>
+            {plural(t('common.selected', { n: selectedCount }), selectedCount)}
+          </Text>
+          <View style={styles.bulkActionRow}>
+            <TouchableOpacity
+              style={styles.bulkActionButton}
+              onPress={allSelected ? handleDeselectAll : handleSelectAll}
+              activeOpacity={0.75}
+            >
+              {allSelected ? (
+                <MinusCircle size={18} color={colors.textSecondary} />
+              ) : (
+                <PlusCircle size={18} color={colors.textSecondary} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.bulkActionButton,
+                selectedCount === 0 && styles.bulkActionButtonDisabled,
+              ]}
+              onPress={handleOpenBulkLog}
+              activeOpacity={0.75}
+              disabled={selectedCount === 0}
+            >
+              <CheckCircle2 size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.bulkActionButton,
+                selectedCount === 0 && styles.bulkActionButtonDisabled,
+              ]}
+              onPress={handleOpenBulkSkip}
+              activeOpacity={0.75}
+              disabled={selectedCount === 0}
+            >
+              <FastForward size={18} color={colors.amber400} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.bulkActionButton,
+                selectedCount === 0 && styles.bulkActionButtonDisabled,
+              ]}
+              onPress={handleOpenBulkDelete}
+              activeOpacity={0.75}
+              disabled={selectedCount === 0}
+            >
+              <Trash2 size={18} color={colors.red400} />
+            </TouchableOpacity>
+            <View style={styles.bulkDivider} />
+            <TouchableOpacity
+              style={styles.bulkActionButton}
+              onPress={clearSelection}
+              activeOpacity={0.75}
+            >
+              <X size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ============================================================
           MODALS
@@ -956,6 +952,9 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   scrollContent: {
     paddingHorizontal: 20, // --app-px: 1.25rem = 20px
     paddingBottom: 120,
+  },
+  scrollContentWithBulkBar: {
+    paddingBottom: 220,
   },
 
   // Header: pt-8 pb-2 = 32px/8px
@@ -1217,23 +1216,6 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   controlsButton: {
     padding: 8,
     borderRadius: radius.xl,
-  },
-  controlsMenuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    paddingTop: 120,
-    paddingRight: 16,
-    alignItems: 'flex-end',
-  },
-  controlsMenuPanel: {
-    minWidth: 210,
-    backgroundColor: colors.surfaceOverlay,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 6,
-    ...shadows.lg,
-    elevation: 12,
   },
   controlsMenuItem: {
     flexDirection: 'row',

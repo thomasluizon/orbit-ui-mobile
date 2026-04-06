@@ -4,11 +4,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -55,9 +56,10 @@ export function GoalDetailDrawer({
 }: GoalDetailDrawerProps) {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Queries
   const { data: goalsData } = useGoals()
@@ -213,7 +215,8 @@ export function GoalDetailDrawer({
         title={goal.title}
         snapPoints={['60%', '90%']}
       >
-        <ScrollView
+        <BottomSheetScrollView
+          style={styles.scroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -469,7 +472,7 @@ export function GoalDetailDrawer({
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
 
       {goal && (
@@ -487,10 +490,15 @@ export function GoalDetailDrawer({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: AppColors) {
+function createStyles(colors: AppColors, bottomInset: number) {
   return StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingHorizontal: 24,
+    paddingBottom: Math.max(bottomInset, 16) + 24,
     gap: 24,
   },
 
@@ -501,7 +509,7 @@ function createStyles(colors: AppColors) {
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: 12,
   },
 
   // Progress
@@ -510,7 +518,7 @@ function createStyles(colors: AppColors) {
     backgroundColor: colors.surfaceElevated,
     borderRadius: 9999,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
@@ -519,7 +527,8 @@ function createStyles(colors: AppColors) {
   progressText: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 16,
+    lineHeight: 21,
+    marginBottom: 20,
   },
   progressPercent: {
     color: colors.textMuted,
@@ -636,7 +645,7 @@ function createStyles(colors: AppColors) {
 
   // Linked habits
   linkedHabitsSection: {
-    marginTop: 0,
+    gap: 12,
   },
   linkedHabitsList: {
     flexDirection: 'row',
@@ -671,7 +680,8 @@ function createStyles(colors: AppColors) {
   // Actions
   actionsSection: {
     gap: 4,
-    paddingTop: 8,
+    marginTop: 4,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -679,7 +689,7 @@ function createStyles(colors: AppColors) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingVertical: 12,
     borderRadius: radius.lg,
   },

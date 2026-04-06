@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -19,10 +19,14 @@ import {
   ClipboardCheck,
   Flame,
 } from 'lucide-react-native'
+import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import type { MenuAnchorRect } from '@/lib/anchored-menu'
+import { getHabitProgressStrokeDasharray } from '@/lib/habit-progress'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { plural } from '@/lib/plural'
@@ -204,17 +208,41 @@ export function HabitCard({
 
   // Actions menu
   const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const [actionsMenuAnchorRect, setActionsMenuAnchorRect] =
+    useState<MenuAnchorRect | null>(null)
+  const actionsButtonRef = useRef<View>(null)
 
-  const closeActionsMenu = useCallback(() => setShowActionsMenu(false), [])
-  const toggleActionsMenu = useCallback(
-    () => setShowActionsMenu((prev) => !prev),
-    [],
-  )
+  const closeActionsMenu = useCallback(() => {
+    setShowActionsMenu(false)
+  }, [])
+
+  const openActionsMenu = useCallback(() => {
+    actionsButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setActionsMenuAnchorRect({ x, y, width, height })
+      setShowActionsMenu(true)
+    })
+  }, [])
+
+  const toggleActionsMenu = useCallback(() => {
+    if (showActionsMenu) {
+      closeActionsMenu()
+      return
+    }
+
+    openActionsMenu()
+  }, [closeActionsMenu, openActionsMenu, showActionsMenu])
 
   // Close menu on select mode
   useEffect(() => {
     if (isSelectMode) setShowActionsMenu(false)
   }, [isSelectMode])
+
+  const handleEnterSelectModeFromMenu = useCallback(() => {
+    closeActionsMenu()
+    setTimeout(() => {
+      onEnterSelectMode?.()
+    }, 0)
+  }, [closeActionsMenu, onEnterSelectMode])
 
   const handleCardPress = useCallback(() => {
     if (isSelectMode) {
@@ -335,36 +363,46 @@ export function HabitCard({
               ]}
               activeOpacity={0.8}
             >
-              {/* Background ring */}
-              <View
+              <Svg
                 style={[
-                  styles.ringTrack,
+                  styles.progressRingSvg,
                   {
                     width: isChild ? 32 : 44,
                     height: isChild ? 32 : 44,
-                    borderRadius: isChild ? 16 : 22,
-                    borderWidth: 2,
-                    borderColor: colors.borderMuted,
                   },
                 ]}
-              />
-              {/* Progress ring approximation */}
-              <View
-                style={[
-                  styles.ringProgress,
-                  {
-                    width: isChild ? 32 : 44,
-                    height: isChild ? 32 : 44,
-                    borderRadius: isChild ? 16 : 22,
-                    borderWidth: 2.5,
-                    borderColor:
-                      isDoneForRange || progressPercent === 100
-                        ? colors.primary
-                        : `${colors.primary}99`,
-                    opacity: isDoneForRange ? 1 : progressPercent / 100,
-                  },
-                ]}
-              />
+                viewBox="0 0 36 36"
+              >
+                <Circle
+                  cx="18"
+                  cy="18"
+                  r="15"
+                  fill="none"
+                  stroke={colors.borderMuted}
+                  strokeWidth="2"
+                />
+                <Circle
+                  cx="18"
+                  cy="18"
+                  r="15"
+                  fill="none"
+                  stroke={
+                    isDoneForRange || progressPercent === 100
+                      ? colors.primary
+                      : withAlpha(
+                          colors.primary,
+                          0.6,
+                          'rgba(59, 130, 246, 0.6)',
+                        )
+                  }
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray={getHabitProgressStrokeDasharray(
+                    progressPercent,
+                    isDoneForRange,
+                  )}
+                />
+              </Svg>
               {/* Center content */}
               {isDoneForRange ? (
                 <Check size={16} color={colors.primary} />
@@ -591,140 +629,135 @@ export function HabitCard({
 
           {/* Actions menu trigger */}
           {!isSelectMode && (
-            <TouchableOpacity
-              onPress={toggleActionsMenu}
-              style={[
-                styles.moreButton,
-                { padding: isChild ? 6 : 8 },
-              ]}
-              activeOpacity={0.7}
-            >
-              <MoreVertical
-                size={isChild ? 14 : 16}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
+            <View ref={actionsButtonRef} collapsable={false}>
+              <TouchableOpacity
+                onPress={toggleActionsMenu}
+                style={[
+                  styles.moreButton,
+                  { padding: isChild ? 6 : 8 },
+                ]}
+                activeOpacity={0.7}
+              >
+                <MoreVertical
+                  size={isChild ? 14 : 16}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </TouchableOpacity>
 
-      {/* Actions menu (inline overlay for RN) */}
-      {showActionsMenu && (
-        <>
+      <AnchoredMenu
+        visible={showActionsMenu}
+        anchorRect={actionsMenuAnchorRect}
+        onClose={closeActionsMenu}
+        width={208}
+        estimatedHeight={hasSubHabits ? 320 : 276}
+      >
+        {showAddSubHabit && (
           <TouchableOpacity
-            style={styles.menuBackdrop}
-            onPress={closeActionsMenu}
-            activeOpacity={1}
-          />
-          <View style={styles.actionsMenu}>
-            {showAddSubHabit && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  onAddSubHabit?.()
-                  closeActionsMenu()
-                }}
-                activeOpacity={0.7}
-              >
-                <Plus size={16} color={colors.textMuted} />
-                <Text style={styles.menuItemText}>
-                  {t('habits.form.addSubHabit')}
-                </Text>
-              </TouchableOpacity>
-            )}
+            style={styles.menuItem}
+            onPress={() => {
+              onAddSubHabit?.()
+              closeActionsMenu()
+            }}
+            activeOpacity={0.7}
+          >
+            <Plus size={16} color={colors.textMuted} />
+            <Text style={styles.menuItemText}>
+              {t('habits.form.addSubHabit')}
+            </Text>
+          </TouchableOpacity>
+        )}
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                onMoveParent?.()
-                closeActionsMenu()
-              }}
-              activeOpacity={0.7}
-            >
-              <ArrowRight size={16} color={colors.textMuted} />
-              <Text style={styles.menuItemText}>
-                {t('habits.moveParent.button')}
-              </Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            onMoveParent?.()
+            closeActionsMenu()
+          }}
+          activeOpacity={0.7}
+        >
+          <ArrowRight size={16} color={colors.textMuted} />
+          <Text style={styles.menuItemText}>
+            {t('habits.moveParent.button')}
+          </Text>
+        </TouchableOpacity>
 
-            {canSkip && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  onSkip?.()
-                  closeActionsMenu()
-                }}
-                activeOpacity={0.7}
-              >
-                <FastForward size={16} color={colors.amber400} />
-                <Text style={styles.menuItemTextAmber}>
-                  {isPostpone
-                    ? t('habits.actions.postpone')
-                    : t('habits.actions.skip')}
-                </Text>
-              </TouchableOpacity>
-            )}
+        {canSkip && (
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onSkip?.()
+              closeActionsMenu()
+            }}
+            activeOpacity={0.7}
+          >
+            <FastForward size={16} color={colors.amber400} />
+            <Text style={styles.menuItemTextAmber}>
+              {isPostpone
+                ? t('habits.actions.postpone')
+                : t('habits.actions.skip')}
+            </Text>
+          </TouchableOpacity>
+        )}
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                onDuplicate?.()
-                closeActionsMenu()
-              }}
-              activeOpacity={0.7}
-            >
-              <Copy size={16} color={colors.textMuted} />
-              <Text style={styles.menuItemText}>
-                {t('habits.actions.duplicate')}
-              </Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            onDuplicate?.()
+            closeActionsMenu()
+          }}
+          activeOpacity={0.7}
+        >
+          <Copy size={16} color={colors.textMuted} />
+          <Text style={styles.menuItemText}>
+            {t('habits.actions.duplicate')}
+          </Text>
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                onEnterSelectMode?.()
-                closeActionsMenu()
-              }}
-              activeOpacity={0.7}
-            >
-              <CheckCircle2 size={16} color={colors.textMuted} />
-              <Text style={styles.menuItemText}>{t('common.select')}</Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={handleEnterSelectModeFromMenu}
+          activeOpacity={0.7}
+        >
+          <CheckCircle2 size={16} color={colors.textMuted} />
+          <Text style={styles.menuItemText}>{t('common.select')}</Text>
+        </TouchableOpacity>
 
-            <View style={styles.menuDivider} />
+        <View style={styles.menuDivider} />
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                onDelete?.()
-                closeActionsMenu()
-              }}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={16} color={colors.red400} />
-              <Text style={styles.menuItemTextDanger}>
-                {t('common.delete')}
-              </Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            onDelete?.()
+            closeActionsMenu()
+          }}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={16} color={colors.red400} />
+          <Text style={styles.menuItemTextDanger}>
+            {t('common.delete')}
+          </Text>
+        </TouchableOpacity>
 
-            {hasSubHabits && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  onDrillInto?.()
-                  closeActionsMenu()
-                }}
-                activeOpacity={0.7}
-              >
-                <ChevronRight size={16} color={colors.textMuted} />
-                <Text style={styles.menuItemText}>
-                  {t('habits.actions.openSubHabits')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </>
-      )}
+        {hasSubHabits && (
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onDrillInto?.()
+              closeActionsMenu()
+            }}
+            activeOpacity={0.7}
+          >
+            <ChevronRight size={16} color={colors.textMuted} />
+            <Text style={styles.menuItemText}>
+              {t('habits.actions.openSubHabits')}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </AnchoredMenu>
     </View>
   )
 }
@@ -826,11 +859,9 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     justifyContent: 'center',
     position: 'relative',
   },
-  ringTrack: {
+  progressRingSvg: {
     position: 'absolute',
-  },
-  ringProgress: {
-    position: 'absolute',
+    transform: [{ rotate: '-90deg' }],
   },
   progressText: {
     fontSize: 9,
@@ -1070,32 +1101,6 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     borderRadius: 9999,
   },
 
-  // Actions menu
-  menuBackdrop: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    right: -1000,
-    bottom: -1000,
-    zIndex: 69,
-  },
-  actionsMenu: {
-    position: 'absolute',
-    right: 0,
-    top: '100%' as unknown as number,
-    zIndex: 70,
-    minWidth: 192, // min-w-[12rem]
-    borderRadius: 16, // rounded-2xl
-    padding: 6, // p-1.5
-    backgroundColor: colors.surfaceOverlay,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 20,
-  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',

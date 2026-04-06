@@ -19,6 +19,11 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  collectVisibleHabitTreeIds,
+  formatAPIDate,
+  getHabitEmptyStateKey,
+} from '@orbit/shared/utils'
 import { HabitCard } from './habit-card'
 import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
@@ -55,7 +60,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/stores/ui-store'
-import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -440,19 +444,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // All loaded/selectable IDs including descendants
   const allLoadedIds = useMemo(() => {
-    const ids = new Set<string>()
-    function collect(habitId: string) {
-      ids.add(habitId)
-      const childIds = childrenByParent.get(habitId)
-      if (childIds) {
-        for (const cid of childIds) collect(cid)
-      }
-    }
-    for (const h of habits) {
-      collect(h.id)
-    }
-    return ids
-  }, [habits, childrenByParent])
+    return collectVisibleHabitTreeIds(habits, getVisibleChildren)
+  }, [getVisibleChildren, habits])
 
   // Children progress -- matches Nuxt computeChildProgress logic
   const isListView = view === 'all' || view === 'general'

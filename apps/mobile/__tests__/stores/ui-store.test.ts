@@ -63,6 +63,32 @@ describe('mobile ui store', () => {
     expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
   })
 
+  it('enters bulk select mode without selecting habits', () => {
+    useUIStore.getState().toggleSelectMode()
+
+    expect(useUIStore.getState().isSelectMode).toBe(true)
+    expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
+  })
+
+  it('enters select mode with the tapped habit and descendants selected', () => {
+    const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState()
+
+    if (!useUIStore.getState().isSelectMode) {
+      toggleSelectMode()
+    }
+
+    toggleSelectionCascade(
+      'habit-1',
+      () => ['child-1', 'child-2'],
+      () => false,
+    )
+
+    expect(useUIStore.getState().isSelectMode).toBe(true)
+    expect(useUIStore.getState().selectedHabitIds).toEqual(
+      new Set(['habit-1', 'child-1', 'child-2']),
+    )
+  })
+
   it('shows all-done celebration only for completed top-level habits on today filters', () => {
     useUIStore.setState({
       activeFilters: { dateFrom: '2026-04-06', dateTo: '2026-04-06' },
