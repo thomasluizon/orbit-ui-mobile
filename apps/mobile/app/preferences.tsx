@@ -39,7 +39,7 @@ export default function PreferencesScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
-  const { colors } = useAppTheme()
+  const { colors, applyScheme } = useAppTheme()
   const {
     currentFormat: timeFormat,
     setFormat: setTimeFormat,
@@ -125,6 +125,7 @@ export default function PreferencesScreen() {
       router.push('/upgrade')
       return
     }
+    applyScheme(scheme)
     colorSchemeMutation.mutate(scheme)
   }
 
@@ -177,7 +178,7 @@ export default function PreferencesScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />

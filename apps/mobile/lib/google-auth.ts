@@ -1,4 +1,3 @@
-import * as Linking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
 import type { Session } from '@supabase/supabase-js'
 import { API } from '@orbit/shared/api'
@@ -7,6 +6,8 @@ import { isSafeReturnUrl, storeAuthReturnUrl } from './auth-flow'
 import { supabase } from './supabase'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
+const APP_ORIGIN = 'https://app.useorbit.org'
+const AUTH_CALLBACK_URL = `${APP_ORIGIN}/auth-callback`
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 
 interface GoogleAuthParams {
@@ -85,7 +86,7 @@ async function exchangeGoogleSession(
 }
 
 export function getGoogleAuthRedirectUrl(): string {
-  return Linking.createURL('/auth-callback')
+  return AUTH_CALLBACK_URL
 }
 
 export async function completeGoogleAuthFromUrl(

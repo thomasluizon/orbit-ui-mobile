@@ -14,7 +14,8 @@ import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { Goal, UpdateGoalRequest } from '@orbit/shared/types/goal'
-import { colors, radius } from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -26,13 +27,17 @@ interface EditGoalModalProps {
   goal: Goal
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const updateGoal = useUpdateGoal()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   // Form state
   const [description, setDescription] = useState('')
@@ -236,7 +241,8 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   form: {
     gap: 20,
     paddingBottom: 40,
@@ -328,4 +334,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
-})
+  })
+}

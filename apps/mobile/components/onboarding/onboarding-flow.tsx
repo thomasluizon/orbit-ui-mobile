@@ -21,7 +21,8 @@ import { OnboardingCompleteHabit } from './onboarding-complete-habit'
 import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -38,6 +39,8 @@ export function OnboardingFlow() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const [currentStep, setCurrentStep] = useState(0)
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
@@ -234,83 +237,85 @@ export function OnboardingFlow() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 56, // safe area
-    paddingBottom: 16,
-  },
-  stepIndicator: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  skipText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  progressContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 32,
-  },
-  progressTrack: {
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  progressFill: {
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.primary,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  stepWrapper: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    gap: 16,
-  },
-  spacer: {
-    flex: 1,
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  nextBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    backgroundColor: colors.primary,
-    borderRadius: radius.xl,
-    ...shadows.sm,
-    elevation: 3,
-  },
-  nextBtnText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      paddingTop: 56, // safe area
+      paddingBottom: 16,
+    },
+    stepIndicator: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    skipText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    progressContainer: {
+      paddingHorizontal: 24,
+      marginBottom: 32,
+    },
+    progressTrack: {
+      height: 2,
+      borderRadius: 1,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    progressFill: {
+      height: 2,
+      borderRadius: 1,
+      backgroundColor: colors.primary,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingBottom: 32,
+    },
+    stepWrapper: {
+      width: '100%',
+      maxWidth: 400,
+      alignSelf: 'center',
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+      gap: 16,
+    },
+    spacer: {
+      flex: 1,
+    },
+    backText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    nextBtn: {
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      backgroundColor: colors.primary,
+      borderRadius: radius.xl,
+      ...shadows.sm,
+      elevation: 3,
+    },
+    nextBtnText: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  })
+}

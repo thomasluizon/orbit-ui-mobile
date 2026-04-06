@@ -1,25 +1,18 @@
-import { useCallback } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from 'react-native'
-import { ArrowLeft } from 'lucide-react-native'
-import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { colors, radius } from '@/lib/theme'
+import { useCallback, useMemo } from "react";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { radius } from "@/lib/theme";
+import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface DescriptionViewerProps {
-  open: boolean
-  onClose: () => void
-  title: string
-  description: string
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -32,18 +25,19 @@ export function DescriptionViewer({
   title,
   description,
 }: Readonly<DescriptionViewerProps>) {
-  const { t } = useTranslation()
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleClose = useCallback(() => {
-    onClose()
-  }, [onClose])
+    onClose();
+  }, [onClose]);
 
   return (
     <BottomSheetModal
       open={open}
       onClose={handleClose}
       title={title}
-      snapPoints={['70%', '90%']}
+      snapPoints={["70%", "90%"]}
     >
       <ScrollView
         style={styles.scrollContainer}
@@ -53,23 +47,25 @@ export function DescriptionViewer({
         <Text style={styles.descriptionText}>{description}</Text>
       </ScrollView>
     </BottomSheetModal>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 32,
-  },
-  descriptionText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.textSecondary,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+  return StyleSheet.create({
+    scrollContainer: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: 32,
+    },
+    descriptionText: {
+      fontSize: 14,
+      lineHeight: 22,
+      color: colors.textSecondary,
+    },
+  });
+}

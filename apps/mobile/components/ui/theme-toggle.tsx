@@ -1,33 +1,15 @@
 import { useState, useCallback } from 'react'
 import { TouchableOpacity, Animated, StyleSheet } from 'react-native'
 import { Sun, Moon } from 'lucide-react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { useColorScheme } from 'react-native'
-import { colors } from '@/lib/theme'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const THEME_STORAGE_KEY = 'orbit_theme_preference'
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+import { useAppTheme } from '@/lib/use-app-theme'
 
 export function ThemeToggle() {
   const { t } = useTranslation()
-  const systemScheme = useColorScheme()
-  const [currentTheme, setCurrentTheme] = useState<'dark' | 'light'>(
-    systemScheme === 'light' ? 'light' : 'dark',
-  )
+  const { currentTheme, toggleTheme, colors } = useAppTheme()
   const [rotateAnim] = useState(() => new Animated.Value(0))
 
-  const toggleTheme = useCallback(async () => {
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark'
-
-    // Animate rotation
+  const handleToggle = useCallback(() => {
     Animated.timing(rotateAnim, {
       toValue: 1,
       duration: 250,
@@ -36,12 +18,8 @@ export function ThemeToggle() {
       rotateAnim.setValue(0)
     })
 
-    setCurrentTheme(newTheme)
-    await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme)
-
-    // Note: actual theme application would need to be handled
-    // by a theme context provider at the app level
-  }, [currentTheme, rotateAnim])
+    toggleTheme()
+  }, [rotateAnim, toggleTheme])
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -52,9 +30,15 @@ export function ThemeToggle() {
 
   return (
     <TouchableOpacity
-      style={styles.button}
+      style={[
+        styles.button,
+        {
+          backgroundColor: colors.surfaceElevated,
+          borderColor: colors.borderMuted,
+        },
+      ]}
       activeOpacity={0.7}
-      onPress={toggleTheme}
+      onPress={handleToggle}
       accessibilityLabel={
         isDark
           ? t('settings.theme.switchToLight')
@@ -72,20 +56,15 @@ export function ThemeToggle() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
   button: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(26,24,41,0.6)',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
 })
+

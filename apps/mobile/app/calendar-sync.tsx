@@ -16,7 +16,6 @@ import {
   Bell,
   CalendarDays,
   Check,
-  ChevronRight,
   Link,
   Loader2,
 } from 'lucide-react-native'
@@ -26,12 +25,11 @@ import type { BulkCreateRequest, FrequencyUnit } from '@orbit/shared/types/habit
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useAuthStore } from '@/stores/auth-store'
-import { getToken } from '@/lib/secure-store'
-import { colors, radius, shadows } from '@/lib/theme'
+import { apiClient } from '@/lib/api-client'
+import { radius, shadows } from '@/lib/theme'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
-
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected'
 
@@ -157,35 +155,6 @@ function formatRecurrenceLabel(rule: string | null, t: (key: string, options?: R
   return ''
 }
 
-function formatReminderLabel(minutes: number, t: (key: string) => string): string {
-  if (minutes <= 0) return t('habits.form.reminderAtTime')
-
-  if (minutes < 60) {
-    if (minutes === 5) return t('habits.form.reminder5min')
-    if (minutes === 10) return t('habits.form.reminder10min')
-    if (minutes === 15) return t('habits.form.reminder15min')
-    if (minutes === 30) return t('habits.form.reminder30min')
-    return `${minutes} ${t('habits.form.reminderMinutes')}`
-  }
-
-  if (minutes % 1440 === 0) {
-    const days = minutes / 1440
-    if (days === 1) return t('habits.form.reminder1day')
-    return `${days} ${t('habits.form.reminderDays')}`
-  }
-
-  if (minutes % 60 === 0) {
-    const hours = minutes / 60
-    if (hours === 1) return t('habits.form.reminder1hour')
-    if (hours === 2) return t('habits.form.reminder2hours')
-    if (hours === 6) return t('habits.form.reminder6hours')
-    if (hours === 12) return t('habits.form.reminder12hours')
-    return `${hours} ${t('habits.form.reminderHours')}`
-  }
-
-  return `${minutes} ${t('habits.form.reminderMinutes')}`
-}
-
 function isNotConnectedMessage(message: string): boolean {
   const lower = message.toLowerCase()
   return (
@@ -198,33 +167,17 @@ function isNotConnectedMessage(message: string): boolean {
 }
 
 async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
-  const token = await getToken()
-  const response = await fetch(`${API_BASE}${API.calendar.events}`, {
-    headers: token
-      ? {
-          Authorization: `Bearer ${token}`,
-        }
-      : undefined,
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as { error?: string; message?: string } | null
-    const message = body?.error ?? body?.message ?? `Failed with status ${response.status}`
-
-    if (
-      response.status === 401 ||
-      response.status === 403 ||
-      response.status === 404 ||
-      isNotConnectedMessage(message)
-    ) {
+  try {
+    const data = await apiClient<CalendarEvent[]>(API.calendar.events)
+    return Array.isArray(data) ? data : []
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : ''
+    if (message === 'Unauthorized' || isNotConnectedMessage(message)) {
       throw new Error('__NOT_CONNECTED__')
     }
 
-    throw new Error(message)
+    throw err
   }
-
-  const data = await response.json().catch(() => [])
-  return Array.isArray(data) ? (data as CalendarEvent[]) : []
 }
 
 function buildImportRequest(events: CalendarEvent[]): BulkCreateRequest {
@@ -258,6 +211,8 @@ export default function CalendarSyncScreen() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
   const { profile, isLoading: isProfileLoading, invalidate } = useProfile()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const login = useAuthStore((s) => s.login)
   const bulkCreateHabits = useBulkCreateHabits()
 
@@ -313,7 +268,7 @@ export default function CalendarSyncScreen() {
   }, [loadEvents, profile, router])
 
   const handleBack = useCallback(() => {
-    router.back()
+    router.push('/profile')
   }, [router])
 
   const toggleAll = useCallback(() => {
@@ -403,26 +358,6 @@ export default function CalendarSyncScreen() {
     void loadEvents()
   }, [loadEvents])
 
-  const renderReminderChips = useCallback(
-    (reminders: number[]) => {
-      if (reminders.length === 0) return null
-
-      const visibleReminders = reminders.slice(0, 2)
-      const hiddenCount = reminders.length - visibleReminders.length
-
-      return (
-        <View style={styles.reminderRow}>
-          <Bell size={11} color={colors.textMuted} />
-          <Text style={styles.reminderText} numberOfLines={1}>
-            {visibleReminders.map((reminder) => formatReminderLabel(reminder, t)).join(', ')}
-            {hiddenCount > 0 ? ` +${hiddenCount}` : ''}
-          </Text>
-        </View>
-      )
-    },
-    [t],
-  )
-
   const renderEventCard = (event: CalendarEvent) => {
     const selected = selectedIds.has(event.id)
     const recurrenceLabel = formatRecurrenceLabel(event.recurrenceRule, t)
@@ -463,35 +398,24 @@ export default function CalendarSyncScreen() {
             <View style={styles.metaRow}>
               {dateLabel ? <Text style={styles.metaText}>{dateLabel}</Text> : null}
               {timeLabel ? <Text style={styles.metaTextMuted}>{timeLabel}</Text> : null}
+              {event.reminders.length > 0 ? (
+                <View style={styles.reminderCount}>
+                  <Bell size={11} color={colors.textMuted} />
+                  <Text style={styles.reminderCountText}>{event.reminders.length}</Text>
+                </View>
+              ) : null}
             </View>
 
-            {renderReminderChips(event.reminders)}
-
             {event.description ? (
-              <Text style={styles.description} numberOfLines={2}>
+              <Text style={styles.description} numberOfLines={1}>
                 {event.description}
               </Text>
             ) : null}
           </View>
-
-          <ChevronRight size={15} color={selected ? colors.primary400 : colors.textMuted} />
         </View>
       </TouchableOpacity>
     )
   }
-
-  const stateTitle = useMemo(() => {
-    switch (step) {
-      case 'done':
-        return t('calendar.importDone')
-      case 'error':
-        return t('calendar.errorTitle')
-      case 'not-connected':
-        return t('calendar.notConnectedTitle')
-      default:
-        return t('calendar.title')
-    }
-  }, [step, t])
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -504,11 +428,7 @@ export default function CalendarSyncScreen() {
           <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
             <ArrowLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
-
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>{stateTitle}</Text>
-            <Text style={styles.headerSubtitle}>{t('calendar.profileHint')}</Text>
-          </View>
+          <Text style={styles.headerTitle}>{t('calendar.title')}</Text>
         </View>
 
         {(isProfileLoading || step === 'loading') && (
@@ -517,7 +437,6 @@ export default function CalendarSyncScreen() {
               <Loader2 size={26} color={colors.primary400} />
             </View>
             <Text style={styles.stateTitle}>{t('calendar.fetchingEvents')}</Text>
-            <Text style={styles.stateDescription}>{t('calendar.profileHint')}</Text>
           </View>
         )}
 
@@ -595,7 +514,6 @@ export default function CalendarSyncScreen() {
               <ActivityIndicator color={colors.primary400} />
             </View>
             <Text style={styles.stateTitle}>{t('calendar.importing')}</Text>
-            <Text style={styles.stateDescription}>{t('calendar.profileHint')}</Text>
           </View>
         )}
 
@@ -640,7 +558,8 @@ export default function CalendarSyncScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -672,20 +591,12 @@ const styles = StyleSheet.create({
     ...shadows.sm,
     elevation: 2,
   },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-  },
   headerTitle: {
+    flex: 1,
     fontSize: 28,
     fontWeight: '800',
     color: colors.textPrimary,
     letterSpacing: -0.6,
-  },
-  headerSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    color: colors.textSecondary,
   },
   centerState: {
     flex: 1,
@@ -833,14 +744,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
   },
-  reminderRow: {
+  reminderCount: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  reminderText: {
-    flex: 1,
-    fontSize: 11,
+  reminderCountText: {
+    fontSize: 10,
     color: colors.textMuted,
   },
   description: {
@@ -891,4 +801,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexWrap: 'wrap',
   },
-})
+  })
+}

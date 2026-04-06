@@ -12,7 +12,11 @@ import {
 } from '@/lib/auth-flow'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppColors = ReturnType<typeof createColors>
+const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
 
 function buildFallbackUrl(params: Record<string, string | string[] | undefined>): string | null {
   const entries: string[][] = []
@@ -26,11 +30,13 @@ function buildFallbackUrl(params: Record<string, string | string[] | undefined>)
   if (entries.length === 0) return null
 
   const searchParams = new URLSearchParams(entries)
-  return `orbit://auth-callback?${searchParams.toString()}`
+  return `${AUTH_CALLBACK_URL}?${searchParams.toString()}`
 }
 
 export default function AuthCallbackScreen() {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const params = useLocalSearchParams<{
     token?: string
     refreshToken?: string
@@ -143,42 +149,44 @@ export default function AuthCallbackScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    gap: 16,
-  },
-  text: {
-    color: colors.textSecondary,
-    fontSize: 16,
-  },
-  errorCard: {
-    width: '100%',
-    maxWidth: 360,
-    borderRadius: 20,
-    backgroundColor: colors.redBg,
-    borderWidth: 1,
-    borderColor: colors.redBorder,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  errorText: {
-    color: colors.red400,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  backButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  backButtonText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-})
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      gap: 16,
+    },
+    text: {
+      color: colors.textSecondary,
+      fontSize: 16,
+    },
+    errorCard: {
+      width: '100%',
+      maxWidth: 360,
+      borderRadius: 20,
+      backgroundColor: colors.redBg,
+      borderWidth: 1,
+      borderColor: colors.redBorder,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    errorText: {
+      color: colors.red400,
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    backButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    backButtonText: {
+      color: colors.primary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  })
+}

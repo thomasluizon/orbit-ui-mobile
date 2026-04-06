@@ -29,7 +29,8 @@ import {
   useUpdateGoalStatus,
   useDeleteGoal,
 } from '@/hooks/use-goals'
-import { colors, radius } from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -41,6 +42,8 @@ interface GoalDetailDrawerProps {
   goalId: string
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -51,8 +54,10 @@ export function GoalDetailDrawer({
   goalId,
 }: GoalDetailDrawerProps) {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   // Queries
   const { data: goalsData } = useGoals()
@@ -482,7 +487,8 @@ export function GoalDetailDrawer({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
     gap: 24,
@@ -681,4 +687,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
   },
-})
+  })
+}

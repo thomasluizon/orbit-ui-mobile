@@ -23,7 +23,9 @@ import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -57,6 +59,28 @@ interface HabitCardProps {
   onToggleExpand?: () => void
   onForceLogParent?: () => void
   onEnterSelectMode?: () => void
+}
+
+function withAlpha(color: string, opacity: number, fallback: string): string {
+  const normalized = color.replace('#', '')
+
+  if (normalized.length === 3) {
+    const [r, g, b] = normalized.split('')
+    const expanded = `${r}${r}${g}${g}${b}${b}`
+    const red = parseInt(expanded.slice(0, 2), 16)
+    const green = parseInt(expanded.slice(2, 4), 16)
+    const blue = parseInt(expanded.slice(4, 6), 16)
+    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
+  }
+
+  if (normalized.length === 6) {
+    const red = parseInt(normalized.slice(0, 2), 16)
+    const green = parseInt(normalized.slice(2, 4), 16)
+    const blue = parseInt(normalized.slice(4, 6), 16)
+    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
+  }
+
+  return fallback
 }
 
 // ---------------------------------------------------------------------------
@@ -93,7 +117,9 @@ export function HabitCard({
   onEnterSelectMode,
 }: HabitCardProps) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const { displayTime } = useTimeFormat()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const isChild = depth > 0
   const checkedCount =
@@ -157,9 +183,12 @@ export function HabitCard({
     }
     if (frequencyQuantity === 1)
       return t(`habits.frequency.every${frequencyUnit}`)
-    return t(`habits.frequency.everyN${frequencyUnit}s`, {
-      n: frequencyQuantity ?? 1,
-    })
+    return plural(
+      t(`habits.frequency.everyN${frequencyUnit}s`, {
+        n: frequencyQuantity ?? 1,
+      }),
+      frequencyQuantity ?? 1,
+    )
   }, [habit, t])
 
   // Flexible progress label
@@ -572,7 +601,7 @@ export function HabitCard({
             >
               <MoreVertical
                 size={isChild ? 14 : 16}
-                color="rgba(122, 116, 144, 0.4)"
+                color={colors.textMuted}
               />
             </TouchableOpacity>
           )}
@@ -704,13 +733,14 @@ export function HabitCard({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   // Parent card -- glass surface with depth (matches .habit-card-parent)
   cardParent: {
     backgroundColor: colors.surface,
     borderRadius: 16, // rounded-2xl
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: colors.borderMuted,
     padding: 16, // p-4
     marginBottom: 10, // space-y-2.5
     // Shadow matching box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.15)
@@ -723,12 +753,12 @@ const styles = StyleSheet.create({
 
   // Child card -- nested surface (matches .habit-card-child)
   cardChild: {
-    backgroundColor: 'rgba(13, 11, 22, 0.6)',
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 12, // rounded-xl
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: colors.borderMuted,
     borderLeftWidth: 2,
-    borderLeftColor: 'rgba(139, 92, 246, 0.25)',
+    borderLeftColor: colors.primary_20,
     paddingVertical: 12, // py-3
     paddingHorizontal: 14, // px-3.5
     marginBottom: 10,
@@ -742,13 +772,13 @@ const styles = StyleSheet.create({
   // Due-today: amber left border
   cardDueToday: {
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(245, 158, 11, 0.7)',
+    borderLeftColor: withAlpha(colors.amber500, 0.7, 'rgba(245, 158, 11, 0.7)'),
   },
 
   // Overdue: red left border
   cardOverdue: {
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(239, 68, 68, 0.7)',
+    borderLeftColor: withAlpha(colors.red500, 0.7, 'rgba(239, 68, 68, 0.7)'),
   },
 
   // Dimmed for completed / not-due-today
@@ -855,7 +885,7 @@ const styles = StyleSheet.create({
   // Title - completed
   titleDone: {
     textDecorationLine: 'line-through',
-    textDecorationColor: 'rgba(122, 116, 144, 0.4)',
+    textDecorationColor: withAlpha(colors.textMuted, 0.4, 'rgba(122, 116, 144, 0.4)'),
   },
 
   // Description - parent
@@ -896,7 +926,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1.6, // tracking-widest
-    color: 'rgba(122, 116, 144, 0.7)', // text-text-muted/70
+    color: withAlpha(colors.textMuted, 0.7, 'rgba(122, 116, 144, 0.7)'),
   },
 
   // Frequency label - child
@@ -905,7 +935,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1.6,
-    color: 'rgba(122, 116, 144, 0.6)', // text-text-muted/60
+    color: withAlpha(colors.textMuted, 0.6, 'rgba(122, 116, 144, 0.6)'),
   },
 
   // Due time text
@@ -923,9 +953,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, // px-2
     paddingVertical: 2, // py-0.5
     borderRadius: 9999,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)', // bg-primary/10
+    backgroundColor: colors.primary_10,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.1)',
+    borderColor: colors.primary_20,
   },
   badgePrimaryText: {
     fontSize: 9,
@@ -938,7 +968,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)', // bg-red-500/10
+    backgroundColor: colors.red500_10,
   },
   badgeOverdueText: {
     fontSize: 9,
@@ -952,21 +982,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: colors.red500_10,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: colors.red500_30,
   },
   badgeBadHabitNoBorder: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: colors.red500_10,
   },
   badgeBadHabitText: {
     fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase',
-    color: '#f87171', // text-red-400
+    color: colors.red400,
   },
 
   // Badge: tag
@@ -989,9 +1019,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)', // bg-amber-400/10
+    backgroundColor: withAlpha(colors.amber400, 0.1, 'rgba(251, 191, 36, 0.1)'),
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.1)',
+    borderColor: withAlpha(colors.amber400, 0.2, 'rgba(251, 191, 36, 0.2)'),
   },
   badgeStreakNoBorder: {
     flexDirection: 'row',
@@ -1000,7 +1030,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    backgroundColor: withAlpha(colors.amber400, 0.1, 'rgba(251, 191, 36, 0.1)'),
   },
   badgeStreakText: {
     fontSize: 9,
@@ -1016,7 +1046,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(26, 24, 41, 0.6)', // bg-surface-elevated/60
+    backgroundColor: withAlpha(colors.surfaceElevated, 0.88, colors.surfaceElevated),
     borderWidth: 1,
     borderColor: colors.borderMuted,
   },
@@ -1027,7 +1057,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 9999,
-    backgroundColor: 'rgba(26, 24, 41, 0.6)',
+    backgroundColor: withAlpha(colors.surfaceElevated, 0.88, colors.surfaceElevated),
   },
   badgeChecklistText: {
     fontSize: 9,
@@ -1057,9 +1087,9 @@ const styles = StyleSheet.create({
     minWidth: 192, // min-w-[12rem]
     borderRadius: 16, // rounded-2xl
     padding: 6, // p-1.5
-    backgroundColor: 'rgba(33, 31, 51, 0.92)', // color-mix surface-overlay 92%
+    backgroundColor: colors.surfaceOverlay,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.6,
@@ -1093,6 +1123,7 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: 4, // my-1
     marginHorizontal: 8, // mx-2
-    backgroundColor: 'rgba(26, 24, 41, 0.6)', // bg-surface-elevated/60
+    backgroundColor: colors.borderMuted,
   },
-})
+  })
+}

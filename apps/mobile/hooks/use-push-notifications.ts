@@ -61,6 +61,21 @@ function isGrantedStatus(status: string): status is 'granted' {
   return status === 'granted'
 }
 
+function getProjectIdFromExpoConfig(): string | null {
+  const extra = Constants.expoConfig?.extra
+  if (!extra || typeof extra !== 'object' || !('eas' in extra)) {
+    return null
+  }
+
+  const eas = extra.eas
+  if (!eas || typeof eas !== 'object' || !('projectId' in eas)) {
+    return null
+  }
+
+  const projectId = eas.projectId
+  return typeof projectId === 'string' ? projectId : null
+}
+
 if (notificationsModule) {
   notificationsModule.setNotificationHandler({
     handleNotification: async () => ({
@@ -87,7 +102,11 @@ async function getPushToken(): Promise<string | null> {
   if (!notificationsModule || !Device.isDevice) return null
 
   await ensureAndroidChannel()
-  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID
+  const projectId =
+    process.env.EXPO_PUBLIC_PROJECT_ID ??
+    Constants.easConfig?.projectId ??
+    getProjectIdFromExpoConfig()
+
   if (!projectId) return null
   const tokenData = await notificationsModule.getExpoPushTokenAsync({
     projectId,

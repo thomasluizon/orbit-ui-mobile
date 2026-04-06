@@ -1,7 +1,8 @@
 import { useMemo, useState, type ComponentType } from 'react'
-import { ActivityIndicator, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { AlertTriangle, ArrowLeft, BadgeCheck, BarChart3, Check, CheckCircle2, Clock, CreditCard, Download, Flame, MessageSquare, Palette, ShieldCheck, Sparkles, Tag, X as XIcon } from 'lucide-react-native'
@@ -13,7 +14,8 @@ import { useBilling } from '@/hooks/use-billing'
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useHasProAccess, useProfile, useTrialDaysLeft, useTrialExpired, useTrialUrgent } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
-import { colors } from '@/lib/theme'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 type IconType = ComponentType<{ size?: number; color?: string }>
 
@@ -27,7 +29,7 @@ const categories: { category: string; rows: { key: string; Icon: IconType; type:
   { category: 'personalization', rows: [{ key: 'colors', Icon: Palette, type: 'text' }, { key: 'calendarImport', Icon: Flame, type: 'boolean', free: false, pro: true }, { key: 'adFree', Icon: ShieldCheck, type: 'boolean', free: false, pro: true }] },
 ]
 
-function invoiceStatusColors(status: string) {
+function invoiceStatusColors(status: string, colors: ReturnType<typeof createColors>) {
   if (status === 'paid') return { bg: 'rgba(52,211,153,0.10)', border: 'rgba(52,211,153,0.20)', text: colors.emerald400 }
   if (status === 'open') return { bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.20)', text: colors.amber400 }
   return { bg: colors.surfaceElevated, border: colors.border, text: colors.textMuted }
@@ -36,8 +38,10 @@ function invoiceStatusColors(status: string) {
 export default function UpgradeScreen() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const locale = i18n.language === 'pt-BR' ? 'pt-BR' : 'en-US'
   const dateLocale = locale === 'pt-BR' ? ptBR : enUS
+  const styles = useMemo(() => createStyles(colors), [colors])
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const trialExpired = useTrialExpired()
@@ -183,7 +187,20 @@ export default function UpgradeScreen() {
     return (
       <View style={styles.stack}>
         <View style={styles.card}>
-          <View style={styles.iconRow}><BadgeCheck size={20} color={colors.primary} /><Text style={styles.title}>{data.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}</Text></View>
+          <View style={styles.rowBetween}>
+            <View style={styles.iconRow}>
+              <BadgeCheck size={20} color={colors.primary} />
+              <Text style={styles.title}>{data.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}</Text>
+            </View>
+            <View style={styles.badgeRow}>
+              {data.cancelAtPeriodEnd ? (
+                <View style={styles.warningPill}><Text style={styles.warningPillText}>{t('upgrade.billing.plan.canceledBadge')}</Text></View>
+              ) : null}
+              {!data.cancelAtPeriodEnd && data.status === 'past_due' ? (
+                <View style={styles.dangerPill}><Text style={styles.dangerPillText}>{t('upgrade.billing.plan.pastDue')}</Text></View>
+              ) : null}
+            </View>
+          </View>
           <Text style={styles.text}>{data.cancelAtPeriodEnd ? t('upgrade.billing.plan.canceledHint', { date: format(parseISO(data.currentPeriodEnd), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale }) }) : t('upgrade.billing.plan.renewsOn', { date: format(parseISO(data.currentPeriodEnd), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale }) })}</Text>
           {data.amountPerPeriod > 0 ? <Text style={styles.muted}>{formatPrice(data.amountPerPeriod, data.currency)}{data.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}</Text> : null}
         </View>
@@ -192,7 +209,7 @@ export default function UpgradeScreen() {
 
         {usageCard()}
 
-        {data.recentInvoices.length > 0 ? <View style={styles.card}><Text style={styles.label}>{t('upgrade.billing.invoices.title')}</Text>{data.recentInvoices.map((invoice, index) => { const state = invoiceStatusColors(invoice.status); const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl; return <View key={invoice.id} style={[styles.invoiceRow, index < data.recentInvoices.length - 1 ? styles.invoiceBorder : null]}><View style={styles.flex}><View style={styles.iconRow}><Text style={styles.text}>{format(parseISO(invoice.date), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}</Text><View style={styles.reasonPill}><Text style={styles.reasonText}>{({ subscription_create: t('upgrade.billing.invoices.reasonCreate'), subscription_cycle: t('upgrade.billing.invoices.reasonCycle'), subscription_update: t('upgrade.billing.invoices.reasonUpdate'), manual: t('upgrade.billing.invoices.reasonManual') } as Record<string, string>)[invoice.billingReason] ?? invoice.billingReason}</Text></View></View><View style={[styles.statusPill, { backgroundColor: state.bg, borderColor: state.border }]}><Text style={[styles.statusText, { color: state.text }]}>{({ paid: t('upgrade.billing.invoices.statusPaid'), open: t('upgrade.billing.invoices.statusOpen'), void: t('upgrade.billing.invoices.statusVoid') } as Record<string, string>)[invoice.status] ?? invoice.status}</Text></View></View><View style={styles.iconRow}><Text style={styles.boldText}>{formatPrice(invoice.amountPaid, invoice.currency)}</Text>{url ? <TouchableOpacity onPress={() => { Linking.openURL(url).catch(() => {}) }}><Download size={16} color={colors.textMuted} /></TouchableOpacity> : null}</View></View> })}</View> : null}
+        {data.recentInvoices.length > 0 ? <View style={styles.card}><Text style={styles.label}>{t('upgrade.billing.invoices.title')}</Text>{data.recentInvoices.map((invoice, index) => { const state = invoiceStatusColors(invoice.status, colors); const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl; return <View key={invoice.id} style={[styles.invoiceRow, index < data.recentInvoices.length - 1 ? styles.invoiceBorder : null]}><View style={styles.flex}><View style={styles.iconRow}><Text style={styles.text}>{format(parseISO(invoice.date), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}</Text><View style={styles.reasonPill}><Text style={styles.reasonText}>{({ subscription_create: t('upgrade.billing.invoices.reasonCreate'), subscription_cycle: t('upgrade.billing.invoices.reasonCycle'), subscription_update: t('upgrade.billing.invoices.reasonUpdate'), manual: t('upgrade.billing.invoices.reasonManual') } as Record<string, string>)[invoice.billingReason] ?? invoice.billingReason}</Text></View></View><View style={[styles.statusPill, { backgroundColor: state.bg, borderColor: state.border }]}><Text style={[styles.statusText, { color: state.text }]}>{({ paid: t('upgrade.billing.invoices.statusPaid'), open: t('upgrade.billing.invoices.statusOpen'), void: t('upgrade.billing.invoices.statusVoid') } as Record<string, string>)[invoice.status] ?? invoice.status}</Text></View></View><View style={styles.iconRow}><Text style={styles.boldText}>{formatPrice(invoice.amountPaid, invoice.currency)}</Text>{url ? <TouchableOpacity onPress={() => { Linking.openURL(url).catch(() => {}) }}><Download size={16} color={colors.textMuted} /></TouchableOpacity> : null}</View></View> })}</View> : null}
 
         <View style={styles.stackSmall}>
           <TouchableOpacity style={[styles.secondaryBtn, portalLoading ? styles.disabled : null]} onPress={handlePortal} disabled={portalLoading}><Text style={styles.secondaryBtnText}>{t('upgrade.billing.actions.manage')}</Text></TouchableOpacity>
@@ -204,7 +221,7 @@ export default function UpgradeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.back} onPress={() => router.push('/profile')} activeOpacity={0.7}><ArrowLeft size={20} color={colors.textPrimary} /></TouchableOpacity>
@@ -227,9 +244,10 @@ export default function UpgradeScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, gap: 12 },
+  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   back: { padding: 8, marginLeft: -8 },
   screenTitle: { fontSize: 28, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5 },
@@ -244,6 +262,10 @@ const styles = StyleSheet.create({
   rowHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   iconRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  warningPill: { backgroundColor: 'rgba(251,191,36,0.15)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.20)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  warningPillText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: colors.amber400 },
+  dangerPill: { backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.20)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  dangerPillText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: colors.red400 },
   title: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   screenSub: { fontSize: 14, color: colors.textSecondary },
   text: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
@@ -291,4 +313,5 @@ const styles = StyleSheet.create({
   reasonText: { fontSize: 10, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
   statusPill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
   statusText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-})
+  })
+}

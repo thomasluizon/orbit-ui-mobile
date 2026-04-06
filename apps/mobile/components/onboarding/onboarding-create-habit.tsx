@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import { useTranslation } from 'react-i18next'
 import { useCreateHabit } from '@/hooks/use-habits'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,6 +51,8 @@ interface OnboardingCreateHabitProps {
 
 export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHabitProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const [title, setTitle] = useState('')
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
   const [isCreated, setIsCreated] = useState(false)
@@ -230,147 +233,149 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  suggestionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  suggestionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  suggestionChipActive: {
-    backgroundColor: colors.primary_10,
-    borderColor: colors.primary_30,
-  },
-  suggestionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  suggestionTextActive: {
-    color: colors.primary,
-  },
-  input: {
-    width: '100%',
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  freqRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 16,
-    width: '100%',
-  },
-  freqBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  freqBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    ...shadows.sm,
-    elevation: 3,
-  },
-  freqBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  freqBtnTextActive: {
-    color: colors.white,
-  },
-  errorText: {
-    fontSize: 14,
-    color: colors.danger,
-    marginTop: 12,
-  },
-  createBtn: {
-    width: '100%',
-    marginTop: 24,
-    paddingVertical: 14,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    ...shadows.sm,
-    elevation: 3,
-  },
-  createBtnDisabled: {
-    backgroundColor: colors.primary_80,
-    opacity: 0.5,
-  },
-  createBtnText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  // Success state
-  successCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
-    alignItems: 'center',
-  },
-  successIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(52, 211, 153, 0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  successFreq: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  successMessage: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.success,
-    marginTop: 12,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    container: {
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 24,
+    },
+    suggestionsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 8,
+      marginBottom: 24,
+    },
+    suggestionChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+    },
+    suggestionChipActive: {
+      backgroundColor: colors.primary_10,
+      borderColor: colors.primary_30,
+    },
+    suggestionText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    suggestionTextActive: {
+      color: colors.primary,
+    },
+    input: {
+      width: '100%',
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.lg,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    freqRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 16,
+      width: '100%',
+    },
+    freqBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: radius.xl,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    freqBtnActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      ...shadows.sm,
+      elevation: 3,
+    },
+    freqBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    freqBtnTextActive: {
+      color: colors.white,
+    },
+    errorText: {
+      fontSize: 14,
+      color: colors.danger,
+      marginTop: 12,
+    },
+    createBtn: {
+      width: '100%',
+      marginTop: 24,
+      paddingVertical: 14,
+      borderRadius: radius.xl,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      ...shadows.sm,
+      elevation: 3,
+    },
+    createBtnDisabled: {
+      backgroundColor: colors.primary_80,
+      opacity: 0.5,
+    },
+    createBtnText: {
+      color: colors.white,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    // Success state
+    successCard: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 24,
+      alignItems: 'center',
+    },
+    successIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: 'rgba(52, 211, 153, 0.10)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    successTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    successFreq: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    successMessage: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.success,
+      marginTop: 12,
+    },
+  })
+}

@@ -13,6 +13,7 @@ import {
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { enUS, ptBR } from 'date-fns/locale'
 import {
   ArrowLeft,
   CheckCircle,
@@ -33,10 +34,10 @@ import { formatDistanceToNow, parseISO } from 'date-fns'
 import { API } from '@orbit/shared/api'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
-import { colors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // API Keys types
@@ -61,10 +62,13 @@ interface ApiKeyCreateResponse {
 // ---------------------------------------------------------------------------
 
 export default function AdvancedScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
+  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
 
   // --- Timezone ---
   const [timezoneList, setTimezoneList] = useState<string[]>([])
@@ -148,7 +152,7 @@ export default function AdvancedScreen() {
 }`
 
   function formatKeyDate(dateStr: string): string {
-    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true })
+    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
   }
 
   async function handleCreateKey(name: string): Promise<ApiKeyCreateResponse | null> {
@@ -161,7 +165,7 @@ export default function AdvancedScreen() {
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
     } catch (err: unknown) {
-      setCreateKeyError(err instanceof Error ? err.message : t('orbitMcp.apiKeysError'))
+      setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
       return null
     }
   }
@@ -203,7 +207,7 @@ export default function AdvancedScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />
@@ -557,7 +561,8 @@ export default function AdvancedScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -826,4 +831,5 @@ const styles = StyleSheet.create({
   widgetStepText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
   widgetFeatureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   widgetFeatureText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
-})
+  })
+}

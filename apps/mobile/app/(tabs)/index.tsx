@@ -1,5 +1,8 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
+  Animated,
+  Easing,
+  Image,
   View,
   Text,
   TouchableOpacity,
@@ -10,14 +13,13 @@ import {
   Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   ChevronLeft,
   ChevronRight,
   Search,
   X,
-  Plus,
   MoreVertical,
   CheckCircle2,
   RefreshCw,
@@ -42,13 +44,13 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import {
   useHabits,
   useBulkDeleteHabits,
   useBulkLogHabits,
   useBulkSkipHabits,
-  useTotalHabitCount,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
 import { useStreakInfo } from '@/hooks/use-gamification'
@@ -64,9 +66,9 @@ import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { NotificationBell } from '@/components/navigation/notification-bell'
-import { colors, radius, shadows } from '@/lib/theme'
+import { createColors, radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -100,6 +102,8 @@ function ControlsMenu({
   onClose: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   return (
     <Modal
@@ -188,16 +192,16 @@ function ControlsMenu({
 
 export default function TodayScreen() {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const insets = useSafeAreaInsets()
-  const router = useRouter()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
-  const totalHabitCount = useTotalHabitCount()
   const bulkDeleteHabits = useBulkDeleteHabits()
   const bulkLogHabits = useBulkLogHabits()
   const bulkSkipHabits = useBulkSkipHabits()
@@ -225,8 +229,10 @@ export default function TodayScreen() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
   const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const habitListRef = useRef<HabitListHandle>(null)
+  const dateLabelAnim = useRef(new Animated.Value(0)).current
 
   // Modal state
   const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
@@ -268,14 +274,17 @@ export default function TodayScreen() {
 
   // Date navigation
   const goToPreviousDay = useCallback(() => {
+    setSlideDirection('left')
     setSelectedDate(formatAPIDate(subDays(selectedDate, 1)))
   }, [selectedDate, setSelectedDate])
 
   const goToNextDay = useCallback(() => {
+    setSlideDirection('right')
     setSelectedDate(formatAPIDate(addDays(selectedDate, 1)))
   }, [selectedDate, setSelectedDate])
 
   const goToToday = useCallback(() => {
+    setSlideDirection(isToday(selectedDate) ? 'right' : selectedDate > new Date() ? 'left' : 'right')
     setSelectedDate(formatAPIDate(new Date()))
     setActiveView('today')
   }, [setSelectedDate, setActiveView])
@@ -290,6 +299,16 @@ export default function TodayScreen() {
       { locale: dateFnsLocale },
     )
   }, [selectedDate, t, locale, dateFnsLocale])
+
+  useEffect(() => {
+    dateLabelAnim.setValue(0)
+    Animated.timing(dateLabelAnim, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+  }, [dateLabelAnim, selectedDateStr, slideDirection])
 
   // Search debounce
   useEffect(() => {
@@ -365,9 +384,14 @@ export default function TodayScreen() {
     return ids
   }, [habitsQuery, visibleTopLevelHabits])
 
+  const allLoadedIds = useMemo(
+    () => habitListRef.current?.allLoadedIds ?? visibleHabitIds,
+    [visibleHabitIds],
+  )
+
   const allSelected =
-    visibleHabitIds.size > 0 &&
-    Array.from(visibleHabitIds).every((id) => selectedHabitIds.has(id))
+    allLoadedIds.size > 0 &&
+    Array.from(allLoadedIds).every((id) => selectedHabitIds.has(id))
 
   const selectedCount = selectedHabitIds.size
 
@@ -418,8 +442,8 @@ export default function TodayScreen() {
   }, [])
 
   const handleSelectAll = useCallback(() => {
-    selectAllHabits(Array.from(visibleHabitIds))
-  }, [selectAllHabits, visibleHabitIds])
+    selectAllHabits(Array.from(allLoadedIds))
+  }, [allLoadedIds, selectAllHabits])
 
   const handleDeselectAll = useCallback(() => {
     clearSelection()
@@ -487,9 +511,6 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Trial banner */}
-        <TrialBanner />
-
         {/* ============================================================
             HEADER: Orbit logo + streak badge + avatar
             Matches: <header className="flex items-center justify-between pt-8 pb-2">
@@ -501,7 +522,11 @@ export default function TodayScreen() {
             activeOpacity={0.8}
           >
             <View style={styles.logoIcon}>
-              <Text style={styles.logoIconText}>O</Text>
+              <Image
+                source={require('../../assets/logo-no-bg.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.headerTitle}>Orbit</Text>
           </TouchableOpacity>
@@ -566,14 +591,25 @@ export default function TodayScreen() {
               <ChevronLeft size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
-              <Text
+              <Animated.Text
                 style={[
                   styles.dateLabel,
                   isToday(selectedDate) && styles.dateLabelToday,
+                  {
+                    opacity: dateLabelAnim,
+                    transform: [
+                      {
+                        translateX: dateLabelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [slideDirection === 'left' ? -12 : 12, 0],
+                        }),
+                      },
+                    ],
+                  },
                 ]}
               >
                 {dateLabel}
-              </Text>
+              </Animated.Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.dateNavButton}
@@ -743,7 +779,7 @@ export default function TodayScreen() {
                 ]}
               >
                 <Text style={styles.bulkSelectionText}>
-                  {t('common.selected', { n: selectedCount })}
+                  {plural(t('common.selected', { n: selectedCount }), selectedCount)}
                 </Text>
                 <View style={styles.bulkActionRow}>
                   <TouchableOpacity
@@ -823,41 +859,6 @@ export default function TodayScreen() {
       </ScrollView>
 
       {/* ============================================================
-          FAB - floating action button matching web create button
-          ============================================================ */}
-      {activeView === 'goals' ? (
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { bottom: 24 + insets.bottom },
-          ]}
-          activeOpacity={0.8}
-          onPress={() => setShowCreateGoalModal(true)}
-        >
-          <Plus size={24} color="#fff" />
-        </TouchableOpacity>
-      ) : (
-        !isSelectMode && (
-          <TouchableOpacity
-            style={[
-              styles.fab,
-              { bottom: 24 + insets.bottom },
-            ]}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (!(profile?.hasProAccess ?? false) && totalHabitCount >= 10) {
-                router.push('/upgrade')
-                return
-              }
-              setShowCreateModal(true)
-            }}
-          >
-            <Plus size={24} color="#fff" />
-          </TouchableOpacity>
-        )
-      )}
-
-      {/* ============================================================
           MODALS
           ============================================================ */}
       <CreateHabitModal
@@ -895,7 +896,10 @@ export default function TodayScreen() {
         open={showBulkDeleteConfirm}
         onOpenChange={setShowBulkDeleteConfirm}
         title={t('habits.bulkDeleteTitle')}
-        description={t('habits.bulkDeleteMessage', { count: selectedCount })}
+        description={plural(
+          t('habits.bulkDeleteMessage', { count: selectedCount }),
+          selectedCount,
+        )}
         confirmLabel={t('habits.bulkDeleteConfirm')}
         onConfirm={confirmBulkDelete}
         variant="danger"
@@ -905,7 +909,10 @@ export default function TodayScreen() {
         open={showBulkLogConfirm}
         onOpenChange={setShowBulkLogConfirm}
         title={t('habits.bulkLogTitle')}
-        description={t('habits.bulkLogMessage', { count: selectedCount })}
+        description={plural(
+          t('habits.bulkLogMessage', { count: selectedCount }),
+          selectedCount,
+        )}
         confirmLabel={t('habits.bulkLogConfirm')}
         onConfirm={confirmBulkLog}
         variant="success"
@@ -915,7 +922,10 @@ export default function TodayScreen() {
         open={showBulkSkipConfirm}
         onOpenChange={setShowBulkSkipConfirm}
         title={t('habits.bulkSkipTitle')}
-        description={t('habits.bulkSkipMessage', { count: selectedCount })}
+        description={plural(
+          t('habits.bulkSkipMessage', { count: selectedCount }),
+          selectedCount,
+        )}
         confirmLabel={t('habits.bulkSkipConfirm')}
         onConfirm={confirmBulkSkip}
         variant="warning"
@@ -933,7 +943,8 @@ export default function TodayScreen() {
 // Styles - pixel-accurate match with web CSS
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   // Layout
   safeArea: {
     flex: 1,
@@ -964,15 +975,12 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(139,92,246,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoIconText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.primary,
+  logoImage: {
+    width: 34,
+    height: 34,
   },
   // text-[length:var(--text-fluid-xl)] = 18-24px, font-extrabold
   headerTitle: {
@@ -1098,7 +1106,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.3)',
+    borderColor: colors.primary_30,
     padding: 16,
     marginBottom: 8,
   },
@@ -1426,9 +1434,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(139,92,246,0.1)',
+    backgroundColor: colors.primary_10,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.1)',
+    borderColor: colors.primary_20,
   },
   badgePrimaryText: {
     fontSize: 9,
@@ -1458,7 +1466,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(26,24,41,0.6)',
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.borderMuted,
   },
@@ -1490,7 +1498,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.borderMuted,
     padding: 16,
   },
   skeletonCircle: {
@@ -1513,7 +1521,7 @@ const styles = StyleSheet.create({
     height: 12,
     width: '40%',
     borderRadius: 8,
-    backgroundColor: 'rgba(26,24,41,0.6)',
+    backgroundColor: colors.surfaceElevated,
   },
 
   // Empty state
@@ -1533,25 +1541,5 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-
-  // FAB: matches web's primary button
-  fab: {
-    position: 'absolute',
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Glow shadow matching --shadow-glow
-    ...(Platform.OS === 'ios'
-      ? {
-          shadowColor: colors.primary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-        }
-      : { elevation: 8 }),
-  },
-})
+  })
+}

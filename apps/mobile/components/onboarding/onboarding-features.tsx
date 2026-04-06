@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { MessageSquare, CalendarDays, Trophy, BellRing } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Feature list
@@ -43,6 +45,8 @@ const features: FeatureItem[] = [
 
 export function OnboardingFeatures() {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   return (
     <View>
@@ -78,53 +82,55 @@ export function OnboardingFeatures() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  featureList: {
-    gap: 12,
-  },
-  featureCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-    padding: 16,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primary_10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  featureDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    featureList: {
+      gap: 12,
+    },
+    featureCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 16,
+      padding: 16,
+      borderRadius: radius.xl,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    iconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.lg,
+      backgroundColor: colors.primary_10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureText: {
+      flex: 1,
+    },
+    featureTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    featureDesc: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      marginTop: 2,
+    },
+  })
+}

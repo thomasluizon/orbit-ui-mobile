@@ -1,22 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import type { Achievement } from '@orbit/shared/types/gamification'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
 
 export function AchievementToast() {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const { newAchievements, invalidate } = useGamificationProfile()
+  const { colors, shadows } = useAppTheme()
   const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null)
   const queueRef = useRef<Achievement[]>([])
   const visibleRef = useRef(false)
   const translateY = useRef(new Animated.Value(-100)).current
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.95)).current
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   const processQueue = useCallback(() => {
     if (visibleRef.current || queueRef.current.length === 0) return
@@ -87,6 +92,7 @@ export function AchievementToast() {
     <Animated.View
       style={[
         styles.container,
+        { top: insets.top + 12 },
         {
           opacity,
           transform: [{ translateY }, { scale }],
@@ -125,57 +131,58 @@ export function AchievementToast() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 60,
-    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-    width: TOAST_WIDTH,
-    zIndex: 10000,
-  },
-  inner: {
-    backgroundColor: colors.surfaceOverlay,
-    borderWidth: 1,
-    borderColor: colors.primary_30,
-    borderRadius: radius.lg,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    ...shadows.lg,
-  },
-  starIcon: {
-    fontSize: 30,
-  },
-  textContainer: {
-    flex: 1,
-    minWidth: 0,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    color: colors.primary,
-  },
-  name: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  description: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  xpBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary_15,
-  },
-  xpText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows: ReturnType<typeof useAppTheme>['shadows']) {
+  return StyleSheet.create({
+    container: {
+      position: 'absolute',
+      left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
+      width: TOAST_WIDTH,
+      zIndex: 10000,
+    },
+    inner: {
+      backgroundColor: colors.surfaceOverlay,
+      borderWidth: 1,
+      borderColor: colors.primary_30,
+      borderRadius: radius.lg,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      ...shadows.lg,
+    },
+    starIcon: {
+      fontSize: 30,
+    },
+    textContainer: {
+      flex: 1,
+      minWidth: 0,
+    },
+    label: {
+      fontSize: 10,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1.2,
+      color: colors.primary,
+    },
+    name: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    description: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    xpBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: radius.xl,
+      backgroundColor: colors.primary_15,
+    },
+    xpText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+  })
+}

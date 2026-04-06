@@ -28,6 +28,19 @@
         "backgroundColor": "#07060e"
       },
       "package": "org.useorbit.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.useorbit.org",
+              "pathPrefix": "/auth-callback"
+            }
+          ]
+        }
+      ],
       "permissions": [
         "INTERNET",
         "VIBRATE",

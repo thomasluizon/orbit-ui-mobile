@@ -514,6 +514,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
       return (
         <HabitCard
+          key={habit.id}
           habit={habit}
           selectedDate={selectedDate}
           depth={depth}

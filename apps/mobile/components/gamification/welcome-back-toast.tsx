@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useProfile } from '@/hooks/use-profile'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
@@ -24,12 +26,15 @@ const STORAGE_REFERRAL_APPLIED = 'orbit_referral_applied'
 
 export function WelcomeBackToast() {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const { profile } = useProfile()
+  const { colors, shadows } = useAppTheme()
   const [toastMessage, setToastMessage] = useState('')
   const [toastEmoji, setToastEmoji] = useState('\uD83D\uDC4B')
   const [shouldRender, setShouldRender] = useState(false)
   const checkedRef = useRef(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   const translateY = useRef(new Animated.Value(-40)).current
   const opacity = useRef(new Animated.Value(0)).current
@@ -145,6 +150,7 @@ export function WelcomeBackToast() {
     <Animated.View
       style={[
         styles.container,
+        { top: insets.top + 12 },
         {
           opacity,
           transform: [{ translateY }, { scale }],
@@ -165,35 +171,36 @@ export function WelcomeBackToast() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 60,
-    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-    width: TOAST_WIDTH,
-    zIndex: 10000,
-  },
-  toast: {
-    backgroundColor: colors.surfaceOverlay,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radius.xl,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    ...shadows.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  emoji: {
-    fontSize: 24,
-  },
-  message: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows: ReturnType<typeof useAppTheme>['shadows']) {
+  return StyleSheet.create({
+    container: {
+      position: 'absolute',
+      left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
+      width: TOAST_WIDTH,
+      zIndex: 10000,
+    },
+    toast: {
+      backgroundColor: colors.surfaceOverlay,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      borderRadius: radius.xl,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      ...shadows.lg,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    emoji: {
+      fontSize: 24,
+    },
+    message: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+  })
+}

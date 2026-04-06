@@ -1,108 +1,123 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { View, Text, Image, StyleSheet, Animated } from 'react-native'
-import { Sparkles, User } from 'lucide-react-native'
-import { useTranslation } from 'react-i18next'
-import type { ChatMessage } from '@orbit/shared/types/chat'
-import { ActionChips } from '@/components/chat/action-chips'
-import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
-import { formatChatMessage } from '@/components/chat/format-chat-message'
-import { useAppTheme } from '@/lib/use-app-theme'
+import { useState, useMemo, useEffect, useRef } from "react";
+import { View, Text, Image, StyleSheet, Animated } from "react-native";
+import { Sparkles, User } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import type { ChatMessage } from "@orbit/shared/types/chat";
+import { ActionChips } from "@/components/chat/action-chips";
+import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
+import { formatChatMessage } from "@/components/chat/format-chat-message";
+import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
 // MessageBubble
 // ---------------------------------------------------------------------------
 
 interface MessageBubbleProps {
-  message: ChatMessage
-  onBreakdownConfirmed?: () => void
+  message: ChatMessage;
+  onBreakdownConfirmed?: () => void;
 }
 
 interface FormattedSegment {
-  text: string
-  bold?: boolean
-  italic?: boolean
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
 }
 
 function decodeHtmlEntities(value: string): string {
   return value
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&amp;', '&')
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&amp;", "&");
 }
 
 function parseFormattedSegments(value: string): FormattedSegment[] {
-  const html = formatChatMessage(value)
-  const segments: FormattedSegment[] = []
-  let cursor = 0
+  const html = formatChatMessage(value);
+  const segments: FormattedSegment[] = [];
+  let cursor = 0;
 
   while (cursor < html.length) {
-    if (html.startsWith('<strong>', cursor)) {
-      const end = html.indexOf('</strong>', cursor)
-      if (end === -1) break
+    if (html.startsWith("<strong>", cursor)) {
+      const end = html.indexOf("</strong>", cursor);
+      if (end === -1) break;
       segments.push({
         text: decodeHtmlEntities(html.slice(cursor + 8, end)),
         bold: true,
-      })
-      cursor = end + 9
-      continue
+      });
+      cursor = end + 9;
+      continue;
     }
 
-    if (html.startsWith('<em>', cursor)) {
-      const end = html.indexOf('</em>', cursor)
-      if (end === -1) break
+    if (html.startsWith("<em>", cursor)) {
+      const end = html.indexOf("</em>", cursor);
+      if (end === -1) break;
       segments.push({
         text: decodeHtmlEntities(html.slice(cursor + 4, end)),
         italic: true,
-      })
-      cursor = end + 5
-      continue
+      });
+      cursor = end + 5;
+      continue;
     }
 
-    const nextStrong = html.indexOf('<strong>', cursor)
-    const nextEm = html.indexOf('<em>', cursor)
-    const nextTagCandidates = [nextStrong, nextEm].filter((index) => index >= 0)
-    const nextTag = nextTagCandidates.length > 0 ? Math.min(...nextTagCandidates) : html.length
+    const nextStrong = html.indexOf("<strong>", cursor);
+    const nextEm = html.indexOf("<em>", cursor);
+    const nextTagCandidates = [nextStrong, nextEm].filter(
+      (index) => index >= 0,
+    );
+    const nextTag =
+      nextTagCandidates.length > 0
+        ? Math.min(...nextTagCandidates)
+        : html.length;
     segments.push({
       text: decodeHtmlEntities(html.slice(cursor, nextTag)),
-    })
-    cursor = nextTag
+    });
+    cursor = nextTag;
   }
 
-  return segments.filter((segment) => segment.text.length > 0)
+  return segments.filter((segment) => segment.text.length > 0);
 }
 
-export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<MessageBubbleProps>) {
-  const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
-  const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
+export function MessageBubble({
+  message,
+  onBreakdownConfirmed,
+}: Readonly<MessageBubbleProps>) {
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(
+    new Set(),
+  );
 
-  const isUser = message.role === 'user'
+  const isUser = message.role === "user";
 
   const suggestionActions = useMemo(
     () =>
       message.actions?.filter(
-        (a) => a.status === 'Suggestion' && a.suggestedSubHabits?.length,
+        (a) => a.status === "Suggestion" && a.suggestedSubHabits?.length,
       ) ?? [],
     [message.actions],
-  )
+  );
 
   const nonSuggestionActions = useMemo(
-    () => message.actions?.filter((a) => a.status !== 'Suggestion') ?? [],
+    () => message.actions?.filter((a) => a.status !== "Suggestion") ?? [],
     [message.actions],
-  )
+  );
   const formattedSegments = useMemo(
-    () => parseFormattedSegments(message.content ?? ''),
+    () => parseFormattedSegments(message.content ?? ""),
     [message.content],
-  )
+  );
 
   function dismissBreakdown(key: string) {
-    setDismissedBreakdowns((prev) => new Set([...prev, key]))
+    setDismissedBreakdowns((prev) => new Set([...prev, key]));
   }
 
   return (
-    <View style={[styles.container, isUser ? styles.userContainer : styles.aiContainer]}>
+    <View
+      style={[
+        styles.container,
+        isUser ? styles.userContainer : styles.aiContainer,
+      ]}
+    >
       {/* AI avatar */}
       {!isUser && (
         <View style={styles.aiAvatar}>
@@ -118,20 +133,18 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
       >
         {/* Sender label */}
         <Text style={styles.senderLabel}>
-          {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
+          {isUser ? t("chat.senderYou") : t("chat.senderOrbit")}
         </Text>
 
         {/* Message bubble */}
         <View
-          style={[
-            styles.bubble,
-            isUser ? styles.userBubble : styles.aiBubble,
-          ]}
+          style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
         >
           {/* Image attachment */}
           {message.imageUrl && (
             <Image
               source={{ uri: message.imageUrl }}
+              accessibilityLabel={t("chat.attachmentPreview")}
               style={styles.imageAttachment}
               resizeMode="cover"
             />
@@ -163,17 +176,18 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
         {!isUser && suggestionActions.length > 0 && (
           <View style={styles.breakdownContainer}>
             {suggestionActions.map((action) => {
-              const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
-              if (dismissedBreakdowns.has(actionKey)) return null
+              const actionKey =
+                action.entityId ?? action.entityName ?? "suggestion";
+              if (dismissedBreakdowns.has(actionKey)) return null;
               return (
                 <BreakdownSuggestion
                   key={actionKey}
-                  parentName={action.entityName || 'Habit'}
+                  parentName={action.entityName || "Habit"}
                   subHabits={action.suggestedSubHabits ?? []}
                   onConfirmed={() => onBreakdownConfirmed?.()}
                   onCancelled={() => dismissBreakdown(actionKey)}
                 />
-              )
+              );
             })}
           </View>
         )}
@@ -186,7 +200,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
         </View>
       )}
     </View>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -194,9 +208,9 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
 // ---------------------------------------------------------------------------
 
 function AnimatedDot({ delay }: { delay: number }) {
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
-  const opacity = useRef(new Animated.Value(1)).current
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -213,18 +227,18 @@ function AnimatedDot({ delay }: { delay: number }) {
           useNativeDriver: true,
         }),
       ]),
-    )
-    animation.start()
-    return () => animation.stop()
-  }, [delay, opacity])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [delay, opacity]);
 
-  return <Animated.View style={[styles.typingDot, { opacity }]} />
+  return <Animated.View style={[styles.typingDot, { opacity }]} />;
 }
 
 export function TypingIndicator() {
-  const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={[styles.container, styles.aiContainer]}>
@@ -235,7 +249,7 @@ export function TypingIndicator() {
 
       <View style={styles.bubbleColumnAI}>
         {/* Sender label */}
-        <Text style={styles.senderLabel}>{t('chat.senderOrbit')}</Text>
+        <Text style={styles.senderLabel}>{t("chat.senderOrbit")}</Text>
 
         {/* Typing bubble */}
         <View style={styles.typingBubble}>
@@ -247,28 +261,28 @@ export function TypingIndicator() {
         </View>
       </View>
     </View>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
-type ThemeColors = ReturnType<typeof useAppTheme>['colors']
+type ThemeColors = ReturnType<typeof useAppTheme>["colors"];
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
-      flexDirection: 'row',
+      flexDirection: "row",
       marginBottom: 24,
       paddingHorizontal: 16,
       gap: 12,
     },
     userContainer: {
-      justifyContent: 'flex-end',
+      justifyContent: "flex-end",
     },
     aiContainer: {
-      justifyContent: 'flex-start',
+      justifyContent: "flex-start",
     },
 
     // Avatars (matching web: size-10 = 40px)
@@ -279,9 +293,9 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary_20,
       borderWidth: 1,
       borderColor: colors.primary_30,
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'flex-end',
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "flex-end",
     },
     userAvatar: {
       width: 40,
@@ -290,27 +304,27 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surfaceElevated,
       borderWidth: 2,
       borderColor: colors.primary_20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'flex-end',
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "flex-end",
     },
 
     // Bubble column layout
     bubbleColumn: {
-      maxWidth: '70%',
-      flexDirection: 'column',
+      maxWidth: "70%",
+      flexDirection: "column",
     },
     bubbleColumnUser: {
-      alignItems: 'flex-end',
+      alignItems: "flex-end",
     },
     bubbleColumnAI: {
-      alignItems: 'flex-start',
+      alignItems: "flex-start",
     },
 
     // Sender label
     senderLabel: {
       fontSize: 11,
-      fontWeight: '500',
+      fontWeight: "500",
       color: colors.textSecondary,
       marginBottom: 4,
       paddingHorizontal: 8,
@@ -326,7 +340,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderBottomRightRadius: 6,
       // shadow-sm
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.4,
       shadowRadius: 3,
@@ -336,7 +350,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surfaceElevated,
       borderBottomLeftRadius: 6,
       // shadow-sm
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.4,
       shadowRadius: 3,
@@ -358,10 +372,10 @@ function createStyles(colors: ThemeColors) {
       color: colors.textPrimary,
     },
     messageTextBold: {
-      fontWeight: '700',
+      fontWeight: "700",
     },
     messageTextItalic: {
-      fontStyle: 'italic',
+      fontStyle: "italic",
     },
     userText: {
       color: colors.white,
@@ -371,7 +385,7 @@ function createStyles(colors: ThemeColors) {
     breakdownContainer: {
       gap: 12,
       marginTop: 12,
-      width: '100%',
+      width: "100%",
     },
 
     // Typing indicator
@@ -387,16 +401,16 @@ function createStyles(colors: ThemeColors) {
       borderWidth: 1,
       borderColor: colors.borderMuted,
       // shadow-sm
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.4,
       shadowRadius: 3,
       elevation: 2,
     },
     dotsRow: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: 6,
-      alignItems: 'center',
+      alignItems: "center",
     },
     typingDot: {
       width: 8,
@@ -404,5 +418,5 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 4,
       backgroundColor: colors.textSecondary,
     },
-  })
+  });
 }

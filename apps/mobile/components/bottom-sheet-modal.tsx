@@ -1,5 +1,5 @@
 import { useCallback, useRef, useMemo, type ReactNode } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native'
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
@@ -65,35 +65,45 @@ export function BottomSheetModal({
   if (!open) return null
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
-      enablePanDownToClose
-      backgroundStyle={styles.background}
-      handleIndicatorStyle={styles.handleIndicator}
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
     >
-      <BottomSheetView style={styles.contentContainer}>
-        {/* Header */}
-        {title && (
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <X size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
+      <View style={styles.modalRoot}>
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          onChange={handleSheetChanges}
+          backdropComponent={renderBackdrop}
+          enablePanDownToClose
+          backgroundStyle={styles.background}
+          handleIndicatorStyle={styles.handleIndicator}
+        >
+          <BottomSheetView style={styles.contentContainer}>
+            {/* Header */}
+            {title && (
+              <View style={styles.header}>
+                <Text style={styles.title}>{title}</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={onClose}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            )}
 
-        {/* Content */}
-        <View style={styles.body}>{children}</View>
-      </BottomSheetView>
-    </BottomSheet>
+            {/* Content */}
+            <View style={styles.body}>{children}</View>
+          </BottomSheetView>
+        </BottomSheet>
+      </View>
+    </Modal>
   )
 }
 
@@ -105,6 +115,9 @@ type ThemeColors = ReturnType<typeof useAppTheme>['colors']
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
+    modalRoot: {
+      flex: 1,
+    },
     background: {
       backgroundColor: colors.surface,
       borderTopLeftRadius: 24,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Modal,
   View,
@@ -11,7 +11,8 @@ import {
 import * as Clipboard from 'expo-clipboard'
 import { AlertTriangle, Clipboard as ClipboardIcon, Check, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ApiKeyCreateResponse {
   id: string
@@ -35,11 +36,13 @@ export function CreateApiKeyModal({
   onCreated,
 }: Readonly<CreateApiKeyModalProps>) {
   const { t } = useTranslation()
+  const { colors, shadows } = useAppTheme()
   const [keyName, setKeyName] = useState('')
   const [validationError, setValidationError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
   const [copied, setCopied] = useState(false)
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   const isRevealState = createdKey !== null
 
@@ -183,119 +186,124 @@ export function CreateApiKeyModal({
   )
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    ...shadows.lg,
-    elevation: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  content: {
-    gap: 16,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  warningBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(251,191,36,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.20)',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#fcd34d',
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  keyBox: {
-    position: 'relative',
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    paddingRight: 48,
-  },
-  keyText: {
-    fontSize: 13,
-    color: colors.textPrimary,
-    lineHeight: 20,
-    fontFamily: 'monospace',
-  },
-  copyButton: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    padding: 8,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
-  },
-  copiedText: {
-    fontSize: 12,
-    color: colors.emerald400,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.red400,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: radius.xl,
-    paddingVertical: 14,
-    minHeight: 52,
-    ...shadows.sm,
-    elevation: 4,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+      ...shadows.lg,
+      elevation: 16,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    content: {
+      gap: 16,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.textMuted,
+    },
+    input: {
+      backgroundColor: colors.background,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    warningBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      borderRadius: radius.lg,
+      backgroundColor: 'rgba(251,191,36,0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(251,191,36,0.20)',
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    warningText: {
+      flex: 1,
+      fontSize: 12,
+      color: '#fcd34d',
+      lineHeight: 18,
+      fontWeight: '500',
+    },
+    keyBox: {
+      position: 'relative',
+      backgroundColor: colors.background,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      paddingRight: 48,
+    },
+    keyText: {
+      fontSize: 13,
+      color: colors.textPrimary,
+      lineHeight: 20,
+      fontFamily: 'monospace',
+    },
+    copyButton: {
+      position: 'absolute',
+      right: 10,
+      top: 10,
+      padding: 8,
+      borderRadius: radius.md,
+      backgroundColor: colors.surfaceElevated,
+    },
+    copiedText: {
+      fontSize: 12,
+      color: colors.emerald400,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    errorText: {
+      fontSize: 12,
+      color: colors.red400,
+    },
+    primaryButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: radius.xl,
+      paddingVertical: 14,
+      minHeight: 52,
+      ...shadows.sm,
+      elevation: 4,
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    primaryButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.white,
+    },
+  })
+}
