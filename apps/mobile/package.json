@@ -8,6 +8,8 @@
     "dev": "expo start",
     "dev:client": "expo start --dev-client",
     "build:android": "eas build --platform android",
+    "android:build-apk": "eas build --platform android --profile preview",
+    "android:build-aab": "eas build --platform android --profile production",
     "build:ios": "eas build --platform ios",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
