@@ -29,6 +29,20 @@ vi.mock('next/navigation', () => ({
 }))
 
 let mockProfile: Record<string, unknown> | null = null
+let mockPushPreferences = {
+  supported: false,
+  subscribed: false,
+  permission: '' as NotificationPermission | '',
+  loading: false,
+  status: 'unsupported' as
+    | 'unsupported'
+    | 'denied'
+    | 'not-registered'
+    | 'registered'
+    | 'sync-failed'
+    | 'requesting',
+  togglePush: vi.fn(async () => undefined),
+}
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -42,6 +56,22 @@ vi.mock('@/hooks/use-color-scheme', () => ({
     currentScheme: 'purple',
     applyScheme: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/use-push-notification-preferences', () => ({
+  usePushNotificationPreferences: () => mockPushPreferences,
+  getPushStatusTone: (status: string) => `tone:${status}`,
+  getPushStatusMessageKey: (status: string, permission: NotificationPermission | '') => {
+    if (status === 'denied') return 'settings.notifications.denied'
+    if (status === 'requesting') return 'settings.notifications.requesting'
+    if (status === 'registered') return 'settings.notifications.registered'
+    if (status === 'sync-failed') return 'settings.notifications.syncFailed'
+    if (status === 'not-registered' && permission === 'granted') {
+      return 'settings.notifications.notRegistered'
+    }
+
+    return 'settings.notifications.disabled'
+  },
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -93,6 +123,14 @@ describe('PreferencesPage', () => {
       weekStartDay: 1,
       colorScheme: 'purple',
       hasProAccess: true,
+    }
+    mockPushPreferences = {
+      supported: false,
+      subscribed: false,
+      permission: '',
+      loading: false,
+      status: 'unsupported',
+      togglePush: vi.fn(async () => undefined),
     }
     mockPush.mockClear()
     localStorage.clear()
@@ -198,24 +236,63 @@ describe('PreferencesPage', () => {
     expect(screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })).toBeInTheDocument()
   })
 
-  it('toggle defaults to on (checked)', () => {
+  it('toggle defaults to off (unchecked)', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
 
   it('toggles home screen setting on click', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
   })
 
   it('persists home screen toggle to localStorage', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(toggle)
+    expect(localStorage.getItem('orbit_show_general_on_today')).toBe('true')
+  })
+
+  it('persists false after toggling the home screen setting off again', () => {
+    render(<PreferencesPage />)
+    const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
     expect(localStorage.getItem('orbit_show_general_on_today')).toBe('false')
+  })
+
+  it('renders the push notification section when web push is supported', () => {
+    mockPushPreferences = {
+      ...mockPushPreferences,
+      supported: true,
+      permission: 'granted',
+      subscribed: true,
+      status: 'registered',
+    }
+
+    render(<PreferencesPage />)
+
+    expect(screen.getByText('settings.notifications.title')).toBeInTheDocument()
+    expect(screen.getByText('settings.notifications.registered')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'settings.notifications.title' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('hides the push toggle when notification permission is denied', () => {
+    mockPushPreferences = {
+      ...mockPushPreferences,
+      supported: true,
+      permission: 'denied',
+      subscribed: false,
+      status: 'denied',
+    }
+
+    render(<PreferencesPage />)
+
+    expect(screen.getByText('settings.notifications.denied')).toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'settings.notifications.title' })).not.toBeInTheDocument()
   })
 
   // ---- Null profile edge case ----

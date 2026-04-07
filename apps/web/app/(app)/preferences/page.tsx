@@ -7,9 +7,15 @@ import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import {
+  getPushStatusMessageKey,
+  getPushStatusTone,
+  usePushNotificationPreferences,
+} from '@/hooks/use-push-notification-preferences'
 import { useAuthStore } from '@/stores/auth-store'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
@@ -31,6 +37,14 @@ export default function PreferencesPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   const { currentScheme, applyScheme } = useColorScheme()
+  const {
+    supported: pushSupported,
+    subscribed: pushSubscribed,
+    permission: pushPermission,
+    loading: pushLoading,
+    status: pushStatus,
+    togglePush: handleTogglePush,
+  } = usePushNotificationPreferences()
 
   // Hydration guard: cookie/localStorage reads differ between server and client.
   // Defer client-only state until after mount to prevent aria-pressed mismatches.
@@ -55,8 +69,8 @@ export default function PreferencesPage() {
         // Error handled silently like Vue
       }
     }
-    // Hard reload to re-trigger next-intl middleware with the new locale cookie
-    // (router.refresh() alone does not re-evaluate middleware)
+    // Hard reload to re-trigger next-intl proxy with the new locale cookie
+    // (router.refresh() alone does not re-evaluate proxy)
     globalThis.location.reload()
   }
 
@@ -137,106 +151,16 @@ export default function PreferencesPage() {
   ]
 
   // --- Home Screen Toggle (local-only preference) ---
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
-    setShowGeneralOnToday(localStorage.getItem('orbit_show_general_on_today') !== 'false')
+    setShowGeneralOnToday(parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today')))
   }, [])
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday
     setShowGeneralOnToday(next)
     localStorage.setItem('orbit_show_general_on_today', String(next))
-  }
-
-  // --- Push Notifications ---
-  const [pushSupported, setPushSupported] = useState(false)
-  const [pushSubscribed, setPushSubscribed] = useState(false)
-  const [pushPermission, setPushPermission] = useState<PermissionState | ''>('')
-  const [pushLoading, setPushLoading] = useState(false)
-
-  useEffect(() => {
-    if (typeof globalThis === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in globalThis)) { // NOSONAR - SSR guard
-      setPushSupported(false)
-      return
-    }
-
-    setPushSupported(true)
-    setPushPermission(Notification.permission as PermissionState)
-
-    // Check if already subscribed
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.pushManager.getSubscription().then((sub) => {
-        setPushSubscribed(!!sub && Notification.permission === 'granted')
-      })
-    }).catch(() => {})
-  }, [])
-
-  async function handleTogglePush() {
-    setPushLoading(true)
-    try {
-      if (pushSubscribed) {
-        // --- Unsubscribe ---
-        const registration = await navigator.serviceWorker.ready
-        const subscription = await registration.pushManager.getSubscription()
-        if (subscription) {
-          const keys = subscription.toJSON()
-          // Notify backend to remove subscription
-          await fetch('/api/notifications/unsubscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              endpoint: subscription.endpoint,
-              p256dh: keys.keys?.p256dh,
-              auth: keys.keys?.auth,
-            }),
-          })
-          await subscription.unsubscribe()
-        }
-        setPushSubscribed(false)
-      } else {
-        // --- Subscribe ---
-        // Skip permission prompt if already granted
-        const permission = Notification.permission === 'granted'
-          ? 'granted'
-          : await Notification.requestPermission()
-        setPushPermission(permission as PermissionState)
-        if (permission !== 'granted') return
-
-        const registration = await navigator.serviceWorker.ready
-
-        // Unsubscribe any stale subscription first
-        const existing = await registration.pushManager.getSubscription()
-        if (existing) await existing.unsubscribe()
-
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-        if (!vapidKey) return
-
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
-        })
-
-        const keys = subscription.toJSON()
-
-        // Send subscription to backend
-        await fetch('/api/notifications/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            endpoint: subscription.endpoint,
-            p256dh: keys.keys?.p256dh,
-            auth: keys.keys?.auth,
-          }),
-        })
-
-        setPushSubscribed(true)
-      }
-    } catch {
-      // Error handled silently
-    } finally {
-      setPushLoading(false)
-    }
   }
 
   return (
@@ -442,30 +366,12 @@ export default function PreferencesPage() {
             <p className="text-sm text-text-secondary">
               {t('settings.notifications.description')}
             </p>
-            {pushPermission === 'denied' ? (
-              <p className="text-xs text-red-400">
-                {t('settings.notifications.denied')}
-              </p>
-            ) : (
-              <p className={`text-xs font-medium ${pushSubscribed ? 'text-primary' : 'text-text-muted'}`}>
-                {pushSubscribed ? t('settings.notifications.enabled') : t('settings.notifications.disabled')}
-              </p>
-            )}
+            <p className={`text-xs font-medium ${getPushStatusTone(pushStatus)}`}>
+              {t(getPushStatusMessageKey(pushStatus, pushPermission))}
+            </p>
           </div>
         )}
       </div>
     </div>
   )
-}
-
-/** Convert a VAPID public key from URL-safe base64 to a Uint8Array for pushManager.subscribe */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4)
-  const base64 = (base64String + padding).replaceAll('-', '+').replaceAll('_', '/')
-  const rawData = atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.codePointAt(i) ?? 0
-  }
-  return outputArray
 }

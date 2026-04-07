@@ -19,6 +19,12 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  computeHabitReorderPositions,
+  collectVisibleHabitTreeIds,
+  formatAPIDate,
+  getHabitEmptyStateKey,
+} from '@orbit/shared/utils'
 import { HabitCard } from './habit-card'
 import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
@@ -55,7 +61,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/stores/ui-store'
-import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -153,51 +158,6 @@ function formatDateGroupLabel(
     locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
     { locale: dateFnsLocale },
   )
-}
-
-function computeReorderPositions(
-  items: DragItem[],
-  oldIndex: number,
-  newIndex: number,
-  habitsById: Map<string, NormalizedHabit>,
-  getChildren: (parentId: string) => NormalizedHabit[],
-): { habitId: string; position: number }[] {
-  const reordered = [...items]
-  const removed = reordered.splice(oldIndex, 1)
-  const moved = removed[0]
-  if (!moved) return []
-  reordered.splice(newIndex, 0, moved)
-
-  const positions: { habitId: string; position: number }[] = []
-  const positionByParent = new Map<string | null, number>()
-  const includedIds = new Set(reordered.map((i) => i.id))
-
-  // Assign positions to visible items in drag order
-  for (const item of reordered) {
-    const storeHabit = habitsById.get(item.id)
-    const parentId = storeHabit?.parentId ?? item.parentId
-    const nextPosition = positionByParent.get(parentId) ?? 0
-    positions.push({ habitId: item.id, position: nextPosition })
-    positionByParent.set(parentId, nextPosition + 1)
-  }
-
-  // Assign positions to hidden siblings after visible ones
-  for (const parentId of positionByParent.keys()) {
-    const allSiblings =
-      parentId === null
-        ? Array.from(habitsById.values()).filter((h) => h.parentId === null)
-        : getChildren(parentId)
-
-    for (const sibling of allSiblings) {
-      if (!includedIds.has(sibling.id)) {
-        const nextPosition = positionByParent.get(parentId) ?? 0
-        positions.push({ habitId: sibling.id, position: nextPosition })
-        positionByParent.set(parentId, nextPosition + 1)
-      }
-    }
-  }
-
-  return positions
 }
 
 function getEmptyHabitsMessage(
@@ -440,19 +400,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // All loaded/selectable IDs including descendants
   const allLoadedIds = useMemo(() => {
-    const ids = new Set<string>()
-    function collect(habitId: string) {
-      ids.add(habitId)
-      const childIds = childrenByParent.get(habitId)
-      if (childIds) {
-        for (const cid of childIds) collect(cid)
-      }
-    }
-    for (const h of habits) {
-      collect(h.id)
-    }
-    return ids
-  }, [habits, childrenByParent])
+    return collectVisibleHabitTreeIds(habits, getVisibleChildren)
+  }, [getVisibleChildren, habits])
 
   // Children progress -- matches Nuxt computeChildProgress logic
   const isListView = view === 'all' || view === 'general'
@@ -650,7 +599,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       const newIndex = items.findIndex((item) => item.id === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const positions = computeReorderPositions(
+        const positions = computeHabitReorderPositions(
           items, oldIndex, newIndex, habitsById, getChildren,
         )
         try {
@@ -668,10 +617,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setDragOverrideItems(null)
 
     // Re-expand any parent that was auto-collapsed during drag start
-    if (autoCollapsedOnDragRef.current) {
+    const autoCollapsedId = autoCollapsedOnDragRef.current
+    if (autoCollapsedId) {
       setCollapsedIds((prev) => {
         const next = new Set(prev)
-        next.delete(autoCollapsedOnDragRef.current!)
+        next.delete(autoCollapsedId)
         return next
       })
       autoCollapsedOnDragRef.current = null

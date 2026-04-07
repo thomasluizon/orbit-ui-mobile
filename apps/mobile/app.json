@@ -3,7 +3,6 @@
     "name": "Orbit",
     "slug": "orbit",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,12 +23,28 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#07060e"
       },
       "package": "org.useorbit.app",
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.useorbit.org",
+              "pathPrefix": "/auth-callback"
+            }
+          ]
+        }
+      ],
       "permissions": [
         "INTERNET",
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED"
       ]

@@ -15,7 +15,11 @@
       "@orbit/shared/*": [
         "../../packages/shared/src/*"
       ]
-    }
+    },
+    "types": [
+      "node",
+      "vitest/globals"
+    ]
   },
   "include": [
     "**/*.ts",

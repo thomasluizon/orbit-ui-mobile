@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { View, Text, Animated, Easing, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -23,6 +24,7 @@ export function LevelUpOverlay({
   onClear,
 }: Readonly<LevelUpOverlayProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
 
@@ -106,7 +108,9 @@ export function LevelUpOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [leveledUp, newLevel, onClear, t, overlayOpacity, contentScale, contentOpacity])
+  }, [leveledUp, newLevel, t, overlayOpacity, contentScale, contentOpacity]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const outerSpin = outerRingRotation.interpolate({
     inputRange: [0, 1],
@@ -178,68 +182,70 @@ export function LevelUpOverlay({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10001,
-    backgroundColor: 'rgba(0, 0, 0, 0.70)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  ringContainer: {
-    width: 128,
-    height: 128,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  outerRing: {
-    position: 'absolute',
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    borderWidth: 2,
-    borderColor: colors.primary_30,
-  },
-  innerRing: {
-    position: 'absolute',
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: colors.primary_80,
-  },
-  levelCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  levelNumber: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  textContainer: {
-    alignItems: 'center',
-  },
-  labelText: {
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    color: colors.primary,
-  },
-  titleText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: 4,
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10001,
+      backgroundColor: 'rgba(0, 0, 0, 0.70)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    content: {
+      alignItems: 'center',
+      gap: 16,
+    },
+    ringContainer: {
+      width: 128,
+      height: 128,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    outerRing: {
+      position: 'absolute',
+      width: 128,
+      height: 128,
+      borderRadius: 64,
+      borderWidth: 2,
+      borderColor: colors.primary_30,
+    },
+    innerRing: {
+      position: 'absolute',
+      width: 112,
+      height: 112,
+      borderRadius: 56,
+      borderWidth: 2,
+      borderColor: colors.primary_80,
+    },
+    levelCenter: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    levelNumber: {
+      fontSize: 48,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    textContainer: {
+      alignItems: 'center',
+    },
+    labelText: {
+      fontSize: 14,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 3,
+      color: colors.primary,
+    },
+    titleText: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginTop: 4,
+    },
+    subtitleText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+  })
+}

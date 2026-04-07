@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import {
   useQuery,
   useMutation,
@@ -24,6 +24,7 @@ export function useGamificationProfile() {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
   const previousAchievementIdsRef = useRef<Set<string>>(new Set())
+  const [acknowledgedLevel, setAcknowledgedLevel] = useState<number | null>(null)
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
@@ -86,8 +87,12 @@ export function useGamificationProfile() {
     let levelValue: number | null = null
     let freshAchievements: Achievement[] = []
 
-    // Detect level-up
-    if (previousLevelRef.current !== null && profile.level > previousLevelRef.current) {
+    // Detect level-up (skip if already acknowledged)
+    if (
+      previousLevelRef.current !== null
+      && profile.level > previousLevelRef.current
+      && profile.level !== acknowledgedLevel
+    ) {
       didLevelUp = true
       levelValue = profile.level
     }
@@ -105,7 +110,12 @@ export function useGamificationProfile() {
     previousAchievementIdsRef.current = new Set(profile.userAchievements.map((ua) => ua.achievementId))
 
     return { leveledUp: didLevelUp, newLevel: levelValue, newAchievements: freshAchievements }
-  }, [profile])
+  }, [profile, acknowledgedLevel])
+
+  // Clear level-up after overlay dismisses
+  const clearLevelUp = useCallback(() => {
+    setAcknowledgedLevel(profile?.level ?? null)
+  }, [profile?.level])
 
   // Invalidation helper
   const invalidate = useCallback(() => {
@@ -122,6 +132,7 @@ export function useGamificationProfile() {
     leveledUp,
     newLevel,
     newAchievements,
+    clearLevelUp,
     invalidate,
   }
 }

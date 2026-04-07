@@ -81,7 +81,10 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       weekStartsOn === 1
         ? [...sundayFirst.slice(1), sundayFirst[0]]
         : sundayFirst
-    return keys.map((k) => t(`dates.daysShort.${k}` as Parameters<typeof t>[0]).charAt(0)) // NOSONAR - dynamic i18n key requires assertion
+    return keys.map((key) => ({
+      key,
+      label: t(`dates.daysShort.${key}` as Parameters<typeof t>[0]).charAt(0), // NOSONAR - dynamic i18n key requires assertion
+    }))
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {
@@ -164,12 +167,12 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
-        {weekdays.map((day, index) => (
+        {weekdays.map((day) => (
           <div
-            key={index}
+            key={day.key}
             className="text-center text-[10px] font-bold uppercase tracking-wider text-text-muted py-1"
           >
-            {day}
+            {day.label}
           </div>
         ))}
       </div>

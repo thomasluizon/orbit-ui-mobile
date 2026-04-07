@@ -1,28 +1,52 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
   Linking,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Lock, BarChart3 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
-import { colors } from '@/lib/theme'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { apiClient } from '@/lib/api-client'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const PERIODS: RetrospectivePeriod[] = ['week', 'month', 'quarter', 'semester', 'year']
 
-function RetrospectiveBody({ text }: Readonly<{ text: string }>) {
+function RetrospectiveBody({
+  text,
+  styles,
+}: Readonly<{ text: string; styles: ReturnType<typeof createStyles> }>) {
   const lines = text.split('\n').map((line) => line.trim()).filter(Boolean)
+
+  function renderInlineMarkdown(line: string) {
+    const parts = line.split(/(\*\*.+?\*\*)/g).filter(Boolean)
+
+    return parts.map((part, index) => {
+      const strongMatch = /^\*\*(.+?)\*\*$/.exec(part)
+      if (strongMatch) {
+        return (
+          <Text key={`${part}-${index}`} style={styles.resultStrong}>
+            {strongMatch[1]}
+          </Text>
+        )
+      }
+
+      return (
+        <Text key={`${part}-${index}`} style={styles.resultInline}>
+          {part}
+        </Text>
+      )
+    })
+  }
 
   return (
     <View style={styles.resultContent}>
@@ -38,7 +62,7 @@ function RetrospectiveBody({ text }: Readonly<{ text: string }>) {
 
         return (
           <Text key={`${line}-${index}`} style={styles.resultParagraph}>
-            {line}
+            {renderInlineMarkdown(line)}
           </Text>
         )
       })}
@@ -50,6 +74,8 @@ export default function RetrospectiveScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { profile } = useProfile()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const hasProAccess = useHasProAccess()
   const isYearlyPro = useIsYearlyPro()
   const {
@@ -97,7 +123,7 @@ export default function RetrospectiveScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
@@ -211,7 +237,7 @@ export default function RetrospectiveScreen() {
 
             {!isLoading && retrospective && (
               <View style={styles.resultCard}>
-                <RetrospectiveBody text={retrospective} />
+                <RetrospectiveBody text={retrospective} styles={styles} />
                 {fromCache && (
                   <Text style={styles.cachedText}>{t('retrospective.cached')}</Text>
                 )}
@@ -242,7 +268,8 @@ export default function RetrospectiveScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -382,6 +409,16 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: 8,
   },
+  resultStrong: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  resultInline: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
   resultParagraph: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -428,4 +465,5 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-})
+  })
+}

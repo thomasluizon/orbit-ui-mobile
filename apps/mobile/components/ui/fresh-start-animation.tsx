@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
 } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -25,6 +26,7 @@ interface FreshStartAnimationProps {
 
 export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimationProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const [visible, setVisible] = useState(true)
 
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -35,6 +37,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const ringOpacity2 = useRef(new Animated.Value(0.4)).current
   const textOpacity = useRef(new Animated.Value(0)).current
   const textSlide = useRef(new Animated.Value(20)).current
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   useEffect(() => {
     // Entrance animation
@@ -219,53 +222,55 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: `${colors.background}E6`,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  ring: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: colors.primary_30,
-  },
-  orb: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary_20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary_30,
-  },
-  textContainer: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  titleText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: `${colors.background}E6`,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+    },
+    ring: {
+      position: 'absolute',
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      borderWidth: 2,
+      borderColor: colors.primary_30,
+    },
+    orb: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: colors.primary_20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.primary_30,
+    },
+    textContainer: {
+      marginTop: 40,
+      alignItems: 'center',
+    },
+    titleText: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      letterSpacing: -0.5,
+    },
+    subtitleText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+  })
+}

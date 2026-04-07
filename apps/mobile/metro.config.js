@@ -11,6 +11,12 @@ const config = getDefaultConfig(__dirname);
 // Watch the monorepo root for packages/shared changes
 config.watchFolders = [monorepoRoot];
 
+// Pin the server root to the app directory so Metro resolves the entry file
+// relative to apps/mobile, not the monorepo root (C:\orbit).
+// Without this, @expo/config's getMetroServerRoot walks up to the workspace
+// root and entry-file resolution fails in release builds.
+config.server = { ...config.server, unstable_serverRoot: __dirname };
+
 // Resolve node_modules from the app first, then monorepo root
 config.resolver.nodeModulesPaths = [mobileModules, rootModules];
 

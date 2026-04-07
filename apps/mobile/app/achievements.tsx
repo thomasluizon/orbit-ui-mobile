@@ -3,12 +3,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
 } from 'react-native'
 import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Lock } from 'lucide-react-native'
 import { createColors } from '@/lib/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
@@ -33,7 +33,7 @@ export default function AchievementsScreen() {
   } = useGamificationProfile()
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -42,7 +42,7 @@ export default function AchievementsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
@@ -131,12 +131,13 @@ export default function AchievementsScreen() {
                     </Text>
                     <View style={styles.achievementGrid}>
                       {category.items.map((achievement) => (
-                        <AchievementCard
-                          key={achievement.id}
-                          achievement={achievement}
-                          earned={achievement.isEarned}
-                          earnedDate={achievement.earnedAtUtc}
-                        />
+                        <View key={achievement.id} style={styles.achievementItem}>
+                          <AchievementCard
+                            achievement={achievement}
+                            earned={achievement.isEarned}
+                            earnedDate={achievement.earnedAtUtc}
+                          />
+                        </View>
                       ))}
                     </View>
                   </View>
@@ -304,9 +305,11 @@ function createStyles(colors: AppColors) {
       textTransform: 'uppercase',
     },
     achievementGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+      flexDirection: 'column',
       gap: 12,
+    },
+    achievementItem: {
+      width: '100%',
     },
   })
 }

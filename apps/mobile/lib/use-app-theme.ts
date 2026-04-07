@@ -1,23 +1,27 @@
 import { useMemo } from 'react'
 import type { ColorScheme } from '@orbit/shared/theme'
-import { useProfile } from '@/hooks/use-profile'
-import { createColors, createNav, radius, shadows } from '@/lib/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
+import { createColors, createNav, getRuntimeTheme, radius, shadows } from '@/lib/theme'
+import { useThemeContext, type ThemeContextValue } from '@/lib/theme-provider'
 
-const colorSchemes: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+export function useAppTheme(): ThemeContextValue {
+  const themeContext = useThemeContext()
 
-function normalizeColorScheme(value: string | null | undefined): ColorScheme {
-  return colorSchemes.includes(value as ColorScheme) ? (value as ColorScheme) : 'purple'
-}
+  return useMemo(() => {
+    if (themeContext) return themeContext
 
-export function useAppTheme() {
-  const { profile } = useProfile()
-  const scheme = normalizeColorScheme(profile?.colorScheme)
+    const { scheme, themeMode } = getRuntimeTheme()
 
-  return useMemo(() => ({
-    scheme,
-    colors: createColors(scheme),
-    nav: createNav(scheme),
-    radius,
-    shadows,
-  }), [scheme])
+    return {
+      currentScheme: scheme,
+      currentTheme: themeMode,
+      colors: createColors(scheme, themeMode),
+      nav: createNav(scheme, themeMode),
+      radius,
+      shadows,
+      applyScheme: (_scheme: ColorScheme) => {},
+      applyTheme: (_theme: ThemeMode) => {},
+      toggleTheme: () => {},
+    }
+  }, [themeContext])
 }

@@ -1,16 +1,19 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
   StyleSheet,
+  InteractionManager,
+  Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BellRing, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -24,24 +27,68 @@ const STORAGE_KEY = 'orbit_push_prompted'
 
 export function PushPrompt() {
   const { t } = useTranslation()
+  const { colors, shadows } = useAppTheme()
   const {
     isEnabled,
     isSupported,
     permissionStatus,
+    registrationStatus,
     requestPermission,
   } = usePushNotifications()
   const [show, setShow] = useState(false)
+  const autoRequestedRef = useRef(false)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const showRetryHint =
+    registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
 
   useEffect(() => {
-    if (!isSupported || permissionStatus === null || permissionStatus === 'denied' || isEnabled) {
+    if (
+      !isSupported ||
+      permissionStatus === null ||
+      permissionStatus === 'denied' ||
+      isEnabled ||
+      registrationStatus === 'registering'
+    ) {
       setShow(false)
       return
     }
 
+    if (autoRequestedRef.current && permissionStatus === 'granted' && !showRetryHint) {
+      setShow(false)
+      return
+    }
+
+    if (permissionStatus === 'undetermined' && !autoRequestedRef.current) {
+      autoRequestedRef.current = true
+      let cancelled = false
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const interaction = InteractionManager.runAfterInteractions(() => {
+        timeoutId = setTimeout(() => {
+          if (cancelled) return
+          void requestPermission().then((success) => {
+            if (success) {
+              AsyncStorage.setItem(STORAGE_KEY, '1')
+            } else {
+              autoRequestedRef.current = false
+            }
+          })
+        }, Platform.OS === 'android' ? 900 : 0)
+      })
+
+      return () => {
+        cancelled = true
+        interaction.cancel()
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
+      }
+    }
+
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
       if (value === '1') return
+
       setShow(true)
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -56,7 +103,16 @@ export function PushPrompt() {
         }),
       ]).start()
     })
-  }, [fadeAnim, isEnabled, isSupported, permissionStatus, slideAnim])
+  }, [
+    fadeAnim,
+    isEnabled,
+    isSupported,
+    permissionStatus,
+    registrationStatus,
+    requestPermission,
+    showRetryHint,
+    slideAnim,
+  ])
 
   const dismiss = useCallback(() => {
     Animated.parallel([
@@ -77,12 +133,10 @@ export function PushPrompt() {
   }, [fadeAnim, slideAnim])
 
   const handleEnable = useCallback(async () => {
-    try {
-      await requestPermission()
-    } catch {
-      // Permission request failed silently
+    const success = await requestPermission()
+    if (success) {
+      dismiss()
     }
-    dismiss()
   }, [requestPermission, dismiss])
 
   if (!show) return null
@@ -104,6 +158,9 @@ export function PushPrompt() {
         <View style={styles.textContainer}>
           <Text style={styles.title}>{t('pushPrompt.title')}</Text>
           <Text style={styles.description}>{t('pushPrompt.description')}</Text>
+          {showRetryHint && (
+            <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
+          )}
           <View style={styles.buttons}>
             <TouchableOpacity
               style={styles.enableBtn}
@@ -137,74 +194,84 @@ export function PushPrompt() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    bottom: 96,
-    left: 16,
-    right: 16,
-    zIndex: 50,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: colors.surfaceOverlay,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radius.lg,
-    padding: 16,
-    ...shadows.lg,
-    elevation: 8,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary_10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  description: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  buttons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  enableBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-  },
-  enableBtnText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  laterBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  laterBtnText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    wrapper: {
+      position: 'absolute',
+      bottom: 96,
+      left: 16,
+      right: 16,
+      zIndex: 50,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      backgroundColor: colors.surfaceOverlay,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      borderRadius: radius.lg,
+      padding: 16,
+      ...shadows.lg,
+      elevation: 8,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary_10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    textContainer: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    description: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    retryText: {
+      fontSize: 12,
+      color: colors.red400,
+      marginTop: 6,
+    },
+    buttons: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+    },
+    enableBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary,
+    },
+    enableBtnText: {
+      color: colors.white,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    laterBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+    },
+    laterBtnText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    closeBtn: {
+      padding: 4,
+    },
+  })
+}

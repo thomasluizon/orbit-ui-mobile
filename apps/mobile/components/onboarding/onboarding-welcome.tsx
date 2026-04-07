@@ -24,7 +24,7 @@ export function OnboardingWelcome() {
   const queryClient = useQueryClient()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
-  const { colors, radius, shadows } = useAppTheme()
+  const { colors, radius, shadows, applyScheme } = useAppTheme()
   const styles = useMemo(() => createStyles(colors, radius, shadows), [colors, radius, shadows])
 
   // Currently selected scheme -- defaults to purple
@@ -83,6 +83,7 @@ export function OnboardingWelcome() {
   }
 
   function handleSchemeSelect(scheme: ColorScheme) {
+    applyScheme(scheme)
     colorSchemeMutation.mutate(scheme)
   }
 
@@ -94,7 +95,7 @@ export function OnboardingWelcome() {
       <View style={styles.logoContainer}>
         <View style={styles.logoGlow} />
         <Image
-          source={require('@/assets/icon.png')}
+          source={require('@/assets/logo-no-bg.png')}
           style={styles.logo}
           resizeMode="contain"
         />

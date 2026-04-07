@@ -5,7 +5,8 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { CheckCircle2, Sparkles, BadgeCheck } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -30,6 +31,8 @@ export function OnboardingComplete({
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
@@ -122,96 +125,98 @@ export function OnboardingComplete({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  iconWrapper: {
-    marginBottom: 24,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconGlow: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primary_15,
-    opacity: 0.5,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary_10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  recapList: {
-    marginTop: 24,
-    gap: 8,
-  },
-  recapRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  recapText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  trialCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 24,
-    padding: 16,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary_10,
-    borderWidth: 1,
-    borderColor: colors.primary_15,
-    width: '100%',
-  },
-  trialText: {
-    flex: 1,
-  },
-  trialTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  trialDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  startBtn: {
-    width: '100%',
-    marginTop: 32,
-    paddingVertical: 14,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    ...shadows.sm,
-    elevation: 3,
-  },
-  startBtnText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    container: {
+      alignItems: 'center',
+    },
+    iconWrapper: {
+      marginBottom: 24,
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconGlow: {
+      position: 'absolute',
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.primary_15,
+      opacity: 0.5,
+    },
+    iconCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: colors.primary_10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    recapList: {
+      marginTop: 24,
+      gap: 8,
+    },
+    recapRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    recapText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    trialCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      marginTop: 24,
+      padding: 16,
+      borderRadius: radius.xl,
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_15,
+      width: '100%',
+    },
+    trialText: {
+      flex: 1,
+    },
+    trialTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    trialDesc: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      marginTop: 4,
+    },
+    startBtn: {
+      width: '100%',
+      marginTop: 32,
+      paddingVertical: 14,
+      borderRadius: radius.xl,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      ...shadows.sm,
+      elevation: 3,
+    },
+    startBtnText: {
+      color: colors.white,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  })
+}

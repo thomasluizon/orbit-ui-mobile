@@ -4,11 +4,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -29,7 +30,8 @@ import {
   useUpdateGoalStatus,
   useDeleteGoal,
 } from '@/hooks/use-goals'
-import { colors, radius } from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -41,6 +43,8 @@ interface GoalDetailDrawerProps {
   goalId: string
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -51,8 +55,11 @@ export function GoalDetailDrawer({
   goalId,
 }: GoalDetailDrawerProps) {
   const { t, i18n } = useTranslation()
+  const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Queries
   const { data: goalsData } = useGoals()
@@ -208,7 +215,8 @@ export function GoalDetailDrawer({
         title={goal.title}
         snapPoints={['60%', '90%']}
       >
-        <ScrollView
+        <BottomSheetScrollView
+          style={styles.scroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -464,7 +472,7 @@ export function GoalDetailDrawer({
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
 
       {goal && (
@@ -482,9 +490,15 @@ export function GoalDetailDrawer({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors, bottomInset: number) {
+  return StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingHorizontal: 24,
+    paddingBottom: Math.max(bottomInset, 16) + 24,
     gap: 24,
   },
 
@@ -495,7 +509,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: 12,
   },
 
   // Progress
@@ -504,7 +518,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderRadius: 9999,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
@@ -513,7 +527,8 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 16,
+    lineHeight: 21,
+    marginBottom: 20,
   },
   progressPercent: {
     color: colors.textMuted,
@@ -630,7 +645,7 @@ const styles = StyleSheet.create({
 
   // Linked habits
   linkedHabitsSection: {
-    marginTop: 0,
+    gap: 12,
   },
   linkedHabitsList: {
     flexDirection: 'row',
@@ -665,7 +680,8 @@ const styles = StyleSheet.create({
   // Actions
   actionsSection: {
     gap: 4,
-    paddingTop: 8,
+    marginTop: 4,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -673,7 +689,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingVertical: 12,
     borderRadius: radius.lg,
   },
@@ -681,4 +697,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
   },
-})
+  })
+}

@@ -32,6 +32,11 @@ import {
 import { useTranslations, useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
+import {
+  collectSelectableDescendantIds,
+  formatAPIDate,
+  parseShowGeneralOnTodayPreference,
+} from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
@@ -46,7 +51,6 @@ import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
 import { useHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
-import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -279,8 +283,8 @@ export default function TodayPage() {
 
   // Show general on today preference (local storage, read-only)
   const showGeneralOnToday = useMemo(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return true // NOSONAR - SSR guard
-    return localStorage.getItem('orbit_show_general_on_today') !== 'false'
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false // NOSONAR - SSR guard
+    return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
   }, [])
 
   // Bulk mutation hooks
@@ -496,14 +500,11 @@ export default function TodayPage() {
   // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
   const getDescendantIds = useCallback(
     (parentId: string): string[] => {
-      const childIds = childrenByParent.get(parentId) ?? []
-      const loaded = habitListRef.current?.allLoadedIds
-      const ids: string[] = []
-      for (const cid of childIds) {
-        if (loaded && !loaded.has(cid)) continue
-        ids.push(cid, ...getDescendantIds(cid))
-      }
-      return ids
+      return collectSelectableDescendantIds(
+        parentId,
+        (habitId) => childrenByParent.get(habitId) ?? [],
+        habitListRef.current?.allLoadedIds,
+      )
     },
     [childrenByParent],
   )

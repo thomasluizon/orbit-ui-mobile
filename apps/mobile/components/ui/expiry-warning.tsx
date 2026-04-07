@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { AlertTriangle } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -19,10 +20,12 @@ const WARN_AT_MINUTES = 5
 export function ExpiryWarning() {
   const { t } = useTranslation()
   const router = useRouter()
+  const { colors, shadows } = useAppTheme()
   const expiresAt = useAuthStore((s) => s.expiresAt)
   const logout = useAuthStore((s) => s.logout)
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   useEffect(() => {
     if (!expiresAt) {
@@ -97,34 +100,39 @@ export function ExpiryWarning() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 9998,
-    paddingHorizontal: 16,
-    paddingTop: 50, // account for safe area
-  },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    ...shadows.lg,
-    elevation: 8,
-  },
-  text: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    wrapper: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 9998,
+      paddingHorizontal: 16,
+      paddingTop: 50, // account for safe area
+    },
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      ...shadows.lg,
+      elevation: 8,
+    },
+    text: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    actionText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+  })
+}

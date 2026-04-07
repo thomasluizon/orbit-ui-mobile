@@ -1,8 +1,8 @@
-import { useCallback, useRef, useMemo, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
-  BottomSheetView,
+  BottomSheetModal as GorhomBottomSheetModal,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { X } from 'lucide-react-native'
@@ -33,11 +33,14 @@ export function BottomSheetModal({
 }: BottomSheetModalProps) {
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const bottomSheetRef = useRef<BottomSheet>(null)
+  const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
+  const isOpenRef = useRef(open)
 
+  const snapPointsKey = (snapPointsProp ?? ['50%', '80%']).join('|')
   const snapPoints = useMemo(
     () => snapPointsProp ?? ['50%', '80%'],
-    [snapPointsProp],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [snapPointsKey],
   )
 
   const renderBackdrop = useCallback(
@@ -53,47 +56,51 @@ export function BottomSheetModal({
     [],
   )
 
-  const handleSheetChanges = useCallback(
-    (index: number) => {
-      if (index === -1) {
-        onClose()
-      }
-    },
-    [onClose],
-  )
+  useEffect(() => {
+    isOpenRef.current = open
+  }, [open])
 
-  if (!open) return null
+  useEffect(() => {
+    if (open) {
+      bottomSheetRef.current?.present()
+    } else {
+      bottomSheetRef.current?.dismiss()
+    }
+  }, [open])
+
+  const handleDismiss = useCallback(() => {
+    if (isOpenRef.current) {
+      isOpenRef.current = false
+      onClose()
+    }
+  }, [onClose])
 
   return (
-    <BottomSheet
+    <GorhomBottomSheetModal
       ref={bottomSheetRef}
       index={0}
       snapPoints={snapPoints}
-      onChange={handleSheetChanges}
+      onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       enablePanDownToClose
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handleIndicator}
     >
-      <BottomSheetView style={styles.contentContainer}>
-        {/* Header */}
-        {title && (
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <X size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
+      {title ? (
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => bottomSheetRef.current?.dismiss()}
+            activeOpacity={0.7}
+          >
+            <X size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
-        {/* Content */}
-        <View style={styles.body}>{children}</View>
-      </BottomSheetView>
-    </BottomSheet>
+      {children}
+    </GorhomBottomSheetModal>
   )
 }
 
@@ -115,36 +122,28 @@ function createStyles(colors: ThemeColors) {
       width: 36,
       height: 4,
     },
-    contentContainer: {
-      flex: 1,
-    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingTop: 4,
-      paddingBottom: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      gap: 16,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+      paddingBottom: 16,
     },
     title: {
+      flex: 1,
       fontSize: 18,
       fontWeight: '700',
       color: colors.textPrimary,
     },
     closeButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.surfaceElevated,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    body: {
-      flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 16,
     },
   })
 }

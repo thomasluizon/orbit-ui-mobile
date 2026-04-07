@@ -11,7 +11,8 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { getErrorMessage } from '@orbit/shared/utils'
-import { colors, radius, shadows } from '@/lib/theme'
+import { createColors, radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +30,8 @@ interface OnboardingCreateGoalProps {
   onSkip: () => void
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -38,6 +41,8 @@ export function OnboardingCreateGoal({
   onSkip,
 }: Readonly<OnboardingCreateGoalProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState<number | undefined>(undefined)
   const [unit, setUnit] = useState('')
@@ -246,7 +251,8 @@ export function OnboardingCreateGoal({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     alignItems: 'center',
   },
@@ -398,4 +404,5 @@ const styles = StyleSheet.create({
     color: colors.success,
     marginTop: 12,
   },
-})
+  })
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { middleware } from '@/middleware'
+import { proxy } from '@/proxy'
 
 // Mock NextResponse methods
 vi.mock('next/server', async () => {
@@ -27,7 +27,7 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
   return request
 }
 
-describe('middleware', () => {
+describe('proxy', () => {
   beforeEach(() => {
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
@@ -40,7 +40,7 @@ describe('middleware', () => {
   describe('public paths', () => {
     it('allows unauthenticated access to /login', () => {
       const request = createRequest('/login')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
       expect(NextResponse.redirect).not.toHaveBeenCalled()
@@ -48,21 +48,21 @@ describe('middleware', () => {
 
     it('allows unauthenticated access to /auth-callback', () => {
       const request = createRequest('/auth-callback')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
 
     it('allows unauthenticated access to /privacy', () => {
       const request = createRequest('/privacy')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
 
     it('allows unauthenticated access to /r/ base path', () => {
       const request = createRequest('/r/')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
@@ -70,10 +70,10 @@ describe('middleware', () => {
     it('allows unauthenticated access to /r/ sub-paths', () => {
       // PUBLIC_PATHS contains '/r/' -- isPublicPath checks startsWith('/r/' + '/') = '/r//'
       // So '/r/abc123' would need startsWith('/r//') which is false
-      // Only '/r//' and '/r/' match. The middleware treats sub-paths of /r/ as
+      // Only '/r//' and '/r/' match. The proxy treats sub-paths of /r/ as
       // needing the double-slash pattern. Test the actual behavior:
       const request = createRequest('/r//abc123')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
@@ -86,14 +86,14 @@ describe('middleware', () => {
   describe('API and static paths', () => {
     it('passes through /api/ routes', () => {
       const request = createRequest('/api/auth/session')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
 
     it('passes through /_next/ paths', () => {
       const request = createRequest('/_next/static/chunk.js')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
@@ -106,7 +106,7 @@ describe('middleware', () => {
   describe('unauthenticated on protected routes', () => {
     it('redirects to /login', () => {
       const request = createRequest('/')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
       const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
@@ -115,7 +115,7 @@ describe('middleware', () => {
 
     it('sets returnUrl param for protected path', () => {
       const request = createRequest('/habits')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
       const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
@@ -125,7 +125,7 @@ describe('middleware', () => {
 
     it('redirects /settings to /login with returnUrl', () => {
       const request = createRequest('/settings')
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
       const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
@@ -142,7 +142,7 @@ describe('middleware', () => {
       const request = createRequest('/', {
         cookies: { auth_token: 'valid-token' },
       })
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
       expect(NextResponse.redirect).not.toHaveBeenCalled()
@@ -152,7 +152,7 @@ describe('middleware', () => {
       const request = createRequest('/login', {
         cookies: { auth_token: 'valid-token' },
       })
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.redirect).toHaveBeenCalled()
       const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
@@ -164,7 +164,7 @@ describe('middleware', () => {
       const request = createRequest('/settings', {
         cookies: { auth_token: 'valid-token' },
       })
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })
@@ -173,7 +173,7 @@ describe('middleware', () => {
       const request = createRequest('/privacy', {
         cookies: { auth_token: 'valid-token' },
       })
-      middleware(request)
+      proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
     })

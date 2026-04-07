@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Send } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -108,7 +108,7 @@ export default function SupportScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />

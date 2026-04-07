@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { router } from 'expo-router'
-import type { User } from '@orbit/shared/types/auth'
+import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
@@ -12,8 +12,9 @@ import {
   getRefreshToken,
 } from '@/lib/secure-store'
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
-import type { RefreshResponse } from '@orbit/shared/types/auth'
 import { apiClient } from '@/lib/api-client'
+import { clearPersistedQueryCache, queryClient } from '@/lib/query-client'
+import { useChatStore } from './chat-store'
 
 interface AuthState {
   isAuthenticated: boolean
@@ -84,6 +85,38 @@ function isTokenExpired(token: string): boolean {
   return expiresAt < Date.now() + 60_000
 }
 
+async function clearSessionAndResetAuth(): Promise<void> {
+  await clearAllTokens()
+  await clearWidgetToken().catch(() => {})
+  queryClient.clear()
+  await clearPersistedQueryCache()
+  useChatStore.getState().clearMessages()
+  useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
+}
+
+async function refreshExpiredToken(): Promise<string | null> {
+  const refreshToken = await getRefreshToken()
+  if (!refreshToken) {
+    await clearSessionAndResetAuth()
+    return null
+  }
+
+  try {
+    const response = await apiClient<RefreshResponse>(API.auth.refresh, {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    await setToken(response.token)
+    await setRefreshToken(response.refreshToken)
+    await saveWidgetToken(response.token).catch(() => {})
+    return response.token
+  } catch {
+    await clearSessionAndResetAuth()
+    return null
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
@@ -91,6 +124,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
+    queryClient.clear()
+    await clearPersistedQueryCache()
+    useChatStore.getState().clearMessages()
     await setToken(token)
     if (refreshToken) {
       await setRefreshToken(refreshToken)
@@ -122,6 +158,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await clearStoredAuthReturnUrl()
     await clearAllTokens()
     await clearWidgetToken().catch(() => {})
+    queryClient.clear()
+    await clearPersistedQueryCache()
+    useChatStore.getState().clearMessages()
     set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
     router.replace('/login')
   },
@@ -135,28 +174,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (isTokenExpired(token)) {
-      // Attempt token refresh
-      const refresh = await getRefreshToken()
-      if (!refresh) {
-        await clearAllTokens()
-        await clearWidgetToken().catch(() => {})
-        set({ isAuthenticated: false, user: null, expiresAt: null })
-        return false
-      }
-
-      try {
-        const res = await apiClient<RefreshResponse>(API.auth.refresh, {
-          method: 'POST',
-          body: JSON.stringify({ refreshToken: refresh }),
-        })
-        await setToken(res.token)
-        await setRefreshToken(res.refreshToken)
-        await saveWidgetToken(res.token).catch(() => {})
-        token = res.token
-      } catch {
-        await clearAllTokens()
-        await clearWidgetToken().catch(() => {})
-        set({ isAuthenticated: false, user: null, expiresAt: null })
+      token = await refreshExpiredToken()
+      if (!token) {
         return false
       }
     }

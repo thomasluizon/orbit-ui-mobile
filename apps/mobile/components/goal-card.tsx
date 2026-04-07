@@ -3,7 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
-import { colors } from '@/lib/theme'
+import { plural } from '@/lib/plural'
+import { createColors } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -20,7 +22,9 @@ interface GoalCardProps {
 
 export function GoalCard({ goal, onPress }: GoalCardProps) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const progress = Math.min(100, Math.round(goal.progressPercentage))
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   // Progress bar color (matches web progressColor logic)
   const progressBarColor = useMemo(() => {
@@ -48,13 +52,13 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
     }
     if (daysLeft <= 7) {
       return {
-        text: t('goals.deadline.daysLeft', { n: daysLeft }),
+        text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
         textColor: colors.amber400,
         bgColor: 'rgba(245, 158, 11, 0.1)', // bg-amber-500/10
       }
     }
     return {
-      text: t('goals.deadline.daysLeft', { n: daysLeft }),
+      text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
       textColor: colors.textMuted,
       bgColor: colors.surfaceElevated,
     }
@@ -193,7 +197,8 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
 // Styles (matches web goal-card exactly)
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof createColors>) {
+  return StyleSheet.create({
   // Card: matches bg-surface rounded-[var(--radius-xl)] p-5 border border-border-muted shadow-sm
   card: {
     backgroundColor: colors.surface,
@@ -286,4 +291,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-})
+  })
+}

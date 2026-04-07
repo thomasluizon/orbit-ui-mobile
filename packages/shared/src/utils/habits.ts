@@ -1,4 +1,4 @@
-import { isAfter, isToday } from 'date-fns'
+import { isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
@@ -17,7 +17,7 @@ export function determineHabitDayStatus(
   now: Date = new Date(),
 ): HabitDayStatus {
   if (wasLogged) return 'completed'
-  if (isToday(date) || isAfter(date, now)) return 'upcoming'
+  if (isSameDay(date, now) || isAfter(date, now)) return 'upcoming'
   return 'missed'
 }
 
@@ -37,10 +37,13 @@ export function buildCalendarDayMap(
   }
 
   for (const habit of calendarMonth.habits) {
-    const dates =
-      (habit.instances.length > 0
+    const instanceDates =
+      Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)
-        : null) ??
+        : null
+
+    const dates =
+      instanceDates ??
       habit.scheduledDates ??
       []
 
@@ -63,4 +66,111 @@ export function buildCalendarDayMap(
   }
 
   return map
+}
+
+export function collectSelectableDescendantIds(
+  parentId: string,
+  getChildIds: (id: string) => string[],
+  selectableIds?: ReadonlySet<string>,
+): string[] {
+  const descendantIds: string[] = []
+  const stack: string[] = [parentId]
+
+  while (stack.length > 0) {
+    const currentId = stack.pop()
+    if (!currentId) continue
+
+    for (const childId of getChildIds(currentId)) {
+      if (selectableIds && !selectableIds.has(childId)) {
+        continue
+      }
+
+      descendantIds.push(childId)
+      stack.push(childId)
+    }
+  }
+
+  return descendantIds
+}
+
+export function collectVisibleHabitTreeIds<T extends { id: string }>(
+  habits: Iterable<T>,
+  getVisibleChildren: (id: string) => T[],
+): Set<string> {
+  const ids = new Set<string>()
+
+  const visit = (habit: T) => {
+    ids.add(habit.id)
+    for (const child of getVisibleChildren(habit.id)) {
+      visit(child)
+    }
+  }
+
+  for (const habit of habits) {
+    visit(habit)
+  }
+
+  return ids
+}
+
+export interface ReorderableHabitItem {
+  id: string
+  parentId: string | null
+}
+
+export interface HabitReorderPosition {
+  habitId: string
+  position: number
+}
+
+export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
+  items: T[],
+  oldIndex: number,
+  newIndex: number,
+  habitsById: Map<string, ReorderableHabitItem>,
+  getChildren: (parentId: string) => ReorderableHabitItem[],
+): HabitReorderPosition[] {
+  if (
+    oldIndex < 0 ||
+    newIndex < 0 ||
+    oldIndex >= items.length ||
+    newIndex >= items.length
+  ) {
+    return []
+  }
+
+  const reordered = [...items]
+  const removed = reordered.splice(oldIndex, 1)
+  const moved = removed[0]
+  if (!moved) return []
+  reordered.splice(newIndex, 0, moved)
+
+  const positions: HabitReorderPosition[] = []
+  const positionByParent = new Map<string | null, number>()
+  const includedIds = new Set(reordered.map((item) => item.id))
+
+  for (const item of reordered) {
+    const storeHabit = habitsById.get(item.id)
+    const parentId = storeHabit?.parentId ?? item.parentId
+    const nextPosition = positionByParent.get(parentId) ?? 0
+    positions.push({ habitId: item.id, position: nextPosition })
+    positionByParent.set(parentId, nextPosition + 1)
+  }
+
+  for (const parentId of positionByParent.keys()) {
+    const allSiblings =
+      parentId === null
+        ? Array.from(habitsById.values()).filter((habit) => habit.parentId === null)
+        : getChildren(parentId)
+
+    for (const sibling of allSiblings) {
+      if (includedIds.has(sibling.id)) continue
+
+      const nextPosition = positionByParent.get(parentId) ?? 0
+      positions.push({ habitId: sibling.id, position: nextPosition })
+      positionByParent.set(parentId, nextPosition + 1)
+    }
+  }
+
+  return positions
 }

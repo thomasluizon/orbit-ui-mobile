@@ -4,9 +4,11 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   CHAT_SPEECH_LANG_KEY,
+  getDefaultChatSpeechLanguage,
+} from '@orbit/shared/chat'
+export {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
-  getDefaultChatSpeechLanguage,
 } from '@orbit/shared/chat'
 
 // ---------------------------------------------------------------------------
@@ -52,8 +54,6 @@ declare global {
   // eslint-disable-next-line no-var
   var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined
 }
-
-export { SPEECH_LANGUAGES, VISUALIZER_BAR_OFFSETS }
 
 // ---------------------------------------------------------------------------
 // Hook

@@ -13,7 +13,9 @@ import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,7 +62,9 @@ export function BreakdownSuggestion({
   onCancelled,
 }: Readonly<BreakdownSuggestionProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const bulkCreate = useBulkCreateHabits()
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const [habits, setHabits] = useState<EditableHabit[]>(
     subHabits.map((h) => ({
@@ -186,11 +190,14 @@ export function BreakdownSuggestion({
           </View>
           <Text style={styles.successText}>
             {createAsParent
-              ? t('habits.breakdown.createAsParentSuccess', {
-                  name: parentName,
-                  n: createdCount,
-                })
-              : t('habits.breakdown.createdSuccess', { n: createdCount })}
+              ? plural(
+                  t('habits.breakdown.createAsParentSuccess', {
+                    name: parentName,
+                    n: createdCount,
+                  }),
+                  createdCount,
+                )
+              : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
           </Text>
         </View>
       </View>
@@ -311,7 +318,7 @@ export function BreakdownSuggestion({
         >
           {isSubmitting && <ActivityIndicator size="small" color={colors.white} />}
           <Text style={styles.confirmBtnText}>
-            {t('habits.breakdown.createCount', { n: validHabits.length })}
+            {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -331,9 +338,10 @@ export function BreakdownSuggestion({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(26,24,41,0.50)',
+    backgroundColor: colors.surfaceOverlay,
     borderWidth: 1,
     borderColor: colors.borderMuted,
     borderRadius: radius.xl,
@@ -491,4 +499,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.emerald400,
   },
-})
+  })
+}

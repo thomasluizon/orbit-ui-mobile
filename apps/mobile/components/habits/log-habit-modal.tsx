@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,23 +6,28 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-} from 'react-native'
-import { Check } from 'lucide-react-native'
-import { useTranslation } from 'react-i18next'
-import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { useLogHabit } from '@/hooks/use-habits'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { colors, radius } from '@/lib/theme'
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Check, X } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import { useLogHabit } from "@/hooks/use-habits";
+import type { NormalizedHabit } from "@orbit/shared/types/habit";
+import { radius } from "@/lib/theme";
+import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface LogHabitModalProps {
-  open: boolean
-  onClose: () => void
-  habit: NormalizedHabit | null
-  onLogged?: (habitId: string) => void
+  open: boolean;
+  onClose: () => void;
+  habit: NormalizedHabit | null;
+  onLogged?: (habitId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -35,64 +40,83 @@ export function LogHabitModal({
   habit,
   onLogged,
 }: Readonly<LogHabitModalProps>) {
-  const { t } = useTranslation()
-  const logHabit = useLogHabit()
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const styles = useMemo(
+    () => createStyles(colors, insets.bottom),
+    [colors, insets.bottom],
+  );
+  const logHabit = useLogHabit();
 
-  const [note, setNote] = useState('')
+  const [note, setNote] = useState("");
 
   useEffect(() => {
-    if (!open) setNote('')
-  }, [open])
+    if (!open) setNote("");
+  }, [open]);
 
   const handleSubmit = useCallback(async () => {
-    if (!habit) return
+    if (!habit) return;
     try {
       await logHabit.mutateAsync({
         habitId: habit.id,
         note: note || undefined,
-      })
-      onLogged?.(habit.id)
-      onClose()
-      setNote('')
+      });
+      onLogged?.(habit.id);
+      onClose();
+      setNote("");
     } catch {
       // Error handled by mutation
     }
-  }, [habit, note, logHabit, onLogged, onClose])
+  }, [habit, note, logHabit, onLogged, onClose]);
 
   const handleCancel = useCallback(() => {
-    onClose()
-    setNote('')
-  }, [onClose])
+    onClose();
+    setNote("");
+  }, [onClose]);
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={handleCancel}
-      title={t('habits.log.title')}
-      snapPoints={['45%']}
+    <Modal
+      visible={open}
+      transparent
+      animationType="slide"
+      onRequestClose={handleCancel}
     >
-      {habit && (
-        <View style={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <Pressable style={styles.backdropPress} onPress={handleCancel} />
+        <View style={styles.sheet}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>{t("habits.log.title")}</Text>
+            <TouchableOpacity
+              style={styles.headerClose}
+              onPress={handleCancel}
+              activeOpacity={0.7}
+            >
+              <X size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          {habit && (
+            <View style={styles.content}>
           {/* Habit title */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('habits.log.habitLabel')}</Text>
+            <Text style={styles.label}>{t("habits.log.habitLabel")}</Text>
             <Text style={styles.habitTitle}>{habit.title}</Text>
           </View>
 
           {/* Note input */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('habits.log.noteLabel')}</Text>
+            <Text style={styles.label}>{t("habits.log.noteLabel")}</Text>
             <TextInput
               value={note}
-              placeholder={t('habits.log.notePlaceholder')}
+              placeholder={t("habits.log.notePlaceholder")}
               placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={3}
               editable={!logHabit.isPending}
-              style={[
-                styles.noteInput,
-                logHabit.isPending && styles.disabled,
-              ]}
+              style={[styles.noteInput, logHabit.isPending && styles.disabled]}
               onChangeText={setNote}
               textAlignVertical="top"
             />
@@ -100,9 +124,7 @@ export function LogHabitModal({
 
           {/* Mutation error */}
           {logHabit.error && (
-            <Text style={styles.errorText}>
-              {logHabit.error.message}
-            </Text>
+            <Text style={styles.errorText}>{logHabit.error.message}</Text>
           )}
 
           {/* Buttons */}
@@ -113,7 +135,7 @@ export function LogHabitModal({
               onPress={handleCancel}
               activeOpacity={0.7}
             >
-              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+              <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -129,89 +151,142 @@ export function LogHabitModal({
               ) : (
                 <Check size={16} color={colors.white} />
               )}
-              <Text style={styles.submitButtonText}>{t('habits.logHabit')}</Text>
+              <Text style={styles.submitButtonText}>
+                {t("habits.logHabit")}
+              </Text>
             </TouchableOpacity>
           </View>
+            </View>
+          )}
         </View>
-      )}
-    </BottomSheetModal>
-  )
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  content: {
-    gap: 16,
-  },
-  fieldGroup: {
-    gap: 4,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  habitTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  noteInput: {
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 80,
-  },
-  errorText: {
-    fontSize: 14,
-    color: colors.red500,
-    fontWeight: '500',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingTop: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  submitButton: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  submitButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>["colors"],
+  bottomInset: number,
+) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    backdropPress: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingTop: 10,
+      paddingBottom: 16,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+      paddingBottom: 16,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.textPrimary,
+    },
+    headerClose: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    content: {
+      gap: 16,
+      paddingHorizontal: 20,
+      paddingBottom: bottomInset + 12,
+    },
+    fieldGroup: {
+      gap: 4,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    habitTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.textPrimary,
+    },
+    noteInput: {
+      backgroundColor: colors.surface,
+      color: colors.textPrimary,
+      borderRadius: radius.md,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      fontSize: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      minHeight: 80,
+    },
+    errorText: {
+      fontSize: 14,
+      color: colors.red500,
+      fontWeight: "500",
+    },
+    buttonRow: {
+      flexDirection: "row",
+      gap: 12,
+      paddingTop: 12,
+    },
+    cancelButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cancelButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textSecondary,
+    },
+    submitButton: {
+      flex: 2,
+      paddingVertical: 14,
+      borderRadius: radius.xl,
+      backgroundColor: colors.primary,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    submitButtonText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: colors.white,
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+  });
+}

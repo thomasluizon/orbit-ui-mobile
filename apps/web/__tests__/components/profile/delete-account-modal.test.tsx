@@ -168,9 +168,9 @@ describe('DeleteAccountModal', () => {
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
-    // getErrorMessage returns the fallback i18n key for plain Error objects
+    // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.errorGeneric')).toBeInTheDocument()
+      expect(screen.getByText('Network error')).toBeInTheDocument()
     })
   })
 
@@ -255,9 +255,9 @@ describe('DeleteAccountModal', () => {
     // Confirm
     fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
 
-    // getErrorMessage returns the fallback i18n key for plain Error objects
+    // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.errorGeneric')).toBeInTheDocument()
+      expect(screen.getByText('Invalid code')).toBeInTheDocument()
     })
   })
 

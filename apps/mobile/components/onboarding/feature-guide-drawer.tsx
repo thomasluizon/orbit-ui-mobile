@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Section types
@@ -122,6 +124,8 @@ interface FeatureGuideDrawerProps {
 
 export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawerProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 
   const items = sectionItems[activeSection]
@@ -164,7 +168,8 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
       </View>
 
       {/* Section content */}
-      <ScrollView
+      <BottomSheetScrollView
+        style={styles.sectionScroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.sectionContent}
       >
@@ -174,7 +179,7 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
             <Text style={styles.sectionDesc}>{t(item.descKey)}</Text>
           </View>
         ))}
-      </ScrollView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   )
 }
@@ -183,49 +188,56 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  tabBar: {
-    marginBottom: 16,
-  },
-  tabBarContent: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  tabActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary_30,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  tabTextActive: {
-    color: colors.white,
-  },
-  sectionContent: {
-    gap: 16,
-    paddingBottom: 24,
-  },
-  sectionItem: {
-    gap: 4,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  sectionDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    tabBar: {
+      paddingHorizontal: 20,
+      marginBottom: 16,
+    },
+    tabBarContent: {
+      gap: 8,
+      paddingRight: 8,
+    },
+    tab: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: radius.full,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+    },
+    tabActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary_30,
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    tabTextActive: {
+      color: colors.white,
+    },
+    sectionScroll: {
+      flex: 1,
+    },
+    sectionContent: {
+      paddingHorizontal: 20,
+      gap: 16,
+      paddingBottom: 24,
+    },
+    sectionItem: {
+      gap: 4,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sectionDesc: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+  })
+}

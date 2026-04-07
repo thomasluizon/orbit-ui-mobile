@@ -3,10 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import { useTranslation } from 'react-i18next'
-import { CHAT_SPEECH_LANG_KEY, CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES, getDefaultChatSpeechLanguage } from '@orbit/shared/chat'
-import { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
-
-export { SPEECH_LANGUAGES, VISUALIZER_BAR_OFFSETS }
+import { CHAT_SPEECH_LANG_KEY, getDefaultChatSpeechLanguage } from '@orbit/shared/chat'
+export {
+  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
+  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
+} from '@orbit/shared/chat'
 
 interface SpeechResult {
   transcript: string
@@ -79,7 +80,7 @@ export function useSpeechToText() {
   const [isSupported, setIsSupported] = useState(() => getSpeechRecognitionAvailability())
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [selectedLanguage, setSelectedLanguageRaw] = useState(() =>
+  const [selectedLanguage, setSelectedLanguageState] = useState(() =>
     getDefaultChatSpeechLanguage(i18n.language),
   )
   const [recordingDuration, setRecordingDuration] = useState(0)
@@ -106,7 +107,7 @@ export function useSpeechToText() {
     AsyncStorage.getItem(CHAT_SPEECH_LANG_KEY)
       .then((storedLanguage) => {
         if (storedLanguage && isMountedRef.current) {
-          setSelectedLanguageRaw(storedLanguage)
+          setSelectedLanguageState(storedLanguage)
         }
       })
       .catch(() => {
@@ -152,8 +153,8 @@ export function useSpeechToText() {
     clearTimer()
   })
 
-  const setSelectedLanguage = useCallback((newLanguage: string) => {
-    setSelectedLanguageRaw(newLanguage)
+  const updateSelectedLanguage = useCallback((newLanguage: string) => {
+    setSelectedLanguageState(newLanguage)
     AsyncStorage.setItem(CHAT_SPEECH_LANG_KEY, newLanguage).catch(() => {
       // Ignore persistence failures and keep the in-memory selection.
     })
@@ -220,7 +221,7 @@ export function useSpeechToText() {
     transcript,
     error,
     selectedLanguage,
-    setSelectedLanguage,
+    setSelectedLanguage: updateSelectedLanguage,
     startRecording,
     stopRecording,
     toggleRecording,

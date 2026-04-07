@@ -222,9 +222,9 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
 
-    // getErrorMessage returns the fallback i18n key for plain Error objects
+    // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
-      expect(screen.getByText('profile.freshStart.errorGeneric')).toBeInTheDocument()
+      expect(screen.getByText('Server error')).toBeInTheDocument()
     })
   })
 

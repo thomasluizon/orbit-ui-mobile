@@ -53,7 +53,10 @@ export function AppDatePicker({
     const keys = weekStartsOn === 1
       ? [...sundayFirst.slice(1), sundayFirst[0]]
       : sundayFirst
-    return keys.map((k) => t(`dates.daysShort.${k}`).charAt(0))
+    return keys.map((key) => ({
+      key,
+      label: t(`dates.daysShort.${key}`).charAt(0),
+    }))
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {
@@ -164,13 +167,13 @@ export function AppDatePicker({
             <table className="w-full border-separate border-spacing-0">
               <thead aria-hidden="true">
                 <tr>
-                  {weekDays.map((day, index) => (
+                  {weekDays.map((day) => (
                     <th
-                      key={index}
+                      key={day.key}
                       scope="col"
                       className="py-1 text-center text-xs font-normal text-text-muted"
                     >
-                      {day}
+                      {day.label}
                     </th>
                   ))}
                 </tr>

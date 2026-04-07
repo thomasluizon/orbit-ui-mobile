@@ -9,53 +9,17 @@ import Svg, {
 } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@/lib/plural'
-import { colors, radius } from '@/lib/theme'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface StreakBadgeProps {
   streak: number
   isFrozen?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Tier colors
-// ---------------------------------------------------------------------------
-
-function tierStyles(tier: string): { bg: string; border: string } {
-  switch (tier) {
-    case 'legendary':
-      return { bg: 'rgba(251, 191, 36, 0.15)', border: 'rgba(251, 191, 36, 0.30)' }
-    case 'intense':
-      return { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.30)' }
-    case 'strong':
-      return { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)' }
-    default:
-      return { bg: colors.surfaceElevated, border: colors.border }
-  }
-}
-
-function tierCountColor(tier: string): string {
-  switch (tier) {
-    case 'legendary':
-      return '#fbbf24'
-    case 'intense':
-      return '#f97316'
-    case 'strong':
-      return '#ef4444'
-    default:
-      return colors.textSecondary
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
 
   const tier = useMemo(() => {
     if (streak >= 100) return 'legendary'
@@ -66,21 +30,30 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
 
   if (streak <= 0) return null
 
-  const ts = tierStyles(tier)
-  const countColor = tierCountColor(tier)
+  const tierStyle = (() => {
+    switch (tier) {
+      case 'legendary':
+        return { bg: 'rgba(251, 191, 36, 0.15)', border: 'rgba(251, 191, 36, 0.30)', count: '#fbbf24' }
+      case 'intense':
+        return { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.30)', count: '#f97316' }
+      case 'strong':
+        return { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)', count: '#ef4444' }
+      default:
+        return { bg: colors.surfaceElevated, border: colors.border, count: colors.textSecondary }
+    }
+  })()
 
   return (
     <View
       style={[
         styles.badge,
-        { backgroundColor: ts.bg, borderColor: ts.border },
+        { backgroundColor: tierStyle.bg, borderColor: tierStyle.border },
       ]}
       accessibilityLabel={plural(
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
     >
-      {/* Flame icon */}
       <Svg width={12} height={15} viewBox="0 0 16 20" fill="none">
         <Defs>
           <LinearGradient
@@ -102,83 +75,23 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         />
       </Svg>
 
-      {/* Count */}
-      <Text style={[styles.count, { color: countColor }]}>{streak}</Text>
+      <Text style={[styles.count, { color: tierStyle.count }]}>{streak}</Text>
 
-      {/* Frozen indicator */}
       {isFrozen ? (
         <View style={styles.frozenIcon}>
           <Svg width={10} height={12} viewBox="0 0 12 14" fill="none">
-            <Line
-              x1={6}
-              y1={0}
-              x2={6}
-              y2={14}
-              stroke="#93c5fd"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <Line
-              x1={2}
-              y1={2}
-              x2={6}
-              y2={6}
-              stroke="#93c5fd"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <Line
-              x1={10}
-              y1={2}
-              x2={6}
-              y2={6}
-              stroke="#93c5fd"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <Line
-              x1={2}
-              y1={12}
-              x2={6}
-              y2={8}
-              stroke="#93c5fd"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <Line
-              x1={10}
-              y1={12}
-              x2={6}
-              y2={8}
-              stroke="#93c5fd"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <Line
-              x1={0}
-              y1={7}
-              x2={12}
-              y2={7}
-              stroke="#93c5fd"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <Line x1={6} y1={0} x2={6} y2={14} stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1={2} y1={2} x2={6} y2={6} stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1={10} y1={2} x2={6} y2={6} stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1={2} y1={12} x2={6} y2={8} stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1={10} y1={12} x2={6} y2={8} stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1={0} y1={7} x2={12} y2={7} stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
         </View>
       ) : null}
     </View>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   badge: {
@@ -198,3 +111,4 @@ const styles = StyleSheet.create({
     marginLeft: 1,
   },
 })
+

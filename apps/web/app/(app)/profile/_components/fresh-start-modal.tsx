@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { X, Check } from 'lucide-react'
@@ -26,7 +26,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
 
-  function handleOpenChange(value: boolean) {
+  const handleOpenChange = useCallback((value: boolean) => {
     if (value) {
       setStep('info')
       setConfirmText('')
@@ -34,7 +34,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       setLoading(false)
     }
     onOpenChange(value)
-  }
+  }, [onOpenChange])
 
   async function handleReset() {
     if (!isConfirmed) return

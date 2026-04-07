@@ -3,7 +3,9 @@ import {
   useCallback,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
+  type ReactElement,
 } from 'react'
 import {
   View,
@@ -12,8 +14,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
+  Modal,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native'
+import DraggableFlatList, {
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist'
 import {
   format,
   isBefore,
@@ -26,9 +33,17 @@ import { enUS, ptBR } from 'date-fns/locale'
 import {
   ClipboardList,
   CheckCircle2,
+  ChevronLeft,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate, getHabitEmptyStateKey } from '@orbit/shared/utils'
+import {
+  computeHabitReorderPositions,
+  collectSelectableDescendantIds,
+  collectVisibleHabitTreeIds,
+  formatAPIDate,
+  getHabitEmptyStateKey,
+  type ReorderableHabitItem,
+} from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import {
   useHabits,
@@ -36,12 +51,17 @@ import {
   useSkipHabit,
   useDeleteHabit,
   useDuplicateHabit,
+  useReorderHabits,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
+import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { HabitCard } from './habit-card'
 
 // ---------------------------------------------------------------------------
@@ -56,11 +76,12 @@ interface HabitListProps {
   searchQuery?: string
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
-  scrollEnabled?: boolean
+  listHeader?: ReactElement | null
   onCreatePress: () => void
   onSeeUpcoming?: () => void
   onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
+  onScrollBeginDrag?: () => void
 }
 
 export interface HabitListHandle {
@@ -106,6 +127,22 @@ interface DateGroup {
   habits: NormalizedHabit[]
 }
 
+interface MoveParentOption {
+  id: string | null
+  label: string
+  depth: number
+  disabled: boolean
+  reason: string | null
+}
+
+interface DragItem extends ReorderableHabitItem {
+  id: string
+  habit: NormalizedHabit
+  depth: number
+  hasChildren: boolean
+  hasSubHabits: boolean
+}
+
 function formatDateGroupLabel(
   key: string,
   locale: string,
@@ -147,17 +184,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     searchQuery,
     isSelectMode,
     selectedHabitIds,
-    scrollEnabled = true,
+    listHeader = null,
     onCreatePress,
     onSeeUpcoming,
     onLogHabit,
     onDetailHabit,
+    onScrollBeginDrag,
   },
   ref,
 ) {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
+  const { config: appConfig } = useConfig()
+  const maxHabitDepth = appConfig.limits.maxHabitDepth
   const habitsQuery = useHabits(filters)
   const habitsById = useMemo(
     () => habitsQuery.data?.habitsById ?? new Map<string, NormalizedHabit>(),
@@ -178,7 +218,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const skipMutation = useSkipHabit()
   const deleteMutation = useDeleteHabit()
   const duplicateMutation = useDuplicateHabit()
+  const reorderHabitsMutation = useReorderHabits()
   const moveParentMutation = useMoveHabitParent()
+  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
@@ -187,12 +229,29 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<Set<string>>(new Set())
   const [showAutoLogParent, setShowAutoLogParent] = useState(false)
   const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
+  const [showSubHabitModal, setShowSubHabitModal] = useState(false)
+  const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
+  const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
+  const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
+  const [selectedMoveParentId, setSelectedMoveParentId] = useState<string | null>(null)
   const selectedIds = useMemo(
     () => selectedHabitIds ?? new Set<string>(),
     [selectedHabitIds],
   )
+  const listExtraData = useMemo(
+    () =>
+      getHabitListExtraData(
+        Boolean(isSelectMode),
+        selectedIds,
+        recentlyCompletedIds,
+      ),
+    [isSelectMode, recentlyCompletedIds, selectedIds],
+  )
   const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
   const autoLogParentHabit = autoLogParentId ? habitsById.get(autoLogParentId) ?? null : null
+  const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
 
   const visibility = useHabitVisibility({
     habitsById,
@@ -202,27 +261,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     showCompleted,
     recentlyCompletedIds,
   })
-
-  const getDescendantIds = useCallback(
-    (parentId: string): string[] => {
-      const descendantIds: string[] = []
-      const stack: string[] = [parentId]
-
-      while (stack.length > 0) {
-        const currentId = stack.pop()
-        if (!currentId) continue
-
-        const children = getChildren(currentId)
-        for (const child of children) {
-          descendantIds.push(child.id)
-          stack.push(child.id)
-        }
-      }
-
-      return descendantIds
-    },
-    [getChildren],
-  )
 
   const isAncestorSelected = useCallback(
     (habitId: string): boolean => {
@@ -321,21 +359,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [i18n.language, t, view, visibleHabits])
 
   const allLoadedIds = useMemo(() => {
-    const ids = new Set<string>()
-
-    const visit = (habit: NormalizedHabit) => {
-      ids.add(habit.id)
-      for (const child of getVisibleChildren(habit.id)) {
-        visit(child)
-      }
-    }
-
-    for (const habit of visibleHabits) {
-      visit(habit)
-    }
-
-    return ids
+    return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)
   }, [getVisibleChildren, visibleHabits])
+
+  const getDescendantIds = useCallback(
+    (parentId: string): string[] => {
+      return collectSelectableDescendantIds(
+        parentId,
+        (habitId) => childrenByParent.get(habitId) ?? [],
+        allLoadedIds,
+      )
+    },
+    [allLoadedIds, childrenByParent],
+  )
 
   const expandableIds = useMemo(() => {
     const ids: string[] = []
@@ -382,14 +418,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     })
   }, [])
 
-  // Build flat drag items (tree flattening with depth)
-  interface DragItem {
-    id: string
-    habit: NormalizedHabit
-    depth: number
-    hasChildren: boolean
-    hasSubHabits: boolean
-  }
+  const restoreCollapsedStateAfterDrag = useCallback(() => {
+    setIsDraggingList(false)
+    setDragOverrideItems(null)
+
+    const autoCollapsedId = autoCollapsedOnDragRef.current
+    if (!autoCollapsedId) return
+
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      next.delete(autoCollapsedId)
+      return next
+    })
+    autoCollapsedOnDragRef.current = null
+  }, [])
 
   const flatItems = useMemo<DragItem[]>(() => {
     const items: DragItem[] = []
@@ -398,6 +440,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       const children = getVisibleChildren(habit.id)
       items.push({
         id: habit.id,
+        parentId: habit.parentId ?? null,
         habit,
         depth,
         hasChildren: children.length > 0,
@@ -416,6 +459,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     return items
   }, [visibleHabits, collapsedIds, getVisibleChildren])
+
+  const [isDraggingList, setIsDraggingList] = useState(false)
+  const [dragOverrideItems, setDragOverrideItems] = useState<DragItem[] | null>(null)
+  const activeDragItems = dragOverrideItems ?? flatItems
+  const activeDragItemsRef = useRef(activeDragItems)
+  activeDragItemsRef.current = activeDragItems
+  const autoCollapsedOnDragRef = useRef<string | null>(null)
+  const isDndEnabled = view !== 'all' && !isSelectMode
 
   // Children progress
   const getChildrenProgress = useCallback(
@@ -477,6 +528,247 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }, [checkAndPromptParentLog, markRecentlyCompleted, skipMutation])
 
+  const getHabitDepth = useCallback((habitId: string): number => {
+    let depth = 0
+    let current = habitsById.get(habitId)
+
+    while (current?.parentId) {
+      depth += 1
+      current = habitsById.get(current.parentId)
+    }
+
+    return depth
+  }, [habitsById])
+
+  const getSubtreeMaxDepth = useCallback((habitId: string, baseDepth: number): number => {
+    let maxDepth = baseDepth
+    const children = getChildren(habitId)
+
+    for (const child of children) {
+      const childMaxDepth = getSubtreeMaxDepth(child.id, baseDepth + 1)
+      if (childMaxDepth > maxDepth) {
+        maxDepth = childMaxDepth
+      }
+    }
+
+    return maxDepth
+  }, [getChildren])
+
+  const isDescendant = useCallback((candidateId: string, ancestorId: string): boolean => {
+    let current = habitsById.get(candidateId)
+
+    while (current?.parentId) {
+      if (current.parentId === ancestorId) {
+        return true
+      }
+      current = habitsById.get(current.parentId)
+    }
+
+    return false
+  }, [habitsById])
+
+  const validateMoveTarget = useCallback((targetParentId: string | null, draggedId: string) => {
+    if (targetParentId === draggedId) {
+      return {
+        valid: false,
+        reason: t('habits.moveParent.invalidSelf'),
+      }
+    }
+
+    if (targetParentId && isDescendant(targetParentId, draggedId)) {
+      return {
+        valid: false,
+        reason: t('habits.moveParent.invalidDescendant'),
+      }
+    }
+
+    const newParentDepth = targetParentId ? getHabitDepth(targetParentId) : -1
+    const subtreeMaxDepth = getSubtreeMaxDepth(draggedId, newParentDepth + 1)
+
+    if (subtreeMaxDepth >= maxHabitDepth) {
+      return {
+        valid: false,
+        reason: t('habits.moveParent.invalidDepth', { max: maxHabitDepth }),
+      }
+    }
+
+    return {
+      valid: true,
+      reason: null,
+    }
+  }, [getHabitDepth, getSubtreeMaxDepth, isDescendant, maxHabitDepth, t])
+
+  const moveParentOptions = useMemo<MoveParentOption[]>(() => {
+    if (!movingHabitId) return []
+    const movingId = movingHabitId
+
+    const options: MoveParentOption[] = []
+    const rootValidation = validateMoveTarget(null, movingId)
+
+    options.push({
+      id: null,
+      label: t('habits.moveParent.toRoot'),
+      depth: 0,
+      disabled: !rootValidation.valid,
+      reason: rootValidation.reason,
+    })
+
+    function addOption(habit: NormalizedHabit, depth: number) {
+      const validation = validateMoveTarget(habit.id, movingId)
+      options.push({
+        id: habit.id,
+        label: habit.title,
+        depth,
+        disabled: !validation.valid,
+        reason: validation.reason,
+      })
+
+      const children = getChildren(habit.id)
+      for (const child of children) {
+        addOption(child, depth + 1)
+      }
+    }
+
+    for (const habit of topLevelHabits) {
+      addOption(habit, 0)
+    }
+
+    return options
+  }, [getChildren, movingHabitId, t, topLevelHabits, validateMoveTarget])
+
+  const selectedMoveOption = useMemo(
+    () => moveParentOptions.find((option) => option.id === selectedMoveParentId) ?? null,
+    [moveParentOptions, selectedMoveParentId],
+  )
+
+  const canSubmitMoveParent = useMemo(
+    () =>
+      movingHabit !== null &&
+      !moveParentMutation.isPending &&
+      selectedMoveParentId !== movingHabit.parentId &&
+      selectedMoveOption !== null &&
+      !selectedMoveOption.disabled,
+    [moveParentMutation.isPending, movingHabit, selectedMoveOption, selectedMoveParentId],
+  )
+
+  const promptDelete = useCallback((habitId: string) => {
+    setHabitToDelete(habitId)
+    setShowDeleteConfirm(true)
+  }, [])
+
+  const closeMoveParentDialog = useCallback(() => {
+    if (moveParentMutation.isPending) return
+
+    setShowMoveParentDialog(false)
+    setMovingHabitId(null)
+    setSelectedMoveParentId(null)
+  }, [moveParentMutation.isPending])
+
+  const openMoveParentDialog = useCallback((habitId: string) => {
+    const habit = habitsById.get(habitId)
+    if (!habit) return
+
+    setMovingHabitId(habitId)
+    setSelectedMoveParentId(habit.parentId)
+    setShowMoveParentDialog(true)
+  }, [habitsById])
+
+  const confirmMoveParent = useCallback(async () => {
+    if (!movingHabitId || !canSubmitMoveParent) return
+
+    try {
+      await moveParentMutation.mutateAsync({
+        habitId: movingHabitId,
+        data: { parentId: selectedMoveParentId },
+      })
+      closeMoveParentDialog()
+    } catch {
+      // Error handled by mutation
+    }
+  }, [canSubmitMoveParent, closeMoveParentDialog, moveParentMutation, movingHabitId, selectedMoveParentId])
+
+  const startAddSubHabit = useCallback((parentId: string) => {
+    const parentHabitCandidate = habitsById.get(parentId)
+    if (!parentHabitCandidate) return
+
+    if (collapsedIds.has(parentId)) {
+      toggleExpand(parentId)
+    }
+
+    setSubHabitParent(parentHabitCandidate)
+    setShowSubHabitModal(true)
+  }, [collapsedIds, habitsById, toggleExpand])
+
+  const confirmDelete = useCallback(async () => {
+    if (!habitToDelete) return
+
+    try {
+      await deleteMutation.mutateAsync(habitToDelete)
+    } catch {
+      // Error handled by mutation
+    } finally {
+      setHabitToDelete(null)
+      setShowDeleteConfirm(false)
+    }
+  }, [deleteMutation, habitToDelete])
+
+  const prepareDrag = useCallback((item: DragItem, drag: () => void) => {
+    setIsDraggingList(true)
+    autoCollapsedOnDragRef.current = null
+
+    if (item.hasChildren && !collapsedIds.has(item.id)) {
+      autoCollapsedOnDragRef.current = item.id
+      const filtered: DragItem[] = []
+      let strippingDescendants = false
+
+      for (const candidate of activeDragItemsRef.current) {
+        if (candidate.id === item.id) {
+          strippingDescendants = true
+          filtered.push(candidate)
+          continue
+        }
+
+        if (strippingDescendants && candidate.depth > item.depth) {
+          continue
+        }
+
+        strippingDescendants = false
+        filtered.push(candidate)
+      }
+
+      setCollapsedIds((prev) => new Set(prev).add(item.id))
+      setDragOverrideItems(filtered)
+      setTimeout(drag, 0)
+      return
+    }
+
+    drag()
+  }, [collapsedIds])
+
+  const handleDragEnd = useCallback(async ({ from, to }: { from: number; to: number }) => {
+    const items = activeDragItemsRef.current
+
+    try {
+      if (from === to) return
+
+      const positions = computeHabitReorderPositions(
+        items,
+        from,
+        to,
+        habitsById,
+        getChildren,
+      )
+
+      if (positions.length > 0) {
+        await reorderHabitsMutation.mutateAsync({ positions })
+      }
+    } catch {
+      // Error handled by mutation
+    } finally {
+      restoreCollapsedStateAfterDrag()
+    }
+  }, [getChildren, habitsById, reorderHabitsMutation, restoreCollapsedStateAfterDrag])
+
   useImperativeHandle(
     ref,
     () => ({
@@ -507,6 +799,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       depth: number,
       hasChildren: boolean,
       hasSubHabits: boolean,
+      options?: {
+        onLongPressCard?: () => void
+      },
     ) => {
       const progress = hasChildren
         ? getChildrenProgress(habit.id)
@@ -514,6 +809,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
       return (
         <HabitCard
+          key={habit.id}
           habit={habit}
           selectedDate={selectedDate}
           depth={depth}
@@ -539,27 +835,23 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           }}
           onToggleExpand={() => toggleExpand(habit.id)}
           onDelete={() => {
-            Alert.alert(
-              t('common.confirm'),
-              t('habits.actions.deleteConfirm'),
-              [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                  text: t('common.delete'),
-                  style: 'destructive',
-                  onPress: () => deleteMutation.mutate(habit.id),
-                },
-              ],
-            )
+            promptDelete(habit.id)
           }}
           onDuplicate={() => duplicateMutation.mutate(habit.id)}
           onMoveParent={() => {
-            moveParentMutation.mutate({
-              habitId: habit.id,
-              data: { parentId: null },
-            })
+            openMoveParentDialog(habit.id)
           }}
-          onForceLogParent={() => logMutation.mutate({ habitId: habit.id })}
+          onAddSubHabit={() => {
+            startAddSubHabit(habit.id)
+          }}
+          onDrillInto={hasSubHabits ? () => { void drill.drillInto(habit.id) } : undefined}
+          onForceLogParent={() => {
+            if (onLogHabit) {
+              onLogHabit(habit)
+            } else {
+              logMutation.mutate({ habitId: habit.id })
+            }
+          }}
           onEnterSelectMode={() => {
             if (!isSelectMode) toggleSelectMode()
             toggleSelectionCascade(
@@ -576,6 +868,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
               isAncestorSelected,
             )
           }
+          onLongPressCard={options?.onLongPressCard}
         />
       )
     },
@@ -591,9 +884,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       handleSkip,
       toggleExpand,
       t,
-      deleteMutation,
+      promptDelete,
       duplicateMutation,
-      moveParentMutation,
+      openMoveParentDialog,
+      startAddSubHabit,
+      drill.drillInto,
       toggleSelectMode,
       toggleSelectionCascade,
       getDescendantIds,
@@ -643,9 +938,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   )
 
   const renderItem = useCallback(
-    ({ item }: { item: DragItem }) =>
-      renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits),
-    [renderHabitCard],
+    ({ item, drag }: RenderItemParams<DragItem>) => (
+      <View style={styles.sectionInset}>
+        {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, {
+          onLongPressCard: isDndEnabled ? () => prepareDrag(item, drag) : undefined,
+        })}
+      </View>
+    ),
+    [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset],
   )
 
   const keyExtractor = useCallback(
@@ -653,14 +953,400 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [],
   )
 
+  const renderEmptyState = useCallback(
+    (currentView: 'today' | 'all' | 'general') => (
+      <View style={styles.sectionInset}>
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconContainer}>
+            <ClipboardList size={40} color={colors.textMuted} />
+          </View>
+          <Text style={styles.emptySubtitle}>
+            {getEmptyHabitsMessage(currentView, t)}
+          </Text>
+          {(currentView === 'all' || currentView === 'general') ? (
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={onCreatePress}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.createButtonText}>
+                {t('habits.createHabit')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    ),
+    [
+      colors.textMuted,
+      onCreatePress,
+      styles.createButton,
+      styles.createButtonText,
+      styles.emptyIconContainer,
+      styles.emptyState,
+      styles.emptySubtitle,
+      styles.sectionInset,
+      t,
+    ],
+  )
+
+  const listHeaderComponent = useMemo(
+    () => (listHeader ? <View style={styles.sectionInset}>{listHeader}</View> : null),
+    [listHeader, styles.sectionInset],
+  )
+
+  const refreshControl = useMemo(
+    () => (
+      <RefreshControl
+        refreshing={isFetching && !isLoading}
+        onRefresh={refetch}
+        tintColor={colors.primary}
+      />
+    ),
+    [colors.primary, isFetching, isLoading, refetch],
+  )
+
+  const renderGroupSection = useCallback(
+    ({ item: group }: { item: DateGroup }) => (
+      <View style={styles.sectionInset}>
+        <View style={styles.groupSection}>
+          <View style={styles.groupHeader}>
+            <Text
+              style={[
+                styles.groupLabel,
+                group.isOverdue ? styles.groupLabelOverdue : null,
+              ]}
+            >
+              {group.isOverdue ? t('habits.overdue') : group.label}
+            </Text>
+            <View
+              style={[
+                styles.groupDivider,
+                group.isOverdue ? styles.groupDividerOverdue : null,
+              ]}
+            />
+          </View>
+          <View style={styles.groupItems}>
+            {group.habits.map((habit) => {
+              const children = getVisibleChildren(habit.id)
+              return (
+                <View key={habit.id} style={styles.groupItem}>
+                  {renderHabitCard(
+                    habit,
+                    0,
+                    children.length > 0,
+                    habit.hasSubHabits,
+                  )}
+                  {renderAllViewChildren(habit.id, 1)}
+                </View>
+              )
+            })}
+          </View>
+        </View>
+      </View>
+    ),
+    [
+      getVisibleChildren,
+      renderAllViewChildren,
+      renderHabitCard,
+      styles.groupDivider,
+      styles.groupDividerOverdue,
+      styles.groupHeader,
+      styles.groupItem,
+      styles.groupItems,
+      styles.groupLabel,
+      styles.groupLabelOverdue,
+      styles.groupSection,
+      styles.sectionInset,
+      t,
+    ],
+  )
+
+  const renderDrillItem = useCallback(
+    ({ item: child }: { item: NormalizedHabit }) => {
+      const grandChildren = drill.getDrillChildren(child.id)
+      return (
+        <View style={styles.sectionInset}>
+          {renderHabitCard(
+            child,
+            0,
+            grandChildren.length > 0,
+            child.hasSubHabits || grandChildren.length > 0,
+          )}
+        </View>
+      )
+    },
+    [drill, renderHabitCard, styles.sectionInset],
+  )
+
+  const drillFooter = useMemo(
+    () => (
+      <TouchableOpacity
+        style={styles.drillAddBtn}
+        onPress={() => {
+          const parent =
+            drill.currentParentId
+              ? (habitsById.get(drill.currentParentId) ?? null)
+              : null
+          setSubHabitParent(parent)
+          setShowSubHabitModal(true)
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.drillAddBtnText}>
+          {t('habits.actions.addSubHabit')}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [
+      drill.currentParentId,
+      habitsById,
+      styles.drillAddBtn,
+      styles.drillAddBtnText,
+      t,
+    ],
+  )
+
+  const commonOverlays = (
+    <>
+      <CreateHabitModal
+        open={showSubHabitModal}
+        onClose={() => {
+          setShowSubHabitModal(false)
+          setSubHabitParent(null)
+        }}
+        initialDate={selectedDate ? formatAPIDate(selectedDate) : null}
+        parentHabit={subHabitParent}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteConfirm(open)
+          if (!open) {
+            setHabitToDelete(null)
+          }
+        }}
+        title={t('habits.deleteConfirmTitle')}
+        description={t('habits.deleteConfirmMessage')}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setHabitToDelete(null)
+          setShowDeleteConfirm(false)
+        }}
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        open={showAutoLogParent}
+        onOpenChange={setShowAutoLogParent}
+        title={t('habits.autoLogParentTitle')}
+        description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
+        confirmLabel={t('habits.autoLogParentConfirm')}
+        onConfirm={confirmAutoLogParent}
+        variant="success"
+      />
+
+      <Modal
+        visible={showMoveParentDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={closeMoveParentDialog}
+      >
+        <TouchableOpacity
+          style={styles.dialogBackdrop}
+          activeOpacity={1}
+          onPress={closeMoveParentDialog}
+        >
+          <View
+            style={styles.moveDialog}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={styles.moveDialogTitle}>
+              {t('habits.moveParent.title')}
+            </Text>
+            {movingHabit ? (
+              <Text style={styles.moveDialogDescription}>
+                {t('habits.moveParent.description', { name: movingHabit.title })}
+              </Text>
+            ) : null}
+
+            {moveParentOptions.length > 0 ? (
+              <ScrollView
+                style={styles.moveOptionsList}
+                contentContainerStyle={styles.moveOptionsContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {moveParentOptions.map((option) => {
+                  const isSelectedOption = option.id === selectedMoveParentId
+                  return (
+                    <TouchableOpacity
+                      key={option.id ?? '__root__'}
+                      style={[
+                        styles.moveOption,
+                        isSelectedOption && styles.moveOptionSelected,
+                        option.disabled && styles.moveOptionDisabled,
+                        option.id !== null
+                          ? { paddingLeft: 12 + option.depth * 18 }
+                          : null,
+                      ]}
+                      disabled={option.disabled}
+                      onPress={() => setSelectedMoveParentId(option.id)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.moveOptionHeader}>
+                        <Text style={styles.moveOptionLabel} numberOfLines={1}>
+                          {option.label}
+                        </Text>
+                        {option.id === movingHabit?.parentId ? (
+                          <Text style={styles.moveOptionCurrent}>
+                            {t('habits.moveParent.currentParent')}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {option.reason ? (
+                        <Text style={styles.moveOptionReason}>
+                          {option.reason}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={styles.moveDialogEmpty}>
+                {t('habits.moveParent.noOptions')}
+              </Text>
+            )}
+
+            <View style={styles.moveDialogActions}>
+              <TouchableOpacity
+                style={styles.moveDialogCancel}
+                disabled={moveParentMutation.isPending}
+                onPress={closeMoveParentDialog}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.moveDialogCancelText}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.moveDialogConfirm,
+                  !canSubmitMoveParent && styles.moveDialogConfirmDisabled,
+                ]}
+                disabled={!canSubmitMoveParent}
+                onPress={() => {
+                  void confirmMoveParent()
+                }}
+                activeOpacity={0.8}
+              >
+                {moveParentMutation.isPending ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={styles.moveDialogConfirmText}>
+                    {t('habits.moveParent.confirm')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  )
+
+  // Drill view: when drilled into a parent, show its sub-habits
+  if (drill.currentParentId) {
+    const completedCount = drill.drillChildren.filter(
+      (c) => c.isCompleted || c.isLoggedInRange,
+    ).length
+
+    const drillListHeader = (
+      <>
+        {listHeaderComponent}
+        <View style={styles.drillHeader}>
+          <TouchableOpacity
+            onPress={drill.drillBack}
+            style={styles.drillBackBtn}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={20} color={colors.primary} />
+            <Text style={styles.drillBackText}>{t('common.back')}</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.drillTitle} numberOfLines={1}>
+              {drill.currentParent?.title ?? ''}
+            </Text>
+            <Text style={styles.drillProgress}>
+              {completedCount}/{drill.drillChildren.length}{' '}
+              {t('habits.completed')}
+            </Text>
+          </View>
+          {drill.drillStack.length > 1 ? (
+            <TouchableOpacity onPress={drill.drillReset} activeOpacity={0.7}>
+              <ChevronLeft size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </>
+    )
+
+    const drillEmptyState = drill.drillLoading ? (
+      <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+    ) : drill.drillError ? (
+      <Text style={styles.emptyText}>{drill.drillError}</Text>
+    ) : (
+      <Text style={styles.emptyText}>{t('habits.emptyState')}</Text>
+    )
+
+    return (
+      <>
+        <FlatList
+          data={drill.drillLoading || drill.drillError ? [] : drill.drillChildren}
+          keyExtractor={(item) => item.id}
+          renderItem={renderDrillItem}
+          ListHeaderComponent={drillListHeader}
+          ListEmptyComponent={drillEmptyState}
+          ListFooterComponent={drillFooter}
+          contentContainerStyle={[
+            styles.listContent,
+            isSelectMode ? styles.listContentWithBulkBar : null,
+          ]}
+          refreshControl={refreshControl}
+          onScrollBeginDrag={onScrollBeginDrag}
+          showsVerticalScrollIndicator={false}
+        />
+        {commonOverlays}
+      </>
+    )
+  }
+
   // Loading skeleton (matches web: 3 skeleton cards)
   if (isLoading) {
     return (
-      <View style={styles.skeletonContainer}>
-        <SkeletonCard styles={styles} />
-        <SkeletonCard styles={styles} />
-        <SkeletonCard styles={styles} />
-      </View>
+      <>
+        <FlatList
+          data={['skeleton-1', 'skeleton-2', 'skeleton-3']}
+          keyExtractor={(item) => item}
+          renderItem={() => (
+            <View style={styles.sectionInset}>
+              <SkeletonCard styles={styles} />
+            </View>
+          )}
+          ListHeaderComponent={listHeaderComponent}
+          contentContainerStyle={[
+            styles.skeletonContainer,
+            isSelectMode ? styles.listContentWithBulkBar : null,
+          ]}
+          refreshControl={refreshControl}
+          onScrollBeginDrag={onScrollBeginDrag}
+          showsVerticalScrollIndicator={false}
+        />
+        {commonOverlays}
+      </>
     )
   }
 
@@ -673,149 +1359,94 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   ) {
     return (
       <>
-        <View>
-          <View style={styles.emptyAllDone}>
-            <View style={styles.allDoneIconContainer}>
-              <CheckCircle2 size={40} color={colors.success} />
-            </View>
-            <Text style={styles.allDoneTitle}>
-              {t('habits.allDoneToday')}
-            </Text>
-            <Text style={styles.allDoneSubtitle}>
-              {t('habits.allDoneHint')}
-            </Text>
-            {onSeeUpcoming && (
-              <TouchableOpacity
-                style={styles.seeUpcomingButton}
-                onPress={onSeeUpcoming}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.seeUpcomingText}>
-                  {t('habits.seeUpcoming')}
+        <FlatList
+          data={[]}
+          keyExtractor={() => 'all-done'}
+          renderItem={undefined}
+          ListHeaderComponent={listHeaderComponent}
+          ListEmptyComponent={
+            <View style={styles.sectionInset}>
+              <View style={styles.emptyAllDone}>
+                <View style={styles.allDoneIconContainer}>
+                  <CheckCircle2 size={40} color={colors.success} />
+                </View>
+                <Text style={styles.allDoneTitle}>
+                  {t('habits.allDoneToday')}
                 </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {generalHabitSection}
-        </View>
-        <ConfirmDialog
-          open={showAutoLogParent}
-          onOpenChange={setShowAutoLogParent}
-          title={t('habits.autoLogParentTitle')}
-          description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
-          confirmLabel={t('habits.autoLogParentConfirm')}
-          onConfirm={confirmAutoLogParent}
-          variant="success"
+                <Text style={styles.allDoneSubtitle}>
+                  {t('habits.allDoneHint')}
+                </Text>
+                {onSeeUpcoming ? (
+                  <TouchableOpacity
+                    style={styles.seeUpcomingButton}
+                    onPress={onSeeUpcoming}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.seeUpcomingText}>
+                      {t('habits.seeUpcoming')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          }
+          ListFooterComponent={generalHabitSection}
+          contentContainerStyle={[
+            styles.listContent,
+            isSelectMode ? styles.listContentWithBulkBar : null,
+          ]}
+          refreshControl={refreshControl}
+          onScrollBeginDrag={onScrollBeginDrag}
+          showsVerticalScrollIndicator={false}
         />
+        {commonOverlays}
       </>
     )
   }
 
-  if (view === 'all' && visibleHabits.length > 0) {
+  if (view === 'all') {
     return (
       <>
-        <View style={styles.groupedList}>
-          {dateGroups.map((group) => (
-            <View key={group.key} style={styles.groupSection}>
-              <View style={styles.groupHeader}>
-                <Text
-                  style={[
-                    styles.groupLabel,
-                    group.isOverdue ? styles.groupLabelOverdue : null,
-                  ]}
-                >
-                  {group.isOverdue ? t('habits.overdue') : group.label}
-                </Text>
-                <View
-                  style={[
-                    styles.groupDivider,
-                    group.isOverdue ? styles.groupDividerOverdue : null,
-                  ]}
-                />
-              </View>
-              <View style={styles.groupItems}>
-                {group.habits.map((habit) => {
-                  const children = getVisibleChildren(habit.id)
-                  return (
-                    <View key={habit.id} style={styles.groupItem}>
-                      {renderHabitCard(
-                        habit,
-                        0,
-                        children.length > 0,
-                        habit.hasSubHabits,
-                      )}
-                      {renderAllViewChildren(habit.id, 1)}
-                    </View>
-                  )
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-        <ConfirmDialog
-          open={showAutoLogParent}
-          onOpenChange={setShowAutoLogParent}
-          title={t('habits.autoLogParentTitle')}
-          description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
-          confirmLabel={t('habits.autoLogParentConfirm')}
-          onConfirm={confirmAutoLogParent}
-          variant="success"
+        <FlatList
+          data={dateGroups}
+          keyExtractor={(item) => item.key}
+          renderItem={renderGroupSection}
+          ListHeaderComponent={listHeaderComponent}
+          ListEmptyComponent={renderEmptyState('all')}
+          contentContainerStyle={[
+            styles.groupedList,
+            isSelectMode ? styles.listContentWithBulkBar : null,
+          ]}
+          refreshControl={refreshControl}
+          onScrollBeginDrag={onScrollBeginDrag}
+          showsVerticalScrollIndicator={false}
         />
+        {commonOverlays}
       </>
     )
   }
 
   return (
     <>
-      <FlatList
-        data={flatItems}
+      <DraggableFlatList
+        data={activeDragItems}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        scrollEnabled={scrollEnabled}
-        nestedScrollEnabled
-        contentContainerStyle={
-          flatItems.length === 0 ? styles.emptyContainer : styles.listContent
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={refetch}
-            tintColor={colors.primary}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <ClipboardList size={40} color={colors.textMuted} />
-            </View>
-            <Text style={styles.emptySubtitle}>
-              {getEmptyHabitsMessage(view, t)}
-            </Text>
-            {(view === 'all' || view === 'general') ? (
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={onCreatePress}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.createButtonText}>
-                  {t('habits.createHabit')}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        }
+        extraData={listExtraData}
+        testID={isDraggingList ? 'dragging-habit-list' : 'habit-list'}
+        contentContainerStyle={[
+          styles.listContent,
+          isSelectMode ? styles.listContentWithBulkBar : null,
+        ]}
+        refreshControl={refreshControl}
+        onDragEnd={handleDragEnd}
+        ListHeaderComponent={listHeaderComponent}
+        ListEmptyComponent={renderEmptyState(view)}
         ListFooterComponent={generalHabitSection}
+        onScrollBeginDrag={onScrollBeginDrag}
         showsVerticalScrollIndicator={false}
       />
-      <ConfirmDialog
-        open={showAutoLogParent}
-        onOpenChange={setShowAutoLogParent}
-        title={t('habits.autoLogParentTitle')}
-        description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
-        confirmLabel={t('habits.autoLogParentConfirm')}
-        onConfirm={confirmAutoLogParent}
-        variant="success"
-      />
+      {commonOverlays}
     </>
   )
 })
@@ -853,6 +1484,7 @@ function createStyles(colors: ThemeColors) {
     // Skeleton loading (matches web skeleton)
     skeletonContainer: {
       paddingTop: 8,
+      paddingBottom: 100,
       gap: 12,
     },
     skeletonCard: {
@@ -894,12 +1526,17 @@ function createStyles(colors: ThemeColors) {
     },
 
     // List
+    sectionInset: {
+      paddingHorizontal: 20,
+    },
     listContent: {
       paddingBottom: 100,
     },
+    listContentWithBulkBar: {
+      paddingBottom: 220,
+    },
     groupedList: {
       paddingBottom: 100,
-      gap: 16,
     },
     groupSection: {
       marginBottom: 16,
@@ -1049,6 +1686,177 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: '700',
       color: colors.white,
+    },
+    dialogBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    moveDialog: {
+      width: '100%',
+      maxWidth: 380,
+      maxHeight: '75%',
+      backgroundColor: colors.surfaceOverlay,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      borderRadius: 20,
+      padding: 20,
+    },
+    moveDialogTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    moveDialogDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textSecondary,
+      marginTop: 8,
+      marginBottom: 16,
+    },
+    moveOptionsList: {
+      flexGrow: 0,
+    },
+    moveOptionsContent: {
+      gap: 10,
+      paddingBottom: 8,
+    },
+    moveOption: {
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    moveOptionSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary_10,
+    },
+    moveOptionDisabled: {
+      opacity: 0.5,
+    },
+    moveOptionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    moveOptionLabel: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    moveOptionCurrent: {
+      fontSize: 10,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      color: colors.textMuted,
+    },
+    moveOptionReason: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 6,
+    },
+    moveDialogEmpty: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingVertical: 16,
+    },
+    moveDialogActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 16,
+    },
+    moveDialogCancel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 12,
+    },
+    moveDialogCancelText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    moveDialogConfirm: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 14,
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      minHeight: 46,
+    },
+    moveDialogConfirmDisabled: {
+      opacity: 0.5,
+    },
+    moveDialogConfirmText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.white,
+    },
+
+    // Drill navigation
+    drillHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderMuted,
+      marginBottom: 8,
+    },
+    drillBackBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingRight: 8,
+    },
+    drillBackText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    drillTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    drillProgress: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    drillAddBtn: {
+      marginHorizontal: 16,
+      marginVertical: 12,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      alignItems: 'center',
+    },
+    drillAddBtnText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 32,
+      paddingHorizontal: 24,
     },
   })
 }

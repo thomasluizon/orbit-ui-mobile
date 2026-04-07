@@ -41,6 +41,14 @@ export async function persistQueryCache(): Promise<void> {
   }
 }
 
+export async function clearPersistedQueryCache(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(CACHE_KEY)
+  } catch {
+    // Silently fail - cache clearing is best-effort
+  }
+}
+
 export async function restoreQueryCache(): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(CACHE_KEY)

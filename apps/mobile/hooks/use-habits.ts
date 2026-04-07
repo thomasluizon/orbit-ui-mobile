@@ -48,6 +48,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { apiClient } from '@/lib/api-client'
+import { refreshWidget } from '@/lib/orbit-widget'
 import { useUIStore } from '@/stores/ui-store'
 
 // ---------------------------------------------------------------------------
@@ -185,6 +186,10 @@ function buildChildrenIndex(habitsById: Map<string, NormalizedHabit>): Map<strin
     }
   }
   return index
+}
+
+function triggerWidgetRefresh(): void {
+  void refreshWidget().catch(() => {})
 }
 
 // ---------------------------------------------------------------------------
@@ -435,6 +440,8 @@ export function useLogHabit() {
         const normalized = normalizeHabits(habitsData)
         checkAllDoneCelebration(normalized)
       }
+
+      triggerWidgetRefresh()
     },
 
     onSettled: () => {
@@ -489,9 +496,12 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -510,9 +520,12 @@ export function useCreateHabit() {
       useUIStore.getState().setLastCreatedHabitId(result.id)
     },
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -527,10 +540,13 @@ export function useUpdateHabit() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: (_data, _err, { habitId }) => {
+    onSettled: (_data, error, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -542,10 +558,13 @@ export function useDeleteHabit() {
     mutationFn: (habitId: string) =>
       apiClient<void>(API.habits.delete(habitId), { method: 'DELETE' }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -560,8 +579,11 @@ export function useReorderHabits() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -573,9 +595,12 @@ export function useDuplicateHabit() {
     mutationFn: (habitId: string) =>
       apiClient<void>(API.habits.duplicate(habitId), { method: 'POST' }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -636,9 +661,12 @@ export function useUpdateChecklist() {
       }
     },
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -663,9 +691,12 @@ export function useCreateSubHabit() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -686,9 +717,12 @@ export function useMoveHabitParent() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -707,9 +741,12 @@ export function useBulkCreateHabits() {
         body: JSON.stringify(data),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -724,10 +761,13 @@ export function useBulkDeleteHabits() {
         body: JSON.stringify({ habitIds }),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -742,11 +782,14 @@ export function useBulkLogHabits() {
         body: JSON.stringify({ items }),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }
@@ -761,9 +804,12 @@ export function useBulkSkipHabits() {
         body: JSON.stringify({ items }),
       }),
 
-    onSettled: () => {
+    onSettled: (_data, error) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summary('', '') })
+      if (!error) {
+        triggerWidgetRefresh()
+      }
     },
   })
 }

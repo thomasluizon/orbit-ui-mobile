@@ -24,7 +24,9 @@ async function authFetch(path: string, init: RequestInit) {
     throw new Error(error?.error ?? error?.message ?? `Failed with status ${res.status}`)
   }
   if (res.status === 204) return null
-  return res.json()
+  const text = await res.text()
+  if (!text) return null
+  return JSON.parse(text)
 }
 
 export async function updateTimezone(data: UpdateTimezoneRequest): Promise<void> {

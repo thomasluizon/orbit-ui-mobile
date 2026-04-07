@@ -1,13 +1,64 @@
 import { schemes, type ColorScheme } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
+
+type ThemeValues = (typeof schemes)[ColorScheme]['dark']
+
+type ThemeRuntime = {
+  scheme: ColorScheme
+  themeMode: ThemeMode
+}
+
+let runtimeTheme: ThemeRuntime = {
+  scheme: 'purple',
+  themeMode: 'dark',
+}
+
+export function setRuntimeTheme(next: Partial<ThemeRuntime>) {
+  runtimeTheme = {
+    ...runtimeTheme,
+    ...next,
+  }
+}
+
+export function getRuntimeTheme() {
+  return runtimeTheme
+}
+
+function withAlpha(color: string, opacity: number, fallback: string): string {
+  const normalized = color.replace('#', '')
+
+  if (normalized.length === 3) {
+    const [r, g, b] = normalized.split('')
+    const expanded = `${r}${r}${g}${g}${b}${b}`
+    const red = Number.parseInt(expanded.slice(0, 2), 16)
+    const green = Number.parseInt(expanded.slice(2, 4), 16)
+    const blue = Number.parseInt(expanded.slice(4, 6), 16)
+    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
+  }
+
+  if (normalized.length === 6) {
+    const red = Number.parseInt(normalized.slice(0, 2), 16)
+    const green = Number.parseInt(normalized.slice(2, 4), 16)
+    const blue = Number.parseInt(normalized.slice(4, 6), 16)
+    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
+  }
+
+  return fallback
+}
 
 // ---------------------------------------------------------------------------
 // Colors
 // ---------------------------------------------------------------------------
 
-export function createColors(colorScheme: ColorScheme = 'purple') {
+export function createColors(
+  colorScheme: ColorScheme = runtimeTheme.scheme,
+  themeMode: ThemeMode = runtimeTheme.themeMode,
+) {
   const definition = schemes[colorScheme]
-  const theme = definition.dark
+  const theme = definition[themeMode]
   const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
+  const isLight = themeMode === 'light'
+  const primary = themeMode === 'light' ? definition.primaryLight : definition.primary
 
   return {
     background: theme.background,
@@ -15,8 +66,8 @@ export function createColors(colorScheme: ColorScheme = 'purple') {
     surface: theme.surface,
     surfaceElevated: theme.surfaceElevated,
     surfaceOverlay: theme.surfaceOverlay,
-    primary: definition.primary,
-    primary400: definition.scale[400] ?? definition.primary,
+    primary,
+    primary400: definition.scale[400] ?? primary,
     primaryLight: alpha(0.2),
     primaryShadow: `rgba(${definition.shadowRgb},`,
     primary_10: alpha(0.1),
@@ -29,16 +80,30 @@ export function createColors(colorScheme: ColorScheme = 'purple') {
     textSecondary: theme.textSecondary,
     textMuted: theme.textMuted,
     textFaded: theme.textFaded,
-    textFaded40: theme.textFaded.replace('#', '').length === 6
-      ? `${theme.textFaded}66`
-      : 'rgba(165, 156, 186, 0.40)',
+    textFaded40: withAlpha(
+      theme.textFaded,
+      0.4,
+      isLight ? 'rgba(122, 116, 144, 0.40)' : 'rgba(165, 156, 186, 0.40)',
+    ),
     textInverse: theme.textInverse,
     border: theme.border,
     borderMuted: theme.borderMuted,
     borderEmphasis: theme.borderEmphasis,
-    border50: 'rgba(255,255,255,0.035)',
-    borderFaded30: 'rgba(165, 156, 186, 0.30)',
-    borderDivider: 'rgba(255,255,255,0.02)',
+    border50: withAlpha(
+      theme.textPrimary,
+      isLight ? 0.06 : 0.035,
+      isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.035)',
+    ),
+    borderFaded30: withAlpha(
+      theme.textFaded,
+      0.3,
+      isLight ? 'rgba(122, 116, 144, 0.30)' : 'rgba(165, 156, 186, 0.30)',
+    ),
+    borderDivider: withAlpha(
+      theme.textPrimary,
+      isLight ? 0.05 : 0.02,
+      isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+    ),
     success: '#34d399',
     warning: '#fbbf24',
     danger: '#f87171',
@@ -77,22 +142,37 @@ export function createColors(colorScheme: ColorScheme = 'purple') {
     orange300: '#fdba74',
     orange500_30: 'rgba(249, 115, 22, 0.30)',
     orange400_10: 'rgba(251, 146, 60, 0.10)',
-    handle: 'rgba(255,255,255,0.15)',
+    handle: withAlpha(
+      theme.textPrimary,
+      isLight ? 0.12 : 0.15,
+      isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.15)',
+    ),
     purple: definition.scale[400] ?? definition.primary,
   } as const
 }
 
-export function createNav(colorScheme: ColorScheme = 'purple') {
+export function createNav(
+  colorScheme: ColorScheme = runtimeTheme.scheme,
+  themeMode: ThemeMode = runtimeTheme.themeMode,
+) {
   const definition = schemes[colorScheme]
+  const theme = definition[themeMode]
+  const primary = themeMode === 'light' ? definition.primaryLight : definition.primary
   return {
-    activeColor: definition.primary,
-    inactiveColor: definition.dark.textMuted,
-    tabBarBg: definition.dark.surfaceGround,
-    tabBarBorder: definition.dark.border,
+    activeColor: primary,
+    inactiveColor: theme.textMuted,
+    tabBarBg: theme.navGlassBg,
+    tabBarBorder: theme.navGlassBorder,
   } as const
 }
 
-export const colors = createColors()
+export const colors = new Proxy({} as ReturnType<typeof createColors>, {
+  get: (_target, prop) => createColors()[prop as keyof ReturnType<typeof createColors>],
+})
+
+export const nav = new Proxy({} as ReturnType<typeof createNav>, {
+  get: (_target, prop) => createNav()[prop as keyof ReturnType<typeof createNav>],
+})
 
 // ---------------------------------------------------------------------------
 // Radius presets
@@ -131,9 +211,3 @@ export const shadows = {
     shadowRadius: 40,
   },
 } as const
-
-// ---------------------------------------------------------------------------
-// Navigation constants
-// ---------------------------------------------------------------------------
-
-export const nav = createNav()

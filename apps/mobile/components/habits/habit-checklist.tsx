@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 import { GripHorizontal, X, Copy, Check, Plus } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import { colors, radius } from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -28,6 +29,8 @@ interface HabitChecklistProps {
   onClear?: () => void
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -42,9 +45,11 @@ export function HabitChecklist({
   onClear,
 }: Readonly<HabitChecklistProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const [newItemText, setNewItemText] = useState('')
   const [justCheckedIndex, setJustCheckedIndex] = useState(-1)
   const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const progressPercent = items.length > 0 ? (checkedCount / items.length) * 100 : 0
@@ -241,7 +246,8 @@ export function HabitChecklist({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     gap: 8,
   },
@@ -375,4 +381,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-})
+  })
+}

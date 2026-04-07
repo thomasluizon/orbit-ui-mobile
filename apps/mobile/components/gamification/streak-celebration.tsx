@@ -11,7 +11,8 @@ import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@/lib/plural'
 import { useUIStore } from '@/stores/ui-store'
-import { colors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
@@ -23,6 +24,7 @@ const EMBER_COUNT = 12
 
 export function StreakCelebration() {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
   const streakCelebration = useUIStore((s) => s.streakCelebration)
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
   const [streakCount, setStreakCount] = useState(0)
@@ -44,6 +46,7 @@ export function StreakCelebration() {
       distance: 60 + Math.random() * (SCREEN_W * 0.3),
     })),
   ).current
+  const styles = useMemo(() => createStyles(colors), [colors])
 
   const isMilestone = useMemo(
     () => (MILESTONE_VALUES as readonly number[]).includes(streakCount),
@@ -269,65 +272,67 @@ export function StreakCelebration() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10002,
-  },
-  pressable: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-  },
-  glowContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glow: {
-    width: 192,
-    height: 192,
-    borderRadius: 96,
-  },
-  glowNormal: {
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
-  },
-  glowStrong: {
-    backgroundColor: 'rgba(251, 191, 36, 0.25)',
-  },
-  ember: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#f97316',
-  },
-  content: {
-    alignItems: 'center',
-  },
-  streakNumber: {
-    fontSize: 52,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -1,
-    marginTop: 8,
-  },
-  subtitleText: {
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    color: colors.orange300,
-    marginTop: 6,
-  },
-  encouragementText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: 10,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10002,
+    },
+    pressable: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    },
+    glowContainer: {
+      position: 'absolute',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    glow: {
+      width: 192,
+      height: 192,
+      borderRadius: 96,
+    },
+    glowNormal: {
+      backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    },
+    glowStrong: {
+      backgroundColor: 'rgba(251, 191, 36, 0.25)',
+    },
+    ember: {
+      position: 'absolute',
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#f97316',
+    },
+    content: {
+      alignItems: 'center',
+    },
+    streakNumber: {
+      fontSize: 52,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      letterSpacing: -1,
+      marginTop: 8,
+    },
+    subtitleText: {
+      fontSize: 14,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 3,
+      color: colors.orange300,
+      marginTop: 6,
+    },
+    encouragementText: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginTop: 10,
+    },
+  })
+}

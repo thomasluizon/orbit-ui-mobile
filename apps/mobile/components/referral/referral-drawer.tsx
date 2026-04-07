@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Check, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -28,8 +30,10 @@ interface ReferralDrawerProps {
 
 export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
   const { t } = useTranslation()
+  const { colors, shadows } = useAppTheme()
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   useEffect(() => {
     if (open) {
@@ -68,7 +72,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
       title={t('referral.drawer.title')}
       snapPoints={['65%', '85%']}
     >
-      <View style={styles.content}>
+      <BottomSheetScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Loading */}
         {isLoading && (
           <View style={styles.loadingContainer}>
@@ -191,7 +199,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
             </Text>
           </>
         )}
-      </View>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   )
 }
@@ -200,139 +208,148 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  content: {
-    gap: 16,
-    paddingBottom: 24,
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  errorContainer: {
-    backgroundColor: colors.red500_10,
-    borderWidth: 1,
-    borderColor: colors.red500_30,
-    borderRadius: radius.lg,
-    padding: 16,
-  },
-  errorText: {
-    fontSize: 14,
-    color: colors.red400,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  linkBox: {
-    flex: 1,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  linkText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    fontFamily: 'monospace',
-  },
-  copyBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  copyBtnText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  shareBtn: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareBtnText: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  statsCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 16,
-    gap: 12,
-    ...shadows.sm,
-    elevation: 2,
-  },
-  statRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: colors.background,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  howItWorks: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: colors.primary_10,
-    borderWidth: 1,
-    borderColor: colors.primary_15,
-    borderRadius: radius.lg,
-    padding: 16,
-  },
-  howItWorksText: {
-    flex: 1,
-  },
-  howItWorksTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  howItWorksDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  disclaimer: {
-    fontSize: 10,
-    color: colors.textMuted,
-    lineHeight: 14,
-  },
-})
+function createStyles(
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
+) {
+  return StyleSheet.create({
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 20,
+      gap: 16,
+      paddingBottom: 24,
+    },
+    loadingContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    errorContainer: {
+      backgroundColor: colors.red500_10,
+      borderWidth: 1,
+      borderColor: colors.red500_30,
+      borderRadius: radius.lg,
+      padding: 16,
+    },
+    errorText: {
+      fontSize: 14,
+      color: colors.red400,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 6,
+    },
+    linkRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    linkBox: {
+      flex: 1,
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    linkText: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      fontFamily: 'monospace',
+    },
+    copyBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.lg,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    copyBtnText: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    shareBtn: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: radius.lg,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shareBtnText: {
+      color: colors.textPrimary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    statsCard: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 16,
+      gap: 12,
+      ...shadows.sm,
+      elevation: 2,
+    },
+    statRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    statLabel: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    statValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    progressTrack: {
+      height: 8,
+      backgroundColor: colors.background,
+      borderRadius: radius.full,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: radius.full,
+    },
+    howItWorks: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_15,
+      borderRadius: radius.lg,
+      padding: 16,
+    },
+    howItWorksText: {
+      flex: 1,
+    },
+    howItWorksTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    howItWorksDesc: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
+    disclaimer: {
+      fontSize: 10,
+      color: colors.textMuted,
+      lineHeight: 14,
+    },
+  })
+}

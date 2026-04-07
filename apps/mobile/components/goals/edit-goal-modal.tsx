@@ -7,14 +7,17 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Plus, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { Goal, UpdateGoalRequest } from '@orbit/shared/types/goal'
-import { colors, radius } from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -26,13 +29,18 @@ interface EditGoalModalProps {
   goal: Goal
 }
 
+type AppColors = ReturnType<typeof createColors>
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const updateGoal = useUpdateGoal()
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Form state
   const [description, setDescription] = useState('')
@@ -117,7 +125,12 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
       title={t('goals.detail.edit')}
       snapPoints={['70%', '90%']}
     >
-      <View style={styles.form}>
+      <BottomSheetScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.form}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Quantity + Unit */}
         <View style={styles.row}>
           <View style={styles.halfField}>
@@ -227,7 +240,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             <Text style={styles.submitText}>{t('common.save')}</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   )
 }
@@ -236,14 +249,20 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors, bottomInset: number) {
+  return StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   form: {
-    gap: 20,
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingHorizontal: 24,
+    paddingBottom: Math.max(bottomInset, 16) + 24,
+    gap: 24,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   halfField: {
     flex: 1,
@@ -254,7 +273,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   labelOptional: {
     fontWeight: '400',
@@ -271,6 +290,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     color: colors.textPrimary,
+    minHeight: 56,
   },
   deadlineRow: {
     flexDirection: 'row',
@@ -291,13 +311,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.amber400,
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: 8,
   },
   addDeadlineButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 6,
+    marginTop: 10,
   },
   addDeadlineText: {
     fontSize: 12,
@@ -307,8 +327,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: colors.red400,
+    lineHeight: 18,
   },
   submitButton: {
+    marginTop: 4,
     backgroundColor: colors.primary,
     borderRadius: radius.xl,
     paddingVertical: 14,
@@ -328,4 +350,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
-})
+  })
+}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useMemo, useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg'
 import { useLogHabit } from '@/hooks/use-habits'
-import { colors, radius, shadows } from '@/lib/theme'
+import { radius, shadows } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -32,6 +33,8 @@ export function OnboardingCompleteHabit({
   onCompleted,
 }: Readonly<OnboardingCompleteHabitProps>) {
   const { t } = useTranslation()
+  const { colors } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors), [colors])
   const [isCompleted, setIsCompleted] = useState(false)
   const [showStreak, setShowStreak] = useState(false)
   const isAnimating = useRef(false)
@@ -176,77 +179,79 @@ export function OnboardingCompleteHabit({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  instruction: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  habitCard: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-    padding: 16,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: colors.surface,
-    ...shadows.md,
-    elevation: 4,
-  },
-  habitCardCompleted: {
-    borderColor: colors.primary_20,
-  },
-  habitInfo: {
-    flex: 1,
-  },
-  habitTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  habitHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  circleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: colors.borderEmphasis,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  circleBtnCompleted: {
-    borderWidth: 0,
-    backgroundColor: colors.primary,
-    ...shadows.sm,
-    elevation: 3,
-  },
-  streakRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-  },
-  streakText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-})
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+  return StyleSheet.create({
+    container: {
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    instruction: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 32,
+    },
+    habitCard: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+      padding: 16,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.06)',
+      backgroundColor: colors.surface,
+      ...shadows.md,
+      elevation: 4,
+    },
+    habitCardCompleted: {
+      borderColor: colors.primary_20,
+    },
+    habitInfo: {
+      flex: 1,
+    },
+    habitTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    habitHint: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    circleBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: colors.borderEmphasis,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    circleBtnCompleted: {
+      borderWidth: 0,
+      backgroundColor: colors.primary,
+      ...shadows.sm,
+      elevation: 3,
+    },
+    streakRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 24,
+    },
+    streakText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  })
+}
