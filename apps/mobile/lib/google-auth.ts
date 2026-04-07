@@ -120,7 +120,6 @@ export async function startMobileGoogleAuth({
         skipBrowserRedirect: true,
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
         },
       },
     })

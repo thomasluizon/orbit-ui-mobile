@@ -47,6 +47,7 @@ import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import {
   useHabits,
+  useDeleteHabit,
   useBulkDeleteHabits,
   useBulkLogHabits,
   useBulkSkipHabits,
@@ -65,6 +66,7 @@ import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { TrialBanner } from '@/components/ui/trial-banner'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
@@ -100,6 +102,7 @@ export default function TodayScreen() {
   const bulkDeleteHabits = useBulkDeleteHabits()
   const bulkLogHabits = useBulkLogHabits()
   const bulkSkipHabits = useBulkSkipHabits()
+  const deleteHabit = useDeleteHabit()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -126,6 +129,7 @@ export default function TodayScreen() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
   const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
+  const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const habitListRef = useRef<HabitListHandle>(null)
@@ -137,6 +141,8 @@ export default function TodayScreen() {
   const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
+  const [habitPendingDelete, setHabitPendingDelete] =
+    useState<NormalizedHabit | null>(null)
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -429,6 +435,29 @@ export default function TodayScreen() {
     }
   }, [bulkSkipHabits, clearSelection, selectedHabitIds])
 
+  const requestHabitDelete = useCallback(
+    (habitId: string) => {
+      const habit = detailHabit?.id === habitId ? detailHabit : null
+      if (!habit) return
+
+      setHabitPendingDelete(habit)
+      setShowHabitDeleteConfirm(true)
+    },
+    [detailHabit],
+  )
+
+  const confirmHabitDelete = useCallback(async () => {
+    if (!habitPendingDelete) return
+
+    try {
+      await deleteHabit.mutateAsync(habitPendingDelete.id)
+    } finally {
+      setShowHabitDeleteConfirm(false)
+      setHabitPendingDelete(null)
+      setDetailHabit(null)
+    }
+  }, [deleteHabit, habitPendingDelete])
+
   const currentStreak = streakInfo?.currentStreak ?? 0
   const handleHabitLogged = useCallback((habitId: string) => {
     habitListRef.current?.markRecentlyCompleted(habitId)
@@ -476,6 +505,8 @@ export default function TodayScreen() {
             <NotificationBell />
           </View>
         </View>
+
+        <TrialBanner />
 
         {/* ============================================================
             TABS: Today / All / General / Goals
@@ -880,6 +911,7 @@ export default function TodayScreen() {
           setDetailHabit(null)
           if (habit) setEditHabit(habit)
         }}
+        onDelete={requestHabitDelete}
       />
 
       <EditHabitModal
@@ -925,6 +957,19 @@ export default function TodayScreen() {
         confirmLabel={t('habits.bulkSkipConfirm')}
         onConfirm={confirmBulkSkip}
         variant="warning"
+      />
+
+      <ConfirmDialog
+        open={showHabitDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowHabitDeleteConfirm(open)
+          if (!open) setHabitPendingDelete(null)
+        }}
+        title={t('habits.deleteConfirmTitle')}
+        description={t('habits.deleteConfirmMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={confirmHabitDelete}
+        variant="danger"
       />
 
       <CreateGoalModal

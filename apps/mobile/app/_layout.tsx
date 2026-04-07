@@ -26,12 +26,11 @@ import {
   type StreakFreezeCelebrationHandle,
 } from '@/components/gamification/streak-freeze-celebration'
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 
 // Push notifications are not supported in Expo Go (removed in SDK 53).
 // Only import PushPrompt in dev builds / standalone.
-const isExpoGo = Constants.executionEnvironment === 'storeClient'
+const isExpoGo = Constants.appOwnership === 'expo'
 const PushPrompt = isExpoGo
   ? () => null
   : lazy(() => import('@/components/ui/push-prompt').then((m) => ({ default: m.PushPrompt })))
@@ -103,7 +102,6 @@ function RootLayoutNav() {
     topSegment === 'privacy' ||
     topSegment === 'r'
 
-  const showAppShellBanner = isAuthenticated && !hideAppShellChrome
   const showBottomNav = isAuthenticated && !hideAppShellChrome
   const showSharedCelebrations = pathname !== '/'
 
@@ -142,12 +140,6 @@ function RootLayoutNav() {
       <StatusBar animated style={currentTheme === 'dark' ? 'light' : 'dark'} />
 
       <View style={{ flex: 1 }}>
-        {showAppShellBanner ? (
-          <View style={{ paddingHorizontal: 20, backgroundColor: colors.background }}>
-            <TrialBanner />
-          </View>
-        ) : null}
-
         <View style={{ flex: 1 }}>
           <Stack
             screenOptions={{
@@ -202,22 +194,24 @@ function GlobalOverlays({
     <>
       <TrialExpiredModal />
       {profile && !profile.hasCompletedOnboarding ? <OnboardingFlow /> : null}
+      <Suspense fallback={null}>
+        <PushPrompt />
+      </Suspense>
       {profile?.hasCompletedOnboarding ? (
-        <Suspense fallback={null}>
-          <PushPrompt />
-        </Suspense>
-      ) : null}
-      {showSharedCelebrations ? <StreakCelebration /> : null}
-      {showSharedCelebrations ? <AllDoneCelebration /> : null}
-      <GoalCompletedCelebration />
-      {showSharedCelebrations ? <WelcomeBackToast /> : null}
-      {showSharedCelebrations && hasProAccess ? <AchievementToast /> : null}
-      {showSharedCelebrations && hasProAccess ? (
-        <LevelUpOverlay
-          leveledUp={gamification.leveledUp}
-          newLevel={gamification.newLevel}
-          onClear={gamification.clearLevelUp}
-        />
+        <>
+          {showSharedCelebrations ? <StreakCelebration /> : null}
+          {showSharedCelebrations ? <AllDoneCelebration /> : null}
+          <GoalCompletedCelebration />
+          {showSharedCelebrations ? <WelcomeBackToast /> : null}
+          {showSharedCelebrations && hasProAccess ? <AchievementToast /> : null}
+          {showSharedCelebrations && hasProAccess ? (
+            <LevelUpOverlay
+              leveledUp={gamification.leveledUp}
+              newLevel={gamification.newLevel}
+              onClear={gamification.clearLevelUp}
+            />
+          ) : null}
+        </>
       ) : null}
       <StreakFreezeCelebration ref={streakFreezeRef} />
       <CalendarImportPrompt />

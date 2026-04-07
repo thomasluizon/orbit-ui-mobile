@@ -36,9 +36,11 @@ export function BottomSheetModal({
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
 
+  const snapPointsKey = (snapPointsProp ?? ['50%', '80%']).join('|')
   const snapPoints = useMemo(
     () => snapPointsProp ?? ['50%', '80%'],
-    [snapPointsProp],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [snapPointsKey],
   )
 
   const renderBackdrop = useCallback(

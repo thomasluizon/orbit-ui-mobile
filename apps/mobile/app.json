@@ -24,10 +24,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#07060e"
       },
       "package": "org.useorbit.app",
+      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -43,6 +44,8 @@
       ],
       "permissions": [
         "INTERNET",
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED"
       ]

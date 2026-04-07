@@ -26,10 +26,13 @@ import type {
 import { tagKeys, QUERY_STALE_TIMES } from "@orbit/shared/query";
 import { API } from "@orbit/shared/api";
 import { HabitChecklist } from "./habit-checklist";
+import { GoalLinkingField } from "./goal-linking-field";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
 import { useHasProAccess } from "@/hooks/use-profile";
 import { useTags } from "@/hooks/use-tags";
+import { AppDatePicker } from "@/components/ui/app-date-picker";
+import { AppSelect } from "@/components/ui/app-select";
 import { apiClient } from "@/lib/api-client";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -812,31 +815,19 @@ export function HabitFormFields({
           </View>
           <View style={styles.frequencyField}>
             <Text style={styles.label}>{t("habits.form.unit")}</Text>
-            <View style={styles.unitPicker}>
-              {frequencyUnits.map((u) => (
-                <TouchableOpacity
-                  key={u.value}
-                  style={[
-                    styles.unitOption,
-                    watchedFrequencyUnit === u.value && styles.unitOptionActive,
-                  ]}
-                  onPress={() =>
-                    setValue("frequencyUnit", u.value, { shouldDirty: true })
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.unitOptionText,
-                      watchedFrequencyUnit === u.value &&
-                        styles.unitOptionTextActive,
-                    ]}
-                  >
-                    {u.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <AppSelect
+              value={watchedFrequencyUnit ?? null}
+              options={frequencyUnits.map((unit) => ({
+                value: unit.value,
+                label: unit.label,
+              }))}
+              label={t("habits.form.unit")}
+              onChange={(value) =>
+                setValue("frequencyUnit", value as FrequencyUnit, {
+                  shouldDirty: true,
+                })
+              }
+            />
           </View>
         </View>
       )}
@@ -875,13 +866,11 @@ export function HabitFormFields({
       {!isGeneral && (
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t("habits.form.dueDate")}</Text>
-          <TextInput
+          <AppDatePicker
             value={watchedDueDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            onChangeText={(val) =>
-              setValue("dueDate", val, { shouldDirty: true })
+            placeholder={t("common.selectDate")}
+            onChange={(value) =>
+              setValue("dueDate", value, { shouldDirty: true })
             }
           />
         </View>
@@ -950,15 +939,15 @@ export function HabitFormFields({
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>{t("habits.form.endDate")}</Text>
               <View style={styles.endDateRow}>
-                <TextInput
-                  value={watchedEndDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  style={[styles.input, { flex: 1 }]}
-                  onChangeText={(val) =>
-                    setValue("endDate", val, { shouldDirty: true })
-                  }
-                />
+                <View style={styles.endDatePicker}>
+                  <AppDatePicker
+                    value={watchedEndDate}
+                    placeholder={t("common.selectDate")}
+                    onChange={(value) =>
+                      setValue("endDate", value, { shouldDirty: true })
+                    }
+                  />
+                </View>
                 <TouchableOpacity
                   style={styles.removeEndDateButton}
                   onPress={() => setValue("endDate", "", { shouldDirty: true })}
@@ -1196,6 +1185,12 @@ export function HabitFormFields({
           </View>
         )}
       </View>
+
+      <GoalLinkingField
+        selectedGoalIds={selectedGoalIds}
+        atGoalLimit={atGoalLimit}
+        onToggleGoal={onToggleGoal}
+      />
 
       {/* Bad habit toggle */}
       {!isGeneral && (
@@ -1601,6 +1596,9 @@ function createStyles(colors: ThemeColors) {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
+    },
+    endDatePicker: {
+      flex: 1,
     },
     removeEndDateButton: {
       padding: 8,

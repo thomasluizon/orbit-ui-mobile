@@ -7,6 +7,7 @@ import {
   ScrollView,
   Switch,
   Linking,
+  AppState,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
@@ -19,6 +20,7 @@ import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import { TrialBanner } from '@/components/ui/trial-banner'
 import { apiClient } from '@/lib/api-client'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -46,10 +48,13 @@ export default function PreferencesScreen() {
   } = useTimeFormat()
   const {
     isEnabled: pushEnabled,
+    isRegistered: pushRegistered,
     isLoading: pushLoading,
     isSupported: pushSupported,
     permissionStatus,
+    registrationStatus,
     requestPermission,
+    refreshPermissionStatus,
   } = usePushNotifications()
   const styles = useMemo(() => createStyles(colors), [colors])
 
@@ -147,6 +152,20 @@ export default function PreferencesScreen() {
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!pushSupported) return
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void refreshPermissionStatus()
+      }
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [pushSupported, refreshPermissionStatus])
+
   async function handleShowGeneralToggle(nextValue: boolean) {
     setShowGeneralOnToday(nextValue)
     try {
@@ -158,6 +177,10 @@ export default function PreferencesScreen() {
 
   async function handlePushToggle(nextValue: boolean) {
     if (nextValue) {
+      if (permissionStatus === 'denied') {
+        await Linking.openSettings().catch(() => {})
+        return
+      }
       await requestPermission()
       return
     }
@@ -166,6 +189,28 @@ export default function PreferencesScreen() {
       await Linking.openSettings().catch(() => {})
     }
   }
+
+  const pushStatusText = (() => {
+    if (permissionStatus === 'denied') return t('settings.notifications.deniedNative')
+    if (registrationStatus === 'registering') return t('settings.notifications.requesting')
+    if (registrationStatus === 'registered') return t('settings.notifications.registered')
+    if (registrationStatus === 'sync-failed') return t('settings.notifications.syncFailed')
+    if (registrationStatus === 'token-missing') return t('settings.notifications.tokenMissing')
+    if (permissionStatus === 'granted' && !pushRegistered) return t('settings.notifications.notRegistered')
+    return pushEnabled
+      ? t('settings.notifications.enabled')
+      : t('settings.notifications.disabled')
+  })()
+
+  const pushStatusColor =
+    permissionStatus === 'denied'
+      ? colors.red400
+      : registrationStatus === 'registered'
+        ? colors.primary
+        : registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
+          ? colors.red400
+          : colors.textMuted
+  const pushToggleValue = permissionStatus === 'granted'
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -185,6 +230,8 @@ export default function PreferencesScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('preferences.title')}</Text>
         </View>
+
+        <TrialBanner />
 
         {/* Language */}
         <View style={styles.card}>
@@ -343,34 +390,44 @@ export default function PreferencesScreen() {
                   {t('settings.notifications.description')}
                 </Text>
               </View>
-              {permissionStatus !== 'denied' && (
-                <Switch
-                  value={pushEnabled}
-                  onValueChange={handlePushToggle}
-                  disabled={pushLoading}
-                  trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-                  thumbColor="#fff"
-                />
-              )}
+              <Switch
+                value={pushToggleValue}
+                onValueChange={handlePushToggle}
+                disabled={pushLoading}
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor="#fff"
+              />
             </View>
             <Text
               style={[
                 styles.statusText,
                 {
-                  color:
-                    permissionStatus === 'denied'
-                      ? colors.red400
-                      : pushEnabled
-                        ? colors.primary
-                        : colors.textMuted,
+                  color: pushStatusColor,
                 },
               ]}
             >
-              {permissionStatus === 'denied'
-                ? t('settings.notifications.denied')
-                : pushEnabled
-                  ? t('settings.notifications.enabled')
-                  : t('settings.notifications.disabled')}
+              {pushStatusText}
+            </Text>
+            {permissionStatus === 'denied' && (
+              <TouchableOpacity
+                style={styles.inlineActionButton}
+                onPress={() => {
+                  void Linking.openSettings().catch(() => {})
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.inlineActionText}>
+                  {t('settings.notifications.openSettings')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        {!pushSupported && (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>{t('settings.notifications.title')}</Text>
+            <Text style={styles.statusText}>
+              {t('settings.notifications.unsupportedNative')}
             </Text>
           </View>
         )}
@@ -501,6 +558,16 @@ function createStyles(colors: AppColors) {
     statusText: {
       fontSize: 12,
       fontWeight: '500',
+    },
+    inlineActionButton: {
+      alignSelf: 'flex-start',
+      marginTop: 2,
+      paddingVertical: 4,
+    },
+    inlineActionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
     },
   })
 }

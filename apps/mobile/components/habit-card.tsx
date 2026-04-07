@@ -87,6 +87,38 @@ function withAlpha(color: string, opacity: number, fallback: string): string {
   return fallback
 }
 
+function HabitCardSurface({
+  isChild,
+  colors,
+}: Readonly<{
+  isChild: boolean
+  colors: ReturnType<typeof createColors>
+}>) {
+  return (
+    <>
+      <View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+          },
+          {
+            backgroundColor: withAlpha(
+              colors.white,
+              isChild ? 0.03 : 0.05,
+              isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
+            ),
+          },
+        ]}
+      />
+    </>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -256,7 +288,6 @@ export function HabitCard({
   const cardStyle: ViewStyle[] = [
     isChild ? styles.cardChild : styles.cardParent,
   ]
-
   // Status border for due-today / overdue (parent only)
   if (!isChild && status === 'due-today') {
     cardStyle.push(styles.cardDueToday)
@@ -273,6 +304,8 @@ export function HabitCard({
   // Selected ring
   if (isSelected) {
     cardStyle.push(styles.cardSelected)
+  } else if (isJustCreated) {
+    cardStyle.push(styles.cardJustCreated)
   }
 
   // Indent for children
@@ -284,12 +317,11 @@ export function HabitCard({
         style={cardStyle}
         onPress={handleCardPress}
         onLongPress={
-          !isSelectMode && onEnterSelectMode
-            ? onEnterSelectMode
-            : undefined
+          !isSelectMode && onEnterSelectMode ? onEnterSelectMode : undefined
         }
         activeOpacity={0.85}
       >
+        <HabitCardSurface isChild={isChild} colors={colors} />
         <View
           style={[
             styles.cardRow,
@@ -299,9 +331,7 @@ export function HabitCard({
           {/* Expand/collapse toggle */}
           {hasChildren && (
             <TouchableOpacity
-              onPress={(e) => {
-                onToggleExpand?.()
-              }}
+              onPress={onToggleExpand}
               style={[
                 styles.expandButton,
                 {
@@ -448,184 +478,184 @@ export function HabitCard({
 
           {/* Content */}
           <View style={styles.content}>
-            <Text
-              style={[
-                isChild ? styles.titleChild : styles.titleParent,
-                isDoneForRange && styles.titleDone,
-              ]}
-              numberOfLines={1}
-            >
-              {habit.title}
-            </Text>
-
-            {habit.description ? (
               <Text
                 style={[
-                  isChild ? styles.descriptionChild : styles.descriptionParent,
+                  isChild ? styles.titleChild : styles.titleParent,
+                  isDoneForRange && styles.titleDone,
                 ]}
                 numberOfLines={1}
               >
-                {habit.description}
+                {habit.title}
               </Text>
-            ) : null}
 
-            {/* Badges row */}
-            {!isChild ? (
-              /* Top-level habit badges */
-              <View style={styles.badgesRow}>
-                <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
+              {habit.description ? (
+                <Text
+                  style={[
+                    isChild ? styles.descriptionChild : styles.descriptionParent,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {habit.description}
+                </Text>
+              ) : null}
 
-                {flexibleProgressLabel ? (
-                  <View style={styles.badgePrimaryPill}>
-                    <Text style={styles.badgePrimaryText}>
-                      {flexibleProgressLabel}
+              {/* Badges row */}
+              {!isChild ? (
+                /* Top-level habit badges */
+                <View style={styles.badgesRow}>
+                  <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
+
+                  {flexibleProgressLabel ? (
+                    <View style={styles.badgePrimaryPill}>
+                      <Text style={styles.badgePrimaryText}>
+                        {flexibleProgressLabel}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {habit.dueTime ? (
+                    <Text style={styles.dueTimeText}>
+                      {displayTime(habit.dueTime)}
+                      {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
                     </Text>
-                  </View>
-                ) : null}
+                  ) : null}
 
-                {habit.dueTime ? (
-                  <Text style={styles.dueTimeText}>
-                    {displayTime(habit.dueTime)}
-                    {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
-                  </Text>
-                ) : null}
+                  {statusBadge ? (
+                    <View style={styles.badgeOverdue}>
+                      <Text style={styles.badgeOverdueText}>
+                        {statusBadge.text}
+                      </Text>
+                    </View>
+                  ) : null}
 
-                {statusBadge ? (
-                  <View style={styles.badgeOverdue}>
-                    <Text style={styles.badgeOverdueText}>
-                      {statusBadge.text}
-                    </Text>
-                  </View>
-                ) : null}
+                  {habit.isBadHabit ? (
+                    <View style={styles.badgeBadHabit}>
+                      <Text style={styles.badgeBadHabitText}>
+                        {t('habits.badHabit')}
+                      </Text>
+                    </View>
+                  ) : null}
 
-                {habit.isBadHabit ? (
-                  <View style={styles.badgeBadHabit}>
+                  {habit.tags?.map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={[
+                        styles.badgeTag,
+                        { backgroundColor: tag.color },
+                      ]}
+                    >
+                      <Text style={styles.badgeTagText}>{tag.name}</Text>
+                    </View>
+                  ))}
+
+                  {(habit.linkedGoals ?? []).map((goal) => (
+                    <View key={goal.id} style={styles.badgePrimaryPill}>
+                      <Text style={styles.badgePrimaryText}>{goal.title}</Text>
+                    </View>
+                  ))}
+
+                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+                    <View style={styles.badgeStreak}>
+                      <Flame size={12} color={colors.amber400} />
+                      <Text style={styles.badgeStreakText}>
+                        {habit.currentStreak}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {habit.checklistItems && habit.checklistItems.length > 0 ? (
+                    <View style={styles.badgeChecklist}>
+                      <ClipboardCheck
+                        size={12}
+                        color={colors.textSecondary}
+                      />
+                      <Text style={styles.badgeChecklistText}>
+                        {checkedCount}/{habit.checklistItems.length}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : isChild && habit.isBadHabit ? (
+                /* Child habit with bad habit badge */
+                <View style={styles.badgesRowChild}>
+                  <View style={styles.badgeBadHabitNoBorder}>
                     <Text style={styles.badgeBadHabitText}>
                       {t('habits.badHabit')}
                     </Text>
                   </View>
-                ) : null}
-
-                {habit.tags?.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[
-                      styles.badgeTag,
-                      { backgroundColor: tag.color },
-                    ]}
-                  >
-                    <Text style={styles.badgeTagText}>{tag.name}</Text>
-                  </View>
-                ))}
-
-                {(habit.linkedGoals ?? []).map((goal) => (
-                  <View key={goal.id} style={styles.badgePrimaryPill}>
-                    <Text style={styles.badgePrimaryText}>{goal.title}</Text>
-                  </View>
-                ))}
-
-                {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                  <View style={styles.badgeStreak}>
-                    <Flame size={12} color={colors.amber400} />
-                    <Text style={styles.badgeStreakText}>
-                      {habit.currentStreak}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {habit.checklistItems && habit.checklistItems.length > 0 ? (
-                  <View style={styles.badgeChecklist}>
-                    <ClipboardCheck
-                      size={12}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.badgeChecklistText}>
-                      {checkedCount}/{habit.checklistItems.length}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : isChild && habit.isBadHabit ? (
-              /* Child habit with bad habit badge */
-              <View style={styles.badgesRowChild}>
-                <View style={styles.badgeBadHabitNoBorder}>
-                  <Text style={styles.badgeBadHabitText}>
-                    {t('habits.badHabit')}
-                  </Text>
+                  {habit.tags?.map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={[styles.badgeTag, { backgroundColor: tag.color }]}
+                    >
+                      <Text style={styles.badgeTagText}>{tag.name}</Text>
+                    </View>
+                  ))}
+                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+                    <View style={styles.badgeStreakNoBorder}>
+                      <Flame size={12} color={colors.amber400} />
+                      <Text style={styles.badgeStreakText}>
+                        {habit.currentStreak}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {habit.checklistItems &&
+                    habit.checklistItems.length > 0 ? (
+                      <View style={styles.badgeChecklistNoBorder}>
+                        <ClipboardCheck
+                          size={12}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.badgeChecklistText}>
+                          {checkedCount}/{habit.checklistItems.length}
+                        </Text>
+                      </View>
+                    ) : null}
                 </View>
-                {habit.tags?.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[styles.badgeTag, { backgroundColor: tag.color }]}
-                  >
-                    <Text style={styles.badgeTagText}>{tag.name}</Text>
-                  </View>
-                ))}
-                {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                  <View style={styles.badgeStreakNoBorder}>
-                    <Flame size={12} color={colors.amber400} />
-                    <Text style={styles.badgeStreakText}>
-                      {habit.currentStreak}
-                    </Text>
-                  </View>
-                ) : null}
-                {habit.checklistItems &&
-                  habit.checklistItems.length > 0 ? (
-                    <View style={styles.badgeChecklistNoBorder}>
-                      <ClipboardCheck
-                        size={12}
-                        color={colors.textSecondary}
-                      />
-                      <Text style={styles.badgeChecklistText}>
-                        {checkedCount}/{habit.checklistItems.length}
+              ) : (
+                /* Child habit default badges */
+                <View style={styles.badgesRowChild}>
+                  <Text style={styles.frequencyLabelChild}>
+                    {frequencyLabel}
+                  </Text>
+                  {statusBadge ? (
+                    <View style={styles.badgeOverdue}>
+                      <Text style={styles.badgeOverdueText}>
+                        {statusBadge.text}
                       </Text>
                     </View>
                   ) : null}
-              </View>
-            ) : (
-              /* Child habit default badges */
-              <View style={styles.badgesRowChild}>
-                <Text style={styles.frequencyLabelChild}>
-                  {frequencyLabel}
-                </Text>
-                {statusBadge ? (
-                  <View style={styles.badgeOverdue}>
-                    <Text style={styles.badgeOverdueText}>
-                      {statusBadge.text}
-                    </Text>
-                  </View>
-                ) : null}
-                {habit.tags?.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[styles.badgeTag, { backgroundColor: tag.color }]}
-                  >
-                    <Text style={styles.badgeTagText}>{tag.name}</Text>
-                  </View>
-                ))}
-                {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                  <View style={styles.badgeStreakNoBorder}>
-                    <Flame size={12} color={colors.amber400} />
-                    <Text style={styles.badgeStreakText}>
-                      {habit.currentStreak}
-                    </Text>
-                  </View>
-                ) : null}
-                {habit.checklistItems &&
-                  habit.checklistItems.length > 0 ? (
-                    <View style={styles.badgeChecklistNoBorder}>
-                      <ClipboardCheck
-                        size={12}
-                        color={colors.textSecondary}
-                      />
-                      <Text style={styles.badgeChecklistText}>
-                        {checkedCount}/{habit.checklistItems.length}
+                  {habit.tags?.map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={[styles.badgeTag, { backgroundColor: tag.color }]}
+                    >
+                      <Text style={styles.badgeTagText}>{tag.name}</Text>
+                    </View>
+                  ))}
+                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+                    <View style={styles.badgeStreakNoBorder}>
+                      <Flame size={12} color={colors.amber400} />
+                      <Text style={styles.badgeStreakText}>
+                        {habit.currentStreak}
                       </Text>
                     </View>
                   ) : null}
-              </View>
-            )}
-          </View>
+                  {habit.checklistItems &&
+                    habit.checklistItems.length > 0 ? (
+                      <View style={styles.badgeChecklistNoBorder}>
+                        <ClipboardCheck
+                          size={12}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.badgeChecklistText}>
+                          {checkedCount}/{habit.checklistItems.length}
+                        </Text>
+                      </View>
+                    ) : null}
+                </View>
+              )}
+            </View>
 
           {/* Actions menu trigger */}
           {!isSelectMode && (
@@ -768,66 +798,76 @@ export function HabitCard({
 
 function createStyles(colors: ReturnType<typeof createColors>) {
   return StyleSheet.create({
-  // Parent card -- glass surface with depth (matches .habit-card-parent)
   cardParent: {
     backgroundColor: colors.surface,
-    borderRadius: 16, // rounded-2xl
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 16, // p-4
-    marginBottom: 10, // space-y-2.5
-    // Shadow matching box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.15)
+    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
+    padding: 16,
+    marginBottom: 10,
+    position: 'relative',
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 5,
   },
 
-  // Child card -- nested surface (matches .habit-card-child)
   cardChild: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 12, // rounded-xl
+    backgroundColor: withAlpha(colors.surfaceGround, 0.6, colors.surfaceGround),
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: withAlpha(colors.white, 0.04, 'rgba(255, 255, 255, 0.04)'),
     borderLeftWidth: 2,
-    borderLeftColor: colors.primary_20,
-    paddingVertical: 12, // py-3
-    paddingHorizontal: 14, // px-3.5
+    borderLeftColor: withAlpha(colors.primary, 0.25, 'rgba(59, 130, 246, 0.25)'),
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     marginBottom: 10,
+    position: 'relative',
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
     elevation: 3,
   },
 
-  // Due-today: amber left border
   cardDueToday: {
     borderLeftWidth: 3,
     borderLeftColor: withAlpha(colors.amber500, 0.7, 'rgba(245, 158, 11, 0.7)'),
+    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
   },
 
-  // Overdue: red left border
   cardOverdue: {
     borderLeftWidth: 3,
     borderLeftColor: withAlpha(colors.red500, 0.7, 'rgba(239, 68, 68, 0.7)'),
+    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
   },
 
-  // Dimmed for completed / not-due-today
   cardDimmed: {
     opacity: 0.4,
   },
 
-  // Selected ring
   cardSelected: {
     borderColor: colors.primary,
     borderWidth: 2,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  cardJustCreated: {
+    shadowColor: colors.primary,
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
   },
 
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    zIndex: 1,
   },
 
   // Expand/collapse button
