@@ -227,6 +227,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   // Collapse state
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<Set<string>>(new Set())
+  const recentlyCompletedPromptIdsRef = useRef(new Set<string>())
+  const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
+  const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
   const [showAutoLogParent, setShowAutoLogParent] = useState(false)
   const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -275,8 +278,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   )
 
   const markRecentlyCompleted = useCallback((habitId: string) => {
+    recentlyCompletedPromptIdsRef.current.add(habitId)
     setRecentlyCompletedIds((previous) => new Set(previous).add(habitId))
     setTimeout(() => {
+      recentlyCompletedPromptIdsRef.current.delete(habitId)
       setRecentlyCompletedIds((previous) => {
         const next = new Set(previous)
         next.delete(habitId)
@@ -468,25 +473,134 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const autoCollapsedOnDragRef = useRef<string | null>(null)
   const isDndEnabled = view !== 'all' && !isSelectMode
 
-  // Children progress
-  const getChildrenProgress = useCallback(
-    (habitId: string) => {
-      const children = getChildren(habitId)
+  const isListView = view === 'all' || view === 'general'
+
+  const childrenProgressMap = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>()
+
+    function computeChildProgress(
+      child: NormalizedHabit,
+      computeFn: (id: string) => { done: number; total: number },
+    ): { done: number; total: number } {
       let done = 0
       let total = 0
-      for (const child of children) {
-        total++
-        if (child.isCompleted || child.isLoggedInRange) done++
-        const nested = getChildren(child.id)
-        for (const nc of nested) {
-          total++
-          if (nc.isCompleted || nc.isLoggedInRange) done++
+
+      if (isListView || child.isGeneral) {
+        total += 1
+        if (child.isCompleted) {
+          done += 1
+        }
+      } else if (!visibility.isRelevantToday(child) && !child.isLoggedInRange) {
+        return computeFn(child.id)
+      } else if (visibility.isDueOnSelectedDate(child) || child.isLoggedInRange) {
+        total += 1
+        if (child.isCompleted || child.isLoggedInRange) {
+          done += 1
         }
       }
+
+      const nestedProgress = computeFn(child.id)
+      done += nestedProgress.done
+      total += nestedProgress.total
+
       return { done, total }
-    },
-    [getChildren],
-  )
+    }
+
+    function compute(habitId: string): { done: number; total: number } {
+      const cached = map.get(habitId)
+      if (cached) {
+        return cached
+      }
+
+      const children = getChildren(habitId)
+      if (children.length === 0) {
+        const result = { done: 0, total: 0 }
+        map.set(habitId, result)
+        return result
+      }
+
+      let done = 0
+      let total = 0
+
+      for (const child of children) {
+        const progress = computeChildProgress(child, compute)
+        done += progress.done
+        total += progress.total
+      }
+
+      const result = { done, total }
+      map.set(habitId, result)
+      return result
+    }
+
+    for (const habit of habitsById.values()) {
+      if (!map.has(habit.id)) {
+        compute(habit.id)
+      }
+    }
+
+    return map
+  }, [getChildren, habitsById, isListView, visibility])
+
+  const getChildrenProgress = useCallback((habitId: string) => {
+    return childrenProgressMap.get(habitId) ?? { done: 0, total: 0 }
+  }, [childrenProgressMap])
+
+  const getChildrenProgressForPrompt = useCallback((habitId: string) => {
+    const completedOverrideIds = recentlyCompletedPromptIdsRef.current
+
+    function computeChildProgress(
+      child: NormalizedHabit,
+      computeFn: (id: string) => { done: number; total: number },
+    ): { done: number; total: number } {
+      let done = 0
+      let total = 0
+      const isCompletedForPrompt =
+        child.isCompleted ||
+        child.isLoggedInRange ||
+        completedOverrideIds.has(child.id)
+
+      if (isListView || child.isGeneral) {
+        total += 1
+        if (isCompletedForPrompt) {
+          done += 1
+        }
+      } else if (!visibility.isRelevantToday(child) && !child.isLoggedInRange) {
+        return computeFn(child.id)
+      } else if (visibility.isDueOnSelectedDate(child) || child.isLoggedInRange) {
+        total += 1
+        if (isCompletedForPrompt) {
+          done += 1
+        }
+      }
+
+      const nestedProgress = computeFn(child.id)
+      done += nestedProgress.done
+      total += nestedProgress.total
+
+      return { done, total }
+    }
+
+    function compute(currentHabitId: string): { done: number; total: number } {
+      const children = getChildren(currentHabitId)
+      if (children.length === 0) {
+        return { done: 0, total: 0 }
+      }
+
+      let done = 0
+      let total = 0
+
+      for (const child of children) {
+        const progress = computeChildProgress(child, compute)
+        done += progress.done
+        total += progress.total
+      }
+
+      return { done, total }
+    }
+
+    return compute(habitId)
+  }, [getChildren, isListView, visibility])
 
   const checkAndPromptParentLog = useCallback((childHabitId: string) => {
     const childHabit = habitsById.get(childHabitId)
@@ -495,12 +609,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const parentHabit = habitsById.get(childHabit.parentId)
     if (!parentHabit || parentHabit.isCompleted) return
 
-    const progress = getChildrenProgress(parentHabit.id)
+    const progress = getChildrenProgressForPrompt(parentHabit.id)
     if (progress.total > 0 && progress.done >= progress.total) {
       setAutoLogParentId(parentHabit.id)
       setShowAutoLogParent(true)
     }
-  }, [getChildrenProgress, habitsById])
+  }, [getChildrenProgressForPrompt, habitsById])
 
   const confirmAutoLogParent = useCallback(async () => {
     const parentId = autoLogParentId
@@ -517,6 +631,26 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       // Error handled by mutation
     }
   }, [autoLogParentId, checkAndPromptParentLog, logMutation, markRecentlyCompleted])
+
+  const promptForceLogParent = useCallback((habitId: string) => {
+    setForceLogHabitId(habitId)
+    setShowForceLogConfirm(true)
+  }, [])
+
+  const confirmForceLog = useCallback(async () => {
+    if (!forceLogHabitId) return
+
+    markRecentlyCompleted(forceLogHabitId)
+
+    try {
+      await logMutation.mutateAsync({ habitId: forceLogHabitId })
+    } catch {
+      // Error handled by mutation
+    } finally {
+      setForceLogHabitId(null)
+      setShowForceLogConfirm(false)
+    }
+  }, [forceLogHabitId, logMutation, markRecentlyCompleted])
 
   const handleSkip = useCallback(async (habitId: string) => {
     try {
@@ -846,11 +980,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           }}
           onDrillInto={hasSubHabits ? () => { void drill.drillInto(habit.id) } : undefined}
           onForceLogParent={() => {
-            if (onLogHabit) {
-              onLogHabit(habit)
-            } else {
-              logMutation.mutate({ habitId: habit.id })
-            }
+            promptForceLogParent(habit.id)
           }}
           onEnterSelectMode={() => {
             if (!isSelectMode) toggleSelectMode()
@@ -1140,12 +1270,32 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       />
 
       <ConfirmDialog
+        open={showForceLogConfirm}
+        onOpenChange={setShowForceLogConfirm}
+        title={t('habits.forceLogTitle')}
+        description={t('habits.forceLogMessage')}
+        confirmLabel={t('habits.forceLogConfirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmForceLog}
+        onCancel={() => {
+          setForceLogHabitId(null)
+          setShowForceLogConfirm(false)
+        }}
+        variant="warning"
+      />
+
+      <ConfirmDialog
         open={showAutoLogParent}
         onOpenChange={setShowAutoLogParent}
         title={t('habits.autoLogParentTitle')}
         description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
         confirmLabel={t('habits.autoLogParentConfirm')}
+        cancelLabel={t('common.cancel')}
         onConfirm={confirmAutoLogParent}
+        onCancel={() => {
+          setAutoLogParentId(null)
+          setShowAutoLogParent(false)
+        }}
         variant="success"
       />
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -14,6 +14,7 @@ const mockHabitsData = {
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
 }
+const logHabitMutateAsync = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -47,7 +48,7 @@ vi.mock('@/hooks/use-habits', () => ({
         .filter(Boolean) as NormalizedHabit[]
     },
   }),
-  useLogHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
   useSkipHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -58,7 +59,12 @@ vi.mock('@/hooks/use-habits', () => ({
 vi.mock('@/hooks/use-habit-visibility', () => ({
   useHabitVisibility: () => ({
     hasVisibleContent: () => true,
-    getVisibleChildren: () => [],
+    getVisibleChildren: (parentId: string) => {
+      const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
+      return childIds
+        .map((id) => mockHabitsData.habitsById.get(id))
+        .filter(Boolean) as NormalizedHabit[]
+    },
     isRelevantToday: () => true,
     isDueOnSelectedDate: () => true,
   }),
@@ -108,8 +114,24 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/habit-card', () => ({
-  HabitCard: ({ habit }: { habit: NormalizedHabit }) => (
-    <div data-testid={`habit-card-${habit.id}`}>{habit.title}</div>
+  HabitCard: ({
+    habit,
+    childrenDone,
+    childrenTotal,
+    onForceLogParent,
+  }: {
+    habit: NormalizedHabit
+    childrenDone?: number
+    childrenTotal?: number
+    onForceLogParent?: () => void
+  }) => (
+    <div data-testid={`habit-card-${habit.id}`}>
+      <span>{habit.title}</span>
+      <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
+      <button data-testid={`force-log-${habit.id}`} onClick={onForceLogParent}>
+        force
+      </button>
+    </div>
   ),
 }))
 
@@ -130,7 +152,26 @@ vi.mock('@/components/habits/log-habit-modal', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: () => null,
+  ConfirmDialog: ({
+    open,
+    title,
+    description,
+    onConfirm,
+  }: {
+    open: boolean
+    title: string
+    description: string
+    onConfirm: () => void
+  }) =>
+    open ? (
+      <div data-testid={`confirm-dialog-${title}`}>
+        <span>{title}</span>
+        <span>{description}</span>
+        <button data-testid={`confirm-action-${title}`} onClick={onConfirm}>
+          confirm
+        </button>
+      </div>
+    ) : null,
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
@@ -173,7 +214,7 @@ vi.mock('@/components/ui/highlight-text', () => ({
 }))
 
 // Import the component after all mocks
-import { HabitList } from '@/components/habits/habit-list'
+import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -201,6 +242,15 @@ const defaultFilters = {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    logHabitMutateAsync.mockReset()
+    logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+      const habit = mockHabitsData.habitsById.get(habitId)
+      if (!habit) return
+      mockHabitsData.habitsById.set(habitId, {
+        ...habit,
+        isCompleted: true,
+      })
+    })
     // Reset data
     mockHabitsData.habitsById.clear()
     mockHabitsData.childrenByParent.clear()
@@ -308,5 +358,106 @@ describe('HabitList', () => {
     )
     expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
     expect(screen.getByText('General Habit')).toBeDefined()
+  })
+
+  it('opens a force-log confirmation before logging an incomplete parent', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('force-log-parent'))
+
+    expect(screen.getByTestId('confirm-dialog-habits.forceLogTitle')).toBeDefined()
+
+    fireEvent.click(screen.getByTestId('confirm-action-habits.forceLogTitle'))
+
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+  })
+
+  it('prompts the parent immediately when the last child is marked completed', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => {
+      ref.current?.markRecentlyCompleted('child')
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+  })
+
+  it('re-prompts the next ancestor after confirming an auto-log parent action', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: 'grandparent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+
+    mockHabitsData.habitsById.set(grandparent.id, grandparent)
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(grandparent.id, [parent.id])
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [grandparent]
+
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => {
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('confirm-action-habits.autoLogParentTitle'))
+    })
+
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Grandparent"})')).toBeDefined()
   })
 })

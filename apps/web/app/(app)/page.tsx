@@ -35,6 +35,7 @@ import { habitKeys } from '@orbit/shared/query'
 import {
   collectSelectableDescendantIds,
   formatAPIDate,
+  hasAncestorInSet,
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -590,6 +591,18 @@ export default function TodayPage() {
     }
   }, [selectedHabitIds, bulkDelete, clearSelection])
 
+  const promptParentLogsForBulkSuccesses = useCallback((successIds: string[]) => {
+    const successIdSet = new Set(successIds)
+
+    for (const id of successIds) {
+      if (hasAncestorInSet(id, habitsById, successIdSet)) {
+        continue
+      }
+
+      habitListRef.current?.checkAndPromptParentLog(id)
+    }
+  }, [habitsById])
+
   const confirmBulkLog = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
@@ -601,16 +614,14 @@ export default function TodayPage() {
       for (const id of successIds) {
         habitListRef.current?.markRecentlyCompleted(id)
       }
-      for (const id of successIds) {
-        habitListRef.current?.checkAndPromptParentLog(id)
-      }
+      promptParentLogsForBulkSuccesses(successIds)
     } catch {
       // Error handled in hook
     } finally {
       clearSelection()
       setShowBulkLogConfirm(false)
     }
-  }, [selectedHabitIds, bulkLog, clearSelection])
+  }, [selectedHabitIds, bulkLog, clearSelection, promptParentLogsForBulkSuccesses])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
@@ -623,16 +634,14 @@ export default function TodayPage() {
       for (const id of successIds) {
         habitListRef.current?.markRecentlyCompleted(id)
       }
-      for (const id of successIds) {
-        habitListRef.current?.checkAndPromptParentLog(id)
-      }
+      promptParentLogsForBulkSuccesses(successIds)
     } catch {
       // Error handled in hook
     } finally {
       clearSelection()
       setShowBulkSkipConfirm(false)
     }
-  }, [selectedHabitIds, bulkSkip, clearSelection])
+  }, [selectedHabitIds, bulkSkip, clearSelection, promptParentLogsForBulkSuccesses])
 
   return (
     <div className="relative">

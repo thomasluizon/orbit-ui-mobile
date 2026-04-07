@@ -10,8 +10,10 @@ export {
   collectVisibleHabitTreeIds,
   determineHabitDayStatus,
   getHabitEmptyStateKey,
+  hasAncestorInSet,
 } from './habits'
 export type {
+  HabitHierarchyNode,
   HabitReorderPosition,
   ReorderableHabitItem,
 } from './habits'

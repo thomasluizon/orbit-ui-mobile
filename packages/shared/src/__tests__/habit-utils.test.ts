@@ -5,6 +5,7 @@ import {
   collectVisibleHabitTreeIds,
   determineHabitDayStatus,
   getHabitEmptyStateKey,
+  hasAncestorInSet,
 } from '../utils/habits'
 import type { CalendarMonthResponse } from '../types/habit'
 
@@ -191,5 +192,32 @@ describe('collectVisibleHabitTreeIds', () => {
         return visibleChildren.get(habitId) ?? []
       }),
     ).toEqual(new Set(['parent', 'child-1', 'child-2']))
+  })
+})
+
+describe('hasAncestorInSet', () => {
+  const habitsById = new Map([
+    ['root', { parentId: null }],
+    ['parent', { parentId: 'root' }],
+    ['child', { parentId: 'parent' }],
+    ['grandchild', { parentId: 'child' }],
+    ['other-root', { parentId: null }],
+    ['other-child', { parentId: 'other-root' }],
+  ])
+
+  it('returns true when the direct parent is in the ancestor set', () => {
+    expect(hasAncestorInSet('child', habitsById, new Set(['parent']))).toBe(true)
+  })
+
+  it('returns true when a grandparent is in the ancestor set', () => {
+    expect(hasAncestorInSet('grandchild', habitsById, new Set(['parent']))).toBe(true)
+  })
+
+  it('returns false when matching ids are not ancestors', () => {
+    expect(hasAncestorInSet('grandchild', habitsById, new Set(['other-root']))).toBe(false)
+  })
+
+  it('returns false when only the habit itself is in the set', () => {
+    expect(hasAncestorInSet('child', habitsById, new Set(['child']))).toBe(false)
   })
 })
