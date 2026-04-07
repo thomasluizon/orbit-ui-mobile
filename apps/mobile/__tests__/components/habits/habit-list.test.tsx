@@ -2,14 +2,16 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { HabitList } from '@/components/habit-list'
+import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import { HabitCard } from '@/components/habit-card'
 
 const TestRenderer = require('react-test-renderer')
 
 const reorderMutateAsync = vi.fn()
+const logMutateAsync = vi.fn()
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
-const colorProxy: any = new Proxy(
+const colorProxy: Record<string, string> = new Proxy(
   {},
   {
     get: (_target, prop) => (prop === 'white' ? '#ffffff' : '#111111'),
@@ -37,7 +39,8 @@ const mockDrillState = {
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}(${JSON.stringify(params)})` : key,
     i18n: { language: 'en' },
   }),
 }))
@@ -56,7 +59,7 @@ vi.mock('@/hooks/use-habits', () => ({
         .filter(Boolean) as NormalizedHabit[]
     },
   }),
-  useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+  useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
   useSkipHabit: () => ({ mutateAsync: vi.fn() }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
@@ -108,7 +111,8 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: () => null,
+  ConfirmDialog: (props: Record<string, unknown>) =>
+    props.open ? React.createElement('ConfirmDialog', props) : null,
 }))
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
@@ -150,6 +154,16 @@ function seedHabits(habits: NormalizedHabit[]) {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    logMutateAsync.mockReset()
+    logMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+      const habit = mockHabitsData.habitsById.get(habitId)
+      if (!habit) return
+
+      mockHabitsData.habitsById.set(habitId, {
+        ...habit,
+        isCompleted: true,
+      })
+    })
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
@@ -293,5 +307,199 @@ describe('HabitList', () => {
     })
 
     expect(findDraggableCards()).toHaveLength(2)
+  })
+
+  it('computes parent progress recursively for deep habit trees', () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: 'grandparent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      hasSubHabits: true,
+    })
+    const leaf = createMockHabit({
+      id: 'leaf',
+      title: 'Leaf',
+      parentId: 'child',
+      isCompleted: true,
+    })
+    seedHabits([grandparent, parent, child, leaf])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const grandparentCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'grandparent')
+
+    expect(grandparentCard?.props.childrenDone).toBe(1)
+    expect(grandparentCard?.props.childrenTotal).toBe(3)
+  })
+
+  it('shows a force-log confirmation before logging an incomplete parent', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+    seedHabits([parent, child])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const parentCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'parent')
+
+    TestRenderer.act(() => {
+      parentCard?.props.onForceLogParent()
+    })
+
+    const forceLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.forceLogTitle')
+
+    expect(forceLogDialog).toBeTruthy()
+
+    await TestRenderer.act(async () => {
+      await forceLogDialog.props.onConfirm()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+  })
+
+  it('prompts the parent immediately when the last child is marked completed', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+    seedHabits([parent, child])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.markRecentlyCompleted('child')
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    const autoLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(autoLogDialog?.props.description).toContain('"Parent"')
+  })
+
+  it('re-prompts the next ancestor after confirming an auto-log parent action', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      parentId: 'grandparent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    seedHabits([grandparent, parent, child])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    let autoLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(autoLogDialog?.props.description).toContain('"Parent"')
+
+    await TestRenderer.act(async () => {
+      await autoLogDialog.props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+
+    autoLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(autoLogDialog).toBeTruthy()
+    expect(autoLogDialog?.props.description).toContain('"Grandparent"')
   })
 })

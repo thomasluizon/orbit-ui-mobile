@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -29,6 +29,24 @@ const uiState = {
   showCreateGoalModal: false,
   setShowCreateGoalModal: vi.fn(),
 }
+const bulkLogMutateAsync = vi.fn()
+const bulkSkipMutateAsync = vi.fn()
+const markRecentlyCompleted = vi.fn()
+const checkAndPromptParentLog = vi.fn()
+const mockHabitsData = {
+  habitsById: new Map<string, ReturnType<typeof createMockHabit>>(),
+  childrenByParent: new Map<string, string[]>(),
+  topLevelHabits: [] as ReturnType<typeof createMockHabit>[],
+}
+const habitListHandle = {
+  allCollapsed: false,
+  allLoadedIds: new Set<string>(),
+  collapseAll: vi.fn(),
+  expandAll: vi.fn(),
+  markRecentlyCompleted,
+  checkAndPromptParentLog,
+  refetch: vi.fn(),
+}
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
@@ -42,7 +60,8 @@ vi.mock('expo-router', () => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}(${JSON.stringify(params)})` : key,
     i18n: { language: 'en' },
   }),
 }))
@@ -67,14 +86,14 @@ vi.mock('@/hooks/use-gamification', () => ({
 
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({
-    data: { topLevelHabits: [] },
+    data: mockHabitsData,
     getChildren: () => [],
     isFetching: false,
   }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn() }),
   useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
-  useBulkLogHabits: () => ({ mutateAsync: vi.fn() }),
-  useBulkSkipHabits: () => ({ mutateAsync: vi.fn() }),
+  useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
+  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -82,7 +101,8 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 
 vi.mock('@/components/habit-list', () => ({
-  HabitList: React.forwardRef(function MockHabitList(props: Record<string, unknown>, _ref) {
+  HabitList: React.forwardRef(function MockHabitList(props: Record<string, unknown>, ref) {
+    React.useImperativeHandle(ref, () => habitListHandle)
     return React.createElement('HabitList', props)
   }),
 }))
@@ -120,7 +140,7 @@ vi.mock('@/components/gamification/streak-badge', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: () => null,
+  ConfirmDialog: (props: Record<string, unknown>) => React.createElement('ConfirmDialog', props),
 }))
 
 vi.mock('@/components/ui/theme-toggle', () => ({
@@ -187,6 +207,12 @@ import TodayScreen from '@/app/(tabs)/index'
 describe('TodayScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    bulkLogMutateAsync.mockReset()
+    bulkSkipMutateAsync.mockReset()
+    mockHabitsData.habitsById = new Map()
+    mockHabitsData.childrenByParent = new Map()
+    mockHabitsData.topLevelHabits = []
+    habitListHandle.allLoadedIds = new Set()
     uiState.activeView = 'today'
     uiState.isSelectMode = false
     uiState.searchQuery = ''
@@ -207,5 +233,50 @@ describe('TodayScreen', () => {
 
     const habitList = tree.root.findByType('HabitList')
     expect(habitList.props.listHeader).toBeTruthy()
+  })
+
+  it('dedupes descendant successes before prompting parent logs for bulk actions', async () => {
+    const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', parentId: 'root', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent' })
+
+    mockHabitsData.habitsById = new Map([
+      [root.id, root],
+      [parent.id, parent],
+      [child.id, child],
+    ])
+    mockHabitsData.childrenByParent = new Map([
+      [root.id, [parent.id]],
+      [parent.id, [child.id]],
+    ])
+    mockHabitsData.topLevelHabits = [root]
+    uiState.selectedHabitIds = new Set([parent.id, child.id])
+
+    bulkLogMutateAsync.mockResolvedValue({
+      results: [
+        { habitId: parent.id, status: 'Success' },
+        { habitId: child.id, status: 'Success' },
+      ],
+    })
+
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    const bulkLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.bulkLogTitle')
+
+    await TestRenderer.act(async () => {
+      await bulkLogDialog.props.onConfirm()
+    })
+
+    expect(markRecentlyCompleted).toHaveBeenCalledWith('parent')
+    expect(markRecentlyCompleted).toHaveBeenCalledWith('child')
+    expect(checkAndPromptParentLog).toHaveBeenCalledTimes(1)
+    expect(checkAndPromptParentLog).toHaveBeenCalledWith('parent')
   })
 })

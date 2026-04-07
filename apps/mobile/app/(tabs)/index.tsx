@@ -42,7 +42,7 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, hasAncestorInSet } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
@@ -271,6 +271,7 @@ export default function TodayScreen() {
   }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   const habitsQuery = useHabits(filters)
+  const habitsById = habitsQuery.data?.habitsById ?? new Map()
 
   const visibleTopLevelHabits = useMemo(() => {
     const habits = habitsQuery.data?.topLevelHabits ?? []
@@ -414,27 +415,57 @@ export default function TodayScreen() {
     }
   }, [bulkDeleteHabits, clearSelection, selectedHabitIds])
 
+  const promptParentLogsForBulkSuccesses = useCallback((successIds: string[]) => {
+    const successIdSet = new Set(successIds)
+
+    for (const id of successIds) {
+      if (hasAncestorInSet(id, habitsById, successIdSet)) {
+        continue
+      }
+
+      habitListRef.current?.checkAndPromptParentLog(id)
+    }
+  }, [habitsById])
+
   const confirmBulkLog = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      await bulkLogHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+      const result = await bulkLogHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+      const successIds = result.results
+        .filter((item) => item.status === 'Success')
+        .map((item) => item.habitId)
+
+      for (const id of successIds) {
+        habitListRef.current?.markRecentlyCompleted(id)
+      }
+
+      promptParentLogsForBulkSuccesses(successIds)
     } finally {
       clearSelection()
       setShowBulkLogConfirm(false)
     }
-  }, [bulkLogHabits, clearSelection, selectedHabitIds])
+  }, [bulkLogHabits, clearSelection, promptParentLogsForBulkSuccesses, selectedHabitIds])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
-      await bulkSkipHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+      const result = await bulkSkipHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
+      const successIds = result.results
+        .filter((item) => item.status === 'Success')
+        .map((item) => item.habitId)
+
+      for (const id of successIds) {
+        habitListRef.current?.markRecentlyCompleted(id)
+      }
+
+      promptParentLogsForBulkSuccesses(successIds)
     } finally {
       clearSelection()
       setShowBulkSkipConfirm(false)
     }
-  }, [bulkSkipHabits, clearSelection, selectedHabitIds])
+  }, [bulkSkipHabits, clearSelection, promptParentLogsForBulkSuccesses, selectedHabitIds])
 
   const requestHabitDelete = useCallback(
     (habitId: string) => {

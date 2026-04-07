@@ -319,10 +319,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState(
     new Set<string>(),
   )
+  const recentlyCompletedPromptIdsRef = useReactRef(new Set<string>())
 
   const markRecentlyCompleted = useCallback((habitId: string) => {
+    recentlyCompletedPromptIdsRef.current.add(habitId)
     setRecentlyCompletedIds((prev) => new Set(prev).add(habitId))
     setTimeout(() => {
+      recentlyCompletedPromptIdsRef.current.delete(habitId)
       setRecentlyCompletedIds((prev) => {
         const next = new Set(prev)
         next.delete(habitId)
@@ -472,6 +475,59 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       return childrenProgressMap.get(habitId) ?? { done: 0, total: 0 }
     },
     [childrenProgressMap],
+  )
+
+  const getChildrenProgressForPrompt = useCallback(
+    (habitId: string) => {
+      const completedOverrideIds = recentlyCompletedPromptIdsRef.current
+
+      function computeChildProgress(
+        child: NormalizedHabit,
+        computeFn: (id: string) => { done: number; total: number },
+      ): { done: number; total: number } {
+        let done = 0
+        let total = 0
+        const isCompletedForPrompt =
+          child.isCompleted ||
+          child.isLoggedInRange ||
+          completedOverrideIds.has(child.id)
+
+        if (isListView || child.isGeneral) {
+          total++
+          if (isCompletedForPrompt) done++
+        } else if (!visibility.isRelevantToday(child) && !child.isLoggedInRange) {
+          return computeFn(child.id)
+        } else if (visibility.isDueOnSelectedDate(child) || child.isLoggedInRange) {
+          total++
+          if (isCompletedForPrompt) done++
+        }
+
+        const nested = computeFn(child.id)
+        done += nested.done
+        total += nested.total
+        return { done, total }
+      }
+
+      function compute(currentHabitId: string): { done: number; total: number } {
+        const children = getChildren(currentHabitId)
+        if (children.length === 0) {
+          return { done: 0, total: 0 }
+        }
+
+        let done = 0
+        let total = 0
+        for (const child of children) {
+          const progress = computeChildProgress(child, compute)
+          done += progress.done
+          total += progress.total
+        }
+
+        return { done, total }
+      }
+
+      return compute(habitId)
+    },
+    [getChildren, isListView, visibility],
   )
 
   // Date groups for "all" view
@@ -668,7 +724,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     if (!child?.parentId) return
     const parent = habitsById.get(child.parentId)
     if (!parent || parent.isCompleted) return
-    const { done, total } = getChildrenProgress(parent.id)
+    const { done, total } = getChildrenProgressForPrompt(parent.id)
     if (total > 0 && done >= total) {
       setAutoLogParentId(parent.id)
       setShowAutoLogParent(true)

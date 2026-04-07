@@ -113,6 +113,34 @@ export function collectVisibleHabitTreeIds<T extends { id: string }>(
   return ids
 }
 
+export interface HabitHierarchyNode {
+  parentId: string | null
+}
+
+export function hasAncestorInSet(
+  habitId: string,
+  habitsById: Map<string, HabitHierarchyNode>,
+  ancestorIds: ReadonlySet<string>,
+): boolean {
+  const visited = new Set<string>()
+  let parentId = habitsById.get(habitId)?.parentId ?? null
+
+  while (parentId) {
+    if (ancestorIds.has(parentId)) {
+      return true
+    }
+
+    if (visited.has(parentId)) {
+      return false
+    }
+
+    visited.add(parentId)
+    parentId = habitsById.get(parentId)?.parentId ?? null
+  }
+
+  return false
+}
+
 export interface ReorderableHabitItem {
   id: string
   parentId: string | null
