@@ -1,0 +1,146 @@
+name: Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: User-facing app version shown on Google Play
+        required: true
+        type: string
+      android_version_code:
+        description: Android versionCode for this upload
+        required: true
+        type: string
+      track:
+        description: Google Play release track
+        required: true
+        type: choice
+        options:
+          - internal
+          - closed
+          - open
+          - production
+      clear_cache:
+        description: Clear the EAS build cache before building
+        required: false
+        type: boolean
+        default: false
+      message:
+        description: Optional build message shown in Expo
+        required: false
+        type: string
+
+jobs:
+  release-android:
+    name: Build and publish Android app
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Validate release secrets
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${EXPO_TOKEN}" ]; then
+            echo "Missing required secret: EXPO_TOKEN" >&2
+            exit 1
+          fi
+
+          if [ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}" ]; then
+            echo "Missing required secret: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set Expo app version
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
+        run: |
+          set -euo pipefail
+          node scripts/set-app-version.js "${APP_VERSION}" "${ANDROID_VERSION_CODE}"
+
+      - name: Write Google Play service account key
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          cat <<'EOF' > play-service-account.json
+          ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          EOF
+
+      - name: Build signed AAB
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          RELEASE_TRACK: ${{ inputs.track }}
+          RELEASE_MESSAGE: ${{ inputs.message }}
+          CLEAR_CACHE: ${{ inputs.clear_cache }}
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          BUILD_MESSAGE="${RELEASE_MESSAGE}"
+          if [ -z "${BUILD_MESSAGE}" ]; then
+            BUILD_MESSAGE="GitHub Actions release ${APP_VERSION} (${ANDROID_VERSION_CODE}) to ${RELEASE_TRACK} (${GITHUB_SHA_SHORT})"
+          fi
+
+          EXTRA_ARGS=()
+          if [ "${CLEAR_CACHE}" = "true" ]; then
+            EXTRA_ARGS+=(--clear-cache)
+          fi
+
+          BUILD_OUTPUT="$(npx eas-cli@latest build \
+            --platform android \
+            --profile production \
+            --message "${BUILD_MESSAGE}" \
+            --non-interactive \
+            --json \
+            --wait \
+            "${EXTRA_ARGS[@]}")"
+
+          printf '%s' "${BUILD_OUTPUT}" > build-output.json
+          BUILD_ID="$(node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync('build-output.json','utf8')); const build=Array.isArray(data)?data[0]:data; if (!build || !build.id) { process.exit(1); } process.stdout.write(build.id);")"
+          echo "EAS_BUILD_ID=${BUILD_ID}" >> "${GITHUB_ENV}"
+
+      - name: Submit build to Google Play
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          RELEASE_TRACK: ${{ inputs.track }}
+        run: |
+          set -euo pipefail
+
+          npx eas-cli@latest submit \
+            --platform android \
+            --profile "${RELEASE_TRACK}" \
+            --id "${EAS_BUILD_ID}" \
+            --non-interactive \
+            --wait
+
+      - name: Remove temporary Play service account key
+        if: always()
+        working-directory: apps/mobile
+        shell: bash
+        run: rm -f play-service-account.json build-output.json

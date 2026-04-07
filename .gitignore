@@ -34,6 +34,7 @@ coverage/
 *.mobileprovision
 *.orig.*
 google-services.json
+apps/mobile/play-service-account.json
 
 # Native build outputs
 apps/mobile/android/
