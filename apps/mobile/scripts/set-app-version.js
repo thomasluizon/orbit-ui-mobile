@@ -72,36 +72,38 @@ if (previousVersion !== nextVersion || previousVersionCode !== nextVersionCode) 
   fs.writeFileSync(appJsonPath, finalAppJsonRaw);
 }
 
-const buildGradle = fs.readFileSync(buildGradlePath, "utf8");
-const currentBuildGradleVersionMatch = buildGradle.match(/versionName\s+"([^"]+)"/);
-const currentBuildGradleVersionCodeMatch = buildGradle.match(/versionCode\s+(\d+)/);
+if (fs.existsSync(buildGradlePath)) {
+  const buildGradle = fs.readFileSync(buildGradlePath, "utf8");
+  const currentBuildGradleVersionMatch = buildGradle.match(/versionName\s+"([^"]+)"/);
+  const currentBuildGradleVersionCodeMatch = buildGradle.match(/versionCode\s+(\d+)/);
 
-if (!currentBuildGradleVersionMatch || !currentBuildGradleVersionCodeMatch) {
-  console.error("Failed to locate android/app/build.gradle app version values");
-  process.exit(1);
-}
+  if (!currentBuildGradleVersionMatch || !currentBuildGradleVersionCodeMatch) {
+    console.error("Failed to locate android/app/build.gradle app version values");
+    process.exit(1);
+  }
 
-let nextBuildGradle = buildGradle;
+  let nextBuildGradle = buildGradle;
 
-if (currentBuildGradleVersionMatch[1] !== nextVersion) {
-  nextBuildGradle = nextBuildGradle.replace(
-    /versionName\s+"[^"]+"/,
-    `versionName "${nextVersion}"`
-  );
-}
+  if (currentBuildGradleVersionMatch[1] !== nextVersion) {
+    nextBuildGradle = nextBuildGradle.replace(
+      /versionName\s+"[^"]+"/,
+      `versionName "${nextVersion}"`
+    );
+  }
 
-if (
-  nextVersionCode !== null &&
-  Number.parseInt(currentBuildGradleVersionCodeMatch[1], 10) !== nextVersionCode
-) {
-  nextBuildGradle = nextBuildGradle.replace(
-    /versionCode\s+\d+/,
-    `versionCode ${nextVersionCode}`
-  );
-}
+  if (
+    nextVersionCode !== null &&
+    Number.parseInt(currentBuildGradleVersionCodeMatch[1], 10) !== nextVersionCode
+  ) {
+    nextBuildGradle = nextBuildGradle.replace(
+      /versionCode\s+\d+/,
+      `versionCode ${nextVersionCode}`
+    );
+  }
 
-if (nextBuildGradle !== buildGradle) {
-  fs.writeFileSync(buildGradlePath, nextBuildGradle);
+  if (nextBuildGradle !== buildGradle) {
+    fs.writeFileSync(buildGradlePath, nextBuildGradle);
+  }
 }
 
 const versionCodeSummary =
