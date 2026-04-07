@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import {
+  computeHabitReorderPositions,
   collectVisibleHabitTreeIds,
   formatAPIDate,
   getHabitEmptyStateKey,
@@ -157,51 +158,6 @@ function formatDateGroupLabel(
     locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
     { locale: dateFnsLocale },
   )
-}
-
-function computeReorderPositions(
-  items: DragItem[],
-  oldIndex: number,
-  newIndex: number,
-  habitsById: Map<string, NormalizedHabit>,
-  getChildren: (parentId: string) => NormalizedHabit[],
-): { habitId: string; position: number }[] {
-  const reordered = [...items]
-  const removed = reordered.splice(oldIndex, 1)
-  const moved = removed[0]
-  if (!moved) return []
-  reordered.splice(newIndex, 0, moved)
-
-  const positions: { habitId: string; position: number }[] = []
-  const positionByParent = new Map<string | null, number>()
-  const includedIds = new Set(reordered.map((i) => i.id))
-
-  // Assign positions to visible items in drag order
-  for (const item of reordered) {
-    const storeHabit = habitsById.get(item.id)
-    const parentId = storeHabit?.parentId ?? item.parentId
-    const nextPosition = positionByParent.get(parentId) ?? 0
-    positions.push({ habitId: item.id, position: nextPosition })
-    positionByParent.set(parentId, nextPosition + 1)
-  }
-
-  // Assign positions to hidden siblings after visible ones
-  for (const parentId of positionByParent.keys()) {
-    const allSiblings =
-      parentId === null
-        ? Array.from(habitsById.values()).filter((h) => h.parentId === null)
-        : getChildren(parentId)
-
-    for (const sibling of allSiblings) {
-      if (!includedIds.has(sibling.id)) {
-        const nextPosition = positionByParent.get(parentId) ?? 0
-        positions.push({ habitId: sibling.id, position: nextPosition })
-        positionByParent.set(parentId, nextPosition + 1)
-      }
-    }
-  }
-
-  return positions
 }
 
 function getEmptyHabitsMessage(
@@ -643,7 +599,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       const newIndex = items.findIndex((item) => item.id === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const positions = computeReorderPositions(
+        const positions = computeHabitReorderPositions(
           items, oldIndex, newIndex, habitsById, getChildren,
         )
         try {

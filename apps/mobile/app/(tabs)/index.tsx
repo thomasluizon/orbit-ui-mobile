@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, type ReactElement } from 'react'
 import {
   Animated,
   Easing,
@@ -465,25 +465,13 @@ export default function TodayScreen() {
     habitListRef.current?.checkAndPromptParentLog(habitId)
   }, [])
 
-  return (
-    <View
-      style={[styles.safeArea, { paddingTop: insets.top }]}
-      {...(activeView === 'today' ? swipePanResponder.panHandlers : {})}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isSelectMode && styles.scrollContentWithBulkBar,
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        onScrollBeginDrag={() => setShowControlsMenu(false)}
-      >
-        {/* ============================================================
-            HEADER: Orbit logo + streak badge + avatar
-            Matches: <header className="flex items-center justify-between pt-8 pb-2">
-            ============================================================ */}
+  const handleListScrollBeginDrag = useCallback(() => {
+    setShowControlsMenu(false)
+  }, [])
+
+  const sharedHeader = useMemo(
+    () => (
+      <>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.logoRow}
@@ -509,10 +497,6 @@ export default function TodayScreen() {
 
         <TrialBanner />
 
-        {/* ============================================================
-            TABS: Today / All / General / Goals
-            Matches: flex bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1
-            ============================================================ */}
         <View style={styles.tabsWrapper}>
           <View style={styles.tabsRow}>
             {TAB_VIEWS.map((view) => (
@@ -540,19 +524,16 @@ export default function TodayScreen() {
             ))}
           </View>
         </View>
+      </>
+    ),
+    [activeView, currentStreak, goToToday, setActiveView, styles, t],
+  )
 
-        {/* ============================================================
-            GOALS VIEW
-            ============================================================ */}
-        {activeView === 'goals' && (
-          <GoalsView />
-        )}
-
-        {/* ============================================================
-            DATE NAVIGATION (today view only)
-            Matches: flex items-center justify-center gap-4
-            ============================================================ */}
-        {activeView === 'today' && (
+  const habitsHeader = useMemo<ReactElement>(
+    () => (
+      <>
+        {sharedHeader}
+        {activeView === 'today' ? (
           <View style={styles.dateNav}>
             <TouchableOpacity
               style={styles.dateNavButton}
@@ -590,234 +571,277 @@ export default function TodayScreen() {
               <ChevronRight size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-        )}
+        ) : null}
 
-        {/* ============================================================
-            AI SUMMARY CARD
-            Matches web: bg-surface border border-primary/30 rounded-2xl p-4
-            ============================================================ */}
         {showSummary ? (
           <HabitSummaryCard date={dateStr} />
         ) : null}
 
-        {/* ============================================================
-            HABITS CONTENT (hidden on goals tab)
-            ============================================================ */}
-        {activeView !== 'goals' && (
-          <View style={styles.habitsSection}>
-            {/* Search bar - matches web: rounded-full py-3 pl-12 pr-12 */}
-            <View style={styles.searchWrapper}>
-              <View style={styles.searchContainer}>
-                <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  value={searchQuery}
-                  onChangeText={setLocalSearchQuery}
-                  placeholder={t('habits.searchPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
-                  returnKeyType="search"
-                  selectionColor={colors.primary}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setLocalSearchQuery('')}
-                    style={styles.searchClear}
-                  >
-                    <X size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
+        <View style={styles.habitsSection}>
+          <View style={styles.searchWrapper}>
+            <View style={styles.searchContainer}>
+              <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setLocalSearchQuery}
+                placeholder={t('habits.searchPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="search"
+                selectionColor={colors.primary}
+              />
+              {searchQuery.length > 0 ? (
+                <TouchableOpacity
+                  onPress={() => setLocalSearchQuery('')}
+                  style={styles.searchClear}
+                >
+                  <X size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ) : null}
             </View>
+          </View>
 
-            {/* Filter chips row - matches web filter chips */}
-            <View style={styles.filtersWrapper}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filtersContent}
-              >
-                {/* Frequency chips (hidden in general view) */}
-                {activeView !== 'general' && (
-                  <>
+          <View style={styles.filtersWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filtersContent}
+            >
+              {activeView !== 'general' ? (
+                <>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterChip,
+                      !selectedFrequency && styles.filterChipActive,
+                    ]}
+                    onPress={() => setSelectedFrequency(null)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        !selectedFrequency && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {t('common.all')}
+                    </Text>
+                  </TouchableOpacity>
+                  {frequencyOptions.map((opt) => (
                     <TouchableOpacity
+                      key={opt.key}
                       style={[
                         styles.filterChip,
-                        !selectedFrequency && styles.filterChipActive,
+                        selectedFrequency === opt.key && styles.filterChipActive,
                       ]}
-                      onPress={() => setSelectedFrequency(null)}
+                      onPress={() =>
+                        setSelectedFrequency(
+                          selectedFrequency === opt.key ? null : opt.key,
+                        )
+                      }
                       activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.filterChipText,
-                          !selectedFrequency && styles.filterChipTextActive,
+                          selectedFrequency === opt.key &&
+                            styles.filterChipTextActive,
                         ]}
                       >
-                        {t('common.all')}
+                        {opt.label}
                       </Text>
                     </TouchableOpacity>
-                    {frequencyOptions.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.key}
-                        style={[
-                          styles.filterChip,
-                          selectedFrequency === opt.key && styles.filterChipActive,
-                        ]}
-                        onPress={() =>
-                          setSelectedFrequency(
-                            selectedFrequency === opt.key ? null : opt.key,
-                          )
-                        }
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.filterChipText,
-                            selectedFrequency === opt.key &&
-                              styles.filterChipTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
+                  ))}
+                </>
+              ) : null}
 
-                {/* Tag divider */}
-                {activeView !== 'general' && tags.length > 0 && (
-                  <View style={styles.filterDivider} />
-                )}
+              {activeView !== 'general' && tags.length > 0 ? (
+                <View style={styles.filterDivider} />
+              ) : null}
 
-                {/* Tag chips */}
-                {tags.map((tag) => (
-                  <TouchableOpacity
-                    key={tag.id}
-                    style={[
-                      styles.filterChip,
-                      selectedTagIds.includes(tag.id)
-                        ? { backgroundColor: tag.color, borderColor: tag.color }
-                        : {},
-                    ]}
-                    onPress={() => toggleTagFilter(tag.id)}
-                    activeOpacity={0.7}
-                  >
-                    {!selectedTagIds.includes(tag.id) && (
-                      <View
-                        style={[styles.tagDot, { backgroundColor: tag.color }]}
-                      />
-                    )}
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        selectedTagIds.includes(tag.id) && { color: '#fff' },
-                      ]}
-                    >
-                      {tag.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Controls menu (three dots) */}
-              <View ref={controlsButtonRef} collapsable={false}>
+              {tags.map((tag) => (
                 <TouchableOpacity
-                  style={styles.controlsButton}
+                  key={tag.id}
+                  style={[
+                    styles.filterChip,
+                    selectedTagIds.includes(tag.id)
+                      ? { backgroundColor: tag.color, borderColor: tag.color }
+                      : null,
+                  ]}
+                  onPress={() => toggleTagFilter(tag.id)}
                   activeOpacity={0.7}
-                  onPress={handleToggleControlsMenu}
                 >
-                  <MoreVertical size={20} color={colors.textSecondary} />
+                  {!selectedTagIds.includes(tag.id) ? (
+                    <View
+                      style={[styles.tagDot, { backgroundColor: tag.color }]}
+                    />
+                  ) : null}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedTagIds.includes(tag.id) ? { color: '#fff' } : null,
+                    ]}
+                  >
+                    {tag.name}
+                  </Text>
                 </TouchableOpacity>
-              </View>
+              ))}
+            </ScrollView>
+
+            <View ref={controlsButtonRef} collapsable={false}>
+              <TouchableOpacity
+                style={styles.controlsButton}
+                activeOpacity={0.7}
+                onPress={handleToggleControlsMenu}
+              >
+                <MoreVertical size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-
-            <AnchoredMenu
-              visible={showControlsMenu}
-              anchorRect={controlsMenuAnchorRect}
-              onClose={() => setShowControlsMenu(false)}
-              width={220}
-              estimatedHeight={220}
-            >
-              <TouchableOpacity
-                style={styles.controlsMenuItem}
-                onPress={handleToggleSelectMode}
-                activeOpacity={0.75}
-              >
-                {isSelectMode ? (
-                  <X size={16} color={colors.textMuted} />
-                ) : (
-                  <CheckCircle2 size={16} color={colors.textMuted} />
-                )}
-                <Text style={styles.controlsMenuLabel}>
-                  {isSelectMode ? t('common.cancel') : t('common.select')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.controlsMenuItem}
-                onPress={handleToggleCollapse}
-                activeOpacity={0.75}
-              >
-                {!!habitListRef.current?.allCollapsed ? (
-                  <ChevronsUpDown size={16} color={colors.textMuted} />
-                ) : (
-                  <ChevronsDownUp size={16} color={colors.textMuted} />
-                )}
-                <Text style={styles.controlsMenuLabel}>
-                  {!!habitListRef.current?.allCollapsed
-                    ? t('habits.expandAll')
-                    : t('habits.collapseAll')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.controlsMenuItem}
-                onPress={handleRefresh}
-                activeOpacity={0.75}
-              >
-                <RefreshCw
-                  size={16}
-                  color={colors.textMuted}
-                  style={habitsQuery.isFetching ? styles.rotatingIcon : undefined}
-                />
-                <Text style={styles.controlsMenuLabel}>{t('habits.refresh')}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.controlsMenuItem}
-                onPress={handleToggleCompleted}
-                activeOpacity={0.75}
-              >
-                {showCompleted ? (
-                  <Check size={16} color={colors.textMuted} />
-                ) : (
-                  <Eye size={16} color={colors.textMuted} />
-                )}
-                <Text style={styles.controlsMenuLabel}>
-                  {t('habits.showCompleted')}
-                </Text>
-              </TouchableOpacity>
-            </AnchoredMenu>
-
-            {/* Habit list (using HabitList component with all handlers wired) */}
-            <HabitList
-              ref={habitListRef}
-              view={activeView}
-              filters={filters}
-              selectedDate={activeView === 'today' ? selectedDate : undefined}
-              showCompleted={showCompleted}
-              searchQuery={searchQueryStore}
-              isSelectMode={isSelectMode}
-              selectedHabitIds={selectedHabitIds}
-              scrollEnabled={false}
-              onCreatePress={() => setShowCreateModal(true)}
-              onSeeUpcoming={goToNextDay}
-              onLogHabit={setLogHabit}
-              onDetailHabit={setDetailHabit}
-            />
           </View>
-        )}
-      </ScrollView>
+
+          <AnchoredMenu
+            visible={showControlsMenu}
+            anchorRect={controlsMenuAnchorRect}
+            onClose={() => setShowControlsMenu(false)}
+            width={220}
+            estimatedHeight={220}
+          >
+            <TouchableOpacity
+              style={styles.controlsMenuItem}
+              onPress={handleToggleSelectMode}
+              activeOpacity={0.75}
+            >
+              {isSelectMode ? (
+                <X size={16} color={colors.textMuted} />
+              ) : (
+                <CheckCircle2 size={16} color={colors.textMuted} />
+              )}
+              <Text style={styles.controlsMenuLabel}>
+                {isSelectMode ? t('common.cancel') : t('common.select')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.controlsMenuItem}
+              onPress={handleToggleCollapse}
+              activeOpacity={0.75}
+            >
+              {!!habitListRef.current?.allCollapsed ? (
+                <ChevronsUpDown size={16} color={colors.textMuted} />
+              ) : (
+                <ChevronsDownUp size={16} color={colors.textMuted} />
+              )}
+              <Text style={styles.controlsMenuLabel}>
+                {!!habitListRef.current?.allCollapsed
+                  ? t('habits.expandAll')
+                  : t('habits.collapseAll')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.controlsMenuItem}
+              onPress={handleRefresh}
+              activeOpacity={0.75}
+            >
+              <RefreshCw
+                size={16}
+                color={colors.textMuted}
+                style={habitsQuery.isFetching ? styles.rotatingIcon : undefined}
+              />
+              <Text style={styles.controlsMenuLabel}>{t('habits.refresh')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.controlsMenuItem}
+              onPress={handleToggleCompleted}
+              activeOpacity={0.75}
+            >
+              {showCompleted ? (
+                <Check size={16} color={colors.textMuted} />
+              ) : (
+                <Eye size={16} color={colors.textMuted} />
+              )}
+              <Text style={styles.controlsMenuLabel}>
+                {t('habits.showCompleted')}
+              </Text>
+            </TouchableOpacity>
+          </AnchoredMenu>
+        </View>
+      </>
+    ),
+    [
+      activeView,
+      colors.primary,
+      colors.textMuted,
+      colors.textSecondary,
+      controlsMenuAnchorRect,
+      dateLabel,
+      dateLabelAnim,
+      dateStr,
+      frequencyOptions,
+      goToNextDay,
+      goToPreviousDay,
+      goToToday,
+      habitsQuery.isFetching,
+      handleRefresh,
+      handleToggleCollapse,
+      handleToggleCompleted,
+      handleToggleControlsMenu,
+      handleToggleSelectMode,
+      isSelectMode,
+      searchQuery,
+      selectedDate,
+      selectedFrequency,
+      selectedTagIds,
+      setLocalSearchQuery,
+      sharedHeader,
+      showCompleted,
+      showControlsMenu,
+      showSummary,
+      slideDirection,
+      styles,
+      t,
+      tags,
+      toggleTagFilter,
+    ],
+  )
+
+  return (
+    <View
+      style={[styles.safeArea, { paddingTop: insets.top }]}
+      {...(activeView === 'today' ? swipePanResponder.panHandlers : {})}
+    >
+      {activeView === 'goals' ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isSelectMode && styles.scrollContentWithBulkBar,
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={handleListScrollBeginDrag}
+        >
+          {sharedHeader}
+          <GoalsView />
+        </ScrollView>
+      ) : (
+        <HabitList
+          ref={habitListRef}
+          view={activeView}
+          filters={filters}
+          selectedDate={activeView === 'today' ? selectedDate : undefined}
+          showCompleted={showCompleted}
+          searchQuery={searchQueryStore}
+          isSelectMode={isSelectMode}
+          selectedHabitIds={selectedHabitIds}
+          listHeader={habitsHeader}
+          onCreatePress={() => setShowCreateModal(true)}
+          onSeeUpcoming={goToNextDay}
+          onLogHabit={setLogHabit}
+          onDetailHabit={setDetailHabit}
+          onScrollBeginDrag={handleListScrollBeginDrag}
+        />
+      )}
 
       {isSelectMode && (
         <View
