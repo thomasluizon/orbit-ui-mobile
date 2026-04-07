@@ -48,9 +48,11 @@ export default function PreferencesScreen() {
   } = useTimeFormat()
   const {
     isEnabled: pushEnabled,
+    isRegistered: pushRegistered,
     isLoading: pushLoading,
     isSupported: pushSupported,
     permissionStatus,
+    registrationStatus,
     requestPermission,
     refreshPermissionStatus,
   } = usePushNotifications()
@@ -187,6 +189,28 @@ export default function PreferencesScreen() {
       await Linking.openSettings().catch(() => {})
     }
   }
+
+  const pushStatusText = (() => {
+    if (permissionStatus === 'denied') return t('settings.notifications.deniedNative')
+    if (registrationStatus === 'registering') return t('settings.notifications.requesting')
+    if (registrationStatus === 'registered') return t('settings.notifications.registered')
+    if (registrationStatus === 'sync-failed') return t('settings.notifications.syncFailed')
+    if (registrationStatus === 'token-missing') return t('settings.notifications.tokenMissing')
+    if (permissionStatus === 'granted' && !pushRegistered) return t('settings.notifications.notRegistered')
+    return pushEnabled
+      ? t('settings.notifications.enabled')
+      : t('settings.notifications.disabled')
+  })()
+
+  const pushStatusColor =
+    permissionStatus === 'denied'
+      ? colors.red400
+      : registrationStatus === 'registered'
+        ? colors.primary
+        : registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
+          ? colors.red400
+          : colors.textMuted
+  const pushToggleValue = permissionStatus === 'granted'
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -367,7 +391,7 @@ export default function PreferencesScreen() {
                 </Text>
               </View>
               <Switch
-                value={pushEnabled}
+                value={pushToggleValue}
                 onValueChange={handlePushToggle}
                 disabled={pushLoading}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
@@ -378,20 +402,11 @@ export default function PreferencesScreen() {
               style={[
                 styles.statusText,
                 {
-                  color:
-                    permissionStatus === 'denied'
-                      ? colors.red400
-                      : pushEnabled
-                        ? colors.primary
-                        : colors.textMuted,
+                  color: pushStatusColor,
                 },
               ]}
             >
-              {permissionStatus === 'denied'
-                ? t('settings.notifications.deniedNative')
-                : pushEnabled
-                  ? t('settings.notifications.enabled')
-                  : t('settings.notifications.disabled')}
+              {pushStatusText}
             </Text>
             {permissionStatus === 'denied' && (
               <TouchableOpacity

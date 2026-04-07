@@ -31,6 +31,7 @@ export function PushPrompt() {
   const t = useTranslations()
   const [show, setShow] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [showRetryHint, setShowRetryHint] = useState(false)
 
   useEffect(() => {
     if (typeof globalThis === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in globalThis)) return
@@ -49,11 +50,9 @@ export function PushPrompt() {
         requestAnimationFrame(() => setVisible(true))
       })
       .catch(() => {
-        // If we can't check, show the prompt anyway (unless already granted)
-        if (Notification.permission !== 'granted') {
-          setShow(true)
-          requestAnimationFrame(() => setVisible(true))
-        }
+        // If we can't check current subscription state, still show the prompt.
+        setShow(true)
+        requestAnimationFrame(() => setVisible(true))
       })
   }, [])
 
@@ -64,6 +63,7 @@ export function PushPrompt() {
   }, [])
 
   const handleEnable = useCallback(async () => {
+    setShowRetryHint(false)
     try {
       // Skip the permission prompt if already granted
       const permission = Notification.permission === 'granted'
@@ -93,7 +93,7 @@ export function PushPrompt() {
       })
 
       const keys = subscription.toJSON()
-      await fetch('/api/notifications/subscribe', {
+      const response = await fetch('/api/notifications/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,10 +102,13 @@ export function PushPrompt() {
           auth: keys.keys?.auth,
         }),
       })
+      if (!response.ok) {
+        throw new Error(`Failed to subscribe: ${response.status}`)
+      }
+      dismiss()
     } catch {
-      // Subscribe failed silently
+      setShowRetryHint(true)
     }
-    dismiss()
   }, [dismiss])
 
   if (!show) return null
@@ -123,6 +126,7 @@ export function PushPrompt() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-text-primary">{t('pushPrompt.title')}</p>
           <p className="text-xs text-text-secondary mt-0.5">{t('pushPrompt.description')}</p>
+          {showRetryHint ? <p className="text-xs text-red-400 mt-1">{t('pushPrompt.retryHint')}</p> : null}
           <div className="flex gap-2 mt-3">
             <button
               className="px-4 py-2 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all active:scale-95"

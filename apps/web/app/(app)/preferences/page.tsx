@@ -154,20 +154,35 @@ export default function PreferencesPage() {
   const [pushSubscribed, setPushSubscribed] = useState(false)
   const [pushPermission, setPushPermission] = useState<PermissionState | ''>('')
   const [pushLoading, setPushLoading] = useState(false)
+  const [pushStatus, setPushStatus] = useState<
+    'unsupported' | 'denied' | 'not-registered' | 'registered' | 'sync-failed' | 'requesting'
+  >('unsupported')
 
   useEffect(() => {
     if (typeof globalThis === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in globalThis)) { // NOSONAR - SSR guard
       setPushSupported(false)
+      setPushStatus('unsupported')
       return
     }
 
     setPushSupported(true)
-    setPushPermission(Notification.permission as PermissionState)
+    const permission = Notification.permission as PermissionState
+    setPushPermission(permission)
+    if (permission === 'denied') {
+      setPushStatus('denied')
+      return
+    }
 
     // Check if already subscribed
     navigator.serviceWorker.ready.then((reg) => {
       reg.pushManager.getSubscription().then((sub) => {
-        setPushSubscribed(!!sub && Notification.permission === 'granted')
+        const subscribed = !!sub && Notification.permission === 'granted'
+        setPushSubscribed(subscribed)
+        if (subscribed) {
+          setPushStatus('registered')
+        } else {
+          setPushStatus(permission === 'granted' ? 'not-registered' : 'not-registered')
+        }
       })
     }).catch(() => {})
   }, [])
@@ -194,14 +209,19 @@ export default function PreferencesPage() {
           await subscription.unsubscribe()
         }
         setPushSubscribed(false)
+        setPushStatus(pushPermission === 'granted' ? 'not-registered' : 'unsupported')
       } else {
         // --- Subscribe ---
+        setPushStatus('requesting')
         // Skip permission prompt if already granted
         const permission = Notification.permission === 'granted'
           ? 'granted'
           : await Notification.requestPermission()
         setPushPermission(permission as PermissionState)
-        if (permission !== 'granted') return
+        if (permission !== 'granted') {
+          setPushStatus(permission === 'denied' ? 'denied' : 'not-registered')
+          return
+        }
 
         const registration = await navigator.serviceWorker.ready
 
@@ -220,7 +240,7 @@ export default function PreferencesPage() {
         const keys = subscription.toJSON()
 
         // Send subscription to backend
-        await fetch('/api/notifications/subscribe', {
+        const response = await fetch('/api/notifications/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -229,11 +249,16 @@ export default function PreferencesPage() {
             auth: keys.keys?.auth,
           }),
         })
+        if (!response.ok) {
+          throw new Error(`Failed to subscribe: ${response.status}`)
+        }
 
         setPushSubscribed(true)
+        setPushStatus('registered')
       }
     } catch {
-      // Error handled silently
+      setPushStatus('sync-failed')
+      setPushSubscribed(false)
     } finally {
       setPushLoading(false)
     }
@@ -442,15 +467,25 @@ export default function PreferencesPage() {
             <p className="text-sm text-text-secondary">
               {t('settings.notifications.description')}
             </p>
-            {pushPermission === 'denied' ? (
-              <p className="text-xs text-red-400">
-                {t('settings.notifications.denied')}
-              </p>
-            ) : (
-              <p className={`text-xs font-medium ${pushSubscribed ? 'text-primary' : 'text-text-muted'}`}>
-                {pushSubscribed ? t('settings.notifications.enabled') : t('settings.notifications.disabled')}
-              </p>
-            )}
+            <p className={`text-xs font-medium ${
+              pushStatus === 'denied' || pushStatus === 'sync-failed'
+                ? 'text-red-400'
+                : pushStatus === 'registered'
+                  ? 'text-primary'
+                  : 'text-text-muted'
+            }`}>
+              {pushStatus === 'denied'
+                ? t('settings.notifications.denied')
+                : pushStatus === 'requesting'
+                  ? t('settings.notifications.requesting')
+                  : pushStatus === 'registered'
+                    ? t('settings.notifications.registered')
+                    : pushStatus === 'sync-failed'
+                      ? t('settings.notifications.syncFailed')
+                      : pushStatus === 'not-registered' && pushPermission === 'granted'
+                        ? t('settings.notifications.notRegistered')
+                        : t('settings.notifications.disabled')}
+            </p>
           </div>
         )}
       </div>

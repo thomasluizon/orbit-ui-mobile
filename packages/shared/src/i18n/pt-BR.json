@@ -13,11 +13,20 @@
       "description": "Receba lembretes e atualizações mesmo quando o app estiver fechado",
       "enabled": "Notificações estão ativadas",
       "disabled": "Notificações estão desativadas",
+      "requesting": "Solicitando acesso a notificações...",
+      "registered": "Notificações conectadas e funcionando",
+      "notRegistered": "Permissão concedida, mas este dispositivo ainda não foi registrado",
+      "syncFailed": "Falha ao sincronizar notificações com o servidor",
+      "tokenMissing": "Não foi possível obter o token de push deste dispositivo",
       "denied": "Notificações estão bloqueadas. Ative nas configurações do navegador.",
       "unsupported": "Notificações push não são suportadas neste navegador",
       "deniedNative": "Notificações estão bloqueadas. Ative nas configurações do dispositivo.",
       "unsupportedNative": "Notificações push não são suportadas neste dispositivo.",
-      "openSettings": "Abrir configurações"
+      "openSettings": "Abrir configurações",
+      "sendTest": "Enviar notificação de teste",
+      "sendingTest": "Enviando notificação de teste...",
+      "testSent": "Notificação de teste enviada",
+      "testFailed": "Falha ao enviar notificação de teste"
     },
     "homeScreen": {
       "title": "Tela Inicial",
@@ -41,7 +50,8 @@
     "title": "Mantenha o foco",
     "description": "Ative notificações para receber lembretes dos seus hábitos",
     "enable": "Ativar",
-    "later": "Agora não"
+    "later": "Agora não",
+    "retryHint": "Falha ao configurar notificações. Toque em Ativar para tentar novamente."
   },
   "updatePrompt": {
     "title": "Atualização disponível",

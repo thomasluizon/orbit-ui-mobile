@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Animated,
   StyleSheet,
+  InteractionManager,
   Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -31,6 +32,7 @@ export function PushPrompt() {
     isEnabled,
     isSupported,
     permissionStatus,
+    registrationStatus,
     requestPermission,
   } = usePushNotifications()
   const [show, setShow] = useState(false)
@@ -38,25 +40,50 @@ export function PushPrompt() {
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const showRetryHint =
+    registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
 
   useEffect(() => {
-    if (!isSupported || permissionStatus === null || permissionStatus === 'denied' || isEnabled) {
+    if (
+      !isSupported ||
+      permissionStatus === null ||
+      permissionStatus === 'denied' ||
+      isEnabled ||
+      registrationStatus === 'registering'
+    ) {
+      setShow(false)
+      return
+    }
+
+    if (autoRequestedRef.current && permissionStatus === 'granted' && !showRetryHint) {
       setShow(false)
       return
     }
 
     if (permissionStatus === 'undetermined' && !autoRequestedRef.current) {
       autoRequestedRef.current = true
-      const doRequest = () =>
-        requestPermission().finally(() => {
-          AsyncStorage.setItem(STORAGE_KEY, '1')
-        })
-      if (Platform.OS === 'android') {
-        setTimeout(doRequest, 200)
-      } else {
-        doRequest()
+      let cancelled = false
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const interaction = InteractionManager.runAfterInteractions(() => {
+        timeoutId = setTimeout(() => {
+          if (cancelled) return
+          void requestPermission().then((success) => {
+            if (success) {
+              AsyncStorage.setItem(STORAGE_KEY, '1')
+            } else {
+              autoRequestedRef.current = false
+            }
+          })
+        }, Platform.OS === 'android' ? 900 : 0)
+      })
+
+      return () => {
+        cancelled = true
+        interaction.cancel()
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
       }
-      return
     }
 
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
@@ -81,7 +108,9 @@ export function PushPrompt() {
     isEnabled,
     isSupported,
     permissionStatus,
+    registrationStatus,
     requestPermission,
+    showRetryHint,
     slideAnim,
   ])
 
@@ -104,12 +133,10 @@ export function PushPrompt() {
   }, [fadeAnim, slideAnim])
 
   const handleEnable = useCallback(async () => {
-    try {
-      await requestPermission()
-    } catch {
-      // Permission request failed silently
+    const success = await requestPermission()
+    if (success) {
+      dismiss()
     }
-    dismiss()
   }, [requestPermission, dismiss])
 
   if (!show) return null
@@ -131,6 +158,9 @@ export function PushPrompt() {
         <View style={styles.textContainer}>
           <Text style={styles.title}>{t('pushPrompt.title')}</Text>
           <Text style={styles.description}>{t('pushPrompt.description')}</Text>
+          {showRetryHint && (
+            <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
+          )}
           <View style={styles.buttons}>
             <TouchableOpacity
               style={styles.enableBtn}
@@ -208,6 +238,11 @@ function createStyles(
       fontSize: 12,
       color: colors.textSecondary,
       marginTop: 2,
+    },
+    retryText: {
+      fontSize: 12,
+      color: colors.red400,
+      marginTop: 6,
     },
     buttons: {
       flexDirection: 'row',

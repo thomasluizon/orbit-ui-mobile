@@ -13,11 +13,20 @@
       "description": "Receive reminders and updates even when the app is closed",
       "enabled": "Notifications are enabled",
       "disabled": "Notifications are turned off",
+      "requesting": "Requesting notification access...",
+      "registered": "Notifications are connected and working",
+      "notRegistered": "Permission granted, but this device is not registered yet",
+      "syncFailed": "Failed to sync notifications with the server",
+      "tokenMissing": "Could not get a device push token",
       "denied": "Notifications are blocked. Enable them in your browser settings.",
       "unsupported": "Push notifications are not supported in this browser",
       "deniedNative": "Notifications are blocked. Enable them in your device settings.",
       "unsupportedNative": "Push notifications are not supported on this device.",
-      "openSettings": "Open settings"
+      "openSettings": "Open settings",
+      "sendTest": "Send test notification",
+      "sendingTest": "Sending test notification...",
+      "testSent": "Test notification sent",
+      "testFailed": "Failed to send test notification"
     },
     "homeScreen": {
       "title": "Home Screen",
@@ -41,7 +50,8 @@
     "title": "Stay on track",
     "description": "Enable notifications to get reminders for your habits",
     "enable": "Enable",
-    "later": "Not now"
+    "later": "Not now",
+    "retryHint": "Notification setup failed. Tap Enable to retry."
   },
   "updatePrompt": {
     "title": "Update available",
