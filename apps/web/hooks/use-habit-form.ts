@@ -4,6 +4,7 @@ import { useMemo, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useTranslations } from 'next-intl'
 import {
   habitFormSchema,
@@ -18,13 +19,13 @@ import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 export interface HabitFormOptions {
   /** Initial data for editing an existing habit */
-  initialData?: Partial<HabitFormData>
+  initialData?: Partial<HabitFormInput>
   /** Week start day from profile: 0 = Sunday, 1 = Monday (default) */
   weekStartDay?: number
 }
 
 export interface HabitFormHelpers {
-  form: UseFormReturn<HabitFormData>
+  form: UseFormReturn<HabitFormInput, unknown, HabitFormData>
 
   // Computed flags
   isOneTime: boolean
@@ -55,6 +56,29 @@ export interface HabitFormHelpers {
   validateAll: () => string | null
 }
 
+type HabitFormInput = z.input<typeof habitFormSchema>
+
+function normalizeHabitFormData(values: HabitFormInput): HabitFormData {
+  return {
+    title: values.title ?? '',
+    description: values.description ?? '',
+    frequencyUnit: values.frequencyUnit ?? null,
+    frequencyQuantity: values.frequencyQuantity ?? null,
+    days: values.days ?? [],
+    isBadHabit: values.isBadHabit ?? false,
+    isGeneral: values.isGeneral ?? false,
+    isFlexible: values.isFlexible ?? false,
+    dueDate: values.dueDate ?? '',
+    dueTime: values.dueTime ?? '',
+    dueEndTime: values.dueEndTime ?? '',
+    endDate: values.endDate ?? '',
+    reminderEnabled: values.reminderEnabled ?? false,
+    scheduledReminders: values.scheduledReminders ?? [],
+    slipAlertEnabled: values.slipAlertEnabled ?? false,
+    checklistItems: values.checklistItems ?? [],
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -63,7 +87,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const { initialData, weekStartDay = 1 } = options
   const t = useTranslations()
 
-  const form = useForm<HabitFormData>({
+  const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
     defaultValues: {
       title: '',
@@ -86,7 +110,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     },
   })
 
-  const watchedValues = form.watch()
+  const watchedValues = normalizeHabitFormData(form.watch())
 
   // -- Computed flags --
   const isGeneral = watchedValues.isGeneral
@@ -131,7 +155,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   // -- Toggle a day in the days array --
   const toggleDay = useCallback(
     (day: string) => {
-      const current = form.getValues('days')
+      const current = form.getValues('days') ?? []
       const idx = current.indexOf(day)
       if (idx >= 0) {
         form.setValue(
@@ -212,7 +236,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
 
   // -- Cross-field validation --
   const validateAll = useCallback((): string | null => {
-    const data = form.getValues()
+    const data = normalizeHabitFormData(form.getValues())
     return validateHabitForm(data)
   }, [form])
 

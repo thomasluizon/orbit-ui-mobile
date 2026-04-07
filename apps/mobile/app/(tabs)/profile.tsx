@@ -224,7 +224,10 @@ export default function ProfileScreen() {
     setResetError('')
     try {
       await apiClient(API.profile.reset, { method: 'POST' })
-      await AsyncStorage.multiRemove(['orbit:checklist-templates', 'orbit_trial_expired_seen'])
+      await Promise.all([
+        AsyncStorage.removeItem('orbit:checklist-templates'),
+        AsyncStorage.removeItem('orbit_trial_expired_seen'),
+      ])
       setShowResetModal(false)
       setShowFreshStartAnim(true)
     } catch (err: unknown) {

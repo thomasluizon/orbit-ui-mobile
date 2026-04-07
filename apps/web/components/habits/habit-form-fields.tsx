@@ -509,18 +509,18 @@ export function HabitFormFields({
 
   const { register, watch, setValue } = form
 
-  const watchedFrequencyUnit = watch('frequencyUnit')
-  const watchedFrequencyQuantity = watch('frequencyQuantity')
-  const watchedDays = watch('days')
-  const watchedDueDate = watch('dueDate')
-  const watchedDueTime = watch('dueTime')
-  const watchedDueEndTime = watch('dueEndTime')
-  const watchedEndDate = watch('endDate')
-  const watchedIsBadHabit = watch('isBadHabit')
-  const watchedReminderEnabled = watch('reminderEnabled')
-  const watchedSlipAlertEnabled = watch('slipAlertEnabled')
-  const watchedChecklistItems = watch('checklistItems')
-  const watchedScheduledReminders = watch('scheduledReminders')
+  const watchedFrequencyUnit = watch('frequencyUnit') ?? null
+  const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
+  const watchedDays = watch('days') ?? []
+  const watchedDueDate = watch('dueDate') ?? ''
+  const watchedDueTime = watch('dueTime') ?? ''
+  const watchedDueEndTime = watch('dueEndTime') ?? ''
+  const watchedEndDate = watch('endDate') ?? ''
+  const watchedIsBadHabit = watch('isBadHabit') ?? false
+  const watchedReminderEnabled = watch('reminderEnabled') ?? false
+  const watchedSlipAlertEnabled = watch('slipAlertEnabled') ?? false
+  const watchedChecklistItems = watch('checklistItems') ?? []
+  const watchedScheduledReminders = watch('scheduledReminders') ?? []
 
   // Fetch tags
   const { data: tagsData } = useQuery({

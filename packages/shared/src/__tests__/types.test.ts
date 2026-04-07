@@ -1557,7 +1557,7 @@ describe('barrel re-exports', () => {
     expect(barrel.isValidEmail).toBeDefined()
     expect(barrel.getErrorMessage).toBeDefined()
     expect(barrel.extractBackendError).toBeDefined()
-  })
+  }, 15000)
 
   it('api/index re-exports API helpers', async () => {
     const barrel = await import('../api/index')

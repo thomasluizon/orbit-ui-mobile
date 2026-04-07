@@ -69,8 +69,8 @@ export default function PreferencesPage() {
         // Error handled silently like Vue
       }
     }
-    // Hard reload to re-trigger next-intl middleware with the new locale cookie
-    // (router.refresh() alone does not re-evaluate middleware)
+    // Hard reload to re-trigger next-intl proxy with the new locale cookie
+    // (router.refresh() alone does not re-evaluate proxy)
     globalThis.location.reload()
   }
 
