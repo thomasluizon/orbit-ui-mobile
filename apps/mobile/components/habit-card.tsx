@@ -313,7 +313,14 @@ export function HabitCard({
 
   return (
     <View style={indentMargin}>
-      <View style={cardStyle}>
+      <TouchableOpacity
+        style={cardStyle}
+        onPress={handleCardPress}
+        onLongPress={
+          !isSelectMode && onEnterSelectMode ? onEnterSelectMode : undefined
+        }
+        activeOpacity={0.85}
+      >
         <HabitCardSurface isChild={isChild} colors={colors} />
         <View
           style={[
@@ -470,17 +477,7 @@ export function HabitCard({
           )}
 
           {/* Content */}
-          <TouchableOpacity
-            style={styles.contentPressable}
-            onPress={handleCardPress}
-            onLongPress={
-              !isSelectMode && onEnterSelectMode
-                ? onEnterSelectMode
-                : undefined
-            }
-            activeOpacity={0.85}
-          >
-            <View style={styles.content}>
+          <View style={styles.content}>
               <Text
                 style={[
                   isChild ? styles.titleChild : styles.titleParent,
@@ -659,7 +656,6 @@ export function HabitCard({
                 </View>
               )}
             </View>
-          </TouchableOpacity>
 
           {/* Actions menu trigger */}
           {!isSelectMode && (
@@ -680,7 +676,7 @@ export function HabitCard({
             </View>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
 
       <AnchoredMenu
         visible={showActionsMenu}
@@ -938,11 +934,8 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   },
 
   // Content area
-  contentPressable: {
-    flex: 1,
-    minWidth: 0,
-  },
   content: {
+    flex: 1,
     minWidth: 0,
   },
 

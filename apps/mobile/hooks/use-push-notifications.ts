@@ -164,12 +164,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return
       }
 
-      const nativeToken = await getNativeAndroidPushToken()
-      const expoToken = await getPushToken()
-      const tokenToSend = nativeToken ?? expoToken
-      setExpoPushToken(tokenToSend)
-      if (tokenToSend && isAuthenticated) {
-        await sendTokenToBackend(tokenToSend)
+      // Backend routes delivery based on `p256dh === 'fcm'` via Firebase Admin SDK.
+      // On Android we MUST obtain a native FCM token. Never fall back to the Expo
+      // push token here — the backend would try to deliver it through FCM and fail.
+      const token =
+        Platform.OS === 'android'
+          ? await getNativeAndroidPushToken()
+          : await getPushToken()
+      setExpoPushToken(token)
+      if (token && isAuthenticated) {
+        await sendTokenToBackend(token)
       }
     } catch {
       setPermissionStatus(null)
@@ -200,12 +204,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false
       }
 
-      const nativeToken = await getNativeAndroidPushToken()
-      const expoToken = await getPushToken()
-      const tokenToSend = nativeToken ?? expoToken
-      setExpoPushToken(tokenToSend)
-      if (tokenToSend && isAuthenticated) {
-        await sendTokenToBackend(tokenToSend)
+      // See comment in syncGrantedPermission: never fall back to Expo token on Android.
+      const token =
+        Platform.OS === 'android'
+          ? await getNativeAndroidPushToken()
+          : await getPushToken()
+      setExpoPushToken(token)
+      if (token && isAuthenticated) {
+        await sendTokenToBackend(token)
       }
       return true
     } catch (err: unknown) {

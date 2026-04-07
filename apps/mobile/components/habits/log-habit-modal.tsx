@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check } from "lucide-react-native";
+import { Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { useLogHabit } from "@/hooks/use-habits";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { radius } from "@/lib/theme";
@@ -73,14 +76,30 @@ export function LogHabitModal({
   }, [onClose]);
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={handleCancel}
-      title={t("habits.log.title")}
-      snapPoints={["52%"]}
+    <Modal
+      visible={open}
+      transparent
+      animationType="slide"
+      onRequestClose={handleCancel}
     >
-      {habit && (
-        <View style={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <Pressable style={styles.backdropPress} onPress={handleCancel} />
+        <View style={styles.sheet}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>{t("habits.log.title")}</Text>
+            <TouchableOpacity
+              style={styles.headerClose}
+              onPress={handleCancel}
+              activeOpacity={0.7}
+            >
+              <X size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          {habit && (
+            <View style={styles.content}>
           {/* Habit title */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>{t("habits.log.habitLabel")}</Text>
@@ -137,9 +156,11 @@ export function LogHabitModal({
               </Text>
             </TouchableOpacity>
           </View>
+            </View>
+          )}
         </View>
-      )}
-    </BottomSheetModal>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -152,6 +173,48 @@ function createStyles(
   bottomInset: number,
 ) {
   return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    backdropPress: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingTop: 10,
+      paddingBottom: 16,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+      paddingBottom: 16,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.textPrimary,
+    },
+    headerClose: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     content: {
       gap: 16,
       paddingHorizontal: 20,
