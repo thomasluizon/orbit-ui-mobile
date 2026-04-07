@@ -16,18 +16,22 @@
     "clean": "turbo run clean"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
-    "typescript": "^5.8.3"
+    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.13",
+    "@swc/helpers": "^0.5.15",
+    "fdir": "^6.5.0",
+    "html-parse-stringify": "^3.0.1",
+    "indent-string": "^4.0.0",
+    "min-indent": "^1.0.1",
+    "turbo": "^2.9.4",
+    "typescript": "^6.0.2"
   },
-  "packageManager": "npm@10.9.2",
+  "packageManager": "npm@11.12.1",
   "engines": {
     "node": ">=20.0.0"
   },
-  "dependencies": {
-    "react-native-worklets": "^0.5.1"
-  },
   "overrides": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-test-renderer": "19.2.4"
   }
 }

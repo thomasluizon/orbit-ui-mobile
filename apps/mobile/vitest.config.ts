@@ -7,11 +7,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./test-setup.ts'],
     include: ['__tests__/**/*.test.{ts,tsx}'],
-    deps: {
-      inline: [/^react-native(\/.*)?$/, /^@testing-library\/react-native$/, /^react-native-safe-area-context$/, /^lucide-react-native$/],
-    },
     coverage: {
-      all: true,
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: '../../coverage/mobile',

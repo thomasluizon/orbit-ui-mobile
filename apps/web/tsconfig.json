@@ -22,6 +22,11 @@
         "../../packages/shared/src/*"
       ]
     },
+    "types": [
+      "node",
+      "vitest/globals",
+      "@testing-library/jest-dom"
+    ],
     "allowJs": true,
     "incremental": true
   },
