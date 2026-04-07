@@ -617,10 +617,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setDragOverrideItems(null)
 
     // Re-expand any parent that was auto-collapsed during drag start
-    if (autoCollapsedOnDragRef.current) {
+    const autoCollapsedId = autoCollapsedOnDragRef.current
+    if (autoCollapsedId) {
       setCollapsedIds((prev) => {
         const next = new Set(prev)
-        next.delete(autoCollapsedOnDragRef.current!)
+        next.delete(autoCollapsedId)
         return next
       })
       autoCollapsedOnDragRef.current = null

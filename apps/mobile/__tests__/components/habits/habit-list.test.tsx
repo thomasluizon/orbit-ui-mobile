@@ -38,6 +38,7 @@ const mockDrillState = {
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
+    i18n: { language: 'en' },
   }),
 }))
 
@@ -128,16 +129,6 @@ vi.mock('@/components/ui/anchored-menu', () => ({
   AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
 }))
 
-vi.mock('lucide-react-native', () => {
-  const Icon = (props: any) => React.createElement('Icon', props)
-  return new Proxy(
-    {},
-    {
-      get: () => Icon,
-    },
-  )
-})
-
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('Svg', props),
   Circle: (props: any) => React.createElement('Circle', props),
@@ -167,32 +158,40 @@ describe('HabitList', () => {
   })
 
   it('uses plain draggable list for today view outside select mode', () => {
-    const tree = TestRenderer.create(
-      <HabitList
-        view="today"
-        filters={{}}
-        showCompleted
-        listHeader={React.createElement('Header')}
-        onCreatePress={vi.fn()}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          listHeader={React.createElement('Header')}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
 
     const [draggableList] = tree.root.findAllByType('DraggableFlatList')
 
     expect(draggableList).toBeTruthy()
-    expect(draggableList.props.ListHeaderComponent).toBeTruthy()
+    expect(tree.root.findAllByType('Header')).toHaveLength(1)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(0)
   })
 
   it('uses plain lists for all view and drill view', () => {
-    let tree = TestRenderer.create(
-      <HabitList
-        view="all"
-        filters={{}}
-        showCompleted
-        onCreatePress={vi.fn()}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="all"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
 
@@ -204,14 +203,16 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = [child]
     mockDrillState.drillStack = ['parent']
 
-    tree = TestRenderer.create(
-      <HabitList
-        view="today"
-        filters={{}}
-        showCompleted
-        onCreatePress={vi.fn()}
-      />,
-    )
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
@@ -222,14 +223,18 @@ describe('HabitList', () => {
     const second = createMockHabit({ id: 'second', title: 'Second', position: 1 })
     seedHabits([first, second])
 
-    const tree = TestRenderer.create(
-      <HabitList
-        view="today"
-        filters={{}}
-        showCompleted={false}
-        onCreatePress={vi.fn()}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
 
     const draggableList = tree.root.findByType('DraggableFlatList')
 
@@ -250,14 +255,18 @@ describe('HabitList', () => {
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', position: 0 })
     seedHabits([parent, child])
 
-    const tree = TestRenderer.create(
-      <HabitList
-        view="today"
-        filters={{}}
-        showCompleted
-        onCreatePress={vi.fn()}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
 
     const findDraggableCards = () =>
       tree.root.findAll(
@@ -280,6 +289,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       await draggableList.props.onDragEnd({ from: 0, to: 0 })
+      await Promise.resolve()
     })
 
     expect(findDraggableCards()).toHaveLength(2)

@@ -39,13 +39,20 @@ vi.mock('@/components/ui/anchored-menu', () => ({
 
 vi.mock('lucide-react-native', () => {
   const React = require('react')
-  const Icon = (props: any) => React.createElement('Icon', props)
-  return new Proxy(
-    {},
-    {
-      get: () => Icon,
-    },
-  )
+  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
+  return {
+    ArrowRight: createIcon('ArrowRight'),
+    Check: createIcon('Check'),
+    CheckCircle2: createIcon('CheckCircle2'),
+    ChevronRight: createIcon('ChevronRight'),
+    ClipboardCheck: createIcon('ClipboardCheck'),
+    Copy: createIcon('Copy'),
+    FastForward: createIcon('FastForward'),
+    Flame: createIcon('Flame'),
+    MoreVertical: createIcon('MoreVertical'),
+    Plus: createIcon('Plus'),
+    Trash2: createIcon('Trash2'),
+  }
 })
 
 vi.mock('react-native-svg', () => {
@@ -74,13 +81,17 @@ describe('HabitCard', () => {
   it('starts drag on long press instead of entering select mode', () => {
     const onLongPressCard = vi.fn()
     const onEnterSelectMode = vi.fn()
-    const tree = TestRenderer.create(
-      <HabitCard
-        habit={createMockHabit()}
-        onLongPressCard={onLongPressCard}
-        onEnterSelectMode={onEnterSelectMode}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit()}
+          onLongPressCard={onLongPressCard}
+          onEnterSelectMode={onEnterSelectMode}
+        />,
+      )
+    })
 
     const [outerCard] = findOuterCardTouchables(tree.root)
 
@@ -94,12 +105,16 @@ describe('HabitCard', () => {
 
   it('opens detail on tap outside select mode', () => {
     const onDetail = vi.fn()
-    const tree = TestRenderer.create(
-      <HabitCard
-        habit={createMockHabit()}
-        onDetail={onDetail}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit()}
+          onDetail={onDetail}
+        />,
+      )
+    })
 
     const [outerCard] = findOuterCardTouchables(tree.root)
 
@@ -112,13 +127,17 @@ describe('HabitCard', () => {
 
   it('toggles selection on tap in select mode', () => {
     const onToggleSelection = vi.fn()
-    const tree = TestRenderer.create(
-      <HabitCard
-        habit={createMockHabit()}
-        isSelectMode
-        onToggleSelection={onToggleSelection}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit()}
+          isSelectMode
+          onToggleSelection={onToggleSelection}
+        />,
+      )
+    })
 
     const [outerCard] = findOuterCardTouchables(tree.root)
 
@@ -131,18 +150,22 @@ describe('HabitCard', () => {
 
   it('enters select mode from the actions menu', () => {
     const onEnterSelectMode = vi.fn()
-    const tree = TestRenderer.create(
-      <HabitCard
-        habit={createMockHabit()}
-        onEnterSelectMode={onEnterSelectMode}
-      />,
-    )
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit()}
+          onEnterSelectMode={onEnterSelectMode}
+        />,
+      )
+    })
 
     const menuButton = tree.root.findAll(
       (node: any) =>
         node.type === 'TouchableOpacity' &&
         typeof node.props.onPress === 'function' &&
-        node.findAllByType('Icon').length > 0,
+        node.findAllByType('MoreVertical').length > 0,
     ).at(-1)
 
     TestRenderer.act(() => {

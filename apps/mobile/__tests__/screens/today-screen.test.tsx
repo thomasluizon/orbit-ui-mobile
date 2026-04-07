@@ -162,13 +162,24 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('lucide-react-native', () => {
-  const Icon = (props: any) => React.createElement('Icon', props)
-  return new Proxy(
-    {},
-    {
-      get: () => Icon,
-    },
-  )
+  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
+  return {
+    Check: createIcon('Check'),
+    CheckCircle2: createIcon('CheckCircle2'),
+    ChevronLeft: createIcon('ChevronLeft'),
+    ChevronRight: createIcon('ChevronRight'),
+    ChevronsDownUp: createIcon('ChevronsDownUp'),
+    ChevronsUpDown: createIcon('ChevronsUpDown'),
+    Eye: createIcon('Eye'),
+    FastForward: createIcon('FastForward'),
+    MinusCircle: createIcon('MinusCircle'),
+    MoreVertical: createIcon('MoreVertical'),
+    PlusCircle: createIcon('PlusCircle'),
+    RefreshCw: createIcon('RefreshCw'),
+    Search: createIcon('Search'),
+    Trash2: createIcon('Trash2'),
+    X: createIcon('X'),
+  }
 })
 
 import TodayScreen from '@/app/(tabs)/index'
