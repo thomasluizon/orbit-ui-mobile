@@ -236,22 +236,30 @@ describe('PreferencesPage', () => {
     expect(screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })).toBeInTheDocument()
   })
 
-  it('toggle defaults to on (checked)', () => {
+  it('toggle defaults to off (unchecked)', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
 
   it('toggles home screen setting on click', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
   })
 
   it('persists home screen toggle to localStorage', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
+    fireEvent.click(toggle)
+    expect(localStorage.getItem('orbit_show_general_on_today')).toBe('true')
+  })
+
+  it('persists false after toggling the home screen setting off again', () => {
+    render(<PreferencesPage />)
+    const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
+    fireEvent.click(toggle)
     fireEvent.click(toggle)
     expect(localStorage.getItem('orbit_show_general_on_today')).toBe('false')
   })

@@ -17,6 +17,7 @@ import { ArrowLeft, Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -140,16 +141,16 @@ export default function PreferencesScreen() {
   ]
 
   // --- Home Screen Toggle ---
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
-    AsyncStorage.getItem('orbit_show_general_on_today').then((saved) => {
-      if (saved === 'false') {
+    AsyncStorage.getItem('orbit_show_general_on_today')
+      .then((saved) => {
+        setShowGeneralOnToday(parseShowGeneralOnTodayPreference(saved))
+      })
+      .catch(() => {
         setShowGeneralOnToday(false)
-      } else if (saved === 'true') {
-        setShowGeneralOnToday(true)
-      }
-    }).catch(() => {})
+      })
   }, [])
 
   useEffect(() => {

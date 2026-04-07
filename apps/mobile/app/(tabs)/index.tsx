@@ -14,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import {
   ChevronLeft,
   ChevronRight,
@@ -119,7 +120,7 @@ export default function TodayScreen() {
 
   // Local state
   const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
@@ -152,10 +153,10 @@ export default function TodayScreen() {
   useEffect(() => {
     AsyncStorage.getItem('orbit_show_general_on_today')
       .then((storedValue) => {
-        setShowGeneralOnToday(storedValue !== 'false')
+        setShowGeneralOnToday(parseShowGeneralOnTodayPreference(storedValue))
       })
       .catch(() => {
-        setShowGeneralOnToday(true)
+        setShowGeneralOnToday(false)
       })
   }, [])
 

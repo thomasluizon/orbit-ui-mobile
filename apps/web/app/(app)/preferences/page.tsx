@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -150,10 +151,10 @@ export default function PreferencesPage() {
   ]
 
   // --- Home Screen Toggle (local-only preference) ---
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(true)
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
-    setShowGeneralOnToday(localStorage.getItem('orbit_show_general_on_today') !== 'false')
+    setShowGeneralOnToday(parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today')))
   }, [])
 
   function toggleShowGeneral() {
