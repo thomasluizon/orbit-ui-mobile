@@ -63,6 +63,7 @@ interface HabitCardProps {
   onToggleExpand?: () => void
   onForceLogParent?: () => void
   onEnterSelectMode?: () => void
+  onLongPressCard?: () => void
 }
 
 function withAlpha(color: string, opacity: number, fallback: string): string {
@@ -151,6 +152,7 @@ export function HabitCard({
   onToggleExpand,
   onForceLogParent,
   onEnterSelectMode,
+  onLongPressCard,
 }: HabitCardProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
@@ -316,9 +318,8 @@ export function HabitCard({
       <TouchableOpacity
         style={cardStyle}
         onPress={handleCardPress}
-        onLongPress={
-          !isSelectMode && onEnterSelectMode ? onEnterSelectMode : undefined
-        }
+        onLongPress={!isSelectMode ? onLongPressCard : undefined}
+        delayLongPress={300}
         activeOpacity={0.85}
       >
         <HabitCardSurface isChild={isChild} colors={colors} />

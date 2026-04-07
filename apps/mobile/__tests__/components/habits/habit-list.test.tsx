@@ -1,0 +1,297 @@
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { HabitList } from '@/components/habit-list'
+
+const TestRenderer = require('react-test-renderer')
+
+const reorderMutateAsync = vi.fn()
+const toggleSelectMode = vi.fn()
+const toggleSelectionCascade = vi.fn()
+const colorProxy: any = new Proxy(
+  {},
+  {
+    get: (_target, prop) => (prop === 'white' ? '#ffffff' : '#111111'),
+  },
+)
+
+const mockHabitsData = {
+  habitsById: new Map<string, NormalizedHabit>(),
+  childrenByParent: new Map<string, string[]>(),
+  topLevelHabits: [] as NormalizedHabit[],
+}
+
+const mockDrillState = {
+  currentParentId: null as string | null,
+  currentParent: null as NormalizedHabit | null,
+  drillChildren: [] as NormalizedHabit[],
+  drillStack: [] as string[],
+  drillLoading: false,
+  drillError: null as string | null,
+  drillInto: vi.fn(async () => {}),
+  drillBack: vi.fn(),
+  drillReset: vi.fn(),
+  getDrillChildren: vi.fn(() => [] as NormalizedHabit[]),
+}
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: { language: 'en' },
+  }),
+}))
+
+vi.mock('@/hooks/use-habits', () => ({
+  useHabits: () => ({
+    data: mockHabitsData,
+    isLoading: false,
+    isFetching: false,
+    dataUpdatedAt: Date.now(),
+    refetch: vi.fn(),
+    getChildren: (parentId: string) => {
+      const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
+      return childIds
+        .map((id) => mockHabitsData.habitsById.get(id))
+        .filter(Boolean) as NormalizedHabit[]
+    },
+  }),
+  useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+  useSkipHabit: () => ({ mutateAsync: vi.fn() }),
+  useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDuplicateHabit: () => ({ mutate: vi.fn() }),
+  useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
+  useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+
+vi.mock('@/hooks/use-drill-navigation', () => ({
+  useDrillNavigation: () => mockDrillState,
+}))
+
+vi.mock('@/hooks/use-config', () => ({
+  useConfig: () => ({
+    maxHabitDepth: 5,
+    config: { limits: { maxHabitDepth: 5 } },
+  }),
+}))
+
+vi.mock('@/hooks/use-habit-visibility', () => ({
+  useHabitVisibility: () => ({
+    hasVisibleContent: () => true,
+    getVisibleChildren: (habitId: string) => {
+      const childIds = mockHabitsData.childrenByParent.get(habitId) ?? []
+      return childIds
+        .map((id) => mockHabitsData.habitsById.get(id))
+        .filter(Boolean) as NormalizedHabit[]
+    },
+    isRelevantToday: () => true,
+    isDueOnSelectedDate: () => true,
+  }),
+}))
+
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: any) => unknown) =>
+    selector({
+      toggleSelectMode,
+      toggleSelectionCascade,
+    }),
+}))
+
+vi.mock('@/lib/habit-selection-state', () => ({
+  getHabitListExtraData: () => 'extra',
+}))
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({
+    colors: colorProxy,
+  }),
+}))
+
+vi.mock('@/components/ui/confirm-dialog', () => ({
+  ConfirmDialog: () => null,
+}))
+
+vi.mock('@/components/habits/create-habit-modal', () => ({
+  CreateHabitModal: () => null,
+}))
+
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({
+    displayTime: (value: string | null | undefined) => value ?? '',
+  }),
+}))
+
+vi.mock('@/lib/theme', () => ({
+  createColors: () => colorProxy,
+}))
+
+vi.mock('@/components/ui/anchored-menu', () => ({
+  AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
+}))
+
+vi.mock('react-native-svg', () => ({
+  default: (props: any) => React.createElement('Svg', props),
+  Circle: (props: any) => React.createElement('Circle', props),
+}))
+
+function seedHabits(habits: NormalizedHabit[]) {
+  mockHabitsData.habitsById = new Map(habits.map((habit) => [habit.id, habit]))
+  mockHabitsData.childrenByParent = new Map<string, string[]>()
+  mockHabitsData.topLevelHabits = habits.filter((habit) => !habit.parentId)
+
+  for (const habit of habits) {
+    if (!habit.parentId) continue
+    const siblings = mockHabitsData.childrenByParent.get(habit.parentId) ?? []
+    siblings.push(habit.id)
+    mockHabitsData.childrenByParent.set(habit.parentId, siblings)
+  }
+}
+
+describe('HabitList', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockDrillState.currentParentId = null
+    mockDrillState.currentParent = null
+    mockDrillState.drillChildren = []
+    mockDrillState.drillStack = []
+    seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('uses plain draggable list for today view outside select mode', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          listHeader={React.createElement('Header')}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const [draggableList] = tree.root.findAllByType('DraggableFlatList')
+
+    expect(draggableList).toBeTruthy()
+    expect(tree.root.findAllByType('Header')).toHaveLength(1)
+    expect(tree.root.findAllByType('FlatList')).toHaveLength(0)
+  })
+
+  it('uses plain lists for all view and drill view', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="all"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
+
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent' })
+    seedHabits([parent, child])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillChildren = [child]
+    mockDrillState.drillStack = ['parent']
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
+    expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
+  })
+
+  it('submits reordered positions on drag end', async () => {
+    const first = createMockHabit({ id: 'first', title: 'First', position: 0 })
+    const second = createMockHabit({ id: 'second', title: 'Second', position: 1 })
+    seedHabits([first, second])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const draggableList = tree.root.findByType('DraggableFlatList')
+
+    await TestRenderer.act(async () => {
+      await draggableList.props.onDragEnd({ from: 1, to: 0 })
+    })
+
+    expect(reorderMutateAsync).toHaveBeenCalledWith({
+      positions: [
+        { habitId: 'second', position: 0 },
+        { habitId: 'first', position: 1 },
+      ],
+    })
+  })
+
+  it('temporarily collapses dragged parents and restores them after drop', async () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', position: 0 })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', position: 0 })
+    seedHabits([parent, child])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const findDraggableCards = () =>
+      tree.root.findAll(
+        (node: any) =>
+          node.type === 'TouchableOpacity' &&
+          typeof node.props.onLongPress === 'function',
+      )
+
+    expect(findDraggableCards()).toHaveLength(2)
+
+    const [parentCard] = findDraggableCards()
+
+    TestRenderer.act(() => {
+      parentCard?.props.onLongPress?.()
+    })
+
+    expect(findDraggableCards()).toHaveLength(1)
+
+    const draggableList = tree.root.findByType('DraggableFlatList')
+
+    await TestRenderer.act(async () => {
+      await draggableList.props.onDragEnd({ from: 0, to: 0 })
+      await Promise.resolve()
+    })
+
+    expect(findDraggableCards()).toHaveLength(2)
+  })
+})

@@ -112,3 +112,65 @@ export function collectVisibleHabitTreeIds<T extends { id: string }>(
 
   return ids
 }
+
+export interface ReorderableHabitItem {
+  id: string
+  parentId: string | null
+}
+
+export interface HabitReorderPosition {
+  habitId: string
+  position: number
+}
+
+export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
+  items: T[],
+  oldIndex: number,
+  newIndex: number,
+  habitsById: Map<string, ReorderableHabitItem>,
+  getChildren: (parentId: string) => ReorderableHabitItem[],
+): HabitReorderPosition[] {
+  if (
+    oldIndex < 0 ||
+    newIndex < 0 ||
+    oldIndex >= items.length ||
+    newIndex >= items.length
+  ) {
+    return []
+  }
+
+  const reordered = [...items]
+  const removed = reordered.splice(oldIndex, 1)
+  const moved = removed[0]
+  if (!moved) return []
+  reordered.splice(newIndex, 0, moved)
+
+  const positions: HabitReorderPosition[] = []
+  const positionByParent = new Map<string | null, number>()
+  const includedIds = new Set(reordered.map((item) => item.id))
+
+  for (const item of reordered) {
+    const storeHabit = habitsById.get(item.id)
+    const parentId = storeHabit?.parentId ?? item.parentId
+    const nextPosition = positionByParent.get(parentId) ?? 0
+    positions.push({ habitId: item.id, position: nextPosition })
+    positionByParent.set(parentId, nextPosition + 1)
+  }
+
+  for (const parentId of positionByParent.keys()) {
+    const allSiblings =
+      parentId === null
+        ? Array.from(habitsById.values()).filter((habit) => habit.parentId === null)
+        : getChildren(parentId)
+
+    for (const sibling of allSiblings) {
+      if (includedIds.has(sibling.id)) continue
+
+      const nextPosition = positionByParent.get(parentId) ?? 0
+      positions.push({ habitId: sibling.id, position: nextPosition })
+      positionByParent.set(parentId, nextPosition + 1)
+    }
+  }
+
+  return positions
+}
