@@ -19,10 +19,50 @@ const androidDir = path.join(__dirname, "..", "android");
 const appDir = path.join(androidDir, "app");
 const keystorePath = path.join(appDir, "upload-keystore.jks");
 const keystorePropertiesPath = path.join(androidDir, "keystore.properties");
+const rootBuildGradlePath = path.join(androidDir, "build.gradle");
 const buildGradlePath = path.join(appDir, "build.gradle");
 
-if (!fs.existsSync(buildGradlePath)) {
-  console.error(`Missing expected file: ${buildGradlePath}`);
+function findBraceBlock(source, startRegex, fromIndex = 0) {
+  const searchTarget = source.slice(fromIndex);
+  const match = searchTarget.match(startRegex);
+
+  if (!match || typeof match.index !== "number") {
+    return null;
+  }
+
+  const start = fromIndex + match.index;
+  const openBraceIndex = source.indexOf("{", start);
+
+  if (openBraceIndex === -1) {
+    return null;
+  }
+
+  let depth = 0;
+
+  for (let index = openBraceIndex; index < source.length; index += 1) {
+    const character = source[index];
+
+    if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return {
+          start,
+          openBraceIndex,
+          end: index + 1,
+          content: source.slice(start, index + 1),
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+if (!fs.existsSync(buildGradlePath) || !fs.existsSync(rootBuildGradlePath)) {
+  console.error(`Missing expected Android Gradle file: ${buildGradlePath} or ${rootBuildGradlePath}`);
   process.exit(1);
 }
 
@@ -45,6 +85,20 @@ fs.writeFileSync(
 );
 
 let buildGradle = fs.readFileSync(buildGradlePath, "utf8");
+let rootBuildGradle = fs.readFileSync(rootBuildGradlePath, "utf8");
+
+if (!rootBuildGradle.includes("asyncStorageLocalRepo")) {
+  const repositoriesAnchor = "allprojects {\n  repositories {";
+
+  if (!rootBuildGradle.includes(repositoriesAnchor)) {
+    console.error("Could not find allprojects repositories block in android/build.gradle");
+    process.exit(1);
+  }
+
+  const asyncStorageRepoBlock = `allprojects {\n  repositories {\n    def asyncStorageLocalRepo = new File(\n      rootDir,\n      "../../../node_modules/@react-native-async-storage/async-storage/android/local_repo",\n    )\n\n    if (asyncStorageLocalRepo.exists()) {\n      maven { url asyncStorageLocalRepo.toURI() }\n    }`;
+
+  rootBuildGradle = rootBuildGradle.replace(repositoriesAnchor, asyncStorageRepoBlock);
+}
 
 if (!buildGradle.includes("keystore.properties")) {
   const marker = "\nandroid {";
@@ -67,10 +121,9 @@ android {`;
 }
 
 if (!buildGradle.includes("signingConfigs.release")) {
-  const signingConfigsRegex = /signingConfigs\s*\{\s*debug\s*\{[\s\S]*?\}\s*\}/;
-  const signingConfigsMatch = buildGradle.match(signingConfigsRegex);
+  const signingConfigsBlock = findBraceBlock(buildGradle, /signingConfigs\s*\{/);
 
-  if (!signingConfigsMatch) {
+  if (!signingConfigsBlock) {
     console.error("Could not find signingConfigs.debug block in build.gradle");
     process.exit(1);
   }
@@ -83,21 +136,32 @@ if (!buildGradle.includes("signingConfigs.release")) {
             keyPassword keystoreProperties['ORBIT_UPLOAD_KEY_PASSWORD']
         }`;
 
-  const expandedSigningConfigs = signingConfigsMatch[0].replace(/\}\s*$/, `${releaseSigningConfig}\n    }`);
-  buildGradle = buildGradle.replace(signingConfigsRegex, expandedSigningConfigs);
+  const expandedSigningConfigs = `${signingConfigsBlock.content.slice(0, -1)}${releaseSigningConfig}\n    }`;
+  buildGradle = `${buildGradle.slice(0, signingConfigsBlock.start)}${expandedSigningConfigs}${buildGradle.slice(signingConfigsBlock.end)}`;
 }
 
-const releaseBlockRegex = /release\s*\{[\s\S]*?signingConfig signingConfigs\.debug/;
-if (!releaseBlockRegex.test(buildGradle)) {
-  console.error("Could not find release signingConfig pointing to debug in build.gradle");
+const buildTypesBlock = findBraceBlock(buildGradle, /buildTypes\s*\{/);
+if (!buildTypesBlock) {
+  console.error("Could not find buildTypes block in build.gradle");
   process.exit(1);
 }
 
-buildGradle = buildGradle.replace(
-  releaseBlockRegex,
-  (match) => match.replace("signingConfig signingConfigs.debug", "signingConfig signingConfigs.release")
-);
+const releaseBuildTypeBlock = findBraceBlock(buildGradle, /release\s*\{/, buildTypesBlock.openBraceIndex);
+if (!releaseBuildTypeBlock) {
+  console.error("Could not find release buildType block in build.gradle");
+  process.exit(1);
+}
+
+if (releaseBuildTypeBlock.content.includes("signingConfig signingConfigs.debug")) {
+  const updatedReleaseBuildTypeBlock = releaseBuildTypeBlock.content.replace(
+    "signingConfig signingConfigs.debug",
+    "signingConfig signingConfigs.release"
+  );
+
+  buildGradle = `${buildGradle.slice(0, releaseBuildTypeBlock.start)}${updatedReleaseBuildTypeBlock}${buildGradle.slice(releaseBuildTypeBlock.end)}`;
+}
 
 fs.writeFileSync(buildGradlePath, buildGradle);
+fs.writeFileSync(rootBuildGradlePath, rootBuildGradle);
 
-console.log("Configured Android release signing for Gradle build.");
+console.log("Configured Android release signing and local Maven repos for Gradle build.");
