@@ -34,6 +34,8 @@ jobs:
   release-android:
     name: Build and publish Android app
     runs-on: ubuntu-latest
+    env:
+      RELEASE_WORKDIR: ${{ runner.temp }}/orbit-mobile-release
 
     steps:
       - uses: actions/checkout@v5
@@ -41,8 +43,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - uses: actions/setup-java@v5
         with:
@@ -80,11 +80,22 @@ jobs:
             fi
           done
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Prepare isolated mobile release workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          node apps/mobile/scripts/prepare-release-workspace.js "${RELEASE_WORKDIR}"
+
+      - name: Install isolated mobile dependencies
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        run: npm install --package-lock=false
+
+      - name: Validate Expo dependency compatibility
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        run: npx expo install --check
 
       - name: Set Expo app version
-        working-directory: apps/mobile
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
           APP_VERSION: ${{ inputs.app_version }}
@@ -94,7 +105,7 @@ jobs:
           node scripts/set-app-version.js "${APP_VERSION}" "${ANDROID_VERSION_CODE}"
 
       - name: Write Firebase Google services config
-        working-directory: apps/mobile
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -105,7 +116,7 @@ jobs:
           EOF
 
       - name: Write Google Play service account key
-        working-directory: apps/mobile
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -116,17 +127,18 @@ jobs:
           EOF
 
       - name: Generate Android project with Expo prebuild
-        working-directory: apps/mobile
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
+          CI: "1"
           EXPO_NO_TELEMETRY: "1"
         run: |
           set -euo pipefail
 
-          npx expo prebuild --platform android --non-interactive --clean
+          npx expo prebuild --platform android --clean
 
       - name: Configure Android release signing
-        working-directory: apps/mobile
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -138,7 +150,7 @@ jobs:
           node scripts/configure-android-release-signing.js
 
       - name: Build signed AAB with Gradle
-        working-directory: apps/mobile/android
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
         shell: bash
         env:
           CLEAR_CACHE: ${{ inputs.clear_cache }}
@@ -151,17 +163,17 @@ jobs:
           fi
 
           chmod +x gradlew
-          ./gradlew --no-daemon clean bundleRelease
+          ./gradlew --no-daemon bundleRelease
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-release-aab
-          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          path: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
       - name: Submit build to Google Play
-        working-directory: apps/mobile
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -178,6 +190,5 @@ jobs:
 
       - name: Remove temporary Play service account key
         if: always()
-        working-directory: apps/mobile
         shell: bash
-        run: rm -f play-service-account.json google-services.json android/app/upload-keystore.jks android/keystore.properties
+        run: rm -rf "${RELEASE_WORKDIR}"

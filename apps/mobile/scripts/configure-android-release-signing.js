@@ -95,9 +95,16 @@ if (!rootBuildGradle.includes("asyncStorageLocalRepo")) {
     process.exit(1);
   }
 
-  const asyncStorageRepoBlock = `allprojects {\n  repositories {\n    def asyncStorageLocalRepo = new File(\n      rootDir,\n      "../../../node_modules/@react-native-async-storage/async-storage/android/local_repo",\n    )\n\n    if (asyncStorageLocalRepo.exists()) {\n      maven { url asyncStorageLocalRepo.toURI() }\n    }`;
+  const asyncStorageRepoBlock = `allprojects {\n  repositories {\n    def asyncStorageRepoCandidates = [\n      new File(rootDir, "../node_modules/@react-native-async-storage/async-storage/android/local_repo"),\n      new File(rootDir, "../../../node_modules/@react-native-async-storage/async-storage/android/local_repo"),\n    ]\n    def asyncStorageLocalRepo = asyncStorageRepoCandidates.find { it.exists() }\n\n    if (asyncStorageLocalRepo != null) {\n      maven { url asyncStorageLocalRepo.toURI() }\n    }`;
 
   rootBuildGradle = rootBuildGradle.replace(repositoriesAnchor, asyncStorageRepoBlock);
+}
+
+const generatedExpoEntryFileLine = `    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())`;
+const stableExpoEntryFileLine = '    entryFile = file("${projectRoot}/index.js")';
+
+if (buildGradle.includes(generatedExpoEntryFileLine)) {
+  buildGradle = buildGradle.replace(generatedExpoEntryFileLine, stableExpoEntryFileLine);
 }
 
 if (!buildGradle.includes("keystore.properties")) {
