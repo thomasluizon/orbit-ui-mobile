@@ -21,7 +21,7 @@ on:
           - open
           - production
       clear_cache:
-        description: Clear the EAS build cache before building
+        description: Clear Gradle cache before building
         required: false
         type: boolean
         default: false
@@ -44,23 +44,41 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
       - name: Validate release secrets
         shell: bash
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
-          if [ -z "${EXPO_TOKEN}" ]; then
-            echo "Missing required secret: EXPO_TOKEN" >&2
-            exit 1
-          fi
+          REQUIRED_SECRETS=(
+            "EXPO_TOKEN"
+            "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+            "GOOGLE_SERVICES_JSON"
+            "ANDROID_KEYSTORE_BASE64"
+            "ANDROID_KEYSTORE_PASSWORD"
+            "ANDROID_KEY_ALIAS"
+            "ANDROID_KEY_PASSWORD"
+          )
 
-          if [ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}" ]; then
-            echo "Missing required secret: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" >&2
-            exit 1
-          fi
+          for secret_name in "${REQUIRED_SECRETS[@]}"; do
+            if [ -z "${!secret_name}" ]; then
+              echo "Missing required secret: ${secret_name}" >&2
+              exit 1
+            fi
+          done
 
       - name: Install dependencies
         run: npm ci
@@ -75,6 +93,17 @@ jobs:
           set -euo pipefail
           node scripts/set-app-version.js "${APP_VERSION}" "${ANDROID_VERSION_CODE}"
 
+      - name: Write Firebase Google services config
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          set -euo pipefail
+          cat <<'EOF' > google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
+
       - name: Write Google Play service account key
         working-directory: apps/mobile
         shell: bash
@@ -86,42 +115,50 @@ jobs:
           ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           EOF
 
-      - name: Build signed AAB
+      - name: Generate Android project with Expo prebuild
         working-directory: apps/mobile
         shell: bash
         env:
-          APP_VERSION: ${{ inputs.app_version }}
-          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          RELEASE_TRACK: ${{ inputs.track }}
-          RELEASE_MESSAGE: ${{ inputs.message }}
-          CLEAR_CACHE: ${{ inputs.clear_cache }}
-          GITHUB_SHA_SHORT: ${{ github.sha }}
+          EXPO_NO_TELEMETRY: "1"
         run: |
           set -euo pipefail
 
-          BUILD_MESSAGE="${RELEASE_MESSAGE}"
-          if [ -z "${BUILD_MESSAGE}" ]; then
-            BUILD_MESSAGE="GitHub Actions release ${APP_VERSION} (${ANDROID_VERSION_CODE}) to ${RELEASE_TRACK} (${GITHUB_SHA_SHORT})"
-          fi
+          npx expo prebuild --platform android --non-interactive --clean
 
-          EXTRA_ARGS=()
+      - name: Configure Android release signing
+        working-directory: apps/mobile
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/configure-android-release-signing.js
+
+      - name: Build signed AAB with Gradle
+        working-directory: apps/mobile/android
+        shell: bash
+        env:
+          CLEAR_CACHE: ${{ inputs.clear_cache }}
+        run: |
+          set -euo pipefail
+
           if [ "${CLEAR_CACHE}" = "true" ]; then
-            EXTRA_ARGS+=(--clear-cache)
+            rm -rf "${HOME}/.gradle/caches"
+            rm -rf .gradle
           fi
 
-          BUILD_OUTPUT="$(npx eas-cli@latest build \
-            --platform android \
-            --profile production \
-            --message "${BUILD_MESSAGE}" \
-            --non-interactive \
-            --json \
-            --wait \
-            "${EXTRA_ARGS[@]}")"
+          chmod +x gradlew
+          ./gradlew --no-daemon clean bundleRelease
 
-          printf '%s' "${BUILD_OUTPUT}" > build-output.json
-          BUILD_ID="$(node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync('build-output.json','utf8')); const build=Array.isArray(data)?data[0]:data; if (!build || !build.id) { process.exit(1); } process.stdout.write(build.id);")"
-          echo "EAS_BUILD_ID=${BUILD_ID}" >> "${GITHUB_ENV}"
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
 
       - name: Submit build to Google Play
         working-directory: apps/mobile
@@ -135,7 +172,7 @@ jobs:
           npx eas-cli@latest submit \
             --platform android \
             --profile "${RELEASE_TRACK}" \
-            --id "${EAS_BUILD_ID}" \
+            --path android/app/build/outputs/bundle/release/app-release.aab \
             --non-interactive \
             --wait
 
@@ -143,4 +180,4 @@ jobs:
         if: always()
         working-directory: apps/mobile
         shell: bash
-        run: rm -f play-service-account.json build-output.json
+        run: rm -f play-service-account.json google-services.json android/app/upload-keystore.jks android/keystore.properties
