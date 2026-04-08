@@ -16,18 +16,18 @@ export function ProfileActionButton({
   onClick,
   tone = 'default',
   compact = false,
-}: ProfileActionButtonProps) {
+}: Readonly<ProfileActionButtonProps>) {
   const baseClass =
     'w-full rounded-[var(--radius-xl)] font-bold transition-all duration-200 flex items-center justify-center gap-2'
 
-  const toneClass =
-    tone === 'danger'
-      ? compact
-        ? 'py-3.5 text-red-500/60 text-xs hover:text-red-400'
-        : 'py-4 border border-red-500/30 text-red-400 hover:bg-red-500/10'
-      : tone === 'primary'
-        ? 'py-4 border border-primary/30 text-primary hover:bg-primary/10'
-        : 'py-4 border border-border-muted text-text-primary hover:bg-surface-elevated'
+  let toneClass = 'py-4 border border-border-muted text-text-primary hover:bg-surface-elevated'
+  if (tone === 'primary') {
+    toneClass = 'py-4 border border-primary/30 text-primary hover:bg-primary/10'
+  } else if (tone === 'danger' && compact) {
+    toneClass = 'py-3.5 text-red-500/60 text-xs hover:text-red-400'
+  } else if (tone === 'danger') {
+    toneClass = 'py-4 border border-red-500/30 text-red-400 hover:bg-red-500/10'
+  }
 
   const iconSizeClass = compact ? 'size-3.5' : 'size-4'
 

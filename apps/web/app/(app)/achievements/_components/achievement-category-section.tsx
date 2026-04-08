@@ -16,7 +16,7 @@ interface AchievementCategorySectionProps {
 export function AchievementCategorySection({
   category,
   t,
-}: AchievementCategorySectionProps) {
+}: Readonly<AchievementCategorySectionProps>) {
   return (
     <div>
       <h2 className="form-label mb-3">

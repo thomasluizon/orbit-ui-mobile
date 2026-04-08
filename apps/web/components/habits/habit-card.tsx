@@ -1029,6 +1029,7 @@ export function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <div
+          role="button"
           tabIndex={0}
           className={`${articleClassName} text-left w-full`}
           onClick={handleCardClick}

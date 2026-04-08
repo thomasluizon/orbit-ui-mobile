@@ -22,7 +22,7 @@ export function ProfileNavCard({
   variant = 'default',
   proBadge = false,
   proBadgeLabel,
-}: ProfileNavCardProps) {
+}: Readonly<ProfileNavCardProps>) {
   const isPrimary = variant === 'primary'
   const titleId = useId()
   const hintId = useId()

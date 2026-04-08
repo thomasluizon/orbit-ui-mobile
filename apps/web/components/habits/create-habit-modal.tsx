@@ -103,8 +103,8 @@ export function CreateHabitModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
+    async (e) => {
       e.preventDefault()
       setValidationError('')
 

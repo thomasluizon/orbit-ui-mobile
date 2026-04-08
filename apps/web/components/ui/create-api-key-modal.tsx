@@ -64,7 +64,7 @@ export function CreateApiKeyModal({
     return true
   }
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(async (e) => {
     e.preventDefault()
     if (!validate()) return
 

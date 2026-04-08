@@ -141,7 +141,7 @@ export function NotificationBell() {
                       <p className="text-xs text-text-secondary">{item.body}</p>
                       <p className="text-[10px] text-text-muted mt-0.5">
                         {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-                          t(`notifications.${key}` as Parameters<typeof t>[0], values),
+                          t(`notifications.${key}`, values),
                         )}
                       </p>
                     </button>

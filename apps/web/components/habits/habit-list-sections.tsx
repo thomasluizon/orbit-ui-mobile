@@ -25,7 +25,7 @@ export function HabitListEmptyState({
   actionLabel,
   onAction,
   variant = 'primary',
-}: HabitListEmptyStateProps) {
+}: Readonly<HabitListEmptyStateProps>) {
   const allDoneToday = title === 'habits.allDoneToday'
 
   return (
@@ -69,7 +69,7 @@ export function HabitListDateGroupSection({
   group,
   overdueLabel,
   children,
-}: HabitListDateGroupSectionProps) {
+}: Readonly<HabitListDateGroupSectionProps>) {
   return (
     <div key={group.key} className="mb-4">
       <div className="flex items-center gap-3 mb-2 mt-2">

@@ -417,21 +417,28 @@ export default function AdvancedPage() {
                     {/* Tab buttons */}
                     <div className="flex gap-2">
                       {MCP_CONFIG_TABS.map((tab) => (
-                        <button
-                          key={tab}
-                          className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-                            activeConfigTab === tab
-                              ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                              : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                          }`}
-                          onClick={() => setActiveConfigTab(tab)}
-                        >
-                          {tab === 'web'
-                            ? t('orbitMcp.claudeWeb')
-                            : tab === 'desktop'
-                              ? t('orbitMcp.claudeDesktop')
-                              : t('orbitMcp.claudeCode')}
-                        </button>
+                        (() => {
+                          let tabLabel = t('orbitMcp.claudeCode')
+                          if (tab === 'web') {
+                            tabLabel = t('orbitMcp.claudeWeb')
+                          } else if (tab === 'desktop') {
+                            tabLabel = t('orbitMcp.claudeDesktop')
+                          }
+
+                          return (
+                            <button
+                              key={tab}
+                              className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
+                                activeConfigTab === tab
+                                  ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                                  : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                              }`}
+                              onClick={() => setActiveConfigTab(tab)}
+                            >
+                              {tabLabel}
+                            </button>
+                          )
+                        })()
                       ))}
                     </div>
 

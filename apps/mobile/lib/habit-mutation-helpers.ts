@@ -60,6 +60,7 @@ export function adjustHabitCount(queryClient: QueryClient, delta: number): void 
 }
 
 type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
+type HabitPatch = Partial<HabitScheduleItem>
 
 function cloneChildHabit(node: HabitTreeNode): HabitScheduleChild {
   const children = node.children.map((child) => cloneChildHabit(child))
@@ -149,6 +150,21 @@ function findHabitNode(
   }
 
   return null
+}
+
+function setHabitPatchField<
+  TDataKey extends keyof UpdateHabitRequest,
+  TPatchKey extends keyof HabitScheduleItem,
+>(
+  patch: HabitPatch,
+  data: UpdateHabitRequest,
+  dataKey: TDataKey,
+  patchKey: TPatchKey,
+  value: HabitScheduleItem[TPatchKey],
+): void {
+  if (dataKey in data) {
+    patch[patchKey] = value
+  }
 }
 
 function findHabitParentId(
@@ -451,30 +467,6 @@ export function buildOptimisticHabit(
   }
 }
 
-function findHabitById(
-  items: HabitScheduleItem[],
-  habitId: string,
-): HabitScheduleItem | HabitScheduleChild | null {
-  const searchChildren = (
-    children: HabitScheduleChild[],
-  ): HabitScheduleItem | HabitScheduleChild | null => {
-    for (const child of children) {
-      if (child.id === habitId) return child
-      const nested = searchChildren(child.children)
-      if (nested) return nested
-    }
-    return null
-  }
-
-  for (const item of items) {
-    if (item.id === habitId) return item
-    const nested = searchChildren(item.children)
-    if (nested) return nested
-  }
-
-  return null
-}
-
 export function buildOptimisticSubHabit(
   queryClient: QueryClient,
   parentId: string,
@@ -484,7 +476,7 @@ export function buildOptimisticSubHabit(
   const parentItems = queryClient
     .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
     .flatMap(([, items]) => items ?? [])
-  const parent = findHabitById(parentItems, parentId)
+  const parent = findHabitNode(parentItems, parentId)
   const now = new Date()
   const dueDate = data.dueDate || parent?.dueDate || formatAPIDate(now)
 
@@ -503,7 +495,7 @@ export function buildOptimisticSubHabit(
     dueTime: data.dueTime ?? null,
     dueEndTime: data.dueEndTime ?? null,
     endDate: data.endDate ?? null,
-    position: 'children' in (parent ?? {}) ? parent?.children.length ?? 0 : 0,
+    position: parent?.children.length ?? 0,
     checklistItems: data.checklistItems ?? [],
     tags: findCachedTags(queryClient, data.tagIds),
     children: [],
@@ -522,7 +514,7 @@ export function buildOptimisticDuplicateHabit(
   const allItems = queryClient
     .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
     .flatMap(([, items]) => items ?? [])
-  const source = findHabitById(allItems, habitId)
+  const source = findHabitNode(allItems, habitId)
   if (!source) return null
 
   const now = new Date().toISOString()
@@ -556,27 +548,63 @@ export function buildOptimisticHabitPatch(
   queryClient: QueryClient,
   data: UpdateHabitRequest,
 ): Partial<HabitScheduleItem> {
-  const patch: Partial<HabitScheduleItem> = {
+  const patch: HabitPatch = {
     title: data.title,
     isBadHabit: data.isBadHabit,
   }
 
-  if ('description' in data) patch.description = data.description ?? null
-  if ('isGeneral' in data) patch.isGeneral = data.isGeneral ?? false
-  if ('isFlexible' in data) patch.isFlexible = data.isFlexible ?? false
-  if ('frequencyUnit' in data) patch.frequencyUnit = data.frequencyUnit ?? null
-  if ('frequencyQuantity' in data) patch.frequencyQuantity = data.frequencyQuantity ?? null
-  if ('days' in data) patch.days = data.days ?? []
-  if ('dueDate' in data) patch.dueDate = data.dueDate ?? ''
-  if ('dueTime' in data) patch.dueTime = data.dueTime ?? null
-  if ('dueEndTime' in data) patch.dueEndTime = data.dueEndTime ?? null
-  if ('reminderEnabled' in data) patch.reminderEnabled = data.reminderEnabled ?? false
-  if ('reminderTimes' in data) patch.reminderTimes = data.reminderTimes ?? []
-  if ('scheduledReminders' in data) patch.scheduledReminders = data.scheduledReminders ?? []
-  if ('slipAlertEnabled' in data) patch.slipAlertEnabled = data.slipAlertEnabled ?? false
-  if ('checklistItems' in data) patch.checklistItems = data.checklistItems ?? []
-  if ('goalIds' in data) patch.linkedGoals = findCachedGoals(queryClient, data.goalIds)
-  if ('endDate' in data) patch.endDate = data.endDate ?? null
+  setHabitPatchField(patch, data, 'description', 'description', data.description ?? null)
+  setHabitPatchField(patch, data, 'isGeneral', 'isGeneral', data.isGeneral ?? false)
+  setHabitPatchField(patch, data, 'isFlexible', 'isFlexible', data.isFlexible ?? false)
+  setHabitPatchField(patch, data, 'frequencyUnit', 'frequencyUnit', data.frequencyUnit ?? null)
+  setHabitPatchField(
+    patch,
+    data,
+    'frequencyQuantity',
+    'frequencyQuantity',
+    data.frequencyQuantity ?? null,
+  )
+  setHabitPatchField(patch, data, 'days', 'days', data.days ?? [])
+  setHabitPatchField(patch, data, 'dueDate', 'dueDate', data.dueDate ?? '')
+  setHabitPatchField(patch, data, 'dueTime', 'dueTime', data.dueTime ?? null)
+  setHabitPatchField(patch, data, 'dueEndTime', 'dueEndTime', data.dueEndTime ?? null)
+  setHabitPatchField(
+    patch,
+    data,
+    'reminderEnabled',
+    'reminderEnabled',
+    data.reminderEnabled ?? false,
+  )
+  setHabitPatchField(patch, data, 'reminderTimes', 'reminderTimes', data.reminderTimes ?? [])
+  setHabitPatchField(
+    patch,
+    data,
+    'scheduledReminders',
+    'scheduledReminders',
+    data.scheduledReminders ?? [],
+  )
+  setHabitPatchField(
+    patch,
+    data,
+    'slipAlertEnabled',
+    'slipAlertEnabled',
+    data.slipAlertEnabled ?? false,
+  )
+  setHabitPatchField(
+    patch,
+    data,
+    'checklistItems',
+    'checklistItems',
+    data.checklistItems ?? [],
+  )
+  setHabitPatchField(
+    patch,
+    data,
+    'goalIds',
+    'linkedGoals',
+    findCachedGoals(queryClient, data.goalIds),
+  )
+  setHabitPatchField(patch, data, 'endDate', 'endDate', data.endDate ?? null)
   if (data.clearEndDate) patch.endDate = null
 
   if (data.isGeneral) {

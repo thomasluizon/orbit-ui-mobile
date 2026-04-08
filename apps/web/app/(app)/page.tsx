@@ -62,6 +62,22 @@ import type { HabitsFilter } from '@orbit/shared/types/habit'
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
 
+function getTodayTabLabel(
+  view: typeof TAB_VIEWS[number],
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (view) {
+    case 'today':
+      return t('habits.viewToday')
+    case 'all':
+      return t('habits.viewAll')
+    case 'general':
+      return t('habits.viewGeneral')
+    case 'goals':
+      return t('goals.tab')
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -421,14 +437,7 @@ export default function TodayPage() {
     () =>
       TAB_VIEWS.map((view) => ({
         view,
-        label:
-          view === 'today'
-            ? t('habits.viewToday')
-            : view === 'all'
-              ? t('habits.viewAll')
-              : view === 'general'
-                ? t('habits.viewGeneral')
-                : t('goals.tab'),
+        label: getTodayTabLabel(view, t),
       })),
     [t],
   )
@@ -651,6 +660,7 @@ export default function TodayPage() {
         activeView={activeView}
         onChangeView={setActiveView}
         viewsLabel={t('habits.viewsLabel')}
+        onKeyDown={handleTabKeydown}
       />
 
       {/* Goals view */}

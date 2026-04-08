@@ -38,7 +38,6 @@ export default function ChatPage() {
     input,
     setInput,
     sendError,
-    selectedImage,
     imagePreview,
     isRecording,
     speechSupported,

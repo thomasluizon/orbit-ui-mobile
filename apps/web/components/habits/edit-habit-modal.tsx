@@ -82,8 +82,8 @@ export function EditHabitModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, habit, habitDetail])
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
+    async (e) => {
       e.preventDefault()
       if (!habit) return
       setValidationError('')

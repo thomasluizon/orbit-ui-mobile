@@ -9,7 +9,7 @@ import {
 export {
   CHECKLIST_TEMPLATE_STORAGE_KEY,
   LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY,
-}
+} from '@orbit/shared/utils'
 
 export async function loadChecklistTemplates(): Promise<ChecklistTemplate[]> {
   const [current, legacy] = await Promise.all([

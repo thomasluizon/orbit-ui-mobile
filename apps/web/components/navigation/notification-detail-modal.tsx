@@ -82,7 +82,7 @@ export function NotificationDetailModal({
         {/* Timestamp */}
         <p className="text-xs text-text-muted">
           {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
-            t(`notifications.${key}` as Parameters<typeof t>[0], values),
+            t(`notifications.${key}`, values),
           )}
         </p>
 

@@ -31,7 +31,7 @@ interface StreakTimelineCardProps {
 export function StreakTimelineCard({
   t,
   weekDays,
-}: StreakTimelineCardProps) {
+}: Readonly<StreakTimelineCardProps>) {
   return (
     <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5">
       <p className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">
@@ -98,7 +98,20 @@ export function StreakFreezeSection({
   errorMessage,
   streakInfo,
   onActivateFreeze,
-}: StreakFreezeSectionProps) {
+}: Readonly<StreakFreezeSectionProps>) {
+  const freezeButtonClass = canFreeze
+    ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:border-blue-500/30'
+    : 'bg-surface-elevated text-text-muted cursor-not-allowed opacity-50'
+  const freezeButton = streak > 0 ? (
+    <button
+      className={`w-full py-3 rounded-[var(--radius-lg)] text-sm font-bold transition-all duration-200 active:scale-[0.98] ${freezeButtonClass}`}
+      disabled={!canFreeze}
+      onClick={onActivateFreeze}
+    >
+      {t('streakDisplay.freeze.activate')}
+    </button>
+  ) : null
+
   return (
     <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -120,19 +133,7 @@ export function StreakFreezeSection({
           </svg>
           <span className="text-xs font-bold text-blue-400">{t('streakDisplay.freeze.activeToday')}</span>
         </div>
-      ) : streak > 0 ? (
-        <button
-          className={`w-full py-3 rounded-[var(--radius-lg)] text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
-            canFreeze
-              ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:border-blue-500/30'
-              : 'bg-surface-elevated text-text-muted cursor-not-allowed opacity-50'
-          }`}
-          disabled={!canFreeze}
-          onClick={onActivateFreeze}
-        >
-          {t('streakDisplay.freeze.activate')}
-        </button>
-      ) : null}
+      ) : freezeButton}
 
       {hasCompletedToday && !isFrozenToday && streak > 0 ? (
         <p className="text-xs text-green-400 text-center font-medium">

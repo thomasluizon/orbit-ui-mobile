@@ -14,9 +14,9 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import {
   buildCalendarSyncImportRequest,
   formatCalendarSyncRecurrenceLabel,
+  getErrorMessage,
   isCalendarSyncNotConnectedMessage,
 } from '@orbit/shared/utils'
-import { getErrorMessage } from '@orbit/shared/utils'
 
 interface ImportResult {
   imported: number

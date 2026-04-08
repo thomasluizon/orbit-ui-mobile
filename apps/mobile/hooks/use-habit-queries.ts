@@ -10,7 +10,6 @@ import {
   fetchAllPaginatedItems,
   formatAPIDate,
   normalizeHabitQueryData,
-  normalizeHabits,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
@@ -210,4 +209,7 @@ export function useTotalHabitCount(): number {
   return query.data ?? 0
 }
 
-export { normalizeHabits, sortNormalizedHabits as sortByPosition }
+export {
+  normalizeHabits,
+  sortNormalizedHabits as sortByPosition,
+} from '@orbit/shared/utils'

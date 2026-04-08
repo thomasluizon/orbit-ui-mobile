@@ -34,4 +34,4 @@ export function useSubscriptionPlans() {
     monthlyEquivalent,
   }
 }
-export { formatPrice, monthlyEquivalent }
+export { formatPrice, monthlyEquivalent } from '@orbit/shared/utils'

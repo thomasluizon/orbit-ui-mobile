@@ -4,14 +4,11 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { habitKeys, goalKeys, gamificationKeys, profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
-import { API } from '@orbit/shared/api'
+import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
-  formatAPIDate,
   normalizeHabits,
 } from '@orbit/shared/utils'
-import { fetchJson } from '@/lib/api-fetch'
 import { optimisticToggleCompletion, optimisticUpdateChecklist } from '@/lib/habit-optimistic-helpers'
 import type {
   HabitScheduleItem,
@@ -28,7 +25,6 @@ import type {
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
-import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
   createHabit as createHabitAction,
   updateHabit as updateHabitAction,

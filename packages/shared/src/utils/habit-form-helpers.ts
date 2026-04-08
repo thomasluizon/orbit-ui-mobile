@@ -103,7 +103,7 @@ export function buildHabitFrequencyUnits(
 }
 
 export function formatHabitTimeInput(value: string): string {
-  let nextValue = value.replace(/\D/g, '')
+  let nextValue = value.replaceAll(/\D/g, '')
   if (nextValue.length > 4) nextValue = nextValue.slice(0, 4)
   if (nextValue.length >= 3) nextValue = nextValue.slice(0, 2) + ':' + nextValue.slice(2)
   return nextValue

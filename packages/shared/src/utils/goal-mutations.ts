@@ -16,6 +16,10 @@ function computeGoalProgressPercentage(currentValue: number, targetValue: number
   return Math.min(100, Math.round((currentValue / targetValue) * 1000) / 10)
 }
 
+function resolveDefinedValue<T>(value: T | undefined, fallback: T): T {
+  return value === undefined ? fallback : value
+}
+
 export function buildTempGoal(
   request: CreateGoalRequest,
   id: string,
@@ -46,10 +50,10 @@ export function updateGoalListItem(goal: Goal, data: UpdateGoalRequest): Goal {
   return {
     ...goal,
     title: data.title,
-    description: data.description !== undefined ? data.description : goal.description,
+    description: resolveDefinedValue(data.description, goal.description),
     targetValue: data.targetValue,
     unit: data.unit,
-    deadline: data.deadline !== undefined ? data.deadline : goal.deadline,
+    deadline: resolveDefinedValue(data.deadline, goal.deadline),
     progressPercentage: computeGoalProgressPercentage(goal.currentValue, data.targetValue),
   }
 }
