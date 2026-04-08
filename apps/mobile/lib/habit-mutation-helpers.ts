@@ -411,7 +411,8 @@ export function buildOptimisticHabit(
   data: CreateHabitRequest,
 ): HabitScheduleItem {
   const now = new Date()
-  const dueDate = data.dueDate ?? formatAPIDate(now)
+  const dueDate = data.dueDate || formatAPIDate(now)
+  const hasScheduleInstance = !data.isGeneral && dueDate.length > 0
 
   return {
     id: tempId,
@@ -443,7 +444,9 @@ export function buildOptimisticHabit(
     flexibleTarget: null,
     flexibleCompleted: null,
     linkedGoals: findCachedGoals(queryClient, data.goalIds),
-    instances: [],
+    instances: hasScheduleInstance
+      ? [{ date: dueDate, status: 'Pending', logId: null, note: null }]
+      : [],
     searchMatches: null,
   }
 }
@@ -483,6 +486,7 @@ export function buildOptimisticSubHabit(
     .flatMap(([, items]) => items ?? [])
   const parent = findHabitById(parentItems, parentId)
   const now = new Date()
+  const dueDate = data.dueDate || parent?.dueDate || formatAPIDate(now)
 
   return {
     id: tempId,
@@ -495,7 +499,7 @@ export function buildOptimisticSubHabit(
     isGeneral: false,
     isFlexible: data.isFlexible ?? false,
     days: data.days ?? [],
-    dueDate: data.dueDate ?? parent?.dueDate ?? formatAPIDate(now),
+    dueDate,
     dueTime: data.dueTime ?? null,
     dueEndTime: data.dueEndTime ?? null,
     endDate: data.endDate ?? null,
@@ -505,7 +509,7 @@ export function buildOptimisticSubHabit(
     children: [],
     hasSubHabits: false,
     isLoggedInRange: false,
-    instances: [],
+    instances: [{ date: dueDate, status: 'Pending', logId: null, note: null }],
     searchMatches: null,
   }
 }

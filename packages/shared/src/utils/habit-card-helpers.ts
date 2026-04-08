@@ -1,5 +1,6 @@
 import type { NormalizedHabit } from '../types/habit'
 import { formatAPIDate } from './dates'
+import { hasHabitScheduleOnDate } from './habits'
 
 export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today'
 
@@ -37,14 +38,24 @@ function truncate(value: string, max = 20): string {
 }
 
 export function computeHabitCardStatus(
-  habit: Pick<NormalizedHabit, 'isCompleted' | 'isLoggedInRange' | 'isGeneral' | 'isOverdue' | 'frequencyUnit' | 'instances'>,
+  habit: Pick<
+    NormalizedHabit,
+    | 'isCompleted'
+    | 'isLoggedInRange'
+    | 'isGeneral'
+    | 'isOverdue'
+    | 'frequencyUnit'
+    | 'instances'
+    | 'scheduledDates'
+    | 'dueDate'
+  >,
   selectedDate?: Date,
 ): HabitCardStatus {
   if (habit.isCompleted || habit.isLoggedInRange) return 'completed'
   if (habit.isGeneral) return 'pending'
   if (habit.isOverdue && !habit.frequencyUnit) return 'overdue'
   const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
-  const hasTodaySchedule = habit.instances?.some((instance) => instance.date === selectedDateStr) ?? false
+  const hasTodaySchedule = hasHabitScheduleOnDate(habit, selectedDateStr)
   if (hasTodaySchedule) return 'due-today'
   return 'pending'
 }

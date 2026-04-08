@@ -1,5 +1,6 @@
 import type { NormalizedHabit } from '../types/habit'
 import { formatAPIDate } from './dates'
+import { hasHabitScheduleOnDate } from './habits'
 
 export type HabitVisibilityView = 'today' | 'all' | 'general'
 
@@ -50,7 +51,7 @@ export function createHabitVisibilityHelpers({
 }: HabitVisibilityOptions): HabitVisibilityHelpers {
   const isDueOnSelectedDate = (habit: NormalizedHabit): boolean => {
     const dateStr = selectedDate || formatAPIDate(new Date())
-    return habit.instances?.some((instance) => instance.date === dateStr) ?? false
+    return hasHabitScheduleOnDate(habit, dateStr)
   }
 
   const isRelevantToday = (habit: NormalizedHabit): boolean => {

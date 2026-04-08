@@ -3,6 +3,12 @@ import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
 
+export interface HabitScheduleMatchSource {
+  dueDate?: string | null
+  scheduledDates?: string[] | null
+  instances?: Array<{ date: string }> | null
+}
+
 export type HabitEmptyStateView = 'today' | 'all' | 'general'
 
 export function getHabitEmptyStateKey(view: HabitEmptyStateView): string {
@@ -66,6 +72,25 @@ export function buildCalendarDayMap(
   }
 
   return map
+}
+
+export function hasHabitScheduleOnDate(
+  habit: HabitScheduleMatchSource,
+  date: string,
+): boolean {
+  if (Array.isArray(habit.scheduledDates) && habit.scheduledDates.includes(date)) {
+    return true
+  }
+
+  if (Array.isArray(habit.instances) && habit.instances.some((instance) => instance.date === date)) {
+    return true
+  }
+
+  return (
+    (!habit.scheduledDates || habit.scheduledDates.length === 0) &&
+    (!habit.instances || habit.instances.length === 0) &&
+    habit.dueDate === date
+  )
 }
 
 export function collectSelectableDescendantIds(

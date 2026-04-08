@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
+import { parseAPIDate } from '../utils/dates'
 import {
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
@@ -71,5 +72,27 @@ describe('habit card helpers', () => {
       { label: 'habits.search.matchTag({"value":"a very long tag valu..."})' },
       { label: 'habits.search.matchChild({"value":"child habit"})' },
     ])
+  })
+
+  it('marks optimistic habits as due today when only scheduledDates are present', () => {
+    const habit = createMockHabit({
+      dueDate: '2025-01-02',
+      scheduledDates: ['2025-01-02'],
+      instances: [],
+      isOverdue: false,
+    })
+
+    expect(computeHabitCardStatus(habit, parseAPIDate('2025-01-02'))).toBe('due-today')
+  })
+
+  it('falls back to dueDate when optimistic sub-habits have no instances yet', () => {
+    const habit = createMockHabit({
+      dueDate: '2025-01-02',
+      scheduledDates: [],
+      instances: [],
+      isOverdue: false,
+    })
+
+    expect(computeHabitCardStatus(habit, parseAPIDate('2025-01-02'))).toBe('due-today')
   })
 })

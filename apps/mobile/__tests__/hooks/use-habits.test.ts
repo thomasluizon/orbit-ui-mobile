@@ -253,6 +253,17 @@ describe('mobile habit hooks', () => {
   })
 
   it('queues an optimistic habit create offline and skips invalidation', async () => {
+    mocks.state.entries = [
+      { key: habitKeys.list({}), value: [makeHabit()] },
+      {
+        key: habitKeys.list({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }),
+        value: [makeHabit({ id: 'habit-today-1', dueDate: '2025-01-01', scheduledDates: ['2025-01-01'] })],
+      },
+      { key: habitKeys.count(), value: 2 },
+      { key: tagKeys.lists(), value: [] },
+      { key: goalKeys.lists(), value: [] },
+    ]
+
     const mutation = useCreateHabit() as unknown as MutationConfig<
       { id: string; queued: true; queuedMutationId: string },
       CreateHabitRequest & { __offlineTempId?: string },
@@ -261,6 +272,7 @@ describe('mobile habit hooks', () => {
     const request: CreateHabitRequest & { __offlineTempId?: string } = {
       title: 'Workout',
       frequencyUnit: 'Day',
+      dueDate: '2025-01-01',
     }
     mocks.state.tempIds = ['offline-habit-1']
 
@@ -270,11 +282,22 @@ describe('mobile habit hooks', () => {
     mutation.onSettled?.(result, null, request, context)
 
     const list = mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.list({})))?.value as HabitScheduleItem[]
+    const todayList = mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.list({
+      dateFrom: '2025-01-01',
+      dateTo: '2025-01-01',
+    })))?.value as HabitScheduleItem[]
     const count = mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.count()))?.value as number
+    const optimisticHabit = list.find((habit) => habit.id === 'offline-habit-1')
 
     expect(request.__offlineTempId).toBe('offline-habit-1')
     expect(list.map((habit) => habit.id)).toEqual(['habit-1', 'offline-habit-1'])
-    expect(count).toBe(2)
+    expect(todayList.map((habit) => habit.id)).toEqual(['habit-today-1', 'offline-habit-1'])
+    expect(optimisticHabit).toMatchObject({
+      dueDate: '2025-01-01',
+      scheduledDates: ['2025-01-01'],
+      instances: [{ date: '2025-01-01', status: 'Pending', logId: null, note: null }],
+    })
+    expect(count).toBe(3)
     expect(mocks.setLastCreatedHabitId).toHaveBeenCalledWith('offline-habit-1')
     expect(mocks.invalidateHabitMutationQueries).not.toHaveBeenCalled()
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
@@ -284,6 +307,40 @@ describe('mobile habit hooks', () => {
       }),
       queuedResultFactory: expect.any(Function),
     }))
+  })
+
+  it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-02-14T12:00:00Z'))
+
+    try {
+      const mutation = useCreateHabit() as unknown as MutationConfig<
+        { id: string; queued: true; queuedMutationId: string },
+        CreateHabitRequest & { __offlineTempId?: string },
+        { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>; tempId: string }
+      >
+      const request: CreateHabitRequest & { __offlineTempId?: string } = {
+        title: 'Offline workout',
+        frequencyUnit: 'Day',
+        dueDate: '',
+      }
+      mocks.state.tempIds = ['offline-habit-2']
+
+      const context = await mutation.onMutate?.(request)
+      const result = await mutation.mutationFn(request)
+      mutation.onSettled?.(result, null, request, context)
+
+      const list = getHabitList()
+      const optimisticHabit = list.find((habit) => habit.id === 'offline-habit-2')
+
+      expect(optimisticHabit).toMatchObject({
+        dueDate: '2025-02-14',
+        scheduledDates: ['2025-02-14'],
+        instances: [{ date: '2025-02-14', status: 'Pending', logId: null, note: null }],
+      })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('queues a sub-habit under an offline parent with a dependency and optimistic child row', async () => {
@@ -321,6 +378,10 @@ describe('mobile habit hooks', () => {
     expect(variables.__offlineTempId).toBe('offline-habit-child-1')
     expect(parent?.hasSubHabits).toBe(true)
     expect(parent?.children[0]?.id).toBe('offline-habit-child-1')
+    expect(parent?.children[0]).toMatchObject({
+      dueDate: '2025-01-01',
+      instances: [{ date: '2025-01-01', status: 'Pending', logId: null, note: null }],
+    })
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
       mutation: expect.objectContaining({
         type: 'createSubHabit',

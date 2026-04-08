@@ -115,4 +115,62 @@ describe('habit-visibility', () => {
       withRecentCompleted.getVisibleChildren('parent', 'all').map((habit) => habit.id),
     ).toEqual(['completed', 'open'])
   })
+
+  it('treats optimistic habits with scheduledDates as visible on the selected date', () => {
+    const today = '2025-03-10'
+    const optimisticHabit = createMockHabit({
+      id: 'optimistic',
+      instances: [],
+      scheduledDates: [today],
+      dueDate: today,
+      isCompleted: false,
+      isOverdue: false,
+    })
+
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([optimisticHabit]),
+      childrenByParent: new Map(),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: false,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.isDueOnSelectedDate(optimisticHabit)).toBe(true)
+    expect(helpers.hasVisibleContent(optimisticHabit)).toBe(true)
+  })
+
+  it('falls back to dueDate when optimistic sub-habits have no schedule instances yet', () => {
+    const today = '2025-03-10'
+    const optimisticChild = createMockHabit({
+      id: 'child',
+      parentId: 'parent',
+      instances: [],
+      scheduledDates: [],
+      dueDate: today,
+      isCompleted: false,
+      isOverdue: false,
+    })
+    const parent = createMockHabit({
+      id: 'parent',
+      instances: [],
+      scheduledDates: [],
+      isCompleted: false,
+      isOverdue: false,
+    })
+
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([parent, optimisticChild]),
+      childrenByParent: new Map([['parent', ['child']]]),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: false,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.isRelevantToday(parent)).toBe(true)
+    expect(helpers.getVisibleChildren('parent', 'today').map((habit) => habit.id)).toEqual([
+      'child',
+    ])
+  })
 })
