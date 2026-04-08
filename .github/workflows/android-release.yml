@@ -35,7 +35,7 @@ jobs:
     name: Build and publish Android app
     runs-on: ubuntu-latest
     env:
-      RELEASE_WORKDIR: ${{ runner.temp }}/orbit-mobile-release
+      RELEASE_WORKDIR: ${{ github.workspace }}/.release-mobile
 
     steps:
       - uses: actions/checkout@v5
