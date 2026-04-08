@@ -1,36 +1,23 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import {
+  detectDefaultTimeFormat,
+  formatTime,
+  isTimeFormat,
+  TIME_FORMAT_STORAGE_KEY,
+  type TimeFormat,
+} from '@orbit/shared/utils'
 
-export type TimeFormat = '12h' | '24h'
-
-function detectDefaultFormat(): TimeFormat {
-  try {
-    const resolved = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions()
-    return (resolved as { hour12?: boolean }).hour12 ? '12h' : '24h'
-  } catch {
-    return '24h'
-  }
-}
-
-export function formatTime(time: string, fmt: TimeFormat): string {
-  if (!time || !/^\d{2}:\d{2}(:\d{2})?$/.test(time)) return time
-  const normalized = time.slice(0, 5) // Strip seconds if present (HH:mm:ss -> HH:mm)
-  if (fmt === '24h') return normalized
-  const [h, m] = normalized.split(':').map(Number)
-  const period = (h ?? 0) >= 12 ? 'PM' : 'AM'
-  let hour12 = h ?? 0
-  if (hour12 === 0) hour12 = 12
-  else if (hour12 > 12) hour12 = hour12 - 12
-  return `${hour12}:${String(m ?? 0).padStart(2, '0')} ${period}`
-}
+export type { TimeFormat } from '@orbit/shared/utils'
+export { formatTime } from '@orbit/shared/utils'
 
 export function useTimeFormat() {
-  const [currentFormat, setCurrentFormat] = useState<TimeFormat>(detectDefaultFormat)
+  const [currentFormat, setCurrentFormat] = useState<TimeFormat>(detectDefaultTimeFormat)
 
   // Load saved format on init
   useEffect(() => {
-    AsyncStorage.getItem('orbit_time_format').then((saved) => {
-      if (saved === '12h' || saved === '24h') {
+    AsyncStorage.getItem(TIME_FORMAT_STORAGE_KEY).then((saved) => {
+      if (isTimeFormat(saved)) {
         setCurrentFormat(saved)
       }
     })
@@ -38,7 +25,7 @@ export function useTimeFormat() {
 
   const setFormat = useCallback((fmt: TimeFormat) => {
     setCurrentFormat(fmt)
-    AsyncStorage.setItem('orbit_time_format', fmt)
+    AsyncStorage.setItem(TIME_FORMAT_STORAGE_KEY, fmt)
   }, [])
 
   const displayTime = useCallback(

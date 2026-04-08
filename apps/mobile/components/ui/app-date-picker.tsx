@@ -23,7 +23,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
-import { radius } from '@/lib/theme'
+import { radius, type AppColors, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface AppDatePickerProps {
@@ -223,8 +223,8 @@ export function AppDatePicker({
 const DAY_SIZE = 36
 
 function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
+  colors: AppColors,
+  shadows: AppShadows,
 ) {
   return StyleSheet.create({
     trigger: {

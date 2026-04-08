@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { subscriptionKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
+import { isMissingBillingStatus } from '@orbit/shared/utils'
 
 async function fetchBillingDetails(): Promise<BillingDetails | null> {
   const res = await fetch(API.subscription.billing)
-  if (res.status === 404) {
+  if (isMissingBillingStatus(res.status)) {
     // 404 = no Stripe subscription (e.g. lifetime Pro) -- not an error
     return null
   }

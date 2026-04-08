@@ -62,9 +62,13 @@ vi.mock('@orbit/shared/api', () => ({
   },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  getErrorMessage: (err: unknown, fallback: string) => fallback,
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    getErrorMessage: (err: unknown, fallback: string) => fallback,
+  }
+})
 
 // Control fetch responses
 let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknown> } | null = null
@@ -135,6 +139,7 @@ describe('CalendarSyncPage', () => {
     globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})) as unknown as typeof fetch
     render(<CalendarSyncPage />)
     expect(screen.getByText('calendar.fetchingEvents')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   // ---- Not connected state ----
@@ -152,6 +157,7 @@ describe('CalendarSyncPage', () => {
     })
     expect(screen.getByText('calendar.notConnectedDesc')).toBeInTheDocument()
     expect(screen.getByText('auth.signInWithGoogle')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   // ---- Empty events ----
@@ -189,6 +195,7 @@ describe('CalendarSyncPage', () => {
     })
     expect(screen.getByText('Team Meeting')).toBeInTheDocument()
     expect(document.body.textContent).toContain('calendar.eventsFound')
+    expect(screen.getAllByRole('button').some((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true)
   })
 
   it('shows select all / deselect all toggle', async () => {
@@ -205,6 +212,7 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('calendar.deselectAll')).toBeInTheDocument()
     })
+    expect(screen.getByText('calendar.deselectAll').closest('button')).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('all events are selected by default', async () => {

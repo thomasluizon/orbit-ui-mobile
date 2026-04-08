@@ -1,25 +1,20 @@
 'use client'
 
-import { useCallback } from 'react'
 import {
-  useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  applyLinkedGoalUpdates,
+  formatAPIDate,
+  normalizeHabits,
+} from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { optimisticToggleCompletion, optimisticUpdateChecklist } from '@/lib/habit-optimistic-helpers'
 import type {
-  HabitsFilter,
   HabitScheduleItem,
-  HabitScheduleChild,
-  NormalizedHabit,
-  PaginatedResponse,
-  HabitDetail,
-  HabitMetrics,
-  HabitFullDetail,
   CreateHabitRequest,
   UpdateHabitRequest,
   ReorderHabitsRequest,
@@ -29,7 +24,6 @@ import type {
   BulkCreateRequest,
   BulkLogItemRequest,
   BulkSkipItemRequest,
-  LinkedGoalUpdate,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -53,287 +47,17 @@ import {
 } from '@/app/actions/habits'
 import { useUIStore } from '@/stores/ui-store'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function buildQueryString(filters: HabitsFilter): string {
-  const params = new URLSearchParams()
-  if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
-  if (filters.dateTo) params.append('dateTo', filters.dateTo)
-  if (filters.includeOverdue) params.append('includeOverdue', 'true')
-  if (filters.isGeneral) params.append('isGeneral', 'true')
-  if (filters.includeGeneral) params.append('includeGeneral', 'true')
-  if (filters.search) params.append('search', filters.search)
-  if (filters.isCompleted !== undefined) params.append('isCompleted', String(filters.isCompleted))
-  if (filters.frequencyUnit) params.append('frequencyUnit', filters.frequencyUnit)
-  // .NET expects repeated params: tagIds=a&tagIds=b (not comma-separated)
-  if (filters.tagIds?.length) {
-    for (const tagId of filters.tagIds) {
-      params.append('tagIds', tagId)
-    }
-  }
-  if (filters.page) params.append('page', String(filters.page))
-  if (filters.pageSize) params.append('pageSize', String(filters.pageSize))
-  return params.toString()
-}
-
-function buildUrl(base: string, qs: string): string {
-  return qs ? `${base}?${qs}` : base
-}
-
-// Sort by position asc (nulls last), then createdAtUtc as tiebreaker
-function sortByPosition(a: NormalizedHabit, b: NormalizedHabit): number {
-  if (a.position !== null && b.position !== null) {
-    const diff = a.position - b.position
-    if (diff !== 0) return diff
-  }
-  if (a.position !== null && b.position === null) return -1
-  if (a.position === null && b.position !== null) return 1
-  return a.createdAtUtc.localeCompare(b.createdAtUtc)
-}
-
-// Normalize children recursively into a flat map
-function normalizeChildren(
-  children: HabitScheduleChild[],
-  parentId: string,
-  rootItem: HabitScheduleItem,
-  map: Map<string, NormalizedHabit>,
-) {
-  const todayStr = formatAPIDate(new Date())
-  for (const child of children) {
-    const { children: grandchildren, ...childData } = child
-    map.set(child.id, {
-      ...childData,
-      createdAtUtc: rootItem.createdAtUtc,
-      parentId,
-      position: child.position ?? null,
-      scheduledDates: [],
-      isOverdue:
-        !child.isCompleted &&
-        !child.frequencyUnit &&
-        !!child.dueDate &&
-        child.dueDate < todayStr,
-      reminderEnabled: false,
-      reminderTimes: [],
-      scheduledReminders: [],
-      slipAlertEnabled: false,
-      hasSubHabits: child.hasSubHabits ?? grandchildren.length > 0,
-      flexibleTarget: null,
-      flexibleCompleted: null,
-      isLoggedInRange: child.isLoggedInRange ?? false,
-      instances: child.instances ?? [],
-      searchMatches: child.searchMatches ?? null,
-    })
-
-    if (grandchildren && grandchildren.length > 0) {
-      normalizeChildren(grandchildren, child.id, rootItem, map)
-    }
-  }
-}
-
-// Normalize a full page of schedule items into a flat Map
-function normalizeHabits(
-  allItems: HabitScheduleItem[],
-): Map<string, NormalizedHabit> {
-  const map = new Map<string, NormalizedHabit>()
-
-  for (const item of allItems) {
-    const { children, ...parentData } = item
-    map.set(item.id, {
-      ...parentData,
-      parentId: null,
-      position: item.position ?? null,
-      hasSubHabits: item.hasSubHabits,
-      flexibleTarget: item.flexibleTarget ?? null,
-      flexibleCompleted: item.flexibleCompleted ?? null,
-      isLoggedInRange: false,
-      instances: item.instances ?? [],
-      searchMatches: item.searchMatches ?? null,
-    })
-
-    if (children && children.length > 0) {
-      normalizeChildren(children, item.id, item, map)
-    }
-  }
-
-  return map
-}
-
-// Build parentId -> child ids index
-function buildChildrenIndex(habitsById: Map<string, NormalizedHabit>): Map<string, string[]> {
-  const index = new Map<string, string[]>()
-  for (const habit of habitsById.values()) {
-    if (habit.parentId !== null) {
-      const siblings = index.get(habit.parentId)
-      if (siblings) {
-        siblings.push(habit.id)
-      } else {
-        index.set(habit.parentId, [habit.id])
-      }
-    }
-  }
-  return index
-}
-
-// Apply linked goal progress updates from a log response (extracted to reduce nesting - S2004)
-function applyLinkedGoalUpdates(goals: Goal[], updates: LinkedGoalUpdate[]): Goal[] {
-  return goals.map((goal) => {
-    const update = updates.find(u => u.goalId === goal.id)
-    if (!update) return goal
-    return {
-      ...goal,
-      currentValue: update.newProgress,
-      progressPercentage: update.targetValue > 0
-        ? Math.min(100, Math.round(update.newProgress / update.targetValue * 1000) / 10)
-        : 0,
-    }
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Normalized data type returned from select
-// ---------------------------------------------------------------------------
-
-export interface NormalizedHabitsData {
-  habitsById: Map<string, NormalizedHabit>
-  childrenByParent: Map<string, string[]>
-  topLevelHabits: NormalizedHabit[]
-  totalCount: number
-  totalPages: number
-  currentPage: number
-}
-
-// ---------------------------------------------------------------------------
-// Habits list query
-// ---------------------------------------------------------------------------
-
-export function useHabits(filters: HabitsFilter) {
-  const query = useQuery({
-    queryKey: habitKeys.list(filters as Record<string, unknown>),
-    queryFn: async (): Promise<HabitScheduleItem[]> => {
-      const qs = buildQueryString(filters)
-      const url = buildUrl(API.habits.list, qs)
-      const data = await fetchJson<PaginatedResponse<HabitScheduleItem>>(url)
-
-      const allItems = [...data.items]
-
-      // For dateless queries (all view), fetch remaining pages in parallel
-      if (!filters.dateFrom && data.totalPages > 1) {
-        const pagePromises: Promise<PaginatedResponse<HabitScheduleItem>>[] = []
-        for (let p = 2; p <= data.totalPages; p++) {
-          const pageFilters = { ...filters, page: p }
-          const pageQs = buildQueryString(pageFilters)
-          const pageUrl = buildUrl(API.habits.list, pageQs)
-          pagePromises.push(fetchJson<PaginatedResponse<HabitScheduleItem>>(pageUrl))
-        }
-        const pages = await Promise.all(pagePromises)
-        for (const pageData of pages) {
-          allItems.push(...pageData.items)
-        }
-      }
-
-      return allItems
-    },
-    staleTime: QUERY_STALE_TIMES.habits,
-    select: (items): NormalizedHabitsData => {
-      const habitsById = normalizeHabits(items)
-      const childrenByParent = buildChildrenIndex(habitsById)
-      const topLevelHabits = Array.from(habitsById.values())
-        .filter((h) => h.parentId === null)
-        .sort(sortByPosition)
-
-      return {
-        habitsById,
-        childrenByParent,
-        topLevelHabits,
-        totalCount: items.length,
-        totalPages: 1,
-        currentPage: 1,
-      }
-    },
-  })
-
-  // Utility: get sorted children for a parent
-  const getChildren = useCallback(
-    (parentId: string): NormalizedHabit[] => {
-      const data = query.data
-      if (!data) return []
-      const ids = data.childrenByParent.get(parentId) ?? []
-      return ids
-        .map((id) => data.habitsById.get(id))
-        .filter((h): h is NormalizedHabit => h !== undefined)
-        .sort(sortByPosition)
-    },
-    [query.data],
-  )
-
-  return {
-    ...query,
-    getChildren,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Single habit detail query
-// ---------------------------------------------------------------------------
-
-export function useHabitDetail(id: string | null) {
-  return useQuery({
-    queryKey: habitKeys.detail(id ?? ''),
-    queryFn: () => fetchJson<HabitDetail>(API.habits.get(id ?? "")),
-    enabled: !!id,
-    staleTime: QUERY_STALE_TIMES.habits,
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Habit metrics query
-// ---------------------------------------------------------------------------
-
-export function useHabitMetrics(id: string | null) {
-  const query = useQuery({
-    queryKey: habitKeys.metrics(id ?? ''),
-    queryFn: () => fetchJson<HabitMetrics>(API.habits.metrics(id ?? "")),
-    enabled: !!id,
-    staleTime: QUERY_STALE_TIMES.habits,
-  })
-
-  const weeklyPercentage = query.data?.weeklyCompletionRate ?? 0
-  const monthlyPercentage = query.data?.monthlyCompletionRate ?? 0
-
-  return {
-    ...query,
-    weeklyPercentage,
-    monthlyPercentage,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Habit logs query
-// ---------------------------------------------------------------------------
-
-export function useHabitLogs(id: string | null) {
-  return useQuery({
-    queryKey: habitKeys.logs(id ?? ''),
-    queryFn: () => fetchJson<HabitLog[]>(`${API.habits.get(id ?? "")}/logs`),
-    enabled: !!id,
-    staleTime: QUERY_STALE_TIMES.habits,
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Habit full detail (habit + metrics + logs)
-// ---------------------------------------------------------------------------
-
-export function useHabitFullDetail(id: string | null) {
-  return useQuery({
-    queryKey: habitKeys.detail(id ?? ''),
-    queryFn: () => fetchJson<HabitFullDetail>(API.habits.detail(id ?? "")),
-    enabled: !!id,
-    staleTime: QUERY_STALE_TIMES.habits,
-  })
-}
+export {
+  normalizeHabits,
+  sortByPosition,
+  type NormalizedHabitsData,
+  useHabitDetail,
+  useHabitFullDetail,
+  useHabitLogs,
+  useHabitMetrics,
+  useHabits,
+  useTotalHabitCount,
+} from './use-habit-queries'
 
 // ---------------------------------------------------------------------------
 // Mutations
@@ -694,26 +418,3 @@ export function useBulkSkipHabits() {
     },
   })
 }
-
-// ---------------------------------------------------------------------------
-// Total habit count (lightweight -- fetches page 1 with pageSize=1 to read totalCount)
-// ---------------------------------------------------------------------------
-
-export function useTotalHabitCount(): number {
-  const query = useQuery({
-    queryKey: habitKeys.count(),
-    queryFn: async () => {
-      const url = buildUrl(API.habits.list, 'pageSize=1')
-      const data = await fetchJson<PaginatedResponse<HabitScheduleItem>>(url)
-      return data.totalCount
-    },
-    staleTime: QUERY_STALE_TIMES.habits,
-  })
-  return query.data ?? 0
-}
-
-// ---------------------------------------------------------------------------
-// Re-export normalize helpers for drill navigation and other consumers
-// ---------------------------------------------------------------------------
-
-export { normalizeHabits, sortByPosition }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -12,19 +12,22 @@ import {
   ScrollView,
   Image,
   Linking,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import Svg, { Path } from 'react-native-svg'
 import { API } from '@orbit/shared/api'
-import { isValidEmail } from '@orbit/shared/utils/email'
+import {
+  getAuthLoginErrorKey,
+  isValidEmail,
+  isVerificationCodeComplete,
+} from '@orbit/shared/utils'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
+import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import {
   clearStoredReferralCode,
@@ -39,14 +42,8 @@ import {
   storeReferralCode,
 } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
-
-const BACKEND_ERROR_MAP: Record<string, string> = {
-  'Please wait before requesting a new code': 'auth.errors.rateLimited',
-  'Verification code expired or not found': 'auth.errors.codeExpired',
-  'Too many attempts. Please request a new code': 'auth.errors.tooManyAttempts',
-  'Invalid verification code': 'auth.errors.invalidCode',
-  'Invalid email format': 'auth.errors.invalidEmail',
-}
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -63,22 +60,32 @@ export default function LoginScreen() {
   }>()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
+  const { isOnline } = useOffline()
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
-  const [codeDigits, setCodeDigits] = useState(['', '', '', '', '', ''])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [canResend, setCanResend] = useState(true)
-  const [resendCountdown, setResendCountdown] = useState(0)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const isCodeStep = step === 'code'
   const isAndroidKeyboardOpen = Platform.OS === 'android' && keyboardVisible
 
-  const codeInputRefs = useRef<(TextInput | null)[]>([])
+  const {
+    codeDigits,
+    setCodeDigits,
+    codeInputRefs,
+    canResend,
+    resendCountdown,
+    startResendCountdown,
+    resetCodeDigits,
+    onCodeInput,
+    onCodeKeyPress,
+  } = useLoginCodeEntry()
+  const offlineTitle = t('calendarSync.notConnected')
+  const offlineDescription = `${t('auth.sendCode')} / ${t('auth.verify')} / ${t('auth.signInWithGoogle')}`
 
   useEffect(() => {
     async function hydrateAuthFlowState() {
@@ -127,8 +134,16 @@ export default function LoginScreen() {
     }
   }, [])
 
+  useEffect(() => {
+    if (step !== 'code' || isSubmitting) return
+    if (isVerificationCodeComplete(codeDigits)) {
+      void verifyCode()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeDigits, step, isSubmitting])
+
   function translateBackendError(error: string): string {
-    const key = BACKEND_ERROR_MAP[error]
+    const key = getAuthLoginErrorKey(error)
     return key ? t(key) : error
   }
 
@@ -139,22 +154,12 @@ export default function LoginScreen() {
     return t('auth.genericError')
   }
 
-  const startResendCountdown = useCallback(() => {
-    setCanResend(false)
-    setResendCountdown(60)
-    const interval = setInterval(() => {
-      setResendCountdown((prev) => {
-        if (prev <= 1) {
-          setCanResend(true)
-          clearInterval(interval)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }, [])
-
   async function sendCode() {
+    if (!isOnline) {
+      setErrorMessage(offlineTitle)
+      return
+    }
+
     const trimmed = email.trim()
     if (!trimmed) return
     if (!isValidEmail(trimmed)) {
@@ -180,6 +185,11 @@ export default function LoginScreen() {
   }
 
   async function verifyCode() {
+    if (!isOnline) {
+      setErrorMessage(offlineTitle)
+      return
+    }
+
     const code = codeDigits.join('')
     if (code.length !== 6) return
     setIsSubmitting(true)
@@ -217,6 +227,11 @@ export default function LoginScreen() {
   }
 
   async function resendCode() {
+    if (!isOnline) {
+      setErrorMessage(offlineTitle)
+      return
+    }
+
     if (!canResend) return
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -240,58 +255,15 @@ export default function LoginScreen() {
     setStep('email')
     setErrorMessage(null)
     setSuccessMessage(null)
-    setCodeDigits(['', '', '', '', '', ''])
-  }
-
-  function onCodeInput(index: number, value: string) {
-    const cleanValue = value.replace(/\D/g, '')
-
-    // Handle paste / multi-digit input
-    if (cleanValue.length > 1) {
-      const digits = cleanValue.split('')
-      const newCodeDigits = [...codeDigits]
-      for (let i = 0; i < digits.length && index + i < 6; i++) {
-        newCodeDigits[index + i] = digits[i] ?? ''
-      }
-      setCodeDigits(newCodeDigits)
-      const nextIndex = Math.min(index + digits.length, 5)
-      codeInputRefs.current[nextIndex]?.focus()
-
-      if (newCodeDigits.join('').length === 6) {
-        // Auto-verify when all digits filled
-        setTimeout(() => {
-          const joined = newCodeDigits.join('')
-          if (joined.length === 6) verifyCode()
-        }, 0)
-      }
-      return
-    }
-
-    const newCodeDigits = [...codeDigits]
-    newCodeDigits[index] = cleanValue
-    setCodeDigits(newCodeDigits)
-
-    if (cleanValue && index < 5) {
-      codeInputRefs.current[index + 1]?.focus()
-    }
-  }
-
-  // Auto-submit on last digit
-  useEffect(() => {
-    const code = codeDigits.join('')
-    if (code.length === 6 && step === 'code' && !isSubmitting) {
-      verifyCode()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codeDigits])
-
-  function onCodeKeyPress(index: number, e: NativeSyntheticEvent<TextInputKeyPressEventData>) {
-    if (e.nativeEvent.key === 'Backspace' && !codeDigits[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus()
-    }
+    resetCodeDigits()
   }
 
   async function signInWithGoogle() {
+    if (!isOnline) {
+      setErrorMessage(offlineTitle)
+      return
+    }
+
     setIsGoogleLoading(true)
     setErrorMessage(null)
 
@@ -378,23 +350,46 @@ export default function LoginScreen() {
           <Text style={styles.welcomeHeading}>{t('auth.welcomeBack')}</Text>
 
           {showReferralBanner && (
-            <View style={styles.successAlert}>
+            <View
+              style={styles.successAlert}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={t('referral.loginBanner')}
+            >
               <Text style={styles.successAlertText}>{t('referral.loginBanner')}</Text>
             </View>
           )}
 
           {/* Success alert */}
           {successMessage && (
-            <View style={styles.successAlert}>
+            <View
+              style={styles.successAlert}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={successMessage}
+            >
               <Text style={styles.successAlertText}>{successMessage}</Text>
             </View>
           )}
 
           {/* Error alert */}
           {errorMessage && (
-            <View style={styles.errorAlert}>
+            <View
+              style={styles.errorAlert}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              accessibilityLabel={errorMessage}
+            >
               <Text style={styles.errorAlertText}>{errorMessage}</Text>
             </View>
+          )}
+
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={offlineTitle}
+              description={offlineDescription}
+              compact
+            />
           )}
 
           {step === 'email' ? (
@@ -413,6 +408,7 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     autoComplete="email"
+                    textContentType="emailAddress"
                     editable={!isSubmitting}
                     onSubmitEditing={sendCode}
                     returnKeyType="send"
@@ -420,9 +416,10 @@ export default function LoginScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.primaryButton, (!email.trim() || isSubmitting) && styles.buttonDisabled]}
+                  style={[styles.primaryButton, (!email.trim() || isSubmitting || !isOnline) && styles.buttonDisabled]}
                   onPress={sendCode}
-                  disabled={!email.trim() || isSubmitting}
+                  disabled={!email.trim() || isSubmitting || !isOnline}
+                  accessibilityState={{ disabled: !email.trim() || isSubmitting || !isOnline, busy: isSubmitting }}
                   activeOpacity={0.8}
                 >
                   {isSubmitting && <Spinner />}
@@ -441,9 +438,9 @@ export default function LoginScreen() {
 
               {/* Google Sign-In button */}
               <TouchableOpacity
-                style={[styles.googleButton, isGoogleLoading && styles.buttonDisabled]}
+                style={[styles.googleButton, (isGoogleLoading || !isOnline) && styles.buttonDisabled]}
                 onPress={signInWithGoogle}
-                disabled={isGoogleLoading}
+                disabled={isGoogleLoading || !isOnline}
                 activeOpacity={0.8}
               >
                 {isGoogleLoading ? (
@@ -464,7 +461,11 @@ export default function LoginScreen() {
 
               <View style={styles.formSection}>
                 {/* 6-digit code inputs */}
-                <View style={styles.codeInputRow}>
+                <View
+                  style={styles.codeInputRow}
+                  accessibilityRole="text"
+                  accessibilityLabel={`${t('auth.codeSentTo')} ${email}`}
+                >
                   {codeDigits.map((digit, index) => (
                     <TextInput
                       key={index}
@@ -479,6 +480,7 @@ export default function LoginScreen() {
                       editable={!isSubmitting}
                       autoFocus={index === 0}
                       accessibilityLabel={`${t('auth.codeDigit', { n: index + 1 })}`}
+                      textContentType={index === 0 ? 'oneTimeCode' : 'none'}
                     />
                   ))}
                 </View>
@@ -486,10 +488,14 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
-                    (codeDigits.join('').length !== 6 || isSubmitting) && styles.buttonDisabled,
+                    (codeDigits.join('').length !== 6 || isSubmitting || !isOnline) && styles.buttonDisabled,
                   ]}
                   onPress={verifyCode}
-                  disabled={codeDigits.join('').length !== 6 || isSubmitting}
+                  disabled={codeDigits.join('').length !== 6 || isSubmitting || !isOnline}
+                  accessibilityState={{
+                    disabled: codeDigits.join('').length !== 6 || isSubmitting || !isOnline,
+                    busy: isSubmitting,
+                  }}
                   activeOpacity={0.8}
                 >
                   {isSubmitting && <Spinner />}
@@ -504,10 +510,11 @@ export default function LoginScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={resendCode}
-                  disabled={!canResend}
+                  disabled={!canResend || !isOnline}
+                  accessibilityState={{ disabled: !canResend || !isOnline }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.resendText, !canResend && styles.resendDisabled]}>
+                  <Text style={[styles.resendText, (!canResend || !isOnline) && styles.resendDisabled]}>
                     {canResend
                       ? t('auth.resendCode')
                       : `${t('auth.resendCode')} (${resendCountdown}s)`}
@@ -522,6 +529,7 @@ export default function LoginScreen() {
             style={styles.privacyLink}
             onPress={openPrivacyPolicy}
             activeOpacity={0.7}
+            accessibilityRole="link"
           >
             <Text style={styles.privacyText}>{t('privacy.title')}</Text>
           </TouchableOpacity>

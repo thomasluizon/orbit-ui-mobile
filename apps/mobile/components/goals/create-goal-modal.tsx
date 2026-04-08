@@ -14,9 +14,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { formatAPIDate } from '@orbit/shared/utils'
-import type { CreateGoalRequest } from '@orbit/shared/types/goal'
-import { createColors, radius } from '@/lib/theme'
+import { formatAPIDate } from '@orbit/shared/utils/dates'
+import {
+  buildGoalTitle,
+  isGoalDeadlinePast,
+  parseGoalTargetValue,
+} from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -28,7 +31,28 @@ interface CreateGoalModalProps {
   onClose: () => void
 }
 
-type AppColors = ReturnType<typeof createColors>
+interface CreateGoalRequest {
+  title: string
+  targetValue: number
+  unit: string
+  deadline?: string
+}
+
+type AppColors = {
+  primary: string
+  white: string
+  textPrimary: string
+  textMuted: string
+  textSecondary: string
+  surfaceElevated: string
+  borderMuted: string
+  amber400: string
+  red400: string
+}
+const goalRadius = {
+  lg: 16,
+  xl: 20,
+} as const
 
 // ---------------------------------------------------------------------------
 // Component
@@ -50,14 +74,9 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 
   const isSubmitting = createGoal.isPending
 
-  const deadlineIsPast = useMemo(() => {
-    if (!deadline) return false
-    return deadline < formatAPIDate(new Date())
-  }, [deadline])
-
   function validate(): string | null {
-    const numVal = Number(targetValue)
-    if (!targetValue || numVal <= 0) {
+    const numVal = parseGoalTargetValue(targetValue)
+    if (numVal === null || numVal <= 0) {
       return t('goals.form.targetValueRequired')
     }
     if (!unit.trim()) {
@@ -67,7 +86,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   }
 
   function buildTitle(): string {
-    return description.trim() || `${targetValue} ${unit.trim()}`
+    return buildGoalTitle(description, targetValue, unit)
   }
 
   function resetForm() {
@@ -87,8 +106,8 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       return
     }
 
-    const numVal = Number(targetValue)
-    if (isNaN(numVal)) return
+    const numVal = parseGoalTargetValue(targetValue)
+    if (numVal === null) return
 
     try {
       const title = buildTitle()
@@ -199,7 +218,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                   <X size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-              {deadlineIsPast && (
+              {deadline && isGoalDeadlinePast(deadline) && (
                 <Text style={styles.warningText}>
                   {t('goals.form.deadlineInPast')}
                 </Text>
@@ -285,7 +304,7 @@ function createStyles(colors: AppColors, bottomInset: number) {
   },
   input: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    borderRadius: goalRadius.lg,
     borderWidth: 1,
     borderColor: colors.borderMuted,
     paddingHorizontal: 16,
@@ -334,7 +353,7 @@ function createStyles(colors: AppColors, bottomInset: number) {
   submitButton: {
     marginTop: 4,
     backgroundColor: colors.primary,
-    borderRadius: radius.xl,
+    borderRadius: goalRadius.xl,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',

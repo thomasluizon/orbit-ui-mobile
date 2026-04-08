@@ -48,6 +48,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-native-svg.ts'),
       },
       {
+        find: '@gorhom/bottom-sheet',
+        replacement: path.resolve(__dirname, './test-mocks/gorhom-bottom-sheet.tsx'),
+      },
+      {
         find: '@react-native-async-storage/async-storage',
         replacement: path.resolve(__dirname, './test-mocks/async-storage.ts'),
       },
@@ -72,6 +76,26 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-jsx-runtime.ts'),
       },
       {
+        find: /^date-fns$/,
+        replacement: path.resolve(__dirname, './test-mocks/date-fns.ts'),
+      },
+      {
+        find: /^date-fns\/locale$/,
+        replacement: path.resolve(__dirname, './test-mocks/date-fns-locale.ts'),
+      },
+      {
+        find: '@/lib/use-app-theme',
+        replacement: path.resolve(__dirname, './test-mocks/use-app-theme.ts'),
+      },
+      {
+        find: '@/lib/theme-provider',
+        replacement: path.resolve(__dirname, './test-mocks/theme-provider.ts'),
+      },
+      {
+        find: '@orbit/shared/utils/dates',
+        replacement: path.resolve(__dirname, './test-mocks/shared-dates.ts'),
+      },
+      {
         find: 'react-native-css-interop/jsx-dev-runtime',
         replacement: path.resolve(__dirname, './test-mocks/react-jsx-dev-runtime.ts'),
       },
@@ -80,15 +104,27 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-jsx-runtime.ts'),
       },
       { find: '@', replacement: path.resolve(__dirname) },
+      {
+        find: '@orbit/shared/utils/onboarding',
+        replacement: path.resolve(__dirname, './test-mocks/onboarding-utils.ts'),
+      },
+      {
+        find: '@orbit/shared/utils/error-utils',
+        replacement: path.resolve(__dirname, './test-mocks/error-utils.ts'),
+      },
       { find: '@orbit/shared', replacement: path.resolve(__dirname, '../../packages/shared/src') },
-      { find: '@orbit/shared/types', replacement: path.resolve(__dirname, '../../packages/shared/src/types') },
-      { find: '@orbit/shared/types/*', replacement: path.resolve(__dirname, '../../packages/shared/src/types/*') },
       { find: '@orbit/shared/utils', replacement: path.resolve(__dirname, '../../packages/shared/src/utils') },
+      { find: /^@orbit\/shared\/utils\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/utils/$1') },
       { find: '@orbit/shared/api', replacement: path.resolve(__dirname, '../../packages/shared/src/api') },
+      { find: /^@orbit\/shared\/api\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/api/$1') },
       { find: '@orbit/shared/query', replacement: path.resolve(__dirname, '../../packages/shared/src/query') },
+      { find: /^@orbit\/shared\/query\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/query/$1') },
       { find: '@orbit/shared/theme', replacement: path.resolve(__dirname, '../../packages/shared/src/theme') },
+      { find: /^@orbit\/shared\/theme\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/theme/$1') },
       { find: '@orbit/shared/validation', replacement: path.resolve(__dirname, '../../packages/shared/src/validation') },
+      { find: /^@orbit\/shared\/validation\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/validation/$1') },
       { find: '@orbit/shared/chat', replacement: path.resolve(__dirname, '../../packages/shared/src/chat') },
+      { find: /^@orbit\/shared\/chat\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/chat/$1') },
     ],
   },
 })

@@ -1,156 +1,118 @@
-import { useState, useMemo, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useState, useMemo, useCallback } from "react"
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
+import { addMonths, subMonths, format, parseISO } from "date-fns"
+import { enUS, ptBR } from "date-fns/locale"
+import { ChevronLeft, ChevronRight, X } from "lucide-react-native"
+import { useTranslation } from "react-i18next"
 import {
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameMonth,
-  isToday,
-  isBefore,
-  addMonths,
-  subMonths,
-  format,
-  parseISO,
-} from "date-fns";
-import { enUS, ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
-import { useTranslation } from "react-i18next";
-import { useHabitLogs } from "@/hooks/use-habits";
-import { useProfile } from "@/hooks/use-profile";
-import { radius } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
-import type { HabitLog } from "@orbit/shared/types/calendar";
+  buildHabitCalendarDayCells,
+  buildHabitCalendarWeekdayKeys,
+  buildHabitLogDateSet,
+} from "@orbit/shared/utils"
+import type { HabitLog } from "@orbit/shared/types/calendar"
+import { radius } from "@/lib/theme"
+import { useAppTheme } from "@/lib/use-app-theme"
+import { useProfile } from "@/hooks/use-profile"
+import { useHabitLogs } from "@/hooks/use-habits"
 
 interface HabitCalendarProps {
-  habitId: string;
-  logs?: HabitLog[] | null;
+  habitId: string
+  logs?: HabitLog[] | null
+}
+
+type HabitCalendarColors = {
+  primary: string
+  surfaceGround: string
+  surface: string
+  surfaceElevated: string
+  borderMuted: string
+  textMuted: string
+  textSecondary: string
+  textPrimary: string
+  textFaded: string
+  white: string
+}
+
+type HabitCalendarShadows = {
+  sm: Record<string, unknown>
 }
 
 export function HabitCalendar({
   habitId,
   logs: externalLogs,
 }: Readonly<HabitCalendarProps>) {
-  const { t, i18n } = useTranslation();
-  const { colors, shadows } = useAppTheme();
-  const styles = useMemo(
-    () => createStyles(colors, shadows),
-    [colors, shadows],
-  );
-  const locale = i18n.language;
-  const dateFnsLocale = locale === "pt-BR" ? ptBR : enUS;
+  const { t, i18n } = useTranslation()
+  const { colors, shadows } = useAppTheme()
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const locale = i18n.language
+  const dateFnsLocale = locale === "pt-BR" ? ptBR : enUS
 
-  const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId);
-  const logs = externalLogs ?? fetchedLogs ?? [];
-  const { profile } = useProfile();
-  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1;
+  const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId)
+  const logs = externalLogs ?? fetchedLogs ?? []
+  const { profile } = useProfile()
+  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  const logDates = useMemo(() => {
-    const set = new Set<string>();
-    for (const log of logs) {
-      set.add(log.date);
-    }
-    return set;
-  }, [logs]);
+  const logDates = useMemo(() => buildHabitLogDateSet(logs), [logs])
 
   const monthLabel = useMemo(
     () =>
       format(
         currentMonth,
-        locale === "pt-BR" ? "MMMM 'de' yyyy" : "MMMM yyyy",
+        locale === 'pt-BR' ? "MMMM 'de' yyyy" : 'MMMM yyyy',
         { locale: dateFnsLocale },
       ),
     [currentMonth, dateFnsLocale, locale],
-  );
+  )
 
-  const weekdays = useMemo(() => {
-    const sundayFirst = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ];
-    const orderedKeys =
-      weekStartsOn === 1
-        ? [...sundayFirst.slice(1), sundayFirst[0]]
-        : sundayFirst;
+  const weekdays = useMemo(
+    () =>
+      buildHabitCalendarWeekdayKeys(weekStartsOn).map((key) => ({
+        key,
+        label: t(`dates.daysShort.${key}`).charAt(0),
+      })),
+    [t, weekStartsOn],
+  )
 
-    return orderedKeys.map((day) =>
-      t(
-        `dates.daysShort.${day}` as
-          | "dates.daysShort.sunday"
-          | "dates.daysShort.monday"
-          | "dates.daysShort.tuesday"
-          | "dates.daysShort.wednesday"
-          | "dates.daysShort.thursday"
-          | "dates.daysShort.friday"
-          | "dates.daysShort.saturday",
-      ).charAt(0),
-    );
-  }, [t, weekStartsOn]);
-
-  const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn });
-
-    return eachDayOfInterval({
-      start: calendarStart,
-      end: calendarEnd,
-    }).map((day) => {
-      const dateStr = format(day, "yyyy-MM-dd");
-      return {
-        date: day,
-        dateStr,
-        dayNum: day.getDate(),
-        inMonth: isSameMonth(day, currentMonth),
-        isToday: isToday(day),
-        isPast: isBefore(day, new Date()) && !isToday(day),
-        isCompleted: logDates.has(dateStr),
-      };
-    });
-  }, [currentMonth, logDates, weekStartsOn]);
+  const calendarDays = useMemo(
+    () => buildHabitCalendarDayCells(currentMonth, weekStartsOn, logDates),
+    [currentMonth, logDates, weekStartsOn],
+  )
 
   const totalInMonth = useMemo(
     () =>
-      calendarDays.filter((day) => day.inMonth && day.isCompleted).length,
+      calendarDays.filter((day) => day.isCurrentMonth && day.isCompleted).length,
     [calendarDays],
-  );
+  )
 
   const selectedDayLogs = useMemo(() => {
-    if (!selectedDate) return [];
-    return logs.filter((log) => log.date === selectedDate);
-  }, [logs, selectedDate]);
+    if (!selectedDate) return []
+    return logs.filter((log) => log.date === selectedDate)
+  }, [logs, selectedDate])
 
   const prevMonth = useCallback(() => {
-    setCurrentMonth((value) => subMonths(value, 1));
-    setSelectedDate(null);
-  }, []);
+    setCurrentMonth((value) => subMonths(value, 1))
+    setSelectedDate(null)
+  }, [])
 
   const nextMonth = useCallback(() => {
-    setCurrentMonth((value) => addMonths(value, 1));
-    setSelectedDate(null);
-  }, []);
+    setCurrentMonth((value) => addMonths(value, 1))
+    setSelectedDate(null)
+  }, [])
 
   const goToToday = useCallback(() => {
-    setCurrentMonth(new Date());
-    setSelectedDate(null);
-  }, []);
+    setCurrentMonth(new Date())
+    setSelectedDate(null)
+  }, [])
 
   const toggleDay = useCallback((dateStr: string) => {
-    setSelectedDate((current) => (current === dateStr ? null : dateStr));
-  }, []);
+    setSelectedDate((current) => (current === dateStr ? null : dateStr))
+  }, [])
 
   function formatLogTime(createdAtUtc: string): string {
-    return format(parseISO(createdAtUtc), "HH:mm");
+    return format(parseISO(createdAtUtc), "HH:mm")
   }
 
   return (
@@ -186,8 +148,8 @@ export function HabitCalendar({
 
       <View style={styles.weekdayRow}>
         {weekdays.map((day, index) => (
-          <View key={`${day}-${index}`} style={styles.weekdayCell}>
-            <Text style={styles.weekdayText}>{day}</Text>
+          <View key={`${day.key}-${index}`} style={styles.weekdayCell}>
+            <Text style={styles.weekdayText}>{day.label}</Text>
           </View>
         ))}
       </View>
@@ -195,7 +157,7 @@ export function HabitCalendar({
       <View style={styles.grid}>
         {calendarDays.map((day) => (
           <View key={day.dateStr} style={styles.dayCell}>
-            {day.inMonth && day.isCompleted ? (
+            {day.isCurrentMonth && day.isCompleted ? (
               <TouchableOpacity
                 testID={`habit-calendar-day-${day.dateStr}`}
                 style={[
@@ -211,8 +173,8 @@ export function HabitCalendar({
               <View
                 style={[
                   styles.dayPlaceholder,
-                  day.inMonth ? styles.dayVisible : styles.dayHidden,
-                  day.inMonth && day.isToday && styles.todayPlaceholder,
+                  day.isCurrentMonth ? styles.dayVisible : styles.dayHidden,
+                  day.isCurrentMonth && day.isToday && styles.todayPlaceholder,
                 ]}
               >
                 <Text
@@ -276,12 +238,12 @@ export function HabitCalendar({
         </Text>
       </View>
     </View>
-  );
+  )
 }
 
 function createStyles(
-  colors: ReturnType<typeof useAppTheme>["colors"],
-  shadows: ReturnType<typeof useAppTheme>["shadows"],
+  colors: HabitCalendarColors,
+  shadows: HabitCalendarShadows,
 ) {
   return StyleSheet.create({
     container: {
@@ -452,5 +414,5 @@ function createStyles(
       fontWeight: "700",
       color: colors.primary,
     },
-  });
+  })
 }

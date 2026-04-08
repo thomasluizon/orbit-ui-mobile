@@ -4,7 +4,11 @@ import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { X, Check } from 'lucide-react'
-import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  buildFreshStartDeletedItems,
+  buildFreshStartPreservedItems,
+  getErrorMessage,
+} from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { resetAccount } from '@/app/actions/profile'
@@ -42,6 +46,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
     setError('')
     try {
       await resetAccount()
+      localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
       onOpenChange(false)
@@ -59,22 +64,8 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
     globalThis.location.href = '/'
   }
 
-  const deletedItems = [
-    t('profile.freshStart.deleteHabits'),
-    t('profile.freshStart.deleteGoals'),
-    t('profile.freshStart.deleteChat'),
-    t('profile.freshStart.deleteUserFacts'),
-    t('profile.freshStart.deleteAchievements'),
-    t('profile.freshStart.deleteNotifications'),
-    t('profile.freshStart.deleteChecklist'),
-    t('profile.freshStart.deleteOnboarding'),
-  ]
-
-  const preservedItems = [
-    t('profile.freshStart.preserveAccount'),
-    t('profile.freshStart.preserveSubscription'),
-    t('profile.freshStart.preservePreferences'),
-  ]
+  const deletedItems = buildFreshStartDeletedItems(t)
+  const preservedItems = buildFreshStartPreservedItems(t)
 
   return (
     <>

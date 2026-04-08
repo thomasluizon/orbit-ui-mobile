@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { DEFAULT_CONFIG, type AppConfig, type FeatureFlag } from '@orbit/shared/types/config'
-import type { PlanType } from '@orbit/shared/types/profile'
+import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
+import { isFeatureEnabled } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
 // ---------------------------------------------------------------------------
@@ -34,18 +34,4 @@ export function useConfig() {
     config,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Feature flag helper
-// ---------------------------------------------------------------------------
-
-export function isFeatureEnabled(
-  config: AppConfig,
-  key: string,
-  userPlan: PlanType,
-): boolean {
-  const flag: FeatureFlag | undefined = config.features[key]
-  if (!flag || !flag.enabled) return false
-  if (flag.plan === null) return true
-  return userPlan === 'pro'
-}
+export { isFeatureEnabled }

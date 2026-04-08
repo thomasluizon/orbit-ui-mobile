@@ -21,6 +21,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  buildMcpConfigJson,
+  MCP_CONFIG_TABS,
+  MCP_ENDPOINT_URL,
+  WIDGET_FEATURES,
+  WIDGET_STEP_KEYS,
+} from '@orbit/shared/utils/advanced-settings'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -149,19 +156,10 @@ export default function AdvancedPage() {
 
   // Connection instructions
   const [instructionsOpen, setInstructionsOpen] = useState(false)
-  const [activeConfigTab, setActiveConfigTab] = useState<'web' | 'desktop' | 'code'>('web')
+  const [activeConfigTab, setActiveConfigTab] = useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
 
-  const mcpConfigJson = `{
-  "mcpServers": {
-    "orbit": {
-      "url": "https://api.useorbit.org/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}`
+  const mcpConfigJson = buildMcpConfigJson()
 
   async function copyConfig() {
     await copyToClipboard(mcpConfigJson)
@@ -219,6 +217,8 @@ export default function AdvancedPage() {
                 setTimezoneOpen(!timezoneOpen)
                 setTimezoneSaved(false)
               }}
+              aria-expanded={timezoneOpen}
+              aria-controls="timezone-selector"
             >
               {timezoneOpen ? t('common.close') : t('common.edit')}
             </button>
@@ -226,6 +226,7 @@ export default function AdvancedPage() {
           {timezoneOpen && (
             <>
               <input
+                id="timezone-selector"
                 type="text"
                 value={timezoneSearch}
                 onChange={(e) => setTimezoneSearch(e.target.value)}
@@ -257,6 +258,9 @@ export default function AdvancedPage() {
         <button
           className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
           onClick={() => setShowWidgetInfo(true)}
+          aria-haspopup="dialog"
+          aria-expanded={showWidgetInfo}
+          aria-controls="widget-info-dialog"
         >
           <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
             <Smartphone className="size-5 text-primary" />
@@ -395,6 +399,8 @@ export default function AdvancedPage() {
                 <button
                   className="flex items-center justify-between w-full group"
                   onClick={() => setInstructionsOpen(!instructionsOpen)}
+                  aria-expanded={instructionsOpen}
+                  aria-controls="mcp-instructions"
                 >
                   <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted group-hover:text-text-secondary transition-colors">
                     {t('orbitMcp.connectionInstructions')}
@@ -407,39 +413,26 @@ export default function AdvancedPage() {
                 </button>
 
                 {instructionsOpen && (
-                  <>
+                  <div id="mcp-instructions">
                     {/* Tab buttons */}
                     <div className="flex gap-2">
-                      <button
-                        className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-                          activeConfigTab === 'web'
-                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                            : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                        }`}
-                        onClick={() => setActiveConfigTab('web')}
-                      >
-                        {t('orbitMcp.claudeWeb')}
-                      </button>
-                      <button
-                        className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-                          activeConfigTab === 'desktop'
-                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                            : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                        }`}
-                        onClick={() => setActiveConfigTab('desktop')}
-                      >
-                        {t('orbitMcp.claudeDesktop')}
-                      </button>
-                      <button
-                        className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-                          activeConfigTab === 'code'
-                            ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                            : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                        }`}
-                        onClick={() => setActiveConfigTab('code')}
-                      >
-                        {t('orbitMcp.claudeCode')}
-                      </button>
+                      {MCP_CONFIG_TABS.map((tab) => (
+                        <button
+                          key={tab}
+                          className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
+                            activeConfigTab === tab
+                              ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                              : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                          }`}
+                          onClick={() => setActiveConfigTab(tab)}
+                        >
+                          {tab === 'web'
+                            ? t('orbitMcp.claudeWeb')
+                            : tab === 'desktop'
+                              ? t('orbitMcp.claudeDesktop')
+                              : t('orbitMcp.claudeCode')}
+                        </button>
+                      ))}
                     </div>
 
                     {/* Claude Web instructions (OAuth, no API key needed) */}
@@ -453,10 +446,10 @@ export default function AdvancedPage() {
                           <li>{t('orbitMcp.webStep4')}</li>
                         </ol>
                         <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">https://api.useorbit.org/mcp</pre>
+                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{MCP_ENDPOINT_URL}</pre>
                           <button
                             className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
-                            onClick={() => copyToClipboard('https://api.useorbit.org/mcp')}
+                            onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
                           >
                             <Clipboard className="size-4" />
                           </button>
@@ -486,7 +479,7 @@ export default function AdvancedPage() {
                         <p className="text-xs text-text-muted italic">{t('orbitMcp.replaceKey')}</p>
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             </>
@@ -500,43 +493,36 @@ export default function AdvancedPage() {
         onOpenChange={setShowWidgetInfo}
         title={t('profile.widgetTitle')}
       >
-        <div className="space-y-5">
+        <div id="widget-info-dialog" className="space-y-5">
           <div>
             <h3 className="text-sm font-bold text-text-primary mb-1.5">{t('profile.widgetHow.title')}</h3>
             <ol className="text-sm text-text-secondary leading-relaxed space-y-2">
-              <li className="flex gap-2">
-                <span className="text-primary font-bold shrink-0">1.</span>
-                <span>{t('profile.widgetHow.step1')}</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary font-bold shrink-0">2.</span>
-                <span>{t('profile.widgetHow.step2')}</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary font-bold shrink-0">3.</span>
-                <span>{t('profile.widgetHow.step3')}</span>
-              </li>
+              {WIDGET_STEP_KEYS.map((stepKey, index) => (
+                <li key={stepKey} className="flex gap-2">
+                  <span className="text-primary font-bold shrink-0">{index + 1}.</span>
+                  <span>{t(stepKey)}</span>
+                </li>
+              ))}
             </ol>
           </div>
           <div>
             <h3 className="text-sm font-bold text-text-primary mb-1.5">{t('profile.widgetHow.featuresTitle')}</h3>
             <ul className="text-sm text-text-secondary leading-relaxed space-y-1.5">
-              <li className="flex gap-2 items-start">
-                <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>{t('profile.widgetHow.feature1')}</span>
-              </li>
-              <li className="flex gap-2 items-start">
-                <Clock className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>{t('profile.widgetHow.feature2')}</span>
-              </li>
-              <li className="flex gap-2 items-start">
-                <List className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>{t('profile.widgetHow.feature3')}</span>
-              </li>
-              <li className="flex gap-2 items-start">
-                <RotateCcw className="size-4 text-primary shrink-0 mt-0.5" />
-                <span>{t('profile.widgetHow.feature4')}</span>
-              </li>
+              {WIDGET_FEATURES.map((feature) => {
+                const icon = {
+                  checkCircle: <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />,
+                  clock: <Clock className="size-4 text-primary shrink-0 mt-0.5" />,
+                  list: <List className="size-4 text-primary shrink-0 mt-0.5" />,
+                  rotateCcw: <RotateCcw className="size-4 text-primary shrink-0 mt-0.5" />,
+                }[feature.iconKey]
+
+                return (
+                  <li key={feature.textKey} className="flex gap-2 items-start">
+                    {icon}
+                    <span>{t(feature.textKey)}</span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         </div>

@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
-import type { GoalMetrics } from '@orbit/shared/types/goal'
-import { createColors, radius } from '@/lib/theme'
+import type { GoalMetricsViewModel } from '@orbit/shared/utils/goal-metrics'
+import {
+  formatGoalMetricsDate,
+  getGoalHabitAdherenceTone,
+  getGoalMetricsStatusPresentation,
+} from '@orbit/shared/utils/goal-metrics'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -12,12 +14,34 @@ import { useAppTheme } from '@/lib/use-app-theme'
 // ---------------------------------------------------------------------------
 
 interface GoalMetricsPanelProps {
-  metrics: GoalMetrics | null
+  metrics: GoalMetricsViewModel | null
   unit: string
   isLoading: boolean
 }
 
-type AppColors = ReturnType<typeof createColors>
+type AppColors = {
+  primary: string
+  primary_10: string
+  white: string
+  textMuted: string
+  textSecondary: string
+  textPrimary: string
+  surface: string
+  surfaceElevated: string
+  borderMuted: string
+  amber400: string
+  amber500: string
+  red400: string
+  red500: string
+  green400: string
+  green500: string
+  surfaceGround: string
+}
+const goalRadius = {
+  sm: 8,
+  lg: 16,
+  xl: 20,
+} as const
 
 // ---------------------------------------------------------------------------
 // Component
@@ -31,36 +55,37 @@ export function GoalMetricsPanel({
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const locale = i18n.language
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const styles = useMemo(() => createStyles(colors), [colors])
 
   const statusConfig = useMemo(() => {
-    const status = metrics?.trackingStatus
-    switch (status) {
-      case 'on_track':
+    const presentation = getGoalMetricsStatusPresentation(metrics?.trackingStatus)
+    if (!presentation) return null
+
+    switch (presentation.tone) {
+      case 'success':
         return {
-          label: t('goals.metrics.onTrack'),
+          label: t(presentation.labelKey),
           bg: 'rgba(34, 197, 94, 0.10)',
           text: colors.green400,
           dot: colors.green500,
         }
-      case 'at_risk':
+      case 'warning':
         return {
-          label: t('goals.metrics.atRisk'),
+          label: t(presentation.labelKey),
           bg: 'rgba(245, 158, 11, 0.10)',
           text: colors.amber400,
           dot: colors.amber500,
         }
-      case 'behind':
+      case 'danger':
         return {
-          label: t('goals.metrics.behind'),
+          label: t(presentation.labelKey),
           bg: 'rgba(248, 113, 113, 0.10)',
           text: colors.red400,
           dot: colors.red500,
         }
-      case 'no_deadline':
+      case 'muted':
         return {
-          label: t('goals.metrics.noDeadline'),
+          label: t(presentation.labelKey),
           bg: colors.surfaceElevated,
           text: colors.textSecondary,
           dot: colors.textMuted,
@@ -68,14 +93,10 @@ export function GoalMetricsPanel({
       default:
         return null
     }
-  }, [metrics?.trackingStatus, t])
+  }, [colors, metrics?.trackingStatus, t])
 
   function formatMetricDate(dateStr: string) {
-    return format(
-      parseISO(dateStr),
-      locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy',
-      { locale: dateFnsLocale },
-    )
+    return formatGoalMetricsDate(dateStr, locale)
   }
 
   // Loading skeleton
@@ -140,10 +161,13 @@ export function GoalMetricsPanel({
           </Text>
           <View style={styles.adherenceList}>
             {metrics.habitAdherence.map((habit) => {
+              const adherenceTone = getGoalHabitAdherenceTone(
+                habit.weeklyCompletionRate,
+              )
               const barColor =
-                habit.weeklyCompletionRate >= 80
+                adherenceTone === 'success'
                   ? colors.green500
-                  : habit.weeklyCompletionRate >= 50
+                  : adherenceTone === 'primary'
                     ? colors.primary
                     : colors.amber500
 
@@ -205,13 +229,13 @@ function createStyles(colors: AppColors) {
   skeletonBadge: {
     height: 32,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.xl,
+    borderRadius: goalRadius.xl,
   },
   skeletonStat: {
     height: 64,
     flex: 1,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.xl,
+    borderRadius: goalRadius.xl,
   },
 
   // Status badge
@@ -221,7 +245,7 @@ function createStyles(colors: AppColors) {
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: radius.lg,
+    borderRadius: goalRadius.lg,
     borderWidth: 1,
     borderColor: colors.borderMuted,
   },
@@ -243,7 +267,7 @@ function createStyles(colors: AppColors) {
   statCard: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    borderRadius: goalRadius.lg,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
@@ -282,7 +306,7 @@ function createStyles(colors: AppColors) {
   },
   adherenceCard: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    borderRadius: goalRadius.lg,
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -331,7 +355,7 @@ function createStyles(colors: AppColors) {
     marginLeft: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.sm,
+    borderRadius: goalRadius.sm,
     backgroundColor: colors.primary_10,
   },
   streakText: {

@@ -30,6 +30,8 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
           style={styles.chip}
           onPress={() => onSelect(suggestion)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={suggestion}
         >
           <Text style={styles.chipText}>{suggestion}</Text>
         </TouchableOpacity>

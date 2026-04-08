@@ -1,13 +1,17 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { formatAPIDate } from '@orbit/shared/utils'
-import type { CreateGoalRequest } from '@orbit/shared/types/goal'
+import { formatAPIDate } from '@orbit/shared/utils/dates'
+import {
+  buildGoalTitle,
+  isGoalDeadlinePast,
+  parseGoalTargetValue,
+} from '@orbit/shared/utils/goal-form'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -16,6 +20,13 @@ import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 interface CreateGoalModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+interface CreateGoalRequest {
+  title: string
+  targetValue: number
+  unit: string
+  deadline?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -28,20 +39,16 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
 
   // Form state
   const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState<number | null>(null)
+  const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
   const [validationError, setValidationError] = useState('')
 
   const isSubmitting = createGoal.isPending
 
-  const deadlineIsPast = useMemo(() => {
-    if (!deadline) return false
-    return deadline < formatAPIDate(new Date())
-  }, [deadline])
-
   function validate(): string | null {
-    if (!targetValue || targetValue <= 0) {
+    const parsedTargetValue = parseGoalTargetValue(targetValue)
+    if (parsedTargetValue === null || parsedTargetValue <= 0) {
       return t('goals.form.targetValueRequired')
     }
     if (!unit.trim()) {
@@ -51,12 +58,12 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   }
 
   function buildTitle(): string {
-    return description.trim() || `${targetValue} ${unit.trim()}`
+    return buildGoalTitle(description, targetValue, unit)
   }
 
   function resetForm() {
     setDescription('')
-    setTargetValue(null)
+    setTargetValue('')
     setUnit('')
     setDeadline('')
     setValidationError('')
@@ -73,13 +80,14 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         return
       }
 
-      if (targetValue === null) return
+      const parsedTargetValue = parseGoalTargetValue(targetValue)
+      if (parsedTargetValue === null) return
 
       try {
         const title = buildTitle()
         const request: CreateGoalRequest = {
           title,
-          targetValue,
+          targetValue: parsedTargetValue,
           unit: unit.trim(),
         }
         if (deadline) request.deadline = deadline
@@ -125,12 +133,8 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             <input
               id="create-goal-target"
               type="number"
-              value={targetValue ?? ''}
-              onChange={(e) =>
-                setTargetValue(
-                  e.target.value === '' ? null : Number(e.target.value),
-                )
-              }
+              value={targetValue}
+              onChange={(e) => setTargetValue(e.target.value)}
               className="form-input"
               min={0.01}
               step="any"
@@ -178,7 +182,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
 
         {/* Deadline */}
         <div className="space-y-1.5">
-          {deadline ? (
+              {deadline ? (
             <div className="space-y-1.5">
               <span className="form-label">
                 {t('goals.form.deadline')}
@@ -199,7 +203,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                   <X className="size-4" />
                 </button>
               </div>
-              {deadlineIsPast && (
+              {deadline && isGoalDeadlinePast(deadline) && (
                 <p className="text-xs text-amber-400 font-medium">
                   {t('goals.form.deadlineInPast')}
                 </p>

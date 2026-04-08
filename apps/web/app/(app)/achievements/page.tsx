@@ -5,7 +5,7 @@ import { ArrowLeft, Lock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { AchievementCard } from '@/components/gamification/achievement-card'
+import { AchievementCategorySection } from './_components/achievement-category-section'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 export default function AchievementsPage() {
@@ -121,21 +121,11 @@ export default function AchievementsPage() {
               {/* Achievement grid by category */}
               <div className="space-y-6 mt-6">
                 {achievementsByCategory.map((category) => (
-                  <div key={category.key}>
-                    <h2 className="form-label mb-3">
-                      {t(`gamification.categories.${category.key}` as Parameters<typeof t>[0])} {/* NOSONAR - dynamic i18n key requires assertion */}
-                    </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {category.items.map((achievement) => (
-                        <AchievementCard
-                          key={achievement.id}
-                          achievement={achievement}
-                          earned={achievement.isEarned}
-                          earnedDate={achievement.earnedAtUtc}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <AchievementCategorySection
+                    key={category.key}
+                    category={category}
+                    t={t}
+                  />
                 ))}
               </div>
             </>

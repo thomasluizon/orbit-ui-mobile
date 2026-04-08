@@ -91,10 +91,14 @@ vi.mock('@/app/actions/tags', () => ({
   assignTags: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  getErrorMessage: (err: unknown, fallback: string) =>
-    err instanceof Error ? err.message : fallback,
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    getErrorMessage: (err: unknown, fallback: string) =>
+      err instanceof Error ? err.message : fallback,
+  }
+})
 
 vi.mock('@/lib/habit-request-builders', () => ({
   buildUpdateHabitRequest: vi.fn(() => ({})),

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { AppState, type AppStateStatus } from 'react-native'
-import { apiClient } from '@/lib/api-client'
 import * as offlineQueue from '@/lib/offline-queue'
+import { flushQueuedMutations } from '@/lib/offline-mutations'
+import { getCurrentConnectivity, setCachedConnectivity } from '@/lib/offline-runtime'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 interface UseOfflineReturn {
@@ -21,8 +22,14 @@ export function useOffline(): UseOfflineReturn {
 
   // Subscribe to network state changes
   useEffect(() => {
+    void getCurrentConnectivity().then((online) => {
+      setCachedConnectivity(online)
+      setIsOnline(online)
+    })
+
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const online = state.isConnected === true && state.isInternetReachable !== false
+      setCachedConnectivity(online)
       setIsOnline(online)
     })
     return () => unsubscribe()
@@ -30,7 +37,8 @@ export function useOffline(): UseOfflineReturn {
 
   // Update pending count on mount
   useEffect(() => {
-    setPendingCount(offlineQueue.count())
+    const unsubscribe = offlineQueue.subscribeQueueCount(setPendingCount)
+    return () => unsubscribe()
   }, [])
 
   // Flush queue when coming back online
@@ -40,22 +48,7 @@ export function useOffline(): UseOfflineReturn {
     setIsFlushing(true)
 
     try {
-      const mutations = offlineQueue.getAll()
-      for (const mutation of mutations) {
-        try {
-          await apiClient(mutation.endpoint, {
-            method: mutation.method,
-            body: mutation.payload ? JSON.stringify(mutation.payload) : undefined,
-          })
-          offlineQueue.remove(mutation.id)
-        } catch (err) {
-          offlineQueue.incrementRetries(mutation.id)
-          // If max retries exceeded, remove the mutation
-          if (mutation.retries + 1 >= mutation.maxRetries) {
-            offlineQueue.remove(mutation.id)
-          }
-        }
-      }
+      await flushQueuedMutations()
     } finally {
       setPendingCount(offlineQueue.count())
       setIsFlushing(false)
@@ -84,7 +77,6 @@ export function useOffline(): UseOfflineReturn {
   const enqueue = useCallback(
     (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => {
       offlineQueue.enqueue(mutation)
-      setPendingCount(offlineQueue.count())
     },
     [],
   )

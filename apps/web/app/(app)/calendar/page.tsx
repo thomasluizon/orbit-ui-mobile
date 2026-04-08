@@ -3,11 +3,14 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import {
+  CalendarHeader,
+  CalendarLegend,
+} from './_components/calendar-shell'
 
 const SWIPE_THRESHOLD = 50
 
@@ -72,45 +75,16 @@ export default function CalendarPage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header */}
-      <header className="pt-8 pb-2 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-            {t('nav.calendar')}
-          </h1>
-          <button
-            aria-label={t('dates.goToToday')}
-            className="p-2 rounded-full hover:bg-surface transition-colors"
-            onClick={goToToday}
-          >
-            <Search className="size-[18px] text-text-secondary" aria-hidden="true" />
-          </button>
-        </div>
-
-        {/* Month navigation pill */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] flex items-center justify-between p-1">
-          <button
-            aria-label={t('common.previousMonth')}
-            className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-            onClick={prevMonth}
-          >
-            <ChevronLeft className="size-3 text-text-faded" aria-hidden="true" />
-          </button>
-          <button
-            className="text-base font-semibold text-text-primary hover:text-primary transition-colors"
-            onClick={goToToday}
-          >
-            {monthLabel}
-          </button>
-          <button
-            aria-label={t('common.nextMonth')}
-            className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-            onClick={nextMonth}
-          >
-            <ChevronRight className="size-3 text-text-faded" aria-hidden="true" />
-          </button>
-        </div>
-      </header>
+      <CalendarHeader
+        title={t('nav.calendar')}
+        monthLabel={monthLabel}
+        goToTodayLabel={t('dates.goToToday')}
+        previousMonthLabel={t('common.previousMonth')}
+        nextMonthLabel={t('common.nextMonth')}
+        onGoToToday={goToToday}
+        onPreviousMonth={prevMonth}
+        onNextMonth={nextMonth}
+      />
 
       {/* Loading skeleton */}
       {isLoading && (
@@ -148,21 +122,11 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-green-500" />
-          <span>{t('calendar.legend.done')}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-primary" />
-          <span>{t('calendar.legend.upcoming')}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-orange-500" />
-          <span>{t('calendar.legend.missed')}</span>
-        </div>
-      </div>
+      <CalendarLegend
+        doneLabel={t('calendar.legend.done')}
+        upcomingLabel={t('calendar.legend.upcoming')}
+        missedLabel={t('calendar.legend.missed')}
+      />
 
       {/* Day detail overlay */}
       <CalendarDayDetail

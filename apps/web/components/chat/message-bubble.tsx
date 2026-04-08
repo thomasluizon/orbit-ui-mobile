@@ -45,10 +45,17 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
   const isUser = message.role === 'user'
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
+      role="group"
+      aria-label={isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
+    >
       {/* AI avatar */}
       {!isUser && (
-        <div className="shrink-0 size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center self-end">
+        <div
+          className="shrink-0 size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center self-end"
+          aria-hidden="true"
+        >
           <Sparkles className="size-5 text-primary" />
         </div>
       )}
@@ -110,7 +117,10 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
 
       {/* User avatar */}
       {isUser && (
-        <div className="shrink-0 size-10 rounded-full border-2 border-primary/20 bg-surface-elevated flex items-center justify-center self-end">
+        <div
+          className="shrink-0 size-10 rounded-full border-2 border-primary/20 bg-surface-elevated flex items-center justify-center self-end"
+          aria-hidden="true"
+        >
           <User className="size-5 text-text-secondary" />
         </div>
       )}

@@ -1,11 +1,108 @@
 import { schemes, type ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 
-type ThemeValues = (typeof schemes)[ColorScheme]['dark']
-
 type ThemeRuntime = {
   scheme: ColorScheme
   themeMode: ThemeMode
+}
+
+export interface AppColors {
+  background: string
+  surfaceGround: string
+  surface: string
+  surfaceElevated: string
+  surfaceOverlay: string
+  border: string
+  borderMuted: string
+  borderEmphasis: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  textFaded: string
+  textInverse: string
+  primary: string
+  primary400: string
+  primaryLight: string
+  primaryShadow: string
+  primary_10: string
+  primary_15: string
+  primary_20: string
+  primary_30: string
+  primary_80: string
+  primaryRing: string
+  textFaded40: string
+  border50: string
+  borderFaded30: string
+  borderDivider: string
+  success: string
+  warning: string
+  danger: string
+  white: string
+  red: string
+  red400: string
+  red500: string
+  redLight: string
+  redBg: string
+  redBorder: string
+  red400_10: string
+  red500_10: string
+  red500_30: string
+  amber: string
+  amber400: string
+  amber500: string
+  amberDark: string
+  green: string
+  green400: string
+  green500: string
+  green500bg: string
+  green500_60: string
+  emerald: string
+  emerald400: string
+  emeraldBg: string
+  emeraldBorder: string
+  emerald400_10: string
+  emerald500_10: string
+  emerald500_20: string
+  emerald500_30: string
+  blue: string
+  blue400: string
+  blue500: string
+  orange500: string
+  orange400: string
+  orange300: string
+  orange500_30: string
+  orange400_10: string
+  handle: string
+  purple: string
+}
+
+export interface AppNav {
+  activeColor: string
+  inactiveColor: string
+  tabBarBg: string
+  tabBarBorder: string
+}
+
+export interface AppRadius {
+  sm: number
+  md: number
+  lg: number
+  xl: number
+  '2xl': number
+  full: number
+}
+
+export interface ShadowValue extends Record<string, unknown> {
+  shadowColor: string
+  shadowOffset: { width: number; height: number }
+  shadowOpacity: number
+  shadowRadius: number
+}
+
+export interface AppShadows {
+  sm: ShadowValue
+  md: ShadowValue
+  lg: ShadowValue
 }
 
 let runtimeTheme: ThemeRuntime = {
@@ -53,7 +150,7 @@ function withAlpha(color: string, opacity: number, fallback: string): string {
 export function createColors(
   colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
-) {
+): AppColors {
   const definition = schemes[colorScheme]
   const theme = definition[themeMode]
   const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
@@ -148,13 +245,13 @@ export function createColors(
       isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.15)',
     ),
     purple: definition.scale[400] ?? definition.primary,
-  } as const
+  }
 }
 
 export function createNav(
   colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
-) {
+): AppNav {
   const definition = schemes[colorScheme]
   const theme = definition[themeMode]
   const primary = themeMode === 'light' ? definition.primaryLight : definition.primary
@@ -163,22 +260,22 @@ export function createNav(
     inactiveColor: theme.textMuted,
     tabBarBg: theme.navGlassBg,
     tabBarBorder: theme.navGlassBorder,
-  } as const
+  }
 }
 
-export const colors = new Proxy({} as ReturnType<typeof createColors>, {
-  get: (_target, prop) => createColors()[prop as keyof ReturnType<typeof createColors>],
+export const colors = new Proxy({} as AppColors, {
+  get: (_target, prop) => createColors()[prop as keyof AppColors],
 })
 
-export const nav = new Proxy({} as ReturnType<typeof createNav>, {
-  get: (_target, prop) => createNav()[prop as keyof ReturnType<typeof createNav>],
+export const nav = new Proxy({} as AppNav, {
+  get: (_target, prop) => createNav()[prop as keyof AppNav],
 })
 
 // ---------------------------------------------------------------------------
 // Radius presets
 // ---------------------------------------------------------------------------
 
-export const radius = {
+export const radius: AppRadius = {
   sm: 8,
   md: 12,
   lg: 16,
@@ -191,7 +288,7 @@ export const radius = {
 // Shadow presets (iOS shadows -- use elevation on Android)
 // ---------------------------------------------------------------------------
 
-export const shadows = {
+export const shadows: AppShadows = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

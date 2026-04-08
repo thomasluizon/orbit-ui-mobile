@@ -121,6 +121,14 @@ describe('UpgradePage', () => {
     expect(backLink).toBeTruthy()
   })
 
+  it('labels feature tooltip buttons accessibly', () => {
+    render(<UpgradePage />)
+    const tooltipButton = screen.getAllByRole('button').find((button) => button.getAttribute('aria-haspopup') === 'dialog')
+    expect(tooltipButton).toBeTruthy()
+    expect(tooltipButton).toHaveAttribute('aria-label')
+    expect(tooltipButton).toHaveAttribute('aria-expanded', 'false')
+  })
+
   // ---- Free user (plans display) ----
 
   it('shows plan loading skeletons when plans are loading', () => {

@@ -4,7 +4,10 @@ import { useState, useMemo, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  getErrorMessage,
+  ONBOARDING_GOAL_SUGGESTIONS,
+} from '@orbit/shared/utils'
 
 interface GoalSuggestion {
   key: string
@@ -30,11 +33,16 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
   const createGoal = useCreateGoal()
   const isCreating = createGoal.isPending
 
-  const suggestions = useMemo<GoalSuggestion[]>(() => [
-    { key: 'run', title: t('onboarding.flow.createGoal.suggestions.run'), target: 100, unit: 'km' },
-    { key: 'books', title: t('onboarding.flow.createGoal.suggestions.books'), target: 12, unit: t('onboarding.flow.createGoal.suggestions.booksUnit') },
-    { key: 'save', title: t('onboarding.flow.createGoal.suggestions.save'), target: 5000, unit: '$' },
-  ], [t])
+  const suggestions = useMemo<GoalSuggestion[]>(
+    () =>
+      ONBOARDING_GOAL_SUGGESTIONS.map((suggestion) => ({
+        key: suggestion.key,
+        title: t(suggestion.titleKey),
+        target: suggestion.target,
+        unit: suggestion.unitKey ? t(suggestion.unitKey) : suggestion.unit,
+      })),
+    [t],
+  )
 
   function selectSuggestion(suggestion: GoalSuggestion) {
     setDescription(suggestion.title)

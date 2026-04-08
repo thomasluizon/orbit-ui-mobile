@@ -7,9 +7,9 @@ export function TypingIndicator() {
   const t = useTranslations()
 
   return (
-    <div className="flex gap-3 items-end">
+    <div className="flex gap-3 items-end" role="status" aria-live="polite" aria-atomic="true">
       {/* AI avatar */}
-      <div className="shrink-0 size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
+      <div className="shrink-0 size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center" aria-hidden="true">
         <Sparkles className="size-5 text-primary" />
       </div>
       <div>

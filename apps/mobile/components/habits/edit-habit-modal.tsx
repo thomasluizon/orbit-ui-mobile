@@ -15,7 +15,12 @@ import { useHabitForm } from "@/hooks/use-habit-form";
 import { useTagSelection } from "@/hooks/use-tag-selection";
 import { useUpdateHabit, useHabitDetail } from "@/hooks/use-habits";
 import { useAssignTags } from "@/hooks/use-tags";
-import { getErrorMessage } from "@orbit/shared/utils";
+import {
+  applyHabitFormMode,
+  buildEditHabitFormState,
+  getErrorMessage,
+  toggleSelectedId,
+} from "@orbit/shared/utils";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import {
   buildUpdateHabitRequest,
@@ -66,11 +71,7 @@ export function EditHabitModal({
   );
 
   const toggleGoal = useCallback((goalId: string) => {
-    setSelectedGoalIds((prev) => {
-      const idx = prev.indexOf(goalId);
-      if (idx >= 0) return prev.filter((id) => id !== goalId);
-      return [...prev, goalId];
-    });
+    setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId));
   }, []);
 
   // Show detail fetch error
@@ -89,46 +90,13 @@ export function EditHabitModal({
     setValidationError("");
     setDetailFetchError("");
 
-    formHelpers.form.reset({
-      title: habit.title,
-      description: habit.description || "",
-      frequencyUnit: habit.frequencyUnit,
-      frequencyQuantity: habit.frequencyQuantity,
-      days: [...(habit.days || [])],
-      isBadHabit: habit.isBadHabit,
-      isGeneral: habit.isGeneral ?? false,
-      isFlexible: habit.isFlexible ?? false,
-      dueDate: habitDetail?.dueDate ?? habit.dueDate ?? "",
-      dueTime:
-        habitDetail?.dueTime?.slice(0, 5) ?? habit.dueTime?.slice(0, 5) ?? "",
-      dueEndTime:
-        habitDetail?.dueEndTime?.slice(0, 5) ??
-        habit.dueEndTime?.slice(0, 5) ??
-        "",
-      endDate: habitDetail?.endDate ?? "",
-      reminderEnabled: habit.reminderEnabled ?? false,
-      scheduledReminders: habit.scheduledReminders ?? [],
-      slipAlertEnabled: habit.slipAlertEnabled ?? false,
-      checklistItems: habit.checklistItems ? [...habit.checklistItems] : [],
-    });
-
-    setOriginalEndDate(habitDetail?.endDate ?? "");
-    setReminderTimes(
-      habit.reminderTimes?.length ? [...habit.reminderTimes] : [0, 15],
-    );
-    tags.resetTags(habit.tags?.map((tg) => tg.id) ?? []);
-    setSelectedGoalIds(habit.linkedGoals?.map((g) => g.id) ?? []);
-
-    // Set mode based on habit data
-    if (habit.isGeneral) {
-      formHelpers.setGeneral();
-    } else if (habit.isFlexible) {
-      formHelpers.setFlexible();
-    } else if (habit.frequencyUnit) {
-      formHelpers.setRecurring();
-    } else {
-      formHelpers.setOneTime();
-    }
+    const prefill = buildEditHabitFormState(habit, habitDetail);
+    formHelpers.form.reset(prefill.formValues);
+    setOriginalEndDate(prefill.originalEndDate);
+    setReminderTimes(prefill.reminderTimes);
+    tags.resetTags(prefill.selectedTagIds);
+    setSelectedGoalIds(prefill.selectedGoalIds);
+    applyHabitFormMode(prefill.mode, formHelpers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, habit, habitDetail]);
 

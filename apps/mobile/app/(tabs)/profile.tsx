@@ -19,18 +19,23 @@ import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
-import { getErrorMessage } from '@orbit/shared/utils'
 import {
-  Settings,
-  Sparkles,
-  Info,
-  Wrench,
+  buildFreshStartDeletedItems,
+  buildFreshStartPreservedItems,
+  getErrorMessage,
+} from '@orbit/shared/utils'
+import {
+  PROFILE_NAV_ITEMS,
+  type ProfileNavItem,
+} from '@orbit/shared/utils/profile-navigation'
+import {
   LogOut,
   RotateCcw,
   Trash2,
   ChevronRight,
   Clock,
   BadgeCheck,
+  Sparkles as SparklesIcon,
   X,
   Check,
 } from 'lucide-react-native'
@@ -39,11 +44,20 @@ import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profi
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
+import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
+import { buildQueuedMutation, createQueuedAck, isQueuedResult, queueOrExecute } from '@/lib/offline-mutations'
+import * as offlineQueue from '@/lib/offline-queue'
+import { clearPersistedQueryCache } from '@/lib/query-client'
+import { useOffline } from '@/hooks/use-offline'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createColors } from '@/lib/theme'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { plural } from '@/lib/plural'
+import { ProfileNavCard } from './profile/_components/profile-nav-card'
+import { ProfileActionButton } from './profile/_components/profile-action-button'
+import { ProfileNavIcon } from './profile/_components/profile-nav-icon'
 
 // ---------------------------------------------------------------------------
 // ProfileStreakCard (inline -- matches web ProfileStreakCard)
@@ -126,63 +140,6 @@ function ProfileStreakCard() {
 }
 
 // ---------------------------------------------------------------------------
-// NavCard (matches web nav card pattern)
-// ---------------------------------------------------------------------------
-
-function NavCard({
-  onPress,
-  icon,
-  title,
-  hint,
-  variant = 'default',
-  proBadge = false,
-  rightText,
-}: {
-  onPress: () => void
-  icon: React.ReactNode
-  title: string
-  hint: string
-  variant?: 'default' | 'primary'
-  proBadge?: boolean
-  rightText?: string
-}) {
-  const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
-  const isPrimary = variant === 'primary'
-  return (
-    <TouchableOpacity
-      style={[
-        styles.navCard,
-        isPrimary && styles.navCardPrimary,
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
-        {icon}
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={styles.navCardTitleRow}>
-          <Text style={styles.navCardTitle}>{title}</Text>
-          {proBadge && (
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
-            </View>
-          )}
-        </View>
-        {rightText ? (
-          <Text style={styles.navCardHint}>{rightText}</Text>
-        ) : (
-          <Text style={styles.navCardHint}>{hint}</Text>
-        )}
-      </View>
-      <ChevronRight size={16} color={isPrimary ? colors.textMuted : colors.textMuted} />
-    </TouchableOpacity>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Profile Screen
 // ---------------------------------------------------------------------------
 
@@ -197,8 +154,22 @@ export default function ProfileScreen() {
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile()
+  const { isOnline } = useOffline()
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
   const styles = useMemo(() => createStyles(colors), [colors])
+  const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
+  const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
+
+  const getNavHint = (item: ProfileNavItem): string => {
+    if (
+      item.hintMode === 'gamificationProfile' &&
+      profile?.hasProAccess &&
+      gamificationProfile
+    ) {
+      return `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
+    }
+    return t(item.hintKey)
+  }
 
   // --- Fresh Start ---
   const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
@@ -223,11 +194,42 @@ export default function ProfileScreen() {
     setResetLoading(true)
     setResetError('')
     try {
-      await apiClient(API.profile.reset, { method: 'POST' })
+      type ResetMutationResult =
+        | { queued: true; queuedMutationId: string }
+        | { queued: false; queuedMutationId: string }
+
+      const queuedResetMutation = buildQueuedMutation({
+        type: 'resetProfile',
+        scope: 'profile',
+        endpoint: API.profile.reset,
+        method: 'POST',
+        payload: undefined,
+        dedupeKey: 'profile-reset',
+      })
+
+      const result = await queueOrExecute<ResetMutationResult, ResetMutationResult>({
+        mutation: queuedResetMutation,
+        execute: async (mutation) => {
+          await apiClient(mutation.endpoint, { method: mutation.method })
+          return {
+            queued: false,
+            queuedMutationId: queuedResetMutation.id,
+          }
+        },
+        queuedResult: createQueuedAck(queuedResetMutation.id),
+      })
+
+      offlineQueue.clear()
+      if (isQueuedResult(result)) {
+        offlineQueue.enqueue(queuedResetMutation)
+      }
+
       await Promise.all([
-        AsyncStorage.removeItem('orbit:checklist-templates'),
+        clearChecklistTemplates(),
         AsyncStorage.removeItem('orbit_trial_expired_seen'),
       ])
+      queryClient.clear()
+      await clearPersistedQueryCache()
       setShowResetModal(false)
       setShowFreshStartAnim(true)
     } catch (err: unknown) {
@@ -237,7 +239,6 @@ export default function ProfileScreen() {
       setResetLoading(false)
     }
   }
-
   // --- Delete Account ---
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
@@ -257,6 +258,10 @@ export default function ProfileScreen() {
   }
 
   async function handleRequestDeletion() {
+    if (!isOnline) {
+      setDeleteError(t('calendarSync.notConnected'))
+      return
+    }
     setDeleteLoading(true)
     setDeleteError('')
     try {
@@ -273,6 +278,10 @@ export default function ProfileScreen() {
   async function handleConfirmDeletion() {
     const code = deleteCodeDigits.join('')
     if (code.length !== 6) return
+    if (!isOnline) {
+      setDeleteError(t('calendarSync.notConnected'))
+      return
+    }
     setDeleteLoading(true)
     setDeleteError('')
     try {
@@ -294,22 +303,8 @@ export default function ProfileScreen() {
   const isActiveSubscription = profile?.isTrialActive || profile?.hasProAccess
 
   // Deleted items for Fresh Start
-  const deletedItems = [
-    t('profile.freshStart.deleteHabits'),
-    t('profile.freshStart.deleteGoals'),
-    t('profile.freshStart.deleteChat'),
-    t('profile.freshStart.deleteUserFacts'),
-    t('profile.freshStart.deleteAchievements'),
-    t('profile.freshStart.deleteNotifications'),
-    t('profile.freshStart.deleteChecklist'),
-    t('profile.freshStart.deleteOnboarding'),
-  ]
-
-  const preservedItems = [
-    t('profile.freshStart.preserveAccount'),
-    t('profile.freshStart.preserveSubscription'),
-    t('profile.freshStart.preservePreferences'),
-  ]
+  const deletedItems = buildFreshStartDeletedItems(t)
+  const preservedItems = buildFreshStartPreservedItems(t)
 
   const handleFreshStartComplete = useCallback(() => {
     setShowFreshStartAnim(false)
@@ -424,7 +419,7 @@ export default function ProfileScreen() {
             ) : profile?.hasProAccess ? (
               <BadgeCheck size={20} color={isActiveSubscription ? colors.primary : colors.amber} />
             ) : (
-              <Sparkles size={20} color={isActiveSubscription ? colors.primary : colors.amber} />
+              <SparklesIcon size={20} color={isActiveSubscription ? colors.primary : colors.amber} />
             )}
           </View>
           <View style={{ flex: 1 }}>
@@ -452,127 +447,65 @@ export default function ProfileScreen() {
 
         {/* ==================== NAVIGATION CARDS ==================== */}
 
-        {/* Preferences */}
-        <NavCard
-          onPress={() => router.push('/preferences')}
-          icon={<Settings size={20} color={colors.primary} />}
-          title={t('profile.sections.preferences')}
-          hint={t('profile.sections.preferencesHint')}
-        />
-
-        {/* AI Features */}
-        <NavCard
-          onPress={() => router.push('/ai-settings')}
-          icon={<Sparkles size={20} color={colors.primary} />}
-          title={t('profile.sections.aiFeatures')}
-          hint={t('profile.sections.aiFeaturesHint')}
-        />
+        {accountNavItems.map((item) => (
+          <ProfileNavCard
+            key={item.id}
+            colors={colors}
+            onPress={() => router.push(item.route as Href)}
+            icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
+            title={t(item.titleKey)}
+            hint={getNavHint(item)}
+            proBadgeLabel={t('common.proBadge')}
+          />
+        ))}
 
         {/* ==================== FEATURES ==================== */}
         <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.features')}</Text>
 
-        {/* Retrospective */}
-        <NavCard
-          onPress={() => router.push('/retrospective')}
-          icon={
-            <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={colors.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M3 3v18h18" />
-              <Path d="M18 9l-5 5-4-4-3 3" />
-            </Svg>
-          }
-          title={t('profile.retrospectiveTitle')}
-          hint={t('profile.retrospectiveHint')}
-          variant="primary"
-          proBadge
-        />
-
-        {/* Achievements & Level */}
-        <NavCard
-          onPress={() => router.push('/achievements')}
-          icon={
-            <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={colors.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 8 9 8" />
-              <Path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 15 8 15 8" />
-              <Path d="M4 22h16" />
-              <Path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-              <Path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-              <Path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </Svg>
-          }
-          title={t('gamification.title')}
-          hint={
-            profile?.hasProAccess && gamificationProfile
-              ? `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
-              : t('gamification.profileCard.hint')
-          }
-          variant="primary"
-          proBadge
-        />
-
-        {/* Google Calendar Sync */}
-        <NavCard
-          onPress={() => router.push('/calendar-sync' as Href)}
-          icon={
-            <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={colors.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M8 2v4" />
-              <Path d="M16 2v4" />
-              <Rect width={18} height={18} x={3} y={4} rx={2} />
-              <Path d="M3 10h18" />
-            </Svg>
-          }
-          title={t('calendar.profileButton')}
-          hint={t('calendar.profileHint')}
-          variant="primary"
-        />
-
-        {/* About & Help */}
-        <NavCard
-          onPress={() => router.push('/about')}
-          icon={<Info size={20} color={colors.primary} />}
-          title={t('profile.sections.aboutHelp')}
-          hint={t('profile.sections.aboutHelpHint')}
-        />
-
-        {/* Advanced */}
-        <NavCard
-          onPress={() => router.push('/advanced')}
-          icon={<Wrench size={20} color={colors.primary} />}
-          title={t('profile.sections.advanced')}
-          hint={t('profile.sections.advancedHint')}
-        />
+        {featureNavItems.map((item) => (
+          <ProfileNavCard
+            key={item.id}
+            colors={colors}
+            onPress={() => router.push(item.route as Href)}
+            icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
+            title={t(item.titleKey)}
+            hint={getNavHint(item)}
+            variant={item.variant}
+            proBadge={item.proBadge}
+            proBadgeLabel={t('common.proBadge')}
+          />
+        ))}
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
         <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.accountActions')}</Text>
 
         {/* Logout */}
-        <TouchableOpacity
-          style={styles.logoutButton}
+        <ProfileActionButton
+          colors={colors}
           onPress={() => logout()}
-          activeOpacity={0.7}
-        >
-          <LogOut size={16} color={colors.red} />
-          <Text style={styles.logoutText}>{t('profile.logout')}</Text>
-        </TouchableOpacity>
+          icon={<LogOut size={16} color={colors.red} />}
+          label={t('profile.logout')}
+          tone="danger"
+        />
 
         {/* Fresh Start */}
-        <TouchableOpacity
-          style={styles.resetButton}
+        <ProfileActionButton
+          colors={colors}
           onPress={openResetModal}
-          activeOpacity={0.7}
-        >
-          <RotateCcw size={16} color={colors.primary} />
-          <Text style={styles.resetText}>{t('profile.freshStart.button')}</Text>
-        </TouchableOpacity>
+          icon={<RotateCcw size={16} color={colors.primary} />}
+          label={t('profile.freshStart.button')}
+          tone="primary"
+        />
 
         {/* Delete Account */}
-        <TouchableOpacity
-          style={styles.deleteButton}
+        <ProfileActionButton
+          colors={colors}
           onPress={openDeleteModal}
-          activeOpacity={0.7}
-        >
-          <Trash2 size={14} color="rgba(239,68,68,0.6)" />
-          <Text style={styles.deleteText}>{t('profile.deleteAccount.button')}</Text>
-        </TouchableOpacity>
+          icon={<Trash2 size={14} color="rgba(239,68,68,0.6)" />}
+          label={t('profile.deleteAccount.button')}
+          tone="danger"
+          compact
+        />
       </ScrollView>
 
       {/* Fresh Start Modal */}
@@ -688,7 +621,13 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {deleteStep === 'confirm' ? (
+            {!isOnline ? (
+              <OfflineUnavailableState
+                title={t('calendarSync.notConnected')}
+                description={`${t('profile.deleteAccount.sendCode')} / ${t('profile.deleteAccount.confirmDelete')}`}
+                compact
+              />
+            ) : deleteStep === 'confirm' ? (
               <View style={{ gap: 16 }}>
                 <View style={styles.deleteWarningBox}>
                   <Text style={styles.deleteWarningTitle}>
@@ -878,81 +817,6 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   subscriptionIconInactive: { backgroundColor: 'rgba(245,158,11,0.20)' },
   subscriptionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   subscriptionHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-
-  // Nav cards
-  navCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-    marginBottom: 8,
-    gap: 16,
-  },
-  navCardPrimary: {
-    backgroundColor: colors.primary_10,
-    borderColor: colors.primary_20,
-  },
-  navCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: colors.primary_10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navCardIconPrimary: {
-    backgroundColor: colors.primary_20,
-  },
-  navCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  navCardTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  navCardHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-
-  // Pro badge
-  proBadge: {
-    backgroundColor: colors.primary_20,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  proBadgeText: { fontSize: 9, fontWeight: '700', color: colors.primary, letterSpacing: 0.5, textTransform: 'uppercase' },
-
-  // Account action buttons
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.3)',
-    marginBottom: 8,
-  },
-  logoutText: { fontSize: 14, fontWeight: '700', color: colors.red },
-  resetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.primary_30,
-    marginBottom: 8,
-  },
-  resetText: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    marginBottom: 8,
-  },
-  deleteText: { fontSize: 12, color: 'rgba(239,68,68,0.6)' },
 
   // Modal
   modalOverlay: {

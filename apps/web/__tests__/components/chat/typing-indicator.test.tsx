@@ -11,6 +11,7 @@ describe('TypingIndicator', () => {
   it('renders the typing indicator', () => {
     const { container } = render(<TypingIndicator />)
     expect(container.firstChild).toBeInTheDocument()
+    expect(container.firstChild).toHaveAttribute('role', 'status')
   })
 
   it('shows the AI sender label', () => {

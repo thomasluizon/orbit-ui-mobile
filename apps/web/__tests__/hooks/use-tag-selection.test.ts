@@ -212,6 +212,22 @@ describe('useTagSelection', () => {
 
       expect(result.current.editingTagId).toBeNull()
     })
+
+    it('restores selection and editing state when delete fails', async () => {
+      const mockDeleteTag = vi.fn().mockRejectedValue(new Error('Delete failed'))
+      const { result } = renderHook(() => useTagSelection(['t-1', 't-2']))
+
+      act(() => {
+        result.current.startEditTag({ id: 't-1', name: 'Test', color: '#000' })
+      })
+
+      await act(async () => {
+        await expect(result.current.deleteTag('t-1', mockDeleteTag)).rejects.toThrow('Delete failed')
+      })
+
+      expect(result.current.selectedTagIds).toEqual(['t-1', 't-2'])
+      expect(result.current.editingTagId).toBe('t-1')
+    })
   })
 
   describe('createAndSelectTag', () => {

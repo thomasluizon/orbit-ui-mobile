@@ -12,6 +12,7 @@ import type { GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import { radius } from "@/lib/theme";
+import type { ThemeContextValue } from "@/lib/theme-provider";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 interface StatusFilter {
@@ -22,7 +23,7 @@ interface StatusFilter {
 function SkeletonCard({
   styles,
 }: Readonly<{
-  styles: ReturnType<typeof createStyles>;
+  styles: Record<string, object>;
 }>) {
   return (
     <View style={styles.skeletonCard}>
@@ -112,7 +113,7 @@ export function GoalsView() {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(colors: ThemeContextValue["colors"]) {
   return StyleSheet.create({
     container: {
       paddingTop: 16,

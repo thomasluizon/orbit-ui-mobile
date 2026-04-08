@@ -18,9 +18,16 @@ import {
 import { useTranslations } from 'next-intl'
 import { HighlightText } from '@/components/ui/highlight-text'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  computeHabitCardStatus,
+  computeHabitFlexibleProgressLabel,
+  computeHabitFrequencyLabel,
+  computeHabitMatchBadges,
+  computeHabitStatusBadge,
+  type HabitCardTranslationAdapter,
+  type HabitCardStatus,
+} from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -58,103 +65,10 @@ interface HabitCardProps {
   onEnterSelectMode?: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type HabitStatus = 'completed' | 'pending' | 'overdue' | 'due-today'
-
-// ---------------------------------------------------------------------------
-// Helpers (pure functions, no hooks)
-// ---------------------------------------------------------------------------
-
-function truncate(text: string, max = 20): string {
-  return text.length > max ? text.slice(0, max) + '...' : text
-}
-
-function computeStatus(
-  isDoneForRange: boolean,
-  habit: NormalizedHabit,
-  selectedDate: Date | undefined,
-): HabitStatus {
-  if (isDoneForRange) return 'completed'
-  if (habit.isGeneral) return 'pending'
-  if (habit.isOverdue && !habit.frequencyUnit) return 'overdue'
-  const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
-  const hasTodaySchedule =
-    habit.instances?.some((i) => i.date === selectedDateStr) ?? false
-  if (hasTodaySchedule) return 'due-today'
-  return 'pending'
-}
-
-function computeStatusBadge(
-  status: HabitStatus,
-  t: ReturnType<typeof useTranslations>,
-): { text: string; color: string; bg: string } | null {
-  if (status !== 'overdue') return null
-  return { text: t('habits.overdue'), color: 'text-red-500', bg: 'bg-red-500/10' }
-}
-
-function computeFrequencyLabel(
-  habit: NormalizedHabit,
-  t: ReturnType<typeof useTranslations>,
-): string {
-  if (habit.isGeneral) return t('habits.generalHabit')
-  const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
-  if (!frequencyUnit) return t('habits.oneTimeTask')
-  if (isFlexible) {
-    return t('habits.frequency.flexibleLabel', {
-      n: frequencyQuantity ?? 1,
-      unit: t(`habits.form.unit${frequencyUnit}` as Parameters<typeof t>[0]), // NOSONAR - dynamic i18n key requires assertion
-    })
-  }
-  if (frequencyQuantity === 1 && days.length > 0) {
-    return days
-      .map((day) => t(`dates.daysShort.${day.toLowerCase()}` as Parameters<typeof t>[0])) // NOSONAR - dynamic i18n key requires assertion
-      .join(', ')
-  }
-  if (frequencyQuantity === 1)
-    return t(`habits.frequency.every${frequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
-  return plural(
-    t(`habits.frequency.everyN${frequencyUnit}s` as Parameters<typeof t>[0], { // NOSONAR - dynamic i18n key requires assertion
-      n: frequencyQuantity ?? 1,
-    }),
-    frequencyQuantity ?? 1,
-  )
-}
-
-function computeFlexibleProgressLabel(
-  habit: NormalizedHabit,
-  t: ReturnType<typeof useTranslations>,
-): string | null {
-  if (!habit.isFlexible) return null
-  const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
-  const done = habit.flexibleCompleted ?? 0
-  const unit = habit.frequencyUnit
-    ? t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
-    : ''
-  return t('habits.frequency.flexibleProgress', { done, target, unit })
-}
-
-function computeMatchBadges(
-  searchQuery: string,
-  habit: NormalizedHabit,
-  t: ReturnType<typeof useTranslations>,
-): Array<{ label: string }> {
-  if (!searchQuery || !habit.searchMatches) return []
-  return habit.searchMatches
-    .filter((m) => m.field !== 'title')
-    .map((m) => {
-      if (m.field === 'tag') return { label: t('habits.search.matchTag', { value: truncate(m.value ?? '') }) }
-      if (m.field === 'child') return { label: t('habits.search.matchChild', { value: truncate(m.value ?? '') }) }
-      return { label: t('habits.search.matchDescription') }
-    })
-}
-
 /** Build article className from flags (replaces long ternary chain). */
 interface ArticleClassNameOptions {
   isChild: boolean
-  status: HabitStatus
+  status: HabitCardStatus
   isDoneForRange: boolean
   isNotDueToday: boolean
   showActionsMenu: boolean
@@ -535,7 +449,7 @@ function ParentLogButton({ isChild, isDoneForRange, isNotDueToday, childrenDone,
 function SimpleLogButton({ isChild, isDoneForRange, status, justCompleted, habitTitle, onLog, onUnlog }: Readonly<{
   isChild: boolean
   isDoneForRange: boolean
-  status: HabitStatus
+  status: HabitCardStatus
   justCompleted: boolean
   habitTitle: string
   onLog: (() => void) | undefined
@@ -592,7 +506,7 @@ function LogIndicator({ isSelectMode, isSelected, isParentWithChildren, isChild,
   isChild: boolean
   isDoneForRange: boolean
   isNotDueToday: boolean
-  status: HabitStatus
+  status: HabitCardStatus
   childrenDone: number
   childrenTotal: number
   progressPercent: number
@@ -758,6 +672,29 @@ function ActionsMenuTrigger({ isChild, menuRef, onToggle }: Readonly<{
   )
 }
 
+function MenuActionButton({
+  label,
+  icon,
+  onClick,
+  className,
+}: Readonly<{
+  label: string
+  icon: React.ReactNode
+  onClick: (e: React.MouseEvent) => void
+  className: string
+}>) {
+  return (
+    <button
+      role="menuitem"
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors duration-150 ${className}`}
+      onClick={onClick}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Actions menu panel (portal) - S6852: tabIndex for focusability
 // ---------------------------------------------------------------------------
@@ -807,74 +744,60 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit
       onKeyDown={(e) => { if (e.key === 'Escape') closeMenu() }}
     >
       {showAddSubHabit && depth < maxHabitDepth - 1 && (
-        <button
-          role="menuitem"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-text-primary hover:bg-surface-elevated/60 transition-colors duration-150"
+        <MenuActionButton
+          label={t('habits.form.addSubHabit')}
+          icon={<Plus className="size-4 text-text-muted" />}
           onClick={handleAction(onAddSubHabit)}
-        >
-          <Plus className="size-4 text-text-muted" />
-          {t('habits.form.addSubHabit')}
-        </button>
+          className="text-text-primary hover:bg-surface-elevated/60"
+        />
       )}
 
-      <button
-        role="menuitem"
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-text-primary hover:bg-surface-elevated/60 transition-colors duration-150"
+      <MenuActionButton
+        label={t('habits.moveParent.button')}
+        icon={<ArrowRight className="size-4 text-text-muted" />}
         onClick={handleAction(onMoveParent)}
-      >
-        <ArrowRight className="size-4 text-text-muted" />
-        {t('habits.moveParent.button')}
-      </button>
+        className="text-text-primary hover:bg-surface-elevated/60"
+      />
 
       {canSkip && (
-        <button
-          role="menuitem"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-amber-400 hover:bg-amber-500/10 transition-colors duration-150"
+        <MenuActionButton
+          label={isPostpone ? t('habits.actions.postpone') : t('habits.actions.skip')}
+          icon={<FastForward className="size-4" />}
           onClick={handleAction(onSkip)}
-        >
-          <FastForward className="size-4" />
-          {isPostpone ? t('habits.actions.postpone') : t('habits.actions.skip')}
-        </button>
+          className="text-amber-400 hover:bg-amber-500/10"
+        />
       )}
 
-      <button
-        role="menuitem"
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-text-primary hover:bg-surface-elevated/60 transition-colors duration-150"
+      <MenuActionButton
+        label={t('habits.actions.duplicate')}
+        icon={<Copy className="size-4 text-text-muted" />}
         onClick={handleAction(onDuplicate)}
-      >
-        <Copy className="size-4 text-text-muted" />
-        {t('habits.actions.duplicate')}
-      </button>
+        className="text-text-primary hover:bg-surface-elevated/60"
+      />
 
-      <button
-        role="menuitem"
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-text-primary hover:bg-surface-elevated/60 transition-colors duration-150"
+      <MenuActionButton
+        label={t('common.select')}
+        icon={<CheckCircle2 className="size-4 text-text-muted" />}
         onClick={handleAction(onEnterSelectMode)}
-      >
-        <CheckCircle2 className="size-4 text-text-muted" />
-        {t('common.select')}
-      </button>
+        className="text-text-primary hover:bg-surface-elevated/60"
+      />
 
       <div className="my-1 mx-2 h-px bg-surface-elevated/60" />
 
-      <button
-        role="menuitem"
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-red-400 hover:bg-red-500/10 transition-colors duration-150"
+      <MenuActionButton
+        label={t('common.delete')}
+        icon={<Trash2 className="size-4" />}
         onClick={handleAction(onDelete)}
-      >
-        <Trash2 className="size-4" />
-        {t('common.delete')}
-      </button>
+        className="text-red-400 hover:bg-red-500/10"
+      />
 
       {hasSubHabits && (
-        <button
-          role="menuitem"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-text-primary hover:bg-surface-elevated/60 transition-colors duration-150"
+        <MenuActionButton
+          label={t('habits.actions.openSubHabits')}
+          icon={<ChevronRight className="size-4 text-text-muted" />}
           onClick={handleAction(onDrillInto)}
-        >
-          <ChevronRight className="size-4 text-text-muted" />
-          {t('habits.actions.openSubHabits')}
-        </button>
+          className="text-text-primary hover:bg-surface-elevated/60"
+        />
       )}
     </div>,
     document.body,
@@ -1024,10 +947,16 @@ export function HabitCard({
 
   // Computed values
   const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
-  const status = useMemo(() => computeStatus(isDoneForRange, habit, selectedDate), [isDoneForRange, habit, selectedDate])
+  const status = useMemo(
+    () => computeHabitCardStatus(habit, selectedDate),
+    [habit, selectedDate],
+  )
   const canSkip = !habit.isGeneral && !habit.isCompleted && (status === 'due-today' || status === 'overdue')
   const isPostpone = !habit.frequencyUnit
-  const statusBadge = useMemo(() => computeStatusBadge(status, t), [status, t])
+  const statusBadge = useMemo(
+    () => computeHabitStatusBadge(status, t as HabitCardTranslationAdapter),
+    [status, t],
+  )
 
   const isNotDueToday = useMemo(() => {
     if (!selectedDate) return false
@@ -1062,9 +991,18 @@ export function HabitCard({
   }, [progressPercent])
 
   // Memoized labels
-  const frequencyLabel = useMemo(() => computeFrequencyLabel(habit, t), [habit, t])
-  const flexibleProgressLabel = useMemo(() => computeFlexibleProgressLabel(habit, t), [habit, t])
-  const matchBadges = useMemo(() => computeMatchBadges(searchQuery, habit, t), [searchQuery, habit, t])
+  const frequencyLabel = useMemo(
+    () => computeHabitFrequencyLabel(habit, t as HabitCardTranslationAdapter),
+    [habit, t],
+  )
+  const flexibleProgressLabel = useMemo(
+    () => computeHabitFlexibleProgressLabel(habit, t as HabitCardTranslationAdapter),
+    [habit, t],
+  )
+  const matchBadges = useMemo(
+    () => computeHabitMatchBadges(searchQuery, habit, t as HabitCardTranslationAdapter),
+    [searchQuery, habit, t],
+  )
 
   // Actions menu
   const actionsMenuRef = useRef<HTMLDivElement>(null)

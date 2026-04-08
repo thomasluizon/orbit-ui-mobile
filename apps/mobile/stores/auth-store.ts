@@ -8,6 +8,7 @@ import {
   getToken,
   setToken,
   setRefreshToken,
+  clearRefreshToken,
   clearAllTokens,
   getRefreshToken,
 } from '@/lib/secure-store'
@@ -117,6 +118,22 @@ async function refreshExpiredToken(): Promise<string | null> {
   }
 }
 
+async function loadProfileOrResetSession(tokenUser: User | null): Promise<User | null> {
+  try {
+    const profile = await apiClient<Profile>(API.profile.get)
+    return tokenUser
+      ? { ...tokenUser, name: profile.name, email: profile.email }
+      : null
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'Unauthorized') {
+      await clearSessionAndResetAuth()
+      return null
+    }
+
+    return tokenUser
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
@@ -127,6 +144,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     queryClient.clear()
     await clearPersistedQueryCache()
     useChatStore.getState().clearMessages()
+    await clearRefreshToken()
     await setToken(token)
     if (refreshToken) {
       await setRefreshToken(refreshToken)
@@ -200,26 +218,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           await saveWidgetToken(token).catch(() => {})
         }
         const tokenUser = token ? getUserFromToken(token) : null
-
-        try {
-          const profile = await apiClient<Profile>(API.profile.get)
-          const user = tokenUser
-            ? { ...tokenUser, name: profile.name, email: profile.email }
-            : null
-          set({
-            isAuthenticated: true,
-            user,
-            isLoading: false,
-            expiresAt: token ? getExpiresAt(token) : null,
-          })
-        } catch {
-          set({
-            isAuthenticated: true,
-            user: tokenUser,
-            isLoading: false,
-            expiresAt: token ? getExpiresAt(token) : null,
-          })
+        const user = await loadProfileOrResetSession(tokenUser)
+        if (!user && !(await getToken())) {
+          set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
+          return
         }
+
+        set({
+          isAuthenticated: true,
+          user,
+          isLoading: false,
+          expiresAt: token ? getExpiresAt(token) : null,
+        })
       } else {
         set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
       }

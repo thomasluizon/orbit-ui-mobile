@@ -17,20 +17,20 @@ import { ArrowLeft, Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
-import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
+import {
+  buildTimeFormatOptions,
+  buildWeekStartOptions,
+  getNativePushStatusPresentation,
+  LANGUAGE_OPTIONS,
+  parseShowGeneralOnTodayPreference,
+} from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { TrialBanner } from '@/components/ui/trial-banner'
-import { apiClient } from '@/lib/api-client'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// Language options (labels are proper nouns, not translated)
-const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
-  { value: 'en', label: 'English' },
-  { value: 'pt-BR', label: 'Português' },
-]
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -73,9 +73,13 @@ export default function PreferencesScreen() {
     setSelectedLanguage(locale)
     i18n.changeLanguage(locale)
     try {
-      await apiClient(API.profile.language, {
+      await performQueuedApiMutation({
+        type: 'setLanguage',
+        scope: 'profile',
+        endpoint: API.profile.language,
         method: 'PUT',
-        body: JSON.stringify({ language: locale }),
+        payload: { language: locale },
+        dedupeKey: 'profile-language',
       })
       patchProfile({ language: locale })
     } catch {
@@ -84,16 +88,17 @@ export default function PreferencesScreen() {
   }
 
   // --- Week Start Day ---
-  const weekStartOptions = [
-    { value: 1, label: t('settings.weekStartDay.monday') },
-    { value: 0, label: t('settings.weekStartDay.sunday') },
-  ]
+  const weekStartOptions = buildWeekStartOptions(t)
 
   const weekStartMutation = useMutation({
     mutationFn: (day: number) =>
-      apiClient(API.profile.weekStartDay, {
+      performQueuedApiMutation({
+        type: 'setWeekStartDay',
+        scope: 'profile',
+        endpoint: API.profile.weekStartDay,
         method: 'PUT',
-        body: JSON.stringify({ weekStartDay: day }),
+        payload: { weekStartDay: day },
+        dedupeKey: 'profile-week-start-day',
       }),
     onMutate: (day) => {
       const previous = profile?.weekStartDay
@@ -110,9 +115,13 @@ export default function PreferencesScreen() {
   // --- Color Scheme ---
   const colorSchemeMutation = useMutation({
     mutationFn: (scheme: string) =>
-      apiClient(API.profile.colorScheme, {
+      performQueuedApiMutation({
+        type: 'setColorScheme',
+        scope: 'profile',
+        endpoint: API.profile.colorScheme,
         method: 'PUT',
-        body: JSON.stringify({ colorScheme: scheme }),
+        payload: { colorScheme: scheme },
+        dedupeKey: 'profile-color-scheme',
       }),
     onMutate: (scheme) => {
       const previous = profile?.colorScheme
@@ -135,10 +144,7 @@ export default function PreferencesScreen() {
     colorSchemeMutation.mutate(scheme)
   }
 
-  const timeFormatOptions = [
-    { value: '12h' as const, label: t('settings.timeFormat.12h') },
-    { value: '24h' as const, label: t('settings.timeFormat.24h') },
-  ]
+  const timeFormatOptions = buildTimeFormatOptions(t)
 
   // --- Home Screen Toggle ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
@@ -191,26 +197,19 @@ export default function PreferencesScreen() {
     }
   }
 
-  const pushStatusText = (() => {
-    if (permissionStatus === 'denied') return t('settings.notifications.deniedNative')
-    if (registrationStatus === 'registering') return t('settings.notifications.requesting')
-    if (registrationStatus === 'registered') return t('settings.notifications.registered')
-    if (registrationStatus === 'sync-failed') return t('settings.notifications.syncFailed')
-    if (registrationStatus === 'token-missing') return t('settings.notifications.tokenMissing')
-    if (permissionStatus === 'granted' && !pushRegistered) return t('settings.notifications.notRegistered')
-    return pushEnabled
-      ? t('settings.notifications.enabled')
-      : t('settings.notifications.disabled')
-  })()
-
+  const pushStatusPresentation = getNativePushStatusPresentation({
+    permissionStatus,
+    registrationStatus,
+    isEnabled: pushEnabled,
+    isRegistered: pushRegistered,
+  })
+  const pushStatusText = t(pushStatusPresentation.messageKey)
   const pushStatusColor =
-    permissionStatus === 'denied'
+    pushStatusPresentation.tone === 'critical'
       ? colors.red400
-      : registrationStatus === 'registered'
+      : pushStatusPresentation.tone === 'accent'
         ? colors.primary
-        : registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
-          ? colors.red400
-          : colors.textMuted
+        : colors.textMuted
   const pushToggleValue = permissionStatus === 'granted'
 
   return (

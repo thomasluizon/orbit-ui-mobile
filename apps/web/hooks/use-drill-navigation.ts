@@ -2,12 +2,9 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { formatAPIDate } from '@orbit/shared/utils'
+import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
 import { getErrorMessage, API } from '@orbit/shared/api'
-import type {
-  NormalizedHabit,
-  HabitDetail,
-  HabitDetailChild,
-} from '@orbit/shared/types/habit'
+import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
 // Helper: fetch habit detail from the BFF proxy
@@ -20,55 +17,6 @@ async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
     throw new Error(body?.error ?? `Failed to fetch habit detail (${res.status})`)
   }
   return res.json() as Promise<HabitDetail>
-}
-
-// ---------------------------------------------------------------------------
-// Helper: normalize a HabitDetailChild into a NormalizedHabit
-// ---------------------------------------------------------------------------
-
-function normalizeDetailChild(
-  child: HabitDetailChild,
-  parentId: string,
-  today: string,
-): NormalizedHabit {
-  return {
-    id: child.id,
-    title: child.title,
-    description: child.description,
-    frequencyUnit: child.frequencyUnit,
-    frequencyQuantity: child.frequencyQuantity,
-    isBadHabit: child.isBadHabit,
-    isCompleted: child.isCompleted,
-    isGeneral: child.isGeneral,
-    isFlexible: child.isFlexible,
-    days: child.days,
-    dueDate: child.dueDate,
-    dueTime: child.dueTime ?? '',
-    dueEndTime: child.dueEndTime ?? '',
-    endDate: child.endDate ?? '',
-    position: child.position ?? 0,
-    checklistItems: child.checklistItems ?? [],
-    createdAtUtc: '',
-    parentId,
-    scheduledDates: [],
-    isOverdue:
-      !child.isCompleted &&
-      !child.frequencyUnit &&
-      !!child.dueDate &&
-      child.dueDate < today,
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    slipAlertEnabled: false,
-    tags: [],
-    hasSubHabits: (child.children?.length ?? 0) > 0,
-    flexibleTarget: null,
-    flexibleCompleted: 0,
-    isLoggedInRange: false,
-    linkedGoals: [],
-    instances: [],
-    searchMatches: null,
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -130,40 +78,14 @@ export function useDrillNavigation(
       try {
         const detail = await fetchHabitDetail(habitId)
         const today = formatAPIDate(new Date())
-
-        const parentNormalized = normalizeDetailChild(
-          { ...detail, children: detail.children ?? [] } as HabitDetailChild,
-          '',
-          today,
-        )
-        // Override fields the normalizer doesn't fully populate
-        parentNormalized.parentId = null
-        parentNormalized.createdAtUtc = detail.createdAtUtc
-        parentNormalized.position = detail.position
-        parentNormalized.reminderEnabled = detail.reminderEnabled
-        parentNormalized.reminderTimes = detail.reminderTimes
-        parentNormalized.scheduledReminders = detail.scheduledReminders
-
-        setDrillParentInfo(parentNormalized)
-
-        const children: NormalizedHabit[] = detail.children.map((c) =>
-          normalizeDetailChild(c, habitId, today),
-        )
+        const normalized = normalizeHabitDetailForDrill(detail, today)
+        setDrillParentInfo(normalized.parent)
 
         setDrillChildrenMap((prev) => {
           const next = new Map(prev)
-          next.set(habitId, children)
-
-          // Also store grandchildren info so hasSubHabits works
-          for (const c of detail.children) {
-            if (c.children.length > 0) {
-              const grandchildren: NormalizedHabit[] = c.children.map((gc) =>
-                normalizeDetailChild(gc, c.id, today),
-              )
-              next.set(c.id, grandchildren)
-            }
+          for (const [parentId, children] of normalized.childrenByParent.entries()) {
+            next.set(parentId, children)
           }
-
           return next
         })
       } catch (err: unknown) {

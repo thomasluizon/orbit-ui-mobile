@@ -12,6 +12,15 @@ import type {
   NotificationsResponse,
 } from '@orbit/shared/types/notification'
 import {
+  createEmptyNotificationsResponse,
+  deleteNotificationFromList,
+  invalidateNotificationList,
+  markAllNotificationsReadInList,
+  markNotificationReadInList,
+  restoreNotificationList,
+  snapshotNotificationList,
+} from '@/lib/notification-cache-helpers'
+import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification as deleteNotificationAction,
@@ -89,32 +98,22 @@ export function useMarkNotificationRead() {
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
       queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
         if (!old) return old
-        const item = old.items.find((n) => n.id === notificationId)
-        if (!item || item.isRead) return old
-        return {
-          ...old,
-          items: old.items.map((n) =>
-            n.id === notificationId ? { ...n, isRead: true } : n
-          ),
-          unreadCount: Math.max(0, old.unreadCount - 1),
-        }
+        return markNotificationReadInList(old, notificationId)
       })
 
       return { previous }
     },
 
     onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
-      }
+      restoreNotificationList(queryClient, context?.previous)
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+      void invalidateNotificationList(queryClient)
     },
   })
 }
@@ -128,28 +127,22 @@ export function useMarkAllNotificationsRead() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
       queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
         if (!old) return old
-        return {
-          ...old,
-          items: old.items.map((n) => ({ ...n, isRead: true })),
-          unreadCount: 0,
-        }
+        return markAllNotificationsReadInList(old)
       })
 
       return { previous }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
-      }
+      restoreNotificationList(queryClient, context?.previous)
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+      void invalidateNotificationList(queryClient)
     },
   })
 }
@@ -163,30 +156,22 @@ export function useDeleteNotification() {
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
       queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
         if (!old) return old
-        const item = old.items.find((n) => n.id === notificationId)
-        const wasUnread = item && !item.isRead
-        return {
-          ...old,
-          items: old.items.filter((n) => n.id !== notificationId),
-          unreadCount: wasUnread ? Math.max(0, old.unreadCount - 1) : old.unreadCount,
-        }
+        return deleteNotificationFromList(old, notificationId)
       })
 
       return { previous }
     },
 
     onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
-      }
+      restoreNotificationList(queryClient, context?.previous)
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+      void invalidateNotificationList(queryClient)
     },
   })
 }
@@ -200,24 +185,22 @@ export function useDeleteAllNotifications() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), () => ({
-        items: [],
-        unreadCount: 0,
-      }))
+      queryClient.setQueryData<NotificationsResponse>(
+        notificationKeys.lists(),
+        () => createEmptyNotificationsResponse(),
+      )
 
       return { previous }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
-      }
+      restoreNotificationList(queryClient, context?.previous)
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+      void invalidateNotificationList(queryClient)
     },
   })
 }

@@ -1,13 +1,17 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useUpdateGoal } from '@/hooks/use-goals'
-import { formatAPIDate } from '@orbit/shared/utils'
-import type { Goal, UpdateGoalRequest } from '@orbit/shared/types/goal'
+import { formatAPIDate } from '@orbit/shared/utils/dates'
+import {
+  buildGoalTitle,
+  isGoalDeadlinePast,
+  parseGoalTargetValue,
+} from '@orbit/shared/utils/goal-form'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -16,7 +20,20 @@ import type { Goal, UpdateGoalRequest } from '@orbit/shared/types/goal'
 interface EditGoalModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  goal: Goal
+  goal: {
+    id: string
+    title: string
+    targetValue: number
+    unit: string
+    deadline: string | null
+  }
+}
+
+interface UpdateGoalRequest {
+  title: string
+  targetValue: number
+  unit: string
+  deadline?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -33,23 +50,18 @@ export function EditGoalModal({
 
   // Form state
   const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState<number>(0)
+  const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
   const [validationError, setValidationError] = useState('')
 
   const isSubmitting = updateGoal.isPending
 
-  const deadlineIsPast = useMemo(() => {
-    if (!deadline) return false
-    return deadline < formatAPIDate(new Date())
-  }, [deadline])
-
   // Load goal data when modal opens
   useEffect(() => {
     if (open) {
       setDescription(goal.title)
-      setTargetValue(goal.targetValue)
+      setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setValidationError('')
@@ -57,7 +69,8 @@ export function EditGoalModal({
   }, [open, goal])
 
   function validate(): string | null {
-    if (!targetValue || targetValue <= 0) {
+    const parsedTargetValue = parseGoalTargetValue(targetValue)
+    if (parsedTargetValue === null || parsedTargetValue <= 0) {
       return t('goals.form.targetValueRequired')
     }
     if (!unit.trim()) {
@@ -67,7 +80,7 @@ export function EditGoalModal({
   }
 
   function buildTitle(): string {
-    return description.trim() || `${targetValue} ${unit.trim()}`
+    return buildGoalTitle(description, targetValue, unit)
   }
 
   const onSubmit = useCallback(
@@ -81,11 +94,14 @@ export function EditGoalModal({
         return
       }
 
+      const parsedTargetValue = parseGoalTargetValue(targetValue)
+      if (parsedTargetValue === null) return
+
       try {
         const title = buildTitle()
         const request: UpdateGoalRequest = {
           title,
-          targetValue,
+          targetValue: parsedTargetValue,
           unit: unit.trim(),
           deadline: deadline || null,
         }
@@ -132,7 +148,7 @@ export function EditGoalModal({
               id="edit-goal-target"
               type="number"
               value={targetValue}
-              onChange={(e) => setTargetValue(Number(e.target.value))}
+              onChange={(e) => setTargetValue(e.target.value)}
               className="form-input"
               min={0.01}
               step="any"
@@ -199,7 +215,7 @@ export function EditGoalModal({
                   <X className="size-4" />
                 </button>
               </div>
-              {deadlineIsPast && (
+              {deadline && isGoalDeadlinePast(deadline) && (
                 <p className="text-xs text-amber-400 font-medium">
                   {t('goals.form.deadlineInPast')}
                 </p>

@@ -7,6 +7,9 @@ import {
   Switch,
   ScrollView,
   StyleSheet,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
 } from "react-native";
 import {
   X,
@@ -17,23 +20,29 @@ import {
   PenSquare,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
 import type {
   FrequencyUnit,
   ScheduledReminderWhen,
-  HabitTag,
 } from "@orbit/shared/types/habit";
-import { tagKeys, QUERY_STALE_TIMES } from "@orbit/shared/query";
-import { API } from "@orbit/shared/api";
+import {
+  HABIT_REMINDER_PRESETS,
+  formatHabitTimeInput,
+  isValidHabitTimeInput,
+} from "@orbit/shared/utils";
 import { HabitChecklist } from "./habit-checklist";
+import { ChecklistTemplates } from "./checklist-templates";
 import { GoalLinkingField } from "./goal-linking-field";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
 import { useHasProAccess } from "@/hooks/use-profile";
-import { useTags } from "@/hooks/use-tags";
+import {
+  useCreateTag,
+  useDeleteTag,
+  useTags,
+  useUpdateTag,
+} from "@/hooks/use-tags";
 import { AppDatePicker } from "@/components/ui/app-date-picker";
 import { AppSelect } from "@/components/ui/app-select";
-import { apiClient } from "@/lib/api-client";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -58,57 +67,225 @@ interface HabitFormFieldsProps {
 // Reminder presets
 // ---------------------------------------------------------------------------
 
-const REMINDER_PRESETS = [
-  { value: 0, key: "habits.form.reminderAtTime" },
-  { value: 5, key: "habits.form.reminder5min" },
-  { value: 10, key: "habits.form.reminder10min" },
-  { value: 15, key: "habits.form.reminder15min" },
-  { value: 30, key: "habits.form.reminder30min" },
-  { value: 60, key: "habits.form.reminder1hour" },
-  { value: 120, key: "habits.form.reminder2hours" },
-  { value: 360, key: "habits.form.reminder6hours" },
-  { value: 720, key: "habits.form.reminder12hours" },
-  { value: 1440, key: "habits.form.reminder1day" },
-] as const;
+interface ChoiceButtonOption {
+  key: string;
+  label: ReactNode;
+  active: boolean;
+  onPress: () => void;
+}
 
-// ---------------------------------------------------------------------------
-// Pure utility functions
-// ---------------------------------------------------------------------------
+interface ChoiceButtonRowProps {
+  containerStyle: StyleProp<ViewStyle>;
+  buttonStyle: StyleProp<ViewStyle>;
+  activeButtonStyle: StyleProp<ViewStyle>;
+  textStyle: StyleProp<TextStyle>;
+  activeTextStyle: StyleProp<TextStyle>;
+  options: ChoiceButtonOption[];
+}
 
-function isValidTime(time: string): boolean {
-  if (time.length !== 5) return true;
-  const [hStr, mStr] = time.split(":");
-  const h = Number.parseInt(hStr ?? "", 10);
-  const m = Number.parseInt(mStr ?? "", 10);
+function ChoiceButtonRow({
+  containerStyle,
+  buttonStyle,
+  activeButtonStyle,
+  textStyle,
+  activeTextStyle,
+  options,
+}: Readonly<ChoiceButtonRowProps>) {
   return (
-    !Number.isNaN(h) &&
-    !Number.isNaN(m) &&
-    h >= 0 &&
-    h <= 23 &&
-    m >= 0 &&
-    m <= 59
+    <View style={containerStyle}>
+      {options.map((option) => (
+        <TouchableOpacity
+          key={option.key}
+          style={[
+            buttonStyle,
+            option.active && activeButtonStyle,
+          ]}
+          onPress={option.onPress}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              textStyle,
+              option.active && activeTextStyle,
+            ]}
+          >
+            {option.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 }
 
-function formatScheduledTimeInput(value: string): string {
-  let v = value.replace(/\D/g, "");
-  if (v.length > 4) v = v.slice(0, 4);
-  if (v.length >= 3) v = v.slice(0, 2) + ":" + v.slice(2);
-  return v;
+interface TagColorPickerProps {
+  colors: readonly string[];
+  activeColor: string;
+  onSelect: (color: string) => void;
+  ariaLabel: (color: string) => string;
+  styles: ReturnType<typeof createStyles>;
 }
 
-function isValidScheduledTime(time: string): boolean {
-  if (time.length !== 5) return false;
-  const [hStr, mStr] = time.split(":");
-  const h = Number.parseInt(hStr ?? "", 10);
-  const m = Number.parseInt(mStr ?? "", 10);
+function TagColorPicker({
+  colors,
+  activeColor,
+  onSelect,
+  ariaLabel,
+  styles,
+}: Readonly<TagColorPickerProps>) {
   return (
-    !Number.isNaN(h) &&
-    !Number.isNaN(m) &&
-    h >= 0 &&
-    h <= 23 &&
-    m >= 0 &&
-    m <= 59
+    <View style={styles.colorPicker}>
+      {colors.map((color) => (
+        <TouchableOpacity
+          key={color}
+          style={[
+            styles.colorDot,
+            { backgroundColor: color },
+            activeColor === color && styles.colorDotSelected,
+          ]}
+          accessibilityLabel={ariaLabel(color)}
+          accessibilityRole="button"
+          onPress={() => onSelect(color)}
+          activeOpacity={0.7}
+        />
+      ))}
+    </View>
+  );
+}
+
+interface TagEditorRowProps {
+  value: string;
+  placeholder?: string;
+  inputAriaLabel: string;
+  actionLabel: string;
+  cancelAriaLabel: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  styles: ReturnType<typeof createStyles>;
+  colors: ThemeColors;
+}
+
+function TagEditorRow({
+  value,
+  placeholder,
+  inputAriaLabel,
+  actionLabel,
+  cancelAriaLabel,
+  disabled,
+  onChange,
+  onCommit,
+  onCancel,
+  styles,
+  colors,
+}: Readonly<TagEditorRowProps>) {
+  return (
+    <View style={styles.tagFormRow}>
+      <TextInput
+        value={value}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        maxLength={50}
+        accessibilityLabel={inputAriaLabel}
+        editable={!disabled}
+        style={[styles.input, { flex: 1 }]}
+        onChangeText={onChange}
+        onSubmitEditing={onCommit}
+      />
+      <TouchableOpacity
+        style={styles.tagFormSave}
+        disabled={disabled}
+        onPress={onCommit}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.tagFormSaveText}>{actionLabel}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.tagFormCancel}
+        accessibilityLabel={cancelAriaLabel}
+        disabled={disabled}
+        onPress={onCancel}
+        activeOpacity={0.7}
+      >
+        <X size={14} color={colors.textMuted} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+interface HabitTagChipProps {
+  tag: { id: string; name: string; color: string };
+  selected: boolean;
+  atLimit: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  styles: ReturnType<typeof createStyles>;
+  colors: ThemeColors;
+}
+
+function HabitTagChip({
+  tag,
+  selected,
+  atLimit,
+  disabled,
+  onToggle,
+  onEdit,
+  onDelete,
+  styles,
+  colors,
+}: Readonly<HabitTagChipProps>) {
+  return (
+    <View
+      style={[
+        styles.tagChip,
+        selected && { backgroundColor: tag.color },
+        !selected && styles.tagChipInactive,
+        !selected && atLimit && { opacity: 0.3 },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.tagChipMain}
+        disabled={!selected && atLimit}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        {!selected && (
+          <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
+        )}
+        <Text
+          style={[
+            styles.tagChipText,
+            selected && { color: colors.white },
+          ]}
+        >
+          {tag.name}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.tagAction}
+        disabled={disabled}
+        onPress={onEdit}
+        activeOpacity={0.7}
+      >
+        <PenSquare
+          size={12}
+          color={selected ? "rgba(255,255,255,0.7)" : colors.textMuted}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.tagAction}
+        disabled={disabled}
+        onPress={onDelete}
+        activeOpacity={0.7}
+      >
+        <X
+          size={12}
+          color={selected ? "rgba(255,255,255,0.7)" : colors.textMuted}
+        />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -141,7 +318,7 @@ function ReminderSection({
   const [customUnit, setCustomUnit] = useState<"min" | "hours" | "days">("min");
 
   const availablePresets = useMemo(
-    () => REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
+    () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   );
 
@@ -339,7 +516,7 @@ function ScheduledReminderSection({
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
 
   function addScheduledReminder() {
-    if (!isValidScheduledTime(time)) return;
+    if (!isValidHabitTimeInput(time)) return;
     if (atLimit) return;
     const current = scheduledReminders ?? [];
     const duplicate = current.some(
@@ -476,15 +653,15 @@ function ScheduledReminderSection({
                   keyboardType="number-pad"
                   maxLength={5}
                   style={sectionStyles.timeInput}
-                  onChangeText={(val) => setTime(formatScheduledTimeInput(val))}
+                  onChangeText={(val) => setTime(formatHabitTimeInput(val))}
                   onSubmitEditing={addScheduledReminder}
                 />
                 <TouchableOpacity
                   style={[
                     sectionStyles.timeAddButton,
-                    !isValidScheduledTime(time) && { opacity: 0.4 },
+                    !isValidHabitTimeInput(time) && { opacity: 0.4 },
                   ]}
-                  disabled={!isValidScheduledTime(time)}
+                  disabled={!isValidHabitTimeInput(time)}
                   onPress={addScheduledReminder}
                   activeOpacity={0.7}
                 >
@@ -602,6 +779,13 @@ export function HabitFormFields({
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
   const hasProAccess = useHasProAccess();
   const { tags: availableTags } = useTags();
+  const createTag = useCreateTag();
+  const updateTag = useUpdateTag();
+  const deleteTag = useDeleteTag();
+  const tagMutationError =
+    createTag.error ?? updateTag.error ?? deleteTag.error;
+  const isTagMutationPending =
+    createTag.isPending || updateTag.isPending || deleteTag.isPending;
 
   const {
     form,
@@ -640,7 +824,7 @@ export function HabitFormFields({
 
   // Reminder label function
   function reminderLabel(minutes: number): string {
-    const preset = REMINDER_PRESETS.find((p) => p.value === minutes);
+    const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes);
     if (preset) return t(preset.key);
     if (minutes < 60) return `${minutes} ${t("habits.form.reminderMinutes")}`;
     if (minutes < 1440) {
@@ -686,6 +870,12 @@ export function HabitFormFields({
       {/* Checklist */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.checklist")}</Text>
+        <ChecklistTemplates
+          items={watchedChecklistItems ?? []}
+          onLoad={(items) =>
+            setValue("checklistItems", items, { shouldDirty: true })
+          }
+        />
         <HabitChecklist
           items={watchedChecklistItems ?? []}
           editable
@@ -698,82 +888,19 @@ export function HabitFormFields({
       {/* Frequency toggle */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.frequency")}</Text>
-        <View style={styles.toggleRow}>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              isOneTime && styles.toggleButtonActive,
-            ]}
-            onPress={setOneTime}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.toggleButtonText,
-                isOneTime && styles.toggleButtonTextActive,
-              ]}
-            >
-              {t("habits.form.oneTimeTask")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              !isOneTime &&
-                !isGeneral &&
-                !isFlexible &&
-                styles.toggleButtonActive,
-            ]}
-            onPress={setRecurring}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.toggleButtonText,
-                !isOneTime &&
-                  !isGeneral &&
-                  !isFlexible &&
-                  styles.toggleButtonTextActive,
-              ]}
-            >
-              {t("habits.form.recurring")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              isFlexible && styles.toggleButtonActive,
-            ]}
-            onPress={setFlexible}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.toggleButtonText,
-                isFlexible && styles.toggleButtonTextActive,
-              ]}
-            >
-              {t("habits.form.flexible")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              isGeneral && styles.toggleButtonActive,
-            ]}
-            onPress={setGeneral}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.toggleButtonText,
-                isGeneral && styles.toggleButtonTextActive,
-              ]}
-            >
-              {t("habits.form.general")}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <ChoiceButtonRow
+          containerStyle={styles.toggleRow}
+          buttonStyle={styles.toggleButton}
+          activeButtonStyle={styles.toggleButtonActive}
+          textStyle={styles.toggleButtonText}
+          activeTextStyle={styles.toggleButtonTextActive}
+          options={[
+            { key: "one-time", label: t("habits.form.oneTimeTask"), active: isOneTime, onPress: setOneTime },
+            { key: "recurring", label: t("habits.form.recurring"), active: !isOneTime && !isGeneral && !isFlexible, onPress: setRecurring },
+            { key: "flexible", label: t("habits.form.flexible"), active: isFlexible, onPress: setFlexible },
+            { key: "general", label: t("habits.form.general"), active: isGeneral, onPress: setGeneral },
+          ]}
+        />
       </View>
 
       {/* Flexible description */}
@@ -836,29 +963,19 @@ export function HabitFormFields({
       {showDayPicker && !isGeneral && (
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t("habits.form.activeDays")}</Text>
-          <View style={styles.daysRow}>
-            {daysList.map((day) => (
-              <TouchableOpacity
-                key={day.value}
-                style={[
-                  styles.dayButton,
-                  watchedDays?.includes(day.value) && styles.dayButtonActive,
-                ]}
-                onPress={() => toggleDay(day.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.dayButtonText,
-                    watchedDays?.includes(day.value) &&
-                      styles.dayButtonTextActive,
-                  ]}
-                >
-                  {day.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ChoiceButtonRow
+            containerStyle={styles.daysRow}
+            buttonStyle={styles.dayButton}
+            activeButtonStyle={styles.dayButtonActive}
+            textStyle={styles.dayButtonText}
+            activeTextStyle={styles.dayButtonTextActive}
+            options={daysList.map((day) => ({
+              key: day.value,
+              label: day.label,
+              active: watchedDays?.includes(day.value) ?? false,
+              onPress: () => toggleDay(day.value),
+            }))}
+          />
         </View>
       )}
 
@@ -892,7 +1009,7 @@ export function HabitFormFields({
               setValue("dueTime", formatted, { shouldDirty: true });
             }}
           />
-          {watchedDueTime.length === 5 && !isValidTime(watchedDueTime) && (
+          {watchedDueTime.length === 5 && !isValidHabitTimeInput(watchedDueTime) && (
             <Text style={styles.validationError}>
               {t("habits.form.invalidTime")}
             </Text>
@@ -917,7 +1034,7 @@ export function HabitFormFields({
             }}
           />
           {watchedDueEndTime.length === 5 &&
-            !isValidTime(watchedDueEndTime) && (
+            !isValidHabitTimeInput(watchedDueEndTime) && (
               <Text style={styles.validationError}>
                 {t("habits.form.invalidEndTime")}
               </Text>
@@ -1026,65 +1143,28 @@ export function HabitFormFields({
             const isSelected = tags.selectedTagIds.includes(tag.id);
             const isDisabled = !isSelected && tags.atTagLimit;
             return (
-              <View
+              <HabitTagChip
                 key={tag.id}
-                style={[
-                  styles.tagChip,
-                  isSelected && { backgroundColor: tag.color },
-                  !isSelected && styles.tagChipInactive,
-                  isDisabled && { opacity: 0.3 },
-                ]}
-              >
-                <TouchableOpacity
-                  style={styles.tagChipMain}
-                  disabled={isDisabled}
-                  onPress={() => tags.toggleTag(tag.id)}
-                  activeOpacity={0.7}
-                >
-                  {!isSelected && (
-                    <View
-                      style={[styles.tagDot, { backgroundColor: tag.color }]}
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.tagChipText,
-                      isSelected && { color: colors.white },
-                    ]}
-                  >
-                    {tag.name}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.tagAction}
-                  onPress={() => tags.startEditTag(tag)}
-                  activeOpacity={0.7}
-                >
-                  <PenSquare
-                    size={12}
-                    color={
-                      isSelected ? "rgba(255,255,255,0.7)" : colors.textMuted
-                    }
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.tagAction}
-                  onPress={() => tags.deleteTag(tag.id, async () => {})}
-                  activeOpacity={0.7}
-                >
-                  <X
-                    size={12}
-                    color={
-                      isSelected ? "rgba(255,255,255,0.7)" : colors.textMuted
-                    }
-                  />
-                </TouchableOpacity>
-              </View>
+                tag={tag}
+                selected={isSelected}
+                atLimit={isDisabled}
+                disabled={isTagMutationPending}
+                styles={styles}
+                colors={colors}
+                onToggle={() => tags.toggleTag(tag.id)}
+                onEdit={() => tags.startEditTag(tag)}
+                onDelete={() =>
+                  tags.deleteTag(tag.id, async (id) => {
+                    await deleteTag.mutateAsync(id);
+                  })
+                }
+              />
             );
           })}
           {!tags.showNewTag && !tags.atTagLimit && (
             <TouchableOpacity
               style={styles.newTagButton}
+              disabled={isTagMutationPending}
               onPress={() => tags.setShowNewTag(true)}
               activeOpacity={0.7}
             >
@@ -1098,92 +1178,65 @@ export function HabitFormFields({
         {/* Inline tag edit */}
         {tags.editingTagId && (
           <View style={styles.tagEditSection}>
-            <View style={styles.colorPicker}>
-              {tags.tagColors.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[
-                    styles.colorDot,
-                    { backgroundColor: c },
-                    tags.editTagColor === c && styles.colorDotSelected,
-                  ]}
-                  onPress={() => tags.setEditTagColor(c)}
-                  activeOpacity={0.7}
-                />
-              ))}
-            </View>
-            <View style={styles.tagFormRow}>
-              <TextInput
-                value={tags.editTagName}
-                maxLength={50}
-                style={[styles.input, { flex: 1 }]}
-                onChangeText={tags.setEditTagName}
-                onSubmitEditing={() => tags.saveEditTag(async () => {})}
-              />
-              <TouchableOpacity
-                style={styles.tagFormSave}
-                onPress={() => tags.saveEditTag(async () => {})}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.tagFormSaveText}>{t("common.save")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tagFormCancel}
-                onPress={tags.cancelEditTag}
-                activeOpacity={0.7}
-              >
-                <X size={14} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+            <TagColorPicker
+              colors={tags.tagColors}
+              activeColor={tags.editTagColor}
+              onSelect={tags.setEditTagColor}
+              ariaLabel={(color) => t("habits.form.selectColor", { color })}
+              styles={styles}
+            />
+            <TagEditorRow
+              value={tags.editTagName}
+              inputAriaLabel={t("habits.form.tagName")}
+              actionLabel={t("common.save")}
+              cancelAriaLabel={t("common.cancel")}
+              disabled={isTagMutationPending}
+              onChange={tags.setEditTagName}
+              onCommit={() =>
+                tags.saveEditTag(async (id, name, color) => {
+                  await updateTag.mutateAsync({ tagId: id, name, color });
+                })
+              }
+              onCancel={tags.cancelEditTag}
+              styles={styles}
+              colors={colors}
+            />
           </View>
         )}
 
         {/* Inline new tag creation */}
         {tags.showNewTag && (
           <View style={styles.tagEditSection}>
-            <View style={styles.colorPicker}>
-              {tags.tagColors.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[
-                    styles.colorDot,
-                    { backgroundColor: c },
-                    tags.newTagColor === c && styles.colorDotSelected,
-                  ]}
-                  onPress={() => tags.setNewTagColor(c)}
-                  activeOpacity={0.7}
-                />
-              ))}
-            </View>
-            <View style={styles.tagFormRow}>
-              <TextInput
-                value={tags.newTagName}
-                placeholder={t("habits.form.tagName")}
-                placeholderTextColor={colors.textMuted}
-                maxLength={50}
-                style={[styles.input, { flex: 1 }]}
-                onChangeText={tags.setNewTagName}
-                onSubmitEditing={() =>
-                  tags.createAndSelectTag(async () => null)
-                }
-              />
-              <TouchableOpacity
-                style={styles.tagFormSave}
-                onPress={() => tags.createAndSelectTag(async () => null)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.tagFormSaveText}>{t("common.add")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tagFormCancel}
-                onPress={() => tags.setShowNewTag(false)}
-                activeOpacity={0.7}
-              >
-                <X size={14} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+            <TagColorPicker
+              colors={tags.tagColors}
+              activeColor={tags.newTagColor}
+              onSelect={tags.setNewTagColor}
+              ariaLabel={(color) => t("habits.form.selectColor", { color })}
+              styles={styles}
+            />
+            <TagEditorRow
+              value={tags.newTagName}
+              placeholder={t("habits.form.tagName")}
+              inputAriaLabel={t("habits.form.tagName")}
+              actionLabel={t("common.add")}
+              cancelAriaLabel={t("common.cancel")}
+              disabled={isTagMutationPending}
+              onChange={tags.setNewTagName}
+              onCommit={() =>
+                tags.createAndSelectTag(async (name, color) => {
+                  const result = await createTag.mutateAsync({ name, color });
+                  return result.id;
+                })
+              }
+              onCancel={() => tags.setShowNewTag(false)}
+              styles={styles}
+              colors={colors}
+            />
           </View>
         )}
+        {tagMutationError ? (
+          <Text style={styles.validationError}>{tagMutationError.message}</Text>
+        ) : null}
       </View>
 
       <GoalLinkingField

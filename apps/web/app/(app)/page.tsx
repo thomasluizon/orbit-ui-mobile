@@ -13,8 +13,6 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
-  ChevronLeft,
-  ChevronRight,
   Search,
   X,
   MoreVertical,
@@ -43,15 +41,18 @@ import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { GoalsView } from '@/components/goals/goals-view'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { StreakBadge } from '@/components/gamification/streak-badge'
-import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
 import { useHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
+import {
+  TodayHeader,
+  TodayTabs,
+  TodayDateNavigation,
+  type TodayTabItem,
+} from './today-shell'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -60,28 +61,6 @@ import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
-
-type TabView = (typeof TAB_VIEWS)[number]
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getTabLabel(
-  view: TabView,
-  t: ReturnType<typeof useTranslations>,
-): string {
-  switch (view) {
-    case 'today':
-      return t('habits.viewToday')
-    case 'all':
-      return t('habits.viewAll')
-    case 'general':
-      return t('habits.viewGeneral')
-    case 'goals':
-      return t('goals.tab')
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -438,6 +417,22 @@ export default function TodayPage() {
     )
   }, [selectedDate, t, locale, dateFnsLocale])
 
+  const tabItems = useMemo<TodayTabItem[]>(
+    () =>
+      TAB_VIEWS.map((view) => ({
+        view,
+        label:
+          view === 'today'
+            ? t('habits.viewToday')
+            : view === 'all'
+              ? t('habits.viewAll')
+              : view === 'general'
+                ? t('habits.viewGeneral')
+                : t('goals.tab'),
+      })),
+    [t],
+  )
+
   // Search debounce
   useEffect(() => {
     if (searchDebounceTimer.current)
@@ -645,60 +640,18 @@ export default function TodayPage() {
 
   return (
     <div className="relative">
-      {/* Header: Orbit logo + streak badge + bell */}
-      <header className="flex items-center justify-between pt-8 pb-2">
-        <button
-          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={goToToday}
-        >
-          <img
-            src="/logo-no-bg.png"
-            alt="Orbit"
-            className="size-10"
-            width={40}
-            height={40}
-          />
-          <span className="text-[length:var(--text-fluid-xl)] font-extrabold text-text-primary tracking-tight">
-            Orbit
-          </span>
-        </button>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <StreakBadge streak={streakInfo?.currentStreak ?? 0} />
-          <NotificationBell />
-        </div>
-      </header>
+      <TodayHeader
+        onGoToToday={goToToday}
+        streak={streakInfo?.currentStreak ?? 0}
+        goToTodayLabel={t('dates.goToToday')}
+      />
 
-      {/* Tabs: Today / All / General / Goals */}
-      <div className="pt-4">
-        <div
-          role="tablist"
-          tabIndex={0}
-          aria-label={t('habits.viewsLabel')}
-          className="flex bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1"
-          onKeyDown={handleTabKeydown}
-        >
-          {TAB_VIEWS.map((view) => (
-            <button
-              key={view}
-              id={`tab-${view}`}
-              role="tab"
-              aria-selected={activeView === view}
-              aria-controls={
-                view === 'goals' ? 'tabpanel-goals' : 'tabpanel-habits'
-              }
-              className={`flex-1 text-center py-2 text-sm font-bold transition-all duration-200 rounded-[var(--radius-md)] ${
-                activeView === view
-                  ? 'text-primary bg-surface shadow-[var(--shadow-sm)]'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-              onClick={() => setActiveView(view)}
-            >
-              {getTabLabel(view, t)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <TodayTabs
+        tabs={tabItems}
+        activeView={activeView}
+        onChangeView={setActiveView}
+        viewsLabel={t('habits.viewsLabel')}
+      />
 
       {/* Goals view */}
       <div
@@ -709,37 +662,18 @@ export default function TodayPage() {
         {activeView === 'goals' && <GoalsView />}
       </div>
 
-      {/* Date navigation (today view only) */}
-      {activeView === 'today' && (
-        <div className="pt-4 pb-4">
-          <div className="flex items-center justify-center gap-4">
-            <button
-              aria-label={t('dates.previousDay')}
-              className="size-9 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-              onClick={goToPreviousDay}
-            >
-              <ChevronLeft className="size-5 text-text-secondary" />
-            </button>
-            <button
-              key={selectedDateStr}
-              aria-label={isToday(selectedDate) ? dateLabel : t('dates.goToToday')}
-              className={`min-w-40 text-center text-[length:var(--text-fluid-base)] font-semibold text-text-primary hover:text-primary transition-colors animate-slide-date-${slideDirection} ${
-                isToday(selectedDate) ? 'text-primary' : ''
-              }`}
-              onClick={goToToday}
-            >
-              {dateLabel}
-            </button>
-            <button
-              aria-label={t('dates.nextDay')}
-              className="size-9 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-              onClick={goToNextDay}
-            >
-              <ChevronRight className="size-5 text-text-secondary" />
-            </button>
-          </div>
-        </div>
-      )}
+      <TodayDateNavigation
+        visible={activeView === 'today'}
+        dateLabel={dateLabel}
+        isTodaySelected={isToday(selectedDate)}
+        slideDirection={slideDirection}
+        onGoToPreviousDay={goToPreviousDay}
+        onGoToToday={goToToday}
+        onGoToNextDay={goToNextDay}
+        previousLabel={t('dates.previousDay')}
+        todayLabel={t('dates.goToToday')}
+        nextLabel={t('dates.nextDay')}
+      />
 
       {/* AI Summary card (Today view only, when summary is enabled) */}
       {activeView === 'today' &&

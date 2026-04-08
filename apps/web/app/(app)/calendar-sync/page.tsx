@@ -10,20 +10,13 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { getSupabaseClient } from '@/lib/supabase'
 import { API } from '@orbit/shared/api'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import {
+  buildCalendarSyncImportRequest,
+  formatCalendarSyncRecurrenceLabel,
+  isCalendarSyncNotConnectedMessage,
+} from '@orbit/shared/utils'
 import { getErrorMessage } from '@orbit/shared/utils'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
-
-interface CalendarEvent {
-  id: string
-  title: string
-  description: string | null
-  startDate: string | null
-  startTime: string | null
-  endTime: string | null
-  isRecurring: boolean
-  recurrenceRule: string | null
-  reminders: number[]
-}
 
 interface ImportResult {
   imported: number
@@ -31,31 +24,7 @@ interface ImportResult {
 }
 
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected'
-
-function parseRRule(rule: string | null): { frequencyUnit?: FrequencyUnit; frequencyQuantity?: number; days?: string[] } {
-  if (!rule) return {}
-  const parts: Record<string, string> = Object.fromEntries(
-    rule.replace('RRULE:', '').split(';').map((p) => {
-      const [k, v] = p.split('=')
-      return [k, v ?? ''] as const
-    }),
-  )
-  const freqMap: Record<string, FrequencyUnit> = {
-    DAILY: 'Day', WEEKLY: 'Week', MONTHLY: 'Month', YEARLY: 'Year',
-  }
-  const dayMap: Record<string, string> = {
-    MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday',
-    FR: 'Friday', SA: 'Saturday', SU: 'Sunday',
-  }
-  const result: { frequencyUnit?: FrequencyUnit; frequencyQuantity?: number; days?: string[] } = {}
-  if (parts.FREQ) result.frequencyUnit = freqMap[parts.FREQ]
-  result.frequencyQuantity = parts.INTERVAL ? Number.parseInt(parts.INTERVAL) : 1
-  if (parts.BYDAY) {
-    const days = parts.BYDAY.split(',').map((d: string) => dayMap[d.trim()]).filter((d): d is string => !!d)
-    if (days.length > 0) result.days = days
-  }
-  return result
-}
+type CalendarEvent = CalendarSyncEvent
 
 // ---------------------------------------------------------------------------
 // Standalone helpers (S7721: moved to module scope)
@@ -93,40 +62,6 @@ export default function CalendarSyncPage() {
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
-  function formatDailyRecurrence(interval: number): string {
-    if (interval > 1) return plural(t('calendar.recurrenceEveryNDays', { n: interval }), interval)
-    return t('calendar.recurrenceDaily')
-  }
-
-  function formatWeeklyRecurrence(upper: string, interval: number): string {
-    const dayMatch = /BYDAY=([A-Z,]+)/.exec(upper)
-    const days = dayMatch ? dayMatch[1] : ''
-    if (interval > 1) {
-      const base = plural(t('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
-      return days ? `${base} (${days})` : base
-    }
-    if (days) return t('calendar.recurrenceWeeklyDays', { days })
-    return t('calendar.recurrenceWeekly')
-  }
-
-  function formatMonthlyRecurrence(interval: number): string {
-    if (interval > 1) return plural(t('calendar.recurrenceEveryNMonths', { n: interval }), interval)
-    return t('calendar.recurrenceMonthly')
-  }
-
-  function formatRecurrence(rule: string | null): string {
-    if (!rule) return ''
-    const upper = rule.toUpperCase()
-    const intervalMatch = /INTERVAL=(\d+)/.exec(upper)
-    const interval = intervalMatch?.[1] ? Number.parseInt(intervalMatch[1]) : 1
-
-    if (upper.includes('FREQ=DAILY')) return formatDailyRecurrence(interval)
-    if (upper.includes('FREQ=WEEKLY')) return formatWeeklyRecurrence(upper, interval)
-    if (upper.includes('FREQ=MONTHLY')) return formatMonthlyRecurrence(interval)
-    if (upper.includes('FREQ=YEARLY')) return t('calendar.recurrenceYearly')
-    return ''
-  }
-
   // Redirect non-Pro users
   useEffect(() => {
     if (profile && !hasProAccess) {
@@ -142,7 +77,7 @@ export default function CalendarSyncPage() {
         const body = await res.json().catch(() => null)
         const msg = body?.error ?? body?.message ?? `Failed with status ${res.status}`
         const lower = msg.toLowerCase()
-        if (lower.includes('not connected') || lower.includes('unauthorized') || lower.includes('invalid authentication credentials')) {
+        if (isCalendarSyncNotConnectedMessage(lower)) {
           setStep('not-connected')
           return
         }
@@ -190,25 +125,7 @@ export default function CalendarSyncPage() {
 
     try {
       const selected = events.filter((e) => selectedIds.has(e.id))
-      const habits = selected.map((ev) => {
-        const rec = parseRRule(ev.recurrenceRule)
-        let qty: number | null = null
-        if (rec.frequencyUnit) {
-          qty = (rec.frequencyQuantity && rec.frequencyQuantity >= 1) ? rec.frequencyQuantity : 1
-        }
-        return {
-          title: ev.title,
-          description: ev.description,
-          dueDate: ev.startDate,
-          dueTime: ev.startTime,
-          dueEndTime: ev.endTime,
-          frequencyUnit: rec.frequencyUnit ?? null,
-          frequencyQuantity: qty,
-          days: qty === 1 ? (rec.days ?? null) : null,
-          reminderEnabled: ev.reminders.length > 0,
-          reminderTimes: ev.reminders.length > 0 ? ev.reminders : null,
-        }
-      })
+      const habits = buildCalendarSyncImportRequest(selected).habits
 
       bulkCreateHabits.mutate(
         { habits },
@@ -252,7 +169,7 @@ export default function CalendarSyncPage() {
 
       {/* Loading */}
       {step === 'loading' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-20">
+        <div className="flex flex-col items-center justify-center gap-4 pt-20" role="status" aria-live="polite">
           <Loader2 className="size-8 animate-spin text-primary" />
           <p className="text-text-secondary text-sm">{t('calendar.fetchingEvents')}</p>
         </div>
@@ -260,7 +177,7 @@ export default function CalendarSyncPage() {
 
       {/* Not Connected */}
       {step === 'not-connected' && (
-        <div className="flex flex-col items-center justify-center gap-6 pt-20">
+        <div className="flex flex-col items-center justify-center gap-6 pt-20" role="status" aria-live="polite">
           <div className="size-16 rounded-full bg-primary/15 flex items-center justify-center">
             <LinkIcon className="size-8 text-primary" />
           </div>
@@ -281,7 +198,7 @@ export default function CalendarSyncPage() {
       {step === 'select' && (
         <div className="space-y-4">
           {events.length === 0 ? (
-            <div className="text-center pt-20">
+            <div className="text-center pt-20" role="status" aria-live="polite">
               <CalendarDays className="size-12 text-text-muted mx-auto mb-4" />
               <p className="text-text-secondary">{t('calendar.noEvents')}</p>
               <Link
@@ -301,6 +218,7 @@ export default function CalendarSyncPage() {
                 <button
                   className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
                   onClick={toggleAll}
+                  aria-pressed={allSelected}
                 >
                   {allSelected ? t('calendar.deselectAll') : t('calendar.selectAll')}
                 </button>
@@ -317,6 +235,7 @@ export default function CalendarSyncPage() {
                         : 'bg-surface border-border'
                     }`}
                     onClick={() => toggleEvent(event.id)}
+                    aria-pressed={selectedIds.has(event.id)}
                   >
                     <div className="flex items-start gap-3">
                       <div
@@ -341,9 +260,12 @@ export default function CalendarSyncPage() {
                               {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
                             </span>
                           )}
-                          {event.isRecurring && (
+              {event.isRecurring && (
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
-                              {formatRecurrence(event.recurrenceRule) || t('calendar.recurring')}
+                              {formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
+                                translate: (key, values) => t(key as never, values as never),
+                                pluralize: plural,
+                              }) || t('calendar.recurring')}
                             </span>
                           )}
                           {event.reminders.length > 0 && (
@@ -381,7 +303,7 @@ export default function CalendarSyncPage() {
 
       {/* Importing */}
       {step === 'importing' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-20">
+        <div className="flex flex-col items-center justify-center gap-4 pt-20" role="status" aria-live="polite">
           <Loader2 className="size-8 animate-spin text-primary" />
           <p className="text-text-secondary text-sm">{t('calendar.importing')}</p>
         </div>
@@ -389,7 +311,7 @@ export default function CalendarSyncPage() {
 
       {/* Done */}
       {step === 'done' && (
-        <div className="flex flex-col items-center justify-center gap-6 pt-20">
+        <div className="flex flex-col items-center justify-center gap-6 pt-20" role="status" aria-live="polite">
           <div className="size-16 rounded-full bg-green-500/15 flex items-center justify-center">
             <Check className="size-8 text-green-400" />
           </div>
@@ -410,7 +332,7 @@ export default function CalendarSyncPage() {
 
       {/* Error */}
       {step === 'error' && (
-        <div className="flex flex-col items-center justify-center gap-6 pt-20">
+        <div className="flex flex-col items-center justify-center gap-6 pt-20" role="alert" aria-live="assertive">
           <div className="size-16 rounded-full bg-red-500/15 flex items-center justify-center">
             <AlertTriangle className="size-8 text-red-400" />
           </div>

@@ -5,13 +5,16 @@ import Link from 'next/link'
 import { ArrowLeft, Loader2, Send } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
+import { useOffline } from '@/hooks/use-offline'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { API } from '@orbit/shared/api'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 export default function SupportPage() {
   const t = useTranslations()
   const { profile } = useProfile()
+  const { isOnline } = useOffline()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -55,6 +58,10 @@ export default function SupportPage() {
   }
 
   const handleSend = useCallback(async () => {
+    if (!isOnline) {
+      return
+    }
+
     if (!subject.trim() || !message.trim()) return
     if (!validateForm()) return
 
@@ -66,12 +73,14 @@ export default function SupportPage() {
       const res = await fetch(API.support.send, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim() || profile?.name,
-          email: email.trim() || profile?.email,
-          subject: subject.trim(),
-          message: message.trim(),
-        }),
+        body: JSON.stringify(
+          buildSupportRequestBody(profile, {
+            name,
+            email,
+            subject,
+            message,
+          }),
+        ),
       })
 
       if (!res.ok) {
@@ -87,7 +96,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [name, email, subject, message, profile, t])
+  }, [email, isOnline, message, name, profile, subject, t])
 
   return (
     <div className="pb-8">
@@ -108,6 +117,13 @@ export default function SupportPage() {
       <div className="space-y-4">
         <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
           <p className="text-sm text-text-secondary">{t('profile.support.description')}</p>
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={t('calendarSync.notConnected')}
+              description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
+              compact
+            />
+          )}
 
           {success && (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400">
@@ -167,7 +183,7 @@ export default function SupportPage() {
               className="w-full bg-background text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none transition-all duration-200"
             />
             <button
-              disabled={isSending || !subject.trim() || !message.trim()}
+              disabled={isSending || !subject.trim() || !message.trim() || !isOnline}
               className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-[var(--radius-xl)] transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-sm)] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
               onClick={handleSend}
             >

@@ -1,17 +1,20 @@
 'use client'
 
 import { useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
-import type { GoalMetrics } from '@orbit/shared/types/goal'
+import type { GoalMetricsViewModel } from '@orbit/shared/utils/goal-metrics'
+import {
+  formatGoalMetricsDate,
+  getGoalHabitAdherenceTone,
+  getGoalMetricsStatusPresentation,
+} from '@orbit/shared/utils/goal-metrics'
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface GoalMetricsPanelProps {
-  metrics: GoalMetrics | null
+  metrics: GoalMetricsViewModel | null
   unit: string
   isLoading: boolean
 }
@@ -27,35 +30,36 @@ export function GoalMetricsPanel({
 }: Readonly<GoalMetricsPanelProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
   const statusConfig = useMemo(() => {
-    const status = metrics?.trackingStatus
-    switch (status) {
-      case 'on_track':
+    const presentation = getGoalMetricsStatusPresentation(metrics?.trackingStatus)
+    if (!presentation) return null
+
+    switch (presentation.tone) {
+      case 'success':
         return {
-          label: t('goals.metrics.onTrack'),
+          label: t(presentation.labelKey),
           bg: 'bg-green-500/10',
           text: 'text-green-400',
           dot: 'bg-green-500',
         }
-      case 'at_risk':
+      case 'warning':
         return {
-          label: t('goals.metrics.atRisk'),
+          label: t(presentation.labelKey),
           bg: 'bg-amber-500/10',
           text: 'text-amber-400',
           dot: 'bg-amber-500',
         }
-      case 'behind':
+      case 'danger':
         return {
-          label: t('goals.metrics.behind'),
+          label: t(presentation.labelKey),
           bg: 'bg-red-500/10',
           text: 'text-red-400',
           dot: 'bg-red-500',
         }
-      case 'no_deadline':
+      case 'muted':
         return {
-          label: t('goals.metrics.noDeadline'),
+          label: t(presentation.labelKey),
           bg: 'bg-surface-elevated',
           text: 'text-text-secondary',
           dot: 'bg-text-muted',
@@ -66,7 +70,7 @@ export function GoalMetricsPanel({
   }, [metrics?.trackingStatus, t])
 
   function formatMetricDate(dateStr: string) {
-    return format(parseISO(dateStr), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
+    return formatGoalMetricsDate(dateStr, locale)
   }
 
   // Loading skeleton
@@ -132,42 +136,48 @@ export function GoalMetricsPanel({
             {t('goals.metrics.habitAdherence')}
           </p>
           <div className="space-y-2">
-            {metrics.habitAdherence.map((habit) => (
-              <div
-                key={habit.habitId}
-                className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 flex items-center justify-between border border-border-muted shadow-[var(--shadow-sm)]"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-text-primary truncate">
-                    {habit.habitTitle}
-                  </p>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          (() => {
-                            if (habit.weeklyCompletionRate >= 80) return 'bg-green-500'
-                            if (habit.weeklyCompletionRate >= 50) return 'bg-primary'
-                            return 'bg-amber-500'
-                          })()
-                        }`}
-                        style={{
-                          width: `${Math.min(100, habit.weeklyCompletionRate)}%`,
-                        }}
-                      />
+            {metrics.habitAdherence.map((habit) => {
+              const adherenceTone = getGoalHabitAdherenceTone(
+                habit.weeklyCompletionRate,
+              )
+              const barColor =
+                adherenceTone === 'success'
+                  ? 'bg-green-500'
+                  : adherenceTone === 'primary'
+                    ? 'bg-primary'
+                    : 'bg-amber-500'
+
+              return (
+                <div
+                  key={habit.habitId}
+                  className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 flex items-center justify-between border border-border-muted shadow-[var(--shadow-sm)]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text-primary truncate">
+                      {habit.habitTitle}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                          style={{
+                            width: `${Math.min(100, habit.weeklyCompletionRate)}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-text-muted font-semibold whitespace-nowrap">
+                        {Math.round(habit.weeklyCompletionRate)}%
+                      </span>
                     </div>
-                    <span className="text-[10px] text-text-muted font-semibold whitespace-nowrap">
-                      {Math.round(habit.weeklyCompletionRate)}%
-                    </span>
                   </div>
+                  {habit.currentStreak > 0 && (
+                    <div className="ml-3 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold whitespace-nowrap">
+                      {t('habits.detail.streakDays', { n: habit.currentStreak })}
+                    </div>
+                  )}
                 </div>
-                {habit.currentStreak > 0 && (
-                  <div className="ml-3 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold whitespace-nowrap">
-                    {t('habits.detail.streakDays', { n: habit.currentStreak })}
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

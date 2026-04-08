@@ -1,16 +1,15 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/lib/i18n'
-import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  buildRetrospectiveRequestUrl,
+  type RetrospectivePeriod,
+  type RetrospectiveResponse,
+} from '@orbit/shared/utils/retrospective'
 import { apiClient } from '@/lib/api-client'
 
-export type RetrospectivePeriod = 'week' | 'month' | 'quarter' | 'semester' | 'year'
-
-interface RetrospectiveResponse {
-  retrospective: string
-  fromCache: boolean
-}
+export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
 export function useRetrospective() {
   const { t } = useTranslation()
@@ -26,12 +25,8 @@ export function useRetrospective() {
     setRetrospective(null)
 
     try {
-      const params = new URLSearchParams({
-        period,
-        language: i18n.language ?? 'en',
-      })
       const data = await apiClient<RetrospectiveResponse>(
-        `${API.habits.retrospective}?${params.toString()}`,
+        buildRetrospectiveRequestUrl(period, i18n.language ?? 'en'),
       )
       setRetrospective(data.retrospective)
       setFromCache(data.fromCache)

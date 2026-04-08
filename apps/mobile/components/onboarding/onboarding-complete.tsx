@@ -6,6 +6,7 @@ import { CheckCircle2, Sparkles, BadgeCheck } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { radius, shadows } from '@/lib/theme'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -125,7 +126,7 @@ export function OnboardingComplete({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ThemeContextValue['colors']) {
   return StyleSheet.create({
     container: {
       alignItems: 'center',

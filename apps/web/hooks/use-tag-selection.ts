@@ -1,10 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+import { toggleSelectedId } from '@orbit/shared/utils'
 
 const TAG_COLORS = [
   '#7c3aed',
@@ -19,18 +16,17 @@ const TAG_COLORS = [
   '#4d7c0f',
 ] as const
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+interface EditableTag {
+  id: string
+  name: string
+  color: string
+}
 
 export interface TagSelectionState {
-  // Selection state
   selectedTagIds: string[]
   atTagLimit: boolean
   toggleTag: (tagId: string) => void
   resetTags: (tagIds?: string[]) => void
-
-  // New tag form
   showNewTag: boolean
   setShowNewTag: (show: boolean) => void
   newTagName: string
@@ -41,14 +37,12 @@ export interface TagSelectionState {
   createAndSelectTag: (
     createTag: (name: string, color: string) => Promise<string | null>,
   ) => Promise<void>
-
-  // Edit tag
   editingTagId: string | null
   editTagName: string
   setEditTagName: (name: string) => void
   editTagColor: string
   setEditTagColor: (color: string) => void
-  startEditTag: (tag: { id: string; name: string; color: string }) => void
+  startEditTag: (tag: EditableTag) => void
   saveEditTag: (
     updateTag: (id: string, name: string, color: string) => Promise<void>,
   ) => Promise<void>
@@ -59,18 +53,6 @@ export interface TagSelectionState {
   ) => Promise<void>
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-/**
- * Manages tag selection state for habit forms.
- * Operations that talk to the server (create, update, delete) accept
- * callback functions so this hook stays decoupled from the tags store/API.
- *
- * @param initialTagIds - Tag IDs to start with (for editing)
- * @param maxTags - Maximum number of tags allowed per habit (from config.limits.maxTagsPerHabit)
- */
 export function useTagSelection(
   initialTagIds: string[] = [],
   maxTags = 10,
@@ -78,7 +60,7 @@ export function useTagSelection(
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([...initialTagIds])
   const [showNewTag, setShowNewTag] = useState(false)
   const [newTagName, setNewTagName] = useState('')
-  const [newTagColor, setNewTagColor] = useState('#7c3aed')
+  const [newTagColor, setNewTagColor] = useState<string>(TAG_COLORS[0])
   const [editingTagId, setEditingTagId] = useState<string | null>(null)
   const [editTagName, setEditTagName] = useState('')
   const [editTagColor, setEditTagColor] = useState('')
@@ -89,34 +71,31 @@ export function useTagSelection(
   )
 
   const toggleTag = useCallback((tagId: string) => {
-    setSelectedTagIds((prev) => {
-      const idx = prev.indexOf(tagId)
-      if (idx >= 0) {
-        return prev.filter((id) => id !== tagId)
-      }
-      return [...prev, tagId]
-    })
+    setSelectedTagIds((prev) => toggleSelectedId(prev, tagId))
   }, [])
 
   const resetTags = useCallback((tagIds: string[] = []) => {
     setSelectedTagIds([...tagIds])
     setEditingTagId(null)
+    setEditTagName('')
+    setEditTagColor('')
     setShowNewTag(false)
     setNewTagName('')
+    setNewTagColor(TAG_COLORS[0])
   }, [])
 
-  const startEditTag = useCallback(
-    (tag: { id: string; name: string; color: string }) => {
-      setEditingTagId(tag.id)
-      setEditTagName(tag.name)
-      setEditTagColor(tag.color)
-    },
-    [],
-  )
+  const startEditTag = useCallback((tag: EditableTag) => {
+    setEditingTagId(tag.id)
+    setEditTagName(tag.name)
+    setEditTagColor(tag.color)
+  }, [])
 
   const saveEditTag = useCallback(
     async (updateTag: (id: string, name: string, color: string) => Promise<void>) => {
-      if (!editingTagId || !editTagName.trim()) return
+      if (!editingTagId || !editTagName.trim()) {
+        return
+      }
+
       await updateTag(editingTagId, editTagName.trim(), editTagColor)
       setEditingTagId(null)
     },
@@ -125,26 +104,55 @@ export function useTagSelection(
 
   const cancelEditTag = useCallback(() => {
     setEditingTagId(null)
+    setEditTagName('')
+    setEditTagColor('')
   }, [])
 
   const deleteTag = useCallback(
     async (tagId: string, deleteTagFn: (id: string) => Promise<void>) => {
-      setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))
-      if (editingTagId === tagId) setEditingTagId(null)
-      await deleteTagFn(tagId)
+      const previousSelectedTagIds = selectedTagIds
+      const previousEditingState =
+        editingTagId === tagId
+          ? {
+              id: editingTagId,
+              name: editTagName,
+              color: editTagColor,
+            }
+          : null
+
+      setSelectedTagIds((prev) => prev.filter((selectedId) => selectedId !== tagId))
+      if (editingTagId === tagId) {
+        setEditingTagId(null)
+      }
+
+      try {
+        await deleteTagFn(tagId)
+      } catch (error) {
+        setSelectedTagIds(previousSelectedTagIds)
+        if (previousEditingState) {
+          setEditingTagId(previousEditingState.id)
+          setEditTagName(previousEditingState.name)
+          setEditTagColor(previousEditingState.color)
+        }
+        throw error
+      }
     },
-    [editingTagId],
+    [selectedTagIds, editingTagId, editTagName, editTagColor],
   )
 
   const createAndSelectTag = useCallback(
     async (createTag: (name: string, color: string) => Promise<string | null>) => {
-      if (!newTagName.trim()) return
-      const id = await createTag(newTagName.trim(), newTagColor)
-      if (id) {
-        setSelectedTagIds((prev) => [...prev, id])
+      if (!newTagName.trim()) {
+        return
+      }
+
+      const tagId = await createTag(newTagName.trim(), newTagColor)
+      if (tagId) {
+        setSelectedTagIds((prev) => [...prev, tagId])
       }
       setNewTagName('')
       setShowNewTag(false)
+      setNewTagColor(TAG_COLORS[0])
     },
     [newTagName, newTagColor],
   )

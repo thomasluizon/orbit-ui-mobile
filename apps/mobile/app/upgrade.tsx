@@ -8,6 +8,13 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { AlertTriangle, ArrowLeft, BadgeCheck, BarChart3, Check, CheckCircle2, Clock, CreditCard, Download, Flame, MessageSquare, Palette, ShieldCheck, Sparkles, Tag, X as XIcon } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  TRIAL_EXPIRED_FEATURE_KEYS,
+  UPGRADE_FEATURE_CATEGORIES,
+  UPGRADE_PRO_FEATURES,
+  UPGRADE_YEARLY_EXTRA_FEATURES,
+  type UpgradeIconKey,
+} from '@orbit/shared/utils/upgrade'
 import type { BillingDetails, SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
@@ -16,18 +23,18 @@ import { useHasProAccess, useProfile, useTrialDaysLeft, useTrialExpired, useTria
 import { plural } from '@/lib/plural'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 type IconType = ComponentType<{ size?: number; color?: string }>
 
-const trialExpiredFeatures = ['trial.expired.unlimitedHabits', 'trial.expired.aiChat', 'trial.expired.allColors', 'trial.expired.aiSummary', 'trial.expired.subHabits', 'trial.expired.retrospective']
-const proFeatures = [{ key: 'unlimited', Icon: Flame }, { key: 'ai', Icon: MessageSquare }, { key: 'themes', Icon: Palette }, { key: 'adFree', Icon: ShieldCheck }]
-const yearlyExtra = [{ key: 'retrospective', Icon: BarChart3 }]
-const categories: { category: string; rows: { key: string; Icon: IconType; type: 'boolean' | 'text'; free?: boolean; pro?: boolean }[] }[] = [
-  { category: 'habits', rows: [{ key: 'habits', Icon: Flame, type: 'text' }, { key: 'subHabits', Icon: Flame, type: 'boolean', free: false, pro: true }] },
-  { category: 'ai', rows: [{ key: 'ai', Icon: MessageSquare, type: 'text' }, { key: 'aiMemory', Icon: MessageSquare, type: 'boolean', free: false, pro: true }, { key: 'summary', Icon: MessageSquare, type: 'boolean', free: false, pro: true }, { key: 'slipAlerts', Icon: ShieldCheck, type: 'boolean', free: false, pro: true }] },
-  { category: 'insights', rows: [{ key: 'retrospective', Icon: BarChart3, type: 'boolean', free: false, pro: true }, { key: 'achievements', Icon: Flame, type: 'boolean', free: false, pro: true }] },
-  { category: 'personalization', rows: [{ key: 'colors', Icon: Palette, type: 'text' }, { key: 'calendarImport', Icon: Flame, type: 'boolean', free: false, pro: true }, { key: 'adFree', Icon: ShieldCheck, type: 'boolean', free: false, pro: true }] },
-]
+const upgradeIconMap = {
+  flame: Flame,
+  messageSquare: MessageSquare,
+  palette: Palette,
+  shieldCheck: ShieldCheck,
+  barChart3: BarChart3,
+} satisfies Record<UpgradeIconKey, IconType>
 
 function invoiceStatusColors(status: string, colors: ReturnType<typeof createColors>) {
   if (status === 'paid') return { bg: 'rgba(52,211,153,0.10)', border: 'rgba(52,211,153,0.20)', text: colors.emerald400 }
@@ -35,10 +42,229 @@ function invoiceStatusColors(status: string, colors: ReturnType<typeof createCol
   return { bg: colors.surfaceElevated, border: colors.border, text: colors.textMuted }
 }
 
+type UpgradeStyles = ReturnType<typeof createStyles>
+
+type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
+
+function UsageStatsCard({
+  usagePercent,
+  usageUrgent,
+  profile,
+  t,
+  styles,
+}: Readonly<{
+  usagePercent: number
+  usageUrgent: boolean
+  profile: { aiMessagesUsed: number; aiMessagesLimit: number } | null
+  t: UpgradeTextFn
+  styles: UpgradeStyles
+}>) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.label}>{t('upgrade.billing.usage.title')}</Text>
+      <View style={styles.rowBetween}>
+        <Text style={styles.text}>{t('upgrade.billing.usage.aiMessages')}</Text>
+        <Text style={[styles.text, styles.bold, usageUrgent ? styles.warnText : null]}>
+          {t('upgrade.billing.usage.aiMessagesOf', {
+            used: profile?.aiMessagesUsed ?? 0,
+            limit: profile?.aiMessagesLimit ?? 0,
+          })}
+        </Text>
+      </View>
+      <View style={styles.track}>
+        <View
+          style={[
+            styles.fill,
+            usageUrgent ? styles.fillWarn : null,
+            { width: `${usagePercent}%` },
+          ]}
+        />
+      </View>
+    </View>
+  )
+}
+
+function PlanCards({
+  plans,
+  hasProAccess,
+  checkoutLoading,
+  discountedAmount,
+  onCheckout,
+  t,
+  colors,
+  styles,
+}: Readonly<{
+  plans: NonNullable<ReturnType<typeof useSubscriptionPlans>['plans']>
+  hasProAccess: boolean
+  checkoutLoading: 'monthly' | 'yearly' | null
+  discountedAmount: (amount: number) => number
+  onCheckout: (interval: 'monthly' | 'yearly') => void
+  t: UpgradeTextFn
+  colors: ReturnType<typeof createColors>
+  styles: UpgradeStyles
+}>) {
+  return (
+    <View style={styles.stack}>
+      <View style={[styles.card, styles.dashedCard]}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.label}>{t('upgrade.plans.free.name')}</Text>
+          <Text style={styles.priceSmall}>{formatPrice(0, plans.currency)}</Text>
+        </View>
+        <View style={styles.stackSmall}>
+          <Text style={styles.muted}>{t('upgrade.plans.free.features.habits')}</Text>
+          <Text style={styles.muted}>{t('upgrade.plans.free.features.ai')}</Text>
+          <Text style={styles.muted}>{t('upgrade.plans.free.features.theme')}</Text>
+          <Text style={[styles.muted, styles.warnText]}>{t('upgrade.plans.free.features.ads')}</Text>
+        </View>
+        {!hasProAccess ? (
+          <View style={styles.disabledBtn}>
+            <Text style={styles.disabledBtnText}>{t('upgrade.plans.free.cta')}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.title}>{t('upgrade.plans.monthly.name')}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>
+            {formatPrice(plans.couponPercentOff ? discountedAmount(plans.monthly.unitAmount) : plans.monthly.unitAmount, plans.currency)}
+            <Text style={styles.period}>{t('upgrade.plans.monthly.period')}</Text>
+          </Text>
+          {plans.couponPercentOff ? <Text style={styles.strike}>{formatPrice(plans.monthly.unitAmount, plans.currency)}</Text> : null}
+        </View>
+        <View style={styles.stackSmall}>
+          {UPGRADE_PRO_FEATURES.map((feature) => {
+            const Icon = upgradeIconMap[feature.iconKey]
+            return (
+              <View key={feature.key} style={styles.iconRow}>
+                <Icon size={14} color={colors.primary} />
+                <Text style={styles.text}>{t(`upgrade.plans.proFeatures.${feature.key}`)}</Text>
+              </View>
+            )
+          })}
+        </View>
+        <TouchableOpacity
+          style={[styles.secondaryBtn, checkoutLoading ? styles.disabled : null]}
+          disabled={checkoutLoading !== null}
+          onPress={() => onCheckout('monthly')}
+          activeOpacity={0.85}
+        >
+          {checkoutLoading === 'monthly' ? <ActivityIndicator size="small" color={colors.textPrimary} /> : null}
+          <Text style={styles.secondaryBtnText}>{t('upgrade.plans.monthly.cta')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.card, styles.primaryCard]}>
+        <View style={styles.badgeRow}>
+          <View style={styles.primaryPill}>
+            <Text style={styles.primaryPillText}>{t('upgrade.plans.yearly.recommended')}</Text>
+          </View>
+          <View style={styles.greenPill}>
+            <Text style={styles.greenPillText}>{t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}</Text>
+          </View>
+        </View>
+        <Text style={styles.title}>{t('upgrade.plans.yearly.name')}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>
+            {formatPrice(plans.couponPercentOff ? discountedAmount(plans.yearly.unitAmount) : plans.yearly.unitAmount, plans.currency)}
+            <Text style={styles.period}>{t('upgrade.plans.yearly.period')}</Text>
+          </Text>
+          {plans.couponPercentOff ? <Text style={styles.strike}>{formatPrice(plans.yearly.unitAmount, plans.currency)}</Text> : null}
+        </View>
+        <Text style={styles.muted}>
+          {t('upgrade.plans.equivalent', {
+            price: formatPrice(monthlyEquivalent(plans.couponPercentOff ? discountedAmount(plans.yearly.unitAmount) : plans.yearly.unitAmount), plans.currency),
+          })}
+        </Text>
+        <View style={styles.highlightBox}>
+          <BadgeCheck size={14} color={colors.primary} />
+          <Text style={styles.text}>{t('upgrade.plans.yearly.includesMonthly')}</Text>
+        </View>
+        <View style={styles.stackSmall}>
+          {UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => {
+            const Icon = upgradeIconMap[feature.iconKey]
+            return (
+              <View key={feature.key} style={styles.iconRow}>
+                <Icon size={14} color={colors.primary} />
+                <Text style={styles.text}>{t(`upgrade.plans.proFeatures.${feature.key}`)}</Text>
+              </View>
+            )
+          })}
+        </View>
+        {plans.couponPercentOff ? (
+          <View style={styles.iconRow}>
+            <Tag size={12} color={colors.emerald400} />
+            <Text style={[styles.muted, styles.greenText]}>{t('upgrade.plans.coupon.appliedNote')}</Text>
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={[styles.primaryBtn, checkoutLoading ? styles.disabled : null]}
+          disabled={checkoutLoading !== null}
+          onPress={() => onCheckout('yearly')}
+          activeOpacity={0.85}
+        >
+          {checkoutLoading === 'yearly' ? <ActivityIndicator size="small" color={colors.white} /> : null}
+          <Text style={styles.primaryBtnText}>{t('upgrade.plans.yearly.cta')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
+}
+
+function FeatureComparisonTable({
+  t,
+  colors,
+  styles,
+}: Readonly<{
+  t: UpgradeTextFn
+  colors: ReturnType<typeof createColors>
+  styles: UpgradeStyles
+}>) {
+  return (
+    <View style={styles.stack}>
+      <View style={styles.rowHeader}>
+        <Text style={[styles.label, styles.flex]}>{t('upgrade.feature')}</Text>
+        <Text style={styles.headerCell}>{t('upgrade.free')}</Text>
+        <Text style={[styles.headerCell, styles.primaryText]}>{t('common.proBadge')}</Text>
+      </View>
+      {UPGRADE_FEATURE_CATEGORIES.map((group) => (
+        <View key={group.category} style={styles.stackSmall}>
+          <Text style={[styles.label, styles.primaryText]}>{t(`upgrade.categories.${group.category}`)}</Text>
+          {group.features.map((row) => {
+            const Icon = upgradeIconMap[row.iconKey]
+            return (
+              <View key={row.key} style={styles.tableRow}>
+                <View style={styles.flex}>
+                  <View style={styles.iconRow}>
+                    <Icon size={15} color={colors.textMuted} />
+                    <Text style={styles.text}>{t(`upgrade.features.${row.key}.label`)}</Text>
+                  </View>
+                  <Text style={styles.hint}>{t(`upgrade.features.${row.key}.tooltip`)}</Text>
+                </View>
+                <View style={styles.cell}>
+                  {row.type === 'boolean'
+                    ? <>{row.freeEnabled ? <Check size={16} color={colors.textMuted} /> : <XIcon size={16} color={colors.textFaded40} />}</>
+                    : <Text style={styles.cellText}>{t(`upgrade.features.${row.key}.free`)}</Text>}
+                </View>
+                <View style={styles.cell}>
+                  {row.type === 'boolean'
+                    ? <>{row.proEnabled ? <Check size={16} color={colors.primary} /> : <XIcon size={16} color={colors.textFaded40} />}</>
+                    : <Text style={[styles.cellText, styles.primaryText]}>{t(`upgrade.features.${row.key}.pro`)}</Text>}
+                </View>
+              </View>
+            )
+          })}
+        </View>
+      ))}
+    </View>
+  )
+}
+
 export default function UpgradeScreen() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
+  const { isOnline } = useOffline()
   const locale = i18n.language === 'pt-BR' ? 'pt-BR' : 'en-US'
   const dateLocale = locale === 'pt-BR' ? ptBR : enUS
   const styles = useMemo(() => createStyles(colors), [colors])
@@ -61,6 +287,11 @@ export default function UpgradeScreen() {
   }, [profile])
 
   async function handleCheckout(interval: 'monthly' | 'yearly') {
+    if (!isOnline) {
+      setCheckoutError(t('calendarSync.notConnected'))
+      return
+    }
+
     setCheckoutLoading(interval)
     setCheckoutError('')
     try {
@@ -74,6 +305,11 @@ export default function UpgradeScreen() {
   }
 
   async function handlePortal() {
+    if (!isOnline) {
+      setPortalError(t('calendarSync.notConnected'))
+      return
+    }
+
     setPortalLoading(true)
     setPortalError('')
     try {
@@ -88,90 +324,33 @@ export default function UpgradeScreen() {
 
   function usageCard() {
     return (
-      <View style={styles.card}>
-        <Text style={styles.label}>{t('upgrade.billing.usage.title')}</Text>
-        <View style={styles.rowBetween}>
-          <Text style={styles.text}>{t('upgrade.billing.usage.aiMessages')}</Text>
-          <Text style={[styles.text, styles.bold, usagePercent > 80 ? styles.warnText : null]}>{t('upgrade.billing.usage.aiMessagesOf', { used: profile?.aiMessagesUsed ?? 0, limit: profile?.aiMessagesLimit ?? 0 })}</Text>
-        </View>
-        <View style={styles.track}><View style={[styles.fill, usagePercent > 80 ? styles.fillWarn : null, { width: `${usagePercent}%` }]} /></View>
-      </View>
+      <UsageStatsCard
+        usagePercent={usagePercent}
+        usageUrgent={usagePercent > 80}
+        profile={profile ? { aiMessagesUsed: profile.aiMessagesUsed, aiMessagesLimit: profile.aiMessagesLimit } : null}
+        t={t}
+        styles={styles}
+      />
     )
   }
 
   function planCards(data: SubscriptionPlans) {
-    const monthly = data.couponPercentOff ? discountedAmount(data.monthly.unitAmount) : data.monthly.unitAmount
-    const yearly = data.couponPercentOff ? discountedAmount(data.yearly.unitAmount) : data.yearly.unitAmount
     return (
-      <View style={styles.stack}>
-        <View style={[styles.card, styles.dashedCard]}>
-          <View style={styles.rowBetween}><Text style={styles.label}>{t('upgrade.plans.free.name')}</Text><Text style={styles.priceSmall}>{formatPrice(0, data.currency)}</Text></View>
-          <View style={styles.stackSmall}>
-            <Text style={styles.muted}>{t('upgrade.plans.free.features.habits')}</Text>
-            <Text style={styles.muted}>{t('upgrade.plans.free.features.ai')}</Text>
-            <Text style={styles.muted}>{t('upgrade.plans.free.features.theme')}</Text>
-            <Text style={[styles.muted, styles.warnText]}>{t('upgrade.plans.free.features.ads')}</Text>
-          </View>
-          {!hasProAccess ? <View style={styles.disabledBtn}><Text style={styles.disabledBtnText}>{t('upgrade.plans.free.cta')}</Text></View> : null}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.title}>{t('upgrade.plans.monthly.name')}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatPrice(monthly, data.currency)}<Text style={styles.period}>{t('upgrade.plans.monthly.period')}</Text></Text>
-            {data.couponPercentOff ? <Text style={styles.strike}>{formatPrice(data.monthly.unitAmount, data.currency)}</Text> : null}
-          </View>
-          {proFeatures.map(({ key, Icon }) => <View key={key} style={styles.iconRow}><Icon size={14} color={colors.primary} /><Text style={styles.text}>{t(`upgrade.plans.proFeatures.${key}`)}</Text></View>)}
-          <TouchableOpacity style={[styles.secondaryBtn, checkoutLoading ? styles.disabled : null]} disabled={checkoutLoading !== null} onPress={() => handleCheckout('monthly')} activeOpacity={0.85}>
-            {checkoutLoading === 'monthly' ? <ActivityIndicator size="small" color={colors.textPrimary} /> : null}
-            <Text style={styles.secondaryBtnText}>{t('upgrade.plans.monthly.cta')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.card, styles.primaryCard]}>
-          <View style={styles.badgeRow}>
-            <View style={styles.primaryPill}><Text style={styles.primaryPillText}>{t('upgrade.plans.yearly.recommended')}</Text></View>
-            <View style={styles.greenPill}><Text style={styles.greenPillText}>{t('upgrade.plans.savePercent', { percent: data.savingsPercent })}</Text></View>
-          </View>
-          <Text style={styles.title}>{t('upgrade.plans.yearly.name')}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatPrice(yearly, data.currency)}<Text style={styles.period}>{t('upgrade.plans.yearly.period')}</Text></Text>
-            {data.couponPercentOff ? <Text style={styles.strike}>{formatPrice(data.yearly.unitAmount, data.currency)}</Text> : null}
-          </View>
-          <Text style={styles.muted}>{t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(yearly), data.currency) })}</Text>
-          <View style={styles.highlightBox}><BadgeCheck size={14} color={colors.primary} /><Text style={styles.text}>{t('upgrade.plans.yearly.includesMonthly')}</Text></View>
-          {yearlyExtra.map(({ key, Icon }) => <View key={key} style={styles.iconRow}><Icon size={14} color={colors.primary} /><Text style={styles.text}>{t(`upgrade.plans.proFeatures.${key}`)}</Text></View>)}
-          {data.couponPercentOff ? <View style={styles.iconRow}><Tag size={12} color={colors.emerald400} /><Text style={[styles.muted, styles.greenText]}>{t('upgrade.plans.coupon.appliedNote')}</Text></View> : null}
-          <TouchableOpacity style={[styles.primaryBtn, checkoutLoading ? styles.disabled : null]} disabled={checkoutLoading !== null} onPress={() => handleCheckout('yearly')} activeOpacity={0.85}>
-            {checkoutLoading === 'yearly' ? <ActivityIndicator size="small" color={colors.white} /> : null}
-            <Text style={styles.primaryBtnText}>{t('upgrade.plans.yearly.cta')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <PlanCards
+        plans={data}
+        hasProAccess={hasProAccess}
+        checkoutLoading={checkoutLoading}
+        discountedAmount={discountedAmount}
+        onCheckout={handleCheckout}
+        t={t}
+        colors={colors}
+        styles={styles}
+      />
     )
   }
 
   function featureTable() {
-    return (
-      <View style={styles.stack}>
-        <View style={styles.rowHeader}><Text style={[styles.label, styles.flex]}>{t('upgrade.feature')}</Text><Text style={styles.headerCell}>{t('upgrade.free')}</Text><Text style={[styles.headerCell, styles.primaryText]}>{t('common.proBadge')}</Text></View>
-        {categories.map((group) => (
-          <View key={group.category} style={styles.stackSmall}>
-            <Text style={[styles.label, styles.primaryText]}>{t(`upgrade.categories.${group.category}`)}</Text>
-            {group.rows.map((row) => (
-              <View key={row.key} style={styles.tableRow}>
-                <View style={styles.flex}>
-                  <View style={styles.iconRow}><row.Icon size={15} color={colors.textMuted} /><Text style={styles.text}>{t(`upgrade.features.${row.key}.label`)}</Text></View>
-                  <Text style={styles.hint}>{t(`upgrade.features.${row.key}.tooltip`)}</Text>
-                </View>
-                <View style={styles.cell}>{row.type === 'boolean' ? <>{row.free ? <Check size={16} color={colors.textMuted} /> : <XIcon size={16} color={colors.textFaded40} />}</> : <Text style={styles.cellText}>{t(`upgrade.features.${row.key}.free`)}</Text>}</View>
-                <View style={styles.cell}>{row.type === 'boolean' ? <>{row.pro ? <Check size={16} color={colors.primary} /> : <XIcon size={16} color={colors.textFaded40} />}</> : <Text style={[styles.cellText, styles.primaryText]}>{t(`upgrade.features.${row.key}.pro`)}</Text>}</View>
-              </View>
-            ))}
-          </View>
-        ))}
-      </View>
-    )
+    return <FeatureComparisonTable t={t} colors={colors} styles={styles} />
   }
 
   function billingDashboard(data: BillingDetails | null) {
@@ -179,6 +358,15 @@ export default function UpgradeScreen() {
       return <View style={styles.card}><ActivityIndicator size="small" color={colors.primary} /><Text style={styles.muted}>{t('common.loading')}</Text></View>
     }
     if (isBillingError && !data) {
+      if (!isOnline) {
+        return (
+          <OfflineUnavailableState
+            title={t('calendarSync.notConnected')}
+            description={`${t('upgrade.billing.actions.manage')} / ${t('upgrade.billing.payment.change')}`}
+            compact
+          />
+        )
+      }
       return <View style={styles.card}><AlertTriangle size={28} color={colors.textMuted} /><Text style={styles.text}>{t('upgrade.billing.error')}</Text><TouchableOpacity onPress={() => { refetchBilling().catch(() => {}) }}><Text style={styles.link}>{t('upgrade.billing.retry')}</Text></TouchableOpacity></View>
     }
     if (!data) {
@@ -205,14 +393,14 @@ export default function UpgradeScreen() {
           {data.amountPerPeriod > 0 ? <Text style={styles.muted}>{formatPrice(data.amountPerPeriod, data.currency)}{data.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}</Text> : null}
         </View>
 
-        {data.paymentMethod ? <View style={styles.card}><View style={styles.rowBetween}><View style={[styles.iconRow, styles.flex]}><CreditCard size={20} color={colors.textMuted} /><View style={styles.flex}><Text style={styles.text}>{t('upgrade.billing.payment.card', { brand: data.paymentMethod.brand.charAt(0).toUpperCase() + data.paymentMethod.brand.slice(1), last4: data.paymentMethod.last4 })}</Text><Text style={styles.muted}>{t('upgrade.billing.payment.expires', { month: String(data.paymentMethod.expMonth).padStart(2, '0'), year: data.paymentMethod.expYear })}</Text></View></View><TouchableOpacity style={styles.inlineBtn} onPress={handlePortal} disabled={portalLoading}><Text style={styles.inlineBtnText}>{t('upgrade.billing.payment.change')}</Text></TouchableOpacity></View></View> : null}
+        {data.paymentMethod ? <View style={styles.card}><View style={styles.rowBetween}><View style={[styles.iconRow, styles.flex]}><CreditCard size={20} color={colors.textMuted} /><View style={styles.flex}><Text style={styles.text}>{t('upgrade.billing.payment.card', { brand: data.paymentMethod.brand.charAt(0).toUpperCase() + data.paymentMethod.brand.slice(1), last4: data.paymentMethod.last4 })}</Text><Text style={styles.muted}>{t('upgrade.billing.payment.expires', { month: String(data.paymentMethod.expMonth).padStart(2, '0'), year: data.paymentMethod.expYear })}</Text></View></View><TouchableOpacity style={[styles.inlineBtn, (!isOnline || portalLoading) ? styles.disabled : null]} onPress={handlePortal} disabled={portalLoading || !isOnline}><Text style={styles.inlineBtnText}>{t('upgrade.billing.payment.change')}</Text></TouchableOpacity></View></View> : null}
 
         {usageCard()}
 
         {data.recentInvoices.length > 0 ? <View style={styles.card}><Text style={styles.label}>{t('upgrade.billing.invoices.title')}</Text>{data.recentInvoices.map((invoice, index) => { const state = invoiceStatusColors(invoice.status, colors); const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl; return <View key={invoice.id} style={[styles.invoiceRow, index < data.recentInvoices.length - 1 ? styles.invoiceBorder : null]}><View style={styles.flex}><View style={styles.iconRow}><Text style={styles.text}>{format(parseISO(invoice.date), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}</Text><View style={styles.reasonPill}><Text style={styles.reasonText}>{({ subscription_create: t('upgrade.billing.invoices.reasonCreate'), subscription_cycle: t('upgrade.billing.invoices.reasonCycle'), subscription_update: t('upgrade.billing.invoices.reasonUpdate'), manual: t('upgrade.billing.invoices.reasonManual') } as Record<string, string>)[invoice.billingReason] ?? invoice.billingReason}</Text></View></View><View style={[styles.statusPill, { backgroundColor: state.bg, borderColor: state.border }]}><Text style={[styles.statusText, { color: state.text }]}>{({ paid: t('upgrade.billing.invoices.statusPaid'), open: t('upgrade.billing.invoices.statusOpen'), void: t('upgrade.billing.invoices.statusVoid') } as Record<string, string>)[invoice.status] ?? invoice.status}</Text></View></View><View style={styles.iconRow}><Text style={styles.boldText}>{formatPrice(invoice.amountPaid, invoice.currency)}</Text>{url ? <TouchableOpacity onPress={() => { Linking.openURL(url).catch(() => {}) }}><Download size={16} color={colors.textMuted} /></TouchableOpacity> : null}</View></View> })}</View> : null}
 
         <View style={styles.stackSmall}>
-          <TouchableOpacity style={[styles.secondaryBtn, portalLoading ? styles.disabled : null]} onPress={handlePortal} disabled={portalLoading}><Text style={styles.secondaryBtnText}>{t('upgrade.billing.actions.manage')}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.secondaryBtn, (portalLoading || !isOnline) ? styles.disabled : null]} onPress={handlePortal} disabled={portalLoading || !isOnline}><Text style={styles.secondaryBtnText}>{t('upgrade.billing.actions.manage')}</Text></TouchableOpacity>
           <Text style={styles.centerMuted}>{t('upgrade.billing.actions.manageHint')}</Text>
           {portalError ? <Text style={styles.error}>{portalError}</Text> : null}
         </View>
@@ -224,16 +412,41 @@ export default function UpgradeScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.back} onPress={() => router.push('/profile')} activeOpacity={0.7}><ArrowLeft size={20} color={colors.textPrimary} /></TouchableOpacity>
+          <TouchableOpacity
+            style={styles.back}
+            onPress={() => router.push('/profile')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.goBack')}
+          >
+            <ArrowLeft size={20} color={colors.textPrimary} />
+          </TouchableOpacity>
           <Text style={styles.screenTitle}>{t('upgrade.title')}</Text>
         </View>
+        {!isOnline ? (
+          <OfflineUnavailableState
+            title={t('calendarSync.notConnected')}
+            description={`${t('upgrade.billing.actions.manage')} / ${t('upgrade.plans.monthly.cta')} / ${t('upgrade.plans.yearly.cta')}`}
+            compact
+          />
+        ) : null}
 
         {showBilling ? billingDashboard(billing) : (
           <View style={styles.stack}>
             {profile?.isTrialActive ? <View style={[styles.banner, trialUrgent ? styles.bannerWarn : null]}><Clock size={18} color={trialUrgent ? colors.amber400 : colors.primary} /><Text style={[styles.text, styles.flex, trialUrgent ? styles.warnText : null]}>{trialDaysLeft === 0 ? t('trial.banner.lastDay') : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}</Text></View> : null}
-            {trialExpired ? <View style={styles.card}><View style={styles.iconRow}><Sparkles size={18} color={colors.primary} /><Text style={styles.title}>{t('trial.expired.title')}</Text></View><Text style={styles.label}>{t('trial.expired.dontLose')}</Text>{trialExpiredFeatures.map((feature) => <View key={feature} style={styles.iconRow}><CheckCircle2 size={16} color={colors.primary} /><Text style={styles.text}>{t(feature)}</Text></View>)}</View> : null}
+            {trialExpired ? <View style={styles.card}><View style={styles.iconRow}><Sparkles size={18} color={colors.primary} /><Text style={styles.title}>{t('trial.expired.title')}</Text></View><Text style={styles.label}>{t('trial.expired.dontLose')}</Text>{TRIAL_EXPIRED_FEATURE_KEYS.map((feature) => <View key={feature} style={styles.iconRow}><CheckCircle2 size={16} color={colors.primary} /><Text style={styles.text}>{t(feature)}</Text></View>)}</View> : null}
             {isLoadingPlans ? <View style={styles.card}><ActivityIndicator size="small" color={colors.primary} /><Text style={styles.muted}>{t('common.loading')}</Text></View> : null}
-            {isPlansError && !plans && !isLoadingPlans ? <View style={styles.card}><AlertTriangle size={28} color={colors.textMuted} /><Text style={styles.text}>{t('upgrade.plans.error')}</Text><TouchableOpacity onPress={() => { refetchPlans().catch(() => {}) }}><Text style={styles.link}>{t('upgrade.plans.retry')}</Text></TouchableOpacity></View> : null}
+            {isPlansError && !plans && !isLoadingPlans ? (
+              isOnline ? (
+                <View style={styles.card}><AlertTriangle size={28} color={colors.textMuted} /><Text style={styles.text}>{t('upgrade.plans.error')}</Text><TouchableOpacity onPress={() => { refetchPlans().catch(() => {}) }}><Text style={styles.link}>{t('upgrade.plans.retry')}</Text></TouchableOpacity></View>
+              ) : (
+                <OfflineUnavailableState
+                  title={t('calendarSync.notConnected')}
+                  description={`${t('upgrade.plans.monthly.cta')} / ${t('upgrade.plans.yearly.cta')}`}
+                  compact
+                />
+              )
+            ) : null}
             {plans ? planCards(plans) : null}
             {checkoutError ? <Text style={styles.error}>{checkoutError}</Text> : null}
             {featureTable()}

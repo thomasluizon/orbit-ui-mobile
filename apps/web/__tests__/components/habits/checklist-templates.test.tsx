@@ -68,6 +68,37 @@ describe('ChecklistTemplates', () => {
     ])
   })
 
+  it('migrates legacy template storage to the current key', () => {
+    localStorage.setItem(
+      'orbit:checklist-templates',
+      JSON.stringify([{ id: 'tmpl-legacy', name: 'Packing', items: ['Passport'] }]),
+    )
+
+    render(
+      <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
+    )
+
+    expect(screen.getByText('Packing')).toBeInTheDocument()
+    expect(localStorage.getItem('orbit-checklist-templates')).toContain('Packing')
+    expect(localStorage.getItem('orbit:checklist-templates')).toBeNull()
+  })
+
+  it('falls back to legacy templates when the current key is corrupted', () => {
+    localStorage.setItem('orbit-checklist-templates', '{not valid json')
+    localStorage.setItem(
+      'orbit:checklist-templates',
+      JSON.stringify([{ id: 'tmpl-legacy', name: 'Packing', items: ['Passport'] }]),
+    )
+
+    render(
+      <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
+    )
+
+    expect(screen.getByText('Packing')).toBeInTheDocument()
+    expect(localStorage.getItem('orbit-checklist-templates')).toBe('{not valid json')
+    expect(localStorage.getItem('orbit:checklist-templates')).toContain('Packing')
+  })
+
   it('deletes a template', () => {
     localStorage.setItem(
       'orbit-checklist-templates',
@@ -78,7 +109,7 @@ describe('ChecklistTemplates', () => {
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
     )
 
-    const deleteBtn = screen.getByLabelText('common.delete')
+    const deleteBtn = screen.getByLabelText('common.delete: Workout')
     fireEvent.click(deleteBtn)
 
     const stored = JSON.parse(localStorage.getItem('orbit-checklist-templates') ?? '[]')

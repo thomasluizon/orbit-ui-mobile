@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { isValidVerificationCode as isValidVerificationCodeShared } from '@orbit/shared/utils'
 
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
@@ -9,7 +10,7 @@ export function isValidReferralCode(value: string | null | undefined): value is 
 }
 
 export function isValidVerificationCode(value: string | null | undefined): value is string {
-  return typeof value === 'string' && /^\d{6}$/.test(value)
+  return isValidVerificationCodeShared(value)
 }
 
 export function isSafeReturnUrl(value: string | null | undefined): value is string {

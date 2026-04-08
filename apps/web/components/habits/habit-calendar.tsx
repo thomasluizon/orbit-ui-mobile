@@ -1,39 +1,23 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import {
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameMonth,
-  isToday,
-  isBefore,
-  addMonths,
-  subMonths,
-  format,
-  parseISO,
-} from 'date-fns'
+import { addMonths, subMonths, format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  buildHabitCalendarDayCells,
+  buildHabitCalendarWeekdayKeys,
+  buildHabitLogDateSet,
+} from '@orbit/shared/utils'
 import { useHabitLogs } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import type { HabitLog } from '@orbit/shared/types/calendar'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface HabitCalendarProps {
   habitId: string
   logs?: HabitLog[] | null
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCalendarProps>) {
   const t = useTranslations()
@@ -42,80 +26,45 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
 
   const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId)
   const logs = externalLogs ?? fetchedLogs ?? []
+  const { profile } = useProfile()
+  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  const logDates = useMemo(() => {
-    const set = new Set<string>()
-    for (const log of logs) {
-      set.add(log.date)
-    }
-    return set
-  }, [logs])
+  const logDates = useMemo(() => buildHabitLogDateSet(logs), [logs])
 
   const monthLabel = useMemo(
     () =>
-      format(
-        currentMonth,
-        locale === 'pt-BR' ? "MMMM 'de' yyyy" : 'MMMM yyyy',
-        { locale: dateFnsLocale },
-      ),
-    [currentMonth, locale, dateFnsLocale],
+      format(currentMonth, locale === 'pt-BR' ? "MMMM 'de' yyyy" : 'MMMM yyyy', {
+        locale: dateFnsLocale,
+      }),
+    [currentMonth, dateFnsLocale, locale],
   )
 
-  const { profile } = useProfile()
-  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
+  const weekdays = useMemo(
+    () =>
+      buildHabitCalendarWeekdayKeys(weekStartsOn).map((key) => ({
+        key,
+        label: t(`dates.daysShort.${key}` as Parameters<typeof t>[0]).charAt(0), // NOSONAR - dynamic i18n key requires assertion
+      })),
+    [t, weekStartsOn],
+  )
 
-  const weekdays = useMemo(() => {
-    const sundayFirst = [
-      'sunday',
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-    ]
-    const keys =
-      weekStartsOn === 1
-        ? [...sundayFirst.slice(1), sundayFirst[0]]
-        : sundayFirst
-    return keys.map((key) => ({
-      key,
-      label: t(`dates.daysShort.${key}` as Parameters<typeof t>[0]).charAt(0), // NOSONAR - dynamic i18n key requires assertion
-    }))
-  }, [weekStartsOn, t])
-
-  const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth)
-    const monthEnd = endOfMonth(currentMonth)
-    const calStart = startOfWeek(monthStart, { weekStartsOn })
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn })
-
-    return eachDayOfInterval({ start: calStart, end: calEnd }).map((day) => {
-      const dateStr = format(day, 'yyyy-MM-dd')
-      return {
-        date: day,
-        dateStr,
-        dayNum: day.getDate(),
-        inMonth: isSameMonth(day, currentMonth),
-        isToday: isToday(day),
-        isPast: isBefore(day, new Date()) && !isToday(day),
-        isCompleted: logDates.has(dateStr),
-      }
-    })
-  }, [currentMonth, logDates, weekStartsOn])
+  const calendarDays = useMemo(
+    () => buildHabitCalendarDayCells(currentMonth, weekStartsOn, logDates),
+    [currentMonth, logDates, weekStartsOn],
+  )
 
   const totalInMonth = useMemo(
-    () => calendarDays.filter((d) => d.inMonth && d.isCompleted).length,
+    () => calendarDays.filter((day) => day.isCurrentMonth && day.isCompleted).length,
     [calendarDays],
   )
 
   const selectedDayLogs = useMemo<HabitLog[]>(() => {
-    if (!selectedDate || !logs) return []
+    if (!selectedDate) return []
     return logs.filter((log) => log.date === selectedDate)
-  }, [selectedDate, logs])
+  }, [logs, selectedDate])
 
   const prevMonth = useCallback(() => {
     setCurrentMonth((m) => subMonths(m, 1))
@@ -137,13 +86,11 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   }, [])
 
   function formatLogTime(createdAtUtc: string): string {
-    const date = parseISO(createdAtUtc)
-    return format(date, 'HH:mm')
+    return format(parseISO(createdAtUtc), 'HH:mm')
   }
 
   return (
     <div className="bg-surface-ground border border-border-muted rounded-xl p-4 shadow-[var(--shadow-sm)]">
-      {/* Header: nav + month label */}
       <div className="flex items-center justify-between mb-4">
         <button
           className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
@@ -165,7 +112,6 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         </button>
       </div>
 
-      {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
         {weekdays.map((day) => (
           <div
@@ -177,14 +123,13 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         ))}
       </div>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7">
         {calendarDays.map((day) => (
           <div
             key={day.dateStr}
             className="aspect-square flex items-center justify-center relative"
           >
-            {day.inMonth && day.isCompleted ? (
+            {day.isCurrentMonth && day.isCompleted ? (
               <button
                 className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-all cursor-pointer bg-primary text-white hover:brightness-110 ${
                   selectedDate === day.dateStr
@@ -198,14 +143,12 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             ) : (
               <div
                 className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
-                  day.inMonth ? '' : 'opacity-0'
+                  day.isCurrentMonth ? '' : 'opacity-0'
                 } ${
-                  day.inMonth && day.isToday
+                  day.isCurrentMonth && day.isToday
                     ? 'ring-1 ring-primary/50 text-text-primary'
                     : ''
-                } ${
-                  day.inMonth && !day.isToday ? 'text-text-muted' : ''
-                }`}
+                } ${day.isCurrentMonth && !day.isToday ? 'text-text-muted' : ''}`}
               >
                 {day.dayNum}
               </div>
@@ -214,7 +157,6 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         ))}
       </div>
 
-      {/* Selected day logs */}
       {selectedDate && selectedDayLogs.length > 0 && (
         <div className="mt-3 bg-surface-ground border border-border-muted rounded-lg p-3 overflow-hidden">
           <div className="flex items-center justify-between mb-2">
@@ -251,16 +193,13 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         </div>
       )}
 
-      {/* Footer: completion count */}
       <div className="flex items-center justify-between mt-3 px-1">
         <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
           {t('calendar.completionHistory')}
         </span>
         <span className="text-xs font-bold text-primary">
           {totalInMonth}{' '}
-          {totalInMonth === 1
-            ? t('habits.detail.day')
-            : t('habits.detail.days')}
+          {totalInMonth === 1 ? t('habits.detail.day') : t('habits.detail.days')}
         </span>
       </div>
     </div>

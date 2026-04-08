@@ -3,8 +3,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { DEFAULT_CONFIG, type AppConfig, type FeatureFlag } from '@orbit/shared/types/config'
-import type { PlanType } from '@orbit/shared/types/profile'
+import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
+import { isFeatureEnabled } from '@orbit/shared/utils'
 
 // ---------------------------------------------------------------------------
 // useConfig -- TanStack Query hook for the global app config
@@ -35,23 +35,4 @@ export function useConfig() {
     config,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Feature flag helper
-// ---------------------------------------------------------------------------
-
-/**
- * Check if a feature is enabled for the given user plan.
- * Returns true if the feature exists, is enabled, and either has no plan
- * restriction or the user is on Pro.
- */
-export function isFeatureEnabled(
-  config: AppConfig,
-  key: string,
-  userPlan: PlanType,
-): boolean {
-  const flag: FeatureFlag | undefined = config.features[key]
-  if (!flag?.enabled) return false
-  if (flag.plan === null) return true // No plan restriction
-  return userPlan === 'pro'
-}
+export { isFeatureEnabled }

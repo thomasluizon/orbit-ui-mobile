@@ -3,21 +3,22 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { profileKeys } from '@orbit/shared/query'
-import type { Profile } from '@orbit/shared/types/profile'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils/onboarding'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
-import { apiClient } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
-import { createColors, radius as themeRadius, shadows as themeShadows } from '@/lib/theme'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { radius as themeRadius, shadows as themeShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-type AppColors = ReturnType<typeof createColors>
-type AppRadius = typeof themeRadius
-type AppShadows = typeof themeShadows
+interface OnboardingProfileState {
+  colorScheme?: string
+  weekStartDay?: number
+}
 
 export function OnboardingWelcome() {
   const { t } = useTranslation()
@@ -28,25 +29,29 @@ export function OnboardingWelcome() {
   const styles = useMemo(() => createStyles(colors, radius, shadows), [colors, radius, shadows])
 
   // Currently selected scheme -- defaults to purple
-  const currentScheme = (profile as Profile & { colorScheme?: string })?.colorScheme ?? 'purple'
+  const currentScheme = (profile as OnboardingProfileState | null)?.colorScheme ?? 'purple'
 
   const weekStartDayMutation = useMutation({
     mutationFn: (day: number) =>
-      apiClient(API.profile.weekStartDay, {
+      performQueuedApiMutation({
+        type: 'setWeekStartDay',
+        scope: 'profile',
+        endpoint: API.profile.weekStartDay,
         method: 'PUT',
-        body: JSON.stringify({ weekStartDay: day }),
+        payload: { weekStartDay: day },
+        dedupeKey: 'onboarding-week-start-day',
       }),
     onMutate: async (newDay) => {
       await queryClient.cancelQueries({ queryKey: profileKeys.all })
-      const prev = queryClient.getQueryData<Profile>(profileKeys.detail())
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+      const prev = queryClient.getQueryData<OnboardingProfileState>(profileKeys.detail())
+      queryClient.setQueryData<OnboardingProfileState>(profileKeys.detail(), (old) =>
         old ? { ...old, weekStartDay: newDay } : old,
       )
       return { prev }
     },
     onError: (_err, _newDay, context) => {
       if (context?.prev) {
-        queryClient.setQueryData<Profile>(profileKeys.detail(), context.prev)
+        queryClient.setQueryData<OnboardingProfileState>(profileKeys.detail(), context.prev)
       }
     },
     onSettled: () => {
@@ -56,21 +61,25 @@ export function OnboardingWelcome() {
 
   const colorSchemeMutation = useMutation({
     mutationFn: (scheme: string) =>
-      apiClient(API.profile.colorScheme, {
+      performQueuedApiMutation({
+        type: 'setColorScheme',
+        scope: 'profile',
+        endpoint: API.profile.colorScheme,
         method: 'PUT',
-        body: JSON.stringify({ colorScheme: scheme }),
+        payload: { colorScheme: scheme },
+        dedupeKey: 'onboarding-color-scheme',
       }),
     onMutate: async (scheme) => {
       await queryClient.cancelQueries({ queryKey: profileKeys.all })
-      const prev = queryClient.getQueryData<Profile>(profileKeys.detail())
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+      const prev = queryClient.getQueryData<OnboardingProfileState>(profileKeys.detail())
+      queryClient.setQueryData<OnboardingProfileState>(profileKeys.detail(), (old) =>
         old ? { ...old, colorScheme: scheme } : old,
       )
       return { prev }
     },
     onError: (_err, _scheme, context) => {
       if (context?.prev) {
-        queryClient.setQueryData<Profile>(profileKeys.detail(), context.prev)
+        queryClient.setQueryData<OnboardingProfileState>(profileKeys.detail(), context.prev)
       }
     },
     onSettled: () => {
@@ -113,40 +122,26 @@ export function OnboardingWelcome() {
           {t('onboarding.flow.welcome.weekStart')}
         </Text>
         <View style={styles.weekDayRow}>
-          <TouchableOpacity
-            style={[
-              styles.weekDayBtn,
-              weekStartDay === 1 && styles.weekDayBtnActive,
-            ]}
-            activeOpacity={0.8}
-            onPress={() => handleWeekStartDaySelect(1)}
-          >
-            <Text
+          {ONBOARDING_WEEK_START_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option.value}
               style={[
-                styles.weekDayText,
-                weekStartDay === 1 && styles.weekDayTextActive,
+                styles.weekDayBtn,
+                weekStartDay === option.value && styles.weekDayBtnActive,
               ]}
+              activeOpacity={0.8}
+              onPress={() => handleWeekStartDaySelect(option.value)}
             >
-              {t('settings.weekStartDay.monday')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.weekDayBtn,
-              weekStartDay === 0 && styles.weekDayBtnActive,
-            ]}
-            activeOpacity={0.8}
-            onPress={() => handleWeekStartDaySelect(0)}
-          >
-            <Text
-              style={[
-                styles.weekDayText,
-                weekStartDay === 0 && styles.weekDayTextActive,
-              ]}
-            >
-              {t('settings.weekStartDay.sunday')}
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.weekDayText,
+                  weekStartDay === option.value && styles.weekDayTextActive,
+                ]}
+              >
+                {t(option.labelKey)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -181,9 +176,9 @@ export function OnboardingWelcome() {
 // ---------------------------------------------------------------------------
 
 function createStyles(
-  colors: AppColors,
-  radius: AppRadius,
-  shadows: AppShadows,
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  radius: ReturnType<typeof useAppTheme>['radius'],
+  shadows: ReturnType<typeof useAppTheme>['shadows'],
 ) {
   return StyleSheet.create({
     container: {

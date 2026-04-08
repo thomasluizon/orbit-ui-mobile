@@ -28,7 +28,7 @@ vi.mock('@/hooks/use-goals', () => ({
   }),
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
+vi.mock('@orbit/shared/utils/dates', () => ({
   formatAPIDate: () => '2025-06-15',
 }))
 

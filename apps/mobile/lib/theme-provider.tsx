@@ -13,7 +13,18 @@ import { Animated, Easing, Modal, StyleSheet, useColorScheme as useSystemColorSc
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
-import { createColors, createNav, getRuntimeTheme, radius, shadows, setRuntimeTheme } from '@/lib/theme'
+import {
+  createColors,
+  createNav,
+  getRuntimeTheme,
+  radius,
+  shadows,
+  setRuntimeTheme,
+  type AppColors,
+  type AppNav,
+  type AppRadius,
+  type AppShadows,
+} from '@/lib/theme'
 
 const THEME_STORAGE_KEY = 'orbit_theme_preference'
 const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
@@ -28,10 +39,10 @@ const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
 export interface ThemeContextValue {
   currentScheme: ColorScheme
   currentTheme: ThemeMode
-  colors: ReturnType<typeof createColors>
-  nav: ReturnType<typeof createNav>
-  radius: typeof radius
-  shadows: typeof shadows
+  colors: AppColors
+  nav: AppNav
+  radius: AppRadius
+  shadows: AppShadows
   applyScheme: (scheme: ColorScheme) => void
   applyTheme: (theme: ThemeMode) => void
   toggleTheme: () => void

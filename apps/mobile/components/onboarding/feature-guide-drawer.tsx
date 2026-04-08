@@ -10,6 +10,7 @@ import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { radius } from '@/lib/theme'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -188,7 +189,7 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ThemeContextValue['colors']) {
   return StyleSheet.create({
     tabBar: {
       paddingHorizontal: 20,

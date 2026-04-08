@@ -4,7 +4,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
-import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import {
+  colorSchemeOptions,
+  type ColorScheme,
+} from '@orbit/shared/theme'
+import {
+  ONBOARDING_WEEK_START_OPTIONS,
+} from '@orbit/shared/utils'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { updateWeekStartDay, updateColorScheme as updateColorSchemeAction } from '@/app/actions/profile'
@@ -84,26 +90,19 @@ export function OnboardingWelcome() {
           {t('onboarding.flow.welcome.weekStart')}
         </p>
         <div className="flex gap-3 justify-center">
-          <button
-            className={`px-6 py-3 rounded-[var(--radius-xl)] text-sm font-bold transition-all ${
-              weekStartDay === 1
-                ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                : 'bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-border-emphasis'
-            }`}
-            onClick={() => handleWeekStartDaySelect(1)}
-          >
-            {t('settings.weekStartDay.monday')}
-          </button>
-          <button
-            className={`px-6 py-3 rounded-[var(--radius-xl)] text-sm font-bold transition-all ${
-              weekStartDay === 0
-                ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                : 'bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-border-emphasis'
-            }`}
-            onClick={() => handleWeekStartDaySelect(0)}
-          >
-            {t('settings.weekStartDay.sunday')}
-          </button>
+          {ONBOARDING_WEEK_START_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              className={`px-6 py-3 rounded-[var(--radius-xl)] text-sm font-bold transition-all ${
+                weekStartDay === option.value
+                  ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
+                  : 'bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-border-emphasis'
+              }`}
+              onClick={() => handleWeekStartDaySelect(option.value)}
+            >
+              {t(option.labelKey)}
+            </button>
+          ))}
         </div>
       </div>
 

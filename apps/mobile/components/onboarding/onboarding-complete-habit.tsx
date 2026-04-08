@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg'
 import { useLogHabit } from '@/hooks/use-habits'
 import { radius, shadows } from '@/lib/theme'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -179,7 +180,7 @@ export function OnboardingCompleteHabit({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ThemeContextValue['colors']) {
   return StyleSheet.create({
     container: {
       alignItems: 'center',

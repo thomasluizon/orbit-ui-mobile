@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
+import {
+  getPushStatusToneClass,
+  getWebPushStatusMessageKey,
+  getWebPushStatusTone,
+  type WebPushPermission,
+  type WebPushPreferenceStatus,
+} from '@orbit/shared/utils'
 
-export type WebPushPermission = NotificationPermission | ''
-
-export type PushPreferenceStatus =
-  | 'unsupported'
-  | 'denied'
-  | 'not-registered'
-  | 'registered'
-  | 'sync-failed'
-  | 'requesting'
+export type PushPreferenceStatus = WebPushPreferenceStatus
 
 export interface PushPreferenceSnapshot {
   supported: boolean
@@ -73,42 +72,14 @@ export function isPushNotificationSupported(): boolean {
 }
 
 export function getPushStatusTone(status: PushPreferenceStatus): string {
-  if (status === 'denied' || status === 'sync-failed') {
-    return 'text-red-400'
-  }
-
-  if (status === 'registered') {
-    return 'text-primary'
-  }
-
-  return 'text-text-muted'
+  return getPushStatusToneClass(getWebPushStatusTone(status))
 }
 
 export function getPushStatusMessageKey(
   status: PushPreferenceStatus,
   permission: WebPushPermission,
 ): string {
-  if (status === 'denied') {
-    return 'settings.notifications.denied'
-  }
-
-  if (status === 'requesting') {
-    return 'settings.notifications.requesting'
-  }
-
-  if (status === 'registered') {
-    return 'settings.notifications.registered'
-  }
-
-  if (status === 'sync-failed') {
-    return 'settings.notifications.syncFailed'
-  }
-
-  if (status === 'not-registered' && permission === 'granted') {
-    return 'settings.notifications.notRegistered'
-  }
-
-  return 'settings.notifications.disabled'
+  return getWebPushStatusMessageKey(status, permission)
 }
 
 export async function loadPushNotificationState(): Promise<PushPreferenceSnapshot> {

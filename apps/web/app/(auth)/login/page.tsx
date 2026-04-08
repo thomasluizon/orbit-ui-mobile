@@ -1,21 +1,18 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
-import { isValidEmail } from '@orbit/shared/utils/email'
+import {
+  getAuthLoginErrorKey,
+  isValidEmail,
+  isValidVerificationCode,
+} from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { LoginResponse } from '@orbit/shared/types/auth'
-
-const BACKEND_ERROR_MAP: Record<string, string> = {
-  'Please wait before requesting a new code': 'auth.errors.rateLimited',
-  'Verification code expired or not found': 'auth.errors.codeExpired',
-  'Too many attempts. Please request a new code': 'auth.errors.tooManyAttempts',
-  'Invalid verification code': 'auth.errors.invalidCode',
-  'Invalid email format': 'auth.errors.invalidEmail',
-}
 
 function getCookieValue(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
@@ -71,28 +68,13 @@ function extractFetchError(err: unknown): string | undefined {
 }
 
 function translateBackendError(error: string, t: ReturnType<typeof useTranslations>): string {
-  const key = BACKEND_ERROR_MAP[error]
+  const key = getAuthLoginErrorKey(error)
   return key ? t(key) : error
 }
 
 function extractError(err: unknown, t: ReturnType<typeof useTranslations>): string {
   const backendError = extractFetchError(err)
   return backendError ? translateBackendError(backendError, t) : t('auth.genericError')
-}
-
-/** Fill code digits from a multi-char string input (typing or paste) */
-function fillCodeDigits(
-  startIndex: number,
-  cleanValue: string,
-  current: string[],
-): { digits: string[]; nextFocusIndex: number } {
-  const chars = cleanValue.split('')
-  const newDigits = [...current]
-  for (let i = 0; i < chars.length && startIndex + i < 6; i++) {
-    newDigits[startIndex + i] = chars[i] ?? ''
-  }
-  const nextFocusIndex = Math.min(startIndex + chars.length, 5)
-  return { digits: newDigits, nextFocusIndex }
 }
 
 // ---------------------------------------------------------------------------
@@ -141,12 +123,14 @@ function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, onSend
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder={t('auth.emailPlaceholder')}
+            autoComplete="email"
             className="form-input"
           />
         </div>
         <button
           type="submit"
           disabled={isSubmitting || !email.trim()}
+          aria-busy={isSubmitting}
           className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-[var(--radius-xl)] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[var(--shadow-glow)] flex items-center justify-center gap-2"
         >
           {isSubmitting && <Spinner />}
@@ -164,6 +148,7 @@ function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, onSend
         type="button"
         disabled={isGoogleLoading}
         onClick={onSignInWithGoogle}
+        aria-busy={isGoogleLoading}
         className="w-full bg-white hover:bg-gray-50 text-gray-800 font-medium py-3.5 rounded-[var(--radius-xl)] border border-border-emphasis transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
       >
         {isGoogleLoading ? <Spinner size={5} /> : <GoogleIcon />}
@@ -182,8 +167,8 @@ interface CodeStepProps {
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
   onVerifyCode: () => void
   onCodeInput: (index: number, value: string) => void
-  onCodeKeydown: (index: number, event: React.KeyboardEvent) => void
-  onCodePaste: (event: React.ClipboardEvent) => void
+  onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
+  onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
   onBackToEmail: () => void
   onResendCode: () => void
   t: ReturnType<typeof useTranslations>
@@ -196,13 +181,13 @@ function CodeStep({
 }: Readonly<CodeStepProps>) {
   return (
     <>
-      <p className="text-sm text-text-secondary">
+      <p id="code-sent-to" className="text-sm text-text-secondary">
         {t('auth.codeSentTo')}{' '}
         <span className="text-text-primary font-medium">{email}</span>
       </p>
 
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
-        <div className="flex justify-center gap-1.5 sm:gap-2">
+        <div className="flex justify-center gap-1.5 sm:gap-2" role="group" aria-labelledby="code-sent-to">
           {codeDigits.map((digit, index) => (
             <input
               key={`code-digit-${index}`} // NOSONAR - fixed-length array where position is identity
@@ -213,6 +198,7 @@ function CodeStep({
               type="text"
               inputMode="numeric"
               maxLength={20}
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
               onChange={(e) => onCodeInput(index, e.target.value)}
               onKeyDown={(e) => onCodeKeydown(index, e)}
               onPaste={onCodePaste}
@@ -224,6 +210,7 @@ function CodeStep({
         <button
           type="submit"
           disabled={isSubmitting || codeDigits.join('').length !== 6}
+          aria-busy={isSubmitting}
           className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-[var(--radius-xl)] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[var(--shadow-glow)] flex items-center justify-center gap-2"
         >
           {isSubmitting && <Spinner />}
@@ -288,31 +275,6 @@ function handleVerifySuccess(
   router.push(getReturnUrl())
 }
 
-function handleCodeDigitInput(
-  index: number,
-  cleanValue: string,
-  codeDigits: string[],
-  setCodeDigits: (digits: string[]) => void,
-  codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>,
-  verifyCode: (code: string) => void,
-) {
-  if (cleanValue.length > 1) {
-    const { digits: newCodeDigits, nextFocusIndex } = fillCodeDigits(index, cleanValue, codeDigits)
-    setCodeDigits(newCodeDigits)
-    codeInputRefs.current[nextFocusIndex]?.focus()
-    if (newCodeDigits.join('').length === 6) {
-      setTimeout(() => verifyCode(newCodeDigits.join('')), 0)
-    }
-    return
-  }
-  const newCodeDigits = [...codeDigits]
-  newCodeDigits[index] = cleanValue
-  setCodeDigits(newCodeDigits)
-  if (cleanValue && index < 5) {
-    codeInputRefs.current[index + 1]?.focus()
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -326,15 +288,24 @@ export default function LoginPage() {
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
-  const [codeDigits, setCodeDigits] = useState(['', '', '', '', '', ''])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [canResend, setCanResend] = useState(true)
-  const [resendCountdown, setResendCountdown] = useState(0)
-
-  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const {
+    codeDigits,
+    setCodeDigits,
+    codeInputRefs,
+    canResend,
+    resendCountdown,
+    startResendCountdown,
+    resetCodeDigits,
+    onCodeInput,
+    onCodePaste,
+    onCodeKeydown,
+  } = useLoginCodeEntry((code) => {
+    void verifyCode(code)
+  })
 
   // Referral code from cookie
   const referralCode = getCookieValue('referral_code')
@@ -351,27 +322,12 @@ export default function LoginPage() {
   useEffect(() => {
     const emailFromQuery = searchParams.get('email')
     const codeFromQuery = searchParams.get('code')
-    if (emailFromQuery && codeFromQuery && /^\d{6}$/.test(codeFromQuery)) {
+    if (emailFromQuery && isValidVerificationCode(codeFromQuery)) {
       setEmail(emailFromQuery)
       setCodeDigits(codeFromQuery.split(''))
       setStep('code')
     }
   }, [searchParams])
-
-  const startResendCountdown = useCallback(() => {
-    setCanResend(false)
-    setResendCountdown(60)
-    const interval = setInterval(() => {
-      setResendCountdown((prev) => {
-        if (prev <= 1) {
-          setCanResend(true)
-          clearInterval(interval)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }, [])
 
   const getReturnUrl = useCallback((): string => {
     const returnUrl = searchParams.get('returnUrl')
@@ -445,30 +401,7 @@ export default function LoginPage() {
     setStep('email')
     setErrorMessage(null)
     setSuccessMessage(null)
-    setCodeDigits(['', '', '', '', '', ''])
-  }
-
-  function onCodeInput(index: number, value: string) {
-    const cleanValue = value.replaceAll(/\D/g, '')
-    handleCodeDigitInput(index, cleanValue, codeDigits, setCodeDigits, codeInputRefs, (c) => verifyCode(c))
-  }
-
-  function onCodePaste(event: React.ClipboardEvent) {
-    event.preventDefault()
-    const pasted = event.clipboardData.getData('text').replaceAll(/\D/g, '')
-    if (!pasted) return
-    const { digits: newCodeDigits, nextFocusIndex } = fillCodeDigits(0, pasted.slice(0, 6), ['', '', '', '', '', ''])
-    setCodeDigits(newCodeDigits)
-    codeInputRefs.current[nextFocusIndex]?.focus()
-    if (pasted.length >= 6) {
-      setTimeout(() => verifyCode(newCodeDigits.join('')), 0)
-    }
-  }
-
-  function onCodeKeydown(index: number, event: React.KeyboardEvent) {
-    if (event.key === 'Backspace' && !codeDigits[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus()
-    }
+    resetCodeDigits()
   }
 
   async function signInWithGoogle() {
@@ -509,7 +442,12 @@ export default function LoginPage() {
 
         {/* Referral banner */}
         {referralCode && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400 flex items-center gap-2">
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400 flex items-center gap-2"
+          >
             <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
             </svg>
@@ -519,14 +457,24 @@ export default function LoginPage() {
 
         {/* Success alert */}
         {successMessage && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400">
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400"
+          >
             {successMessage}
           </div>
         )}
 
         {/* Error alert */}
         {errorMessage && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-red-400">
+          <div
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            className="bg-red-500/10 border border-red-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-red-400"
+          >
             {errorMessage}
           </div>
         )}

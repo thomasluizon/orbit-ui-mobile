@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Clock, Bell, CalendarDays, Flame, Trophy, BarChart3, Trash2 } from 'lucide-react'
+import { Clock, Bell, CalendarDays } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -9,6 +9,12 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
+import {
+  HabitDetailActionButtons,
+  HabitDetailRecentNotes,
+  HabitDetailStatsGrid,
+  type TranslationFn,
+} from './habit-detail-sections'
 import { DescriptionViewer } from './description-viewer'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
@@ -57,9 +63,21 @@ export function HabitDetailDrawer({
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
 
-  const logsWithNotes = useMemo(
-    () => (logs ?? []).filter((l) => l.note).slice(0, 5),
-    [logs],
+  const recentNotes = useMemo(
+    () =>
+      (logs ?? [])
+        .filter((log) => log.note)
+        .slice(0, 5)
+        .map((log) => ({
+          id: log.id,
+          note: log.note ?? '',
+          dateLabel: format(
+            new Date(log.date),
+            locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy',
+            { locale: dateFnsLocale },
+          ),
+        })),
+    [dateFnsLocale, locale, logs],
   )
 
   const handleEdit = useCallback(() => {
@@ -134,19 +152,11 @@ export function HabitDetailDrawer({
         footer={
           habit ? (
             <div className="flex gap-3">
-              <button
-                className="flex-1 py-4 rounded-xl border border-border text-text-primary font-bold text-sm hover:bg-surface-elevated/80 transition-all duration-150"
-                onClick={handleEdit}
-              >
-                {t('common.edit')}
-              </button>
-              <button
-                className="flex-[2] py-4 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-150 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
-                onClick={handleDelete}
-              >
-                <Trash2 className="size-3" />
-                {t('common.delete')}
-              </button>
+              <HabitDetailActionButtons
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                t={t as TranslationFn}
+              />
             </div>
           ) : undefined
         }
@@ -206,56 +216,7 @@ export function HabitDetailDrawer({
               />
             )}
 
-            {/* Stats grid (3-column) */}
-            {metrics && !metricsLoading && (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
-                  <Flame className="size-5 text-primary" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-                    {t('habits.detail.currentStreak')}
-                  </span>
-                  <span className="text-lg font-bold text-text-primary">
-                    {t('habits.detail.streakDays', {
-                      n: metrics.currentStreak,
-                    })}
-                  </span>
-                </div>
-                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
-                  <Trophy className="size-5 text-primary" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-                    {t('habits.detail.longestStreak')}
-                  </span>
-                  <span className="text-lg font-bold text-text-primary">
-                    {t('habits.detail.streakDays', {
-                      n: metrics.longestStreak,
-                    })}
-                  </span>
-                </div>
-                <div className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-1 shadow-[var(--shadow-sm)]">
-                  <BarChart3 className="size-5 text-primary" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-                    {t('habits.detail.monthlyRate')}
-                  </span>
-                  <span className="text-lg font-bold text-text-primary">
-                    {Math.round(metrics.monthlyCompletionRate)}%
-                  </span>
-                </div>
-              </div>
-            )}
-            {!metrics && metricsLoading && (
-              <div className="grid grid-cols-3 gap-3">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-surface-ground border border-border-muted rounded-xl p-3 flex flex-col items-center gap-2"
-                  >
-                    <div className="size-5 rounded-full bg-surface-elevated animate-pulse" />
-                    <div className="h-2.5 w-10 bg-surface-elevated rounded animate-pulse" />
-                    <div className="h-5 w-8 bg-surface-elevated rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            )}
+            <HabitDetailStatsGrid metrics={metrics} loading={metricsLoading} t={t as TranslationFn} />
 
             {/* Calendar heatmap */}
             <div>
@@ -265,27 +226,7 @@ export function HabitDetailDrawer({
               <HabitCalendar habitId={habit.id} logs={logs} />
             </div>
 
-            {/* Recent notes */}
-            {logsWithNotes.length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-text-primary mb-3">
-                  {t('habits.detail.recentNotes')}
-                </h3>
-                <div className="space-y-2">
-                  {logsWithNotes.map((log) => (
-                    <div
-                      key={log.id}
-                      className="bg-surface-ground border border-border-muted rounded-lg p-3 shadow-[var(--shadow-sm)]"
-                    >
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                        {format(new Date(log.date), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })}
-                      </p>
-                      <p className="text-sm text-text-secondary">{log.note}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <HabitDetailRecentNotes notes={recentNotes} t={t as TranslationFn} />
           </div>
         )}
       </AppOverlay>

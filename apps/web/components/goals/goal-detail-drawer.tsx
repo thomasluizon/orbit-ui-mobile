@@ -16,6 +16,11 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
+  GoalActionButton,
+  GoalLinkedHabitsSection,
+  GoalProgressHistorySection,
+} from './goal-detail-sections'
+import {
   useGoals,
   useGoalDetail,
   useUpdateGoalProgress,
@@ -294,58 +299,25 @@ export function GoalDetailDrawer({
             )}
 
             {/* Progress history */}
-            {detail?.progressHistory && detail.progressHistory.length > 0 && (
-              <div>
-                <h4 className="form-label mb-2">
-                  {t('goals.progressHistory')}
-                </h4>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {detail.progressHistory.map((entry) => (
-                    <div
-                      key={`${entry.createdAtUtc}-${entry.value}`}
-                      className="flex items-center justify-between text-xs bg-surface-elevated rounded-xl px-3 py-2"
-                    >
-                      <div>
-                        <span className="text-text-primary font-medium">
-                          {t('goals.progressEntry', {
-                            previous: entry.previousValue,
-                            value: entry.value,
-                            unit: goal.unit,
-                          })}
-                        </span>
-                        {entry.note && (
-                          <span className="text-text-muted ml-2">
-                            {entry.note}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-text-muted shrink-0 ml-2">
-                        {formatDate(entry.createdAtUtc)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <GoalProgressHistorySection
+              title={t('goals.progressHistory')}
+              entries={detail?.progressHistory ?? []}
+              unit={goal.unit}
+              formatDate={formatDate}
+              renderEntryLabel={(entry) =>
+                t('goals.progressEntry', {
+                  previous: entry.previousValue,
+                  value: entry.value,
+                  unit: goal.unit,
+                })
+              }
+            />
 
             {/* Linked Habits */}
-            {goal.linkedHabits && goal.linkedHabits.length > 0 && (
-              <div className="mt-4">
-                <h4 className="form-label mb-2">
-                  {t('goals.linkedHabits')}
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {goal.linkedHabits.map((habit) => (
-                    <span
-                      key={habit.id}
-                      className="px-2.5 py-1 rounded-xl text-xs font-medium bg-surface border border-border text-text-secondary"
-                    >
-                      {habit.title}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <GoalLinkedHabitsSection
+              title={t('goals.linkedHabits')}
+              linkedHabits={goal.linkedHabits ?? []}
+            />
 
             {/* Load error (fallback to store data) */}
             {loadError && (
@@ -361,54 +333,49 @@ export function GoalDetailDrawer({
 
             {/* Actions */}
             <div className="space-y-2 pt-2 border-t border-border">
-              <button
+              <GoalActionButton
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
                 onClick={() => setShowEditModal(true)}
-              >
-                <PencilLine className="size-5 text-text-muted" />
-                {t('goals.detail.edit')}
-              </button>
+                icon={<PencilLine className="size-5 text-text-muted" />}
+                label={t('goals.detail.edit')}
+              />
 
               {goal.status === 'Active' && (
-                <button
+                <GoalActionButton
                   disabled={isUpdatingStatus}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-green-400 hover:bg-green-500/10 transition-all duration-150 disabled:opacity-50"
                   onClick={markCompleted}
-                >
-                  <CheckCircle2 className="size-5" />
-                  {t('goals.detail.markCompleted')}
-                </button>
+                  icon={<CheckCircle2 className="size-5" />}
+                  label={t('goals.detail.markCompleted')}
+                />
               )}
 
               {goal.status === 'Active' && (
-                <button
+                <GoalActionButton
                   disabled={isUpdatingStatus}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-amber-400 hover:bg-amber-500/10 transition-all duration-150 disabled:opacity-50"
                   onClick={markAbandoned}
-                >
-                  <ArchiveX className="size-5" />
-                  {t('goals.detail.markAbandoned')}
-                </button>
+                  icon={<ArchiveX className="size-5" />}
+                  label={t('goals.detail.markAbandoned')}
+                />
               )}
 
               {goal.status !== 'Active' && (
-                <button
+                <GoalActionButton
                   disabled={isUpdatingStatus}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-primary hover:bg-primary/10 transition-all duration-150 disabled:opacity-50"
                   onClick={reactivate}
-                >
-                  <RotateCw className="size-5" />
-                  {t('goals.detail.reactivate')}
-                </button>
+                  icon={<RotateCw className="size-5" />}
+                  label={t('goals.detail.reactivate')}
+                />
               )}
 
-              <button
+              <GoalActionButton
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-red-400 hover:bg-red-500/10 transition-all duration-150"
                 onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="size-5" />
-                {t('goals.detail.delete')}
-              </button>
+                icon={<Trash2 className="size-5" />}
+                label={t('goals.detail.delete')}
+              />
             </div>
           </div>
         )}

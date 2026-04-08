@@ -11,6 +11,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { StreakFreezeSection, StreakTimelineCard } from './_components/streak-sections'
 import './streak.css'
 
 export default function StreakPage() {
@@ -89,14 +90,6 @@ export default function StreakPage() {
     }
   }
 
-  const statusClass: Record<string, string> = {
-    active: 'bg-green-500/15 text-green-400 border border-green-500/25',
-    frozen: 'bg-blue-500/15 text-blue-400 border border-blue-500/25',
-    missed: 'bg-surface-elevated text-text-muted border border-border-muted',
-    today: 'bg-primary/15 text-primary border-2 border-primary/40',
-    future: 'bg-surface-elevated text-text-muted border border-border-muted',
-  }
-
   return (
     <div className="pb-8">
       {/* Header */}
@@ -166,41 +159,7 @@ export default function StreakPage() {
           </div>
 
           {/* Weekly timeline */}
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">
-              {t('streakDisplay.detail.thisWeek')}
-            </p>
-            <div className="grid grid-cols-7 gap-1">
-              {weekDays.map((day) => (
-                <div key={day.dateStr} className="flex flex-col items-center gap-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                    {day.dayLabel}
-                  </span>
-                  <div
-                    className={`size-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200 ${statusClass[day.status]}`}
-                  >
-                    {day.dayNum}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-3 border-t border-border-muted">
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-green-500" />
-                <span className="text-[10px] text-text-muted">{t('streakDisplay.detail.dayActive')}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-blue-500" />
-                <span className="text-[10px] text-text-muted">{t('streakDisplay.detail.dayFrozen')}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-text-muted" />
-                <span className="text-[10px] text-text-muted">{t('streakDisplay.detail.dayMissed')}</span>
-              </div>
-            </div>
-          </div>
+          <StreakTimelineCard t={t} weekDays={weekDays} />
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
@@ -219,82 +178,20 @@ export default function StreakPage() {
           </div>
 
           {/* Freeze section */}
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg viewBox="0 0 12 14" fill="none" className="size-4">
-                  <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#93c5fd" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-sm font-bold text-text-primary">{t('streakDisplay.freeze.title')}</span>
-              </div>
-              <span className="text-xs text-text-muted">
-                {plural(t('streakDisplay.freeze.available', { count: freezesAvailable }), freezesAvailable)}
-              </span>
-            </div>
-
-            {/* Frozen today indicator */}
-            {isFrozenToday && (
-              <div className="flex items-center gap-2 bg-blue-500/8 border border-blue-500/15 rounded-[var(--radius-lg)] px-3.5 py-2.5">
-                <svg viewBox="0 0 12 14" fill="none" className="size-4">
-                  <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-xs font-bold text-blue-400">{t('streakDisplay.freeze.activeToday')}</span>
-              </div>
-            )}
-            {!isFrozenToday && streak > 0 && (
-              <button
-                className={`w-full py-3 rounded-[var(--radius-lg)] text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
-                  canFreeze
-                    ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/15 hover:border-blue-500/30'
-                    : 'bg-surface-elevated text-text-muted cursor-not-allowed opacity-50'
-                }`}
-                disabled={!canFreeze}
-                onClick={() => setShowConfirm(true)}
-              >
-                {t('streakDisplay.freeze.activate')}
-              </button>
-            )}
-
-            {/* Already completed today hint */}
-            {hasCompletedToday && !isFrozenToday && streak > 0 && (
-              <p className="text-xs text-green-400 text-center font-medium">
-                {t('streakDisplay.freeze.completedToday')}
-              </p>
-            )}
-
-            {/* Success message */}
-            {freezeSuccess && (
-              <p className="text-xs text-blue-400 text-center font-medium animate-in fade-in duration-300">
-                {t('streakDisplay.freeze.success')}
-              </p>
-            )}
-
-            {/* Error message */}
-            {activateFreezeMutation.error && (
-              <p className="text-xs text-red-400 text-center">
-                {activateFreezeMutation.error.message}
-              </p>
-            )}
-
-            {/* Recent freeze dates */}
-            {streakInfo?.recentFreezeDates && streakInfo.recentFreezeDates.length > 0 && (
-              <div className="space-y-1.5 pt-2 border-t border-white/5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                  {t('streakDisplay.freeze.recentLabel')}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
-                    <span
-                      key={date}
-                      className="text-[10px] text-text-muted bg-surface-elevated px-2 py-0.5 rounded-full"
-                    >
-                      {format(parseISO(date), locale === 'pt-BR' ? 'dd MMM' : 'MMM d', { locale: dateFnsLocale })}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <StreakFreezeSection
+            t={t}
+            locale={locale}
+            dateFnsLocale={dateFnsLocale}
+            streak={streak}
+            freezesAvailable={freezesAvailable}
+            isFrozenToday={isFrozenToday}
+            hasCompletedToday={hasCompletedToday}
+            canFreeze={canFreeze}
+            freezeSuccess={freezeSuccess}
+            errorMessage={activateFreezeMutation.error?.message}
+            streakInfo={streakInfo}
+            onActivateFreeze={() => setShowConfirm(true)}
+          />
         </div>
       )}
 

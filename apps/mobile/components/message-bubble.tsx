@@ -120,7 +120,7 @@ export function MessageBubble({
     >
       {/* AI avatar */}
       {!isUser && (
-        <View style={styles.aiAvatar}>
+        <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Sparkles size={20} color={colors.primary} />
         </View>
       )}
@@ -195,7 +195,7 @@ export function MessageBubble({
 
       {/* User avatar */}
       {isUser && (
-        <View style={styles.userAvatar}>
+        <View style={styles.userAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <User size={20} color={colors.textSecondary} />
         </View>
       )}
@@ -241,9 +241,9 @@ export function TypingIndicator() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <View style={[styles.container, styles.aiContainer]}>
+    <View style={[styles.container, styles.aiContainer]} accessibilityLiveRegion="polite">
       {/* AI avatar */}
-      <View style={styles.aiAvatar}>
+      <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Sparkles size={20} color={colors.primary} />
       </View>
 

@@ -4,26 +4,18 @@ import { useState, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCreateHabit } from '@/hooks/use-habits'
-import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  getErrorMessage,
+  getOnboardingHabitFrequencyLabelKey,
+  ONBOARDING_HABIT_FREQUENCIES,
+  ONBOARDING_HABIT_SUGGESTIONS,
+} from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 interface Suggestion {
   key: string
   frequency: FrequencyUnit
 }
-
-const suggestions: Suggestion[] = [
-  { key: 'water', frequency: 'Day' },
-  { key: 'read', frequency: 'Day' },
-  { key: 'exercise', frequency: 'Week' },
-  { key: 'meditate', frequency: 'Day' },
-]
-
-const frequencies: { value: FrequencyUnit | 'one-time'; labelKey: string }[] = [
-  { value: 'Day', labelKey: 'onboarding.flow.createHabit.frequency.daily' },
-  { value: 'Week', labelKey: 'onboarding.flow.createHabit.frequency.weekly' },
-  { value: 'one-time', labelKey: 'onboarding.flow.createHabit.frequency.oneTime' },
-]
 
 interface OnboardingCreateHabitProps {
   onCreated: (habitId: string, title: string) => void
@@ -99,10 +91,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             <p className="text-lg font-bold text-text-primary">{title}</p>
             <p className="text-xs text-text-secondary mt-1">
               {(() => {
-                if (!frequencyUnit) return t('onboarding.flow.createHabit.frequency.oneTime')
-                if (frequencyUnit === 'Day') return t('onboarding.flow.createHabit.frequency.daily')
-                if (frequencyUnit === 'Week') return t('onboarding.flow.createHabit.frequency.weekly')
-                return t('onboarding.flow.createHabit.frequency.oneTime')
+                return t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))
               })()}
             </p>
             <p className="text-sm text-success font-medium mt-3">
@@ -125,7 +114,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 
       {/* Suggestion chips */}
       <div className="flex flex-wrap gap-2 justify-center mb-6">
-        {suggestions.map((suggestion) => (
+        {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
           <button
             key={suggestion.key}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 ${
@@ -153,7 +142,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 
       {/* Frequency picker */}
       <div className="flex gap-2 mt-4">
-        {frequencies.map((freq) => (
+        {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
           <button
             key={freq.value}
             className={`flex-1 py-2.5 rounded-[var(--radius-xl)] text-sm font-semibold text-center transition-all ${

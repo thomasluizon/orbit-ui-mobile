@@ -9,6 +9,7 @@ import {
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Bell, BellOff, Trash2, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { formatNotificationRelativeTime } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
   useNotifications,
@@ -22,24 +23,6 @@ import { NotificationDetailModal } from './notification-detail-modal'
 import { plural } from '@/lib/plural'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatTime(dateStr: string, t: ReturnType<typeof useTranslation>['t']): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-
-  if (diffMin < 1) return t('notifications.now')
-  if (diffMin < 60) return t('notifications.minutesAgo', { n: diffMin })
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return t('notifications.hoursAgo', { n: diffHours })
-  const diffDays = Math.floor(diffHours / 24)
-  return t('notifications.daysAgo', { n: diffDays })
-}
 
 // ---------------------------------------------------------------------------
 // NotificationBell
@@ -107,7 +90,11 @@ export function NotificationBell() {
           <Text style={styles.notifBody} numberOfLines={2}>
             {item.body}
           </Text>
-          <Text style={styles.notifTime}>{formatTime(item.createdAtUtc, t)}</Text>
+          <Text style={styles.notifTime}>
+            {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+              t(`notifications.${key}`, values),
+            )}
+          </Text>
         </View>
         <TouchableOpacity
           style={styles.deleteBtn}

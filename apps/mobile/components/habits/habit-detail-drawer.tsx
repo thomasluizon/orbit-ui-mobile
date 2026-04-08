@@ -11,10 +11,6 @@ import {
   Clock,
   Bell,
   CalendarDays,
-  Flame,
-  Trophy,
-  BarChart3,
-  Trash2,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
@@ -23,6 +19,11 @@ import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { HabitChecklist } from "./habit-checklist";
 import { DescriptionViewer } from "./description-viewer";
 import { HabitCalendar } from "./habit-calendar";
+import {
+  HabitDetailActionButtons,
+  HabitDetailRecentNotes,
+  HabitDetailStatsGrid,
+} from "./habit-detail-sections";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import {
   useHabitFullDetail,
@@ -44,6 +45,25 @@ interface HabitDetailDrawerProps {
   onDelete?: (habitId: string) => void;
   onEdit?: (habitId: string) => void;
   onLogged?: (habitId: string) => void;
+}
+
+type HabitDetailColors = {
+  primary: string
+  primary_10: string
+  surfaceGround: string
+  surface: string
+  surfaceElevated: string
+  borderMuted: string
+  border: string
+  textSecondary: string
+  textPrimary: string
+  textMuted: string
+  textFaded: string
+  white: string
+}
+
+type HabitDetailShadows = {
+  sm: Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -80,9 +100,21 @@ export function HabitDetailDrawer({
 
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false);
 
-  const logsWithNotes = useMemo(
-    () => (logs ?? []).filter((l) => l.note).slice(0, 5),
-    [logs],
+  const recentNotes = useMemo(
+    () =>
+      (logs ?? [])
+        .filter((log) => log.note)
+        .slice(0, 5)
+        .map((log) => ({
+          id: log.id,
+          note: log.note ?? "",
+          dateLabel: format(
+            new Date(log.date),
+            locale === "pt-BR" ? "dd MMM yyyy" : "MMM d, yyyy",
+            { locale: dateFnsLocale },
+          ),
+        })),
+    [dateFnsLocale, locale, logs],
   );
 
   const handleEdit = useCallback(() => {
@@ -240,53 +272,27 @@ export function HabitDetailDrawer({
               />
             )}
 
-            {/* Stats grid (3-column) */}
-            {metrics && !metricsLoading && (
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <Flame size={20} color={colors.primary} />
-                  <Text style={styles.statLabel}>
-                    {t("habits.detail.currentStreak")}
-                  </Text>
-                  <Text style={styles.statValue}>
-                    {t("habits.detail.streakDays", {
-                      n: metrics.currentStreak,
-                    })}
-                  </Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Trophy size={20} color={colors.primary} />
-                  <Text style={styles.statLabel}>
-                    {t("habits.detail.longestStreak")}
-                  </Text>
-                  <Text style={styles.statValue}>
-                    {t("habits.detail.streakDays", {
-                      n: metrics.longestStreak,
-                    })}
-                  </Text>
-                </View>
-                <View style={styles.statCard}>
-                  <BarChart3 size={20} color={colors.primary} />
-                  <Text style={styles.statLabel}>
-                    {t("habits.detail.monthlyRate")}
-                  </Text>
-                  <Text style={styles.statValue}>
-                    {Math.round(metrics.monthlyCompletionRate)}%
-                  </Text>
-                </View>
-              </View>
-            )}
-            {!metrics && metricsLoading && (
-              <View style={styles.statsGrid}>
-                {[1, 2, 3].map((i) => (
-                  <View key={i} style={styles.statCard}>
-                    <View style={styles.skeletonIcon} />
-                    <View style={styles.skeletonLabel} />
-                    <View style={styles.skeletonValue} />
-                  </View>
-                ))}
-              </View>
-            )}
+            <HabitDetailStatsGrid
+              metrics={metrics}
+              loading={metricsLoading}
+              t={t}
+              colors={{
+                primary: colors.primary,
+                surfaceGround: colors.surfaceGround,
+                borderMuted: colors.borderMuted,
+                textSecondary: colors.textSecondary,
+                textPrimary: colors.textPrimary,
+              }}
+              styles={{
+                statsGrid: styles.statsGrid,
+                statCard: styles.statCard,
+                statLabel: styles.statLabel,
+                statValue: styles.statValue,
+                skeletonIcon: styles.skeletonIcon,
+                skeletonLabel: styles.skeletonLabel,
+                skeletonValue: styles.skeletonValue,
+              }}
+            />
 
             <View style={styles.calendarSection}>
               <Text style={styles.sectionTitle}>
@@ -295,49 +301,32 @@ export function HabitDetailDrawer({
               <HabitCalendar habitId={habit.id} logs={logs} />
             </View>
 
-            {/* Recent notes */}
-            {logsWithNotes.length > 0 && (
-              <View style={styles.notesSection}>
-                <Text style={styles.sectionTitle}>
-                  {t("habits.detail.recentNotes")}
-                </Text>
-                <View style={styles.notesList}>
-                  {logsWithNotes.map((log) => (
-                    <View key={log.id} style={styles.noteCard}>
-                      <Text style={styles.noteDate}>
-                        {format(
-                          new Date(log.date),
-                          locale === "pt-BR" ? "dd MMM yyyy" : "MMM d, yyyy",
-                          { locale: dateFnsLocale },
-                        )}
-                      </Text>
-                      <Text style={styles.noteText}>{log.note}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
+            <HabitDetailRecentNotes
+              notes={recentNotes}
+              t={t}
+              styles={{
+                notesSection: styles.notesSection,
+                sectionTitle: styles.sectionTitle,
+                notesList: styles.notesList,
+                noteCard: styles.noteCard,
+                noteDate: styles.noteDate,
+                noteText: styles.noteText,
+              }}
+            />
 
             {/* Action buttons */}
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={handleEdit}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.editButtonText}>{t("common.edit")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={handleDelete}
-                activeOpacity={0.7}
-              >
-                <Trash2 size={12} color={colors.white} />
-                <Text style={styles.deleteButtonText}>
-                  {t("common.delete")}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <HabitDetailActionButtons
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              t={t}
+              styles={{
+                buttonRow: styles.buttonRow,
+                editButton: styles.editButton,
+                editButtonText: styles.editButtonText,
+                deleteButton: styles.deleteButton,
+                deleteButtonText: styles.deleteButtonText,
+              }}
+            />
           </BottomSheetScrollView>
         )}
       </BottomSheetModal>
@@ -350,8 +339,8 @@ export function HabitDetailDrawer({
 // ---------------------------------------------------------------------------
 
 function createStyles(
-  colors: ReturnType<typeof useAppTheme>["colors"],
-  shadows: ReturnType<typeof useAppTheme>["shadows"],
+  colors: HabitDetailColors,
+  shadows: HabitDetailShadows,
 ) {
   return StyleSheet.create({
     scroll: {

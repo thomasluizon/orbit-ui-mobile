@@ -2,15 +2,14 @@
 
 import { useState, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { API } from '@orbit/shared/api'
+import {
+  buildRetrospectiveRequestUrl,
+  type RetrospectivePeriod,
+  type RetrospectiveResponse,
+} from '@orbit/shared/utils/retrospective'
 import { getErrorMessage } from '@orbit/shared/utils'
 
-export type RetrospectivePeriod = 'week' | 'month' | 'quarter' | 'semester' | 'year'
-
-interface RetrospectiveResponse {
-  retrospective: string
-  fromCache: boolean
-}
+export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
 export function useRetrospective() {
   const t = useTranslations()
@@ -27,11 +26,7 @@ export function useRetrospective() {
     setRetrospective(null)
 
     try {
-      const params = new URLSearchParams({
-        period,
-        language: locale,
-      })
-      const res = await fetch(`${API.habits.retrospective}?${params.toString()}`)
+      const res = await fetch(buildRetrospectiveRequestUrl(period, locale))
       if (!res.ok) {
         const body = await res.json().catch(() => null)
         throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)

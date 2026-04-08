@@ -14,11 +14,13 @@ import { ArrowLeft, Send } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
 import { createColors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -26,6 +28,7 @@ export default function SupportScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const { isOnline } = useOffline()
   const styles = useMemo(() => createStyles(colors), [colors])
   const { profile } = useProfile()
   const [name, setName] = useState('')
@@ -69,6 +72,11 @@ export default function SupportScreen() {
   }
 
   const handleSend = useCallback(async () => {
+    if (!isOnline) {
+      setError(t('calendarSync.notConnected'))
+      return
+    }
+
     if (!subject.trim() || !message.trim()) return
     if (!validateForm()) return
 
@@ -79,12 +87,14 @@ export default function SupportScreen() {
     try {
       await apiClient(API.support.send, {
         method: 'POST',
-        body: JSON.stringify({
-          name: name.trim() || profile?.name,
-          email: email.trim() || profile?.email,
-          subject: subject.trim(),
-          message: message.trim(),
-        }),
+        body: JSON.stringify(
+          buildSupportRequestBody(profile, {
+            name,
+            email,
+            subject,
+            message,
+          }),
+        ),
       })
 
       setSuccess(true)
@@ -95,7 +105,7 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [email, message, name, profile, subject, t])
+  }, [email, isOnline, message, name, profile, subject, t])
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -110,6 +120,8 @@ export default function SupportScreen() {
             style={styles.backButton}
             onPress={() => router.push('/profile')}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.goBack')}
           >
             <ArrowLeft size={20} color={colors.textMuted} />
           </TouchableOpacity>
@@ -120,6 +132,13 @@ export default function SupportScreen() {
           <Text style={styles.cardDescription}>
             {t('profile.support.description')}
           </Text>
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={t('calendarSync.notConnected')}
+              description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
+              compact
+            />
+          )}
 
           {success && (
             <View style={styles.successBanner}>
@@ -182,11 +201,11 @@ export default function SupportScreen() {
           <TouchableOpacity
             style={[
               styles.sendButton,
-              (!subject.trim() || !message.trim() || sending) &&
+              (!subject.trim() || !message.trim() || sending || !isOnline) &&
                 styles.sendButtonDisabled,
             ]}
             onPress={handleSend}
-            disabled={!subject.trim() || !message.trim() || sending}
+            disabled={!subject.trim() || !message.trim() || sending || !isOnline}
             activeOpacity={0.8}
           >
             {sending ? (

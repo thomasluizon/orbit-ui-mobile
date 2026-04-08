@@ -10,8 +10,9 @@ import {
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { getErrorMessage } from '@orbit/shared/utils'
-import { createColors, radius, shadows } from '@/lib/theme'
+import { getErrorMessage } from '@orbit/shared/utils/error-utils'
+import { ONBOARDING_GOAL_SUGGESTIONS } from '@orbit/shared/utils/onboarding'
+import { radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -30,7 +31,7 @@ interface OnboardingCreateGoalProps {
   onSkip: () => void
 }
 
-type AppColors = ReturnType<typeof createColors>
+type AppColors = ReturnType<typeof useAppTheme>['colors']
 
 // ---------------------------------------------------------------------------
 // Component
@@ -54,26 +55,13 @@ export function OnboardingCreateGoal({
   const isCreating = createGoal.isPending
 
   const suggestions = useMemo<GoalSuggestion[]>(
-    () => [
-      {
-        key: 'run',
-        title: t('onboarding.flow.createGoal.suggestions.run'),
-        target: 100,
-        unit: 'km',
-      },
-      {
-        key: 'books',
-        title: t('onboarding.flow.createGoal.suggestions.books'),
-        target: 12,
-        unit: t('onboarding.flow.createGoal.suggestions.booksUnit'),
-      },
-      {
-        key: 'save',
-        title: t('onboarding.flow.createGoal.suggestions.save'),
-        target: 5000,
-        unit: '$',
-      },
-    ],
+    () =>
+      ONBOARDING_GOAL_SUGGESTIONS.map((suggestion) => ({
+        key: suggestion.key,
+        title: t(suggestion.titleKey),
+        target: suggestion.target,
+        unit: suggestion.unitKey ? t(suggestion.unitKey) : suggestion.unit,
+      })),
     [t],
   )
 

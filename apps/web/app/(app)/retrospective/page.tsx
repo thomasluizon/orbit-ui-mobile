@@ -5,10 +5,13 @@ import Link from 'next/link'
 import { ArrowLeft, Loader2, Lock, BarChart3 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
+import { RETROSPECTIVE_PERIODS } from '@orbit/shared/utils/retrospective'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
+import { useOffline } from '@/hooks/use-offline'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 function escapeHtml(text: string): string {
   return text
@@ -30,6 +33,7 @@ function renderMarkdown(text: string): string {
 export default function RetrospectivePage() {
   const t = useTranslations()
   const { profile } = useProfile()
+  const { isOnline } = useOffline()
   const hasProAccess = useHasProAccess()
   const isYearlyPro = useIsYearlyPro()
   const {
@@ -44,13 +48,12 @@ export default function RetrospectivePage() {
     generate,
   } = useRetrospective()
 
-  const periods: { key: RetrospectivePeriod; label: string }[] = [
-    { key: 'week', label: t('retrospective.periods.week') },
-    { key: 'month', label: t('retrospective.periods.month') },
-    { key: 'quarter', label: t('retrospective.periods.quarter') },
-    { key: 'semester', label: t('retrospective.periods.semester') },
-    { key: 'year', label: t('retrospective.periods.year') },
-  ]
+  const periods: { key: RetrospectivePeriod; label: string }[] = RETROSPECTIVE_PERIODS.map(
+    (key) => ({
+      key,
+      label: t(`retrospective.periods.${key}`),
+    }),
+  )
 
   const [portalError, setPortalError] = useState('')
 
@@ -61,6 +64,11 @@ export default function RetrospectivePage() {
   }
 
   const handleOpenPortal = useCallback(async () => {
+    if (!isOnline) {
+      setPortalError(t('calendarSync.notConnected'))
+      return
+    }
+
     setPortalError('')
     try {
       const res = await fetch(API.subscription.portal, { method: 'POST' })
@@ -75,7 +83,7 @@ export default function RetrospectivePage() {
     } catch (err: unknown) {
       setPortalError(getErrorMessage(err, t('auth.genericError')))
     }
-  }, [t])
+  }, [isOnline, t])
 
   const isLoaded = !!profile
 
@@ -164,12 +172,19 @@ export default function RetrospectivePage() {
           {/* Generate button */}
           <button
             className="w-full py-4 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2 mb-6"
-            disabled={isLoading}
+            disabled={isLoading || !isOnline}
             onClick={generate}
           >
             {isLoading && <Loader2 className="size-4 animate-spin" />}
             {isLoading ? t('retrospective.generating') : t('retrospective.generate')}
           </button>
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={t('calendarSync.notConnected')}
+              description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+              compact
+            />
+          )}
 
           {/* Loading skeleton */}
           {isLoading && (

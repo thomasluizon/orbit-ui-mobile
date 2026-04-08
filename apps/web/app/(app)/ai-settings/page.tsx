@@ -17,6 +17,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { userFactKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import {
+  normalizeUserFactCategory,
+  USER_FACTS_PER_PAGE,
+} from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
@@ -55,13 +59,13 @@ async function bulkDeleteUserFacts(ids: string[]): Promise<void> {
 // Helpers (pure functions -- outer scope per SonarQube S7721)
 // ---------------------------------------------------------------------------
 
-function factCategoryColor(category: string | null): string {
-  switch (category?.toLowerCase()) {
-    case 'preference':
-      return 'text-primary bg-primary/10'
-    case 'routine':
-      return 'text-emerald-400 bg-emerald-400/10'
-    case 'context':
+  function factCategoryColor(category: string | null): string {
+    switch (normalizeUserFactCategory(category)) {
+      case 'preference':
+        return 'text-primary bg-primary/10'
+      case 'routine':
+        return 'text-emerald-400 bg-emerald-400/10'
+      case 'context':
       return 'text-blue-400 bg-blue-400/10'
     default:
       return 'text-text-secondary bg-surface-elevated'
@@ -253,15 +257,14 @@ export default function AiSettingsPage() {
   })
 
   // Pagination
-  const FACTS_PER_PAGE = 5
   const [factsPage, setFactsPage] = useState(1)
   const totalFactsPages = useMemo(
-    () => Math.max(1, Math.ceil(facts.length / FACTS_PER_PAGE)),
+    () => Math.max(1, Math.ceil(facts.length / USER_FACTS_PER_PAGE)),
     [facts.length],
   )
   const pagedFacts = useMemo(() => {
-    const start = (factsPage - 1) * FACTS_PER_PAGE
-    return facts.slice(start, start + FACTS_PER_PAGE)
+    const start = (factsPage - 1) * USER_FACTS_PER_PAGE
+    return facts.slice(start, start + USER_FACTS_PER_PAGE)
   }, [facts, factsPage])
 
   // Keep page in bounds when facts change
