@@ -43,11 +43,13 @@ describe('MessageBubble', () => {
   it('renders user message with user label', () => {
     render(<MessageBubble message={makeMessage({ role: 'user', content: 'Hello' })} />)
     expect(screen.getByText('chat.senderYou')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'chat.senderYou' })).toBeInTheDocument()
   })
 
   it('renders AI message with orbit label', () => {
     render(<MessageBubble message={makeMessage({ role: 'ai', content: 'Hi there' })} />)
     expect(screen.getByText('chat.senderOrbit')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'chat.senderOrbit' })).toBeInTheDocument()
   })
 
   it('renders message content', () => {

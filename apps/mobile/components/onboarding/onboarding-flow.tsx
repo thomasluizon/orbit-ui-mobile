@@ -10,11 +10,19 @@ import {
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import {
+  getOnboardingDisplayStep,
+  getOnboardingDisplayTotal,
+  getOnboardingNextStep,
+  getOnboardingPreviousStep,
+  ONBOARDING_COMPLETE_STEP,
+  shouldHideOnboardingFooter,
+} from '@orbit/shared/utils/onboarding'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
-import { apiClient } from '@/lib/api-client'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingCompleteHabit } from './onboarding-complete-habit'
@@ -27,8 +35,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const TOTAL_STEPS = 6
 
 // ---------------------------------------------------------------------------
 // Component
@@ -47,38 +53,26 @@ export function OnboardingFlow() {
   const [createdHabitTitle, setCreatedHabitTitle] = useState('')
   const [createdGoal, setCreatedGoal] = useState(false)
 
-  // Display computeds: adjust step counter when goals step is skipped for free users
-  const displayTotal = hasProAccess ? 6 : 5
-  const displayStep = useMemo(() => {
-    const raw = currentStep + 1
-    if (!hasProAccess && currentStep >= 4) return raw - 1
-    return raw
-  }, [currentStep, hasProAccess])
+  const displayTotal = getOnboardingDisplayTotal(hasProAccess)
+  const displayStep = useMemo(
+    () => getOnboardingDisplayStep(currentStep, hasProAccess),
+    [currentStep, hasProAccess],
+  )
 
   const hasPrev = currentStep > 0
-  const canAdvance = currentStep !== 5 // last step has its own CTA
+  const canAdvance = currentStep !== ONBOARDING_COMPLETE_STEP
 
   const goNext = useCallback(() => {
-    if (currentStep < TOTAL_STEPS - 1) {
-      let next = currentStep + 1
-      // Skip goal step for free users
-      if (next === 3 && !hasProAccess) {
-        next++
-      }
-      setCurrentStep(next)
-    }
-  }, [currentStep, hasProAccess])
+    setCurrentStep((previousStep) =>
+      getOnboardingNextStep(previousStep, hasProAccess),
+    )
+  }, [hasProAccess])
 
   const goPrev = useCallback(() => {
-    if (currentStep > 0) {
-      let prev = currentStep - 1
-      // Skip goal step for free users
-      if (prev === 3 && !hasProAccess) {
-        prev--
-      }
-      setCurrentStep(prev)
-    }
-  }, [currentStep, hasProAccess])
+    setCurrentStep((previousStep) =>
+      getOnboardingPreviousStep(previousStep, hasProAccess),
+    )
+  }, [hasProAccess])
 
   function handleHabitCreated(habitId: string, title: string) {
     setCreatedHabitId(habitId)
@@ -101,7 +95,14 @@ export function OnboardingFlow() {
 
   async function handleFinish() {
     try {
-      await apiClient(API.profile.onboarding, { method: 'PUT' })
+      await performQueuedApiMutation({
+        type: 'completeOnboarding',
+        scope: 'profile',
+        endpoint: API.profile.onboarding,
+        method: 'PUT',
+        payload: undefined,
+        dedupeKey: 'profile-onboarding-complete',
+      })
     } catch {
       // Ignore -- user should proceed regardless
     }
@@ -117,8 +118,7 @@ export function OnboardingFlow() {
   }
 
   // Interactive steps that hide the footer nav
-  const hideFooter =
-    currentStep === 5 || currentStep === 1 || currentStep === 2 || currentStep === 3
+  const hideFooter = shouldHideOnboardingFooter(currentStep)
 
   const stepContent = (() => {
     switch (currentStep) {

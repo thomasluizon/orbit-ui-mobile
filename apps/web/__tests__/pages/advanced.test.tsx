@@ -153,8 +153,10 @@ describe('AdvancedPage', () => {
   it('opens timezone selector when edit is clicked', () => {
     render(<AdvancedPage />)
     const editButton = screen.getByText('common.edit')
+    expect(editButton.closest('button')).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(editButton)
     expect(screen.getByPlaceholderText('profile.timezone.searchPlaceholder')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('profile.timezone.searchPlaceholder')).toHaveAttribute('id', 'timezone-selector')
   })
 
   it('shows close button when timezone selector is open', () => {
@@ -190,6 +192,8 @@ describe('AdvancedPage', () => {
   it('opens widget info overlay on click', () => {
     render(<AdvancedPage />)
     const widgetButton = screen.getByText('profile.widgetTitle').closest('button')!
+    expect(widgetButton).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(widgetButton).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(widgetButton)
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
     expect(screen.getByText('profile.widgetHow.title')).toBeInTheDocument()
@@ -323,7 +327,9 @@ describe('AdvancedPage', () => {
   it('expands connection instructions on click', () => {
     render(<AdvancedPage />)
     const instructionsBtn = screen.getByText('orbitMcp.connectionInstructions').closest('button')!
+    expect(instructionsBtn).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(instructionsBtn)
+    expect(instructionsBtn).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('orbitMcp.claudeWeb')).toBeInTheDocument()
     expect(screen.getByText('orbitMcp.claudeDesktop')).toBeInTheDocument()
     expect(screen.getByText('orbitMcp.claudeCode')).toBeInTheDocument()

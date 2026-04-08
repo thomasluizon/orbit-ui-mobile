@@ -3,22 +3,13 @@
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Check, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import {
+  formatNotificationRelativeTime,
+  getNotificationDetailActionVisibility,
+  isViewableNotificationUrl,
+} from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { AppOverlay } from '@/components/ui/app-overlay'
-
-function formatTime(dateStr: string, t: ReturnType<typeof useTranslations>): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-
-  if (diffMin < 1) return t('notifications.now')
-  if (diffMin < 60) return t('notifications.minutesAgo', { n: diffMin })
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return t('notifications.hoursAgo', { n: diffHours })
-  const diffDays = Math.floor(diffHours / 24)
-  return t('notifications.daysAgo', { n: diffDays })
-}
 
 interface NotificationDetailModalProps {
   open: boolean
@@ -37,10 +28,11 @@ export function NotificationDetailModal({
 }: Readonly<NotificationDetailModalProps>) {
   const t = useTranslations()
   const router = useRouter()
+  const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
 
   function handleView() {
     const url = notification.url
-    if (url && url.startsWith('/') && !url.startsWith('//')) {
+    if (url && isViewableNotificationUrl(url)) {
       onOpenChange(false)
       router.push(url)
     }
@@ -51,8 +43,6 @@ export function NotificationDetailModal({
     onOpenChange(false)
   }
 
-  const hasViewableUrl = notification.url && notification.url.startsWith('/') && !notification.url.startsWith('//')
-
   return (
     <AppOverlay
       open={open}
@@ -60,7 +50,7 @@ export function NotificationDetailModal({
       title={notification.title}
       footer={
         <div className="flex items-center gap-3">
-          {hasViewableUrl && (
+          {canView && (
             <button
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-lg)] bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-colors"
               onClick={handleView}
@@ -69,7 +59,7 @@ export function NotificationDetailModal({
               {t('notifications.view')}
             </button>
           )}
-          {!notification.isRead && (
+          {canMarkAsRead && (
             <button
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-lg)] bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-colors"
               onClick={() => onMarkAsRead(notification.id)}
@@ -90,7 +80,11 @@ export function NotificationDetailModal({
     >
       <div className="space-y-4">
         {/* Timestamp */}
-        <p className="text-xs text-text-muted">{formatTime(notification.createdAtUtc, t)}</p>
+        <p className="text-xs text-text-muted">
+          {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
+            t(`notifications.${key}` as Parameters<typeof t>[0], values),
+          )}
+        </p>
 
         {/* Body */}
         <p className="text-sm text-text-secondary whitespace-pre-wrap">{notification.body}</p>

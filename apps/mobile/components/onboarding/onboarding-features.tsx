@@ -4,6 +4,7 @@ import { MessageSquare, CalendarDays, Trophy, BellRing } from 'lucide-react-nati
 import type { LucideIcon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { radius } from '@/lib/theme'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -82,7 +83,7 @@ export function OnboardingFeatures() {
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ThemeContextValue['colors']) {
   return StyleSheet.create({
     title: {
       fontSize: 24,

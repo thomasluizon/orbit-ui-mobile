@@ -13,6 +13,21 @@ import type {
   NotificationsResponse,
 } from '@orbit/shared/types/notification'
 import { apiClient } from '@/lib/api-client'
+import {
+  createEmptyNotificationsResponse,
+  deleteNotificationFromList,
+  invalidateNotificationList,
+  markAllNotificationsReadInList,
+  markNotificationReadInList,
+  restoreNotificationList,
+  snapshotNotificationList,
+} from '@/lib/notification-cache-helpers'
+import {
+  buildQueuedMutation,
+  createQueuedAck,
+  isQueuedResult,
+  queueOrExecute,
+} from '@/lib/offline-mutations'
 
 // ---------------------------------------------------------------------------
 // Notifications list query
@@ -37,7 +52,7 @@ export function useNotifications() {
     function startPolling() {
       if (intervalRef.current) return
       intervalRef.current = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+        void invalidateNotificationList(queryClient)
       }, 60000)
     }
 
@@ -50,7 +65,7 @@ export function useNotifications() {
 
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === 'active') {
-        queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+        void invalidateNotificationList(queryClient)
         startPolling()
       } else {
         stopPolling()
@@ -81,25 +96,35 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (notificationId: string) =>
-      apiClient<void>(API.notifications.markRead(notificationId), { method: 'PUT' }),
+    mutationFn: async (notificationId: string) => {
+      const mutation = buildQueuedMutation({
+        type: 'markNotificationRead',
+        scope: 'notifications',
+        endpoint: API.notifications.markRead(notificationId),
+        method: 'PUT',
+        payload: null,
+        entityType: 'notification',
+        targetEntityId: notificationId,
+        dedupeKey: `notification:${notificationId}:read`,
+      })
+
+      return queueOrExecute({
+        mutation,
+        execute: async () => apiClient<void>(API.notifications.markRead(notificationId), {
+          method: 'PUT',
+        }),
+        queuedResult: createQueuedAck(mutation.id),
+      })
+    },
 
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
       queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
         if (!old) return old
-        const item = old.items.find((n) => n.id === notificationId)
-        if (!item || item.isRead) return old
-        return {
-          ...old,
-          items: old.items.map((n) =>
-            n.id === notificationId ? { ...n, isRead: true } : n
-          ),
-          unreadCount: Math.max(0, old.unreadCount - 1),
-        }
+        return markNotificationReadInList(old, notificationId)
       })
 
       return { previous }
@@ -107,12 +132,13 @@ export function useMarkNotificationRead() {
 
     onError: (_err, _id, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
+        restoreNotificationList(queryClient, context.previous)
       }
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+    onSettled: (data) => {
+      if (isQueuedResult(data)) return
+      void invalidateNotificationList(queryClient)
     },
   })
 }
@@ -121,21 +147,31 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: () =>
-      apiClient<void>(API.notifications.markAllRead, { method: 'PUT' }),
+    mutationFn: async () => {
+      const mutation = buildQueuedMutation({
+        type: 'markAllNotificationsRead',
+        scope: 'notifications',
+        endpoint: API.notifications.markAllRead,
+        method: 'PUT',
+        payload: null,
+        dedupeKey: 'notifications:mark-all-read',
+      })
+
+      return queueOrExecute({
+        mutation,
+        execute: async () => apiClient<void>(API.notifications.markAllRead, { method: 'PUT' }),
+        queuedResult: createQueuedAck(mutation.id),
+      })
+    },
 
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
       queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
         if (!old) return old
-        return {
-          ...old,
-          items: old.items.map((n) => ({ ...n, isRead: true })),
-          unreadCount: 0,
-        }
+        return markAllNotificationsReadInList(old)
       })
 
       return { previous }
@@ -143,12 +179,13 @@ export function useMarkAllNotificationsRead() {
 
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
+        restoreNotificationList(queryClient, context.previous)
       }
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+    onSettled: (data) => {
+      if (isQueuedResult(data)) return
+      void invalidateNotificationList(queryClient)
     },
   })
 }
@@ -157,23 +194,34 @@ export function useDeleteNotification() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (notificationId: string) =>
-      apiClient<void>(API.notifications.delete(notificationId), { method: 'DELETE' }),
+    mutationFn: async (notificationId: string) => {
+      const mutation = buildQueuedMutation({
+        type: 'deleteNotification',
+        scope: 'notifications',
+        endpoint: API.notifications.delete(notificationId),
+        method: 'DELETE',
+        payload: null,
+        entityType: 'notification',
+        targetEntityId: notificationId,
+      })
+
+      return queueOrExecute({
+        mutation,
+        execute: async () => apiClient<void>(API.notifications.delete(notificationId), {
+          method: 'DELETE',
+        }),
+        queuedResult: createQueuedAck(mutation.id),
+      })
+    },
 
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
       queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
         if (!old) return old
-        const item = old.items.find((n) => n.id === notificationId)
-        const wasUnread = item && !item.isRead
-        return {
-          ...old,
-          items: old.items.filter((n) => n.id !== notificationId),
-          unreadCount: wasUnread ? Math.max(0, old.unreadCount - 1) : old.unreadCount,
-        }
+        return deleteNotificationFromList(old, notificationId)
       })
 
       return { previous }
@@ -181,12 +229,13 @@ export function useDeleteNotification() {
 
     onError: (_err, _id, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
+        restoreNotificationList(queryClient, context.previous)
       }
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+    onSettled: (data) => {
+      if (isQueuedResult(data)) return
+      void invalidateNotificationList(queryClient)
     },
   })
 }
@@ -195,30 +244,45 @@ export function useDeleteAllNotifications() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: () =>
-      apiClient<void>(API.notifications.deleteAll, { method: 'DELETE' }),
+    mutationFn: async () => {
+      const mutation = buildQueuedMutation({
+        type: 'deleteAllNotifications',
+        scope: 'notifications',
+        endpoint: API.notifications.deleteAll,
+        method: 'DELETE',
+        payload: null,
+        dedupeKey: 'notifications:delete-all',
+      })
+
+      return queueOrExecute({
+        mutation,
+        execute: async () => apiClient<void>(API.notifications.deleteAll, { method: 'DELETE' }),
+        queuedResult: createQueuedAck(mutation.id),
+      })
+    },
 
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
+      const previous = snapshotNotificationList(queryClient)
 
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), () => ({
-        items: [],
-        unreadCount: 0,
-      }))
+      queryClient.setQueryData<NotificationsResponse>(
+        notificationKeys.lists(),
+        () => createEmptyNotificationsResponse(),
+      )
 
       return { previous }
     },
 
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(notificationKeys.lists(), context.previous)
+        restoreNotificationList(queryClient, context.previous)
       }
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+    onSettled: (data) => {
+      if (isQueuedResult(data)) return
+      void invalidateNotificationList(queryClient)
     },
   })
 }

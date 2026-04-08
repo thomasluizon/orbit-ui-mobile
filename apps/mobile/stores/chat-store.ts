@@ -1,28 +1,15 @@
 import { create } from 'zustand'
-import type { ChatMessage } from '@orbit/shared/types/chat'
+import { createChatStoreState, type ChatStoreState } from '@orbit/shared/stores'
 
-interface ChatState {
-  messages: ChatMessage[]
-  isTyping: boolean
+interface MobileChatStoreState extends ChatStoreState {
   isStreaming: boolean
-
-  addMessage: (message: ChatMessage) => void
-  setIsTyping: (value: boolean) => void
   setIsStreaming: (value: boolean) => void
   clearMessages: () => void
 }
 
-export const useChatStore = create<ChatState>((set) => ({
-  messages: [],
-  isTyping: false,
+export const useChatStore = create<MobileChatStoreState>((set) => ({
+  ...createChatStoreState(set as Parameters<typeof createChatStoreState>[0]),
   isStreaming: false,
-
-  addMessage: (message) =>
-    set((state) => ({
-      messages: [...state.messages, message],
-    })),
-
-  setIsTyping: (value) => set({ isTyping: value }),
 
   setIsStreaming: (value) => set({ isStreaming: value }),
 

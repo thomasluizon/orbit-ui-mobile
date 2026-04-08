@@ -32,10 +32,20 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { API } from '@orbit/shared/api'
+import {
+  buildMcpConfigJson,
+  MCP_CONFIG_TABS,
+  MCP_ENDPOINT_URL,
+  WIDGET_FEATURES,
+  WIDGET_STEP_KEYS,
+  type WidgetFeatureIconKey,
+} from '@orbit/shared/utils/advanced-settings'
 import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -57,6 +67,102 @@ interface ApiKeyCreateResponse {
   name: string
 }
 
+function TimezoneSection({
+  profile,
+  timezoneSaving,
+  timezoneSaved,
+  timezoneOpen,
+  timezoneSearch,
+  filteredTimezones,
+  onToggleOpen,
+  onSearchChange,
+  onSelectTimezone,
+  t,
+  colors,
+  styles,
+}: Readonly<{
+  profile: { timeZone?: string | null } | null | undefined
+  timezoneSaving: boolean
+  timezoneSaved: boolean
+  timezoneOpen: boolean
+  timezoneSearch: string
+  filteredTimezones: string[]
+  onToggleOpen: () => void
+  onSearchChange: (value: string) => void
+  onSelectTimezone: (timezone: string) => void
+  t: (key: string, params?: Record<string, unknown>) => string
+  colors: ReturnType<typeof useAppTheme>['colors']
+  styles: ReturnType<typeof createStyles>
+}>) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardLabel}>{t('profile.timezone.title')}</Text>
+      <View style={styles.timezoneRow}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.timezoneValue}>{t('profile.timezone.current')} </Text>
+          <Text style={styles.timezoneHighlight}>
+            {profile?.timeZone || t('profile.timezone.notSet')}
+          </Text>
+          {timezoneSaving ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : timezoneSaved ? (
+            <CheckCircle size={14} color={colors.green} />
+          ) : null}
+        </View>
+        <TouchableOpacity
+          onPress={onToggleOpen}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: timezoneOpen }}
+          accessibilityLabel={timezoneOpen ? t('common.close') : t('common.edit')}
+        >
+          <Text style={styles.editLink}>
+            {timezoneOpen ? t('common.close') : t('common.edit')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {timezoneOpen ? (
+        <>
+          <TextInput
+            style={styles.searchInput}
+            value={timezoneSearch}
+            onChangeText={onSearchChange}
+            placeholder={t('profile.timezone.searchPlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            autoFocus
+          />
+          <ScrollView style={styles.timezoneList} nestedScrollEnabled>
+            {filteredTimezones.map((tz) => (
+              <TouchableOpacity
+                key={tz}
+                style={[
+                  styles.timezoneItem,
+                  tz === profile?.timeZone && styles.timezoneItemActive,
+                ]}
+                onPress={() => onSelectTimezone(tz)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.timezoneItemText,
+                    tz === profile?.timeZone && styles.timezoneItemTextActive,
+                  ]}
+                >
+                  {tz}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
+
+      <Text style={styles.hintText}>
+        {t('profile.timezone.description')}
+      </Text>
+    </View>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Advanced Screen
 // ---------------------------------------------------------------------------
@@ -69,6 +175,7 @@ export default function AdvancedScreen() {
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
+  const { isOnline } = useOffline()
 
   // --- Timezone ---
   const [timezoneList, setTimezoneList] = useState<string[]>([])
@@ -91,9 +198,13 @@ export default function AdvancedScreen() {
     setTimezoneSaving(true)
     setTimezoneSaved(false)
     try {
-      await apiClient(API.profile.timezone, {
+      await performQueuedApiMutation({
+        type: 'setTimeZone',
+        scope: 'profile',
+        endpoint: API.profile.timezone,
         method: 'PUT',
-        body: JSON.stringify({ timeZone: newTimezone }),
+        payload: { timeZone: newTimezone },
+        dedupeKey: 'profile-timezone',
       })
       patchProfile({ timeZone: newTimezone })
     } catch {
@@ -127,29 +238,46 @@ export default function AdvancedScreen() {
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useMutation({
-    mutationFn: (id: string) => apiClient(API.apiKeys.delete(id), { method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      performQueuedApiMutation({
+        type: 'deleteApiKey',
+        scope: 'apiKeys',
+        endpoint: API.apiKeys.delete(id),
+        method: 'DELETE',
+        payload: undefined,
+        targetEntityId: id,
+        dedupeKey: `api-key-delete-${id}`,
+      }),
+    onMutate: async (id) => {
+      setRevokingKeyId(id)
+      await queryClient.cancelQueries({ queryKey: apiKeyKeys.all })
+      const previous = queryClient.getQueryData<ApiKey[]>(apiKeyKeys.lists())
+      queryClient.setQueryData<ApiKey[]>(apiKeyKeys.lists(), (old) =>
+        old ? old.filter((key) => key.id !== id) : old,
+      )
+      return { previous }
+    },
+    onError: (_err, _id, context: { previous?: ApiKey[] } | undefined) => {
+      if (context?.previous) {
+        queryClient.setQueryData(apiKeyKeys.lists(), context.previous)
+      }
+      setRevokingKeyId(null)
+    },
     onSuccess: () => {
       setRevokingKeyId(null)
-      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      if (isOnline) {
+        queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      }
     },
   })
 
   // --- Connection Instructions ---
   const [instructionsOpen, setInstructionsOpen] = useState(false)
-  const [activeConfigTab, setActiveConfigTab] = useState<'web' | 'desktop' | 'code'>('web')
+  const [activeConfigTab, setActiveConfigTab] = useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
   const [endpointCopied, setEndpointCopied] = useState(false)
 
-  const mcpConfigJson = `{
-  "mcpServers": {
-    "orbit": {
-      "url": "https://api.useorbit.org/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}`
+  const mcpConfigJson = buildMcpConfigJson()
 
   function formatKeyDate(dateStr: string): string {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
@@ -157,6 +285,10 @@ export default function AdvancedScreen() {
 
   async function handleCreateKey(name: string): Promise<ApiKeyCreateResponse | null> {
     setCreateKeyError(null)
+    if (!isOnline) {
+      setCreateKeyError(t('calendarSync.notConnected'))
+      return null
+    }
     try {
       const result = await apiClient<ApiKeyCreateResponse>(API.apiKeys.create, {
         method: 'POST',
@@ -171,7 +303,7 @@ export default function AdvancedScreen() {
   }
 
   async function copyEndpoint() {
-    await Clipboard.setStringAsync('https://api.useorbit.org/mcp')
+    await Clipboard.setStringAsync(MCP_ENDPOINT_URL)
     setEndpointCopied(true)
     setTimeout(() => setEndpointCopied(false), 2000)
   }
@@ -183,18 +315,16 @@ export default function AdvancedScreen() {
   }
 
   // Widget steps and features
-  const widgetSteps = [
-    { num: '1', text: t('profile.widgetHow.step1') },
-    { num: '2', text: t('profile.widgetHow.step2') },
-    { num: '3', text: t('profile.widgetHow.step3') },
-  ]
-
-  const widgetFeatures = [
-    { icon: <CheckCircle size={16} color={colors.primary} />, text: t('profile.widgetHow.feature1') },
-    { icon: <Clock size={16} color={colors.primary} />, text: t('profile.widgetHow.feature2') },
-    { icon: <List size={16} color={colors.primary} />, text: t('profile.widgetHow.feature3') },
-    { icon: <RotateCcw size={16} color={colors.primary} />, text: t('profile.widgetHow.feature4') },
-  ]
+  const widgetFeatureIconMap = useMemo(
+    () =>
+      ({
+        checkCircle: <CheckCircle size={16} color={colors.primary} />,
+        clock: <Clock size={16} color={colors.primary} />,
+        list: <List size={16} color={colors.primary} />,
+        rotateCcw: <RotateCcw size={16} color={colors.primary} />,
+      }) satisfies Record<WidgetFeatureIconKey, React.ReactNode>,
+    [colors.primary],
+  )
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -216,78 +346,32 @@ export default function AdvancedScreen() {
         </View>
 
         {/* Timezone */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('profile.timezone.title')}</Text>
-          <View style={styles.timezoneRow}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.timezoneValue}>{t('profile.timezone.current')} </Text>
-              <Text style={styles.timezoneHighlight}>
-                {profile?.timeZone || t('profile.timezone.notSet')}
-              </Text>
-              {timezoneSaving && (
-                <ActivityIndicator size="small" color={colors.primary} />
-              )}
-              {!timezoneSaving && timezoneSaved && (
-                <CheckCircle size={14} color={colors.green} />
-              )}
-            </View>
-            <TouchableOpacity
-              onPress={() => {
-                setTimezoneOpen(!timezoneOpen)
-                setTimezoneSaved(false)
-              }}
-            >
-              <Text style={styles.editLink}>
-                {timezoneOpen ? t('common.close') : t('common.edit')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {timezoneOpen && (
-            <>
-              <TextInput
-                style={styles.searchInput}
-                value={timezoneSearch}
-                onChangeText={setTimezoneSearch}
-                placeholder={t('profile.timezone.searchPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                autoFocus
-              />
-              <ScrollView style={styles.timezoneList} nestedScrollEnabled>
-                {filteredTimezones.map((tz) => (
-                  <TouchableOpacity
-                    key={tz}
-                    style={[
-                      styles.timezoneItem,
-                      tz === profile?.timeZone && styles.timezoneItemActive,
-                    ]}
-                    onPress={() => handleTimezoneChange(tz)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.timezoneItemText,
-                        tz === profile?.timeZone && styles.timezoneItemTextActive,
-                      ]}
-                    >
-                      {tz}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </>
-          )}
-
-          <Text style={styles.hintText}>
-            {t('profile.timezone.description')}
-          </Text>
-        </View>
+        <TimezoneSection
+          profile={profile ?? null}
+          timezoneSaving={timezoneSaving}
+          timezoneSaved={timezoneSaved}
+          timezoneOpen={timezoneOpen}
+          timezoneSearch={timezoneSearch}
+          filteredTimezones={filteredTimezones}
+          onToggleOpen={() => {
+            setTimezoneOpen(!timezoneOpen)
+            setTimezoneSaved(false)
+          }}
+          onSearchChange={setTimezoneSearch}
+          onSelectTimezone={handleTimezoneChange}
+          t={t}
+          colors={colors}
+          styles={styles}
+        />
 
         {/* Widget tip */}
         <TouchableOpacity
           style={styles.navCard}
           onPress={() => setShowWidgetInfo(true)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.widgetTitle')}
+          accessibilityHint={t('profile.widgetHint')}
         >
           <View style={styles.navCardIcon}>
             <Smartphone size={20} color={colors.primary} />
@@ -418,6 +502,8 @@ export default function AdvancedScreen() {
                 <TouchableOpacity
                   style={styles.instructionsToggle}
                   onPress={() => setInstructionsOpen(!instructionsOpen)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: instructionsOpen }}
                 >
                   <Text style={styles.subLabel}>{t('orbitMcp.connectionInstructions')}</Text>
                   <ChevronDown
@@ -431,7 +517,7 @@ export default function AdvancedScreen() {
                   <View style={{ gap: 12, marginTop: 12 }}>
                     {/* Tab buttons */}
                     <View style={styles.tabRow}>
-                      {(['web', 'desktop', 'code'] as const).map((tab) => (
+                      {MCP_CONFIG_TABS.map((tab) => (
                         <TouchableOpacity
                           key={tab}
                           style={[
@@ -458,7 +544,7 @@ export default function AdvancedScreen() {
                           {t('orbitMcp.webInstructions')}
                         </Text>
                         <View style={styles.codeBlock}>
-                          <Text style={styles.codeText}>https://api.useorbit.org/mcp</Text>
+                          <Text style={styles.codeText}>{MCP_ENDPOINT_URL}</Text>
                           <TouchableOpacity
                             style={styles.codeCopyButton}
                             onPress={copyEndpoint}
@@ -526,20 +612,20 @@ export default function AdvancedScreen() {
             <View style={{ gap: 20 }}>
               <View style={{ gap: 8 }}>
                 <Text style={styles.widgetSectionTitle}>{t('profile.widgetHow.title')}</Text>
-                {widgetSteps.map((step) => (
-                  <View key={step.num} style={styles.widgetStep}>
-                    <Text style={styles.widgetStepNumber}>{step.num}</Text>
-                    <Text style={styles.widgetStepText}>{step.text}</Text>
+                {WIDGET_STEP_KEYS.map((stepKey, index) => (
+                  <View key={stepKey} style={styles.widgetStep}>
+                    <Text style={styles.widgetStepNumber}>{index + 1}</Text>
+                    <Text style={styles.widgetStepText}>{t(stepKey)}</Text>
                   </View>
                 ))}
               </View>
 
               <View style={{ gap: 8 }}>
                 <Text style={styles.widgetSectionTitle}>{t('profile.widgetHow.featuresTitle')}</Text>
-                {widgetFeatures.map((feature) => (
-                  <View key={feature.text} style={styles.widgetFeatureRow}>
-                    {feature.icon}
-                    <Text style={styles.widgetFeatureText}>{feature.text}</Text>
+                {WIDGET_FEATURES.map((feature) => (
+                  <View key={feature.textKey} style={styles.widgetFeatureRow}>
+                    {widgetFeatureIconMap[feature.iconKey]}
+                    <Text style={styles.widgetFeatureText}>{t(feature.textKey)}</Text>
                   </View>
                 ))}
               </View>

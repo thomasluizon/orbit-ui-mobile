@@ -7,7 +7,16 @@ import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
-import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
+import {
+  buildTimeFormatOptions,
+  buildWeekStartOptions,
+  detectDefaultTimeFormat,
+  isTimeFormat,
+  LANGUAGE_OPTIONS,
+  parseShowGeneralOnTodayPreference,
+  TIME_FORMAT_STORAGE_KEY,
+  type TimeFormat,
+} from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -23,12 +32,6 @@ import {
   updateColorScheme as updateColorSchemeAction,
   updateLanguage,
 } from '@/app/actions/profile'
-
-// Language options matching Vue locales
-const LANGUAGE_OPTIONS: { value: 'en' | 'pt-BR'; label: string }[] = [
-  { value: 'en', label: 'English' },
-  { value: 'pt-BR', label: 'Português' },
-]
 
 export default function PreferencesPage() {
   const t = useTranslations()
@@ -75,10 +78,7 @@ export default function PreferencesPage() {
   }
 
   // --- Week Start Day ---
-  const weekStartOptions = [
-    { value: 1, label: t('settings.weekStartDay.monday') },
-    { value: 0, label: t('settings.weekStartDay.sunday') },
-  ]
+  const weekStartOptions = buildWeekStartOptions(t)
 
   const weekStartMutation = useMutation({
     mutationFn: (day: number) => updateWeekStartDay({ weekStartDay: day }),
@@ -122,33 +122,33 @@ export default function PreferencesPage() {
   }
 
   // --- Time Format (local-only preference, cookie for SSR safety) ---
-  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h')
 
   useEffect(() => {
     // Check cookie first
-    const match = /(?:^|; )orbit_time_format=([^;]*)/.exec(document.cookie)
-    if (match?.[1]) { setTimeFormat(match[1] as '12h' | '24h'); return }
+    const match = new RegExp(`(?:^|; )${TIME_FORMAT_STORAGE_KEY}=([^;]*)`).exec(document.cookie)
+    if (isTimeFormat(match?.[1])) {
+      setTimeFormat(match[1])
+      return
+    }
     // Migrate from localStorage if present
-    const stored = localStorage.getItem('orbit_time_format') as '12h' | '24h' | null
-    if (stored) { setTimeFormat(stored); return }
+    const stored = localStorage.getItem(TIME_FORMAT_STORAGE_KEY)
+    if (isTimeFormat(stored)) {
+      setTimeFormat(stored)
+      return
+    }
     // Auto-detect from browser locale
-    try {
-      const resolved = new Intl.DateTimeFormat(navigator.language, { hour: 'numeric' }).resolvedOptions()
-      setTimeFormat(resolved.hour12 ? '12h' : '24h')
-    } catch { /* keep default */ }
+    setTimeFormat(detectDefaultTimeFormat())
   }, [])
 
-  function handleTimeFormatChange(format: '12h' | '24h') {
+  function handleTimeFormatChange(format: TimeFormat) {
     setTimeFormat(format)
     // Store in both cookie (SSR-safe) and localStorage (backward compat)
-    document.cookie = `orbit_time_format=${format};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
-    localStorage.setItem('orbit_time_format', format)
+    document.cookie = `${TIME_FORMAT_STORAGE_KEY}=${format};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
+    localStorage.setItem(TIME_FORMAT_STORAGE_KEY, format)
   }
 
-  const timeFormatOptions = [
-    { value: '12h' as const, label: t('settings.timeFormat.12h') },
-    { value: '24h' as const, label: t('settings.timeFormat.24h') },
-  ]
+  const timeFormatOptions = buildTimeFormatOptions(t)
 
   // --- Home Screen Toggle (local-only preference) ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)

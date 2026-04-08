@@ -3,28 +3,15 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { ArrowRight, Check, Trash2 } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import {
+  formatNotificationRelativeTime,
+  getNotificationDetailActionVisibility,
+  isViewableNotificationUrl,
+} from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatTime(dateStr: string, t: ReturnType<typeof useTranslation>['t']): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-
-  if (diffMin < 1) return t('notifications.now')
-  if (diffMin < 60) return t('notifications.minutesAgo', { n: diffMin })
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return t('notifications.hoursAgo', { n: diffHours })
-  const diffDays = Math.floor(diffHours / 24)
-  return t('notifications.daysAgo', { n: diffDays })
-}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -53,10 +40,11 @@ export function NotificationDetailModal({
   const router = useRouter()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
+  const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
 
   function handleView() {
     const url = notification.url
-    if (url && url.startsWith('/') && !url.startsWith('//')) {
+    if (isViewableNotificationUrl(url)) {
       onClose()
       router.push(url as never)
     }
@@ -66,11 +54,6 @@ export function NotificationDetailModal({
     onDelete(notification.id)
     onClose()
   }
-
-  const hasViewableUrl =
-    notification.url &&
-    notification.url.startsWith('/') &&
-    !notification.url.startsWith('//')
 
   return (
     <BottomSheetModal
@@ -82,14 +65,16 @@ export function NotificationDetailModal({
       <View style={styles.container}>
         <View style={styles.body}>
           <Text style={styles.timestamp}>
-            {formatTime(notification.createdAtUtc, t)}
+            {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
+              t(`notifications.${key}`, values),
+            )}
           </Text>
           <Text style={styles.bodyText}>{notification.body}</Text>
         </View>
 
         <View style={styles.footer}>
           <View style={styles.actions}>
-            {hasViewableUrl && (
+            {canView && (
               <TouchableOpacity
                 style={styles.actionBtn}
                 activeOpacity={0.7}
@@ -100,7 +85,7 @@ export function NotificationDetailModal({
               </TouchableOpacity>
             )}
 
-            {!notification.isRead && (
+            {canMarkAsRead && (
               <TouchableOpacity
                 style={styles.actionBtn}
                 activeOpacity={0.7}
@@ -134,7 +119,20 @@ export function NotificationDetailModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+type NotificationDetailColors = {
+  primary: string
+  red400: string
+  surface: string
+  surfaceElevated: string
+  borderMuted: string
+  textMuted: string
+  textSecondary: string
+  textPrimary: string
+  red500_10: string
+  primary_10: string
+}
+
+function createStyles(colors: NotificationDetailColors) {
   return StyleSheet.create({
     container: {
       flex: 1,

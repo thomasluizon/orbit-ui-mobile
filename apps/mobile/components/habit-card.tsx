@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import type { ReactNode } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  type StyleProp,
   type ViewStyle,
 } from 'react-native'
 import {
@@ -21,7 +23,12 @@ import {
 } from 'lucide-react-native'
 import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  computeHabitCardStatus,
+  computeHabitFlexibleProgressLabel,
+  computeHabitFrequencyLabel,
+  computeHabitStatusBadge,
+} from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -29,7 +36,6 @@ import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { getHabitProgressStrokeDasharray } from '@/lib/habit-progress'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { plural } from '@/lib/plural'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -120,6 +126,169 @@ function HabitCardSurface({
   )
 }
 
+function HabitBadge({
+  children,
+  style,
+}: Readonly<{
+  children: ReactNode
+  style: StyleProp<ViewStyle>
+}>) {
+  return <View style={style}>{children}</View>
+}
+
+function HabitBadgesRow({
+  isChild,
+  habit,
+  frequencyLabel,
+  flexibleProgressLabel,
+  statusBadge,
+  checkedCount,
+  colors,
+  t,
+  styles,
+  displayTime,
+}: Readonly<{
+  isChild: boolean
+  habit: NormalizedHabit
+  frequencyLabel: string
+  flexibleProgressLabel: string | null
+  statusBadge: { text: string } | null
+  checkedCount: number
+  colors: ReturnType<typeof createColors>
+  t: ReturnType<typeof useTranslation>['t']
+  styles: ReturnType<typeof createStyles>
+  displayTime: (value: string | null | undefined) => string
+}>) {
+  if (!isChild) {
+    return (
+      <View style={styles.badgesRow}>
+        <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
+
+        {flexibleProgressLabel ? (
+          <HabitBadge style={styles.badgePrimaryPill}>
+            <Text style={styles.badgePrimaryText}>{flexibleProgressLabel}</Text>
+          </HabitBadge>
+        ) : null}
+
+        {habit.dueTime ? (
+          <Text style={styles.dueTimeText}>
+            {displayTime(habit.dueTime)}
+            {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
+          </Text>
+        ) : null}
+
+        {statusBadge ? (
+          <HabitBadge style={styles.badgeOverdue}>
+            <Text style={styles.badgeOverdueText}>{statusBadge.text}</Text>
+          </HabitBadge>
+        ) : null}
+
+        {habit.isBadHabit ? (
+          <HabitBadge style={styles.badgeBadHabit}>
+            <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
+          </HabitBadge>
+        ) : null}
+
+        {habit.tags?.map((tag) => (
+          <HabitBadge
+            key={tag.id}
+            style={[styles.badgeTag, { backgroundColor: tag.color }]}
+          >
+            <Text style={styles.badgeTagText}>{tag.name}</Text>
+          </HabitBadge>
+        ))}
+
+        {(habit.linkedGoals ?? []).map((goal) => (
+          <HabitBadge key={goal.id} style={styles.badgePrimaryPill}>
+            <Text style={styles.badgePrimaryText}>{goal.title}</Text>
+          </HabitBadge>
+        ))}
+
+        {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+          <HabitBadge style={styles.badgeStreak}>
+            <Flame size={12} color={colors.amber400} />
+            <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
+          </HabitBadge>
+        ) : null}
+
+        {habit.checklistItems && habit.checklistItems.length > 0 ? (
+          <HabitBadge style={styles.badgeChecklist}>
+            <ClipboardCheck size={12} color={colors.textSecondary} />
+            <Text style={styles.badgeChecklistText}>
+              {checkedCount}/{habit.checklistItems.length}
+            </Text>
+          </HabitBadge>
+        ) : null}
+      </View>
+    )
+  }
+
+  if (habit.isBadHabit) {
+    return (
+      <View style={styles.badgesRowChild}>
+        <HabitBadge style={styles.badgeBadHabitNoBorder}>
+          <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
+        </HabitBadge>
+        {habit.tags?.map((tag) => (
+          <HabitBadge
+            key={tag.id}
+            style={[styles.badgeTag, { backgroundColor: tag.color }]}
+          >
+            <Text style={styles.badgeTagText}>{tag.name}</Text>
+          </HabitBadge>
+        ))}
+        {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+          <HabitBadge style={styles.badgeStreakNoBorder}>
+            <Flame size={12} color={colors.amber400} />
+            <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
+          </HabitBadge>
+        ) : null}
+        {habit.checklistItems && habit.checklistItems.length > 0 ? (
+          <HabitBadge style={styles.badgeChecklistNoBorder}>
+            <ClipboardCheck size={12} color={colors.textSecondary} />
+            <Text style={styles.badgeChecklistText}>
+              {checkedCount}/{habit.checklistItems.length}
+            </Text>
+          </HabitBadge>
+        ) : null}
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.badgesRowChild}>
+      <Text style={styles.frequencyLabelChild}>{frequencyLabel}</Text>
+      {statusBadge ? (
+        <HabitBadge style={styles.badgeOverdue}>
+          <Text style={styles.badgeOverdueText}>{statusBadge.text}</Text>
+        </HabitBadge>
+      ) : null}
+      {habit.tags?.map((tag) => (
+        <HabitBadge
+          key={tag.id}
+          style={[styles.badgeTag, { backgroundColor: tag.color }]}
+        >
+          <Text style={styles.badgeTagText}>{tag.name}</Text>
+        </HabitBadge>
+      ))}
+      {habit.currentStreak != null && habit.currentStreak >= 2 ? (
+        <HabitBadge style={styles.badgeStreakNoBorder}>
+          <Flame size={12} color={colors.amber400} />
+          <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
+        </HabitBadge>
+      ) : null}
+      {habit.checklistItems && habit.checklistItems.length > 0 ? (
+        <HabitBadge style={styles.badgeChecklistNoBorder}>
+          <ClipboardCheck size={12} color={colors.textSecondary} />
+          <Text style={styles.badgeChecklistText}>
+            {checkedCount}/{habit.checklistItems.length}
+          </Text>
+        </HabitBadge>
+      ) : null}
+    </View>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -166,16 +335,10 @@ export function HabitCard({
   // Computed values
   const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
 
-  const status = useMemo(() => {
-    if (isDoneForRange) return 'completed' as const
-    if (habit.isGeneral) return 'pending' as const
-    if (habit.isOverdue && !habit.frequencyUnit) return 'overdue' as const
-    const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
-    const hasTodaySchedule =
-      habit.instances?.some((i) => i.date === selectedDateStr) ?? false
-    if (hasTodaySchedule) return 'due-today' as const
-    return 'pending' as const
-  }, [isDoneForRange, habit, selectedDate])
+  const status = useMemo(
+    () => computeHabitCardStatus(habit, selectedDate),
+    [habit, selectedDate],
+  )
 
   const canSkip =
     !habit.isGeneral &&
@@ -184,12 +347,10 @@ export function HabitCard({
 
   const isPostpone = !habit.frequencyUnit
 
-  const statusBadge = useMemo(() => {
-    if (status === 'overdue') {
-      return { text: t('habits.overdue') }
-    }
-    return null
-  }, [status, t])
+  const statusBadge = useMemo(
+    () => computeHabitStatusBadge(status, t),
+    [status, t],
+  )
 
   const isNotDueToday = useMemo(() => {
     if (!selectedDate) return false
@@ -204,41 +365,16 @@ export function HabitCard({
       : Math.round((childrenDone / childrenTotal) * 100)
 
   // Frequency label
-  const frequencyLabel = useMemo(() => {
-    if (habit.isGeneral) return t('habits.generalHabit')
-    const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
-    if (!frequencyUnit) return t('habits.oneTimeTask')
-    if (isFlexible) {
-      return t('habits.frequency.flexibleLabel', {
-        n: frequencyQuantity ?? 1,
-        unit: t(`habits.form.unit${frequencyUnit}`),
-      })
-    }
-    if (frequencyQuantity === 1 && days.length > 0) {
-      return days
-        .map((day) => t(`dates.daysShort.${day.toLowerCase()}`))
-        .join(', ')
-    }
-    if (frequencyQuantity === 1)
-      return t(`habits.frequency.every${frequencyUnit}`)
-    return plural(
-      t(`habits.frequency.everyN${frequencyUnit}s`, {
-        n: frequencyQuantity ?? 1,
-      }),
-      frequencyQuantity ?? 1,
-    )
-  }, [habit, t])
+  const frequencyLabel = useMemo(
+    () => computeHabitFrequencyLabel(habit, t),
+    [habit, t],
+  )
 
   // Flexible progress label
-  const flexibleProgressLabel = useMemo(() => {
-    if (!habit.isFlexible) return null
-    const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
-    const done = habit.flexibleCompleted ?? 0
-    const unit = habit.frequencyUnit
-      ? t(`habits.form.unit${habit.frequencyUnit}`)
-      : ''
-    return t('habits.frequency.flexibleProgress', { done, target, unit })
-  }, [habit, t])
+  const flexibleProgressLabel = useMemo(
+    () => computeHabitFlexibleProgressLabel(habit, t),
+    [habit, t],
+  )
 
   // Actions menu
   const [showActionsMenu, setShowActionsMenu] = useState(false)
@@ -500,162 +636,18 @@ export function HabitCard({
                 </Text>
               ) : null}
 
-              {/* Badges row */}
-              {!isChild ? (
-                /* Top-level habit badges */
-                <View style={styles.badgesRow}>
-                  <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
-
-                  {flexibleProgressLabel ? (
-                    <View style={styles.badgePrimaryPill}>
-                      <Text style={styles.badgePrimaryText}>
-                        {flexibleProgressLabel}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {habit.dueTime ? (
-                    <Text style={styles.dueTimeText}>
-                      {displayTime(habit.dueTime)}
-                      {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
-                    </Text>
-                  ) : null}
-
-                  {statusBadge ? (
-                    <View style={styles.badgeOverdue}>
-                      <Text style={styles.badgeOverdueText}>
-                        {statusBadge.text}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {habit.isBadHabit ? (
-                    <View style={styles.badgeBadHabit}>
-                      <Text style={styles.badgeBadHabitText}>
-                        {t('habits.badHabit')}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {habit.tags?.map((tag) => (
-                    <View
-                      key={tag.id}
-                      style={[
-                        styles.badgeTag,
-                        { backgroundColor: tag.color },
-                      ]}
-                    >
-                      <Text style={styles.badgeTagText}>{tag.name}</Text>
-                    </View>
-                  ))}
-
-                  {(habit.linkedGoals ?? []).map((goal) => (
-                    <View key={goal.id} style={styles.badgePrimaryPill}>
-                      <Text style={styles.badgePrimaryText}>{goal.title}</Text>
-                    </View>
-                  ))}
-
-                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                    <View style={styles.badgeStreak}>
-                      <Flame size={12} color={colors.amber400} />
-                      <Text style={styles.badgeStreakText}>
-                        {habit.currentStreak}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {habit.checklistItems && habit.checklistItems.length > 0 ? (
-                    <View style={styles.badgeChecklist}>
-                      <ClipboardCheck
-                        size={12}
-                        color={colors.textSecondary}
-                      />
-                      <Text style={styles.badgeChecklistText}>
-                        {checkedCount}/{habit.checklistItems.length}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              ) : isChild && habit.isBadHabit ? (
-                /* Child habit with bad habit badge */
-                <View style={styles.badgesRowChild}>
-                  <View style={styles.badgeBadHabitNoBorder}>
-                    <Text style={styles.badgeBadHabitText}>
-                      {t('habits.badHabit')}
-                    </Text>
-                  </View>
-                  {habit.tags?.map((tag) => (
-                    <View
-                      key={tag.id}
-                      style={[styles.badgeTag, { backgroundColor: tag.color }]}
-                    >
-                      <Text style={styles.badgeTagText}>{tag.name}</Text>
-                    </View>
-                  ))}
-                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                    <View style={styles.badgeStreakNoBorder}>
-                      <Flame size={12} color={colors.amber400} />
-                      <Text style={styles.badgeStreakText}>
-                        {habit.currentStreak}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {habit.checklistItems &&
-                    habit.checklistItems.length > 0 ? (
-                      <View style={styles.badgeChecklistNoBorder}>
-                        <ClipboardCheck
-                          size={12}
-                          color={colors.textSecondary}
-                        />
-                        <Text style={styles.badgeChecklistText}>
-                          {checkedCount}/{habit.checklistItems.length}
-                        </Text>
-                      </View>
-                    ) : null}
-                </View>
-              ) : (
-                /* Child habit default badges */
-                <View style={styles.badgesRowChild}>
-                  <Text style={styles.frequencyLabelChild}>
-                    {frequencyLabel}
-                  </Text>
-                  {statusBadge ? (
-                    <View style={styles.badgeOverdue}>
-                      <Text style={styles.badgeOverdueText}>
-                        {statusBadge.text}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {habit.tags?.map((tag) => (
-                    <View
-                      key={tag.id}
-                      style={[styles.badgeTag, { backgroundColor: tag.color }]}
-                    >
-                      <Text style={styles.badgeTagText}>{tag.name}</Text>
-                    </View>
-                  ))}
-                  {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-                    <View style={styles.badgeStreakNoBorder}>
-                      <Flame size={12} color={colors.amber400} />
-                      <Text style={styles.badgeStreakText}>
-                        {habit.currentStreak}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {habit.checklistItems &&
-                    habit.checklistItems.length > 0 ? (
-                      <View style={styles.badgeChecklistNoBorder}>
-                        <ClipboardCheck
-                          size={12}
-                          color={colors.textSecondary}
-                        />
-                        <Text style={styles.badgeChecklistText}>
-                          {checkedCount}/{habit.checklistItems.length}
-                        </Text>
-                      </View>
-                    ) : null}
-                </View>
-              )}
+              <HabitBadgesRow
+                isChild={isChild}
+                habit={habit}
+                frequencyLabel={frequencyLabel}
+                flexibleProgressLabel={flexibleProgressLabel}
+                statusBadge={statusBadge}
+                checkedCount={checkedCount}
+                colors={colors}
+                t={t}
+                styles={styles}
+                displayTime={displayTime}
+              />
             </View>
 
           {/* Actions menu trigger */}

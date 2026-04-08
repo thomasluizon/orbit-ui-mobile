@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Bell, BellOff, Trash2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { formatNotificationRelativeTime } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
@@ -13,20 +14,6 @@ import {
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
 import { NotificationDetailModal } from './notification-detail-modal'
-
-function formatTime(dateStr: string, t: ReturnType<typeof useTranslations>): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-
-  if (diffMin < 1) return t('notifications.now')
-  if (diffMin < 60) return t('notifications.minutesAgo', { n: diffMin })
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return t('notifications.hoursAgo', { n: diffHours })
-  const diffDays = Math.floor(diffHours / 24)
-  return t('notifications.daysAgo', { n: diffDays })
-}
 
 export function NotificationBell() {
   const t = useTranslations()
@@ -152,7 +139,11 @@ export function NotificationBell() {
                     >
                       <p className="text-sm font-medium text-text-primary truncate">{item.title}</p>
                       <p className="text-xs text-text-secondary">{item.body}</p>
-                      <p className="text-[10px] text-text-muted mt-0.5">{formatTime(item.createdAtUtc, t)}</p>
+                      <p className="text-[10px] text-text-muted mt-0.5">
+                        {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+                          t(`notifications.${key}` as Parameters<typeof t>[0], values),
+                        )}
+                      </p>
                     </button>
                     <button
                       aria-label={t('notifications.deleteNotification')}

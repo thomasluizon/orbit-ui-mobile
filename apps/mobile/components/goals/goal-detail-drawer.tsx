@@ -24,6 +24,11 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
+  GoalActionButton,
+  GoalLinkedHabitsSection,
+  GoalProgressHistorySection,
+} from './goal-detail-sections'
+import {
   useGoals,
   useGoalDetail,
   useUpdateGoalProgress,
@@ -31,6 +36,7 @@ import {
   useDeleteGoal,
 } from '@/hooks/use-goals'
 import { createColors, radius } from '@/lib/theme'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -43,7 +49,7 @@ interface GoalDetailDrawerProps {
   goalId: string
 }
 
-type AppColors = ReturnType<typeof createColors>
+type AppColors = ThemeContextValue['colors']
 
 // ---------------------------------------------------------------------------
 // Component
@@ -335,55 +341,26 @@ export function GoalDetailDrawer({
           )}
 
           {/* Progress history */}
-          {detail?.progressHistory && detail.progressHistory.length > 0 && (
-            <View>
-              <Text style={styles.sectionTitle}>
-                {t('goals.progressHistory')}
-              </Text>
-              <View style={styles.historyList}>
-                {detail.progressHistory.map((entry) => (
-                  <View
-                    key={`${entry.createdAtUtc}-${entry.value}`}
-                    style={styles.historyEntry}
-                  >
-                    <View style={styles.historyEntryLeft}>
-                      <Text style={styles.historyEntryValue}>
-                        {t('goals.progressEntry', {
-                          previous: entry.previousValue,
-                          value: entry.value,
-                          unit: goal.unit,
-                        })}
-                      </Text>
-                      {entry.note && (
-                        <Text style={styles.historyEntryNote}>
-                          {entry.note}
-                        </Text>
-                      )}
-                    </View>
-                    <Text style={styles.historyEntryDate}>
-                      {formatDate(entry.createdAtUtc)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          <GoalProgressHistorySection
+            title={t('goals.progressHistory')}
+            entries={detail?.progressHistory ?? []}
+            formatDate={formatDate}
+            renderEntryLabel={(entry) =>
+              t('goals.progressEntry', {
+                previous: entry.previousValue,
+                value: entry.value,
+                unit: goal.unit,
+              })
+            }
+            styles={styles}
+          />
 
           {/* Linked Habits */}
-          {goal.linkedHabits && goal.linkedHabits.length > 0 && (
-            <View style={styles.linkedHabitsSection}>
-              <Text style={styles.sectionTitle}>
-                {t('goals.linkedHabits')}
-              </Text>
-              <View style={styles.linkedHabitsList}>
-                {goal.linkedHabits.map((habit) => (
-                  <View key={habit.id} style={styles.linkedHabitChip}>
-                    <Text style={styles.linkedHabitText}>{habit.title}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          <GoalLinkedHabitsSection
+            title={t('goals.linkedHabits')}
+            linkedHabits={goal.linkedHabits ?? []}
+            styles={styles}
+          />
 
           {/* Load error (fallback to store data) */}
           {loadError && (
@@ -399,78 +376,54 @@ export function GoalDetailDrawer({
 
           {/* Actions */}
           <View style={styles.actionsSection}>
-            <TouchableOpacity
-              style={styles.actionButton}
+            <GoalActionButton
+              styles={styles}
               onPress={() => setShowEditModal(true)}
-              activeOpacity={0.7}
-            >
-              <PencilLine size={20} color={colors.textMuted} />
-              <Text style={styles.actionText}>
-                {t('goals.detail.edit')}
-              </Text>
-            </TouchableOpacity>
+              icon={<PencilLine size={20} color={colors.textMuted} />}
+              color={colors.textPrimary}
+              label={t('goals.detail.edit')}
+            />
 
             {goal.status === 'Active' && (
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  isUpdatingStatus && styles.buttonDisabled,
-                ]}
+              <GoalActionButton
+                styles={styles}
                 onPress={markCompleted}
                 disabled={isUpdatingStatus}
-                activeOpacity={0.7}
-              >
-                <CheckCircle2 size={20} color={colors.green400} />
-                <Text style={[styles.actionText, { color: colors.green400 }]}>
-                  {t('goals.detail.markCompleted')}
-                </Text>
-              </TouchableOpacity>
+                icon={<CheckCircle2 size={20} color={colors.green400} />}
+                color={colors.green400}
+                label={t('goals.detail.markCompleted')}
+              />
             )}
 
             {goal.status === 'Active' && (
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  isUpdatingStatus && styles.buttonDisabled,
-                ]}
+              <GoalActionButton
+                styles={styles}
                 onPress={markAbandoned}
                 disabled={isUpdatingStatus}
-                activeOpacity={0.7}
-              >
-                <ArchiveX size={20} color={colors.amber400} />
-                <Text style={[styles.actionText, { color: colors.amber400 }]}>
-                  {t('goals.detail.markAbandoned')}
-                </Text>
-              </TouchableOpacity>
+                icon={<ArchiveX size={20} color={colors.amber400} />}
+                color={colors.amber400}
+                label={t('goals.detail.markAbandoned')}
+              />
             )}
 
             {goal.status !== 'Active' && (
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  isUpdatingStatus && styles.buttonDisabled,
-                ]}
+              <GoalActionButton
+                styles={styles}
                 onPress={reactivate}
                 disabled={isUpdatingStatus}
-                activeOpacity={0.7}
-              >
-                <RotateCw size={20} color={colors.primary} />
-                <Text style={[styles.actionText, { color: colors.primary }]}>
-                  {t('goals.detail.reactivate')}
-                </Text>
-              </TouchableOpacity>
+                icon={<RotateCw size={20} color={colors.primary} />}
+                color={colors.primary}
+                label={t('goals.detail.reactivate')}
+              />
             )}
 
-            <TouchableOpacity
-              style={styles.actionButton}
+            <GoalActionButton
+              styles={styles}
               onPress={confirmDelete}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={20} color={colors.red400} />
-              <Text style={[styles.actionText, { color: colors.red400 }]}>
-                {t('goals.detail.delete')}
-              </Text>
-            </TouchableOpacity>
+              icon={<Trash2 size={20} color={colors.red400} />}
+              color={colors.red400}
+              label={t('goals.detail.delete')}
+            />
           </View>
         </BottomSheetScrollView>
       </BottomSheetModal>

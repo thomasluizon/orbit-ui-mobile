@@ -43,11 +43,14 @@ import { getErrorMessage } from "@orbit/shared/utils";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { apiClient } from "@/lib/api-client";
-import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
+import { MessageBubble } from "@/components/message-bubble";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
+import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { useChatStore } from "@/stores/chat-store";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { useOffline } from "@/hooks/use-offline";
+import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
 
 // ---------------------------------------------------------------------------
 // Animated Sparkle Icon for empty state
@@ -180,6 +183,7 @@ function RecordingVisualizer({ styles }: Readonly<{ styles: ChatStyles }>) {
 export default function ChatScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isOnline } = useOffline();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -220,6 +224,8 @@ export default function ChatScreen() {
     !atMessageLimit &&
     !isRecording;
   const showSuggestions = messages.length === 0 && !isTyping;
+  const offlineTitle = t("calendarSync.notConnected");
+  const offlineDescription = `${t("chat.send")} / ${t("chat.attachImage")} / ${t("chat.toggleMic")}`;
 
   const currentLangFlag = useMemo(
     () =>
@@ -269,6 +275,12 @@ export default function ChatScreen() {
       setShowLangPicker(false);
     }
   }, [isRecording]);
+
+  useEffect(() => {
+    if (!isOnline) {
+      setShowLangPicker(false);
+    }
+  }, [isOnline]);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -361,6 +373,10 @@ export default function ChatScreen() {
     async (content?: string) => {
       const messageContent = content ?? input.trim();
       if ((!messageContent && !selectedImage) || isTyping) return;
+      if (!isOnline) {
+        setSendError(offlineTitle);
+        return;
+      }
 
       setSendError(null);
       setShowLangPicker(false);
@@ -456,6 +472,8 @@ export default function ChatScreen() {
       selectedImage,
       setIsTyping,
       t,
+      isOnline,
+      offlineTitle,
     ],
   );
 
@@ -522,6 +540,8 @@ export default function ChatScreen() {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollToBottom}
             ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+            accessibilityLabel={t("chat.title")}
+            accessibilityLiveRegion="polite"
           />
         )}
 
@@ -534,7 +554,18 @@ export default function ChatScreen() {
             },
           ]}
         >
-          {sendError && <Text style={styles.errorText}>{sendError}</Text>}
+          {sendError && (
+            <Text style={styles.errorText} accessibilityRole="alert">
+              {sendError}
+            </Text>
+          )}
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={offlineTitle}
+              description={offlineDescription}
+              compact
+            />
+          )}
           {speechError === t("speech.micDenied") && (
             <TouchableOpacity
               style={styles.permissionAction}
@@ -576,16 +607,18 @@ export default function ChatScreen() {
               contentContainerStyle={styles.quickChipsContent}
               style={styles.quickChipsScroll}
             >
-              {starterChips.map((chip) => (
-                <TouchableOpacity
-                  key={chip}
-                  style={styles.quickChip}
-                  onPress={() => sendMessage(chip)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickChipText}>{chip}</Text>
-                </TouchableOpacity>
-              ))}
+                {starterChips.map((chip) => (
+                  <TouchableOpacity
+                    key={chip}
+                    style={styles.quickChip}
+                    onPress={() => sendMessage(chip)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={chip}
+                  >
+                    <Text style={styles.quickChipText}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
             </ScrollView>
           )}
 
@@ -615,6 +648,7 @@ export default function ChatScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("chat.attachImage")}
                   activeOpacity={0.7}
+                  disabled={!isOnline}
                   onPress={() => {
                     void openFilePicker();
                   }}
@@ -629,7 +663,7 @@ export default function ChatScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={t("chat.toggleMic")}
                       activeOpacity={0.7}
-                      disabled={isTyping}
+                      disabled={isTyping || !isOnline}
                       onPress={toggleRecording}
                       style={styles.iconButton}
                     >
@@ -640,6 +674,7 @@ export default function ChatScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={t("chat.speechLanguage")}
                       activeOpacity={0.7}
+                      disabled={!isOnline}
                       onPress={() => setShowLangPicker((current) => !current)}
                       style={styles.languageFlagButton}
                     >
@@ -691,6 +726,7 @@ export default function ChatScreen() {
                   placeholderTextColor={colors.textMuted}
                   multiline
                   maxLength={2000}
+                  editable={isOnline}
                   returnKeyType="default"
                   blurOnSubmit={false}
                   onSubmitEditing={handleSend}
@@ -702,7 +738,9 @@ export default function ChatScreen() {
                     !canSend && styles.sendButtonDisabled,
                   ]}
                   onPress={handleSend}
-                  disabled={!canSend}
+                  disabled={!canSend || !isOnline}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canSend || !isOnline }}
                   activeOpacity={0.7}
                 >
                   <SendHorizontal size={16} color="#fff" />
@@ -712,7 +750,9 @@ export default function ChatScreen() {
           </View>
 
           {!hasProAccess && atMessageLimit && (
-            <Text style={styles.limitText}>{t("chat.limitReachedError")}</Text>
+            <Text style={styles.limitText} accessibilityLiveRegion="polite">
+              {t("chat.limitReachedError")}
+            </Text>
           )}
           {!hasProAccess && !atMessageLimit && (
             <Text style={styles.usageText}>

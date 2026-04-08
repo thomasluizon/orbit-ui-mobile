@@ -31,7 +31,6 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
-  ClipboardList,
   CheckCircle2,
   ChevronLeft,
 } from 'lucide-react-native'
@@ -63,6 +62,11 @@ import { useUIStore } from '@/stores/ui-store'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { HabitCard } from './habit-card'
+import {
+  HabitListDateGroupSection,
+  HabitListEmptyState,
+  type HabitListDateGroup,
+} from './habit-list-sections'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -118,13 +122,6 @@ function getEmptyHabitsMessage(
   t: (key: string) => string,
 ): string {
   return t(getHabitEmptyStateKey(view))
-}
-
-interface DateGroup {
-  key: string
-  label: string
-  isOverdue: boolean
-  habits: NormalizedHabit[]
 }
 
 interface MoveParentOption {
@@ -313,7 +310,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     return topLevelHabits.filter((habit) => habit.isGeneral)
   }, [topLevelHabits, view])
 
-  const dateGroups = useMemo<DateGroup[]>(() => {
+  const dateGroups = useMemo<HabitListDateGroup[]>(() => {
     if (view !== 'all') return []
 
     const today = formatAPIDate(new Date())
@@ -339,7 +336,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       groups.set(key, group)
     }
 
-    const result: DateGroup[] = []
+    const result: HabitListDateGroup[] = []
 
     if (overdueHabits.length > 0) {
       result.push({
@@ -1085,39 +1082,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   const renderEmptyState = useCallback(
     (currentView: 'today' | 'all' | 'general') => (
-      <View style={styles.sectionInset}>
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconContainer}>
-            <ClipboardList size={40} color={colors.textMuted} />
-          </View>
-          <Text style={styles.emptySubtitle}>
-            {getEmptyHabitsMessage(currentView, t)}
-          </Text>
-          {(currentView === 'all' || currentView === 'general') ? (
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={onCreatePress}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.createButtonText}>
-                {t('habits.createHabit')}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+      <HabitListEmptyState
+        title={t(getHabitEmptyStateKey(currentView))}
+        description={getEmptyHabitsMessage(currentView, t)}
+        actionLabel={currentView === 'all' || currentView === 'general' ? t('habits.createHabit') : undefined}
+        onAction={onCreatePress}
+        variant="primary"
+        styles={styles}
+        colors={{ textMuted: colors.textMuted, primary: colors.primary, textSecondary: colors.textSecondary }}
+      />
     ),
-    [
-      colors.textMuted,
-      onCreatePress,
-      styles.createButton,
-      styles.createButtonText,
-      styles.emptyIconContainer,
-      styles.emptyState,
-      styles.emptySubtitle,
-      styles.sectionInset,
-      t,
-    ],
+    [colors.primary, colors.textMuted, colors.textSecondary, onCreatePress, styles, t],
   )
 
   const listHeaderComponent = useMemo(
@@ -1137,59 +1112,28 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   )
 
   const renderGroupSection = useCallback(
-    ({ item: group }: { item: DateGroup }) => (
-      <View style={styles.sectionInset}>
-        <View style={styles.groupSection}>
-          <View style={styles.groupHeader}>
-            <Text
-              style={[
-                styles.groupLabel,
-                group.isOverdue ? styles.groupLabelOverdue : null,
-              ]}
-            >
-              {group.isOverdue ? t('habits.overdue') : group.label}
-            </Text>
-            <View
-              style={[
-                styles.groupDivider,
-                group.isOverdue ? styles.groupDividerOverdue : null,
-              ]}
-            />
-          </View>
-          <View style={styles.groupItems}>
-            {group.habits.map((habit) => {
-              const children = getVisibleChildren(habit.id)
-              return (
-                <View key={habit.id} style={styles.groupItem}>
-                  {renderHabitCard(
-                    habit,
-                    0,
-                    children.length > 0,
-                    habit.hasSubHabits,
-                  )}
-                  {renderAllViewChildren(habit.id, 1)}
-                </View>
-              )
-            })}
-          </View>
-        </View>
-      </View>
+    ({ item: group }: { item: HabitListDateGroup }) => (
+      <HabitListDateGroupSection
+        group={group}
+        overdueLabel={t('habits.overdue')}
+        styles={styles}
+        renderHabit={(habit) => {
+          const children = getVisibleChildren(habit.id)
+          return (
+            <>
+              {renderHabitCard(
+                habit,
+                0,
+                children.length > 0,
+                habit.hasSubHabits,
+              )}
+              {renderAllViewChildren(habit.id, 1)}
+            </>
+          )
+        }}
+      />
     ),
-    [
-      getVisibleChildren,
-      renderAllViewChildren,
-      renderHabitCard,
-      styles.groupDivider,
-      styles.groupDividerOverdue,
-      styles.groupHeader,
-      styles.groupItem,
-      styles.groupItems,
-      styles.groupLabel,
-      styles.groupLabelOverdue,
-      styles.groupSection,
-      styles.sectionInset,
-      t,
-    ],
+    [getVisibleChildren, renderAllViewChildren, renderHabitCard, styles, t],
   )
 
   const renderDrillItem = useCallback(

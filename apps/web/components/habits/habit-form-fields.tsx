@@ -3,10 +3,12 @@
 import { useState, useMemo, useId, type ReactNode } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useQuery } from '@tanstack/react-query'
-import type { FrequencyUnit, ScheduledReminderWhen, HabitTag } from '@orbit/shared/types/habit'
-import { tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
-import { API } from '@orbit/shared/api'
+import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
+import {
+  HABIT_REMINDER_PRESETS,
+  formatHabitTimeInput,
+  isValidHabitTimeInput,
+} from '@orbit/shared/utils'
 import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
@@ -15,6 +17,7 @@ import { AppSelect } from '@/components/ui/app-select'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -36,44 +39,213 @@ interface HabitFormFieldsProps {
 // Reminder presets
 // ---------------------------------------------------------------------------
 
-const REMINDER_PRESETS = [
-  { value: 0, key: 'habits.form.reminderAtTime' },
-  { value: 5, key: 'habits.form.reminder5min' },
-  { value: 10, key: 'habits.form.reminder10min' },
-  { value: 15, key: 'habits.form.reminder15min' },
-  { value: 30, key: 'habits.form.reminder30min' },
-  { value: 60, key: 'habits.form.reminder1hour' },
-  { value: 120, key: 'habits.form.reminder2hours' },
-  { value: 360, key: 'habits.form.reminder6hours' },
-  { value: 720, key: 'habits.form.reminder12hours' },
-  { value: 1440, key: 'habits.form.reminder1day' },
-] as const
-
-// ---------------------------------------------------------------------------
-// Pure utility functions (extracted to module scope -- S7721)
-// ---------------------------------------------------------------------------
-
-function isValidTime(time: string): boolean {
-  if (time.length !== 5) return true
-  const [hStr, mStr] = time.split(':')
-  const h = Number.parseInt(hStr ?? "", 10)
-  const m = Number.parseInt(mStr ?? "", 10)
-  return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+interface PillToggleOption {
+  key: string
+  label: ReactNode
+  active: boolean
+  onClick: () => void
 }
 
-function formatScheduledTimeInput(value: string): string {
-  let v = value.replaceAll(/\D/g, '')
-  if (v.length > 4) v = v.slice(0, 4)
-  if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
-  return v
+interface PillToggleRowProps {
+  options: PillToggleOption[]
+  containerClassName: string
+  buttonClassName: string
+  activeClassName: string
+  inactiveClassName: string
 }
 
-function isValidScheduledTime(time: string): boolean {
-  if (time.length !== 5) return false
-  const [hStr, mStr] = time.split(':')
-  const h = Number.parseInt(hStr ?? "", 10)
-  const m = Number.parseInt(mStr ?? "", 10)
-  return !Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59
+function PillToggleRow({
+  options,
+  containerClassName,
+  buttonClassName,
+  activeClassName,
+  inactiveClassName,
+}: Readonly<PillToggleRowProps>) {
+  return (
+    <div className={containerClassName}>
+      {options.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          aria-pressed={option.active}
+          className={`${buttonClassName} ${option.active ? activeClassName : inactiveClassName}`}
+          onClick={option.onClick}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+interface ColorSwatchesProps {
+  colors: readonly string[]
+  activeColor: string
+  onSelect: (color: string) => void
+  ariaLabel: (color: string) => string
+}
+
+function ColorSwatches({
+  colors,
+  activeColor,
+  onSelect,
+  ariaLabel,
+}: Readonly<ColorSwatchesProps>) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {colors.map((color) => (
+        <button
+          key={color}
+          type="button"
+          aria-label={ariaLabel(color)}
+          aria-pressed={activeColor === color}
+          className={`size-5 rounded-full transition-all ${
+            activeColor === color
+              ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
+              : 'hover:scale-110'
+          }`}
+          style={{ backgroundColor: color }}
+          onClick={() => onSelect(color)}
+        />
+      ))}
+    </div>
+  )
+}
+
+interface TagEditorRowProps {
+  value: string
+  placeholder?: string
+  inputAriaLabel: string
+  actionLabel: string
+  cancelAriaLabel: string
+  disabled: boolean
+  onChange: (value: string) => void
+  onCommit: () => void
+  onCancel: () => void
+}
+
+function TagEditorRow({
+  value,
+  placeholder,
+  inputAriaLabel,
+  actionLabel,
+  cancelAriaLabel,
+  disabled,
+  onChange,
+  onCommit,
+  onCancel,
+}: Readonly<TagEditorRowProps>) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        value={value}
+        type="text"
+        aria-label={inputAriaLabel}
+        placeholder={placeholder}
+        maxLength={50}
+        disabled={disabled}
+        className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onCommit()
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-50"
+        disabled={disabled}
+        onClick={onCommit}
+      >
+        {actionLabel}
+      </button>
+      <button
+        type="button"
+        aria-label={cancelAriaLabel}
+        className="shrink-0 p-2 text-text-muted hover:text-text-primary"
+        disabled={disabled}
+        onClick={onCancel}
+      >
+        <X className="size-3.5" aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
+interface HabitTagChipProps {
+  tag: { id: string; name: string; color: string }
+  selected: boolean
+  animationClassName: string
+  atLimit: boolean
+  disabled: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+  editAriaLabel: string
+  deleteAriaLabel: string
+}
+
+function HabitTagChip({
+  tag,
+  selected,
+  animationClassName,
+  atLimit,
+  disabled,
+  onToggle,
+  onEdit,
+  onDelete,
+  editAriaLabel,
+  deleteAriaLabel,
+}: Readonly<HabitTagChipProps>) {
+  return (
+    <div
+      className={`flex items-center rounded-full text-xs font-semibold transition-all ${
+        selected
+          ? 'text-white'
+          : 'bg-surface border border-border text-text-secondary'
+      } ${
+        !selected && atLimit
+          ? 'opacity-30 pointer-events-none'
+          : ''
+      } ${animationClassName}`}
+      style={selected ? { backgroundColor: tag.color } : undefined}
+    >
+      <button
+        type="button"
+        className="pl-3 pr-1 py-1.5 flex items-center gap-1.5 hover:opacity-80"
+        onClick={onToggle}
+      >
+        {!selected && (
+          <span className="size-2 rounded-full" style={{ backgroundColor: tag.color }} />
+        )}
+        {tag.name}
+      </button>
+      <button
+        type="button"
+        className={`pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
+          selected ? 'text-white/70' : 'text-text-muted'
+        }`}
+        aria-label={editAriaLabel}
+        disabled={disabled}
+        onClick={onEdit}
+      >
+        <PenSquare className="size-3" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className={`pr-2 pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
+          selected ? 'text-white/70' : 'text-text-muted'
+        }`}
+        aria-label={deleteAriaLabel}
+        disabled={disabled}
+        onClick={onDelete}
+      >
+        <X className="size-3" aria-hidden="true" />
+      </button>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +278,7 @@ function ReminderSection({
   ], [t])
 
   const availablePresets = useMemo(
-    () => REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
+    () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   )
 
@@ -267,7 +439,7 @@ function ScheduledReminderSection({
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
 
   function addScheduledReminder() {
-    if (!isValidScheduledTime(time)) return
+    if (!isValidHabitTimeInput(time)) return
     if (atLimit) return
     const current = scheduledReminders ?? []
     const duplicate = current.some((sr) => sr.when === when && sr.time === time)
@@ -379,13 +551,13 @@ function ScheduledReminderSection({
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
                     maxLength={5}
                     className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                    onChange={(e) => setTime(formatScheduledTimeInput(e.target.value))}
+                    onChange={(e) => setTime(formatHabitTimeInput(e.target.value))}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addScheduledReminder() } }}
                   />
                   <button
                     type="button"
                     className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
-                    disabled={!isValidScheduledTime(time)}
+                    disabled={!isValidHabitTimeInput(time)}
                     onClick={addScheduledReminder}
                   >
                     {t('common.add')}
@@ -521,23 +693,16 @@ export function HabitFormFields({
   const watchedSlipAlertEnabled = watch('slipAlertEnabled') ?? false
   const watchedChecklistItems = watch('checklistItems') ?? []
   const watchedScheduledReminders = watch('scheduledReminders') ?? []
-
-  // Fetch tags
-  const { data: tagsData } = useQuery({
-    queryKey: tagKeys.lists(),
-    queryFn: async (): Promise<HabitTag[]> => {
-      const res = await fetch(API.tags.list)
-      if (!res.ok) throw new Error('Failed to fetch tags')
-      return (await res.json()) as HabitTag[]
-    },
-    staleTime: QUERY_STALE_TIMES.tags,
-  })
-
-  const availableTags = tagsData ?? []
+  const { tags: availableTags = [] } = useTags()
+  const createTag = useCreateTag()
+  const updateTag = useUpdateTag()
+  const deleteTag = useDeleteTag()
+  const tagMutationError = createTag.error ?? updateTag.error ?? deleteTag.error
+  const isTagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
 
   // Reminder label function (shared with ReminderSection)
   function reminderLabel(minutes: number): string {
-    const preset = REMINDER_PRESETS.find((p) => p.value === minutes)
+    const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
     if (preset) return t(preset.key as Parameters<typeof t>[0])
     if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
     if (minutes < 1440) {
@@ -611,56 +776,18 @@ export function HabitFormFields({
         <span className="form-label" aria-hidden="true">
           {t('habits.form.frequency')}
         </span>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            aria-pressed={isOneTime}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              isOneTime
-                ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-            }`}
-            onClick={setOneTime}
-          >
-            {t('habits.form.oneTimeTask')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={!isOneTime && !isGeneral && !isFlexible}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              !isOneTime && !isGeneral && !isFlexible
-                ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-            }`}
-            onClick={setRecurring}
-          >
-            {t('habits.form.recurring')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={isFlexible}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              isFlexible
-                ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-            }`}
-            onClick={setFlexible}
-          >
-            {t('habits.form.flexible')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={isGeneral}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              isGeneral
-                ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-            }`}
-            onClick={setGeneral}
-          >
-            {t('habits.form.general')}
-          </button>
-        </div>
+        <PillToggleRow
+          containerClassName="flex flex-wrap gap-2"
+          buttonClassName="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+          activeClassName="bg-primary text-white shadow-[var(--shadow-glow-sm)]"
+          inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
+          options={[
+            { key: 'one-time', label: t('habits.form.oneTimeTask'), active: isOneTime, onClick: setOneTime },
+            { key: 'recurring', label: t('habits.form.recurring'), active: !isOneTime && !isGeneral && !isFlexible, onClick: setRecurring },
+            { key: 'flexible', label: t('habits.form.flexible'), active: isFlexible, onClick: setFlexible },
+            { key: 'general', label: t('habits.form.general'), active: isGeneral, onClick: setGeneral },
+          ]}
+        />
       </div>
 
       {/* Flexible description */}
@@ -720,22 +847,18 @@ export function HabitFormFields({
           <span className="form-label" aria-hidden="true">
             {t('habits.form.activeDays')}
           </span>
-          <div className="flex flex-wrap gap-2">
-            {daysList.map((day) => (
-              <button
-                key={day.value}
-                type="button"
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                  watchedDays?.includes(day.value)
-                    ? 'bg-primary text-white'
-                    : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-                }`}
-                onClick={() => toggleDay(day.value)}
-              >
-                {day.label}
-              </button>
-            ))}
-          </div>
+          <PillToggleRow
+            containerClassName="flex flex-wrap gap-2"
+            buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+            activeClassName="bg-primary text-white"
+            inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
+            options={daysList.map((day) => ({
+              key: day.value,
+              label: day.label,
+              active: watchedDays?.includes(day.value) ?? false,
+              onClick: () => toggleDay(day.value),
+            }))}
+          />
         </div>
       )}
 
@@ -772,7 +895,7 @@ export function HabitFormFields({
               setValue('dueTime', formatted, { shouldDirty: true })
             }}
           />
-          {watchedDueTime.length === 5 && !isValidTime(watchedDueTime) && (
+          {watchedDueTime.length === 5 && !isValidHabitTimeInput(watchedDueTime) && (
             <p className="text-xs text-red-400 font-medium">
               {t('habits.form.invalidTime')}
             </p>
@@ -801,7 +924,7 @@ export function HabitFormFields({
             }}
           />
           {watchedDueEndTime.length === 5 &&
-            !isValidTime(watchedDueEndTime) && (
+            !isValidHabitTimeInput(watchedDueEndTime) && (
               <p className="text-xs text-red-400 font-medium">
                 {t('habits.form.invalidEndTime')}
               </p>
@@ -889,65 +1012,37 @@ export function HabitFormFields({
       )}
 
       {/* Tags */}
-      <div className="space-y-1.5">
-        <span className="form-label" aria-hidden="true">
-          {t('habits.form.tags')}
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {availableTags.map((tag) => (
-            <div
+        <div className="space-y-1.5">
+          <span className="form-label" aria-hidden="true">
+            {t('habits.form.tags')}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {availableTags.map((tag) => (
+            <HabitTagChip
               key={tag.id}
-              className={`flex items-center rounded-full text-xs font-semibold transition-all ${
-                tags.selectedTagIds.includes(tag.id)
-                  ? 'text-white'
-                  : 'bg-surface border border-border text-text-secondary'
-              } ${
-                !tags.selectedTagIds.includes(tag.id) && tags.atTagLimit
-                  ? 'opacity-30 pointer-events-none'
-                  : ''
-              } ${justToggledTagId === tag.id ? 'animate-tag-pop' : ''}`}
-              style={
-                tags.selectedTagIds.includes(tag.id)
-                  ? { backgroundColor: tag.color }
-                  : undefined
-              }
-            >
-              <button
-                type="button"
-                className="pl-3 pr-1 py-1.5 flex items-center gap-1.5 hover:opacity-80"
-                onClick={() => handleTagToggle(tag.id)}
-              >
-                {!tags.selectedTagIds.includes(tag.id) && (
-                  <span className="size-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                )}
-                {tag.name}
-              </button>
-              <button
-                type="button"
-                className={`pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
-                  tags.selectedTagIds.includes(tag.id) ? 'text-white/70' : 'text-text-muted'
-                }`}
-                aria-label={t('habits.form.editTag')}
-                onClick={(e) => { e.stopPropagation(); tags.startEditTag(tag) }}
-              >
-                <PenSquare className="size-3" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className={`pr-2 pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
-                  tags.selectedTagIds.includes(tag.id) ? 'text-white/70' : 'text-text-muted'
-                }`}
-                aria-label={t('habits.form.deleteTag')}
-                onClick={(e) => { e.stopPropagation(); tags.deleteTag(tag.id, async () => {}) }}
-              >
-                <X className="size-3" aria-hidden="true" />
-              </button>
-            </div>
-          ))}
+              tag={tag}
+              selected={tags.selectedTagIds.includes(tag.id)}
+              atLimit={!tags.selectedTagIds.includes(tag.id) && tags.atTagLimit}
+              animationClassName={justToggledTagId === tag.id ? 'animate-tag-pop' : ''}
+              disabled={isTagMutationPending}
+              onToggle={() => handleTagToggle(tag.id)}
+              editAriaLabel={t('habits.form.editTag')}
+              deleteAriaLabel={t('habits.form.deleteTag')}
+              onEdit={() => {
+                tags.startEditTag(tag)
+              }}
+              onDelete={() => {
+                void tags.deleteTag(tag.id, async (id) => {
+                  await deleteTag.mutateAsync(id)
+                })
+              }}
+            />
+            ))}
           {!tags.showNewTag && !tags.atTagLimit && (
             <button
               type="button"
               className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface border border-dashed border-border text-text-muted hover:text-text-primary hover:border-primary/50 transition-all"
+              disabled={isTagMutationPending}
               onClick={() => tags.setShowNewTag(true)}
             >
               + {t('habits.form.newTag')}
@@ -957,77 +1052,57 @@ export function HabitFormFields({
         {/* Inline tag edit */}
         {tags.editingTagId && (
           <div className="space-y-2">
-            <div className="flex flex-wrap gap-1">
-              {tags.tagColors.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={t('habits.form.selectColor', { color: c })}
-                  aria-pressed={tags.editTagColor === c}
-                  className={`size-5 rounded-full transition-all ${
-                    tags.editTagColor === c
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => tags.setEditTagColor(c)}
-                />
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                value={tags.editTagName}
-                type="text"
-                aria-label={t('habits.form.tagName')}
-                maxLength={50}
-                className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                onChange={(e) => tags.setEditTagName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); tags.saveEditTag(async () => {}) } }}
-              />
-              <button type="button" className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150" onClick={() => tags.saveEditTag(async () => {})}>{t('common.save')}</button>
-              <button type="button" aria-label={t('common.cancel')} className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={tags.cancelEditTag}>
-                <X className="size-3.5" aria-hidden="true" />
-              </button>
-            </div>
+            <ColorSwatches
+              colors={tags.tagColors}
+              activeColor={tags.editTagColor}
+              onSelect={tags.setEditTagColor}
+              ariaLabel={(color) => t('habits.form.selectColor', { color })}
+            />
+            <TagEditorRow
+              value={tags.editTagName}
+              disabled={isTagMutationPending}
+              inputAriaLabel={t('habits.form.tagName')}
+              cancelAriaLabel={t('common.cancel')}
+              actionLabel={t('common.save')}
+              onChange={tags.setEditTagName}
+              onCommit={() => {
+                void tags.saveEditTag(async (id, name, color) => {
+                  await updateTag.mutateAsync({ tagId: id, name, color })
+                })
+              }}
+              onCancel={tags.cancelEditTag}
+            />
           </div>
         )}
         {/* Inline new tag creation */}
         {tags.showNewTag && (
           <div className="space-y-2">
-            <div className="flex flex-wrap gap-1">
-              {tags.tagColors.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={t('habits.form.selectColor', { color: c })}
-                  aria-pressed={tags.newTagColor === c}
-                  className={`size-5 rounded-full transition-all ${
-                    tags.newTagColor === c
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => tags.setNewTagColor(c)}
-                />
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                value={tags.newTagName}
-                type="text"
-                aria-label={t('habits.form.tagName')}
-                placeholder={t('habits.form.tagName')}
-                maxLength={50}
-                className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                onChange={(e) => tags.setNewTagName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); tags.createAndSelectTag(async () => null) } }}
-              />
-              <button type="button" className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150" onClick={() => tags.createAndSelectTag(async () => null)}>{t('common.add')}</button>
-              <button type="button" aria-label={t('common.cancel')} className="shrink-0 p-2 text-text-muted hover:text-text-primary" onClick={() => tags.setShowNewTag(false)}>
-                <X className="size-3.5" aria-hidden="true" />
-              </button>
-            </div>
+            <ColorSwatches
+              colors={tags.tagColors}
+              activeColor={tags.newTagColor}
+              onSelect={tags.setNewTagColor}
+              ariaLabel={(color) => t('habits.form.selectColor', { color })}
+            />
+            <TagEditorRow
+              value={tags.newTagName}
+              placeholder={t('habits.form.tagName')}
+              disabled={isTagMutationPending}
+              inputAriaLabel={t('habits.form.tagName')}
+              cancelAriaLabel={t('common.cancel')}
+              actionLabel={t('common.add')}
+              onChange={tags.setNewTagName}
+              onCommit={() => {
+                void tags.createAndSelectTag(async (name, color) => {
+                  const result = await createTag.mutateAsync({ name, color })
+                  return result.id
+                })
+              }}
+              onCancel={() => tags.setShowNewTag(false)}
+            />
           </div>
+        )}
+        {tagMutationError && (
+          <p className="text-xs text-red-400 font-medium">{tagMutationError.message}</p>
         )}
       </div>
 

@@ -1,11 +1,17 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useEffect, useCallback, useMemo } from 'react'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
+import {
+  getCurrentPlan,
+  getIsYearlyPro,
+  getTrialDaysLeft,
+  getTrialExpired,
+  getTrialUrgent,
+} from '@orbit/shared/utils'
 import { updateTimezone } from '@/app/actions/profile'
 import { fetchJson } from '@/lib/api-fetch'
 
@@ -78,43 +84,29 @@ export function useHasProAccess(): boolean {
 /** Computed: how many trial days remain (null if not in trial). */
 export function useTrialDaysLeft(): number | null {
   const { profile } = useProfile()
-  return useMemo(() => {
-    if (!profile?.trialEndsAt) return null
-    return Math.max(0, differenceInCalendarDays(parseISO(profile.trialEndsAt), new Date()))
-  }, [profile?.trialEndsAt])
+  return useMemo(() => getTrialDaysLeft(profile), [profile])
 }
 
 /** Computed: readable plan label. */
 export function useCurrentPlan(): 'Free' | 'Pro' | 'Trial' {
   const { profile } = useProfile()
-  return useMemo(() => {
-    if (!profile) return 'Free'
-    if (profile.isTrialActive) return 'Trial'
-    if (profile.hasProAccess) return 'Pro'
-    return 'Free'
-  }, [profile])
+  return useMemo(() => getCurrentPlan(profile), [profile])
 }
 
 /** Computed: trial has ended and user is on free plan. */
 export function useTrialExpired(): boolean {
   const { profile } = useProfile()
-  return useMemo(() => {
-    if (!profile) return false
-    return profile.trialEndsAt !== null && !profile.isTrialActive && profile.plan === 'free'
-  }, [profile])
+  return useMemo(() => getTrialExpired(profile), [profile])
 }
 
 /** Computed: trial is ending within 2 days. */
 export function useTrialUrgent(): boolean {
-  const trialDaysLeft = useTrialDaysLeft()
-  return trialDaysLeft !== null && trialDaysLeft <= 2
+  const { profile } = useProfile()
+  return useMemo(() => getTrialUrgent(profile), [profile])
 }
 
 /** Computed: user is on a yearly Pro plan or lifetime. */
 export function useIsYearlyPro(): boolean {
   const { profile } = useProfile()
-  return useMemo(() => {
-    if (!profile) return false
-    return profile.hasProAccess && (profile.isLifetimePro || profile.subscriptionInterval === 'yearly')
-  }, [profile])
+  return useMemo(() => getIsYearlyPro(profile), [profile])
 }

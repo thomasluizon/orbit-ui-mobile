@@ -7,77 +7,44 @@ import { useTranslation } from 'react-i18next'
 import {
   habitFormSchema,
   type HabitFormData,
-  validateHabitForm,
 } from '@orbit/shared/validation'
+import {
+  buildHabitDaysList,
+  buildHabitFrequencyUnits,
+  formatHabitTimeInput,
+  getHabitFormFlags,
+  normalizeHabitFormData,
+  validateHabitFormInput,
+  toggleSelectedId,
+} from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface HabitFormOptions {
   initialData?: Partial<HabitFormInput>
-  weekStartDay?: number // 0 = Sunday, 1 = Monday (default)
+  weekStartDay?: number
 }
 
 export interface HabitFormHelpers {
   form: UseFormReturn<HabitFormInput, unknown, HabitFormData>
-
-  // Computed flags
   isOneTime: boolean
   isGeneral: boolean
   isFlexible: boolean
   isRecurring: boolean
   showDayPicker: boolean
   showEndDate: boolean
-
-  // Day picker
   daysList: { value: string; label: string }[]
   toggleDay: (day: string) => void
-
-  // Frequency units list
   frequencyUnits: { value: FrequencyUnit; label: string }[]
-
-  // Mode switchers
   setOneTime: () => void
   setRecurring: () => void
   setFlexible: () => void
   setGeneral: () => void
-
-  // Time formatting
   formatTimeInput: (value: string) => string
   formatEndTimeInput: (value: string) => string
-
-  // Cross-field validation (returns i18n key or null)
   validateAll: () => string | null
 }
 
 type HabitFormInput = z.input<typeof habitFormSchema>
-
-function normalizeHabitFormData(values: HabitFormInput): HabitFormData {
-  return {
-    title: values.title ?? '',
-    description: values.description ?? '',
-    frequencyUnit: values.frequencyUnit ?? null,
-    frequencyQuantity: values.frequencyQuantity ?? null,
-    days: values.days ?? [],
-    isBadHabit: values.isBadHabit ?? false,
-    isGeneral: values.isGeneral ?? false,
-    isFlexible: values.isFlexible ?? false,
-    dueDate: values.dueDate ?? '',
-    dueTime: values.dueTime ?? '',
-    dueEndTime: values.dueEndTime ?? '',
-    endDate: values.endDate ?? '',
-    reminderEnabled: values.reminderEnabled ?? false,
-    scheduledReminders: values.scheduledReminders ?? [],
-    slipAlertEnabled: values.slipAlertEnabled ?? false,
-    checklistItems: values.checklistItems ?? [],
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const { initialData, weekStartDay = 1 } = options
@@ -107,66 +74,49 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   })
 
   const watchedValues = normalizeHabitFormData(form.watch())
+  const { isOneTime, isGeneral, isFlexible, isRecurring, showDayPicker, showEndDate } =
+    getHabitFormFlags(watchedValues)
 
-  // -- Computed flags --
-  const isGeneral = watchedValues.isGeneral
-  const isFlexible = watchedValues.isFlexible
-  const frequencyUnit = watchedValues.frequencyUnit
-  const frequencyQuantity = watchedValues.frequencyQuantity
-  const isOneTime = !frequencyUnit && !isGeneral && !isFlexible
-  const isRecurring = !!frequencyUnit && !isGeneral && !isFlexible
-  const showDayPicker = !isFlexible && frequencyUnit === 'Day' && frequencyQuantity === 1
-  const showEndDate = !!frequencyUnit && !isGeneral
+  const daysList = useMemo(
+    () =>
+      buildHabitDaysList(
+        {
+          monday: t('dates.daysShort.monday'),
+          tuesday: t('dates.daysShort.tuesday'),
+          wednesday: t('dates.daysShort.wednesday'),
+          thursday: t('dates.daysShort.thursday'),
+          friday: t('dates.daysShort.friday'),
+          saturday: t('dates.daysShort.saturday'),
+          sunday: t('dates.daysShort.sunday'),
+          unitDay: t('habits.form.unitDay'),
+          unitWeek: t('habits.form.unitWeek'),
+          unitMonth: t('habits.form.unitMonth'),
+          unitYear: t('habits.form.unitYear'),
+        },
+        weekStartDay,
+      ),
+    [t, weekStartDay],
+  )
 
-  // -- Day picker list --
-  const daysList = useMemo(() => {
-    const mondayFirst = [
-      { value: 'Monday', label: t('dates.daysShort.monday') },
-      { value: 'Tuesday', label: t('dates.daysShort.tuesday') },
-      { value: 'Wednesday', label: t('dates.daysShort.wednesday') },
-      { value: 'Thursday', label: t('dates.daysShort.thursday') },
-      { value: 'Friday', label: t('dates.daysShort.friday') },
-      { value: 'Saturday', label: t('dates.daysShort.saturday') },
-      { value: 'Sunday', label: t('dates.daysShort.sunday') },
-    ]
-    // weekStartDay === 0 means Sunday-first
-    if (weekStartDay === 0) {
-      return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)]
-    }
-    return mondayFirst
-  }, [t, weekStartDay])
-
-  // -- Frequency units list --
   const frequencyUnits = useMemo(
     () =>
-      [
-        { value: 'Day' as const, label: t('habits.form.unitDay') },
-        { value: 'Week' as const, label: t('habits.form.unitWeek') },
-        { value: 'Month' as const, label: t('habits.form.unitMonth') },
-        { value: 'Year' as const, label: t('habits.form.unitYear') },
-      ],
+      buildHabitFrequencyUnits({
+        unitDay: t('habits.form.unitDay'),
+        unitWeek: t('habits.form.unitWeek'),
+        unitMonth: t('habits.form.unitMonth'),
+        unitYear: t('habits.form.unitYear'),
+      }),
     [t],
   )
 
-  // -- Toggle a day in the days array --
   const toggleDay = useCallback(
     (day: string) => {
       const current = form.getValues('days') ?? []
-      const idx = current.indexOf(day)
-      if (idx >= 0) {
-        form.setValue(
-          'days',
-          current.filter((_, i) => i !== idx),
-          { shouldDirty: true },
-        )
-      } else {
-        form.setValue('days', [...current, day], { shouldDirty: true })
-      }
+      form.setValue('days', toggleSelectedId(current, day), { shouldDirty: true })
     },
     [form],
   )
 
-  // -- Mode switchers --
   const setOneTime = useCallback(() => {
     form.setValue('isGeneral', false)
     form.setValue('isFlexible', false)
@@ -182,8 +132,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!form.getValues('frequencyUnit')) {
       form.setValue('frequencyUnit', 'Day')
     }
-    const qty = form.getValues('frequencyQuantity')
-    if (!qty || qty < 1) {
+    const quantity = form.getValues('frequencyQuantity')
+    if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 1)
     }
   }, [form])
@@ -195,8 +145,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!form.getValues('frequencyUnit')) {
       form.setValue('frequencyUnit', 'Week')
     }
-    const qty = form.getValues('frequencyQuantity')
-    if (!qty || qty < 1) {
+    const quantity = form.getValues('frequencyQuantity')
+    if (!quantity || quantity < 1) {
       form.setValue('frequencyQuantity', 3)
     }
   }, [form])
@@ -215,26 +165,10 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     form.setValue('scheduledReminders', [])
   }, [form])
 
-  // -- Time formatting helpers --
-  const formatTimeInput = useCallback((value: string): string => {
-    let v = value.replace(/\D/g, '')
-    if (v.length > 4) v = v.slice(0, 4)
-    if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
-    return v
-  }, [])
+  const formatTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
+  const formatEndTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
 
-  const formatEndTimeInput = useCallback((value: string): string => {
-    let v = value.replace(/\D/g, '')
-    if (v.length > 4) v = v.slice(0, 4)
-    if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2)
-    return v
-  }, [])
-
-  // -- Cross-field validation --
-  const validateAll = useCallback((): string | null => {
-    const data = normalizeHabitFormData(form.getValues())
-    return validateHabitForm(data)
-  }, [form])
+  const validateAll = useCallback(() => validateHabitFormInput(form.getValues()), [form])
 
   return {
     form,

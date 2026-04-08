@@ -24,8 +24,14 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { userFactKeys } from '@orbit/shared/query'
+import {
+  normalizeUserFactCategory,
+  USER_FACTS_PER_PAGE,
+} from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface UserFact {
@@ -49,9 +55,13 @@ export default function AiSettingsScreen() {
   // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      apiClient(API.profile.aiMemory, {
+      performQueuedApiMutation({
+        type: 'setAiMemory',
+        scope: 'profile',
+        endpoint: API.profile.aiMemory,
         method: 'PUT',
-        body: JSON.stringify({ enabled }),
+        payload: { enabled },
+        dedupeKey: 'profile-ai-memory',
       }),
     onMutate: (enabled) => {
       const previous = profile?.aiMemoryEnabled
@@ -68,9 +78,13 @@ export default function AiSettingsScreen() {
   // --- AI Summary toggle ---
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      apiClient(API.profile.aiSummary, {
+      performQueuedApiMutation({
+        type: 'setAiSummary',
+        scope: 'profile',
+        endpoint: API.profile.aiSummary,
         method: 'PUT',
-        body: JSON.stringify({ enabled }),
+        payload: { enabled },
+        dedupeKey: 'profile-ai-summary',
       }),
     onMutate: (enabled) => {
       const previous = profile?.aiSummaryEnabled
@@ -92,38 +106,81 @@ export default function AiSettingsScreen() {
   })
 
   const facts = useMemo(() => factsQuery.data ?? [], [factsQuery.data])
+  const { isOnline } = useOffline()
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiClient(API.userFacts.delete(id), { method: 'DELETE' }),
+      performQueuedApiMutation({
+        type: 'deleteUserFact',
+        scope: 'userFacts',
+        endpoint: API.userFacts.delete(id),
+        method: 'DELETE',
+        payload: undefined,
+        targetEntityId: id,
+        dedupeKey: `user-fact-delete-${id}`,
+      }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: userFactKeys.lists() })
+      const previous = queryClient.getQueryData<UserFact[]>(userFactKeys.lists())
+      queryClient.setQueryData<UserFact[]>(userFactKeys.lists(), (old) =>
+        old ? old.filter((fact) => fact.id !== id) : old,
+      )
+      return { previous }
+    },
+    onError: (_err, _id, context: { previous?: UserFact[] } | undefined) => {
+      if (context?.previous) {
+        queryClient.setQueryData(userFactKeys.lists(), context.previous)
+      }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+      if (isOnline) {
+        queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+      }
     },
   })
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) =>
-      apiClient(API.userFacts.bulk, {
+      performQueuedApiMutation({
+        type: 'bulkDeleteUserFacts',
+        scope: 'userFacts',
+        endpoint: API.userFacts.bulk,
         method: 'DELETE',
-        body: JSON.stringify({ ids }),
+        payload: { ids },
+        dedupeKey: 'bulk-delete-user-facts',
       }),
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: userFactKeys.lists() })
+      const previous = queryClient.getQueryData<UserFact[]>(userFactKeys.lists())
+      queryClient.setQueryData<UserFact[]>(userFactKeys.lists(), (old) =>
+        old ? old.filter((fact) => !ids.includes(fact.id)) : old,
+      )
+      return { previous }
+    },
+    onError: (_err, _ids, context: { previous?: UserFact[] } | undefined) => {
+      if (context?.previous) {
+        queryClient.setQueryData(userFactKeys.lists(), context.previous)
+      }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+      if (isOnline) {
+        queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+      }
       setSelectedFactIds(new Set())
-      if (facts.length === 0) setSelectMode(false)
+      const remaining = queryClient.getQueryData<UserFact[]>(userFactKeys.lists()) ?? []
+      if (remaining.length === 0) setSelectMode(false)
     },
   })
 
   // Pagination
-  const FACTS_PER_PAGE = 5
   const [factsPage, setFactsPage] = useState(1)
   const totalFactsPages = useMemo(
-    () => Math.max(1, Math.ceil(facts.length / FACTS_PER_PAGE)),
+    () => Math.max(1, Math.ceil(facts.length / USER_FACTS_PER_PAGE)),
     [facts.length],
   )
   const pagedFacts = useMemo(() => {
-    const start = (factsPage - 1) * FACTS_PER_PAGE
-    return facts.slice(start, start + FACTS_PER_PAGE)
+    const start = (factsPage - 1) * USER_FACTS_PER_PAGE
+    return facts.slice(start, start + USER_FACTS_PER_PAGE)
   }, [facts, factsPage])
 
   useEffect(() => {
@@ -160,7 +217,7 @@ export default function AiSettingsScreen() {
   }
 
   function factCategoryColor(category: string | null): { text: string; bg: string } {
-    switch (category?.toLowerCase()) {
+    switch (normalizeUserFactCategory(category)) {
       case 'preference':
         return { text: colors.primary, bg: 'rgba(139,92,246,0.10)' }
       case 'routine':

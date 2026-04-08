@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback, useRef, useEffect, type ReactElement } 
 import {
   Animated,
   Easing,
-  Image,
   View,
   Text,
   TouchableOpacity,
@@ -16,8 +15,6 @@ import { useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import {
-  ChevronLeft,
-  ChevronRight,
   Search,
   X,
   MoreVertical,
@@ -64,17 +61,20 @@ import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { GoalsView } from '@/components/goals/goals-view'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
-import { StreakBadge } from '@/components/gamification/streak-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { TrialBanner } from '@/components/ui/trial-banner'
-import { NotificationBell } from '@/components/navigation/notification-bell'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import {
+  TodayHeader,
+  TodayTabs,
+  TodayDateNavigation,
+  type TodayTabItem,
+} from './today-shell'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -175,6 +175,22 @@ export default function TodayScreen() {
       { key: 'Year', label: t('habits.filter.yearly') },
       { key: 'none', label: t('habits.filter.oneTime') },
     ],
+    [t],
+  )
+
+  const tabItems = useMemo<TodayTabItem[]>(
+    () =>
+      TAB_VIEWS.map((view) => ({
+        view,
+        label:
+          view === 'today'
+            ? t('habits.viewToday')
+            : view === 'all'
+              ? t('habits.viewAll')
+              : view === 'general'
+                ? t('habits.viewGeneral')
+                : t('goals.tab'),
+      })),
     [t],
   )
 
@@ -503,106 +519,46 @@ export default function TodayScreen() {
   const sharedHeader = useMemo(
     () => (
       <>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.logoRow}
-            onPress={goToToday}
-            activeOpacity={0.8}
-          >
-            <View style={styles.logoIcon}>
-              <Image
-                source={require('../../assets/logo-no-bg.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.headerTitle}>Orbit</Text>
-          </TouchableOpacity>
-
-          <View style={styles.headerRight}>
-            <ThemeToggle />
-            <StreakBadge streak={currentStreak} />
-            <NotificationBell />
-          </View>
-        </View>
+        <TodayHeader
+          currentStreak={currentStreak}
+          onGoToToday={goToToday}
+          goToTodayLabel={t('dates.goToToday')}
+          styles={styles}
+        />
 
         <TrialBanner />
 
-        <View style={styles.tabsWrapper}>
-          <View style={styles.tabsRow}>
-            {TAB_VIEWS.map((view) => (
-              <TouchableOpacity
-                key={view}
-                style={[styles.tab, activeView === view && styles.tabActive]}
-                onPress={() => setActiveView(view)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeView === view && styles.tabTextActive,
-                  ]}
-                >
-                  {view === 'today'
-                    ? t('habits.viewToday')
-                    : view === 'all'
-                      ? t('habits.viewAll')
-                      : view === 'general'
-                        ? t('habits.viewGeneral')
-                        : t('goals.tab')}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        <TodayTabs
+          tabs={tabItems}
+          activeView={activeView}
+          onChangeView={setActiveView}
+          viewsLabel={t('habits.viewsLabel')}
+          styles={styles}
+        />
       </>
     ),
-    [activeView, currentStreak, goToToday, setActiveView, styles, t],
+    [activeView, currentStreak, goToToday, setActiveView, styles, tabItems, t],
   )
 
   const habitsHeader = useMemo<ReactElement>(
     () => (
       <>
         {sharedHeader}
-        {activeView === 'today' ? (
-          <View style={styles.dateNav}>
-            <TouchableOpacity
-              style={styles.dateNavButton}
-              onPress={goToPreviousDay}
-              activeOpacity={0.7}
-            >
-              <ChevronLeft size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
-              <Animated.Text
-                style={[
-                  styles.dateLabel,
-                  isToday(selectedDate) && styles.dateLabelToday,
-                  {
-                    opacity: dateLabelAnim,
-                    transform: [
-                      {
-                        translateX: dateLabelAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [slideDirection === 'left' ? -12 : 12, 0],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                {dateLabel}
-              </Animated.Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.dateNavButton}
-              onPress={goToNextDay}
-              activeOpacity={0.7}
-            >
-              <ChevronRight size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        ) : null}
+        <TodayDateNavigation
+          visible={activeView === 'today'}
+          dateLabel={dateLabel}
+          isTodaySelected={isToday(selectedDate)}
+          slideDirection={slideDirection}
+          onGoToPreviousDay={goToPreviousDay}
+          onGoToToday={goToToday}
+          onGoToNextDay={goToNextDay}
+          previousLabel={t('dates.previousDay')}
+          todayLabel={t('dates.goToToday')}
+          nextLabel={t('dates.nextDay')}
+          iconColor={colors.textSecondary}
+          styles={styles}
+          dateLabelAnim={dateLabelAnim}
+        />
 
         {showSummary ? (
           <HabitSummaryCard date={dateStr} />

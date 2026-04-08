@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { TIME_FORMAT_STORAGE_KEY } from '@orbit/shared/utils'
 import { formatTime, useTimeFormat } from '@/hooks/use-time-format'
 
 // Mock localStorage
@@ -87,7 +88,7 @@ describe('useTimeFormat', () => {
   })
 
   it('uses stored format from localStorage', () => {
-    mockStorage['orbit_time_format'] = '12h'
+    mockStorage[TIME_FORMAT_STORAGE_KEY] = '12h'
 
     const { result } = renderHook(() => useTimeFormat())
     expect(result.current.currentFormat).toBe('12h')
@@ -101,11 +102,11 @@ describe('useTimeFormat', () => {
     })
 
     expect(result.current.currentFormat).toBe('12h')
-    expect(localStorage.setItem).toHaveBeenCalledWith('orbit_time_format', '12h')
+    expect(localStorage.setItem).toHaveBeenCalledWith(TIME_FORMAT_STORAGE_KEY, '12h')
   })
 
   it('displayTime formats time using current format', () => {
-    mockStorage['orbit_time_format'] = '12h'
+    mockStorage[TIME_FORMAT_STORAGE_KEY] = '12h'
 
     const { result } = renderHook(() => useTimeFormat())
 

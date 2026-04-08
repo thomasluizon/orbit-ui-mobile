@@ -6,6 +6,7 @@ import {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { X } from 'lucide-react-native'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -108,7 +109,7 @@ export function BottomSheetModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-type ThemeColors = ReturnType<typeof useAppTheme>['colors']
+type ThemeColors = ThemeContextValue['colors']
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({

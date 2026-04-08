@@ -5,9 +5,10 @@ import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
-import { apiClient } from '@/lib/api-client'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { radius, shadows } from '@/lib/theme'
+import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function CalendarImportPrompt() {
@@ -36,7 +37,14 @@ export function CalendarImportPrompt() {
     setDismissed(true)
 
     try {
-      await apiClient(API.calendar.dismiss, { method: 'PUT' })
+      await performQueuedApiMutation({
+        type: 'dismissCalendarPrompt',
+        scope: 'calendar',
+        endpoint: API.calendar.dismiss,
+        method: 'PUT',
+        payload: undefined,
+        dedupeKey: 'calendar-dismiss-prompt',
+      })
     } catch {
       // Dismissal is best-effort; keep the prompt hidden for this session.
     } finally {
@@ -90,7 +98,7 @@ export function CalendarImportPrompt() {
   )
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ThemeContextValue['colors']) {
   return StyleSheet.create({
     content: {
       alignItems: 'center',

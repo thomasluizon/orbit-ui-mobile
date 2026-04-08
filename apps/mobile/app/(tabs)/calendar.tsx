@@ -9,7 +9,6 @@ import {
   Switch,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Search, Check } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import {
   addMonths,
@@ -37,6 +36,12 @@ import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  CalendarHeader,
+  CalendarLegend,
+  CalendarLoadingSkeleton,
+} from "./calendar/_components/calendar-shell";
+import { CalendarDayEntryRow } from "./calendar/_components/calendar-day-entry";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -382,47 +387,20 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>{t("nav.calendar")}</Text>
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={goToToday}
-              activeOpacity={0.7}
-            >
-              <Search size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.monthNav}>
-            <TouchableOpacity
-              style={styles.monthNavButton}
-              onPress={prevMonth}
-              activeOpacity={0.7}
-            >
-              <ChevronLeft size={12} color={colors.textFaded} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={goToToday} activeOpacity={0.7}>
-              <Text style={styles.monthLabel}>{monthLabel}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.monthNavButton}
-              onPress={nextMonth}
-              activeOpacity={0.7}
-            >
-              <ChevronRight size={12} color={colors.textFaded} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <CalendarHeader
+          title={t("nav.calendar")}
+          monthLabel={monthLabel}
+          goToTodayLabel={t("dates.goToToday")}
+          previousMonthLabel={t("common.previousMonth")}
+          nextMonthLabel={t("common.nextMonth")}
+          onGoToToday={goToToday}
+          onPreviousMonth={prevMonth}
+          onNextMonth={nextMonth}
+          colors={colors}
+        />
 
         {isLoading && (
-          <View style={styles.loadingContainer}>
-            <View style={styles.loadingGrid}>
-              {Array.from({ length: 35 }, (_, index) => (
-                <View key={`sk-${index}`} style={styles.loadingCell} />
-              ))}
-            </View>
-          </View>
+          <CalendarLoadingSkeleton colors={colors} />
         )}
 
         <View
@@ -499,28 +477,12 @@ export default function CalendarScreen() {
           </View>
         )}
 
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.green500 }]}
-            />
-            <Text style={styles.legendText}>{t("calendar.legend.done")}</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.primary }]}
-            />
-            <Text style={styles.legendText}>
-              {t("calendar.legend.upcoming")}
-            </Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.orange500 }]}
-            />
-            <Text style={styles.legendText}>{t("calendar.legend.missed")}</Text>
-          </View>
-        </View>
+        <CalendarLegend
+          doneLabel={t("calendar.legend.done")}
+          upcomingLabel={t("calendar.legend.upcoming")}
+          missedLabel={t("calendar.legend.missed")}
+          colors={colors}
+        />
       </ScrollView>
 
       <BottomSheetModal
@@ -580,60 +542,16 @@ export default function CalendarScreen() {
               const icon = statusIconBgColor(entry, colors);
 
               return (
-                <View key={`${entry.habitId}-${idx}`}>
-                  <View style={styles.dayEntryRow}>
-                    <View
-                      style={[
-                        styles.statusCircle,
-                        {
-                          backgroundColor: icon.bg,
-                          borderColor: icon.border,
-                        },
-                      ]}
-                    >
-                      {icon.showCheck && (
-                        <Check size={12} color={colors.emerald400} />
-                      )}
-                    </View>
-
-                    <View style={styles.dayEntryContent}>
-                      <View style={styles.dayEntryTitleRow}>
-                        <Text
-                          style={[
-                            styles.dayEntryTitle,
-                            entry.status === "completed" &&
-                              styles.dayEntryTitleCompleted,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {entry.title}
-                        </Text>
-                        {entry.dueTime && (
-                          <Text style={styles.dayEntryTime}>
-                            {displayTime(entry.dueTime)}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        { backgroundColor: badge.bg },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.statusBadgeText, { color: badge.text }]}
-                      >
-                        {statusLabel(entry, t)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {idx < filteredEntries.length - 1 && (
-                    <View style={styles.divider} />
-                  )}
-                </View>
+                <CalendarDayEntryRow
+                  key={`${entry.habitId}-${idx}`}
+                  entry={entry}
+                  colors={colors}
+                  badge={badge}
+                  icon={icon}
+                  statusText={statusLabel(entry, t)}
+                  displayTime={displayTime}
+                  isLast={idx === filteredEntries.length - 1}
+                />
               );
             })}
 

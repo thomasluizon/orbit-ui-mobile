@@ -3,12 +3,43 @@ import { z } from 'zod'
 // Mutation types supported by POST /api/sync/batch
 export const mutationTypeSchema = z.enum([
   'createHabit', 'updateHabit', 'deleteHabit', 'logHabit', 'skipHabit',
-  'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent',
-  'createGoal', 'updateGoal', 'deleteGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals',
+  'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent', 'createSubHabit',
+  'bulkCreateHabits', 'bulkDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits',
+  'createGoal', 'updateGoal', 'deleteGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',
   'createTag', 'updateTag', 'deleteTag', 'assignTags',
-  'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification',
+  'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification', 'deleteAllNotifications',
+  'setLanguage', 'setWeekStartDay', 'setColorScheme', 'setTimeZone', 'setAiMemory', 'setAiSummary',
+  'completeOnboarding', 'dismissCalendarPrompt', 'resetProfile',
+  'deleteUserFact', 'bulkDeleteUserFacts',
+  'createApiKey', 'deleteApiKey',
 ])
 export type MutationType = z.infer<typeof mutationTypeSchema>
+
+export const mutationScopeSchema = z.enum([
+  'habits',
+  'goals',
+  'tags',
+  'notifications',
+  'profile',
+  'userFacts',
+  'apiKeys',
+  'calendar',
+])
+export type MutationScope = z.infer<typeof mutationScopeSchema>
+
+export const mutationEntityTypeSchema = z.enum([
+  'habit',
+  'goal',
+  'tag',
+  'notification',
+  'profile',
+  'userFact',
+  'apiKey',
+])
+export type MutationEntityType = z.infer<typeof mutationEntityTypeSchema>
+
+export const queuedMutationStatusSchema = z.enum(['pending', 'syncing', 'failed'])
+export type QueuedMutationStatus = z.infer<typeof queuedMutationStatusSchema>
 
 // A queued mutation waiting to be synced
 export const queuedMutationSchema = z.object({
@@ -20,6 +51,14 @@ export const queuedMutationSchema = z.object({
   payload: z.unknown(),
   retries: z.number(),
   maxRetries: z.number(),
+  scope: mutationScopeSchema.optional(),
+  entityType: mutationEntityTypeSchema.optional(),
+  status: queuedMutationStatusSchema.optional(),
+  dedupeKey: z.string().nullable().optional(),
+  targetEntityId: z.string().nullable().optional(),
+  clientEntityId: z.string().nullable().optional(),
+  dependsOn: z.array(z.string()).optional(),
+  lastError: z.string().nullable().optional(),
 })
 export type QueuedMutation = z.infer<typeof queuedMutationSchema>
 

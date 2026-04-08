@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -8,18 +8,23 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Lock, BarChart3 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+import {
+  getRetrospectiveCacheKey,
+  RETROSPECTIVE_PERIODS,
+} from '@orbit/shared/utils/retrospective'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { apiClient } from '@/lib/api-client'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const PERIODS: RetrospectivePeriod[] = ['week', 'month', 'quarter', 'semester', 'year']
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 function RetrospectiveBody({
   text,
@@ -75,6 +80,7 @@ export default function RetrospectiveScreen() {
   const { t } = useTranslation()
   const { profile } = useProfile()
   const { colors } = useAppTheme()
+  const { isOnline } = useOffline()
   const styles = useMemo(() => createStyles(colors), [colors])
   const hasProAccess = useHasProAccess()
   const isYearlyPro = useIsYearlyPro()
@@ -90,6 +96,39 @@ export default function RetrospectiveScreen() {
     generate,
   } = useRetrospective()
   const [portalError, setPortalError] = useState('')
+  const [cachedRetrospective, setCachedRetrospective] = useState<string | null>(null)
+  const [isCacheLoading, setIsCacheLoading] = useState(true)
+  const cacheKey = getRetrospectiveCacheKey(period)
+
+  useEffect(() => {
+    let active = true
+    setIsCacheLoading(true)
+
+    AsyncStorage.getItem(cacheKey)
+      .then((value) => {
+        if (active) {
+          setCachedRetrospective(value)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsCacheLoading(false)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [cacheKey])
+
+  useEffect(() => {
+    if (!retrospective) return
+
+    AsyncStorage.setItem(cacheKey, retrospective).catch(() => {})
+  }, [cacheKey, retrospective])
+
+  const displayedRetrospective = retrospective ?? (!isOnline && !isLoading ? cachedRetrospective : null)
+  const displayedFromCache = fromCache || (!retrospective && !isOnline && !isLoading && cachedRetrospective !== null)
 
   function selectPeriod(nextPeriod: RetrospectivePeriod) {
     setPeriod(nextPeriod)
@@ -98,6 +137,11 @@ export default function RetrospectiveScreen() {
   }
 
   async function handleOpenPortal() {
+    if (!isOnline) {
+      setPortalError(t('calendarSync.notConnected'))
+      return
+    }
+
     setPortalError('')
     try {
       const data = await apiClient<{ url?: string }>(API.subscription.portal, {
@@ -109,6 +153,15 @@ export default function RetrospectiveScreen() {
     } catch (err: unknown) {
       setPortalError(getErrorMessage(err, t('auth.genericError')))
     }
+  }
+
+  function handleGenerate() {
+    if (!isOnline) {
+      setError(t('calendarSync.notConnected'))
+      return
+    }
+
+    void generate()
   }
 
   const isLoaded = !!profile
@@ -125,6 +178,8 @@ export default function RetrospectiveScreen() {
             style={styles.backButton}
             onPress={() => router.push('/profile')}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.goBack')}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -170,12 +225,20 @@ export default function RetrospectiveScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={styles.primaryButton}
+                style={[styles.primaryButton, !isOnline && styles.disabledButton]}
                 onPress={handleOpenPortal}
+                disabled={!isOnline}
                 activeOpacity={0.8}
               >
                 <Text style={styles.primaryButtonText}>{t('retrospective.changePlan')}</Text>
               </TouchableOpacity>
+            )}
+            {!isOnline && (
+              <OfflineUnavailableState
+                title={t('calendarSync.notConnected')}
+                description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                compact
+              />
             )}
             {portalError ? (
               <Text style={styles.portalError}>{portalError}</Text>
@@ -185,8 +248,15 @@ export default function RetrospectiveScreen() {
 
         {isLoaded && isYearlyPro && (
           <>
+            {!isOnline && (
+              <OfflineUnavailableState
+                title={t('calendarSync.notConnected')}
+                description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                compact
+              />
+            )}
             <View style={styles.periodRow}>
-              {PERIODS.map((item) => (
+              {RETROSPECTIVE_PERIODS.map((item) => (
                 <TouchableOpacity
                   key={item}
                   style={[styles.periodChip, period === item && styles.periodChipActive]}
@@ -206,9 +276,9 @@ export default function RetrospectiveScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.generateButton, isLoading && styles.generateButtonDisabled]}
-              onPress={generate}
-              disabled={isLoading}
+              style={[styles.generateButton, (isLoading || !isOnline) && styles.generateButtonDisabled]}
+              onPress={handleGenerate}
+              disabled={isLoading || !isOnline}
               activeOpacity={0.8}
             >
               {isLoading ? (
@@ -235,25 +305,25 @@ export default function RetrospectiveScreen() {
               </View>
             )}
 
-            {!isLoading && retrospective && (
+            {!isLoading && displayedRetrospective && (
               <View style={styles.resultCard}>
-                <RetrospectiveBody text={retrospective} styles={styles} />
-                {fromCache && (
+                <RetrospectiveBody text={displayedRetrospective} styles={styles} />
+                {displayedFromCache && (
                   <Text style={styles.cachedText}>{t('retrospective.cached')}</Text>
                 )}
               </View>
             )}
 
-            {!isLoading && error && (
+            {!isLoading && error && (!displayedRetrospective || isOnline) && (
               <View style={styles.errorCard}>
                 <Text style={styles.errorTitle}>{t('retrospective.error')}</Text>
-                <TouchableOpacity onPress={generate} activeOpacity={0.7}>
+                <TouchableOpacity onPress={handleGenerate} activeOpacity={0.7}>
                   <Text style={styles.retryText}>{t('common.retry')}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            {!isLoading && !retrospective && !error && (
+            {!isLoading && !displayedRetrospective && !error && !isCacheLoading && (
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIconCircle}>
                   <BarChart3 size={24} color={colors.primary} />
@@ -340,6 +410,9 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     fontSize: 14,
     fontWeight: '700',
     color: '#fff',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   portalError: {
     fontSize: 12,

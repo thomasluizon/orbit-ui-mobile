@@ -41,5 +41,6 @@ describe('SuggestionChips', () => {
     render(<SuggestionChips onSelect={vi.fn()} />)
     const button = screen.getByText('chat.suggestion.meditated')
     expect(button.className).toContain('rounded-full')
+    expect(button).toHaveAttribute('type', 'button')
   })
 })

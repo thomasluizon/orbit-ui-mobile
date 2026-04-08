@@ -15,8 +15,6 @@ import {
   ArrowLeft,
   Home,
   Plus,
-  ClipboardList,
-  CheckCircle2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import {
@@ -30,6 +28,11 @@ import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
 import { LogHabitModal } from './log-habit-modal'
+import {
+  HabitListDateGroupSection,
+  HabitListEmptyState,
+  type HabitListDateGroup,
+} from './habit-list-sections'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import {
@@ -120,13 +123,6 @@ interface DragItem {
 // ---------------------------------------------------------------------------
 // Date group shape
 // ---------------------------------------------------------------------------
-
-interface DateGroup {
-  key: string
-  label: string
-  isOverdue: boolean
-  habits: NormalizedHabit[]
-}
 
 // ---------------------------------------------------------------------------
 // Pure helpers (outer scope -- no component state dependency)
@@ -531,7 +527,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   )
 
   // Date groups for "all" view
-  const dateGroups = useMemo<DateGroup[]>(() => {
+  const dateGroups = useMemo<HabitListDateGroup[]>(() => {
     if (view !== 'all') return []
 
     const today = formatAPIDate(new Date())
@@ -551,7 +547,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       }
     }
 
-    const result: DateGroup[] = []
+    const result: HabitListDateGroup[] = []
 
     if (overdueHabits.length > 0) {
       result.push({
@@ -1168,45 +1164,25 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     // Empty: all done today
     if (habits.length === 0 && view === 'today' && (data?.totalCount ?? 0) > 0) {
       return (
-        <div className="text-center py-16">
-          <div className="bg-success/10 rounded-full size-20 flex items-center justify-center mx-auto mb-4 border border-success/20">
-            <CheckCircle2 className="size-10 text-success" />
-          </div>
-          <p className="text-text-primary font-bold text-lg mb-1">
-            {t('habits.allDoneToday')}
-          </p>
-          <p className="text-text-secondary text-sm mb-6">
-            {t('habits.allDoneHint')}
-          </p>
-          <button
-            className="px-6 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-sm hover:bg-primary/15 transition-all active:scale-95"
-            onClick={onSeeUpcoming}
-          >
-            {t('habits.seeUpcoming')}
-          </button>
-        </div>
+        <HabitListEmptyState
+          title={t('habits.allDoneToday')}
+          description={t('habits.allDoneHint')}
+          actionLabel={t('habits.seeUpcoming')}
+          onAction={onSeeUpcoming}
+          variant="secondary"
+        />
       )
     }
 
     // Empty: no habits
     if (habits.length === 0) {
       return (
-        <div className="text-center py-16">
-          <div className="bg-surface-ground rounded-full size-20 flex items-center justify-center mx-auto mb-4 border border-border-muted">
-            <ClipboardList className="size-10 text-text-muted" />
-          </div>
-          <p className="text-text-secondary mb-6">
-            {getEmptyHabitsMessage(view, t)}
-          </p>
-          {(view === 'all' || view === 'general') && (
-            <button
-              className="px-6 py-3 rounded-xl bg-primary text-white font-bold text-sm shadow-[var(--shadow-glow)] active:scale-95 transition-transform"
-              onClick={onCreate}
-            >
-              {t('habits.createHabit')}
-            </button>
-          )}
-        </div>
+        <HabitListEmptyState
+          title={t(getHabitEmptyStateKey(view))}
+          description={getEmptyHabitsMessage(view, t)}
+          actionLabel={view === 'all' || view === 'general' ? t('habits.createHabit') : undefined}
+          onAction={onCreate}
+        />
       )
     }
 
@@ -1215,35 +1191,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       return (
         <>
           {dateGroups.map((group) => (
-            <div key={group.key} className="mb-4">
-              <div className="flex items-center gap-3 mb-2 mt-2">
-                <span
-                  className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${
-                    group.isOverdue ? 'text-red-400' : 'text-text-muted'
-                  }`}
-                >
-                  {group.isOverdue ? t('habits.overdue') : group.label}
-                </span>
-                <div
-                  className={`flex-1 h-px ${
-                    group.isOverdue ? 'bg-red-500/20' : 'bg-border'
-                  }`}
-                />
-              </div>
-              <div className="space-y-2.5">
-                {group.habits.map((habit) => (
-                  <div key={habit.id}>
-                    {renderHabitCard(
-                      habit,
-                      0,
-                      getChildren(habit.id).length > 0,
-                      habit.hasSubHabits,
-                    )}
-                    {renderAllViewChildren(habit.id, 1)}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
+              {group.habits.map((habit) => (
+                <div key={habit.id}>
+                  {renderHabitCard(
+                    habit,
+                    0,
+                    getChildren(habit.id).length > 0,
+                    habit.hasSubHabits,
+                  )}
+                  {renderAllViewChildren(habit.id, 1)}
+                </div>
+              ))}
+            </HabitListDateGroupSection>
           ))}
         </>
       )

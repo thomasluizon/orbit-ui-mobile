@@ -20,6 +20,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useStreakFreeze, useActivateStreakFreeze } from '@/hooks/use-gamification'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { plural } from '@/lib/plural'
+import { StreakFreezeSection, StreakTimelineCard } from './streak-sections'
 
 // ---------------------------------------------------------------------------
 // Streak Screen
@@ -107,29 +108,29 @@ export default function StreakScreen() {
     switch (status) {
       case 'active':
         return {
-          bg: 'rgba(34,197,94,0.15)',
-          text: colors.green400,
+          backgroundColor: 'rgba(34,197,94,0.15)',
+          textColor: colors.green400,
           borderColor: 'rgba(34,197,94,0.25)',
           borderWidth: 1,
         }
       case 'frozen':
         return {
-          bg: 'rgba(59,130,246,0.15)',
-          text: colors.blue400,
+          backgroundColor: 'rgba(59,130,246,0.15)',
+          textColor: colors.blue400,
           borderColor: 'rgba(59,130,246,0.25)',
           borderWidth: 1,
         }
       case 'today':
         return {
-          bg: 'rgba(139,92,246,0.15)',
-          text: colors.primary,
+          backgroundColor: 'rgba(139,92,246,0.15)',
+          textColor: colors.primary,
           borderColor: 'rgba(139,92,246,0.40)',
           borderWidth: 2,
         }
       default:
         return {
-          bg: colors.surfaceElevated,
-          text: colors.textMuted,
+          backgroundColor: colors.surfaceElevated,
+          textColor: colors.textMuted,
           borderColor: colors.borderMuted,
           borderWidth: 1,
         }
@@ -208,49 +209,12 @@ export default function StreakScreen() {
             </View>
 
             {/* Weekly timeline */}
-            <View style={styles.card}>
-              <Text style={styles.sectionLabelSmall}>{t('streakDisplay.detail.thisWeek').toUpperCase()}</Text>
-              <View style={styles.weekGrid}>
-                {weekDays.map((day) => {
-                  const dayStyle = getDayStyle(day.status)
-                  return (
-                    <View key={day.dateStr} style={styles.weekDayCol}>
-                      <Text style={styles.weekDayLabel}>{day.dayLabel}</Text>
-                      <View
-                        style={[
-                          styles.weekDayCircle,
-                          {
-                            backgroundColor: dayStyle.bg,
-                            borderColor: dayStyle.borderColor,
-                            borderWidth: dayStyle.borderWidth,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.weekDayNum, { color: dayStyle.text }]}>
-                          {day.dayNum}
-                        </Text>
-                      </View>
-                    </View>
-                  )
-                })}
-              </View>
-
-              {/* Legend */}
-              <View style={styles.legendRow}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: colors.green500 }]} />
-                  <Text style={styles.legendText}>{t('streakDisplay.detail.dayActive')}</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: colors.blue500 }]} />
-                  <Text style={styles.legendText}>{t('streakDisplay.detail.dayFrozen')}</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: colors.textMuted }]} />
-                  <Text style={styles.legendText}>{t('streakDisplay.detail.dayMissed')}</Text>
-                </View>
-              </View>
-            </View>
+            <StreakTimelineCard
+              t={t}
+              weekDays={weekDays}
+              styles={styles}
+              getDayStyle={getDayStyle}
+            />
 
             {/* Stats */}
             <View style={styles.statsRow}>
@@ -265,83 +229,21 @@ export default function StreakScreen() {
             </View>
 
             {/* Freeze section */}
-            <View style={styles.card}>
-              <View style={styles.freezeHeaderRow}>
-                <View style={styles.freezeIconRow}>
-                  <Svg viewBox="0 0 12 14" width={16} height={16}>
-                    <Path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#93c5fd" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.title')}</Text>
-                </View>
-                <Text style={styles.freezeAvailable} numberOfLines={2}>
-                  {plural(
-                    t('streakDisplay.freeze.available', { count: freezesAvailable }),
-                    freezesAvailable,
-                  )}
-                </Text>
-              </View>
-
-              {/* Frozen today indicator */}
-              {isFrozenToday ? (
-                <View style={styles.frozenTodayBadge}>
-                  <Svg viewBox="0 0 12 14" width={16} height={16}>
-                    <Path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#60a5fa" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.frozenTodayText}>{t('streakDisplay.freeze.activeToday')}</Text>
-                </View>
-              ) : streak > 0 ? (
-                <TouchableOpacity
-                  style={[
-                    styles.freezeButton,
-                    !canFreeze && styles.freezeButtonDisabled,
-                  ]}
-                  disabled={!canFreeze}
-                  onPress={() => setShowConfirm(true)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.freezeButtonText, !canFreeze && { color: colors.textMuted }]}>
-                    {t('streakDisplay.freeze.activate')}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-
-              {/* Already completed today hint */}
-              {hasCompletedToday && !isFrozenToday && streak > 0 ? (
-                <Text style={styles.completedTodayText}>
-                  {t('streakDisplay.freeze.completedToday')}
-                </Text>
-              ) : null}
-
-              {/* Success message */}
-              {freezeSuccess ? (
-                <Text style={styles.freezeSuccessText}>
-                  {t('streakDisplay.freeze.success')}
-                </Text>
-              ) : null}
-
-              {/* Error message */}
-              {activateFreezeMutation.error ? (
-                <Text style={styles.errorText}>
-                  {activateFreezeMutation.error.message}
-                </Text>
-              ) : null}
-
-              {/* Recent freeze dates */}
-              {streakInfo?.recentFreezeDates && streakInfo.recentFreezeDates.length > 0 ? (
-                <View style={styles.recentFreezes}>
-                  <Text style={styles.recentLabel}>{t('streakDisplay.freeze.recentLabel').toUpperCase()}</Text>
-                  <View style={styles.recentDateRow}>
-                    {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
-                      <View key={date} style={styles.recentDateChip}>
-                        <Text style={styles.recentDateText}>
-                          {format(parseISO(date), i18n.language === 'pt-BR' ? 'dd MMM' : 'MMM d', { locale: dateFnsLocale })}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-            </View>
+            <StreakFreezeSection
+              t={t}
+              locale={i18n.language}
+              dateFnsLocale={dateFnsLocale}
+              streak={streak}
+              freezesAvailable={freezesAvailable}
+              isFrozenToday={isFrozenToday}
+              hasCompletedToday={hasCompletedToday}
+              canFreeze={canFreeze}
+              freezeSuccess={freezeSuccess}
+              errorMessage={activateFreezeMutation.error?.message}
+              streakInfo={streakInfo}
+              styles={styles}
+              onActivateFreeze={() => setShowConfirm(true)}
+            />
           </View>
         )}
       </ScrollView>

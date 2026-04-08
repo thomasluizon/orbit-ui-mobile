@@ -4,31 +4,41 @@ import { useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
+import {
+  applyChecklistTemplate,
+  CHECKLIST_TEMPLATE_STORAGE_KEY,
+  createChecklistTemplate,
+  deleteChecklistTemplate,
+  LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY,
+  resolveChecklistTemplates,
+} from '@orbit/shared/utils'
 
 // ---------------------------------------------------------------------------
 // Local storage template management
 // ---------------------------------------------------------------------------
 
-interface ChecklistTemplate {
-  id: string
-  name: string
-  items: string[]
-}
-
-const STORAGE_KEY = 'orbit-checklist-templates'
-
 function loadTemplates(): ChecklistTemplate[] {
   if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return [] // NOSONAR - SSR guard
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as ChecklistTemplate[]) : []
+    const raw = localStorage.getItem(CHECKLIST_TEMPLATE_STORAGE_KEY)
+    const legacyRaw = localStorage.getItem(LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY)
+    const { templates, shouldMigrateLegacy } = resolveChecklistTemplates(raw, legacyRaw)
+
+    if (shouldMigrateLegacy) {
+      localStorage.setItem(CHECKLIST_TEMPLATE_STORAGE_KEY, JSON.stringify(templates))
+      localStorage.removeItem(LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY)
+    }
+
+    return templates
   } catch {
     return []
   }
 }
 
 function persistTemplates(templates: ChecklistTemplate[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
+  localStorage.setItem(CHECKLIST_TEMPLATE_STORAGE_KEY, JSON.stringify(templates))
+  localStorage.removeItem(LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY)
 }
 
 // ---------------------------------------------------------------------------
@@ -51,13 +61,13 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const [templateName, setTemplateName] = useState('')
 
   const handleSave = useCallback(() => {
-    const name = templateName.trim()
-    if (!name || items.length === 0) return
-    const newTemplate: ChecklistTemplate = {
-      id: crypto.randomUUID(),
-      name,
-      items: items.map((i) => i.text),
-    }
+    const newTemplate = createChecklistTemplate(
+      templateName,
+      items,
+      () => crypto.randomUUID(),
+    )
+    if (!newTemplate) return
+
     const next = [...templates, newTemplate]
     setTemplates(next)
     persistTemplates(next)
@@ -69,7 +79,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
     (id: string) => {
       const tmpl = templates.find((t) => t.id === id)
       if (tmpl) {
-        onLoad(tmpl.items.map((text) => ({ text, isChecked: false })))
+        onLoad(applyChecklistTemplate(tmpl))
       }
     },
     [templates, onLoad],
@@ -77,7 +87,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
 
   const handleDelete = useCallback(
     (id: string) => {
-      const next = templates.filter((t) => t.id !== id)
+      const next = deleteChecklistTemplate(templates, id)
       setTemplates(next)
       persistTemplates(next)
     },
@@ -115,12 +125,13 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                     type="button"
                     className="px-2 py-0.5 text-text-secondary hover:text-text-primary transition-all duration-150"
                     onClick={() => handleLoad(tmpl.id)}
+                    aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
                   >
                     {tmpl.name}
                   </button>
                   <button
                     type="button"
-                    aria-label={t('common.delete')}
+                    aria-label={`${t('common.delete')}: ${tmpl.name}`}
                     className="px-1 py-0.5 text-text-muted hover:text-red-500 transition-colors"
                     onClick={() => handleDelete(tmpl.id)}
                   >
@@ -154,6 +165,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-all duration-150"
             disabled={!templateName.trim()}
             onClick={handleSave}
+            aria-label={t('common.save')}
           >
             {t('common.save')}
           </button>
@@ -161,6 +173,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             type="button"
             className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-all duration-150"
             onClick={() => setShowSave(false)}
+            aria-label={t('common.close')}
           >
             <X className="size-3.5" />
           </button>

@@ -27,17 +27,52 @@ const ALLOWED_PREFIXES = [
   'habits/',
 ]
 
+const IP_PATTERN = /^[\d.:a-fA-F]+$/
+
 function isAllowedPath(path: string): boolean {
   return ALLOWED_PREFIXES.some(
     (prefix) => path.startsWith(prefix) || path === prefix.slice(0, -1)
   )
 }
 
+function safeDecodePath(path: string): string | null {
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    return null
+  }
+}
+
 function validatePath(path: string | undefined): string | null {
   if (!path) return null
-  if (path.includes('..') || decodeURIComponent(path).includes('..')) return null
+  const decoded = safeDecodePath(path)
+  if (!decoded) return null
+  if (
+    path.includes('..') ||
+    decoded.includes('..') ||
+    path.includes('//') ||
+    decoded.includes('//') ||
+    path.includes('\\') ||
+    decoded.includes('\\')
+  ) {
+    return null
+  }
   if (!isAllowedPath(path)) return null
   return path
+}
+
+function sanitizeClientIp(headerValue: string | null): string {
+  const candidate = headerValue?.split(',')[0]?.trim() ?? ''
+  return IP_PATTERN.test(candidate) ? candidate : ''
+}
+
+function getForwardedClientIp(request: NextRequest): string {
+  const forwarded = sanitizeClientIp(request.headers.get('x-forwarded-for'))
+  if (forwarded) {
+    return forwarded
+  }
+
+  return sanitizeClientIp(request.headers.get('x-real-ip'))
 }
 
 function buildCleanQuery(url: URL): string {
@@ -69,12 +104,9 @@ async function proxyRequest(
   }
 
   // Forward client IP for rate limiting and geolocation
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  if (forwarded) {
-    headers['X-Forwarded-For'] = forwarded
-  } else if (realIp) {
-    headers['X-Forwarded-For'] = realIp
+  const clientIp = getForwardedClientIp(request)
+  if (clientIp) {
+    headers['X-Forwarded-For'] = clientIp
   }
 
   const hasBody =

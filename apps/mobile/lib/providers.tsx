@@ -6,10 +6,16 @@ import { useAuthStore } from '@/stores/auth-store'
 import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
 import { createColors, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
+import { useOffline } from '@/hooks/use-offline'
 import './i18n'
 
 interface ProvidersProps {
   children: ReactNode
+}
+
+function OfflineManager() {
+  useOffline()
+  return null
 }
 
 function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
@@ -63,7 +69,10 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <ThemeProvider>
-      <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
+      <BottomSheetModalProvider>
+        <OfflineManager />
+        {children}
+      </BottomSheetModalProvider>
     </ThemeProvider>
   )
 }

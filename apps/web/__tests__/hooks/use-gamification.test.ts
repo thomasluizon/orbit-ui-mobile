@@ -6,6 +6,7 @@ import {
   useGamificationProfile,
   useStreakInfo,
   useActivateStreakFreeze,
+  useStreakFreeze,
 } from '@/hooks/use-gamification'
 import type { GamificationProfile, StreakInfo } from '@orbit/shared/types/gamification'
 
@@ -255,6 +256,41 @@ describe('useStreakInfo', () => {
     expect(result.current.data!.currentStreak).toBe(7)
     expect(result.current.data!.freezesAvailable).toBe(2)
     expect(result.current.data!.isFrozenToday).toBe(false)
+  })
+})
+
+describe('useStreakFreeze', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('derives freeze state from streak info when available', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeStreakInfo({ lastActiveDate: '2025-01-14' })),
+    })
+
+    const { result } = renderHook(() => useStreakFreeze(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.streakQuery.isSuccess).toBe(true))
+    expect(result.current.freezesAvailable).toBe(2)
+    expect(result.current.currentStreak).toBe(7)
+    expect(result.current.canFreeze).toBe(true)
+  })
+
+  it('falls back to the provided profile when streak info has not loaded', () => {
+    mockFetch.mockReturnValue(new Promise(() => {}))
+
+    const { result } = renderHook(
+      () => useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
+      { wrapper: createWrapper() },
+    )
+
+    expect(result.current.freezesAvailable).toBe(1)
+    expect(result.current.currentStreak).toBe(4)
+    expect(result.current.canFreeze).toBe(true)
   })
 })
 

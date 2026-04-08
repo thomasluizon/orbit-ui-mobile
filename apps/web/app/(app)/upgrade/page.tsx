@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import type { Locale } from 'date-fns'
@@ -12,6 +12,13 @@ import {
   Megaphone, Tag, Info,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  TRIAL_EXPIRED_FEATURE_KEYS,
+  UPGRADE_FEATURE_CATEGORIES,
+  UPGRADE_PRO_FEATURES,
+  UPGRADE_YEARLY_EXTRA_FEATURES,
+  type UpgradeIconKey,
+} from '@orbit/shared/utils/upgrade'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
@@ -19,72 +26,13 @@ import { useBilling } from '@/hooks/use-billing'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 
-const trialExpiredFeatures = [
-  'trial.expired.unlimitedHabits',
-  'trial.expired.aiChat',
-  'trial.expired.allColors',
-  'trial.expired.aiSummary',
-  'trial.expired.subHabits',
-  'trial.expired.retrospective',
-]
-
-const proFeatures = [
-  { key: 'unlimited', Icon: Flame },
-  { key: 'ai', Icon: MessageSquare },
-  { key: 'themes', Icon: Palette },
-  { key: 'adFree', Icon: ShieldCheck },
-]
-
-const yearlyExtraFeatures = [
-  { key: 'retrospective', Icon: BarChart3 },
-]
-
-interface FeatureRow {
-  key: string
-  Icon: React.ComponentType<{ className?: string }>
-  type: 'boolean' | 'text'
-  freeEnabled?: boolean
-  proEnabled?: boolean
-}
-
-interface FeatureCategory {
-  category: string
-  features: FeatureRow[]
-}
-
-const featureCategories: FeatureCategory[] = [
-  {
-    category: 'habits',
-    features: [
-      { key: 'habits', type: 'text', Icon: Flame },
-      { key: 'subHabits', type: 'boolean', Icon: Flame, freeEnabled: false, proEnabled: true },
-    ],
-  },
-  {
-    category: 'ai',
-    features: [
-      { key: 'ai', type: 'text', Icon: MessageSquare },
-      { key: 'aiMemory', type: 'boolean', Icon: MessageSquare, freeEnabled: false, proEnabled: true },
-      { key: 'summary', type: 'boolean', Icon: MessageSquare, freeEnabled: false, proEnabled: true },
-      { key: 'slipAlerts', type: 'boolean', Icon: ShieldCheck, freeEnabled: false, proEnabled: true },
-    ],
-  },
-  {
-    category: 'insights',
-    features: [
-      { key: 'retrospective', type: 'boolean', Icon: BarChart3, freeEnabled: false, proEnabled: true },
-      { key: 'achievements', type: 'boolean', Icon: Flame, freeEnabled: false, proEnabled: true },
-    ],
-  },
-  {
-    category: 'personalization',
-    features: [
-      { key: 'colors', type: 'text', Icon: Palette },
-      { key: 'calendarImport', type: 'boolean', Icon: Flame, freeEnabled: false, proEnabled: true },
-      { key: 'adFree', type: 'boolean', Icon: ShieldCheck, freeEnabled: false, proEnabled: true },
-    ],
-  },
-]
+const upgradeIconMap = {
+  flame: Flame,
+  messageSquare: MessageSquare,
+  palette: Palette,
+  shieldCheck: ShieldCheck,
+  barChart3: BarChart3,
+} satisfies Record<UpgradeIconKey, React.ComponentType<{ className?: string }>>
 
 function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
@@ -134,6 +82,7 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
 function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const tooltipId = useId()
 
   useEffect(() => {
     if (!open) return
@@ -152,11 +101,15 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
         className="shrink-0 p-0.5 rounded-full text-text-muted/60 hover:text-text-secondary transition-colors"
         onClick={() => setOpen((v) => !v)}
         type="button"
+        aria-label={text}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls={tooltipId}
       >
         <Info className="size-3.5" />
       </button>
       {open && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 px-3 py-2.5 max-w-[260px] bg-surface-elevated border border-border rounded-xl shadow-lg">
+        <div id={tooltipId} role="tooltip" className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 px-3 py-2.5 max-w-[260px] bg-surface-elevated border border-border rounded-xl shadow-lg">
           <p className="text-xs text-text-secondary leading-relaxed">{text}</p>
         </div>
       )}
@@ -202,7 +155,7 @@ function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTransl
       </div>
 
       {/* Category groups */}
-      {featureCategories.map((group) => (
+      {UPGRADE_FEATURE_CATEGORIES.map((group) => (
         <div key={group.category} className="space-y-1.5">
           {/* Category header */}
           <div className="px-4 pt-2 pb-1">
@@ -212,33 +165,37 @@ function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTransl
           </div>
 
           {/* Feature rows */}
-          {group.features.map((feat) => (
-            <div
-              key={feat.key}
-              className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
-            >
-              {/* Feature label with icon and info popover */}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <feat.Icon className="size-4 text-text-muted shrink-0" />
-                <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
-                <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
-              </div>
+          {group.features.map((feat) => {
+            const Icon = upgradeIconMap[feat.iconKey]
 
-              {/* Free value */}
-              <div className="w-16 flex justify-center">
-                {feat.type === 'boolean'
-                  ? <FeatureBooleanCell enabled={feat.freeEnabled} className="text-text-muted" />
-                  : <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>}
-              </div>
+            return (
+              <div
+                key={feat.key}
+                className="grid grid-cols-[1fr_auto_auto] gap-3 bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
+              >
+                {/* Feature label with icon and info popover */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon className="size-4 text-text-muted shrink-0" />
+                  <span className="text-sm text-text-primary truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
+                  <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
+                </div>
 
-              {/* Pro value */}
-              <div className="w-16 flex justify-center">
-                {feat.type === 'boolean'
-                  ? <FeatureBooleanCell enabled={feat.proEnabled} className="text-primary" />
-                  : <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>}
+                {/* Free value */}
+                <div className="w-16 flex justify-center">
+                  {feat.type === 'boolean'
+                    ? <FeatureBooleanCell enabled={feat.freeEnabled} className="text-text-muted" />
+                    : <span className="text-xs text-text-muted text-center">{t(`upgrade.features.${feat.key}.free`)}</span>}
+                </div>
+
+                {/* Pro value */}
+                <div className="w-16 flex justify-center">
+                  {feat.type === 'boolean'
+                    ? <FeatureBooleanCell enabled={feat.proEnabled} className="text-primary" />
+                    : <span className="text-xs text-primary font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ))}
     </div>
@@ -330,12 +287,16 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
           )}
         </div>
         <ul className="space-y-2 mb-4">
-          {proFeatures.map((feat) => (
-            <li key={feat.key} className="flex items-center gap-2.5">
-              <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
-              <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
-            </li>
-          ))}
+          {UPGRADE_PRO_FEATURES.map((feat) => {
+            const Icon = upgradeIconMap[feat.iconKey]
+
+            return (
+              <li key={feat.key} className="flex items-center gap-2.5">
+                <Icon className="size-3.5 text-primary/70 shrink-0" />
+                <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
+              </li>
+            )
+          })}
         </ul>
         <button
           className="w-full py-3 rounded-[var(--radius-lg)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
@@ -394,12 +355,16 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
             <span className="text-xs text-text-secondary">{t('upgrade.plans.yearly.includesMonthly')}</span>
           </div>
           <ul className="space-y-2">
-            {yearlyExtraFeatures.map((feat) => (
-              <li key={feat.key} className="flex items-center gap-2.5">
-                <feat.Icon className="size-3.5 text-primary/70 shrink-0" />
-                <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
-              </li>
-            ))}
+            {UPGRADE_YEARLY_EXTRA_FEATURES.map((feat) => {
+              const Icon = upgradeIconMap[feat.iconKey]
+
+              return (
+                <li key={feat.key} className="flex items-center gap-2.5">
+                  <Icon className="size-3.5 text-primary/70 shrink-0" />
+                  <span className="text-xs text-text-secondary">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
+                </li>
+              )
+            })}
           </ul>
         </div>
         {plans.couponPercentOff && (
@@ -698,7 +663,7 @@ function PricingSection({
             {t('trial.expired.dontLose')}
           </p>
           <ul className="space-y-2">
-            {trialExpiredFeatures.map((feature) => (
+            {TRIAL_EXPIRED_FEATURE_KEYS.map((feature) => (
               <li key={feature} className="flex items-center gap-2.5">
                 <CheckCircle2 className="size-4 text-primary shrink-0" />
                 <span className="text-sm text-text-secondary">{t(feature)}</span>

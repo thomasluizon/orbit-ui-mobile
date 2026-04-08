@@ -20,8 +20,13 @@ import {
   Loader2,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
+import {
+  buildCalendarSyncImportRequest,
+  formatCalendarSyncRecurrenceLabel,
+  isCalendarSyncNotConnectedMessage,
+  type CalendarSyncEvent,
+} from '@orbit/shared/utils'
 import { getErrorMessage } from '@orbit/shared/utils/error-utils'
-import type { BulkCreateRequest, FrequencyUnit } from '@orbit/shared/types/habit'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { apiClient } from '@/lib/api-client'
@@ -29,140 +34,16 @@ import { radius, shadows } from '@/lib/theme'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
-type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected'
+type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected' | 'offline'
 
-interface CalendarEvent {
-  id: string
-  title: string
-  description: string | null
-  startDate: string | null
-  startTime: string | null
-  endTime: string | null
-  isRecurring: boolean
-  recurrenceRule: string | null
-  reminders: number[]
-}
+type CalendarEvent = CalendarSyncEvent
 
 interface ImportResult {
   imported: number
   habits: { id: string; title: string }[]
-}
-
-interface ParsedRecurrence {
-  frequencyUnit?: FrequencyUnit
-  frequencyQuantity?: number
-  days?: string[]
-}
-
-function parseRRule(rule: string | null): ParsedRecurrence {
-  if (!rule) return {}
-
-  const parts: Record<string, string> = Object.fromEntries(
-    rule
-      .replace('RRULE:', '')
-      .split(';')
-      .map((part) => {
-        const [key, value] = part.split('=')
-        return key ? [key, value ?? ''] as const : null
-      })
-      .filter((entry): entry is readonly [string, string] => entry !== null),
-  )
-
-  const freqMap: Record<string, FrequencyUnit> = {
-    DAILY: 'Day',
-    WEEKLY: 'Week',
-    MONTHLY: 'Month',
-    YEARLY: 'Year',
-  }
-
-  const dayMap: Record<string, string> = {
-    MO: 'Monday',
-    TU: 'Tuesday',
-    WE: 'Wednesday',
-    TH: 'Thursday',
-    FR: 'Friday',
-    SA: 'Saturday',
-    SU: 'Sunday',
-  }
-
-  const result: ParsedRecurrence = {}
-
-  if (parts.FREQ && parts.FREQ in freqMap) {
-    result.frequencyUnit = freqMap[parts.FREQ]
-  }
-
-  if (parts.INTERVAL) {
-    const parsed = Number.parseInt(parts.INTERVAL, 10)
-    if (Number.isFinite(parsed) && parsed >= 1) {
-      result.frequencyQuantity = parsed
-    }
-  } else if (result.frequencyUnit) {
-    result.frequencyQuantity = 1
-  }
-
-  if (parts.BYDAY) {
-    const days = parts.BYDAY
-      .split(',')
-      .map((day) => dayMap[day.trim()])
-      .filter((day): day is string => !!day)
-
-    if (days.length > 0) {
-      result.days = days
-    }
-  }
-
-  return result
-}
-
-function formatRecurrenceLabel(rule: string | null, t: (key: string, options?: Record<string, unknown>) => string): string {
-  if (!rule) return ''
-
-  const upper = rule.toUpperCase()
-  const intervalMatch = /INTERVAL=(\d+)/.exec(upper)
-  const interval = intervalMatch?.[1] ? Number.parseInt(intervalMatch[1], 10) : 1
-
-  if (upper.includes('FREQ=DAILY')) {
-    return interval > 1
-      ? plural(t('calendar.recurrenceEveryNDays', { n: interval }), interval)
-      : t('calendar.recurrenceDaily')
-  }
-
-  if (upper.includes('FREQ=WEEKLY')) {
-    const dayMatch = /BYDAY=([A-Z,]+)/.exec(upper)
-    const days = dayMatch ? dayMatch[1] : ''
-
-    if (interval > 1) {
-      const base = plural(t('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
-      return days ? `${base} (${days})` : base
-    }
-
-    if (days) return t('calendar.recurrenceWeeklyDays', { days })
-    return t('calendar.recurrenceWeekly')
-  }
-
-  if (upper.includes('FREQ=MONTHLY')) {
-    return interval > 1
-      ? plural(t('calendar.recurrenceEveryNMonths', { n: interval }), interval)
-      : t('calendar.recurrenceMonthly')
-  }
-
-  if (upper.includes('FREQ=YEARLY')) {
-    return t('calendar.recurrenceYearly')
-  }
-
-  return ''
-}
-
-function isNotConnectedMessage(message: string): boolean {
-  const lower = message.toLowerCase()
-  return (
-    lower.includes('not connected') ||
-    lower.includes('unauthorized') ||
-    lower.includes('invalid authentication credentials') ||
-    lower.includes('google calendar') ||
-    lower.includes('calendar connection')
-  )
 }
 
 async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
@@ -171,7 +52,7 @@ async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
     return Array.isArray(data) ? data : []
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : ''
-    if (message === 'Unauthorized' || isNotConnectedMessage(message)) {
+    if (message === 'Unauthorized' || isCalendarSyncNotConnectedMessage(message)) {
       throw new Error('__NOT_CONNECTED__')
     }
 
@@ -179,38 +60,12 @@ async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   }
 }
 
-function buildImportRequest(events: CalendarEvent[]): BulkCreateRequest {
-  return {
-    habits: events.map((event) => {
-      const recurrence = parseRRule(event.recurrenceRule)
-      const hasRecurrence = !!recurrence.frequencyUnit
-      const quantity = hasRecurrence && recurrence.frequencyQuantity && recurrence.frequencyQuantity >= 1
-        ? recurrence.frequencyQuantity
-        : hasRecurrence
-          ? 1
-          : null
-
-      return {
-        title: event.title,
-        description: event.description,
-        dueDate: event.startDate,
-        dueTime: event.startTime,
-        dueEndTime: event.endTime,
-        frequencyUnit: recurrence.frequencyUnit ?? null,
-        frequencyQuantity: quantity,
-        days: quantity === 1 ? (recurrence.days ?? null) : null,
-        reminderEnabled: event.reminders.length > 0,
-        reminderTimes: event.reminders.length > 0 ? event.reminders : null,
-      }
-    }),
-  }
-}
-
 export default function CalendarSyncScreen() {
   const router = useRouter()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { profile, isLoading: isProfileLoading } = useProfile()
   const { colors } = useAppTheme()
+  const { isOnline } = useOffline()
   const styles = useMemo(() => createStyles(colors), [colors])
   const bulkCreateHabits = useBulkCreateHabits()
 
@@ -231,6 +86,11 @@ export default function CalendarSyncScreen() {
   const selectedCount = selectedIds.size
 
   const loadEvents = useCallback(async () => {
+    if (!isOnline) {
+      setStep('offline')
+      return
+    }
+
     setStep('loading')
     setErrorMessage('')
 
@@ -248,7 +108,7 @@ export default function CalendarSyncScreen() {
       setErrorMessage(getErrorMessage(err, t('calendar.fetchError')))
       setStep('error')
     }
-  }, [t])
+  }, [isOnline, t])
 
   useFocusEffect(
     useCallback(() => {
@@ -258,9 +118,13 @@ export default function CalendarSyncScreen() {
         router.replace('/upgrade')
         return
       }
+      if (!isOnline) {
+        setStep('offline')
+        return
+      }
 
       void loadEvents()
-    }, [loadEvents, profile, router]),
+    }, [isOnline, loadEvents, profile, router]),
   )
 
   const handleBack = useCallback(() => {
@@ -287,6 +151,11 @@ export default function CalendarSyncScreen() {
   }, [])
 
   const handleConnect = useCallback(async () => {
+    if (!isOnline) {
+      setStep('offline')
+      return
+    }
+
     if (isConnecting) return
 
     setIsConnecting(true)
@@ -305,16 +174,21 @@ export default function CalendarSyncScreen() {
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, t])
+  }, [isConnecting, isOnline, t])
 
   const handleImportSelected = useCallback(async () => {
+    if (!isOnline) {
+      setStep('offline')
+      return
+    }
+
     if (selectedCount === 0) return
 
     setStep('importing')
     setErrorMessage('')
 
     try {
-      const request = buildImportRequest(selectedEvents)
+      const request = buildCalendarSyncImportRequest(selectedEvents)
       const result = await bulkCreateHabits.mutateAsync(request)
 
       const successCount = result.results.filter((item) => item.status === 'Success').length
@@ -341,7 +215,7 @@ export default function CalendarSyncScreen() {
       setErrorMessage(getErrorMessage(err, t('calendar.importError')))
       setStep('error')
     }
-  }, [bulkCreateHabits, selectedCount, selectedEvents, t])
+  }, [bulkCreateHabits, isOnline, selectedCount, selectedEvents, t])
 
   const handleRetry = useCallback(() => {
     void loadEvents()
@@ -349,7 +223,10 @@ export default function CalendarSyncScreen() {
 
   const renderEventCard = (event: CalendarEvent) => {
     const selected = selectedIds.has(event.id)
-    const recurrenceLabel = formatRecurrenceLabel(event.recurrenceRule, t)
+    const recurrenceLabel = formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
+      translate: (key, values) => t(key, values),
+      pluralize: plural,
+    })
     const dateLabel = event.startDate ?? ''
     const timeLabel = event.startTime
       ? `${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}`
@@ -364,6 +241,8 @@ export default function CalendarSyncScreen() {
         ]}
         onPress={() => toggleEvent(event.id)}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
       >
         <View style={styles.eventRow}>
           <View style={[styles.checkbox, selected ? styles.checkboxSelected : styles.checkboxUnselected]}>
@@ -414,14 +293,20 @@ export default function CalendarSyncScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.goBack')}
+          >
             <ArrowLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('calendar.title')}</Text>
         </View>
 
         {(isProfileLoading || step === 'loading') && (
-          <View style={styles.centerState}>
+          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.fetchingEvents')}>
             <View style={styles.stateIcon}>
               <Loader2 size={26} color={colors.primary400} />
             </View>
@@ -430,7 +315,7 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'not-connected' && !isProfileLoading && (
-          <View style={styles.centerState}>
+          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.notConnectedTitle')}>
             <View style={[styles.stateIcon, styles.stateIconPrimary]}>
               <Link size={26} color={colors.primary400} />
             </View>
@@ -450,10 +335,32 @@ export default function CalendarSyncScreen() {
           </View>
         )}
 
+        {step === 'offline' && !isProfileLoading && (
+          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendarSync.notConnected')}>
+            <OfflineUnavailableState
+              title={t('calendarSync.notConnected')}
+              description={`${t('calendarSync.connect')} / ${t('calendar.importButton', { count: 1 })}`}
+              actionLabel={t('calendar.retry')}
+              onAction={handleRetry}
+              disabled={!isOnline}
+            />
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleBack} activeOpacity={0.8}>
+              <Text style={styles.secondaryButtonText}>{t('common.goBack')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {step === 'select' && (
           <View style={styles.contentStack}>
+            {!isOnline && (
+              <OfflineUnavailableState
+                title={t('calendarSync.notConnected')}
+                description={`${t('calendarSync.connect')} / ${t('calendar.importButton', { count: selectedCount || 1 })}`}
+                compact
+              />
+            )}
             {events.length === 0 ? (
-              <View style={styles.centerState}>
+              <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.noEvents')}>
                 <View style={styles.stateIcon}>
                   <CalendarDays size={26} color={colors.textMuted} />
                 </View>
@@ -468,7 +375,7 @@ export default function CalendarSyncScreen() {
                   <Text style={styles.selectionCount}>
                     {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
                   </Text>
-                  <TouchableOpacity onPress={toggleAll} activeOpacity={0.7}>
+                  <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: allSelected }}>
                     <Text style={styles.selectAllText}>
                       {allSelected ? t('calendar.deselectAll') : t('calendar.selectAll')}
                     </Text>
@@ -482,10 +389,10 @@ export default function CalendarSyncScreen() {
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
-                    selectedCount === 0 && styles.buttonDisabled,
+                    (selectedCount === 0 || !isOnline) && styles.buttonDisabled,
                   ]}
                   onPress={handleImportSelected}
-                  disabled={selectedCount === 0}
+                  disabled={selectedCount === 0 || !isOnline}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.primaryButtonText}>
@@ -498,7 +405,7 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'importing' && (
-          <View style={styles.centerState}>
+          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.importing')}>
             <View style={styles.stateIcon}>
               <ActivityIndicator color={colors.primary400} />
             </View>
@@ -507,7 +414,7 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'done' && (
-          <View style={styles.centerState}>
+          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.importDone')}>
             <View style={[styles.stateIcon, styles.stateIconSuccess]}>
               <Check size={26} color={colors.green400} />
             </View>
@@ -526,7 +433,7 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'error' && (
-          <View style={styles.centerState}>
+          <View style={styles.centerState} accessibilityRole="alert" accessibilityLiveRegion="assertive">
             <View style={[styles.stateIcon, styles.stateIconError]}>
               <AlertTriangle size={26} color={colors.red400} />
             </View>

@@ -13,7 +13,7 @@ import { ArrowLeft, Lock } from 'lucide-react-native'
 import { createColors } from '@/lib/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { AchievementCard } from '@/components/gamification/achievement-card'
+import { AchievementCategorySection, createAchievementsScreenStyles } from './achievements-sections'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppColors = ReturnType<typeof createColors>
@@ -23,6 +23,7 @@ export default function AchievementsScreen() {
   const router = useRouter()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
+  const categoryStyles = useMemo(() => createAchievementsScreenStyles(colors), [colors])
   const { isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
   const {
@@ -125,22 +126,12 @@ export default function AchievementsScreen() {
                 </View>
 
                 {achievementsByCategory.map((category) => (
-                  <View key={category.key} style={styles.categorySection}>
-                    <Text style={styles.categoryLabel}>
-                      {t(`gamification.categories.${category.key}`).toUpperCase()}
-                    </Text>
-                    <View style={styles.achievementGrid}>
-                      {category.items.map((achievement) => (
-                        <View key={achievement.id} style={styles.achievementItem}>
-                          <AchievementCard
-                            achievement={achievement}
-                            earned={achievement.isEarned}
-                            earnedDate={achievement.earnedAtUtc}
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  </View>
+                  <AchievementCategorySection
+                    key={category.key}
+                    category={category}
+                    t={t}
+                    styles={categoryStyles}
+                  />
                 ))}
               </>
             ) : null}

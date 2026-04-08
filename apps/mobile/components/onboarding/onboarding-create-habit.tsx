@@ -10,8 +10,13 @@ import {
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useCreateHabit } from '@/hooks/use-habits'
-import { getErrorMessage } from '@orbit/shared/utils'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import { getErrorMessage } from '@orbit/shared/utils/error-utils'
+import {
+  getOnboardingHabitFrequencyLabelKey,
+  ONBOARDING_HABIT_FREQUENCIES,
+  ONBOARDING_HABIT_SUGGESTIONS,
+  type OnboardingFrequencyUnit,
+} from '@orbit/shared/utils/onboarding'
 import { radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -21,21 +26,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 interface Suggestion {
   key: string
-  frequency: FrequencyUnit
+  frequency: OnboardingFrequencyUnit
 }
-
-const suggestions: Suggestion[] = [
-  { key: 'water', frequency: 'Day' },
-  { key: 'read', frequency: 'Day' },
-  { key: 'exercise', frequency: 'Week' },
-  { key: 'meditate', frequency: 'Day' },
-]
-
-const frequencies: { value: FrequencyUnit | 'one-time'; labelKey: string }[] = [
-  { value: 'Day', labelKey: 'onboarding.flow.createHabit.frequency.daily' },
-  { value: 'Week', labelKey: 'onboarding.flow.createHabit.frequency.weekly' },
-  { value: 'one-time', labelKey: 'onboarding.flow.createHabit.frequency.oneTime' },
-]
 
 // ---------------------------------------------------------------------------
 // Props
@@ -54,7 +46,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const [title, setTitle] = useState('')
-  const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
+  const [frequencyUnit, setFrequencyUnit] = useState<OnboardingFrequencyUnit | undefined>('Day')
   const [isCreated, setIsCreated] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
@@ -70,7 +62,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
     setSelectedSuggestion(suggestion.key)
   }
 
-  function selectFrequency(value: FrequencyUnit | 'one-time') {
+  function selectFrequency(value: OnboardingFrequencyUnit | 'one-time') {
     if (value === 'one-time') {
       setFrequencyUnit(undefined)
     } else {
@@ -118,10 +110,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           <Text style={styles.successTitle}>{title}</Text>
           <Text style={styles.successFreq}>
             {(() => {
-              if (!frequencyUnit) return t('onboarding.flow.createHabit.frequency.oneTime')
-              if (frequencyUnit === 'Day') return t('onboarding.flow.createHabit.frequency.daily')
-              if (frequencyUnit === 'Week') return t('onboarding.flow.createHabit.frequency.weekly')
-              return t('onboarding.flow.createHabit.frequency.oneTime')
+              return t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))
             })()}
           </Text>
           <Text style={styles.successMessage}>
@@ -145,7 +134,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 
       {/* Suggestion chips */}
       <View style={styles.suggestionsRow}>
-        {suggestions.map((suggestion) => (
+        {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
           <TouchableOpacity
             key={suggestion.key}
             style={[
@@ -181,7 +170,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 
       {/* Frequency picker */}
       <View style={styles.freqRow}>
-        {frequencies.map((freq) => (
+        {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
           <TouchableOpacity
             key={freq.value}
             style={[
