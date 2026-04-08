@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
-import { isFeatureEnabled } from '@orbit/shared/utils'
 
 // ---------------------------------------------------------------------------
 // useConfig -- TanStack Query hook for the global app config
@@ -35,4 +34,4 @@ export function useConfig() {
     config,
   }
 }
-export { isFeatureEnabled }
+export { isFeatureEnabled } from '@orbit/shared/utils'

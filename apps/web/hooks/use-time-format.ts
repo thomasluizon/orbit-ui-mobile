@@ -14,7 +14,7 @@ export { formatTime } from '@orbit/shared/utils'
 
 export function useTimeFormat() {
   const [currentFormat, setCurrentFormat] = useState<TimeFormat>(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') {
+    if (typeof globalThis === 'undefined' || globalThis.localStorage === undefined) {
       return '24h'
     }
 

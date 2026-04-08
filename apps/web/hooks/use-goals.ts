@@ -4,17 +4,15 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { goalKeys, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type {
   Goal,
-  GoalDetailWithMetrics,
   CreateGoalRequest,
   UpdateGoalRequest,
   UpdateGoalProgressRequest,
   UpdateGoalStatusRequest,
   GoalPositionItem,
 } from '@orbit/shared/types/goal'
-import { sortGoalsByPosition } from '@orbit/shared/utils'
 import {
   createGoal as createGoalAction,
   updateGoal as updateGoalAction,

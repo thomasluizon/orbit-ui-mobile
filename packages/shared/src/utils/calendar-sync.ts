@@ -53,6 +53,61 @@ function parseRuleParts(rule: string): Record<string, string> {
   )
 }
 
+function parseRecurrenceInterval(rule: string): number {
+  const intervalMatch = /INTERVAL=(\d+)/.exec(rule)
+  return intervalMatch?.[1] ? Number.parseInt(intervalMatch[1], 10) : 1
+}
+
+function formatIntervalRecurrence(
+  interval: number,
+  singularKey: string,
+  pluralKey: string,
+  translate: CalendarSyncTranslationAdapter['translate'],
+  pluralize: CalendarSyncTranslationAdapter['pluralize'],
+): string {
+  if (interval <= 1) {
+    return translate(singularKey)
+  }
+
+  return pluralize(translate(pluralKey, { n: interval }), interval)
+}
+
+function resolveRecurrenceQuantity(
+  recurrence: CalendarSyncParsedRecurrence,
+): number | null {
+  if (!recurrence.frequencyUnit) return null
+  if (recurrence.frequencyQuantity && recurrence.frequencyQuantity >= 1) {
+    return recurrence.frequencyQuantity
+  }
+
+  return 1
+}
+
+function resolveRecurrenceType(rule: string): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
+  if (rule.includes('FREQ=DAILY')) return 'daily'
+  if (rule.includes('FREQ=WEEKLY')) return 'weekly'
+  if (rule.includes('FREQ=MONTHLY')) return 'monthly'
+  if (rule.includes('FREQ=YEARLY')) return 'yearly'
+  return null
+}
+
+function formatWeeklyRecurrence(
+  rule: string,
+  interval: number,
+  { translate, pluralize }: CalendarSyncTranslationAdapter,
+): string {
+  const dayMatch = /BYDAY=([A-Z,]+)/.exec(rule)
+  const days = dayMatch ? dayMatch[1] : ''
+
+  if (interval > 1) {
+    const base = pluralize(translate('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
+    return days ? `${base} (${days})` : base
+  }
+
+  if (days) return translate('calendar.recurrenceWeeklyDays', { days })
+  return translate('calendar.recurrenceWeekly')
+}
+
 export function parseCalendarSyncRecurrence(
   rule: string | null,
 ): CalendarSyncParsedRecurrence {
@@ -89,44 +144,38 @@ export function parseCalendarSyncRecurrence(
 
 export function formatCalendarSyncRecurrenceLabel(
   rule: string | null,
-  { translate, pluralize }: CalendarSyncTranslationAdapter,
+  translations: CalendarSyncTranslationAdapter,
 ): string {
   if (!rule) return ''
 
   const upper = rule.toUpperCase()
-  const intervalMatch = /INTERVAL=(\d+)/.exec(upper)
-  const interval = intervalMatch?.[1] ? Number.parseInt(intervalMatch[1], 10) : 1
+  const interval = parseRecurrenceInterval(upper)
+  const recurrenceType = resolveRecurrenceType(upper)
 
-  if (upper.includes('FREQ=DAILY')) {
-    return interval > 1
-      ? pluralize(translate('calendar.recurrenceEveryNDays', { n: interval }), interval)
-      : translate('calendar.recurrenceDaily')
+  switch (recurrenceType) {
+    case 'daily':
+      return formatIntervalRecurrence(
+        interval,
+        'calendar.recurrenceDaily',
+        'calendar.recurrenceEveryNDays',
+        translations.translate,
+        translations.pluralize,
+      )
+    case 'weekly':
+      return formatWeeklyRecurrence(upper, interval, translations)
+    case 'monthly':
+      return formatIntervalRecurrence(
+        interval,
+        'calendar.recurrenceMonthly',
+        'calendar.recurrenceEveryNMonths',
+        translations.translate,
+        translations.pluralize,
+      )
+    case 'yearly':
+      return translations.translate('calendar.recurrenceYearly')
+    default:
+      return ''
   }
-
-  if (upper.includes('FREQ=WEEKLY')) {
-    const dayMatch = /BYDAY=([A-Z,]+)/.exec(upper)
-    const days = dayMatch ? dayMatch[1] : ''
-
-    if (interval > 1) {
-      const base = pluralize(translate('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
-      return days ? `${base} (${days})` : base
-    }
-
-    if (days) return translate('calendar.recurrenceWeeklyDays', { days })
-    return translate('calendar.recurrenceWeekly')
-  }
-
-  if (upper.includes('FREQ=MONTHLY')) {
-    return interval > 1
-      ? pluralize(translate('calendar.recurrenceEveryNMonths', { n: interval }), interval)
-      : translate('calendar.recurrenceMonthly')
-  }
-
-  if (upper.includes('FREQ=YEARLY')) {
-    return translate('calendar.recurrenceYearly')
-  }
-
-  return ''
 }
 
 export function isCalendarSyncNotConnectedMessage(message: string): boolean {
@@ -146,12 +195,9 @@ export function buildCalendarSyncImportRequest(
   return {
     habits: events.map((event) => {
       const recurrence = parseCalendarSyncRecurrence(event.recurrenceRule)
-      const hasRecurrence = !!recurrence.frequencyUnit
-      const quantity = hasRecurrence
-        ? recurrence.frequencyQuantity && recurrence.frequencyQuantity >= 1
-          ? recurrence.frequencyQuantity
-          : 1
-        : null
+      const quantity = resolveRecurrenceQuantity(recurrence)
+      const days = quantity === 1 ? (recurrence.days ?? null) : null
+      const reminderTimes = event.reminders.length > 0 ? event.reminders : null
 
       return {
         title: event.title,
@@ -161,9 +207,9 @@ export function buildCalendarSyncImportRequest(
         dueEndTime: event.endTime,
         frequencyUnit: recurrence.frequencyUnit ?? null,
         frequencyQuantity: quantity,
-        days: quantity === 1 ? (recurrence.days ?? null) : null,
+        days,
         reminderEnabled: event.reminders.length > 0,
-        reminderTimes: event.reminders.length > 0 ? event.reminders : null,
+        reminderTimes,
       }
     }),
   }

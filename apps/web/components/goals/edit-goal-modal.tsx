@@ -83,8 +83,8 @@ export function EditGoalModal({
     return buildGoalTitle(description, targetValue, unit)
   }
 
-  const onSubmit = useCallback(
-    async (e: React.FormEvent) => {
+  const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
+    async (e) => {
       e.preventDefault()
       setValidationError('')
 

@@ -47,7 +47,6 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
   return (
     <div
       className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
-      role="group"
       aria-label={isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
     >
       {/* AI avatar */}

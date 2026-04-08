@@ -12,15 +12,17 @@ export type TodayTabItem = {
   label: string
 }
 
+interface TodayHeaderProps {
+  onGoToToday: () => void
+  streak: number
+  goToTodayLabel: string
+}
+
 export function TodayHeader({
   onGoToToday,
   streak,
   goToTodayLabel,
-}: {
-  onGoToToday: () => void
-  streak: number
-  goToTodayLabel: string
-}) {
+}: Readonly<TodayHeaderProps>) {
   return (
     <header className="flex items-center justify-between pt-8 pb-2">
       <button
@@ -48,17 +50,21 @@ export function TodayHeader({
   )
 }
 
+interface TodayTabsProps {
+  tabs: TodayTabItem[]
+  activeView: TodayTabView
+  onChangeView: (view: TodayTabView) => void
+  viewsLabel: string
+  onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
+}
+
 export function TodayTabs({
   tabs,
   activeView,
   onChangeView,
   viewsLabel,
-}: {
-  tabs: TodayTabItem[]
-  activeView: TodayTabView
-  onChangeView: (view: TodayTabView) => void
-  viewsLabel: string
-}) {
+  onKeyDown,
+}: Readonly<TodayTabsProps>) {
   return (
     <div className="pt-4">
       <div
@@ -66,6 +72,7 @@ export function TodayTabs({
         tabIndex={0}
         aria-label={viewsLabel}
         className="flex bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1"
+        onKeyDown={onKeyDown}
       >
         {tabs.map((tab) => (
           <button
@@ -91,6 +98,19 @@ export function TodayTabs({
   )
 }
 
+interface TodayDateNavigationProps {
+  visible: boolean
+  dateLabel: string
+  isTodaySelected: boolean
+  slideDirection: 'left' | 'right'
+  onGoToPreviousDay: () => void
+  onGoToToday: () => void
+  onGoToNextDay: () => void
+  previousLabel: string
+  todayLabel: string
+  nextLabel: string
+}
+
 export function TodayDateNavigation({
   visible,
   dateLabel,
@@ -102,18 +122,7 @@ export function TodayDateNavigation({
   previousLabel,
   todayLabel,
   nextLabel,
-}: {
-  visible: boolean
-  dateLabel: string
-  isTodaySelected: boolean
-  slideDirection: 'left' | 'right'
-  onGoToPreviousDay: () => void
-  onGoToToday: () => void
-  onGoToNextDay: () => void
-  previousLabel: string
-  todayLabel: string
-  nextLabel: string
-}) {
+}: Readonly<TodayDateNavigationProps>) {
   if (!visible) return null
 
   return (

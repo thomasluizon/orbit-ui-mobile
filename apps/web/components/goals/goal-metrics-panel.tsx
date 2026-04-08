@@ -140,12 +140,12 @@ export function GoalMetricsPanel({
               const adherenceTone = getGoalHabitAdherenceTone(
                 habit.weeklyCompletionRate,
               )
-              const barColor =
-                adherenceTone === 'success'
-                  ? 'bg-green-500'
-                  : adherenceTone === 'primary'
-                    ? 'bg-primary'
-                    : 'bg-amber-500'
+              let barColor = 'bg-amber-500'
+              if (adherenceTone === 'success') {
+                barColor = 'bg-green-500'
+              } else if (adherenceTone === 'primary') {
+                barColor = 'bg-primary'
+              }
 
               return (
                 <div

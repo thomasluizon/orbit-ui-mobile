@@ -69,8 +69,8 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     setValidationError('')
   }
 
-  const onSubmit = useCallback(
-    async (e: React.FormEvent) => {
+  const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
+    async (e) => {
       e.preventDefault()
       setValidationError('')
 

@@ -1,7 +1,9 @@
-import type { QueuedMutationBuildOptions } from './offline-mutations'
-import type { QueuedMarker } from './offline-mutations'
+import {
+  runQueuedMutation,
+  type QueuedMarker,
+  type QueuedMutationBuildOptions,
+} from './offline-mutations'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
-import { runQueuedMutation } from './offline-mutations'
 import { apiClient } from './api-client'
 
 export async function performQueuedApiMutation<

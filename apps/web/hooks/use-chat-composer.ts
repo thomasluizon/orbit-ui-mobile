@@ -99,7 +99,7 @@ export function useChatComposer() {
   useEffect(() => {
     function handleKeydown(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape') {
-        window.location.assign('/')
+        globalThis.location.assign('/')
       }
     }
 
@@ -118,10 +118,10 @@ export function useChatComposer() {
     if (!speechError) return
 
     setSendError(speechError)
-    const timer = window.setTimeout(() => {
+    const timer = globalThis.setTimeout(() => {
       setSendError((current) => (current === speechError ? null : current))
     }, 4000)
-    return () => window.clearTimeout(timer)
+    return () => globalThis.clearTimeout(timer)
   }, [speechError])
 
   useEffect(() => {

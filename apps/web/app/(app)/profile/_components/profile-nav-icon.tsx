@@ -2,11 +2,13 @@
 
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
+interface ProfileNavIconProps {
+  iconKey: ProfileNavIconKey
+}
+
 export function ProfileNavIcon({
   iconKey,
-}: {
-  iconKey: ProfileNavIconKey
-}) {
+}: Readonly<ProfileNavIconProps>) {
   switch (iconKey) {
     case 'settings':
       return (

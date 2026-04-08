@@ -79,7 +79,7 @@ describe('HabitCard', () => {
     render(<HabitCard habit={habit} />)
     const article = screen.getByLabelText('Exercise')
     expect(article.tagName).toBe('DIV')
-    expect(article.getAttribute('role')).toBeNull()
+    expect(article.getAttribute('role')).toBe('button')
     expect(article.getAttribute('tabindex')).toBe('0')
   })
 
@@ -359,7 +359,7 @@ describe('HabitCard', () => {
     render(<HabitCard habit={habit} onDetail={onDetail} />)
     const card = screen.getByLabelText('Exercise')
     expect(card.tagName).toBe('DIV')
-    expect(card.getAttribute('role')).toBeNull()
+    expect(card.getAttribute('role')).toBe('button')
     expect(card.getAttribute('tabindex')).toBe('0')
     fireEvent.click(card)
     expect(onDetail).toHaveBeenCalledOnce()

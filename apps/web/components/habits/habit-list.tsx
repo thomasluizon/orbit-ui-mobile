@@ -488,12 +488,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           child.isLoggedInRange ||
           completedOverrideIds.has(child.id)
 
-        if (isListView || child.isGeneral) {
-          total++
-          if (isCompletedForPrompt) done++
-        } else if (!visibility.isRelevantToday(child) && !child.isLoggedInRange) {
+        const shouldCountDirectly =
+          isListView ||
+          child.isGeneral ||
+          visibility.isDueOnSelectedDate(child) ||
+          child.isLoggedInRange
+
+        if (!isListView && !child.isGeneral && !visibility.isRelevantToday(child) && !child.isLoggedInRange) {
           return computeFn(child.id)
-        } else if (visibility.isDueOnSelectedDate(child) || child.isLoggedInRange) {
+        }
+
+        if (shouldCountDirectly) {
           total++
           if (isCompletedForPrompt) done++
         }

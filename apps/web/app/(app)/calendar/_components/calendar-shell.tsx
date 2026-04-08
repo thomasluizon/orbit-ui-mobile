@@ -1,8 +1,6 @@
 'use client'
 
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import type { ReactNode } from 'react'
-
 interface CalendarHeaderProps {
   title: string
   monthLabel: string
@@ -12,7 +10,6 @@ interface CalendarHeaderProps {
   onGoToToday: () => void
   onPreviousMonth: () => void
   onNextMonth: () => void
-  children?: ReactNode
 }
 
 export function CalendarHeader({
@@ -24,7 +21,7 @@ export function CalendarHeader({
   onGoToToday,
   onPreviousMonth,
   onNextMonth,
-}: CalendarHeaderProps) {
+}: Readonly<CalendarHeaderProps>) {
   return (
     <header className="pt-8 pb-2 flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -76,7 +73,7 @@ export function CalendarLegend({
   doneLabel,
   upcomingLabel,
   missedLabel,
-}: CalendarLegendProps) {
+}: Readonly<CalendarLegendProps>) {
   return (
     <div className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
       <div className="flex items-center gap-1.5">

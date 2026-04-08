@@ -28,6 +28,19 @@ import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveO
 import { getCurrentConnectivity } from './offline-runtime'
 import { persistQueryCache, queryClient } from './query-client'
 
+type InvalidationQueryKey = readonly unknown[]
+
+const SCOPE_QUERY_KEYS: Record<MutationScope, ReadonlyArray<InvalidationQueryKey>> = {
+  habits: [habitKeys.all, goalKeys.all, profileKeys.all, gamificationKeys.all],
+  goals: [goalKeys.all, habitKeys.lists()],
+  tags: [tagKeys.all, habitKeys.lists()],
+  notifications: [notificationKeys.all],
+  profile: [profileKeys.all],
+  userFacts: [userFactKeys.all],
+  apiKeys: [apiKeyKeys.all],
+  calendar: [profileKeys.all],
+}
+
 export interface QueuedMarker {
   queued: true
   queuedMutationId: string
@@ -47,6 +60,8 @@ export interface QueuedMutationBuildOptions {
   maxRetries?: number
 }
 
+let queuedMutationSequence = 0
+
 export function isQueuedResult(value: unknown): value is QueuedMarker {
   return (
     typeof value === 'object' &&
@@ -57,7 +72,7 @@ export function isQueuedResult(value: unknown): value is QueuedMarker {
 }
 
 export function createTempEntityId(entityType: MutationEntityType): string {
-  return `offline-${entityType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return nextQueuedIdentifier(`offline-${entityType}`)
 }
 
 export function buildQueuedMutation({
@@ -74,7 +89,7 @@ export function buildQueuedMutation({
   maxRetries = 3,
 }: QueuedMutationBuildOptions): QueuedMutation {
   return {
-    id: `offline-mutation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: nextQueuedIdentifier('offline-mutation'),
     timestamp: Date.now(),
     type,
     scope,
@@ -135,6 +150,11 @@ export function withQueuedMarker<T extends Record<string, unknown>>(
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown offline sync error'
+}
+
+function nextQueuedIdentifier(prefix: string): string {
+  queuedMutationSequence += 1
+  return `${prefix}-${Date.now()}-${queuedMutationSequence.toString(36)}`
 }
 
 const OFFLINE_ID_PATTERN = /\boffline-[a-z]+-[a-z0-9-]+\b/g
@@ -368,29 +388,153 @@ function extractCreatedEntityId(response: unknown): string | null {
   return null
 }
 
+function serializeMutationPayload(payload: unknown): string | undefined {
+  return payload === undefined || payload === null ? undefined : JSON.stringify(payload)
+}
+
+function addTouchedScope(
+  touchedScopes: Set<MutationScope>,
+  mutation: QueuedMutation,
+): void {
+  touchedScopes.add(mutation.scope ?? inferScope(mutation.type))
+}
+
+async function clearCreatedOfflineEntity(
+  mutation: QueuedMutation,
+  response: unknown,
+): Promise<void> {
+  if (!mutation.entityType || !mutation.clientEntityId) return
+
+  const serverId = extractCreatedEntityId(response)
+  if (serverId && serverId !== mutation.clientEntityId) {
+    await resolveOfflineEntity(mutation.entityType, mutation.clientEntityId, serverId)
+    replaceEntityReferences(mutation.clientEntityId, serverId)
+    return
+  }
+
+  await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
+}
+
+async function clearDeletedOfflineEntity(mutation: QueuedMutation): Promise<void> {
+  if (!mutation.entityType || !mutation.targetEntityId || !mutation.type.startsWith('delete')) {
+    return
+  }
+
+  await clearOfflineEntity(mutation.entityType, mutation.targetEntityId)
+}
+
+async function finalizeSuccessfulFlush(
+  mutation: QueuedMutation,
+  response: unknown,
+  touchedScopes: Set<MutationScope>,
+): Promise<void> {
+  addTouchedScope(touchedScopes, mutation)
+  await clearCreatedOfflineEntity(mutation, response)
+  await clearDeletedOfflineEntity(mutation)
+  remove(mutation.id)
+}
+
+async function markMutationSyncing(mutation: QueuedMutation): Promise<void> {
+  update(mutation.id, { status: 'syncing', lastError: null })
+
+  if (mutation.entityType && mutation.clientEntityId) {
+    await setOfflineEntityStatus(mutation.entityType, mutation.clientEntityId, 'syncing')
+  }
+}
+
+async function handleFlushFailure(
+  mutation: QueuedMutation,
+  error: unknown,
+  touchedScopes: Set<MutationScope>,
+): Promise<{
+  incrementFailed: boolean
+  stop: boolean
+}> {
+  if (isTransientNetworkError(error)) {
+    update(mutation.id, { status: 'failed', lastError: getErrorMessage(error) })
+    return { incrementFailed: false, stop: true }
+  }
+
+  const nextRetries = mutation.retries + 1
+  const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
+
+  if (dropMutation) {
+    remove(mutation.id)
+    addTouchedScope(touchedScopes, mutation)
+
+    if (mutation.entityType && mutation.clientEntityId) {
+      await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
+    }
+  } else {
+    const lastError = getErrorMessage(error)
+
+    update(mutation.id, {
+      retries: nextRetries,
+      status: 'failed',
+      lastError,
+    })
+
+    if (mutation.entityType && mutation.clientEntityId) {
+      await setOfflineEntityStatus(
+        mutation.entityType,
+        mutation.clientEntityId,
+        'failed',
+        lastError,
+      )
+    }
+  }
+
+  return {
+    incrementFailed: true,
+    stop: shouldStopFlushing(error),
+  }
+}
+
 async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void> {
   for (const scope of scopes) {
-    if (scope === 'habits') {
-      await queryClient.invalidateQueries({ queryKey: habitKeys.all })
-      await queryClient.invalidateQueries({ queryKey: goalKeys.all })
-      await queryClient.invalidateQueries({ queryKey: profileKeys.all })
-      await queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-    } else if (scope === 'goals') {
-      await queryClient.invalidateQueries({ queryKey: goalKeys.all })
-      await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-    } else if (scope === 'tags') {
-      await queryClient.invalidateQueries({ queryKey: tagKeys.all })
-      await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-    } else if (scope === 'notifications') {
-      await queryClient.invalidateQueries({ queryKey: notificationKeys.all })
-    } else if (scope === 'profile') {
-      await queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    } else if (scope === 'userFacts') {
-      await queryClient.invalidateQueries({ queryKey: userFactKeys.all })
-    } else if (scope === 'apiKeys') {
-      await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-    } else if (scope === 'calendar') {
-      await queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    for (const queryKey of SCOPE_QUERY_KEYS[scope]) {
+      await queryClient.invalidateQueries({ queryKey })
+    }
+  }
+}
+
+type FlushStepResult = {
+  failedDelta: number
+  shouldBreak: boolean
+  succeededDelta: number
+}
+
+async function processQueuedMutationFlush(
+  originalMutation: QueuedMutation,
+  touchedScopes: Set<MutationScope>,
+): Promise<FlushStepResult> {
+  const currentMutation = getById(originalMutation.id)
+  if (!currentMutation) {
+    return { failedDelta: 0, shouldBreak: false, succeededDelta: 0 }
+  }
+
+  const mutation = await resolveMutationReferences(currentMutation)
+  if (hasPendingOfflineDependencies(mutation)) {
+    update(mutation.id, { status: 'pending', lastError: null })
+    return { failedDelta: 0, shouldBreak: false, succeededDelta: 0 }
+  }
+
+  await markMutationSyncing(mutation)
+
+  try {
+    const response = await apiClient<unknown>(mutation.endpoint, {
+      method: mutation.method,
+      body: serializeMutationPayload(mutation.payload),
+    })
+
+    await finalizeSuccessfulFlush(mutation, response, touchedScopes)
+    return { failedDelta: 0, shouldBreak: false, succeededDelta: 1 }
+  } catch (error) {
+    const failure = await handleFlushFailure(mutation, error, touchedScopes)
+    return {
+      failedDelta: failure.incrementFailed ? 1 : 0,
+      shouldBreak: failure.stop,
+      succeededDelta: 0,
     }
   }
 }
@@ -406,87 +550,10 @@ export async function flushQueuedMutations(): Promise<{
   const pending = getAll()
 
   for (const originalMutation of pending) {
-    const currentMutation = getById(originalMutation.id)
-    if (!currentMutation) {
-      continue
-    }
-
-    const mutation = await resolveMutationReferences(currentMutation)
-    if (hasPendingOfflineDependencies(mutation)) {
-      update(mutation.id, { status: 'pending', lastError: null })
-      continue
-    }
-
-    update(mutation.id, { status: 'syncing', lastError: null })
-
-    if (mutation.entityType && mutation.clientEntityId) {
-      await setOfflineEntityStatus(mutation.entityType, mutation.clientEntityId, 'syncing')
-    }
-
-    try {
-      const response = await apiClient<unknown>(mutation.endpoint, {
-        method: mutation.method,
-        body: mutation.payload === undefined || mutation.payload === null
-          ? undefined
-          : JSON.stringify(mutation.payload),
-      })
-
-      touchedScopes.add(mutation.scope ?? inferScope(mutation.type))
-
-      if (mutation.entityType && mutation.clientEntityId) {
-        const serverId = extractCreatedEntityId(response)
-        if (serverId && serverId !== mutation.clientEntityId) {
-          await resolveOfflineEntity(mutation.entityType, mutation.clientEntityId, serverId)
-          replaceEntityReferences(mutation.clientEntityId, serverId)
-        } else {
-          await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
-        }
-      }
-
-      if (mutation.entityType && mutation.targetEntityId && mutation.type.startsWith('delete')) {
-        await clearOfflineEntity(mutation.entityType, mutation.targetEntityId)
-      }
-
-      remove(mutation.id)
-      succeeded += 1
-    } catch (error) {
-      if (isTransientNetworkError(error)) {
-        update(mutation.id, { status: 'failed', lastError: getErrorMessage(error) })
-        break
-      }
-
-      failed += 1
-      const nextRetries = mutation.retries + 1
-      const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
-
-      if (dropMutation) {
-        remove(mutation.id)
-        touchedScopes.add(mutation.scope ?? inferScope(mutation.type))
-
-        if (mutation.entityType && mutation.clientEntityId) {
-          await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
-        }
-      } else {
-        update(mutation.id, {
-          retries: nextRetries,
-          status: 'failed',
-          lastError: getErrorMessage(error),
-        })
-
-        if (mutation.entityType && mutation.clientEntityId) {
-          await setOfflineEntityStatus(
-            mutation.entityType,
-            mutation.clientEntityId,
-            'failed',
-            getErrorMessage(error),
-          )
-        }
-      }
-
-      if (shouldStopFlushing(error)) {
-        break
-      }
-    }
+    const step = await processQueuedMutationFlush(originalMutation, touchedScopes)
+    succeeded += step.succeededDelta
+    failed += step.failedDelta
+    if (step.shouldBreak) break
   }
 
   await invalidateTouchedScopes(touchedScopes)

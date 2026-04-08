@@ -12,7 +12,7 @@ type NotificationCacheWriter = {
 }
 
 type NotificationCacheInvalidator = {
-  invalidateQueries(filters: { queryKey: QueryKey }): Promise<unknown> | unknown
+  invalidateQueries(filters: { queryKey: QueryKey }): Promise<void>
 }
 
 export function createEmptyNotificationsResponse(): NotificationsResponse {

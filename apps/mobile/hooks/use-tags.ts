@@ -27,24 +27,120 @@ export interface Tag {
   color: string
 }
 
+type TagQueryClient = ReturnType<typeof useQueryClient>
+type TagMutationContext = {
+  previousLists?: ReadonlyArray<readonly [readonly unknown[], Tag[] | undefined]>
+  previousHabitLists?: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>
+  tempId?: string
+  request?: { name: string; color: string }
+}
+
 const pendingCreateTagIds = new WeakMap<{ name: string; color: string }, string>()
 
-function restoreTagLists(
-  queryClient: ReturnType<typeof useQueryClient>,
-  previousLists: ReadonlyArray<readonly [readonly unknown[], Tag[] | undefined]>,
+function restoreQueryLists<TData>(
+  queryClient: TagQueryClient,
+  previousLists: ReadonlyArray<readonly [readonly unknown[], TData | undefined]>,
 ): void {
   for (const [key, value] of previousLists) {
     if (value) queryClient.setQueryData(key, value)
   }
 }
 
-function restoreHabitLists(
-  queryClient: ReturnType<typeof useQueryClient>,
-  previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>,
+function renameHabitTagReferences(
+  tagId: string,
+  name: string,
+  color: string,
+): (tags: Tag[]) => Tag[] {
+  return (tags) => tags.map((tag) => (tag.id === tagId ? { ...tag, name, color } : tag))
+}
+
+function removeHabitTagReferences(tagId: string): (tags: Tag[]) => Tag[] {
+  return (tags) => tags.filter((tag) => tag.id !== tagId)
+}
+
+function restoreTagMutationContext(
+  queryClient: TagQueryClient,
+  context: TagMutationContext | undefined,
 ): void {
-  for (const [key, value] of previousLists) {
-    if (value) queryClient.setQueryData(key, value)
+  if (context?.previousLists) {
+    restoreQueryLists(queryClient, context.previousLists)
   }
+  if (context?.previousHabitLists) {
+    restoreQueryLists(queryClient, context.previousHabitLists)
+  }
+  if (context?.request) {
+    pendingCreateTagIds.delete(context.request)
+  }
+}
+
+async function invalidateTagMutationQueries(queryClient: TagQueryClient): Promise<void> {
+  await queryClient.invalidateQueries({ queryKey: tagKeys.all })
+  await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+}
+
+function getAvailableTags(queryClient: TagQueryClient): Tag[] {
+  return queryClient
+    .getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
+    .flatMap(([, tags]) => tags ?? [])
+}
+
+function updateHabitTagReferences(
+  queryClient: TagQueryClient,
+  updater: (tags: Tag[]) => Tag[],
+): void {
+  queryClient.setQueriesData<HabitScheduleItem[]>(
+    { queryKey: habitKeys.lists() },
+    (old) => mapHabitTagReferences(old, updater),
+  )
+}
+
+function appendOptimisticTag(
+  queryClient: TagQueryClient,
+  tempId: string,
+  name: string,
+  color: string,
+): void {
+  queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
+    appendTag(old, { id: tempId, name, color }),
+  )
+}
+
+function syncCreatedTagId(
+  queryClient: TagQueryClient,
+  tempId: string,
+  nextId: string,
+): void {
+  queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
+    updateTagInList(old, tempId, { id: nextId }),
+  )
+}
+
+function setOptimisticTagDetails(
+  queryClient: TagQueryClient,
+  tagId: string,
+  name: string,
+  color: string,
+): void {
+  queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
+    updateTagInList(old, tagId, { name, color }),
+  )
+}
+
+function setOptimisticDeletedTag(queryClient: TagQueryClient, tagId: string): void {
+  queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
+    removeTagFromList(old, tagId),
+  )
+}
+
+function setOptimisticAssignedTags(
+  queryClient: TagQueryClient,
+  habitId: string,
+  nextTags: Tag[],
+): void {
+  queryClient.setQueriesData<HabitScheduleItem[]>(
+    { queryKey: habitKeys.lists() },
+    (old) => setHabitTags(old, habitId, nextTags),
+  )
 }
 
 export function useTags() {
@@ -95,20 +191,13 @@ export function useCreateTag() {
       const tempId = createTempEntityId('tag')
       pendingCreateTagIds.set(vars, tempId)
 
-      queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
-        appendTag(old, { id: tempId, name: vars.name, color: vars.color }),
-      )
+      appendOptimisticTag(queryClient, tempId, vars.name, vars.color)
 
       return { previousLists, tempId, request: vars }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.request) {
-        pendingCreateTagIds.delete(context.request)
-      }
-      if (context?.previousLists) {
-        restoreTagLists(queryClient, context.previousLists)
-      }
+      restoreTagMutationContext(queryClient, context)
     },
 
     onSuccess: (result, _vars, context) => {
@@ -118,15 +207,12 @@ export function useCreateTag() {
       if (isQueuedResult(result)) return
       if (!context?.tempId) return
 
-      queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
-        updateTagInList(old, context.tempId, { id: result.id }),
-      )
+      syncCreatedTagId(queryClient, context.tempId, result.id)
     },
 
     onSettled: (data) => {
       if (isQueuedResult(data)) return
-      queryClient.invalidateQueries({ queryKey: tagKeys.all })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void invalidateTagMutationQueries(queryClient)
     },
   })
 }
@@ -166,33 +252,19 @@ export function useUpdateTag() {
         queryKey: habitKeys.lists(),
       })
 
-      queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
-        updateTagInList(old, tagId, { name, color }),
-      )
-      queryClient.setQueriesData<HabitScheduleItem[]>(
-        { queryKey: habitKeys.lists() },
-        (old) =>
-          mapHabitTagReferences(old, (tags) =>
-            tags.map((tag) => (tag.id === tagId ? { ...tag, name, color } : tag)),
-          ),
-      )
+      setOptimisticTagDetails(queryClient, tagId, name, color)
+      updateHabitTagReferences(queryClient, renameHabitTagReferences(tagId, name, color))
 
       return { previousLists, previousHabitLists }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        restoreTagLists(queryClient, context.previousLists)
-      }
-      if (context?.previousHabitLists) {
-        restoreHabitLists(queryClient, context.previousHabitLists)
-      }
+      restoreTagMutationContext(queryClient, context)
     },
 
     onSettled: (data) => {
       if (isQueuedResult(data)) return
-      queryClient.invalidateQueries({ queryKey: tagKeys.all })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void invalidateTagMutationQueries(queryClient)
     },
   })
 }
@@ -228,30 +300,19 @@ export function useDeleteTag() {
         queryKey: habitKeys.lists(),
       })
 
-      queryClient.setQueriesData<Tag[]>({ queryKey: tagKeys.lists() }, (old) =>
-        removeTagFromList(old, tagId),
-      )
-      queryClient.setQueriesData<HabitScheduleItem[]>(
-        { queryKey: habitKeys.lists() },
-        (old) => mapHabitTagReferences(old, (tags) => tags.filter((tag) => tag.id !== tagId)),
-      )
+      setOptimisticDeletedTag(queryClient, tagId)
+      updateHabitTagReferences(queryClient, removeHabitTagReferences(tagId))
 
       return { previousLists, previousHabitLists }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        restoreTagLists(queryClient, context.previousLists)
-      }
-      if (context?.previousHabitLists) {
-        restoreHabitLists(queryClient, context.previousHabitLists)
-      }
+      restoreTagMutationContext(queryClient, context)
     },
 
     onSettled: (data) => {
       if (isQueuedResult(data)) return
-      queryClient.invalidateQueries({ queryKey: tagKeys.all })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void invalidateTagMutationQueries(queryClient)
     },
   })
 }
@@ -288,29 +349,21 @@ export function useAssignTags() {
       const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
         queryKey: habitKeys.lists(),
       })
-      const availableTags = queryClient
-        .getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
-        .flatMap(([, tags]) => tags ?? [])
+      const availableTags = getAvailableTags(queryClient)
       const nextTags = resolveHabitTags(availableTags, tagIds)
 
-      queryClient.setQueriesData<HabitScheduleItem[]>(
-        { queryKey: habitKeys.lists() },
-        (old) => setHabitTags(old, habitId, nextTags),
-      )
+      setOptimisticAssignedTags(queryClient, habitId, nextTags)
 
       return { previousHabitLists }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previousHabitLists) {
-        restoreHabitLists(queryClient, context.previousHabitLists)
-      }
+      restoreTagMutationContext(queryClient, context)
     },
 
     onSettled: (data) => {
       if (isQueuedResult(data)) return
-      queryClient.invalidateQueries({ queryKey: tagKeys.all })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void invalidateTagMutationQueries(queryClient)
     },
   })
 }

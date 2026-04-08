@@ -187,7 +187,10 @@ function CodeStep({
       </p>
 
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
-        <div className="flex justify-center gap-1.5 sm:gap-2" role="group" aria-labelledby="code-sent-to">
+        <fieldset
+          className="flex justify-center gap-1.5 sm:gap-2 border-0 p-0 m-0"
+          aria-labelledby="code-sent-to"
+        >
           {codeDigits.map((digit, index) => (
             <input
               key={`code-digit-${index}`} // NOSONAR - fixed-length array where position is identity
@@ -205,7 +208,7 @@ function CodeStep({
               className="size-11 sm:w-12 sm:h-14 bg-surface-ground text-text-primary text-center text-lg sm:text-xl font-bold rounded-[var(--radius-md)] sm:rounded-[var(--radius-lg)] border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all"
             />
           ))}
-        </div>
+        </fieldset>
 
         <button
           type="submit"
