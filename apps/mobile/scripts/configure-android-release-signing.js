@@ -19,6 +19,7 @@ const androidDir = path.join(__dirname, "..", "android");
 const appDir = path.join(androidDir, "app");
 const keystorePath = path.join(appDir, "upload-keystore.jks");
 const keystorePropertiesPath = path.join(androidDir, "keystore.properties");
+const gradlePropertiesPath = path.join(androidDir, "gradle.properties");
 const rootBuildGradlePath = path.join(androidDir, "build.gradle");
 const buildGradlePath = path.join(appDir, "build.gradle");
 
@@ -61,8 +62,22 @@ function findBraceBlock(source, startRegex, fromIndex = 0) {
   return null;
 }
 
-if (!fs.existsSync(buildGradlePath) || !fs.existsSync(rootBuildGradlePath)) {
-  console.error(`Missing expected Android Gradle file: ${buildGradlePath} or ${rootBuildGradlePath}`);
+function upsertGradleProperty(source, key, value) {
+  const propertyPattern = new RegExp(`^${key}=.*$`, "m");
+  const nextLine = `${key}=${value}`;
+
+  if (propertyPattern.test(source)) {
+    return source.replace(propertyPattern, nextLine);
+  }
+
+  const normalizedSource = source.endsWith("\n") ? source : `${source}\n`;
+  return `${normalizedSource}${nextLine}\n`;
+}
+
+if (!fs.existsSync(buildGradlePath) || !fs.existsSync(rootBuildGradlePath) || !fs.existsSync(gradlePropertiesPath)) {
+  console.error(
+    `Missing expected Android Gradle file: ${buildGradlePath}, ${rootBuildGradlePath}, or ${gradlePropertiesPath}`
+  );
   process.exit(1);
 }
 
@@ -86,6 +101,7 @@ fs.writeFileSync(
 
 let buildGradle = fs.readFileSync(buildGradlePath, "utf8");
 let rootBuildGradle = fs.readFileSync(rootBuildGradlePath, "utf8");
+let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
 
 if (!rootBuildGradle.includes("asyncStorageLocalRepo")) {
   const repositoriesAnchor = "allprojects {\n  repositories {";
@@ -168,7 +184,20 @@ if (releaseBuildTypeBlock.content.includes("signingConfig signingConfigs.debug")
   buildGradle = `${buildGradle.slice(0, releaseBuildTypeBlock.start)}${updatedReleaseBuildTypeBlock}${buildGradle.slice(releaseBuildTypeBlock.end)}`;
 }
 
+gradleProperties = upsertGradleProperty(
+  gradleProperties,
+  "org.gradle.jvmargs",
+  "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -Dkotlin.daemon.jvm.options=-Xmx1536m,-XX:MaxMetaspaceSize=512m,-Dfile.encoding=UTF-8"
+);
+gradleProperties = upsertGradleProperty(
+  gradleProperties,
+  "kotlin.daemon.jvmargs",
+  "-Xmx1536m,-XX:MaxMetaspaceSize=512m,-Dfile.encoding=UTF-8"
+);
+gradleProperties = upsertGradleProperty(gradleProperties, "org.gradle.workers.max", "2");
+
 fs.writeFileSync(buildGradlePath, buildGradle);
 fs.writeFileSync(rootBuildGradlePath, rootBuildGradle);
+fs.writeFileSync(gradlePropertiesPath, gradleProperties);
 
-console.log("Configured Android release signing and local Maven repos for Gradle build.");
+console.log("Configured Android release signing, Gradle memory settings, and local Maven repos for Gradle build.");
