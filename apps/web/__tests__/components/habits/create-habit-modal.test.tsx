@@ -93,9 +93,13 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: () => 'today',
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  formatAPIDate: () => '2025-01-01',
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    formatAPIDate: () => '2025-01-01',
+  }
+})
 
 vi.mock('@/lib/habit-request-builders', () => ({
   buildCreateHabitRequest: vi.fn(() => ({})),
