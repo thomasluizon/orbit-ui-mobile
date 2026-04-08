@@ -48,6 +48,20 @@ export function differenceInCalendarDays(left: Date | number | string, right: Da
   return differenceInDays(left, right)
 }
 
+export function isSameDay(left: Date | number | string, right: Date | number | string): boolean {
+  const leftDate = toDate(left)
+  const rightDate = toDate(right)
+  return (
+    leftDate.getFullYear() === rightDate.getFullYear() &&
+    leftDate.getMonth() === rightDate.getMonth() &&
+    leftDate.getDate() === rightDate.getDate()
+  )
+}
+
+export function isAfter(left: Date | number | string, right: Date | number | string): boolean {
+  return toDate(left).getTime() > toDate(right).getTime()
+}
+
 export function addMonths(dateInput: Date | number | string, amount: number): Date {
   const date = toDate(dateInput)
   const result = new Date(date)

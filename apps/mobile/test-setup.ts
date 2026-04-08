@@ -1,4 +1,4 @@
-import { vi, type Mock } from 'vitest'
+import { vi } from 'vitest'
 import React from 'react'
 
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
@@ -92,22 +92,11 @@ vi.mock('react-native-draggable-flatlist', () => {
   }
 })
 
-interface GoalTestState {
-  createGoalMutateAsync: Mock
-  updateGoalMutateAsync: Mock
-}
-
-interface GoalTestGlobal {
-  __goalTestState?: GoalTestState
-}
-
-const goalTestGlobal = globalThis as GoalTestGlobal
-goalTestGlobal.__goalTestState ??= {
-  createGoalMutateAsync: vi.fn().mockResolvedValue({}) as Mock,
-  updateGoalMutateAsync: vi.fn().mockResolvedValue({}) as Mock,
-}
-
 vi.mock('react-i18next', () => ({
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => {},
+  },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,
@@ -190,19 +179,6 @@ vi.mock('@/components/ui/app-date-picker', () => ({
       value,
       onChangeText: onChange,
     }),
-}))
-
-vi.mock('@/hooks/use-goals', () => ({
-  useCreateGoal: () => ({
-    mutateAsync: goalTestGlobal.__goalTestState!.createGoalMutateAsync,
-    isPending: false,
-    error: null,
-  }),
-  useUpdateGoal: () => ({
-    mutateAsync: goalTestGlobal.__goalTestState!.updateGoalMutateAsync,
-    isPending: false,
-    error: null,
-  }),
 }))
 
 if (typeof require !== 'undefined' && require.extensions) {
