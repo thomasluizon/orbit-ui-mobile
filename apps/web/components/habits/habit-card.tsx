@@ -915,6 +915,7 @@ export function HabitCard({
   onSkip,
   onDelete,
   onDuplicate,
+  onEdit,
   onMoveParent,
   onDetail,
   onDrillInto,

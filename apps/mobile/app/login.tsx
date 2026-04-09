@@ -445,7 +445,7 @@ export default function LoginScreen() {
                 <Text style={styles.codeSentEmail}>{email}</Text>
               </Text>
 
-              <View style={styles.formSection}>
+              <View style={styles.codeFormSection}>
                 {/* 6-digit code inputs */}
                 <View
                   style={styles.codeInputRow}
@@ -617,6 +617,9 @@ function createStyles(colors: AppColors) {
   // -- Form --
   formSection: {
     gap: 16,
+  },
+  codeFormSection: {
+    gap: 24,
   },
   fieldGroup: {
     gap: 6, // space-y-1.5
