@@ -74,7 +74,7 @@ function createProfileActionButtonStyles(colors: AppColors) {
       backgroundColor: colors.surface,
     },
     dangerCompact: {
-      paddingVertical: 14,
+      paddingVertical: 16,
       backgroundColor: colors.surface,
     },
     icon: {

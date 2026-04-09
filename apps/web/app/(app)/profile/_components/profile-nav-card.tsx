@@ -32,15 +32,18 @@ export function ProfileNavCard({
       href={href}
       aria-labelledby={titleId}
       aria-describedby={hintId}
+      data-testid={isPrimary ? 'profile-primary-card' : undefined}
       className={`w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200 group ${
         isPrimary
-          ? 'bg-primary/10 border-primary/20 hover:bg-primary/15 hover:border-primary/30 hover:shadow-[var(--shadow-md)]'
+          ? 'bg-[var(--primary-tint-bg)] border-[var(--primary-tint-border)] hover:bg-[var(--primary-tint-bg-hover)] hover:border-[var(--primary-tint-border-hover)] hover:shadow-[var(--shadow-md)]'
           : 'bg-surface border-border-muted hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border'
       }`}
     >
       <div
         className={`shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors ${
-          isPrimary ? 'bg-primary/20 group-hover:bg-primary/30' : 'bg-primary/10'
+          isPrimary
+            ? 'bg-[var(--primary-tint-icon-bg)] group-hover:bg-[var(--primary-tint-icon-bg-hover)]'
+            : 'bg-primary/10'
         }`}
       >
         {icon}

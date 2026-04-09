@@ -377,6 +377,7 @@ export default function ProfileScreen() {
         {/* ==================== ACCOUNT ==================== */}
         <Text style={styles.sectionLabel}>{t('profile.sections.account')}</Text>
 
+        <View style={styles.cardStack}>
         {/* User info card */}
         <View style={styles.card}>
           {isLoading ? (
@@ -458,10 +459,12 @@ export default function ProfileScreen() {
             proBadgeLabel={t('common.proBadge')}
           />
         ))}
+        </View>
 
         {/* ==================== FEATURES ==================== */}
         <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.features')}</Text>
 
+        <View style={styles.cardStack}>
         {featureNavItems.map((item) => (
           <ProfileNavCard
             key={item.id}
@@ -475,10 +478,12 @@ export default function ProfileScreen() {
             proBadgeLabel={t('common.proBadge')}
           />
         ))}
+        </View>
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
         <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.accountActions')}</Text>
 
+        <View style={styles.cardStack}>
         {/* Logout */}
         <ProfileActionButton
           colors={colors}
@@ -506,6 +511,7 @@ export default function ProfileScreen() {
           tone="danger"
           compact
         />
+        </View>
       </ScrollView>
 
       {/* Fresh Start Modal */}
@@ -757,7 +763,6 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     borderWidth: 1,
     borderColor: colors.borderMuted,
     padding: 20,
-    marginBottom: 8,
   },
   skeleton: { backgroundColor: colors.surfaceElevated, borderRadius: 8 },
   userName: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
@@ -770,7 +775,6 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     borderWidth: 1,
     borderColor: colors.borderMuted,
     padding: 20,
-    marginBottom: 8,
   },
   streakCardInner: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   streakFlameContainer: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
@@ -793,8 +797,10 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     alignItems: 'center',
     borderRadius: 20,
     padding: 20,
-    marginBottom: 8,
     gap: 16,
+  },
+  cardStack: {
+    gap: 12,
   },
   subscriptionActive: {
     backgroundColor: colors.primary_10,

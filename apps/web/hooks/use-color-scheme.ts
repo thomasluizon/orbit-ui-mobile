@@ -90,6 +90,18 @@ function applySchemeToDOM(scheme: ColorScheme, theme: ThemeMode, animate = false
   root.style.setProperty('--color-primary-950', s[950] ?? '')
   root.style.setProperty('--primary-shadow', def.shadowRgb)
 
+  // Theme-aware primary tint tokens. Light mode needs stronger alphas to be
+  // visible on a white surface; dark mode keeps the original 0.10/0.15/0.20/0.30 ladder.
+  const tint = theme === 'light'
+    ? { bg: 0.18, bgHover: 0.24, border: 0.35, borderHover: 0.45, iconBg: 0.28, iconBgHover: 0.38 }
+    : { bg: 0.10, bgHover: 0.15, border: 0.20, borderHover: 0.30, iconBg: 0.20, iconBgHover: 0.30 }
+  root.style.setProperty('--primary-tint-bg', `rgba(${def.shadowRgb}, ${tint.bg})`)
+  root.style.setProperty('--primary-tint-bg-hover', `rgba(${def.shadowRgb}, ${tint.bgHover})`)
+  root.style.setProperty('--primary-tint-border', `rgba(${def.shadowRgb}, ${tint.border})`)
+  root.style.setProperty('--primary-tint-border-hover', `rgba(${def.shadowRgb}, ${tint.borderHover})`)
+  root.style.setProperty('--primary-tint-icon-bg', `rgba(${def.shadowRgb}, ${tint.iconBg})`)
+  root.style.setProperty('--primary-tint-icon-bg-hover', `rgba(${def.shadowRgb}, ${tint.iconBgHover})`)
+
   // Date input calendar icon filter (invert for dark, none for light)
   root.style.setProperty('--date-icon-filter', theme === 'dark' ? 'invert(0.6)' : 'none')
 

@@ -73,6 +73,14 @@
   --shadow-glow-sm: 0 0 10px rgba(var(--primary-shadow), 0.15);
   --shadow-glow-lg: 0 0 30px rgba(var(--primary-shadow), 0.3), 0 0 60px rgba(var(--primary-shadow), 0.15);
 
+  /* Primary tint tokens (dark-mode defaults; overridden for light in use-color-scheme) */
+  --primary-tint-bg: rgba(var(--primary-shadow), 0.10);
+  --primary-tint-bg-hover: rgba(var(--primary-shadow), 0.15);
+  --primary-tint-border: rgba(var(--primary-shadow), 0.20);
+  --primary-tint-border-hover: rgba(var(--primary-shadow), 0.30);
+  --primary-tint-icon-bg: rgba(var(--primary-shadow), 0.20);
+  --primary-tint-icon-bg-hover: rgba(var(--primary-shadow), 0.30);
+
   /* Transition tokens */
   --duration-fast: 120ms;
   --duration-normal: 200ms;

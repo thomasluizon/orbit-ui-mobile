@@ -29,6 +29,9 @@ export interface AppColors {
   primary_20: string
   primary_30: string
   primary_80: string
+  primaryTintBg: string
+  primaryTintBorder: string
+  primaryTintIconBg: string
   primaryRing: string
   textFaded40: string
   border50: string
@@ -172,6 +175,11 @@ export function createColors(
     primary_20: alpha(0.2),
     primary_30: alpha(0.3),
     primary_80: alpha(0.8),
+    // Theme-aware tint tokens: light mode needs stronger alphas for contrast
+    // on a white surface; dark mode keeps the original 0.10/0.20 ladder.
+    primaryTintBg: alpha(isLight ? 0.18 : 0.1),
+    primaryTintBorder: alpha(isLight ? 0.35 : 0.2),
+    primaryTintIconBg: alpha(isLight ? 0.28 : 0.2),
     primaryRing: alpha(0.3),
     textPrimary: theme.textPrimary,
     textSecondary: theme.textSecondary,

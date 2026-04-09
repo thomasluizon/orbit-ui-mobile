@@ -78,8 +78,8 @@ function createProfileNavCardStyles(colors: AppColors) {
       elevation: 1,
     },
     navCardPrimary: {
-      backgroundColor: colors.primary_10,
-      borderColor: colors.primary_20,
+      backgroundColor: colors.primaryTintBg,
+      borderColor: colors.primaryTintBorder,
     },
     navCardIcon: {
       width: 48,
@@ -91,7 +91,7 @@ function createProfileNavCardStyles(colors: AppColors) {
       flexShrink: 0,
     },
     navCardIconPrimary: {
-      backgroundColor: colors.primary_20,
+      backgroundColor: colors.primaryTintIconBg,
     },
     navCardBody: {
       flex: 1,
