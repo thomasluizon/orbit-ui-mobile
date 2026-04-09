@@ -107,6 +107,7 @@ export {
 export default {
   ActivityIndicator,
   Animated,
+  AppState,
   Easing,
   FlatList,
   Image,

@@ -220,7 +220,7 @@ describe('HabitDetailDrawer', () => {
     expect(screen.queryByText('09:00')).toBeNull()
   })
 
-  it('shows edit and delete buttons in footer', () => {
+  it('does not render edit and delete footer actions', () => {
     render(
       <HabitDetailDrawer
         open={true}
@@ -228,40 +228,8 @@ describe('HabitDetailDrawer', () => {
         habit={defaultHabit}
       />,
     )
-    expect(screen.getByText('common.edit')).toBeDefined()
-    expect(screen.getByText('common.delete')).toBeDefined()
-  })
-
-  it('calls onEdit when edit button is clicked', () => {
-    const onEdit = vi.fn()
-    const onOpenChange = vi.fn()
-    render(
-      <HabitDetailDrawer
-        open={true}
-        onOpenChange={onOpenChange}
-        habit={defaultHabit}
-        onEdit={onEdit}
-      />,
-    )
-    fireEvent.click(screen.getByText('common.edit'))
-    expect(onEdit).toHaveBeenCalledWith('h-1')
-    expect(onOpenChange).toHaveBeenCalledWith(false)
-  })
-
-  it('calls onDelete when delete button is clicked', () => {
-    const onDelete = vi.fn()
-    const onOpenChange = vi.fn()
-    render(
-      <HabitDetailDrawer
-        open={true}
-        onOpenChange={onOpenChange}
-        habit={defaultHabit}
-        onDelete={onDelete}
-      />,
-    )
-    fireEvent.click(screen.getByText('common.delete'))
-    expect(onDelete).toHaveBeenCalledWith('h-1')
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(screen.queryByText('common.edit')).toBeNull()
+    expect(screen.queryByText('common.delete')).toBeNull()
   })
 
   it('displays streak metrics', () => {
