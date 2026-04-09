@@ -1,19 +1,22 @@
 'use client'
 
-import { useState, useMemo, useId, type ReactNode } from 'react'
+import { useState, useMemo, useId, useCallback, type ReactNode } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
+  getFriendlyErrorMessage,
   isValidHabitTimeInput,
 } from '@orbit/shared/utils'
+import { validateTagForm } from '@orbit/shared/validation'
 import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
@@ -424,12 +427,13 @@ interface ScheduledReminderSectionProps {
   scheduledReminders: Array<{ when: ScheduledReminderWhen; time: string }> | undefined
   onToggleReminder: () => void
   onSetScheduledReminders: (reminders: Array<{ when: ScheduledReminderWhen; time: string }>) => void
+  onValidationError: (message: string) => void
   t: ReturnType<typeof useTranslations>
 }
 
 function ScheduledReminderSection({
   scheduledReminderLabelId, reminderEnabled, scheduledReminders,
-  onToggleReminder, onSetScheduledReminders, t,
+  onToggleReminder, onSetScheduledReminders, onValidationError, t,
 }: Readonly<ScheduledReminderSectionProps>) {
   const MAX_SCHEDULED_REMINDERS = 5
   const [showForm, setShowForm] = useState(false)
@@ -439,11 +443,20 @@ function ScheduledReminderSection({
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
 
   function addScheduledReminder() {
-    if (!isValidHabitTimeInput(time)) return
-    if (atLimit) return
+    if (!isValidHabitTimeInput(time)) {
+      onValidationError(t('habits.form.invalidScheduledReminderTime'))
+      return
+    }
+    if (atLimit) {
+      onValidationError(t('habits.form.scheduledReminderMax'))
+      return
+    }
     const current = scheduledReminders ?? []
     const duplicate = current.some((sr) => sr.when === when && sr.time === time)
-    if (duplicate) return
+    if (duplicate) {
+      onValidationError(t('habits.form.duplicateScheduledReminder'))
+      return
+    }
     onSetScheduledReminders([...current, { when, time }])
     setTime('')
     setShowForm(false)
@@ -655,11 +668,17 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const reminderLabelId = useId()
   const scheduledReminderLabelId = useId()
   const slipAlertLabelId = useId()
   const slipAlertDescriptionId = useId()
   const hasProAccess = useHasProAccess()
+  const { showError } = useAppToast()
 
   const {
     form,
@@ -697,7 +716,6 @@ export function HabitFormFields({
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
-  const tagMutationError = createTag.error ?? updateTag.error ?? deleteTag.error
   const isTagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
 
   // Reminder label function (shared with ReminderSection)
@@ -750,6 +768,7 @@ export function HabitFormFields({
           id="habit-form-description"
           placeholder={t('habits.form.descriptionPlaceholder')}
           rows={2}
+          maxLength={2000}
           className="form-input resize-none"
           {...register('description')}
         />
@@ -895,11 +914,6 @@ export function HabitFormFields({
               setValue('dueTime', formatted, { shouldDirty: true })
             }}
           />
-          {watchedDueTime.length === 5 && !isValidHabitTimeInput(watchedDueTime) && (
-            <p className="text-xs text-red-400 font-medium">
-              {t('habits.form.invalidTime')}
-            </p>
-          )}
         </div>
       )}
 
@@ -923,19 +937,6 @@ export function HabitFormFields({
               setValue('dueEndTime', formatted, { shouldDirty: true })
             }}
           />
-          {watchedDueEndTime.length === 5 &&
-            !isValidHabitTimeInput(watchedDueEndTime) && (
-              <p className="text-xs text-red-400 font-medium">
-                {t('habits.form.invalidEndTime')}
-              </p>
-            )}
-          {watchedDueEndTime &&
-            watchedDueTime &&
-            watchedDueEndTime <= watchedDueTime && (
-              <p className="text-xs text-red-400 font-medium">
-                {t('habits.form.endTimeBeforeStartTime')}
-              </p>
-            )}
         </div>
       )}
 
@@ -963,11 +964,7 @@ export function HabitFormFields({
                   <X className="size-4" />
                 </button>
               </div>
-              {watchedEndDate && watchedDueDate && watchedEndDate < watchedDueDate ? (
-                <p className="text-xs text-red-400 font-medium">{t('habits.form.endDateBeforeDueDate')}</p>
-              ) : (
-                <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
-              )}
+              <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
             </div>
           ) : (
             <button
@@ -1007,6 +1004,7 @@ export function HabitFormFields({
           scheduledReminders={watchedScheduledReminders}
           onToggleReminder={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
           onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
+          onValidationError={showError}
           t={t}
         />
       )}
@@ -1033,7 +1031,12 @@ export function HabitFormFields({
               }}
               onDelete={() => {
                 void tags.deleteTag(tag.id, async (id) => {
-                  await deleteTag.mutateAsync(id)
+                  try {
+                    await deleteTag.mutateAsync(id)
+                  } catch (error) {
+                    showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+                    throw error
+                  }
                 })
               }}
             />
@@ -1066,8 +1069,18 @@ export function HabitFormFields({
               actionLabel={t('common.save')}
               onChange={tags.setEditTagName}
               onCommit={() => {
+                const validationErrorKey = validateTagForm(tags.editTagName, tags.editTagColor)
+                if (validationErrorKey) {
+                  showError(translate(validationErrorKey))
+                  return
+                }
                 void tags.saveEditTag(async (id, name, color) => {
-                  await updateTag.mutateAsync({ tagId: id, name, color })
+                  try {
+                    await updateTag.mutateAsync({ tagId: id, name, color })
+                  } catch (error) {
+                    showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+                    throw error
+                  }
                 })
               }}
               onCancel={tags.cancelEditTag}
@@ -1092,17 +1105,24 @@ export function HabitFormFields({
               actionLabel={t('common.add')}
               onChange={tags.setNewTagName}
               onCommit={() => {
+                const validationErrorKey = validateTagForm(tags.newTagName, tags.newTagColor)
+                if (validationErrorKey) {
+                  showError(translate(validationErrorKey))
+                  return
+                }
                 void tags.createAndSelectTag(async (name, color) => {
-                  const result = await createTag.mutateAsync({ name, color })
-                  return result.id
+                  try {
+                    const result = await createTag.mutateAsync({ name, color })
+                    return result.id
+                  } catch (error) {
+                    showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+                    throw error
+                  }
                 })
               }}
               onCancel={() => tags.setShowNewTag(false)}
             />
           </div>
-        )}
-        {tagMutationError && (
-          <p className="text-xs text-red-400 font-medium">{tagMutationError.message}</p>
         )}
       </div>
 

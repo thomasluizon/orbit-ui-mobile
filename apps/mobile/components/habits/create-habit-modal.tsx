@@ -13,6 +13,7 @@ import { Trash2, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { HabitFormFields } from "./habit-form-fields";
+import { useAppToast } from "@/hooks/use-app-toast";
 import { useHabitForm } from "@/hooks/use-habit-form";
 import { useTagSelection } from "@/hooks/use-tag-selection";
 import { useCreateHabit, useCreateSubHabit } from "@/hooks/use-habits";
@@ -21,6 +22,7 @@ import {
   buildEmptyHabitFormValues,
   buildParentHabitFormState,
   formatAPIDate,
+  getFriendlyErrorMessage,
   toggleSelectedId,
 } from "@orbit/shared/utils";
 import { useUIStore } from "@/stores/ui-store";
@@ -70,11 +72,16 @@ export function CreateHabitModal({
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const { t } = useTranslation();
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  );
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const createHabit = useCreateHabit();
   const createSubHabit = useCreateSubHabit();
+  const { showError } = useAppToast();
   const isSubHabitMode = !!parentHabit;
   const activeView = useUIStore((s) => s.activeView);
 
@@ -87,7 +94,6 @@ export function CreateHabitModal({
   const tags = useTagSelection();
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([]);
-  const [validationError, setValidationError] = useState("");
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
 
   const atGoalLimit = selectedGoalIds.length >= 10;
@@ -106,7 +112,6 @@ export function CreateHabitModal({
     tags.resetTags();
     setSelectedGoalIds([]);
     setSubHabits([]);
-    setValidationError("");
     setReminderTimes([0, 15]);
 
     if (parentHabit) {
@@ -123,16 +128,18 @@ export function CreateHabitModal({
   }, [open]);
 
   const handleSubmit = useCallback(async () => {
-    setValidationError("");
-
-    const error = formHelpers.validateAll();
-    if (error) {
-      setValidationError(error);
-      return;
-    }
-
     const data = formHelpers.form.getValues() as unknown as HabitFormData;
     const subHabitValues = subHabits.map((entry) => entry.value);
+    const error = formHelpers.validateAll({
+      reminderTimes,
+      selectedGoalIds,
+      selectedTagIds: tags.selectedTagIds,
+      subHabits: subHabitValues,
+    });
+    if (error) {
+      showError(error);
+      return;
+    }
 
     try {
       if (isSubHabitMode && parentHabit) {
@@ -156,8 +163,15 @@ export function CreateHabitModal({
         await createHabit.mutateAsync(request);
       }
       onClose();
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          translate,
+          isSubHabitMode ? "errors.createSubHabit" : "errors.createHabit",
+          isSubHabitMode ? "subHabit" : "habit",
+        ),
+      );
     }
   }, [
     formHelpers,
@@ -170,6 +184,8 @@ export function CreateHabitModal({
     createHabit,
     createSubHabit,
     onClose,
+    showError,
+    translate,
   ]);
 
   const isPending = createHabit.isPending || createSubHabit.isPending;
@@ -218,6 +234,7 @@ export function CreateHabitModal({
                     <View key={entry.id} style={styles.subHabitRow}>
                       <TextInput
                         value={entry.value}
+                        maxLength={200}
                         placeholder={t("habits.form.subHabitPlaceholder")}
                         placeholderTextColor={colors.textMuted}
                         style={[styles.input, { flex: 1 }]}
@@ -252,18 +269,6 @@ export function CreateHabitModal({
             </View>
           )}
         </HabitFormFields>
-
-        {/* Validation error */}
-        {validationError ? (
-          <Text style={styles.errorText}>{validationError}</Text>
-        ) : null}
-
-        {/* Mutation error */}
-        {(createHabit.error || createSubHabit.error) && (
-          <Text style={styles.errorText}>
-            {(createHabit.error || createSubHabit.error)?.message}
-          </Text>
-        )}
 
         {/* Submit buttons */}
         <View style={styles.buttonRow}>
@@ -354,11 +359,6 @@ function createStyles(
       fontSize: 12,
       fontWeight: "600",
       color: colors.primary,
-    },
-    errorText: {
-      fontSize: 14,
-      color: colors.red500,
-      fontWeight: "500",
     },
     buttonRow: {
       flexDirection: "row",

@@ -19,12 +19,19 @@ vi.mock('next-intl', () => ({
 }))
 
 const mockMutateAsync = vi.fn().mockResolvedValue({})
+const mockShowError = vi.fn()
 
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
     error: null,
+  }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
   }),
 }))
 
@@ -38,6 +45,7 @@ describe('CreateGoalModal', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     mockMutateAsync.mockClear()
+    mockShowError.mockClear()
   })
 
   it('renders nothing when closed', () => {
@@ -72,11 +80,14 @@ describe('CreateGoalModal', () => {
 
   it('shows validation error when submitting without target value', () => {
     render(<CreateGoalModal open={true} onOpenChange={vi.fn()} />)
+    const descriptionInput = screen.getByLabelText(/goals.form.description/)
+    fireEvent.change(descriptionInput, { target: { value: 'Read more books' } })
     const submitBtn = screen.getAllByText('goals.create').find(
       (el) => el.tagName === 'BUTTON' && el.getAttribute('type') === 'submit',
     )
     if (submitBtn) fireEvent.click(submitBtn)
-    expect(screen.getByText('goals.form.targetValueRequired')).toBeInTheDocument()
+    expect(mockShowError).toHaveBeenCalledWith('goals.form.targetValueRequired')
+    expect(mockMutateAsync).not.toHaveBeenCalled()
   })
 
   it('shows validation error when unit is empty but target is set', () => {
@@ -87,7 +98,8 @@ describe('CreateGoalModal', () => {
       (el) => el.tagName === 'BUTTON' && el.getAttribute('type') === 'submit',
     )
     if (submitBtn) fireEvent.click(submitBtn)
-    expect(screen.getByText('goals.form.unitRequired')).toBeInTheDocument()
+    expect(mockShowError).toHaveBeenCalledWith('goals.form.unitRequired')
+    expect(mockMutateAsync).not.toHaveBeenCalled()
   })
 
   it('renders the title from the overlay', () => {

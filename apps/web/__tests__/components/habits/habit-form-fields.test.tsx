@@ -114,6 +114,7 @@ function createMockTags(overrides?: Partial<TagSelectionState>): TagSelectionSta
   return {
     selectedTagIds: [],
     atTagLimit: false,
+    tagValidationErrorKey: null,
     toggleTag: vi.fn(),
     resetTags: vi.fn(),
     showNewTag: false,
@@ -691,7 +692,7 @@ describe('HabitFormFields', () => {
   // Invalid time validation messages
   // -------------------------------------------------------------------------
 
-  it('shows invalid time error for malformed dueTime', () => {
+  it('does not show inline invalid time error for malformed dueTime', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -722,10 +723,10 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('habits.form.invalidTime')).toBeDefined()
+    expect(screen.queryByText('habits.form.invalidTime')).toBeNull()
   })
 
-  it('shows endTimeBeforeStartTime error when end time is before start time', () => {
+  it('does not show inline end time ordering error when end time is before start time', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -756,7 +757,7 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('habits.form.endTimeBeforeStartTime')).toBeDefined()
+    expect(screen.queryByText('habits.form.endTimeBeforeStartTime')).toBeNull()
   })
 
   // -------------------------------------------------------------------------
@@ -815,7 +816,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.endDateHint')).toBeDefined()
   })
 
-  it('shows endDateBeforeDueDate error when endDate is before dueDate', () => {
+  it('keeps end date messaging neutral when endDate is before dueDate', () => {
     const formHelpers = createMockFormHelpers({ showEndDate: true })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -846,7 +847,8 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('habits.form.endDateBeforeDueDate')).toBeDefined()
+    expect(screen.queryByText('habits.form.endDateBeforeDueDate')).toBeNull()
+    expect(screen.getByText('habits.form.endDateHint')).toBeDefined()
   })
 
   it('clears endDate when remove button is clicked', () => {

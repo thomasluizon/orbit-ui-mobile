@@ -27,13 +27,16 @@ import type {
 import {
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
+  getFriendlyErrorMessage,
   isValidHabitTimeInput,
 } from "@orbit/shared/utils";
+import { validateTagForm } from "@orbit/shared/validation";
 import { HabitChecklist } from "./habit-checklist";
 import { ChecklistTemplates } from "./checklist-templates";
 import { GoalLinkingField } from "./goal-linking-field";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
+import { useAppToast } from "@/hooks/use-app-toast";
 import { useHasProAccess } from "@/hooks/use-profile";
 import {
   useCreateTag,
@@ -497,6 +500,7 @@ interface ScheduledReminderSectionProps {
   onSetScheduledReminders: (
     reminders: Array<{ when: ScheduledReminderWhen; time: string }>,
   ) => void;
+  onValidationError: (message: string) => void;
 }
 
 function ScheduledReminderSection({
@@ -505,6 +509,7 @@ function ScheduledReminderSection({
   scheduledReminders,
   onToggleReminder,
   onSetScheduledReminders,
+  onValidationError,
 }: Readonly<ScheduledReminderSectionProps>) {
   const { t } = useTranslation();
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
@@ -516,13 +521,22 @@ function ScheduledReminderSection({
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
 
   function addScheduledReminder() {
-    if (!isValidHabitTimeInput(time)) return;
-    if (atLimit) return;
+    if (!isValidHabitTimeInput(time)) {
+      onValidationError(t("habits.form.invalidScheduledReminderTime"));
+      return;
+    }
+    if (atLimit) {
+      onValidationError(t("habits.form.scheduledReminderMax"));
+      return;
+    }
     const current = scheduledReminders ?? [];
     const duplicate = current.some(
       (sr) => sr.when === when && sr.time === time,
     );
-    if (duplicate) return;
+    if (duplicate) {
+      onValidationError(t("habits.form.duplicateScheduledReminder"));
+      return;
+    }
     onSetScheduledReminders([...current, { when, time }]);
     setTime("");
     setShowForm(false);
@@ -774,7 +788,12 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t } = useTranslation();
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  );
   const { colors } = useAppTheme();
+  const { showError } = useAppToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
   const hasProAccess = useHasProAccess();
@@ -782,8 +801,6 @@ export function HabitFormFields({
   const createTag = useCreateTag();
   const updateTag = useUpdateTag();
   const deleteTag = useDeleteTag();
-  const tagMutationError =
-    createTag.error ?? updateTag.error ?? deleteTag.error;
   const isTagMutationPending =
     createTag.isPending || updateTag.isPending || deleteTag.isPending;
 
@@ -857,6 +874,7 @@ export function HabitFormFields({
           value={watchedDescription}
           placeholder={t("habits.form.descriptionPlaceholder")}
           placeholderTextColor={colors.textMuted}
+          maxLength={2000}
           multiline
           numberOfLines={2}
           style={[styles.input, styles.textarea]}
@@ -1009,11 +1027,6 @@ export function HabitFormFields({
               setValue("dueTime", formatted, { shouldDirty: true });
             }}
           />
-          {watchedDueTime.length === 5 && !isValidHabitTimeInput(watchedDueTime) && (
-            <Text style={styles.validationError}>
-              {t("habits.form.invalidTime")}
-            </Text>
-          )}
         </View>
       )}
 
@@ -1033,19 +1046,6 @@ export function HabitFormFields({
               setValue("dueEndTime", formatted, { shouldDirty: true });
             }}
           />
-          {watchedDueEndTime.length === 5 &&
-            !isValidHabitTimeInput(watchedDueEndTime) && (
-              <Text style={styles.validationError}>
-                {t("habits.form.invalidEndTime")}
-              </Text>
-            )}
-          {watchedDueEndTime &&
-            watchedDueTime &&
-            watchedDueEndTime <= watchedDueTime && (
-              <Text style={styles.validationError}>
-                {t("habits.form.endTimeBeforeStartTime")}
-              </Text>
-            )}
         </View>
       )}
 
@@ -1073,17 +1073,9 @@ export function HabitFormFields({
                   <X size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-              {watchedEndDate &&
-              watchedDueDate &&
-              watchedEndDate < watchedDueDate ? (
-                <Text style={styles.validationError}>
-                  {t("habits.form.endDateBeforeDueDate")}
-                </Text>
-              ) : (
-                <Text style={styles.hintText}>
-                  {t("habits.form.endDateHint")}
-                </Text>
-              )}
+              <Text style={styles.hintText}>
+                {t("habits.form.endDateHint")}
+              </Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -1132,6 +1124,7 @@ export function HabitFormFields({
           onSetScheduledReminders={(reminders) =>
             setValue("scheduledReminders", reminders, { shouldDirty: true })
           }
+          onValidationError={showError}
         />
       )}
 
@@ -1155,7 +1148,19 @@ export function HabitFormFields({
                 onEdit={() => tags.startEditTag(tag)}
                 onDelete={() =>
                   tags.deleteTag(tag.id, async (id) => {
-                    await deleteTag.mutateAsync(id);
+                    try {
+                      await deleteTag.mutateAsync(id);
+                    } catch (error) {
+                      showError(
+                        getFriendlyErrorMessage(
+                          error,
+                          translate,
+                          "toast.errors.validation",
+                          "tag",
+                        ),
+                      );
+                      throw error;
+                    }
                   })
                 }
               />
@@ -1192,11 +1197,32 @@ export function HabitFormFields({
               cancelAriaLabel={t("common.cancel")}
               disabled={isTagMutationPending}
               onChange={tags.setEditTagName}
-              onCommit={() =>
-                tags.saveEditTag(async (id, name, color) => {
-                  await updateTag.mutateAsync({ tagId: id, name, color });
-                })
-              }
+              onCommit={() => {
+                const validationErrorKey = validateTagForm(
+                  tags.editTagName,
+                  tags.editTagColor,
+                );
+                if (validationErrorKey) {
+                  showError(translate(validationErrorKey));
+                  return;
+                }
+
+                void tags.saveEditTag(async (id, name, color) => {
+                  try {
+                    await updateTag.mutateAsync({ tagId: id, name, color });
+                  } catch (error) {
+                    showError(
+                      getFriendlyErrorMessage(
+                        error,
+                        translate,
+                        "toast.errors.validation",
+                        "tag",
+                      ),
+                    );
+                    throw error;
+                  }
+                });
+              }}
               onCancel={tags.cancelEditTag}
               styles={styles}
               colors={colors}
@@ -1222,21 +1248,39 @@ export function HabitFormFields({
               cancelAriaLabel={t("common.cancel")}
               disabled={isTagMutationPending}
               onChange={tags.setNewTagName}
-              onCommit={() =>
-                tags.createAndSelectTag(async (name, color) => {
-                  const result = await createTag.mutateAsync({ name, color });
-                  return result.id;
-                })
-              }
+              onCommit={() => {
+                const validationErrorKey = validateTagForm(
+                  tags.newTagName,
+                  tags.newTagColor,
+                );
+                if (validationErrorKey) {
+                  showError(translate(validationErrorKey));
+                  return;
+                }
+
+                void tags.createAndSelectTag(async (name, color) => {
+                  try {
+                    const result = await createTag.mutateAsync({ name, color });
+                    return result.id;
+                  } catch (error) {
+                    showError(
+                      getFriendlyErrorMessage(
+                        error,
+                        translate,
+                        "toast.errors.validation",
+                        "tag",
+                      ),
+                    );
+                    throw error;
+                  }
+                });
+              }}
               onCancel={() => tags.setShowNewTag(false)}
               styles={styles}
               colors={colors}
             />
           </View>
         )}
-        {tagMutationError ? (
-          <Text style={styles.validationError}>{tagMutationError.message}</Text>
-        ) : null}
       </View>
 
       <GoalLinkingField
@@ -1547,11 +1591,6 @@ function createStyles(colors: ThemeColors) {
     textarea: {
       minHeight: 60,
       textAlignVertical: "top",
-    },
-    validationError: {
-      fontSize: 12,
-      color: colors.red400,
-      fontWeight: "500",
     },
     hintText: {
       fontSize: 12,

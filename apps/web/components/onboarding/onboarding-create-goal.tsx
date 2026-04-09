@@ -3,10 +3,13 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
-  getErrorMessage,
+  getFriendlyErrorMessage,
   ONBOARDING_GOAL_SUGGESTIONS,
+  translateErrorKey,
+  validateGoalDraftInput,
 } from '@orbit/shared/utils'
 
 interface GoalSuggestion {
@@ -23,12 +26,17 @@ interface OnboardingCreateGoalProps {
 
 export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingCreateGoalProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState<number | undefined>(undefined)
   const [unit, setUnit] = useState('')
   const [isCreated, setIsCreated] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
+  const { showError } = useAppToast()
 
   const createGoal = useCreateGoal()
   const isCreating = createGoal.isPending
@@ -56,7 +64,14 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
   const handleCreate = useCallback(async () => {
     if (!canCreate || isCreating) return
 
-    setError(null)
+    const validationError = translateErrorKey(
+      translate,
+      validateGoalDraftInput(description, targetValue ?? null, unit),
+    )
+    if (validationError) {
+      showError(validationError)
+      return
+    }
 
     const title = description.trim() || `${targetValue} ${unit.trim()}`
     createGoal.mutate(
@@ -73,11 +88,11 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
           }, 1500)
         },
         onError: (err: unknown) => {
-          setError(getErrorMessage(err, t('goals.errors.create')))
+          showError(getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'))
         },
       },
     )
-  }, [canCreate, isCreating, description, targetValue, unit, createGoal, onCreated])
+  }, [canCreate, createGoal, description, isCreating, onCreated, showError, targetValue, translate, unit])
 
   if (isCreated) {
     return (
@@ -152,6 +167,7 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
             onChange={(e) => setUnit(e.target.value)}
             className="form-input w-full"
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
+            maxLength={50}
             disabled={isCreating}
           />
         </div>
@@ -161,14 +177,10 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
           onChange={(e) => setDescription(e.target.value)}
           className="form-input w-full"
           placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
+          maxLength={200}
           disabled={isCreating}
         />
       </div>
-
-      {/* Error */}
-      {error && (
-        <p className="mt-3 text-sm text-danger">{error}</p>
-      )}
 
       {/* Create button */}
       <button

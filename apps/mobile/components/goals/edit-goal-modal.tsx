@@ -13,12 +13,18 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from '@orbit/shared/utils'
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
+  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -67,9 +73,14 @@ const goalRadius = {
 
 export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const { t } = useTranslation()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  )
   const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
   const updateGoal = useUpdateGoal()
+  const { showError } = useAppToast()
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Form state
@@ -77,7 +88,6 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
-  const [validationError, setValidationError] = useState('')
 
   const isSubmitting = updateGoal.isPending
 
@@ -88,19 +98,14 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
-      setValidationError('')
     }
   }, [open, goal])
 
   function validate(): string | null {
-    const numVal = parseGoalTargetValue(targetValue)
-    if (numVal === null || numVal <= 0) {
-      return t('goals.form.targetValueRequired')
-    }
-    if (!unit.trim()) {
-      return t('goals.form.unitRequired')
-    }
-    return null
+    return translateErrorKey(
+      translate,
+      validateGoalDraftInput(description, targetValue, unit),
+    )
   }
 
   function buildTitle(): string {
@@ -108,11 +113,9 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   }
 
   const onSubmit = useCallback(async () => {
-    setValidationError('')
-
     const err = validate()
     if (err) {
-      setValidationError(err)
+      showError(err)
       return
     }
 
@@ -130,18 +133,15 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
 
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
       onClose()
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetValue, unit, description, deadline, goal.id, updateGoal, onClose])
+  }, [deadline, description, goal.id, onClose, showError, targetValue, translate, unit, updateGoal])
 
   const handleClose = useCallback(() => {
-    setValidationError('')
     onClose()
   }, [onClose])
-
-  const mutationError = updateGoal.error?.message ?? null
 
   return (
     <BottomSheetModal
@@ -242,16 +242,6 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
           )}
         </View>
 
-        {/* Validation error */}
-        {validationError ? (
-          <Text style={styles.errorText}>{validationError}</Text>
-        ) : null}
-
-        {/* Mutation error */}
-        {mutationError ? (
-          <Text style={styles.errorText}>{mutationError}</Text>
-        ) : null}
-
         {/* Submit */}
         <TouchableOpacity
           style={[styles.submitButton, isSubmitting && styles.submitDisabled]}
@@ -348,11 +338,6 @@ function createStyles(colors: AppColors, bottomInset: number) {
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.red400,
-    lineHeight: 18,
   },
   submitButton: {
     marginTop: 4,

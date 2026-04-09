@@ -3,12 +3,15 @@
 import { useState, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateHabit } from '@/hooks/use-habits'
 import {
-  getErrorMessage,
+  getFriendlyErrorMessage,
   getOnboardingHabitFrequencyLabelKey,
   ONBOARDING_HABIT_FREQUENCIES,
   ONBOARDING_HABIT_SUGGESTIONS,
+  translateErrorKey,
+  validateHabitFormInput,
 } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
@@ -23,11 +26,16 @@ interface OnboardingCreateHabitProps {
 
 export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHabitProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const [title, setTitle] = useState('')
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
   const [isCreated, setIsCreated] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
+  const { showError } = useAppToast()
 
   const createHabit = useCreateHabit()
   const isCreating = createHabit.isPending
@@ -52,7 +60,18 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   const handleCreate = useCallback(async () => {
     if (!title.trim() || isCreating) return
 
-    setError(null)
+    const validationError = translateErrorKey(
+      translate,
+      validateHabitFormInput({
+        title: title.trim(),
+        frequencyUnit,
+        frequencyQuantity: frequencyUnit ? 1 : null,
+      }),
+    )
+    if (validationError) {
+      showError(validationError)
+      return
+    }
 
     createHabit.mutate(
       {
@@ -69,11 +88,11 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           }, 1500)
         },
         onError: (err: unknown) => {
-          setError(getErrorMessage(err, t('errors.createHabit')))
+          showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
         },
       },
     )
-  }, [title, frequencyUnit, isCreating, createHabit, onCreated])
+  }, [title, frequencyUnit, isCreating, createHabit, onCreated, showError, translate])
 
   if (isCreated) {
     return (
@@ -136,6 +155,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         onChange={(e) => setTitle(e.target.value)}
         className="form-input w-full"
         placeholder={t('onboarding.flow.createHabit.placeholder')}
+        maxLength={200}
         disabled={isCreating}
         onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
       />
@@ -157,11 +177,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           </button>
         ))}
       </div>
-
-      {/* Error */}
-      {error && (
-        <p className="mt-3 text-sm text-danger">{error}</p>
-      )}
 
       {/* Create button */}
       <button

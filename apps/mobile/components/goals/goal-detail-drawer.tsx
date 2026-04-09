@@ -21,6 +21,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
@@ -29,13 +30,18 @@ import {
   GoalProgressHistorySection,
 } from './goal-detail-sections'
 import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+  validateGoalProgressInput,
+} from '@orbit/shared/utils'
+import {
   useGoals,
   useGoalDetail,
   useUpdateGoalProgress,
   useUpdateGoalStatus,
   useDeleteGoal,
 } from '@/hooks/use-goals'
-import { createColors, radius } from '@/lib/theme'
+import { radius } from '@/lib/theme'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -61,6 +67,11 @@ export function GoalDetailDrawer({
   goalId,
 }: GoalDetailDrawerProps) {
   const { t, i18n } = useTranslation()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  )
+  const { showError } = useAppToast()
   const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
   const locale = i18n.language
@@ -126,6 +137,15 @@ export function GoalDetailDrawer({
 
   // Handlers
   const submitProgress = useCallback(async () => {
+    const validationError = translateErrorKey(
+      translate,
+      validateGoalProgressInput(progressValue),
+    )
+    if (validationError) {
+      showError(validationError)
+      return
+    }
+
     const numVal = Number(progressValue)
     if (!progressValue || isNaN(numVal)) return
     try {
@@ -140,10 +160,10 @@ export function GoalDetailDrawer({
       setProgressNote('')
       setShowProgressForm(false)
       refetchDetail()
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.progress', 'goalProgress'))
     }
-  }, [goalId, progressValue, progressNote, updateProgress, refetchDetail])
+  }, [goalId, progressNote, progressValue, refetchDetail, showError, translate, updateProgress])
 
   const markCompleted = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -154,10 +174,10 @@ export function GoalDetailDrawer({
         goalName: goal?.title,
       })
       refetchDetail()
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, updateStatus, refetchDetail])
+  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const markAbandoned = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -168,10 +188,10 @@ export function GoalDetailDrawer({
         goalName: goal?.title,
       })
       refetchDetail()
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, updateStatus, refetchDetail])
+  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const reactivate = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -182,10 +202,10 @@ export function GoalDetailDrawer({
         goalName: goal?.title,
       })
       refetchDetail()
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, updateStatus, refetchDetail])
+  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const confirmDelete = useCallback(() => {
     Alert.alert(
@@ -197,19 +217,17 @@ export function GoalDetailDrawer({
           text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
-            await deleteGoalMut.mutateAsync(goalId)
-            onClose()
+            try {
+              await deleteGoalMut.mutateAsync(goalId)
+              onClose()
+            } catch (error) {
+              showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
+            }
           },
         },
       ],
     )
-  }, [goalId, deleteGoalMut, onClose, t])
-
-  const mutationError =
-    updateProgress.error?.message ??
-    updateStatus.error?.message ??
-    deleteGoalMut.error?.message ??
-    null
+  }, [deleteGoalMut, goalId, onClose, showError, t, translate])
 
   if (!goal) return null
 
@@ -367,11 +385,6 @@ export function GoalDetailDrawer({
             <Text style={styles.warningText}>
               {t('goals.detail.loadError')}
             </Text>
-          )}
-
-          {/* Mutation error */}
-          {mutationError && (
-            <Text style={styles.errorText}>{mutationError}</Text>
           )}
 
           {/* Actions */}

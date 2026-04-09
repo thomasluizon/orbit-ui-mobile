@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import {
@@ -13,6 +14,7 @@ import {
   buildEmptyHabitFormValues,
   buildParentHabitFormState,
   formatAPIDate,
+  getFriendlyErrorMessage,
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
@@ -54,8 +56,14 @@ export function CreateHabitModal({
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
+  const { showError } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
 
@@ -68,7 +76,6 @@ export function CreateHabitModal({
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
-  const [validationError, setValidationError] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
 
   const atGoalLimit = selectedGoalIds.length >= 10
@@ -87,7 +94,6 @@ export function CreateHabitModal({
     tags.resetTags()
     setSelectedGoalIds([])
     setSubHabits([])
-    setValidationError('')
     setReminderTimes([0, 15])
 
     if (parentHabit) {
@@ -106,16 +112,19 @@ export function CreateHabitModal({
   const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
-      setValidationError('')
-
-      const error = formHelpers.validateAll()
-      if (error) {
-        setValidationError(error)
-        return
-      }
 
       const data = formHelpers.form.getValues() as unknown as HabitFormData
       const subHabitValues = subHabits.map((entry) => entry.value)
+      const error = formHelpers.validateAll({
+        reminderTimes,
+        selectedGoalIds,
+        selectedTagIds: tags.selectedTagIds,
+        subHabits: subHabitValues,
+      })
+      if (error) {
+        showError(error)
+        return
+      }
 
       try {
         if (isSubHabitMode && parentHabit) {
@@ -126,11 +135,18 @@ export function CreateHabitModal({
           await createHabit.mutateAsync(request)
         }
         onOpenChange(false)
-      } catch {
-        // Error handled by mutation
+      } catch (error) {
+        showError(
+          getFriendlyErrorMessage(
+            error,
+            translate,
+            isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
+            isSubHabitMode ? 'subHabit' : 'habit',
+          ),
+        )
       }
     },
-    [formHelpers, isSubHabitMode, parentHabit, tags, selectedGoalIds, subHabits, reminderTimes, createHabit, createSubHabit, onOpenChange],
+    [createHabit, createSubHabit, formHelpers, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const isPending = createHabit.isPending || createSubHabit.isPending
@@ -177,6 +193,7 @@ export function CreateHabitModal({
                       <input
                         value={entry.value}
                         type="text"
+                        maxLength={200}
                         placeholder={t('habits.form.subHabitPlaceholder')}
                         className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                         onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
@@ -204,18 +221,6 @@ export function CreateHabitModal({
             </div>
           )}
         </HabitFormFields>
-
-        {/* Validation error */}
-        {validationError && (
-          <p className="text-sm text-red-500 font-medium">{validationError}</p>
-        )}
-
-        {/* Mutation error */}
-        {(createHabit.error || createSubHabit.error) && (
-          <p className="text-sm text-red-500 font-medium">
-            {(createHabit.error || createSubHabit.error)?.message}
-          </p>
-        )}
 
         {/* Submit buttons */}
         <div className="flex gap-3 pt-3">

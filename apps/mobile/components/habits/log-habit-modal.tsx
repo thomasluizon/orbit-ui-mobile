@@ -14,8 +14,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { useAppToast } from "@/hooks/use-app-toast";
 import { useLogHabit } from "@/hooks/use-habits";
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from "@orbit/shared/utils";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
+import { validateHabitLogNote } from "@orbit/shared/validation";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -41,6 +47,10 @@ export function LogHabitModal({
   onLogged,
 }: Readonly<LogHabitModalProps>) {
   const { t } = useTranslation();
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  );
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const styles = useMemo(
@@ -48,15 +58,23 @@ export function LogHabitModal({
     [colors, insets.bottom],
   );
   const logHabit = useLogHabit();
+  const { showError } = useAppToast();
 
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    if (!open) setNote("");
+    if (!open) {
+      setNote("");
+    }
   }, [open]);
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return;
+    const noteError = translateErrorKey(translate, validateHabitLogNote(note));
+    if (noteError) {
+      showError(noteError);
+      return;
+    }
     try {
       await logHabit.mutateAsync({
         habitId: habit.id,
@@ -65,10 +83,17 @@ export function LogHabitModal({
       onLogged?.(habit.id);
       onClose();
       setNote("");
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          translate,
+          "errors.logHabit",
+          "habitLog",
+        ),
+      );
     }
-  }, [habit, note, logHabit, onLogged, onClose]);
+  }, [habit, logHabit, note, onLogged, onClose, showError, translate]);
 
   const handleCancel = useCallback(() => {
     onClose();
@@ -115,17 +140,13 @@ export function LogHabitModal({
               placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={3}
+              maxLength={500}
               editable={!logHabit.isPending}
               style={[styles.noteInput, logHabit.isPending && styles.disabled]}
               onChangeText={setNote}
               textAlignVertical="top"
             />
           </View>
-
-          {/* Mutation error */}
-          {logHabit.error && (
-            <Text style={styles.errorText}>{logHabit.error.message}</Text>
-          )}
 
           {/* Buttons */}
           <View style={styles.buttonRow}>
@@ -245,11 +266,6 @@ function createStyles(
       borderWidth: 1,
       borderColor: colors.border,
       minHeight: 80,
-    },
-    errorText: {
-      fontSize: 14,
-      color: colors.red500,
-      fontWeight: "500",
     },
     buttonRow: {
       flexDirection: "row",

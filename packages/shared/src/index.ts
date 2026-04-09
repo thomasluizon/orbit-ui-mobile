@@ -10,6 +10,14 @@ export {
   getAuthLoginErrorKey,
   getErrorMessage,
   extractBackendError,
+  extractBackendErrorCode,
+  extractBackendFieldErrors,
+  extractBackendStatus,
+  ApiClientError,
+  createApiClientError,
+  getFriendlyErrorKey,
+  getFriendlyErrorMessage,
+  translateErrorKey,
   isFeatureEnabled,
   buildRecentChatHistory,
   buildCalendarSyncImportRequest,
@@ -48,6 +56,8 @@ export {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
+  validateGoalDraftInput,
+  validateGoalProgressInput,
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
   formatNotificationRelativeTime,
@@ -154,6 +164,8 @@ export * from './query/index'
 export * from './stores/index'
 export * from './validation/index'
 export type { TimeFormat } from './utils/time-format'
+export type { FriendlyErrorContext } from './utils/error-utils'
+export type { HabitFormValidationContext } from './utils/habit-form-helpers'
 export type { NotificationTimeTranslationAdapter } from './utils/notification-time'
 export type {
   GamificationMilestoneState,
