@@ -16,6 +16,7 @@ import {
   ArrowRight,
   FastForward,
   Copy,
+  Pencil,
   CheckCircle2,
   Trash2,
   ClipboardCheck,
@@ -61,6 +62,7 @@ interface HabitCardProps {
   onSkip?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
+  onEdit?: () => void
   onMoveParent?: () => void
   onDetail?: () => void
   onDrillInto?: () => void
@@ -313,6 +315,7 @@ export function HabitCard({
   onSkip,
   onDelete,
   onDuplicate,
+  onEdit,
   onMoveParent,
   onDetail,
   onDrillInto,
@@ -725,6 +728,18 @@ export function HabitCard({
             </Text>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            onEdit?.()
+            closeActionsMenu()
+          }}
+          activeOpacity={0.7}
+        >
+          <Pencil size={16} color={colors.textMuted} />
+          <Text style={styles.menuItemText}>{t('common.edit')}</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.menuItem}

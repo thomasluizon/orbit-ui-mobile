@@ -85,6 +85,7 @@ interface HabitListProps {
   onSeeUpcoming?: () => void
   onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
+  onEditHabit?: (habit: NormalizedHabit) => void
   onScrollBeginDrag?: () => void
 }
 
@@ -186,6 +187,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     onSeeUpcoming,
     onLogHabit,
     onDetailHabit,
+    onEditHabit,
     onScrollBeginDrag,
   },
   ref,
@@ -991,6 +993,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             promptDelete(habit.id)
           }}
           onDuplicate={() => promptDuplicate(habit.id)}
+          onEdit={() => onEditHabit?.(habit)}
           onMoveParent={() => {
             openMoveParentDialog(habit.id)
           }}
@@ -1043,6 +1046,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       getDescendantIds,
       isAncestorSelected,
       onDetailHabit,
+      onEditHabit,
     ],
   )
 

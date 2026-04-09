@@ -844,6 +844,7 @@ export default function TodayScreen() {
           onSeeUpcoming={goToNextDay}
           onLogHabit={setLogHabit}
           onDetailHabit={setDetailHabit}
+          onEditHabit={setEditHabit}
           onScrollBeginDrag={handleListScrollBeginDrag}
         />
       )}

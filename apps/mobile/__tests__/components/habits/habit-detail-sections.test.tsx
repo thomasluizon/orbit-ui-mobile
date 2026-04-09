@@ -9,7 +9,6 @@ vi.mock('lucide-react-native', () => ({
 }))
 
 import {
-  HabitDetailActionButtons,
   HabitDetailRecentNotes,
   HabitDetailStatsGrid,
 } from '@/components/habits/habit-detail-sections'
@@ -65,44 +64,28 @@ describe('habit detail sections', () => {
     expect(findTextNodes(tree!, 'habits.detail.monthlyRate').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders recent notes and action buttons', () => {
-    const onEdit = vi.fn()
-    const onDelete = vi.fn()
+  it('renders recent notes', () => {
     let tree: ReturnType<typeof TestRenderer.create> | null = null
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <>
-          <HabitDetailRecentNotes
-            notes={[
-              {
-                id: 'note-1',
-                dateLabel: 'Jan 15, 2025',
-                note: 'Felt great today',
-              },
-            ]}
-            t={(key) => key}
-            styles={{
-              notesSection: { gap: 8 },
-              sectionTitle: { fontSize: 14 },
-              notesList: { gap: 8 },
-              noteCard: { padding: 12 },
-              noteDate: { fontSize: 10 },
-              noteText: { fontSize: 14 },
-            }}
-          />
-          <HabitDetailActionButtons
-            onEdit={onEdit}
-            onDelete={onDelete}
-            t={(key) => key}
-            styles={{
-              buttonRow: { flexDirection: 'row' },
-              editButton: { padding: 8 },
-              editButtonText: { fontSize: 14 },
-              deleteButton: { padding: 8 },
-              deleteButtonText: { fontSize: 14 },
-            }}
-          />
-        </>,
+        <HabitDetailRecentNotes
+          notes={[
+            {
+              id: 'note-1',
+              dateLabel: 'Jan 15, 2025',
+              note: 'Felt great today',
+            },
+          ]}
+          t={(key) => key}
+          styles={{
+            notesSection: { gap: 8 },
+            sectionTitle: { fontSize: 14 },
+            notesList: { gap: 8 },
+            noteCard: { padding: 12 },
+            noteDate: { fontSize: 10 },
+            noteText: { fontSize: 14 },
+          }}
+        />,
       )
     })
 
@@ -110,10 +93,5 @@ describe('habit detail sections', () => {
     expect(findTextNodes(tree!, 'habits.detail.recentNotes').length).toBeGreaterThanOrEqual(1)
     expect(findTextNodes(tree!, 'Jan 15, 2025').length).toBeGreaterThanOrEqual(1)
     expect(findTextNodes(tree!, 'Felt great today').length).toBeGreaterThanOrEqual(1)
-    expect(findTextNodes(tree!, 'common.edit').length).toBeGreaterThanOrEqual(1)
-    expect(findTextNodes(tree!, 'common.delete').length).toBeGreaterThanOrEqual(1)
-
-    expect(onEdit).not.toHaveBeenCalled()
-    expect(onDelete).not.toHaveBeenCalled()
   })
 })

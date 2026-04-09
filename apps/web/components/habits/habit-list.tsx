@@ -1052,6 +1052,10 @@ const isPostponeAction = useMemo(() => {
         }}
         onSkip={() => promptSkip(habit.id)}
         onDuplicate={() => promptDuplicate(habit.id)}
+        onEdit={() => {
+          setHabitToEdit(habit)
+          setShowEditModal(true)
+        }}
         onMoveParent={() => openMoveParentPicker(habit.id)}
         onDelete={() => promptDelete(habit.id)}
         onDetail={() => openDetail(habit)}
