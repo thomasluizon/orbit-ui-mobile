@@ -165,7 +165,7 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon bundleRelease
 
-      - name: Verify Android widget is bundled in AAB
+      - name: Verify Android widget is bundled in release manifest
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
         shell: bash
         run: |
@@ -175,28 +175,19 @@ jobs:
             echo "AAB not found at ${AAB_PATH}" >&2
             exit 1
           fi
-          TMP_DIR="$(mktemp -d)"
-          unzip -q "${AAB_PATH}" -d "${TMP_DIR}"
-          MANIFEST="${TMP_DIR}/base/manifest/AndroidManifest.xml"
-          if [ ! -f "${MANIFEST}" ]; then
-            echo "Merged AndroidManifest.xml not found inside AAB at ${MANIFEST}" >&2
-            exit 1
-          fi
-          if grep -q "OrbitWidgetProvider" "${MANIFEST}"; then
-            echo "Widget receiver present in AAB manifest."
-            exit 0
-          fi
-          echo "Binary grep did not match; falling back to aapt2 dump xmltree."
-          AAPT2_BIN="$(ls "${ANDROID_SDK_ROOT}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -n 1 || true)"
-          if [ -z "${AAPT2_BIN}" ]; then
-            echo "aapt2 not found under ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >&2
-            exit 1
-          fi
-          if "${AAPT2_BIN}" dump xmltree --file AndroidManifest.xml "${AAB_PATH}" | grep -q "OrbitWidgetProvider"; then
-            echo "Widget receiver present in AAB manifest (via aapt2)."
-            exit 0
-          fi
-          echo "OrbitWidgetProvider receiver is missing from AAB manifest -- widget was not bundled." >&2
+          MANIFEST_CANDIDATES=(
+            "app/build/intermediates/packaged_manifests/release/processReleaseManifestForPackage/AndroidManifest.xml"
+            "app/build/intermediates/bundle_manifest/release/processApplicationManifestReleaseForBundle/AndroidManifest.xml"
+            "app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
+            "app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml"
+          )
+          for MANIFEST in "${MANIFEST_CANDIDATES[@]}"; do
+            if [ -f "${MANIFEST}" ] && grep -q "OrbitWidgetProvider" "${MANIFEST}"; then
+              echo "Widget receiver present in release manifest: ${MANIFEST}"
+              exit 0
+            fi
+          done
+          echo "OrbitWidgetProvider receiver is missing from the release manifest artifacts." >&2
           exit 1
 
       - name: Upload AAB artifact

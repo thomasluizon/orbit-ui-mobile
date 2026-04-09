@@ -6,6 +6,7 @@ import {
   buildEmptyHabitFormValues,
   buildParentHabitFormState,
   DEFAULT_REMINDER_TIMES,
+  resolveAutoManagedReminderEnabled,
   resolveHabitFormMode,
   toggleSelectedId,
 } from '../utils/habit-form-state'
@@ -158,5 +159,49 @@ describe('habit-form-state', () => {
   it('toggles selected ids', () => {
     expect(toggleSelectedId(['a', 'b'], 'a')).toEqual(['b'])
     expect(toggleSelectedId(['a'], 'b')).toEqual(['a', 'b'])
+  })
+
+  it('auto-enables reminders for timed habits while the toggle is still auto-managed', () => {
+    expect(
+      resolveAutoManagedReminderEnabled({
+        dueTime: '09:00',
+        scheduledReminderCount: 0,
+        reminderEnabled: false,
+        reminderWasManuallyToggled: false,
+      }),
+    ).toBe(true)
+  })
+
+  it('does not auto-reenable reminders after the user manually changed the toggle', () => {
+    expect(
+      resolveAutoManagedReminderEnabled({
+        dueTime: '09:00',
+        scheduledReminderCount: 0,
+        reminderEnabled: false,
+        reminderWasManuallyToggled: true,
+      }),
+    ).toBeNull()
+  })
+
+  it('auto-disables reminders when due time is cleared and no scheduled reminders exist', () => {
+    expect(
+      resolveAutoManagedReminderEnabled({
+        dueTime: '',
+        scheduledReminderCount: 0,
+        reminderEnabled: true,
+        reminderWasManuallyToggled: false,
+      }),
+    ).toBe(false)
+  })
+
+  it('does not auto-disable reminders when scheduled reminders exist', () => {
+    expect(
+      resolveAutoManagedReminderEnabled({
+        dueTime: '',
+        scheduledReminderCount: 1,
+        reminderEnabled: true,
+        reminderWasManuallyToggled: false,
+      }),
+    ).toBeNull()
   })
 })

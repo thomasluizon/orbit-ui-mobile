@@ -25,6 +25,13 @@ export interface EditHabitFormStateSnapshot extends HabitFormStateSnapshot {
   originalEndDate: string
 }
 
+export interface AutoManagedReminderEnabledInput {
+  dueTime: string
+  scheduledReminderCount: number
+  reminderEnabled: boolean
+  reminderWasManuallyToggled: boolean
+}
+
 export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFormData {
   return {
     title: '',
@@ -44,6 +51,25 @@ export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFor
     slipAlertEnabled: false,
     checklistItems: [],
   }
+}
+
+export function resolveAutoManagedReminderEnabled({
+  dueTime,
+  scheduledReminderCount,
+  reminderEnabled,
+  reminderWasManuallyToggled,
+}: AutoManagedReminderEnabledInput): boolean | null {
+  if (reminderWasManuallyToggled) return null
+
+  if (dueTime) {
+    return reminderEnabled ? null : true
+  }
+
+  if (scheduledReminderCount === 0) {
+    return reminderEnabled ? false : null
+  }
+
+  return null
 }
 
 export function resolveHabitFormMode(habit: Pick<NormalizedHabit, 'isGeneral' | 'isFlexible' | 'frequencyUnit'>): HabitFormMode {

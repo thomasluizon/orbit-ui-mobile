@@ -95,6 +95,30 @@ describe('habit-request-builders', () => {
     })
   })
 
+  it('preserves the default timed reminder pair for create requests', () => {
+    const request = buildCreateHabitRequest(
+      makeFormData({
+        dueTime: '10:00',
+        dueEndTime: '10:30',
+        reminderEnabled: true,
+      }),
+      [0, 15],
+      [],
+      [],
+      [],
+    )
+
+    expect(request).toEqual({
+      title: 'Read',
+      isBadHabit: false,
+      dueDate: '2026-04-08',
+      dueTime: '10:00',
+      dueEndTime: '10:30',
+      reminderEnabled: true,
+      reminderTimes: [0, 15],
+    })
+  })
+
   it('builds a general bad-habit create request without schedule fields', () => {
     const request = buildCreateHabitRequest(
       makeFormData({
