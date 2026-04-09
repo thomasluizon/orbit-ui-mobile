@@ -1717,5 +1717,13 @@
       "create": "Failed to create API key",
       "revoke": "Failed to revoke API key"
     }
+  },
+  "versionUpdate": {
+    "title": "Update available",
+    "description": "A newer version of Orbit is available on Google Play. Update now to get the latest fixes and features.",
+    "currentLabel": "Your version: {version}",
+    "latestLabel": "Latest: {version}",
+    "updateCta": "Update now",
+    "laterCta": "Later"
   }
 }

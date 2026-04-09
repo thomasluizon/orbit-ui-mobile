@@ -12,6 +12,7 @@ export {
   calendarKeys,
   userFactKeys,
   checklistTemplateKeys,
+  versionCheckKeys,
 } from './keys'
 
 export { QUERY_STALE_TIMES, HABITS_REFETCH_INTERVAL } from './options'

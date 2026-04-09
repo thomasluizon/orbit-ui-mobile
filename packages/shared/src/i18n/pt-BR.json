@@ -1717,5 +1717,13 @@
       "create": "Falha ao criar chave de API",
       "revoke": "Falha ao revogar chave de API"
     }
+  },
+  "versionUpdate": {
+    "title": "Atualização disponível",
+    "description": "Uma nova versão do Orbit está disponível na Google Play. Atualize agora para receber as últimas correções e novidades.",
+    "currentLabel": "Sua versão: {version}",
+    "latestLabel": "Mais recente: {version}",
+    "updateCta": "Atualizar agora",
+    "laterCta": "Depois"
   }
 }

@@ -78,6 +78,11 @@ export const userFactKeys = {
   lists: () => [...userFactKeys.all, 'list'] as const,
 }
 
+export const versionCheckKeys = {
+  all: ['version-check'] as const,
+  latest: (pkg: string) => [...versionCheckKeys.all, pkg] as const,
+}
+
 export const checklistTemplateKeys = {
   all: ['checklistTemplates'] as const,
   lists: () => [...checklistTemplateKeys.all, 'list'] as const,
