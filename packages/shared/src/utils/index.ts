@@ -4,12 +4,15 @@ export { isValidEmail } from './email'
 export {
   AUTH_BACKEND_ERROR_MAP,
   createVerificationCodeDigits,
+  extractAuthBackendMessage,
   fillVerificationCodeDigits,
   getAuthLoginErrorKey,
   isValidVerificationCode,
   isVerificationCodeComplete,
   normalizeVerificationCodeInput,
+  resolveAuthLoginErrorKey,
   VERIFICATION_CODE_LENGTH,
+  type AuthLoginErrorInput,
 } from './auth-login'
 export {
   ApiClientError,
