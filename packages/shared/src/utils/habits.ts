@@ -169,6 +169,7 @@ export function hasAncestorInSet(
 export interface ReorderableHabitItem {
   id: string
   parentId: string | null
+  position?: number | null
 }
 
 export interface HabitReorderPosition {
@@ -176,6 +177,32 @@ export interface HabitReorderPosition {
   position: number
 }
 
+/**
+ * Sort siblings deterministically by their current stored position,
+ * pushing null/undefined positions to the end and breaking ties by id.
+ */
+function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): T[] {
+  return [...siblings].sort((a, b) => {
+    const aPos = a.position ?? Number.MAX_SAFE_INTEGER
+    const bPos = b.position ?? Number.MAX_SAFE_INTEGER
+    if (aPos !== bPos) return aPos - bPos
+    return a.id.localeCompare(b.id)
+  })
+}
+
+/**
+ * Computes the new position list after a drag-and-drop reorder.
+ *
+ * Handles filtered views correctly: when the visible `items` array is a subset
+ * of all siblings (e.g. the Today view hides habits not scheduled today), this
+ * function merges the moved item into the FULL sibling list (preserving hidden
+ * siblings' relative order) and emits contiguous 0..N-1 positions for every
+ * affected parent group. This prevents hidden siblings from drifting to the
+ * end on every reorder.
+ *
+ * Also supports parent changes: if the dragged item lands next to an anchor
+ * with a different parentId, both the old and new parent groups are re-emitted.
+ */
 export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   items: T[],
   oldIndex: number,
@@ -187,42 +214,83 @@ export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
     oldIndex < 0 ||
     newIndex < 0 ||
     oldIndex >= items.length ||
-    newIndex >= items.length
+    newIndex >= items.length ||
+    oldIndex === newIndex
   ) {
     return []
   }
 
-  const reordered = [...items]
-  const removed = reordered.splice(oldIndex, 1)
-  const moved = removed[0]
-  if (!moved) return []
-  reordered.splice(newIndex, 0, moved)
+  const movedVisible = items[oldIndex]
+  if (!movedVisible) return []
 
-  const positions: HabitReorderPosition[] = []
-  const positionByParent = new Map<string | null, number>()
-  const includedIds = new Set(reordered.map((item) => item.id))
+  const movedId = movedVisible.id
+  const movedHabit = habitsById.get(movedId) ?? movedVisible
+  const originalParentId = movedHabit.parentId
 
-  for (const item of reordered) {
-    const storeHabit = habitsById.get(item.id)
-    const parentId = storeHabit?.parentId ?? item.parentId
-    const nextPosition = positionByParent.get(parentId) ?? 0
-    positions.push({ habitId: item.id, position: nextPosition })
-    positionByParent.set(parentId, nextPosition + 1)
+  // Determine the destination parent by looking at the anchor (the filtered
+  // item the dragged habit will be placed next to). This keeps parent-change
+  // semantics working in draggable-flatlist style reorders where the caller
+  // only passes visible items.
+  const visibleReordered = [...items]
+  visibleReordered.splice(oldIndex, 1)
+  visibleReordered.splice(newIndex, 0, movedVisible)
+
+  // Find the nearest visible sibling AFTER the new index to use as anchor,
+  // else fall back to the one BEFORE. If none exists, keep original parent.
+  let destinationParentId: string | null = originalParentId
+  const afterAnchor = visibleReordered[newIndex + 1]
+  const beforeAnchor = newIndex > 0 ? visibleReordered[newIndex - 1] : undefined
+  if (afterAnchor && afterAnchor.id !== movedId) {
+    destinationParentId = habitsById.get(afterAnchor.id)?.parentId ?? afterAnchor.parentId
+  } else if (beforeAnchor && beforeAnchor.id !== movedId) {
+    destinationParentId = habitsById.get(beforeAnchor.id)?.parentId ?? beforeAnchor.parentId
   }
 
-  for (const parentId of positionByParent.keys()) {
-    const allSiblings =
-      parentId === null
-        ? Array.from(habitsById.values()).filter((habit) => habit.parentId === null)
-        : getChildren(parentId)
-
-    for (const sibling of allSiblings) {
-      if (includedIds.has(sibling.id)) continue
-
-      const nextPosition = positionByParent.get(parentId) ?? 0
-      positions.push({ habitId: sibling.id, position: nextPosition })
-      positionByParent.set(parentId, nextPosition + 1)
+  const getAllSiblings = (parentId: string | null): ReorderableHabitItem[] => {
+    if (parentId === null) {
+      return Array.from(habitsById.values()).filter(
+        (habit) => (habit.parentId ?? null) === null,
+      )
     }
+    return getChildren(parentId)
+  }
+
+  // Build the destination parent's full sibling list (sorted by current
+  // position) minus the moved habit, then splice the moved habit back in
+  // at the correct full-list index translated from the filtered view.
+  const destinationSiblings = sortSiblingsByPosition(
+    getAllSiblings(destinationParentId).filter((sibling) => sibling.id !== movedId),
+  )
+
+  // Translate filtered index -> full-list index using anchors.
+  let fullInsertIndex = destinationSiblings.length
+  if (afterAnchor && afterAnchor.id !== movedId) {
+    const idx = destinationSiblings.findIndex((s) => s.id === afterAnchor.id)
+    if (idx >= 0) fullInsertIndex = idx
+  } else if (beforeAnchor && beforeAnchor.id !== movedId) {
+    const idx = destinationSiblings.findIndex((s) => s.id === beforeAnchor.id)
+    if (idx >= 0) fullInsertIndex = idx + 1
+  } else if (newIndex === 0) {
+    fullInsertIndex = 0
+  }
+
+  const mergedDestination: ReorderableHabitItem[] = [...destinationSiblings]
+  mergedDestination.splice(fullInsertIndex, 0, { ...movedHabit, parentId: destinationParentId })
+
+  const positions: HabitReorderPosition[] = []
+  mergedDestination.forEach((sibling, index) => {
+    positions.push({ habitId: sibling.id, position: index })
+  })
+
+  // If parent changed, also re-emit contiguous positions for the OLD parent
+  // group (the dragged habit is no longer in it).
+  if (destinationParentId !== originalParentId) {
+    const oldSiblings = sortSiblingsByPosition(
+      getAllSiblings(originalParentId).filter((sibling) => sibling.id !== movedId),
+    )
+    oldSiblings.forEach((sibling, index) => {
+      positions.push({ habitId: sibling.id, position: index })
+    })
   }
 
   return positions
