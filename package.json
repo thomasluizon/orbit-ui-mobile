@@ -21,9 +21,9 @@
     "html-parse-stringify": "^3.0.1",
     "indent-string": "^4.0.0",
     "min-indent": "^1.0.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-test-renderer": "19.2.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-test-renderer": "19.2.0",
     "turbo": "^2.9.4",
     "typescript": "^6.0.2"
   },
@@ -36,8 +36,8 @@
     "node": ">=20.0.0"
   },
   "overrides": {
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-test-renderer": "19.2.3"
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-test-renderer": "19.2.0"
   }
 }
