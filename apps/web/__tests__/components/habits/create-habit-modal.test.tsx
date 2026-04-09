@@ -18,6 +18,7 @@ const mockFormWatch = vi.fn()
 const mockFormRegister = vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() }))
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
+const mockShowError = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -91,6 +92,12 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: () => 'today',
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
+  }),
 }))
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
@@ -272,7 +279,9 @@ describe('CreateHabitModal', () => {
     )
     const form = screen.getByTestId('app-overlay').querySelector('form')
     fireEvent.submit(form!)
-    expect(screen.getByText('Validation failed!')).toBeDefined()
+    expect(mockShowError).toHaveBeenCalledWith('Validation failed!')
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled()
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
   })
 
   it('resets form when modal opens', () => {

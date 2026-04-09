@@ -17,6 +17,7 @@ const mockFormWatch = vi.fn()
 const mockFormRegister = vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() }))
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
+const mockShowError = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -89,6 +90,12 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 
 vi.mock('@/app/actions/tags', () => ({
   assignTags: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
+  }),
 }))
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
@@ -238,7 +245,8 @@ describe('EditHabitModal', () => {
     )
     const form = screen.getByTestId('app-overlay').querySelector('form')
     fireEvent.submit(form!)
-    expect(screen.getByText('End date must be after start date')).toBeDefined()
+    expect(mockShowError).toHaveBeenCalledWith('End date must be after start date')
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
   })
 
   it('resets form when modal opens with habit data', () => {

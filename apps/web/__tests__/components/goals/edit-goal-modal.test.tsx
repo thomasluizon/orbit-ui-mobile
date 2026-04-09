@@ -10,11 +10,18 @@ vi.mock('dompurify', () => ({
 }))
 
 const mockMutateAsync = vi.fn()
+const mockShowError = vi.fn()
 vi.mock('@/hooks/use-goals', () => ({
   useUpdateGoal: () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
     error: null,
+  }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
   }),
 }))
 
@@ -52,6 +59,7 @@ const mockGoal: Goal = {
 describe('EditGoalModal', () => {
   beforeEach(() => {
     mockMutateAsync.mockReset()
+    mockShowError.mockReset()
   })
 
   it('renders nothing when closed', () => {
@@ -74,7 +82,8 @@ describe('EditGoalModal', () => {
     fireEvent.change(targetInput, { target: { value: '0' } })
     const form = targetInput.closest('form')
     fireEvent.submit(form!)
-    expect(screen.getByText('goals.form.targetValueRequired')).toBeInTheDocument()
+    expect(mockShowError).toHaveBeenCalledWith('goals.form.targetValueRequired')
+    expect(mockMutateAsync).not.toHaveBeenCalled()
   })
 
   it('shows validation error when unit is empty', () => {
@@ -83,7 +92,8 @@ describe('EditGoalModal', () => {
     fireEvent.change(unitInput, { target: { value: '' } })
     const form = unitInput.closest('form')
     fireEvent.submit(form!)
-    expect(screen.getByText('goals.form.unitRequired')).toBeInTheDocument()
+    expect(mockShowError).toHaveBeenCalledWith('goals.form.unitRequired')
+    expect(mockMutateAsync).not.toHaveBeenCalled()
   })
 
   it('submits update request', async () => {
