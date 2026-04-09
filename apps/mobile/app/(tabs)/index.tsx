@@ -40,6 +40,7 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate, hasAncestorInSet } from '@orbit/shared/utils'
+import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
@@ -288,12 +289,29 @@ export default function TodayScreen() {
 
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? new Map()
+  const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
+
+  // Use the shared visibility helpers so bulk-selection scope matches what
+  // HabitList actually renders (Today view surfaces today's items + overdue).
+  const visibility = useHabitVisibility({
+    habitsById,
+    childrenByParent,
+    selectedDate: dateStr,
+    searchQuery: searchQueryStore,
+    showCompleted,
+    recentlyCompletedIds: useMemo(() => new Set<string>(), []),
+  })
 
   const visibleTopLevelHabits = useMemo(() => {
     const habits = habitsQuery.data?.topLevelHabits ?? []
+    if (activeView === 'today') {
+      const todayHabits = habits.filter((habit) => !habit.isGeneral)
+      if (showCompleted) return todayHabits
+      return todayHabits.filter((habit) => visibility.hasVisibleContent(habit))
+    }
     if (showCompleted) return habits
     return habits.filter((habit) => !habit.isCompleted)
-  }, [habitsQuery.data?.topLevelHabits, showCompleted])
+  }, [habitsQuery.data?.topLevelHabits, showCompleted, activeView, visibility])
 
   const visibleHabitIds = useMemo(() => {
     const ids = new Set<string>()

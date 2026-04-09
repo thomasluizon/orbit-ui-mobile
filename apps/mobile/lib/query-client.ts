@@ -1,5 +1,44 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { AppState, type AppStateStatus } from 'react-native'
+import NetInfo from '@react-native-community/netinfo'
+
+// Bridge React Native AppState → TanStack Query focus manager so that
+// `refetchOnWindowFocus` fires on app foreground and `refetchInterval`
+// correctly pauses while backgrounded.
+focusManager.setEventListener((handleFocus) => {
+  const subscription = AppState.addEventListener('change', (status: AppStateStatus) => {
+    handleFocus(status === 'active')
+  })
+  return () => subscription.remove()
+})
+
+// Bridge NetInfo → TanStack Query online manager so offline polling pauses
+// and `refetchOnReconnect` fires on reconnect.
+onlineManager.setEventListener((setOnline) => {
+  return NetInfo.addEventListener((state) => {
+    setOnline(!!state.isConnected)
+  })
+})
+
+// Track last known AppState/online state synchronously for guards below.
+let currentAppStateStatus: AppStateStatus = AppState.currentState
+AppState.addEventListener('change', (status) => {
+  currentAppStateStatus = status
+})
+
+let currentOnline = true
+NetInfo.addEventListener((state) => {
+  currentOnline = !!state.isConnected
+})
+
+export function isAppActive(): boolean {
+  return currentAppStateStatus === 'active'
+}
+
+export function isOnline(): boolean {
+  return currentOnline
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -11,7 +50,8 @@ export const queryClient = new QueryClient({
         if (error instanceof Error && error.message.includes('401')) return false
         return failureCount < 3
       },
-      refetchOnWindowFocus: false, // not applicable on mobile
+      // Bridged to AppState above, so "window focus" == "app foregrounded".
+      refetchOnWindowFocus: true,
       refetchOnReconnect: true,
     },
     mutations: {

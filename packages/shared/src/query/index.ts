@@ -14,4 +14,4 @@ export {
   checklistTemplateKeys,
 } from './keys'
 
-export { QUERY_STALE_TIMES } from './options'
+export { QUERY_STALE_TIMES, HABITS_REFETCH_INTERVAL } from './options'
