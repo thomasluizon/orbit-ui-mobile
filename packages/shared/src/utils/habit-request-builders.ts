@@ -134,15 +134,19 @@ function applyUpdateReminderFields(
     request.dueTime = data.dueTime
     request.dueEndTime = data.dueEndTime || undefined
     request.reminderEnabled = data.reminderEnabled
-    request.reminderTimes = reminderTimes
+    request.reminderTimes = data.reminderEnabled ? reminderTimes : []
+    request.scheduledReminders = []
     return
   }
   if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
     request.reminderEnabled = true
-    request.scheduledReminders = data.scheduledReminders ?? undefined
+    request.reminderTimes = []
+    request.scheduledReminders = data.scheduledReminders
     return
   }
   request.reminderEnabled = false
+  request.reminderTimes = []
+  request.scheduledReminders = []
 }
 
 export function buildUpdateHabitRequest(

@@ -181,6 +181,7 @@ describe('habit-request-builders', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       reminderEnabled: true,
+      reminderTimes: [],
       scheduledReminders: [{ when: 'same_day', time: '21:00' }],
       slipAlertEnabled: false,
       checklistItems: [{ text: 'Reflect', isChecked: true }],
@@ -195,10 +196,11 @@ describe('habit-request-builders', () => {
         dueTime: '10:00',
         dueEndTime: '10:30',
         reminderEnabled: true,
+        scheduledReminders: [{ when: 'same_day', time: '21:00' }],
       }),
       true,
       '',
-      [5],
+      [0],
       [],
     )
 
@@ -211,7 +213,8 @@ describe('habit-request-builders', () => {
       dueTime: '10:00',
       dueEndTime: '10:30',
       reminderEnabled: true,
-      reminderTimes: [5],
+      reminderTimes: [0],
+      scheduledReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
     })
@@ -226,6 +229,45 @@ describe('habit-request-builders', () => {
       [],
     )
 
-    expect(disabledReminderRequest.reminderEnabled).toBe(false)
+    expect(disabledReminderRequest).toEqual({
+      title: 'Read',
+      isBadHabit: false,
+      isGeneral: false,
+      isFlexible: false,
+      dueDate: '2026-04-08',
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+      slipAlertEnabled: false,
+      goalIds: [],
+    })
+  })
+
+  it('clears due-time reminders when saving scheduled reminders in edit mode', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({
+        reminderEnabled: true,
+        scheduledReminders: [{ when: 'day_before', time: '21:00' }],
+      }),
+      false,
+      '',
+      [0, 15],
+      [],
+    )
+
+    expect(request).toEqual({
+      title: 'Read',
+      isBadHabit: false,
+      isGeneral: false,
+      isFlexible: false,
+      dueDate: '2026-04-08',
+      frequencyUnit: undefined,
+      frequencyQuantity: undefined,
+      reminderEnabled: true,
+      reminderTimes: [],
+      scheduledReminders: [{ when: 'day_before', time: '21:00' }],
+      slipAlertEnabled: false,
+      goalIds: [],
+    })
   })
 })
