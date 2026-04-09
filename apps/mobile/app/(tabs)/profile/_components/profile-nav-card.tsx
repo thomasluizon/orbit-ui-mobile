@@ -34,8 +34,8 @@ export function ProfileNavCard({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.navCard,
-        isPrimary && styles.navCardPrimary,
+        styles.navCardShell,
+        isPrimary && styles.navCardPrimaryShell,
         pressed && styles.navCardPressed,
       ]}
       onPress={onPress}
@@ -43,58 +43,64 @@ export function ProfileNavCard({
       accessibilityLabel={title}
       accessibilityHint={rightText ?? hint}
     >
-      <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
-        {icon}
-      </View>
-      <View style={styles.navCardBody}>
-        <View style={styles.navCardTitleRow}>
-          <Text style={styles.navCardTitle}>{title}</Text>
-          {proBadge && (
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{proBadgeLabel}</Text>
-            </View>
-          )}
+      <View style={[styles.navCardContent, isPrimary && styles.navCardContentPrimary]}>
+        <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
+          {icon}
         </View>
-        <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
+        <View style={styles.navCardBody}>
+          <View style={styles.navCardTitleRow}>
+            <Text style={styles.navCardTitle}>{title}</Text>
+            {proBadge && (
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>{proBadgeLabel}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
+        </View>
+        <ChevronRight size={16} color={colors.textMuted} />
       </View>
-      <ChevronRight size={16} color={colors.textMuted} />
     </Pressable>
   )
 }
 
 function createProfileNavCardStyles(colors: AppColors) {
   return StyleSheet.create({
-    navCard: {
+    navCardShell: {
       width: '100%',
-      backgroundColor: colors.surface,
       borderColor: colors.borderMuted,
       borderWidth: 1,
       borderRadius: 24,
-      padding: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 16,
+      overflow: 'hidden',
       shadowColor: '#000000',
       shadowOpacity: 0.04,
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 4 },
       elevation: 1,
     },
-    navCardPrimary: {
-      backgroundColor: colors.primaryTintBg,
+    navCardContent: {
+      backgroundColor: colors.surface,
+      padding: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    navCardPrimaryShell: {
       borderColor: colors.primaryTintBorder,
     },
+    navCardContentPrimary: {
+      backgroundColor: colors.primaryTintBg,
+    },
     navCardPressed: {
-      opacity: 0.72,
+      opacity: 0.86,
     },
     navCardIcon: {
-      width: 48,
-      height: 48,
       borderRadius: 16,
       backgroundColor: colors.primary_10,
+      padding: 12,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
+      marginRight: 16,
     },
     navCardIconPrimary: {
       backgroundColor: colors.primaryTintIconBg,
@@ -102,11 +108,11 @@ function createProfileNavCardStyles(colors: AppColors) {
     navCardBody: {
       flex: 1,
       minWidth: 0,
+      marginRight: 12,
     },
     navCardTitleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
     },
     navCardTitle: {
       color: colors.textPrimary,
@@ -117,13 +123,14 @@ function createProfileNavCardStyles(colors: AppColors) {
     navCardHint: {
       color: colors.textSecondary,
       fontSize: 12,
-      marginTop: 4,
+      marginTop: 2,
     },
     proBadge: {
       backgroundColor: colors.primary_20,
       borderRadius: 999,
       paddingHorizontal: 6,
       paddingVertical: 2,
+      marginLeft: 8,
     },
     proBadgeText: {
       color: colors.primary,

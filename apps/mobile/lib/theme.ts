@@ -146,6 +146,34 @@ function withAlpha(color: string, opacity: number, fallback: string): string {
   return fallback
 }
 
+function blendRgbOverHex(
+  rgb: string,
+  opacity: number,
+  backgroundHex: string,
+  fallback: string,
+): string {
+  const channels = rgb.split(',').map((value) => Number.parseInt(value.trim(), 10))
+  const normalized = backgroundHex.replace('#', '')
+
+  if (channels.length !== 3 || channels.some((value) => Number.isNaN(value))) {
+    return fallback
+  }
+
+  if (normalized.length !== 6) {
+    return fallback
+  }
+
+  const backgroundRed = Number.parseInt(normalized.slice(0, 2), 16)
+  const backgroundGreen = Number.parseInt(normalized.slice(2, 4), 16)
+  const backgroundBlue = Number.parseInt(normalized.slice(4, 6), 16)
+
+  const [foregroundRed, foregroundGreen, foregroundBlue] = channels
+  const blendChannel = (foreground: number, background: number) =>
+    Math.round(foreground * opacity + background * (1 - opacity))
+
+  return `rgb(${blendChannel(foregroundRed, backgroundRed)}, ${blendChannel(foregroundGreen, backgroundGreen)}, ${blendChannel(foregroundBlue, backgroundBlue)})`
+}
+
 // ---------------------------------------------------------------------------
 // Colors
 // ---------------------------------------------------------------------------
@@ -159,6 +187,8 @@ export function createColors(
   const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
   const isLight = themeMode === 'light'
   const primary = themeMode === 'light' ? definition.primaryLight : definition.primary
+  const flattenedTint = (opacity: number, fallback: string) =>
+    blendRgbOverHex(definition.shadowRgb, opacity, theme.background, fallback)
 
   return {
     background: theme.background,
@@ -175,11 +205,12 @@ export function createColors(
     primary_20: alpha(0.2),
     primary_30: alpha(0.3),
     primary_80: alpha(0.8),
-    // Theme-aware tint tokens: light mode needs stronger alphas for contrast
-    // on a white surface; dark mode keeps the original 0.10/0.20 ladder.
-    primaryTintBg: alpha(isLight ? 0.30 : 0.1),
-    primaryTintBorder: alpha(isLight ? 0.50 : 0.2),
-    primaryTintIconBg: alpha(isLight ? 0.42 : 0.2),
+    // Android renders semi-transparent elevated cards inconsistently in light
+    // mode, so flatten the tint over the page background while keeping the
+    // same visual result as the web overlay tokens.
+    primaryTintBg: isLight ? flattenedTint(0.30, 'rgb(215, 200, 252)') : alpha(0.1),
+    primaryTintBorder: isLight ? flattenedTint(0.50, 'rgb(194, 169, 251)') : alpha(0.2),
+    primaryTintIconBg: isLight ? flattenedTint(0.42, 'rgb(202, 181, 251)') : alpha(0.2),
     primaryRing: alpha(0.3),
     textPrimary: theme.textPrimary,
     textSecondary: theme.textSecondary,
