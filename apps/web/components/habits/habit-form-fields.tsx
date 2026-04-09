@@ -35,6 +35,7 @@ interface HabitFormFieldsProps {
   /** Controlled reminderTimes state from parent modal */
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
+  onReminderEnabledChange?: (nextEnabled: boolean) => void
   children?: ReactNode
 }
 
@@ -665,6 +666,7 @@ export function HabitFormFields({
   onToggleGoal,
   reminderTimes,
   onReminderTimesChange,
+  onReminderEnabledChange,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -730,6 +732,15 @@ export function HabitFormFields({
     const d = Math.floor(minutes / 1440)
     return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
   }
+
+  const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
+    if (onReminderEnabledChange) {
+      onReminderEnabledChange(nextEnabled)
+      return
+    }
+
+    setValue('reminderEnabled', nextEnabled, { shouldDirty: true })
+  }, [onReminderEnabledChange, setValue])
 
   // Tag pop animation
   const [justToggledTagId, setJustToggledTagId] = useState('')
@@ -990,7 +1001,7 @@ export function HabitFormFields({
           reminderEnabled={watchedReminderEnabled}
           reminderTimes={reminderTimes}
           onReminderTimesChange={onReminderTimesChange}
-          onToggleReminder={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
+          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
           reminderLabel={reminderLabel}
           t={t}
         />
@@ -1002,7 +1013,7 @@ export function HabitFormFields({
           scheduledReminderLabelId={scheduledReminderLabelId}
           reminderEnabled={watchedReminderEnabled}
           scheduledReminders={watchedScheduledReminders}
-          onToggleReminder={() => setValue('reminderEnabled', !watchedReminderEnabled, { shouldDirty: true })}
+          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
           onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
           onValidationError={showError}
           t={t}

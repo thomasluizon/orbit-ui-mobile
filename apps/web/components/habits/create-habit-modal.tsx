@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Loader2, Trash2, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -15,6 +15,7 @@ import {
   buildParentHabitFormState,
   formatAPIDate,
   getFriendlyErrorMessage,
+  resolveAutoManagedReminderEnabled,
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
@@ -77,6 +78,11 @@ export function CreateHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const reminderWasManuallyToggledRef = useRef(false)
+
+  const watchedDueTime = formHelpers.form.watch('dueTime') ?? ''
+  const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
+  const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
 
   const atGoalLimit = selectedGoalIds.length >= 10
 
@@ -90,6 +96,7 @@ export function CreateHabitModal({
 
     const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
+    reminderWasManuallyToggledRef.current = false
     formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
     tags.resetTags()
     setSelectedGoalIds([])
@@ -108,6 +115,32 @@ export function CreateHabitModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const nextReminderEnabled = resolveAutoManagedReminderEnabled({
+      dueTime: watchedDueTime,
+      scheduledReminderCount: watchedScheduledReminders.length,
+      reminderEnabled: watchedReminderEnabled,
+      reminderWasManuallyToggled: reminderWasManuallyToggledRef.current,
+    })
+
+    if (nextReminderEnabled === null || nextReminderEnabled === watchedReminderEnabled) {
+      return
+    }
+
+    formHelpers.form.setValue('reminderEnabled', nextReminderEnabled, {
+      shouldDirty: true,
+    })
+  }, [formHelpers.form, open, watchedDueTime, watchedReminderEnabled, watchedScheduledReminders.length])
+
+  const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
+    reminderWasManuallyToggledRef.current = true
+    formHelpers.form.setValue('reminderEnabled', nextEnabled, {
+      shouldDirty: true,
+    })
+  }, [formHelpers.form])
 
   const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
@@ -179,6 +212,7 @@ export function CreateHabitModal({
           onToggleGoal={toggleGoal}
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
+          onReminderEnabledChange={handleReminderEnabledChange}
         >
           {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (

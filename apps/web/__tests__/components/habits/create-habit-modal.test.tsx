@@ -170,6 +170,18 @@ describe('CreateHabitModal', () => {
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockResolvedValue({})
     mockValidateAll.mockReturnValue(null)
+    mockFormWatch.mockImplementation((field?: string) => {
+      switch (field) {
+        case 'dueTime':
+          return ''
+        case 'reminderEnabled':
+          return false
+        case 'scheduledReminders':
+          return []
+        default:
+          return undefined
+      }
+    })
     mockFormGetValues.mockReturnValue({
       title: 'Test Habit',
       description: '',
@@ -290,5 +302,51 @@ describe('CreateHabitModal', () => {
     )
     expect(mockFormReset).toHaveBeenCalled()
     expect(mockResetTags).toHaveBeenCalled()
+  })
+
+  it('auto-enables reminders when a due time is present in create mode', () => {
+    mockFormWatch.mockImplementation((field?: string) => {
+      switch (field) {
+        case 'dueTime':
+          return '09:00'
+        case 'reminderEnabled':
+          return false
+        case 'scheduledReminders':
+          return []
+        default:
+          return undefined
+      }
+    })
+
+    renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+
+    expect(mockFormSetValue).toHaveBeenCalledWith('reminderEnabled', true, {
+      shouldDirty: true,
+    })
+  })
+
+  it('auto-disables reminders when due time is cleared and there are no scheduled reminders', () => {
+    mockFormWatch.mockImplementation((field?: string) => {
+      switch (field) {
+        case 'dueTime':
+          return ''
+        case 'reminderEnabled':
+          return true
+        case 'scheduledReminders':
+          return []
+        default:
+          return undefined
+      }
+    })
+
+    renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+
+    expect(mockFormSetValue).toHaveBeenCalledWith('reminderEnabled', false, {
+      shouldDirty: true,
+    })
   })
 })

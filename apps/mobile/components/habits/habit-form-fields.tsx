@@ -63,6 +63,7 @@ interface HabitFormFieldsProps {
   onToggleGoal: (goalId: string) => void;
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
+  onReminderEnabledChange?: (nextEnabled: boolean) => void;
   children?: ReactNode;
 }
 
@@ -785,6 +786,7 @@ export function HabitFormFields({
   onToggleGoal,
   reminderTimes,
   onReminderTimesChange,
+  onReminderEnabledChange,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t } = useTranslation();
@@ -851,6 +853,15 @@ export function HabitFormFields({
     const d = Math.floor(minutes / 1440);
     return `${d} ${t(d === 1 ? "habits.form.reminderDay" : "habits.form.reminderDays")}`;
   }
+
+  const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
+    if (onReminderEnabledChange) {
+      onReminderEnabledChange(nextEnabled);
+      return;
+    }
+
+    setValue("reminderEnabled", nextEnabled, { shouldDirty: true });
+  }, [onReminderEnabledChange, setValue]);
 
   return (
     <View style={styles.container}>
@@ -1101,11 +1112,7 @@ export function HabitFormFields({
           reminderEnabled={watchedReminderEnabled}
           reminderTimes={reminderTimes}
           onReminderTimesChange={onReminderTimesChange}
-          onToggleReminder={() =>
-            setValue("reminderEnabled", !watchedReminderEnabled, {
-              shouldDirty: true,
-            })
-          }
+          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
           reminderLabel={reminderLabel}
         />
       )}
@@ -1116,11 +1123,7 @@ export function HabitFormFields({
           colors={colors}
           reminderEnabled={watchedReminderEnabled}
           scheduledReminders={watchedScheduledReminders}
-          onToggleReminder={() =>
-            setValue("reminderEnabled", !watchedReminderEnabled, {
-              shouldDirty: true,
-            })
-          }
+          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
           onSetScheduledReminders={(reminders) =>
             setValue("scheduledReminders", reminders, { shouldDirty: true })
           }

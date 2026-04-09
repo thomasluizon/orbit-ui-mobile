@@ -61,10 +61,12 @@ export {
   buildEmptyHabitFormValues,
   buildParentHabitFormState,
   DEFAULT_REMINDER_TIMES,
+  resolveAutoManagedReminderEnabled,
   resolveHabitFormMode,
   toggleSelectedId,
 } from './habit-form-state'
 export type {
+  AutoManagedReminderEnabledInput,
   EditHabitFormStateSnapshot,
   HabitFormMode,
   HabitFormModeActions,

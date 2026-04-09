@@ -41,6 +41,7 @@ export {
   buildUpdateHabitRequest,
   DEFAULT_REMINDER_TIMES,
   HABIT_REMINDER_PRESETS,
+  resolveAutoManagedReminderEnabled,
   fetchAllPaginatedItems,
   detectDefaultTimeFormat,
   formatHabitTimeInput,
@@ -169,6 +170,7 @@ export * from './validation/index'
 export type { TimeFormat } from './utils/time-format'
 export type { FriendlyErrorContext } from './utils/error-utils'
 export type { HabitFormValidationContext } from './utils/habit-form-helpers'
+export type { AutoManagedReminderEnabledInput } from './utils/habit-form-state'
 export type { NotificationTimeTranslationAdapter } from './utils/notification-time'
 export type {
   GamificationMilestoneState,
