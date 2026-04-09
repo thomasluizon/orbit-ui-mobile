@@ -93,7 +93,7 @@ function applySchemeToDOM(scheme: ColorScheme, theme: ThemeMode, animate = false
   // Theme-aware primary tint tokens. Light mode needs stronger alphas to be
   // visible on a white surface; dark mode keeps the original 0.10/0.15/0.20/0.30 ladder.
   const tint = theme === 'light'
-    ? { bg: 0.18, bgHover: 0.24, border: 0.35, borderHover: 0.45, iconBg: 0.28, iconBgHover: 0.38 }
+    ? { bg: 0.30, bgHover: 0.38, border: 0.50, borderHover: 0.62, iconBg: 0.42, iconBgHover: 0.52 }
     : { bg: 0.10, bgHover: 0.15, border: 0.20, borderHover: 0.30, iconBg: 0.20, iconBgHover: 0.30 }
   root.style.setProperty('--primary-tint-bg', `rgba(${def.shadowRgb}, ${tint.bg})`)
   root.style.setProperty('--primary-tint-bg-hover', `rgba(${def.shadowRgb}, ${tint.bgHover})`)

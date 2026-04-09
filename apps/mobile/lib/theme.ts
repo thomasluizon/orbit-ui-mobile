@@ -177,9 +177,9 @@ export function createColors(
     primary_80: alpha(0.8),
     // Theme-aware tint tokens: light mode needs stronger alphas for contrast
     // on a white surface; dark mode keeps the original 0.10/0.20 ladder.
-    primaryTintBg: alpha(isLight ? 0.18 : 0.1),
-    primaryTintBorder: alpha(isLight ? 0.35 : 0.2),
-    primaryTintIconBg: alpha(isLight ? 0.28 : 0.2),
+    primaryTintBg: alpha(isLight ? 0.30 : 0.1),
+    primaryTintBorder: alpha(isLight ? 0.50 : 0.2),
+    primaryTintIconBg: alpha(isLight ? 0.42 : 0.2),
     primaryRing: alpha(0.3),
     textPrimary: theme.textPrimary,
     textSecondary: theme.textSecondary,
