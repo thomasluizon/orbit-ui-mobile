@@ -4,7 +4,7 @@
     "slug": "orbit",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/adaptive-icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "orbit",
     "newArchEnabled": true,
@@ -22,9 +22,10 @@
       "bundleIdentifier": "org.useorbit.app"
     },
     "android": {
+      "icon": "./assets/android-icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#07060e"
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png"
       },
       "versionCode": 22,
       "package": "org.useorbit.app",

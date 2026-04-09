@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES, HABITS_REFETCH_INTERVAL } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   buildHabitQueryString,
@@ -56,6 +56,19 @@ export function useHabits(filters: HabitsFilter) {
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: (items): NormalizedHabitsData => normalizeHabitQueryData(items),
+    // Auto-refresh Today-style single-day queries every ~30s so the list stays
+    // fresh across midnight rollovers and other-device logs. Calendar/month
+    // range queries stay event-driven only.
+    refetchInterval: () => {
+      const isSingleDay = !!filters.dateFrom && filters.dateFrom === filters.dateTo
+      if (!isSingleDay) return false
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return false
+      return HABITS_REFETCH_INTERVAL
+    },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: 'always',
   })
 
   const getChildren = useCallback(

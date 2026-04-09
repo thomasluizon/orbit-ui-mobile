@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native'
+import { Pressable, Text, View, StyleSheet } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
 import { createColors } from '@/lib/theme'
 
@@ -32,75 +32,87 @@ export function ProfileNavCard({
   const isPrimary = variant === 'primary'
 
   return (
-    <TouchableOpacity
-      style={[styles.navCard, isPrimary && styles.navCardPrimary]}
+    <Pressable
+      style={({ pressed }) => [
+        styles.navCardShell,
+        isPrimary && styles.navCardPrimaryShell,
+        pressed && styles.navCardPressed,
+      ]}
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={title}
       accessibilityHint={rightText ?? hint}
-      activeOpacity={0.7}
     >
-      <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
-        {icon}
-      </View>
-      <View style={styles.navCardBody}>
-        <View style={styles.navCardTitleRow}>
-          <Text style={styles.navCardTitle}>{title}</Text>
-          {proBadge && (
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{proBadgeLabel}</Text>
-            </View>
-          )}
+      <View style={[styles.navCardContent, isPrimary && styles.navCardContentPrimary]}>
+        <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
+          {icon}
         </View>
-        <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
+        <View style={styles.navCardBody}>
+          <View style={styles.navCardTitleRow}>
+            <Text style={styles.navCardTitle}>{title}</Text>
+            {proBadge && (
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>{proBadgeLabel}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
+        </View>
+        <ChevronRight size={16} color={colors.textMuted} />
       </View>
-      <ChevronRight size={16} color={colors.textMuted} />
-    </TouchableOpacity>
+    </Pressable>
   )
 }
 
 function createProfileNavCardStyles(colors: AppColors) {
   return StyleSheet.create({
-    navCard: {
+    navCardShell: {
       width: '100%',
-      backgroundColor: colors.surface,
       borderColor: colors.borderMuted,
       borderWidth: 1,
       borderRadius: 24,
-      padding: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 16,
+      overflow: 'hidden',
       shadowColor: '#000000',
       shadowOpacity: 0.04,
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 4 },
       elevation: 1,
     },
-    navCardPrimary: {
-      backgroundColor: colors.primary_10,
-      borderColor: colors.primary_20,
+    navCardContent: {
+      backgroundColor: colors.surface,
+      padding: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    navCardPrimaryShell: {
+      borderColor: colors.primaryTintBorder,
+    },
+    navCardContentPrimary: {
+      backgroundColor: colors.primaryTintBg,
+    },
+    navCardPressed: {
+      opacity: 0.86,
     },
     navCardIcon: {
-      width: 48,
-      height: 48,
       borderRadius: 16,
       backgroundColor: colors.primary_10,
+      padding: 12,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
+      marginRight: 16,
     },
     navCardIconPrimary: {
-      backgroundColor: colors.primary_20,
+      backgroundColor: colors.primaryTintIconBg,
     },
     navCardBody: {
       flex: 1,
       minWidth: 0,
+      marginRight: 12,
     },
     navCardTitleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
     },
     navCardTitle: {
       color: colors.textPrimary,
@@ -111,13 +123,14 @@ function createProfileNavCardStyles(colors: AppColors) {
     navCardHint: {
       color: colors.textSecondary,
       fontSize: 12,
-      marginTop: 4,
+      marginTop: 2,
     },
     proBadge: {
       backgroundColor: colors.primary_20,
       borderRadius: 999,
       paddingHorizontal: 6,
       paddingVertical: 2,
+      marginLeft: 8,
     },
     proBadgeText: {
       color: colors.primary,

@@ -19,10 +19,13 @@ import { useTranslation } from 'react-i18next'
 import Svg, { Path } from 'react-native-svg'
 import { API } from '@orbit/shared/api'
 import {
-  getAuthLoginErrorKey,
+  ApiClientError,
+  extractAuthBackendMessage,
   isValidEmail,
   isVerificationCodeComplete,
+  resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
@@ -61,12 +64,12 @@ export default function LoginScreen() {
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const { isOnline } = useOffline()
+  const { showError } = useAppToast()
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
@@ -142,32 +145,29 @@ export default function LoginScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeDigits, step, isSubmitting])
 
-  function translateBackendError(error: string): string {
-    const key = getAuthLoginErrorKey(error)
-    return key ? t(key) : error
-  }
-
-  function extractError(err: unknown): string {
-    if (err instanceof Error) {
-      return translateBackendError(err.message)
-    }
-    return t('auth.genericError')
+  function resolveLoginErrorMessage(
+    err: unknown,
+    source: 'google' | 'magic-code' = 'magic-code',
+  ): string {
+    const status = err instanceof ApiClientError ? err.status : undefined
+    const backendMessage = extractAuthBackendMessage(err)
+    const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
+    return t(key)
   }
 
   async function sendCode() {
     if (!isOnline) {
-      setErrorMessage(offlineTitle)
+      showError(t('auth.errors.offline'))
       return
     }
 
     const trimmed = email.trim()
     if (!trimmed) return
     if (!isValidEmail(trimmed)) {
-      setErrorMessage(t('auth.errors.invalidEmail'))
+      showError(t('auth.errors.invalidEmail'))
       return
     }
     setIsSubmitting(true)
-    setErrorMessage(null)
 
     try {
       await apiClient(API.auth.sendCode, {
@@ -178,7 +178,7 @@ export default function LoginScreen() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      setErrorMessage(extractError(err))
+      showError(resolveLoginErrorMessage(err))
     } finally {
       setIsSubmitting(false)
     }
@@ -186,14 +186,13 @@ export default function LoginScreen() {
 
   async function verifyCode() {
     if (!isOnline) {
-      setErrorMessage(offlineTitle)
+      showError(t('auth.errors.offline'))
       return
     }
 
     const code = codeDigits.join('')
     if (code.length !== 6) return
     setIsSubmitting(true)
-    setErrorMessage(null)
     setSuccessMessage(null)
 
     try {
@@ -220,7 +219,9 @@ export default function LoginScreen() {
       const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
       router.replace(returnUrl as Href)
     } catch (err: unknown) {
-      setErrorMessage(extractError(err))
+      showError(resolveLoginErrorMessage(err))
+      resetCodeDigits()
+      codeInputRefs.current[0]?.focus()
     } finally {
       setIsSubmitting(false)
     }
@@ -228,13 +229,12 @@ export default function LoginScreen() {
 
   async function resendCode() {
     if (!isOnline) {
-      setErrorMessage(offlineTitle)
+      showError(t('auth.errors.offline'))
       return
     }
 
     if (!canResend) return
     setIsSubmitting(true)
-    setErrorMessage(null)
     setSuccessMessage(null)
 
     try {
@@ -245,7 +245,7 @@ export default function LoginScreen() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      setErrorMessage(extractError(err))
+      showError(resolveLoginErrorMessage(err))
     } finally {
       setIsSubmitting(false)
     }
@@ -253,19 +253,17 @@ export default function LoginScreen() {
 
   function backToEmail() {
     setStep('email')
-    setErrorMessage(null)
     setSuccessMessage(null)
     resetCodeDigits()
   }
 
   async function signInWithGoogle() {
     if (!isOnline) {
-      setErrorMessage(offlineTitle)
+      showError(t('auth.errors.offline'))
       return
     }
 
     setIsGoogleLoading(true)
-    setErrorMessage(null)
 
     try {
       const pendingReturnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
@@ -277,7 +275,7 @@ export default function LoginScreen() {
 
       router.replace('/auth-callback')
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : t('auth.googleError'))
+      showError(resolveLoginErrorMessage(err, 'google'))
     } finally {
       setIsGoogleLoading(false)
     }
@@ -372,18 +370,6 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Error alert */}
-          {errorMessage && (
-            <View
-              style={styles.errorAlert}
-              accessibilityRole="alert"
-              accessibilityLiveRegion="assertive"
-              accessibilityLabel={errorMessage}
-            >
-              <Text style={styles.errorAlertText}>{errorMessage}</Text>
-            </View>
-          )}
-
           {!isOnline && (
             <OfflineUnavailableState
               title={offlineTitle}
@@ -459,7 +445,7 @@ export default function LoginScreen() {
                 <Text style={styles.codeSentEmail}>{email}</Text>
               </Text>
 
-              <View style={styles.formSection}>
+              <View style={styles.codeFormSection}>
                 {/* 6-digit code inputs */}
                 <View
                   style={styles.codeInputRow}
@@ -628,22 +614,12 @@ function createStyles(colors: AppColors) {
     fontSize: 14,
     color: colors.emerald400,
   },
-  errorAlert: {
-    backgroundColor: colors.redBg,
-    borderWidth: 1,
-    borderColor: colors.redBorder,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  errorAlertText: {
-    fontSize: 14,
-    color: colors.red400,
-  },
-
   // -- Form --
   formSection: {
     gap: 16,
+  },
+  codeFormSection: {
+    gap: 24,
   },
   fieldGroup: {
     gap: 6, // space-y-1.5

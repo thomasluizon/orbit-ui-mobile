@@ -94,6 +94,16 @@ async function main() {
   const deviceId = await getConnectedDeviceId()
 
   console.log(`Using adb device: ${deviceId}`)
+  console.log('Syncing Android native resources from Expo config...')
+
+  await run('cmd.exe', ['/c', 'npx', 'expo', 'prebuild', '--platform', 'android', '--no-install'], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      EXPO_NO_METRO_WORKSPACE_ROOT: '1',
+    },
+  })
+
   console.log('Building release APK with Gradle...')
 
   await run('cmd.exe', ['/c', 'gradlew.bat', 'assembleRelease'], {

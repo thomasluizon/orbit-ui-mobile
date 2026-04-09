@@ -65,7 +65,7 @@ describe('finalizeHabitMutation', () => {
 
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: habitKeys.summary('', ''),
+      queryKey: [...habitKeys.all, 'summary'],
     })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.detail('habit-1'),

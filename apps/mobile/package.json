@@ -3,6 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "main": "./index.js",
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./modules"
+    }
+  },
   "scripts": {
     "postinstall": "node scripts/fix-hoisting.js",
     "dev": "expo start",

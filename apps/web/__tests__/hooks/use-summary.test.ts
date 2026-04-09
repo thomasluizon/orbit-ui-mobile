@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useSummary } from '@/hooks/use-summary'
+import { habitKeys } from '@orbit/shared/query'
 
 // Mock fetch
 const mockFetch = vi.fn()
@@ -145,5 +146,12 @@ describe('useSummary', () => {
     expect(calledUrl).toContain('dateTo=2025-01-15')
     expect(calledUrl).toContain('includeOverdue=true')
     expect(calledUrl).toContain('language=pt-BR')
+  })
+
+  it('produces different query keys for different locales', () => {
+    const en = habitKeys.summary('2025-01-15', '2025-01-15', 'en')
+    const pt = habitKeys.summary('2025-01-15', '2025-01-15', 'pt-BR')
+    expect(en).not.toEqual(pt)
+    expect(pt).toContain('pt-BR')
   })
 })

@@ -6,6 +6,7 @@ const path = require('path')
 process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1'
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
+const projectRoot = path.join(__dirname, '..')
 const androidDir = path.join(__dirname, '..', 'android')
 
 const gradlew = path.join(androidDir, 'gradlew.bat')
@@ -33,6 +34,13 @@ if (sdkPath) {
   process.env.ANDROID_HOME = sdkPath
   process.env.ANDROID_SDK_ROOT = sdkPath
 }
+
+execSync('npx expo prebuild --platform android --no-install', {
+  shell: true,
+  cwd: projectRoot,
+  stdio: 'inherit',
+  env: process.env,
+})
 
 execSync(`"${gradlew}" assembleRelease`, {
   shell: true,

@@ -56,6 +56,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/async-storage.ts'),
       },
       {
+        find: '@react-native-community/netinfo',
+        replacement: path.resolve(__dirname, './test-mocks/netinfo.ts'),
+      },
+      {
         find: 'react-native-gesture-handler',
         replacement: path.resolve(__dirname, './test-mocks/react-native-gesture-handler.ts'),
       },

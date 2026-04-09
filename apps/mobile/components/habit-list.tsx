@@ -85,6 +85,7 @@ interface HabitListProps {
   onSeeUpcoming?: () => void
   onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
+  onEditHabit?: (habit: NormalizedHabit) => void
   onScrollBeginDrag?: () => void
 }
 
@@ -186,6 +187,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     onSeeUpcoming,
     onLogHabit,
     onDetailHabit,
+    onEditHabit,
     onScrollBeginDrag,
   },
   ref,
@@ -231,6 +233,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
+  const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useState(false)
   const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
   const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
@@ -787,6 +791,26 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setShowDeleteConfirm(true)
   }, [])
 
+  const promptDuplicate = useCallback((habitId: string) => {
+    const habit = habitsById.get(habitId)
+    if (!habit) return
+    setHabitToDuplicate(habit)
+    setShowDuplicateConfirm(true)
+  }, [habitsById])
+
+  const confirmDuplicate = useCallback(async () => {
+    if (!habitToDuplicate) return
+    const id = habitToDuplicate.id
+    try {
+      await duplicateMutation.mutateAsync(id)
+    } catch {
+      // Error handled by mutation
+    } finally {
+      setHabitToDuplicate(null)
+      setShowDuplicateConfirm(false)
+    }
+  }, [duplicateMutation, habitToDuplicate])
+
   const closeMoveParentDialog = useCallback(() => {
     if (moveParentMutation.isPending) return
 
@@ -968,7 +992,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           onDelete={() => {
             promptDelete(habit.id)
           }}
-          onDuplicate={() => duplicateMutation.mutate(habit.id)}
+          onDuplicate={() => promptDuplicate(habit.id)}
+          onEdit={() => onEditHabit?.(habit)}
           onMoveParent={() => {
             openMoveParentDialog(habit.id)
           }}
@@ -1012,7 +1037,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       toggleExpand,
       t,
       promptDelete,
-      duplicateMutation,
+      promptDuplicate,
       openMoveParentDialog,
       startAddSubHabit,
       drill.drillInto,
@@ -1021,6 +1046,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       getDescendantIds,
       isAncestorSelected,
       onDetailHabit,
+      onEditHabit,
     ],
   )
 
@@ -1211,6 +1237,28 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           setShowDeleteConfirm(false)
         }}
         variant="danger"
+      />
+
+      <ConfirmDialog
+        open={showDuplicateConfirm}
+        onOpenChange={(open) => {
+          setShowDuplicateConfirm(open)
+          if (!open) {
+            setHabitToDuplicate(null)
+          }
+        }}
+        title={t('habits.duplicateConfirmTitle')}
+        description={t('habits.duplicateConfirmMessage', {
+          name: habitToDuplicate?.title ?? '',
+        })}
+        confirmLabel={t('habits.duplicateConfirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmDuplicate}
+        onCancel={() => {
+          setHabitToDuplicate(null)
+          setShowDuplicateConfirm(false)
+        }}
+        variant="success"
       />
 
       <ConfirmDialog

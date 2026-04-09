@@ -21,9 +21,13 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false;
 
+  // DB is the source of truth for language. Fall back to the UI locale only
+  // until the profile hydrates, so pt-BR users never see an English summary.
+  const locale = profile?.language ?? i18n.language;
+
   const { summary, isLoading, error, refetch } = useSummary({
     date,
-    locale: i18n.language,
+    locale,
     hasProAccess,
     aiSummaryEnabled,
   });

@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "Orbit - Rastreador Pessoal de Hábitos",
+    "description": "Construa melhores hábitos com rastreamento e insights alimentados por IA."
+  },
   "settings": {
     "title": "Configurações",
     "hint": "Idioma, cores, preferências de IA, fuso horário",
@@ -175,11 +179,21 @@
     "codeDigit": "Dígito {n} de 6",
     "tagline": "Acompanhe seus hábitos, construa suas sequências",
     "errors": {
-      "invalidEmail": "Formato de e-mail inválido",
-      "rateLimited": "Aguarde antes de solicitar um novo código",
-      "codeExpired": "Código expirado. Solicite um novo.",
-      "tooManyAttempts": "Muitas tentativas. Solicite um novo código.",
-      "invalidCode": "Código de verificação inválido"
+      "invalidEmail": "Esse e-mail não parece válido. Verifique e tente de novo.",
+      "emailNotFound": "Não encontramos uma conta com esse e-mail.",
+      "invalidCode": "Esse código não confere. Verifique o e-mail e tente de novo.",
+      "codeExpired": "Esse código expirou. Toque em reenviar para receber um novo.",
+      "tooManyAttempts": "Muitas tentativas. Toque em reenviar para receber um novo código.",
+      "rateLimited": "Você está indo rápido demais. Aguarde um instante e tente de novo.",
+      "invalidRequest": "Algo nessa solicitação não está certo. Tente novamente.",
+      "unauthorized": "Não conseguimos te verificar. Tente novamente.",
+      "forbidden": "Você não tem permissão para fazer isso.",
+      "conflict": "Essa ação não pôde ser concluída agora. Tente novamente.",
+      "serverError": "Nossos servidores estão com um probleminha. Tente novamente em instantes.",
+      "networkError": "Parece que você está offline. Verifique sua conexão e tente novamente.",
+      "offline": "Parece que você está offline. Verifique sua conexão e tente novamente.",
+      "googleError": "Não foi possível entrar com o Google. Tente novamente.",
+      "unknownError": "Algo deu errado. Tente novamente."
     }
   },
   "habits": {
@@ -263,6 +277,9 @@
     "postponeConfirmButton": "Adiar",
     "deleteConfirmTitle": "Excluir Hábito",
     "deleteConfirmMessage": "Tem certeza que deseja excluir este hábito? Esta ação não pode ser desfeita.",
+    "duplicateConfirmTitle": "Duplicar hábito?",
+    "duplicateConfirmMessage": "Uma cópia de \"{name}\" será criada com todas as configurações (frequência, tags, lembretes, checklist).",
+    "duplicateConfirm": "Duplicar",
     "forceLogTitle": "Registrar com sub-hábitos incompletos",
     "forceLogMessage": "Alguns sub-hábitos ainda não foram concluídos. Deseja registrar este hábito mesmo assim?",
     "forceLogConfirm": "Registrar mesmo assim",
@@ -1704,5 +1721,13 @@
       "create": "Falha ao criar chave de API",
       "revoke": "Falha ao revogar chave de API"
     }
+  },
+  "versionUpdate": {
+    "title": "Atualização disponível",
+    "description": "Uma nova versão do Orbit está disponível na Google Play. Atualize agora para receber as últimas correções e novidades.",
+    "currentLabel": "Sua versão: {version}",
+    "latestLabel": "Mais recente: {version}",
+    "updateCta": "Atualizar agora",
+    "laterCta": "Depois"
   }
 }

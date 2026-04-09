@@ -73,6 +73,81 @@ describe('habit-visibility', () => {
     ])
   })
 
+  it('surfaces overdue one-time habits on the today view', () => {
+    const today = '2026-04-09'
+    const overdue = createMockHabit({
+      id: 'overdue',
+      isOverdue: true,
+      isCompleted: false,
+      frequencyUnit: null,
+      instances: [],
+      scheduledDates: [],
+    })
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([overdue]),
+      childrenByParent: new Map(),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: false,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.hasVisibleContent(overdue)).toBe(true)
+  })
+
+  it('surfaces parents whose children are overdue on the today view', () => {
+    const today = '2026-04-09'
+    const parent = createMockHabit({
+      id: 'parent',
+      isOverdue: false,
+      isCompleted: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: 'parent',
+      isOverdue: true,
+      isCompleted: false,
+      frequencyUnit: null,
+      instances: [],
+      scheduledDates: [],
+    })
+
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([parent, child]),
+      childrenByParent: new Map([['parent', ['child']]]),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: false,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.hasVisibleContent(parent)).toBe(true)
+  })
+
+  it('does not surface recurring habits that are merely missed (not overdue)', () => {
+    const today = '2026-04-09'
+    const missed = createMockHabit({
+      id: 'missed',
+      isOverdue: false,
+      isCompleted: false,
+      frequencyUnit: 'Day',
+      instances: [],
+      scheduledDates: [],
+    })
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([missed]),
+      childrenByParent: new Map(),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: false,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.hasVisibleContent(missed)).toBe(false)
+  })
+
   it('filters completed children unless recently completed or showCompleted is on', () => {
     const completed = createMockHabit({
       id: 'completed',

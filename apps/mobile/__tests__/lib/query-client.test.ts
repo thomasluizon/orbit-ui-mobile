@@ -28,7 +28,7 @@ describe('mobile query client', () => {
     expect(defaults.queries?.staleTime).toBe(5 * 60 * 1000)
     expect(defaults.queries?.gcTime).toBe(24 * 60 * 60 * 1000)
     expect(defaults.mutations?.retry).toBe(false)
-    expect(defaults.queries?.refetchOnWindowFocus).toBe(false)
+    expect(defaults.queries?.refetchOnWindowFocus).toBe(true)
     expect(defaults.queries?.refetchOnReconnect).toBe(true)
     expect(retry(0, new Error('status 401'))).toBe(false)
     expect(retry(2, new Error('network'))).toBe(true)

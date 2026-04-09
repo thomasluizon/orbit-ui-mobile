@@ -50,6 +50,7 @@ vi.mock('lucide-react-native', () => {
     FastForward: createIcon('FastForward'),
     Flame: createIcon('Flame'),
     MoreVertical: createIcon('MoreVertical'),
+    Pencil: createIcon('Pencil'),
     Plus: createIcon('Plus'),
     Trash2: createIcon('Trash2'),
   }

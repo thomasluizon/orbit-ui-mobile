@@ -60,10 +60,19 @@ describe('habitKeys', () => {
     )
   })
 
-  it('summary appends date range', () => {
+  it('summary appends date range and locale', () => {
     expect(habitKeys.summary('2025-01-01', '2025-01-31')).toEqual(
-      ['habits', 'summary', '2025-01-01', '2025-01-31'],
+      ['habits', 'summary', '2025-01-01', '2025-01-31', 'en'],
     )
+    expect(habitKeys.summary('2025-01-01', '2025-01-31', 'pt-BR')).toEqual(
+      ['habits', 'summary', '2025-01-01', '2025-01-31', 'pt-BR'],
+    )
+  })
+
+  it('summary produces distinct keys per locale', () => {
+    const en = habitKeys.summary('2025-01-01', '2025-01-01', 'en')
+    const pt = habitKeys.summary('2025-01-01', '2025-01-01', 'pt-BR')
+    expect(en).not.toEqual(pt)
   })
 
   it('retrospective appends period', () => {

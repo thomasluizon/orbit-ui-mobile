@@ -24,7 +24,7 @@ export function ProfileActionButton({
   if (tone === 'primary') {
     toneClass = 'py-4 border border-primary/30 text-primary hover:bg-primary/10'
   } else if (tone === 'danger' && compact) {
-    toneClass = 'py-3.5 text-red-500/60 text-xs hover:text-red-400'
+    toneClass = 'py-4 text-red-500/60 text-xs hover:text-red-400'
   } else if (tone === 'danger') {
     toneClass = 'py-4 border border-red-500/30 text-red-400 hover:bg-red-500/10'
   }

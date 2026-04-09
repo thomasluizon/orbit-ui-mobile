@@ -72,9 +72,9 @@ export default function ProfilePage() {
         </p>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* ==================== ACCOUNT ==================== */}
-        <section className="space-y-4" aria-labelledby="profile-account-heading">
+        <section className="space-y-3" aria-labelledby="profile-account-heading">
           <h2 id="profile-account-heading" className="form-label pt-2">
             {t('profile.sections.account')}
           </h2>
@@ -122,7 +122,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ==================== FEATURES ==================== */}
-        <section className="space-y-4" aria-labelledby="profile-features-heading">
+        <section className="space-y-3" aria-labelledby="profile-features-heading">
           <h2 id="profile-features-heading" className="form-label pt-2">
             {t('profile.sections.features')}
           </h2>

@@ -11,6 +11,7 @@ import {
   FastForward,
   Copy,
   CheckCircle2,
+  Pencil,
   Trash2,
   ClipboardCheck,
   Flame,
@@ -55,6 +56,7 @@ interface HabitCardProps {
   onSkip?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
+  onEdit?: () => void
   onMoveParent?: () => void
   onDetail?: () => void
   onDrillInto?: () => void
@@ -699,7 +701,7 @@ function MenuActionButton({
 // Actions menu panel (portal) - S6852: tabIndex for focusability
 // ---------------------------------------------------------------------------
 
-function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit, depth, maxHabitDepth, canSkip, isPostpone, hasSubHabits, onAddSubHabit, onMoveParent, onSkip, onDuplicate, onEnterSelectMode, onDelete, onDrillInto, closeMenu }: Readonly<{
+function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit, depth, maxHabitDepth, canSkip, isPostpone, hasSubHabits, onAddSubHabit, onMoveParent, onSkip, onEdit, onDuplicate, onEnterSelectMode, onDelete, onDrillInto, closeMenu }: Readonly<{
   panelRef: React.RefObject<HTMLDivElement | null>
   menuPosition: { top: number; left: number }
   menuOpensUp: boolean
@@ -712,6 +714,7 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit
   onAddSubHabit: (() => void) | undefined
   onMoveParent: (() => void) | undefined
   onSkip: (() => void) | undefined
+  onEdit: (() => void) | undefined
   onDuplicate: (() => void) | undefined
   onEnterSelectMode: (() => void) | undefined
   onDelete: (() => void) | undefined
@@ -767,6 +770,13 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit
           className="text-amber-400 hover:bg-amber-500/10"
         />
       )}
+
+      <MenuActionButton
+        label={t('common.edit')}
+        icon={<Pencil className="size-4 text-text-muted" />}
+        onClick={handleAction(onEdit)}
+        className="text-text-primary hover:bg-surface-elevated/60"
+      />
 
       <MenuActionButton
         label={t('habits.actions.duplicate')}
@@ -913,6 +923,7 @@ export function HabitCard({
   onSkip,
   onDelete,
   onDuplicate,
+  onEdit,
   onMoveParent,
   onDetail,
   onDrillInto,
@@ -1111,6 +1122,7 @@ export function HabitCard({
           onAddSubHabit={onAddSubHabit}
           onMoveParent={onMoveParent}
           onSkip={onSkip}
+          onEdit={onEdit}
           onDuplicate={onDuplicate}
           onEnterSelectMode={onEnterSelectMode}
           onDelete={onDelete}

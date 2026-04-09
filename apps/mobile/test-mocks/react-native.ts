@@ -73,6 +73,13 @@ export const Easing = {
   cubic: 'cubic',
 }
 
+export const AppState = {
+  currentState: 'active' as 'active' | 'background' | 'inactive',
+  addEventListener: (_event: string, _listener: (status: string) => void) => ({
+    remove: () => {},
+  }),
+}
+
 export const Platform = {
   OS: 'android',
   select: <T,>(values: { android?: T; default?: T }) => values.android ?? values.default,
@@ -100,6 +107,7 @@ export {
 export default {
   ActivityIndicator,
   Animated,
+  AppState,
   Easing,
   FlatList,
   Image,

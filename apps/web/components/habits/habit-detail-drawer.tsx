@@ -10,7 +10,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
-  HabitDetailActionButtons,
   HabitDetailRecentNotes,
   HabitDetailStatsGrid,
   type TranslationFn,
@@ -28,8 +27,6 @@ interface HabitDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
-  onDelete?: (habitId: string) => void
-  onEdit?: (habitId: string) => void
   onLogged?: (habitId: string) => void
 }
 
@@ -41,8 +38,6 @@ export function HabitDetailDrawer({
   open,
   onOpenChange,
   habit,
-  onDelete,
-  onEdit,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
@@ -79,20 +74,6 @@ export function HabitDetailDrawer({
         })),
     [dateFnsLocale, locale, logs],
   )
-
-  const handleEdit = useCallback(() => {
-    if (habit) {
-      onEdit?.(habit.id)
-      onOpenChange(false)
-    }
-  }, [habit, onEdit, onOpenChange])
-
-  const handleDelete = useCallback(() => {
-    if (habit) {
-      onDelete?.(habit.id)
-      onOpenChange(false)
-    }
-  }, [habit, onDelete, onOpenChange])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -149,17 +130,6 @@ export function HabitDetailDrawer({
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
-        footer={
-          habit ? (
-            <div className="flex gap-3">
-              <HabitDetailActionButtons
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                t={t as TranslationFn}
-              />
-            </div>
-          ) : undefined
-        }
       >
         {habit && (
           <div className="space-y-6">

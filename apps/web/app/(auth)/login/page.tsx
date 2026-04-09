@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import {
-  getAuthLoginErrorKey,
+  extractAuthBackendMessage,
   isValidEmail,
   isValidVerificationCode,
+  resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
@@ -21,60 +23,29 @@ function getCookieValue(name: string): string | undefined {
   return value === undefined ? undefined : decodeURIComponent(value)
 }
 
-/** Extract first FluentValidation error from an errors object */
-function extractFirstValidationError(errors: unknown): string | undefined {
-  if (!errors || typeof errors !== 'object') return undefined
-  const firstField = Object.values(errors as Record<string, unknown>)[0]
-  if (Array.isArray(firstField) && firstField.length > 0) return firstField[0] as string
-  return undefined
+interface AuthFetchError {
+  status: number
+  body: unknown
 }
 
-/** Extract error string or validation error from a plain object */
-function extractErrorFromRecord(obj: Record<string, unknown>): string | undefined {
-  if (typeof obj.error === 'string') return obj.error
-  return extractFirstValidationError(obj.errors)
+function isAuthFetchError(err: unknown): err is AuthFetchError {
+  return (
+    !!err &&
+    typeof err === 'object' &&
+    typeof (err as { status?: unknown }).status === 'number'
+  )
 }
 
-/**
- * Extract a backend error message from a fetch response body.
- *
- * BFF routes return JSON bodies shaped like:
- *   { error: "..." }                  -- simple error
- *   { data: { error: "..." } }        -- nested
- *   { errors: { Field: ["msg"] } }    -- FluentValidation
- *   { data: { errors: { ... } } }     -- nested FluentValidation
- */
-function extractFetchError(err: unknown): string | undefined {
-  if (!err || typeof err !== 'object') return undefined
-  const obj = err as Record<string, unknown>
-
-  // Direct level
-  const direct = extractErrorFromRecord(obj)
-  if (direct) return direct
-
-  // Nested in data
-  if (obj.data && typeof obj.data === 'object') {
-    const data = obj.data as Record<string, unknown>
-    const fromData = extractErrorFromRecord(data)
-    if (fromData) return fromData
-
-    // Deeper: data.data
-    if (data.data && typeof data.data === 'object') {
-      return extractErrorFromRecord(data.data as Record<string, unknown>)
-    }
-  }
-
-  return undefined
-}
-
-function translateBackendError(error: string, t: ReturnType<typeof useTranslations>): string {
-  const key = getAuthLoginErrorKey(error)
-  return key ? t(key) : error
-}
-
-function extractError(err: unknown, t: ReturnType<typeof useTranslations>): string {
-  const backendError = extractFetchError(err)
-  return backendError ? translateBackendError(backendError, t) : t('auth.genericError')
+function resolveLoginErrorMessage(
+  err: unknown,
+  t: ReturnType<typeof useTranslations>,
+  source: 'google' | 'magic-code' = 'magic-code',
+): string {
+  const status = isAuthFetchError(err) ? err.status : undefined
+  const body = isAuthFetchError(err) ? err.body : err
+  const backendMessage = extractAuthBackendMessage(body)
+  const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
+  return t(key)
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +157,7 @@ function CodeStep({
         <span className="text-text-primary font-medium">{email}</span>
       </p>
 
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
+      <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
         <fieldset
           className="flex justify-center gap-1.5 sm:gap-2 border-0 p-0 m-0"
           aria-labelledby="code-sent-to"
@@ -253,7 +224,8 @@ async function fetchAuthEndpoint(
   })
   if (!response.ok) {
     const data = await response.json().catch(() => null)
-    throw data ?? { error: 'Authentication failed' }
+    const err: AuthFetchError = { status: response.status, body: data }
+    throw err
   }
   return response.json()
 }
@@ -288,12 +260,12 @@ export default function LoginPage() {
   const t = useTranslations()
   const locale = useLocale()
   const { setAuth } = useAuthStore()
+  const { showError } = useAppToast()
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const {
     codeDigits,
@@ -340,14 +312,21 @@ export default function LoginPage() {
     return '/'
   }, [searchParams])
 
+  function isOfflinePreflight(): boolean {
+    return typeof navigator !== 'undefined' && navigator.onLine === false
+  }
+
   async function sendCode() {
     if (!email.trim()) return
     if (!isValidEmail(email)) {
-      setErrorMessage(t('auth.errors.invalidEmail'))
+      showError(t('auth.errors.invalidEmail'))
+      return
+    }
+    if (isOfflinePreflight()) {
+      showError(t('auth.errors.offline'))
       return
     }
     setIsSubmitting(true)
-    setErrorMessage(null)
 
     try {
       await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
@@ -355,7 +334,7 @@ export default function LoginPage() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      setErrorMessage(extractError(err, t))
+      showError(resolveLoginErrorMessage(err, t))
     } finally {
       setIsSubmitting(false)
     }
@@ -364,8 +343,11 @@ export default function LoginPage() {
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? codeDigits.join('')
     if (code.length !== 6) return
+    if (isOfflinePreflight()) {
+      showError(t('auth.errors.offline'))
+      return
+    }
     setIsSubmitting(true)
-    setErrorMessage(null)
     setSuccessMessage(null)
 
     try {
@@ -377,7 +359,9 @@ export default function LoginPage() {
       }) as LoginResponse
       handleVerifySuccess(loginResponse, referralCode, setAuth, setSuccessMessage, t, router, getReturnUrl)
     } catch (err: unknown) {
-      setErrorMessage(extractError(err, t))
+      showError(resolveLoginErrorMessage(err, t))
+      resetCodeDigits()
+      codeInputRefs.current[0]?.focus()
     } finally {
       setIsSubmitting(false)
     }
@@ -385,8 +369,11 @@ export default function LoginPage() {
 
   async function resendCode() {
     if (!canResend) return
+    if (isOfflinePreflight()) {
+      showError(t('auth.errors.offline'))
+      return
+    }
     setIsSubmitting(true)
-    setErrorMessage(null)
     setSuccessMessage(null)
 
     try {
@@ -394,7 +381,7 @@ export default function LoginPage() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      setErrorMessage(extractError(err, t))
+      showError(resolveLoginErrorMessage(err, t))
     } finally {
       setIsSubmitting(false)
     }
@@ -402,14 +389,16 @@ export default function LoginPage() {
 
   function backToEmail() {
     setStep('email')
-    setErrorMessage(null)
     setSuccessMessage(null)
     resetCodeDigits()
   }
 
   async function signInWithGoogle() {
+    if (isOfflinePreflight()) {
+      showError(t('auth.errors.offline'))
+      return
+    }
     setIsGoogleLoading(true)
-    setErrorMessage(null)
 
     try {
       const supabase = getSupabaseClient()
@@ -427,11 +416,11 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setErrorMessage(t('auth.googleError'))
+        showError(t('auth.errors.googleError'))
         setIsGoogleLoading(false)
       }
-    } catch {
-      setErrorMessage(t('auth.googleError'))
+    } catch (err: unknown) {
+      showError(resolveLoginErrorMessage(err, t, 'google'))
       setIsGoogleLoading(false)
     }
   }
@@ -467,18 +456,6 @@ export default function LoginPage() {
             className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400"
           >
             {successMessage}
-          </div>
-        )}
-
-        {/* Error alert */}
-        {errorMessage && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            aria-atomic="true"
-            className="bg-red-500/10 border border-red-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-red-400"
-          >
-            {errorMessage}
           </div>
         )}
 

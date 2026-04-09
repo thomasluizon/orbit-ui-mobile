@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { endOfMonth, startOfMonth } from 'date-fns'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES, HABITS_REFETCH_INTERVAL } from '@orbit/shared/query'
+import { isAppActive, isOnline } from '@/lib/query-client'
 import { API } from '@orbit/shared/api'
 import {
   buildCalendarDayMap,
@@ -69,6 +70,20 @@ export function useHabits(filters: HabitsFilter) {
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: (items): NormalizedHabitsData => normalizeHabitQueryData(items),
+    // Auto-refresh Today-style single-day queries every ~30s so the list stays
+    // fresh across midnight rollovers and other-device logs. Calendar/month
+    // range queries stay event-driven only. Polling pauses when the app is
+    // backgrounded or offline.
+    refetchInterval: () => {
+      const isSingleDay = !!filters.dateFrom && filters.dateFrom === filters.dateTo
+      if (!isSingleDay) return false
+      if (!isAppActive()) return false
+      if (!isOnline()) return false
+      return HABITS_REFETCH_INTERVAL
+    },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: 'always',
   })
 
   const getChildren = useCallback(
@@ -168,7 +183,7 @@ export function useSummary({
   const enabled = hasProAccess && aiSummaryEnabled && !!date
 
   const query = useQuery({
-    queryKey: habitKeys.summary(date, date),
+    queryKey: habitKeys.summary(date, date, locale),
     queryFn: async (): Promise<string> => {
       const params = new URLSearchParams({
         dateFrom: date,

@@ -115,6 +115,13 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
   useQueryClient: mocks.useQueryClient,
   useMutation: mocks.useMutation,
+  focusManager: { setEventListener: () => {} },
+  onlineManager: { setEventListener: () => {} },
+  QueryClient: class {
+    getDefaultOptions() {
+      return {}
+    }
+  },
 }))
 
 vi.mock('@/lib/api-client', () => ({

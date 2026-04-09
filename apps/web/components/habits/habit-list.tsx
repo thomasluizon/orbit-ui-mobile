@@ -699,6 +699,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [habitToLog, setHabitToLog] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
+  const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
   const [showSkipConfirm, setShowSkipConfirm] = useState(false)
   const [habitToSkip, setHabitToSkip] = useState<string | null>(null)
   const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
@@ -905,6 +907,26 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setShowDeleteConfirm(true)
   }
 
+  function promptDuplicate(habitId: string) {
+    const habit = habitsById.get(habitId)
+    if (!habit) return
+    setHabitToDuplicate(habit)
+    setShowDuplicateConfirm(true)
+  }
+
+  async function confirmDuplicate() {
+    if (!habitToDuplicate) return
+    const id = habitToDuplicate.id
+    try {
+      await duplicateHabitMut.mutateAsync(id)
+    } catch {
+      // Error handled by mutation
+    } finally {
+      setHabitToDuplicate(null)
+      setShowDuplicateConfirm(false)
+    }
+  }
+
   function promptSkip(habitId: string) {
     setHabitToSkip(habitId)
     setShowSkipConfirm(true)
@@ -963,22 +985,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  function handleDetailDelete(habitId: string) {
-    setShowDetailDrawer(false)
-    setSelectedHabit(null)
-    promptDelete(habitId)
-  }
-
-  function handleDetailEdit(habitId: string) {
-    const habit = selectedHabit ?? habitsById.get(habitId)
-    if (!habit) return
-    setShowDetailDrawer(false)
-    setSelectedHabit(null)
-    setHabitToEdit(habit)
-    setShowEditModal(true)
-  }
-
-  const isPostponeAction = useMemo(() => {
+const isPostponeAction = useMemo(() => {
     if (!habitToSkip) return false
     const habit = habitsById.get(habitToSkip)
     return habit ? !habit.frequencyUnit : false
@@ -1044,7 +1051,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           setShowForceLogConfirm(true)
         }}
         onSkip={() => promptSkip(habit.id)}
-        onDuplicate={() => duplicateHabitMut.mutate(habit.id)}
+        onDuplicate={() => promptDuplicate(habit.id)}
+        onEdit={() => {
+          setHabitToEdit(habit)
+          setShowEditModal(true)
+        }}
         onMoveParent={() => openMoveParentPicker(habit.id)}
         onDelete={() => promptDelete(habit.id)}
         onDetail={() => openDetail(habit)}
@@ -1294,8 +1305,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         open={showDetailDrawer}
         onOpenChange={setShowDetailDrawer}
         habit={selectedHabit}
-        onDelete={handleDetailDelete}
-        onEdit={handleDetailEdit}
         onLogged={handleLogged}
       />
 
@@ -1333,6 +1342,26 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           setShowDeleteConfirm(false)
         }}
         variant="danger"
+      />
+
+      <ConfirmDialog
+        open={showDuplicateConfirm}
+        onOpenChange={(open) => {
+          setShowDuplicateConfirm(open)
+          if (!open) setHabitToDuplicate(null)
+        }}
+        title={t('habits.duplicateConfirmTitle')}
+        description={t('habits.duplicateConfirmMessage', {
+          name: habitToDuplicate?.title ?? '',
+        })}
+        confirmLabel={t('habits.duplicateConfirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmDuplicate}
+        onCancel={() => {
+          setHabitToDuplicate(null)
+          setShowDuplicateConfirm(false)
+        }}
+        variant="success"
       />
 
       <ConfirmDialog
