@@ -20,7 +20,6 @@ import { HabitChecklist } from "./habit-checklist";
 import { DescriptionViewer } from "./description-viewer";
 import { HabitCalendar } from "./habit-calendar";
 import {
-  HabitDetailActionButtons,
   HabitDetailRecentNotes,
   HabitDetailStatsGrid,
 } from "./habit-detail-sections";
@@ -42,8 +41,6 @@ interface HabitDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   habit: NormalizedHabit | null;
-  onDelete?: (habitId: string) => void;
-  onEdit?: (habitId: string) => void;
   onLogged?: (habitId: string) => void;
 }
 
@@ -74,8 +71,6 @@ export function HabitDetailDrawer({
   open,
   onClose,
   habit,
-  onDelete,
-  onEdit,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const { t, i18n } = useTranslation();
@@ -116,20 +111,6 @@ export function HabitDetailDrawer({
         })),
     [dateFnsLocale, locale, logs],
   );
-
-  const handleEdit = useCallback(() => {
-    if (habit) {
-      onEdit?.(habit.id);
-      onClose();
-    }
-  }, [habit, onEdit, onClose]);
-
-  const handleDelete = useCallback(() => {
-    if (habit) {
-      onDelete?.(habit.id);
-      onClose();
-    }
-  }, [habit, onDelete, onClose]);
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -314,19 +295,6 @@ export function HabitDetailDrawer({
               }}
             />
 
-            {/* Action buttons */}
-            <HabitDetailActionButtons
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              t={t}
-              styles={{
-                buttonRow: styles.buttonRow,
-                editButton: styles.editButton,
-                editButtonText: styles.editButtonText,
-                deleteButton: styles.deleteButton,
-                deleteButtonText: styles.deleteButtonText,
-              }}
-            />
           </BottomSheetScrollView>
         )}
       </BottomSheetModal>

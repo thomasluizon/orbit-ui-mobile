@@ -936,12 +936,6 @@ export default function TodayScreen() {
         onClose={() => setDetailHabit(null)}
         habit={detailHabit}
         onLogged={handleHabitLogged}
-        onEdit={(habitId) => {
-          const habit = detailHabit?.id === habitId ? detailHabit : null
-          setDetailHabit(null)
-          if (habit) setEditHabit(habit)
-        }}
-        onDelete={requestHabitDelete}
       />
 
       <EditHabitModal

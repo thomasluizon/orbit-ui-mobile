@@ -28,12 +28,6 @@ interface HabitDetailRecentNotesProps {
   t: TranslationFn
 }
 
-interface HabitDetailActionButtonsProps {
-  onEdit: () => void
-  onDelete: () => void
-  t: TranslationFn
-}
-
 export function HabitDetailStatsGrid({
   metrics,
   loading,
@@ -125,25 +119,3 @@ export function HabitDetailRecentNotes({
   )
 }
 
-export function HabitDetailActionButtons({
-  onEdit,
-  onDelete,
-  t,
-}: Readonly<HabitDetailActionButtonsProps>) {
-  return (
-    <div className="flex gap-3">
-      <button
-        className="flex-1 py-4 rounded-xl border border-border text-text-primary font-bold text-sm hover:bg-surface-elevated/80 transition-all duration-150"
-        onClick={onEdit}
-      >
-        {t('common.edit')}
-      </button>
-      <button
-        className="flex-[2] py-4 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-150 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
-        onClick={onDelete}
-      >
-        {t('common.delete')}
-      </button>
-    </div>
-  )
-}

@@ -11,6 +11,7 @@ import {
   FastForward,
   Copy,
   CheckCircle2,
+  Pencil,
   Trash2,
   ClipboardCheck,
   Flame,
@@ -55,6 +56,7 @@ interface HabitCardProps {
   onSkip?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
+  onEdit?: () => void
   onMoveParent?: () => void
   onDetail?: () => void
   onDrillInto?: () => void

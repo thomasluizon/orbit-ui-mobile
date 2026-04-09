@@ -1,5 +1,5 @@
 import { BarChart3, Flame, Trophy } from 'lucide-react-native'
-import { Text, TouchableOpacity, View, type TextStyle, type ViewStyle } from 'react-native'
+import { Text, View, type TextStyle, type ViewStyle } from 'react-native'
 
 type TranslationFn = (key: string, values?: Record<string, unknown>) => string
 
@@ -59,16 +59,6 @@ interface HabitDetailRecentNotesProps {
   styles: Pick<
     HabitDetailSectionStyles,
     'notesSection' | 'sectionTitle' | 'notesList' | 'noteCard' | 'noteDate' | 'noteText'
-  >
-}
-
-interface HabitDetailActionButtonsProps {
-  onEdit: () => void
-  onDelete: () => void
-  t: TranslationFn
-  styles: Pick<
-    HabitDetailSectionStyles,
-    'buttonRow' | 'editButton' | 'editButtonText' | 'deleteButton' | 'deleteButtonText'
   >
 }
 
@@ -156,28 +146,3 @@ export function HabitDetailRecentNotes({
   )
 }
 
-export function HabitDetailActionButtons({
-  onEdit,
-  onDelete,
-  t,
-  styles,
-}: Readonly<HabitDetailActionButtonsProps>) {
-  return (
-    <View style={styles.buttonRow}>
-      <TouchableOpacity
-        style={styles.editButton}
-        onPress={onEdit}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.editButtonText}>{t('common.edit')}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={onDelete}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
-      </TouchableOpacity>
-    </View>
-  )
-}
