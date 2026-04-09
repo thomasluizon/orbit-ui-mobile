@@ -8,7 +8,8 @@ export const habitKeys = {
   metrics: (id: string) => [...habitKeys.all, 'metrics', id] as const,
   logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
   calendar: (from: string, to: string) => [...habitKeys.all, 'calendar', from, to] as const,
-  summary: (from: string, to: string) => [...habitKeys.all, 'summary', from, to] as const,
+  summary: (from: string, to: string, locale: string = 'en') =>
+    [...habitKeys.all, 'summary', from, to, locale] as const,
   retrospective: (period: string) => [...habitKeys.all, 'retrospective', period] as const,
 }
 

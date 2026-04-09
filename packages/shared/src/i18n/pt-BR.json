@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "Orbit - Rastreador Pessoal de Hábitos",
+    "description": "Construa melhores hábitos com rastreamento e insights alimentados por IA."
+  },
   "settings": {
     "title": "Configurações",
     "hint": "Idioma, cores, preferências de IA, fuso horário",

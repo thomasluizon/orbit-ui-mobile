@@ -37,7 +37,7 @@ export function useSummary({
   const enabled = hasProAccess && aiSummaryEnabled && !!date
 
   const query = useQuery({
-    queryKey: habitKeys.summary(date, date),
+    queryKey: habitKeys.summary(date, date, locale),
     queryFn: async (): Promise<string> => {
       const params = new URLSearchParams({
         dateFrom: date,

@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "Orbit - Personal Habit Tracker",
+    "description": "Build better habits with AI-powered tracking and insights."
+  },
   "settings": {
     "title": "Settings",
     "hint": "Language, colors, AI preferences, timezone",
