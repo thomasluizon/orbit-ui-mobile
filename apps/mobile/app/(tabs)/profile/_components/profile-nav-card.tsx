@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native'
+import { Pressable, Text, View, StyleSheet } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
 import { createColors } from '@/lib/theme'
 
@@ -32,13 +32,16 @@ export function ProfileNavCard({
   const isPrimary = variant === 'primary'
 
   return (
-    <TouchableOpacity
-      style={[styles.navCard, isPrimary && styles.navCardPrimary]}
+    <Pressable
+      style={({ pressed }) => [
+        styles.navCard,
+        isPrimary && styles.navCardPrimary,
+        pressed && styles.navCardPressed,
+      ]}
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={title}
       accessibilityHint={rightText ?? hint}
-      activeOpacity={0.7}
     >
       <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
         {icon}
@@ -55,7 +58,7 @@ export function ProfileNavCard({
         <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
       </View>
       <ChevronRight size={16} color={colors.textMuted} />
-    </TouchableOpacity>
+    </Pressable>
   )
 }
 
@@ -80,6 +83,9 @@ function createProfileNavCardStyles(colors: AppColors) {
     navCardPrimary: {
       backgroundColor: colors.primaryTintBg,
       borderColor: colors.primaryTintBorder,
+    },
+    navCardPressed: {
+      opacity: 0.72,
     },
     navCardIcon: {
       width: 48,

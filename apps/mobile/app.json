@@ -23,8 +23,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#07060e"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#00000000"
       },
       "versionCode": 22,
       "package": "org.useorbit.app",
