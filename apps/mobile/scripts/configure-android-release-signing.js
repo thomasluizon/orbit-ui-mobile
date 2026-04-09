@@ -22,6 +22,7 @@ const keystorePropertiesPath = path.join(androidDir, "keystore.properties");
 const gradlePropertiesPath = path.join(androidDir, "gradle.properties");
 const rootBuildGradlePath = path.join(androidDir, "build.gradle");
 const buildGradlePath = path.join(appDir, "build.gradle");
+const androidManifestPath = path.join(appDir, "src", "main", "AndroidManifest.xml");
 
 function findBraceBlock(source, startRegex, fromIndex = 0) {
   const searchTarget = source.slice(fromIndex);
@@ -74,9 +75,41 @@ function upsertGradleProperty(source, key, value) {
   return `${normalizedSource}${nextLine}\n`;
 }
 
-if (!fs.existsSync(buildGradlePath) || !fs.existsSync(rootBuildGradlePath) || !fs.existsSync(gradlePropertiesPath)) {
+function ensureAndroidAppLinkAutoVerify(source) {
+  const appLinkDataTagPattern =
+    /<data\b(?=[^>]*android:scheme="https")(?=[^>]*android:host="app\.useorbit\.org")(?=[^>]*android:pathPrefix="\/auth-callback")[^>]*\/>/;
+  const appLinkDataTagMatch = source.match(appLinkDataTagPattern);
+
+  if (!appLinkDataTagMatch || typeof appLinkDataTagMatch.index !== "number") {
+    return source;
+  }
+
+  const intentFilterStart = source.lastIndexOf("<intent-filter", appLinkDataTagMatch.index);
+  if (intentFilterStart === -1) {
+    return source;
+  }
+
+  const intentFilterTagEnd = source.indexOf(">", intentFilterStart);
+  if (intentFilterTagEnd === -1 || intentFilterTagEnd > appLinkDataTagMatch.index) {
+    return source;
+  }
+
+  const intentFilterTag = source.slice(intentFilterStart, intentFilterTagEnd);
+  if (intentFilterTag.includes("android:autoVerify=")) {
+    return source;
+  }
+
+  return `${source.slice(0, intentFilterTagEnd)} android:autoVerify="true"${source.slice(intentFilterTagEnd)}`;
+}
+
+if (
+  !fs.existsSync(buildGradlePath) ||
+  !fs.existsSync(rootBuildGradlePath) ||
+  !fs.existsSync(gradlePropertiesPath) ||
+  !fs.existsSync(androidManifestPath)
+) {
   console.error(
-    `Missing expected Android Gradle file: ${buildGradlePath}, ${rootBuildGradlePath}, or ${gradlePropertiesPath}`
+    `Missing expected Android release file: ${buildGradlePath}, ${rootBuildGradlePath}, ${gradlePropertiesPath}, or ${androidManifestPath}`
   );
   process.exit(1);
 }
@@ -102,6 +135,7 @@ fs.writeFileSync(
 let buildGradle = fs.readFileSync(buildGradlePath, "utf8");
 let rootBuildGradle = fs.readFileSync(rootBuildGradlePath, "utf8");
 let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
+let androidManifest = fs.readFileSync(androidManifestPath, "utf8");
 
 if (!rootBuildGradle.includes("asyncStorageLocalRepo")) {
   const repositoriesAnchor = "allprojects {\n  repositories {";
@@ -195,9 +229,11 @@ gradleProperties = upsertGradleProperty(
   "-Xmx1536m,-XX:MaxMetaspaceSize=512m,-Dfile.encoding=UTF-8"
 );
 gradleProperties = upsertGradleProperty(gradleProperties, "org.gradle.workers.max", "2");
+androidManifest = ensureAndroidAppLinkAutoVerify(androidManifest);
 
 fs.writeFileSync(buildGradlePath, buildGradle);
 fs.writeFileSync(rootBuildGradlePath, rootBuildGradle);
 fs.writeFileSync(gradlePropertiesPath, gradleProperties);
+fs.writeFileSync(androidManifestPath, androidManifest);
 
-console.log("Configured Android release signing, Gradle memory settings, and local Maven repos for Gradle build.");
+console.log("Configured Android release signing, verified app links autoVerify, Gradle memory settings, and local Maven repos for Gradle build.");
