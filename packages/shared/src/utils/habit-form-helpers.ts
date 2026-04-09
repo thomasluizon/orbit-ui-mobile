@@ -1,6 +1,12 @@
 import type { FrequencyUnit } from '../types/habit'
 import type { HabitFormData } from '../validation'
-import { validateHabitForm } from '../validation'
+import {
+  validateGoalSelection,
+  validateHabitForm,
+  validateReminderSelection,
+  validateSubHabits,
+  validateTagSelection,
+} from '../validation'
 
 export interface HabitFormTranslationAdapter {
   monday: string
@@ -14,6 +20,13 @@ export interface HabitFormTranslationAdapter {
   unitWeek: string
   unitMonth: string
   unitYear: string
+}
+
+export interface HabitFormValidationContext {
+  reminderTimes?: number[]
+  selectedGoalIds?: string[]
+  selectedTagIds?: string[]
+  subHabits?: string[]
 }
 
 export const HABIT_REMINDER_PRESETS = [
@@ -110,7 +123,8 @@ export function formatHabitTimeInput(value: string): string {
 }
 
 export function isValidHabitTimeInput(time: string): boolean {
-  if (time.length !== 5) return true
+  if (!time) return true
+  if (time.length !== 5) return false
   const [hStr, mStr] = time.split(':')
   const hours = Number.parseInt(hStr ?? '', 10)
   const minutes = Number.parseInt(mStr ?? '', 10)
@@ -124,6 +138,31 @@ export function isValidHabitTimeInput(time: string): boolean {
   )
 }
 
-export function validateHabitFormInput(values: Partial<HabitFormData>): string | null {
-  return validateHabitForm(normalizeHabitFormData(values))
+export function validateHabitFormInput(
+  values: Partial<HabitFormData>,
+  context: HabitFormValidationContext = {},
+): string | null {
+  const normalizedValues = normalizeHabitFormData(values)
+
+  const habitError = validateHabitForm(normalizedValues)
+  if (habitError) return habitError
+
+  const reminderError = validateReminderSelection(
+    normalizedValues.reminderEnabled,
+    normalizedValues.dueTime,
+    context.reminderTimes ?? [],
+    normalizedValues.scheduledReminders,
+  )
+  if (reminderError) return reminderError
+
+  const goalError = validateGoalSelection(context.selectedGoalIds ?? [])
+  if (goalError) return goalError
+
+  const tagError = validateTagSelection(context.selectedTagIds ?? [])
+  if (tagError) return tagError
+
+  const subHabitError = validateSubHabits(context.subHabits ?? [])
+  if (subHabitError) return subHabitError
+
+  return null
 }

@@ -5,12 +5,18 @@ import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from '@orbit/shared/utils'
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
+  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 
 // ---------------------------------------------------------------------------
@@ -46,14 +52,19 @@ export function EditGoalModal({
   goal,
 }: Readonly<EditGoalModalProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const updateGoal = useUpdateGoal()
+  const { showError } = useAppToast()
 
   // Form state
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
-  const [validationError, setValidationError] = useState('')
 
   const isSubmitting = updateGoal.isPending
 
@@ -64,19 +75,14 @@ export function EditGoalModal({
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
-      setValidationError('')
     }
   }, [open, goal])
 
   function validate(): string | null {
-    const parsedTargetValue = parseGoalTargetValue(targetValue)
-    if (parsedTargetValue === null || parsedTargetValue <= 0) {
-      return t('goals.form.targetValueRequired')
-    }
-    if (!unit.trim()) {
-      return t('goals.form.unitRequired')
-    }
-    return null
+    return translateErrorKey(
+      translate,
+      validateGoalDraftInput(description, targetValue, unit),
+    )
   }
 
   function buildTitle(): string {
@@ -86,11 +92,10 @@ export function EditGoalModal({
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
-      setValidationError('')
 
       const err = validate()
       if (err) {
-        setValidationError(err)
+        showError(err)
         return
       }
 
@@ -108,25 +113,20 @@ export function EditGoalModal({
 
         await updateGoal.mutateAsync({ goalId: goal.id, data: request })
         onOpenChange(false)
-      } catch {
-        // Error handled by mutation
+      } catch (error) {
+        showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [targetValue, unit, description, deadline, goal.id, updateGoal, onOpenChange],
+    [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
-      if (!isOpen) {
-        setValidationError('')
-      }
       onOpenChange(isOpen)
     },
     [onOpenChange],
   )
-
-  const mutationError = updateGoal.error?.message ?? null
 
   return (
     <AppOverlay
@@ -238,16 +238,6 @@ export function EditGoalModal({
             </div>
           )}
         </div>
-
-        {/* Validation error */}
-        {validationError && (
-          <p className="text-red-400 text-xs">{validationError}</p>
-        )}
-
-        {/* Mutation error */}
-        {mutationError && (
-          <p className="text-red-400 text-xs">{mutationError}</p>
-        )}
 
         {/* Submit */}
         <button

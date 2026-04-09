@@ -26,6 +26,7 @@ import {
   type StreakFreezeCelebrationHandle,
 } from '@/components/gamification/streak-freeze-celebration'
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { AppToast } from '@/components/ui/app-toast'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 
 // Push notifications are not supported in Expo Go (removed in SDK 53).
@@ -175,6 +176,7 @@ function RootLayoutNav() {
           showSharedCelebrations={showSharedCelebrations}
         />
       ) : null}
+      <AppToast />
     </>
   )
 }

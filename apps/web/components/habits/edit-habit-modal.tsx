@@ -6,13 +6,14 @@ import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
-  getErrorMessage,
+  getFriendlyErrorMessage,
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -38,14 +39,18 @@ export function EditHabitModal({
   habit,
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
+  const { showError } = useAppToast()
 
   const formHelpers = useHabitForm()
   const tags = useTagSelection()
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
-  const [validationError, setValidationError] = useState('')
-  const [detailFetchError, setDetailFetchError] = useState('')
   const [originalEndDate, setOriginalEndDate] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
 
@@ -61,16 +66,15 @@ export function EditHabitModal({
   // Show detail fetch error
   useEffect(() => {
     if (detailError) {
-      setDetailFetchError(getErrorMessage(detailError, t('errors.fetchHabits')))
+      showError(
+        getFriendlyErrorMessage(detailError, translate, 'errors.fetchHabits', 'habit'),
+      )
     }
-  }, [detailError, t])
+  }, [detailError, showError, translate])
 
   // Populate form when modal opens or detail loads
   useEffect(() => {
     if (!open || !habit) return
-
-    setValidationError('')
-    setDetailFetchError('')
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
     formHelpers.form.reset(prefill.formValues)
@@ -86,26 +90,29 @@ export function EditHabitModal({
     async (e) => {
       e.preventDefault()
       if (!habit) return
-      setValidationError('')
 
-      const error = formHelpers.validateAll()
+      const data = formHelpers.form.getValues() as unknown as HabitFormData
+      const error = formHelpers.validateAll({
+        reminderTimes,
+        selectedGoalIds,
+        selectedTagIds: tags.selectedTagIds,
+      })
       if (error) {
-        setValidationError(error)
+        showError(error)
         return
       }
 
-      const data = formHelpers.form.getValues() as unknown as HabitFormData
       const request = buildUpdateHabitRequest(data, formHelpers.isOneTime, originalEndDate, reminderTimes, selectedGoalIds)
 
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
         await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
         onOpenChange(false)
-      } catch {
-        // Error handled by mutation
+      } catch (error) {
+        showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [habit, formHelpers, originalEndDate, selectedGoalIds, reminderTimes, tags, updateHabit, assignTags, onOpenChange],
+    [assignTags, formHelpers, habit, onOpenChange, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   return (
@@ -125,23 +132,6 @@ export function EditHabitModal({
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
         />
-
-        {/* Detail fetch error */}
-        {detailFetchError && (
-          <p className="text-sm text-red-500 font-medium">{detailFetchError}</p>
-        )}
-
-        {/* Validation error */}
-        {validationError && (
-          <p className="text-sm text-red-500 font-medium">{validationError}</p>
-        )}
-
-        {/* Mutation error */}
-        {updateHabit.error && (
-          <p className="text-sm text-red-500 font-medium">
-            {updateHabit.error.message}
-          </p>
-        )}
 
         {/* Submit buttons */}
         <div className="flex gap-3 pt-3">

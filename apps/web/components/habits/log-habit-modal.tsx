@@ -4,8 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useLogHabit } from '@/hooks/use-habits'
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { validateHabitLogNote } from '@orbit/shared/validation'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -29,16 +35,29 @@ export function LogHabitModal({
   onLogged,
 }: Readonly<LogHabitModalProps>) {
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
   const logHabit = useLogHabit()
+  const { showError } = useAppToast()
 
   const [note, setNote] = useState('')
 
   useEffect(() => {
-    if (!open) setNote('')
+    if (!open) {
+      setNote('')
+    }
   }, [open])
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return
+    const noteError = translateErrorKey(translate, validateHabitLogNote(note))
+    if (noteError) {
+      showError(noteError)
+      return
+    }
     try {
       await logHabit.mutateAsync({
         habitId: habit.id,
@@ -47,10 +66,10 @@ export function LogHabitModal({
       onLogged?.(habit.id)
       onOpenChange(false)
       setNote('')
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'errors.logHabit', 'habitLog'))
     }
-  }, [habit, note, logHabit, onLogged, onOpenChange])
+  }, [habit, logHabit, note, onLogged, onOpenChange, showError, translate])
 
   const handleCancel = useCallback(() => {
     onOpenChange(false)
@@ -103,6 +122,7 @@ export function LogHabitModal({
               value={note}
               placeholder={t('habits.log.notePlaceholder')}
               rows={3}
+              maxLength={500}
               disabled={logHabit.isPending}
               className="w-full bg-surface text-text-primary placeholder-text-muted rounded-md py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none disabled:opacity-50"
               onChange={(e) => setNote(e.target.value)}

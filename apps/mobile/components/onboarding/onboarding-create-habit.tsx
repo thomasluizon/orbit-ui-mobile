@@ -9,8 +9,13 @@ import {
 } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateHabit } from '@/hooks/use-habits'
-import { getErrorMessage } from '@orbit/shared/utils/error-utils'
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+  validateHabitFormInput,
+} from '@orbit/shared/utils'
 import {
   getOnboardingHabitFrequencyLabelKey,
   ONBOARDING_HABIT_FREQUENCIES,
@@ -43,13 +48,17 @@ interface OnboardingCreateHabitProps {
 
 export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHabitProps>) {
   const { t } = useTranslation()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  )
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const [title, setTitle] = useState('')
   const [frequencyUnit, setFrequencyUnit] = useState<OnboardingFrequencyUnit | undefined>('Day')
   const [isCreated, setIsCreated] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
+  const { showError } = useAppToast()
 
   const createHabit = useCreateHabit()
   const isCreating = createHabit.isPending
@@ -74,7 +83,18 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   const handleCreate = useCallback(() => {
     if (!title.trim() || isCreating) return
 
-    setError(null)
+    const validationError = translateErrorKey(
+      translate,
+      validateHabitFormInput({
+        title: title.trim(),
+        frequencyUnit,
+        frequencyQuantity: frequencyUnit ? 1 : null,
+      }),
+    )
+    if (validationError) {
+      showError(validationError)
+      return
+    }
 
     createHabit.mutate(
       {
@@ -90,11 +110,11 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           }, 1500)
         },
         onError: (err: unknown) => {
-          setError(getErrorMessage(err, t('errors.createHabit')))
+          showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
         },
       },
     )
-  }, [title, frequencyUnit, isCreating, createHabit, onCreated, t])
+  }, [title, frequencyUnit, isCreating, createHabit, onCreated, showError, translate])
 
   // ---------------------------------------------------------------------------
   // Success state
@@ -163,6 +183,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         onChangeText={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}
         placeholderTextColor={colors.textMuted}
+        maxLength={200}
         editable={!isCreating}
         returnKeyType="done"
         onSubmitEditing={handleCreate}
@@ -192,9 +213,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           </TouchableOpacity>
         ))}
       </View>
-
-      {/* Error */}
-      {error && <Text style={styles.errorText}>{error}</Text>}
 
       {/* Create button */}
       <TouchableOpacity
@@ -307,11 +325,6 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     freqBtnTextActive: {
       color: colors.white,
-    },
-    errorText: {
-      fontSize: 14,
-      color: colors.danger,
-      marginTop: 12,
     },
     createBtn: {
       width: '100%',

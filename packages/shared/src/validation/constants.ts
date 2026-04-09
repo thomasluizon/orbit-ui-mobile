@@ -1,0 +1,13 @@
+export const MAX_HABIT_TITLE_LENGTH = 200
+export const MAX_HABIT_DESCRIPTION_LENGTH = 2000
+export const MAX_CHECKLIST_ITEM_LENGTH = 500
+export const MAX_CHECKLIST_ITEMS = 50
+export const MAX_SUB_HABITS = 20
+export const MAX_TAG_NAME_LENGTH = 50
+export const MAX_TAGS_PER_HABIT = 5
+export const MAX_GOALS_PER_HABIT = 10
+export const MAX_HABITS_PER_GOAL = 20
+export const MAX_GOAL_TITLE_LENGTH = 200
+export const MAX_GOAL_UNIT_LENGTH = 50
+export const MAX_SCHEDULED_REMINDERS = 5
+export const MAX_HABIT_LOG_NOTE_LENGTH = 500

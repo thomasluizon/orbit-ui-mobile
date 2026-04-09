@@ -1,4 +1,5 @@
 import { getToken, clearAllTokens } from './secure-store'
+import { createApiClientError } from '@orbit/shared'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -30,13 +31,15 @@ export async function apiClient<T = unknown>(
   if (res.status === 401) {
     await clearAllTokens()
     // Navigation to login handled by auth store listener
-    throw new Error('Unauthorized')
+    throw createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized')
   }
 
   if (!res.ok) {
     const error = (await res.json().catch(() => null)) as ApiErrorPayload | null
-    throw new Error(
-      error?.error ?? error?.message ?? `Request failed: ${res.status}`,
+    throw createApiClientError(
+      res.status,
+      error,
+      `Request failed: ${res.status}`,
     )
   }
 

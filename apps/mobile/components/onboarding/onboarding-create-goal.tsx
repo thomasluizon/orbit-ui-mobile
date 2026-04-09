@@ -9,9 +9,14 @@ import {
 } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { getErrorMessage } from '@orbit/shared/utils/error-utils'
-import { ONBOARDING_GOAL_SUGGESTIONS } from '@orbit/shared/utils/onboarding'
+import {
+  getFriendlyErrorMessage,
+  ONBOARDING_GOAL_SUGGESTIONS,
+  translateErrorKey,
+  validateGoalDraftInput,
+} from '@orbit/shared/utils'
 import { radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -42,14 +47,18 @@ export function OnboardingCreateGoal({
   onSkip,
 }: Readonly<OnboardingCreateGoalProps>) {
   const { t } = useTranslation()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  )
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState<number | undefined>(undefined)
   const [unit, setUnit] = useState('')
   const [isCreated, setIsCreated] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
+  const { showError } = useAppToast()
 
   const createGoal = useCreateGoal()
   const isCreating = createGoal.isPending
@@ -77,7 +86,14 @@ export function OnboardingCreateGoal({
   const handleCreate = useCallback(() => {
     if (!canCreate || isCreating) return
 
-    setError(null)
+    const validationError = translateErrorKey(
+      translate,
+      validateGoalDraftInput(description, targetValue ?? null, unit),
+    )
+    if (validationError) {
+      showError(validationError)
+      return
+    }
 
     const title = description.trim() || `${targetValue} ${unit.trim()}`
     createGoal.mutate(
@@ -94,11 +110,11 @@ export function OnboardingCreateGoal({
           }, 1500)
         },
         onError: (err: unknown) => {
-          setError(getErrorMessage(err, t('goals.errors.create')))
+          showError(getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'))
         },
       },
     )
-  }, [canCreate, isCreating, description, targetValue, unit, createGoal, onCreated, t])
+  }, [canCreate, createGoal, description, isCreating, onCreated, showError, targetValue, translate, unit])
 
   // ---------------------------------------------------------------------------
   // Success state
@@ -186,6 +202,7 @@ export function OnboardingCreateGoal({
           onChangeText={setUnit}
           placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
           placeholderTextColor={colors.textMuted}
+          maxLength={50}
           editable={!isCreating}
         />
       </View>
@@ -195,11 +212,9 @@ export function OnboardingCreateGoal({
         onChangeText={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
         placeholderTextColor={colors.textMuted}
+        maxLength={200}
         editable={!isCreating}
       />
-
-      {/* Error */}
-      {error && <Text style={styles.errorText}>{error}</Text>}
 
       {/* Create button */}
       <TouchableOpacity
@@ -322,11 +337,6 @@ function createStyles(colors: AppColors) {
   },
   fullInput: {
     width: '100%',
-  },
-  errorText: {
-    fontSize: 14,
-    color: colors.danger,
-    marginTop: 12,
   },
   createBtn: {
     width: '100%',

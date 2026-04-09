@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { toggleSelectedId } from '@orbit/shared/utils'
+import { MAX_TAGS_PER_HABIT, validateTagForm } from '@orbit/shared/validation'
 
 const TAG_COLORS = [
   '#7c3aed',
@@ -25,6 +26,7 @@ interface EditableTag {
 export interface TagSelectionState {
   selectedTagIds: string[]
   atTagLimit: boolean
+  tagValidationErrorKey: string | null
   toggleTag: (tagId: string) => void
   resetTags: (tagIds?: string[]) => void
   showNewTag: boolean
@@ -55,7 +57,7 @@ export interface TagSelectionState {
 
 export function useTagSelection(
   initialTagIds: string[] = [],
-  maxTags = 10,
+  maxTags = MAX_TAGS_PER_HABIT,
 ): TagSelectionState {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([...initialTagIds])
   const [showNewTag, setShowNewTag] = useState(false)
@@ -64,6 +66,7 @@ export function useTagSelection(
   const [editingTagId, setEditingTagId] = useState<string | null>(null)
   const [editTagName, setEditTagName] = useState('')
   const [editTagColor, setEditTagColor] = useState('')
+  const [tagValidationErrorKey, setTagValidationErrorKey] = useState<string | null>(null)
 
   const atTagLimit = useMemo(
     () => selectedTagIds.length >= maxTags,
@@ -82,22 +85,51 @@ export function useTagSelection(
     setShowNewTag(false)
     setNewTagName('')
     setNewTagColor(TAG_COLORS[0])
+    setTagValidationErrorKey(null)
   }, [])
 
   const startEditTag = useCallback((tag: EditableTag) => {
     setEditingTagId(tag.id)
     setEditTagName(tag.name)
     setEditTagColor(tag.color)
+    setTagValidationErrorKey(null)
+  }, [])
+
+  const handleSetNewTagName = useCallback((name: string) => {
+    setNewTagName(name)
+    setTagValidationErrorKey(null)
+  }, [])
+
+  const handleSetNewTagColor = useCallback((color: string) => {
+    setNewTagColor(color)
+    setTagValidationErrorKey(null)
+  }, [])
+
+  const handleSetEditTagName = useCallback((name: string) => {
+    setEditTagName(name)
+    setTagValidationErrorKey(null)
+  }, [])
+
+  const handleSetEditTagColor = useCallback((color: string) => {
+    setEditTagColor(color)
+    setTagValidationErrorKey(null)
   }, [])
 
   const saveEditTag = useCallback(
     async (updateTag: (id: string, name: string, color: string) => Promise<void>) => {
-      if (!editingTagId || !editTagName.trim()) {
+      if (!editingTagId) {
+        return
+      }
+
+      const validationErrorKey = validateTagForm(editTagName, editTagColor)
+      if (validationErrorKey) {
+        setTagValidationErrorKey(validationErrorKey)
         return
       }
 
       await updateTag(editingTagId, editTagName.trim(), editTagColor)
       setEditingTagId(null)
+      setTagValidationErrorKey(null)
     },
     [editingTagId, editTagName, editTagColor],
   )
@@ -106,6 +138,7 @@ export function useTagSelection(
     setEditingTagId(null)
     setEditTagName('')
     setEditTagColor('')
+    setTagValidationErrorKey(null)
   }, [])
 
   const deleteTag = useCallback(
@@ -127,6 +160,7 @@ export function useTagSelection(
 
       try {
         await deleteTagFn(tagId)
+        setTagValidationErrorKey(null)
       } catch (error) {
         setSelectedTagIds(previousSelectedTagIds)
         if (previousEditingState) {
@@ -142,39 +176,47 @@ export function useTagSelection(
 
   const createAndSelectTag = useCallback(
     async (createTag: (name: string, color: string) => Promise<string | null>) => {
-      if (!newTagName.trim()) {
+      if (selectedTagIds.length >= maxTags) {
+        return
+      }
+
+      const validationErrorKey = validateTagForm(newTagName, newTagColor)
+      if (validationErrorKey) {
+        setTagValidationErrorKey(validationErrorKey)
         return
       }
 
       const tagId = await createTag(newTagName.trim(), newTagColor)
       if (tagId) {
-        setSelectedTagIds((prev) => [...prev, tagId])
+        setSelectedTagIds((prev) => (prev.length >= maxTags ? prev : [...prev, tagId]))
       }
       setNewTagName('')
       setShowNewTag(false)
       setNewTagColor(TAG_COLORS[0])
+      setTagValidationErrorKey(null)
     },
-    [newTagName, newTagColor],
+    [maxTags, newTagColor, newTagName, selectedTagIds.length],
   )
 
   return {
     selectedTagIds,
     atTagLimit,
+    tagValidationErrorKey,
     toggleTag,
     resetTags,
     showNewTag,
     setShowNewTag,
     newTagName,
-    setNewTagName,
+    setNewTagName: handleSetNewTagName,
     newTagColor,
-    setNewTagColor,
+    setNewTagColor: handleSetNewTagColor,
     tagColors: TAG_COLORS,
     createAndSelectTag,
     editingTagId,
     editTagName,
-    setEditTagName,
+    setEditTagName: handleSetEditTagName,
     editTagColor,
-    setEditTagColor,
+    setEditTagColor: handleSetEditTagColor,
     startEditTag,
     saveEditTag,
     cancelEditTag,

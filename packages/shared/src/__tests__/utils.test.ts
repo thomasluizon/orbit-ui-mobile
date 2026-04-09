@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { parseAPIDate, formatAPIDate } from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
-import { getErrorMessage, extractBackendError } from '../utils/error-utils'
+import {
+  createApiClientError,
+  extractBackendError,
+  getErrorMessage,
+  getFriendlyErrorKey,
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from '../utils/error-utils'
 
 // ---------------------------------------------------------------------------
 // parseAPIDate
@@ -165,9 +172,9 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(err, 'Something went wrong')).toBe('Invalid credentials')
   })
 
-  it('returns fallback when data exists but has no error field', () => {
+  it('returns data.message when present', () => {
     const err = { data: { message: 'not the right field' } }
-    expect(getErrorMessage(err, 'Fallback message')).toBe('Fallback message')
+    expect(getErrorMessage(err, 'Fallback message')).toBe('not the right field')
   })
 
   it('returns fallback when data.error is empty string', () => {
@@ -261,5 +268,111 @@ describe('extractBackendError', () => {
   it('returns undefined for primitive input', () => {
     expect(extractBackendError('error string')).toBeUndefined()
     expect(extractBackendError(42)).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// translateErrorKey
+// ---------------------------------------------------------------------------
+
+describe('translateErrorKey', () => {
+  const translate = (key: string) => `translated:${key}`
+
+  it('returns translated text when a key exists', () => {
+    expect(translateErrorKey(translate, 'habits.form.titleRequired')).toBe(
+      'translated:habits.form.titleRequired',
+    )
+  })
+
+  it('returns null when the key is missing', () => {
+    expect(translateErrorKey(translate, null)).toBeNull()
+    expect(translateErrorKey(translate, undefined)).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getFriendlyErrorKey / getFriendlyErrorMessage
+// ---------------------------------------------------------------------------
+
+describe('getFriendlyErrorKey', () => {
+  it('maps habit log note length errors', () => {
+    const err = createApiClientError(
+      400,
+      { error: 'Note must not exceed 500 characters' },
+      'fallback',
+    )
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'habitLog')).toBe(
+      'habits.log.noteTooLong',
+    )
+  })
+
+  it('maps tag color validation errors', () => {
+    const err = createApiClientError(
+      400,
+      { error: 'Color must be a valid hex color' },
+      'fallback',
+    )
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe(
+      'habits.form.tagColorInvalid',
+    )
+  })
+
+  it('returns the caller fallback for paywall errors', () => {
+    const err = createApiClientError(
+      400,
+      { errorCode: 'PAY_GATE', error: 'Upgrade required' },
+      'fallback',
+    )
+    expect(getFriendlyErrorKey(err, 'goals.errors.create', 'goal')).toBe(
+      'goals.errors.create',
+    )
+  })
+
+  it('maps 404 errors to not found', () => {
+    const err = createApiClientError(
+      404,
+      { error: 'Habit not found' },
+      'fallback',
+    )
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe(
+      'toast.errors.notFound',
+    )
+  })
+
+  it('maps 429 errors to too many requests', () => {
+    const err = createApiClientError(
+      429,
+      { error: 'Please wait before trying again' },
+      'fallback',
+    )
+    expect(getFriendlyErrorKey(err, 'errors.generic')).toBe(
+      'toast.errors.tooManyRequests',
+    )
+  })
+
+  it('maps 500 errors to server fallback', () => {
+    const err = createApiClientError(
+      500,
+      { error: 'Internal server error' },
+      'fallback',
+    )
+    expect(getFriendlyErrorKey(err, 'errors.generic')).toBe(
+      'toast.errors.server',
+    )
+  })
+})
+
+describe('getFriendlyErrorMessage', () => {
+  const translate = (key: string) => `translated:${key}`
+
+  it('translates the resolved friendly key', () => {
+    const err = createApiClientError(
+      400,
+      { error: 'Color must be a valid hex color' },
+      'fallback',
+    )
+    expect(getFriendlyErrorMessage(err, translate, 'errors.generic', 'tag')).toBe(
+      'translated:habits.form.tagColorInvalid',
+    )
   })
 })

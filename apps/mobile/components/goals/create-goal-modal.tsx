@@ -13,12 +13,18 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from '@orbit/shared/utils'
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
+  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -60,9 +66,14 @@ const goalRadius = {
 
 export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const { t } = useTranslation()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  )
   const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
   const createGoal = useCreateGoal()
+  const { showError } = useAppToast()
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Form state
@@ -70,19 +81,14 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
-  const [validationError, setValidationError] = useState('')
 
   const isSubmitting = createGoal.isPending
 
   function validate(): string | null {
-    const numVal = parseGoalTargetValue(targetValue)
-    if (numVal === null || numVal <= 0) {
-      return t('goals.form.targetValueRequired')
-    }
-    if (!unit.trim()) {
-      return t('goals.form.unitRequired')
-    }
-    return null
+    return translateErrorKey(
+      translate,
+      validateGoalDraftInput(description, targetValue, unit),
+    )
   }
 
   function buildTitle(): string {
@@ -94,15 +100,12 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     setTargetValue('')
     setUnit('')
     setDeadline('')
-    setValidationError('')
   }
 
   const onSubmit = useCallback(async () => {
-    setValidationError('')
-
     const err = validate()
     if (err) {
-      setValidationError(err)
+      showError(err)
       return
     }
 
@@ -121,19 +124,17 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       await createGoal.mutateAsync(request)
       onClose()
       resetForm()
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetValue, unit, description, deadline, createGoal, onClose])
+  }, [createGoal, deadline, description, onClose, showError, targetValue, translate, unit])
 
   const handleClose = useCallback(() => {
     resetForm()
     onClose()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose])
-
-  const mutationError = createGoal.error?.message ?? null
 
   return (
     <BottomSheetModal
@@ -238,16 +239,6 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
           )}
         </View>
 
-        {/* Validation error */}
-        {validationError ? (
-          <Text style={styles.errorText}>{validationError}</Text>
-        ) : null}
-
-        {/* Mutation error */}
-        {mutationError ? (
-          <Text style={styles.errorText}>{mutationError}</Text>
-        ) : null}
-
         {/* Submit */}
         <TouchableOpacity
           style={[styles.submitButton, isSubmitting && styles.submitDisabled]}
@@ -344,11 +335,6 @@ function createStyles(colors: AppColors, bottomInset: number) {
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.red400,
-    lineHeight: 18,
   },
   submitButton: {
     marginTop: 4,

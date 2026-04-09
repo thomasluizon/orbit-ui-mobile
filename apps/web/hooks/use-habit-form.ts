@@ -16,8 +16,10 @@ import {
   formatHabitTimeInput,
   getHabitFormFlags,
   normalizeHabitFormData,
+  translateErrorKey,
   validateHabitFormInput,
 } from '@orbit/shared/utils'
+import type { HabitFormValidationContext } from '@orbit/shared/utils'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 
 export interface HabitFormOptions {
@@ -42,7 +44,7 @@ export interface HabitFormHelpers {
   setGeneral: () => void
   formatTimeInput: (value: string) => string
   formatEndTimeInput: (value: string) => string
-  validateAll: () => string | null
+  validateAll: (context?: HabitFormValidationContext) => string | null
 }
 
 type HabitFormInput = z.input<typeof habitFormSchema>
@@ -50,6 +52,11 @@ type HabitFormInput = z.input<typeof habitFormSchema>
 export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const { initialData, weekStartDay = 1 } = options
   const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) =>
+      t(key as Parameters<typeof t>[0], values as never),
+    [t],
+  )
 
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
@@ -179,7 +186,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const formatTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
   const formatEndTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])
 
-  const validateAll = useCallback(() => validateHabitFormInput(form.getValues()), [form])
+  const validateAll = useCallback(
+    (context?: HabitFormValidationContext) =>
+      translateErrorKey(translate, validateHabitFormInput(form.getValues(), context)),
+    [form, translate],
+  )
 
   return {
     form,

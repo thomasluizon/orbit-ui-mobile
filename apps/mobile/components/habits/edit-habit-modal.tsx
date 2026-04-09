@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { HabitFormFields } from "./habit-form-fields";
+import { useAppToast } from "@/hooks/use-app-toast";
 import { useHabitForm } from "@/hooks/use-habit-form";
 import { useTagSelection } from "@/hooks/use-tag-selection";
 import { useUpdateHabit, useHabitDetail } from "@/hooks/use-habits";
@@ -18,7 +19,7 @@ import { useAssignTags } from "@/hooks/use-tags";
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
-  getErrorMessage,
+  getFriendlyErrorMessage,
   toggleSelectedId,
 } from "@orbit/shared/utils";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
@@ -49,17 +50,20 @@ export function EditHabitModal({
   habit,
 }: Readonly<EditHabitModalProps>) {
   const { t } = useTranslation();
+  const translate = useCallback(
+    (key: string, values?: Record<string, unknown>) => t(key, values),
+    [t],
+  );
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const updateHabit = useUpdateHabit();
   const assignTags = useAssignTags();
+  const { showError } = useAppToast();
 
   const formHelpers = useHabitForm();
   const tags = useTagSelection();
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
-  const [validationError, setValidationError] = useState("");
-  const [detailFetchError, setDetailFetchError] = useState("");
   const [originalEndDate, setOriginalEndDate] = useState("");
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
 
@@ -77,18 +81,20 @@ export function EditHabitModal({
   // Show detail fetch error
   useEffect(() => {
     if (detailError) {
-      setDetailFetchError(
-        getErrorMessage(detailError, t("errors.fetchHabits")),
+      showError(
+        getFriendlyErrorMessage(
+          detailError,
+          translate,
+          "errors.fetchHabits",
+          "habit",
+        ),
       );
     }
-  }, [detailError, t]);
+  }, [detailError, showError, translate]);
 
   // Populate form when modal opens or detail loads
   useEffect(() => {
     if (!open || !habit) return;
-
-    setValidationError("");
-    setDetailFetchError("");
 
     const prefill = buildEditHabitFormState(habit, habitDetail);
     formHelpers.form.reset(prefill.formValues);
@@ -102,15 +108,17 @@ export function EditHabitModal({
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return;
-    setValidationError("");
-
-    const error = formHelpers.validateAll();
+    const data = formHelpers.form.getValues() as unknown as HabitFormData;
+    const error = formHelpers.validateAll({
+      reminderTimes,
+      selectedGoalIds,
+      selectedTagIds: tags.selectedTagIds,
+    });
     if (error) {
-      setValidationError(error);
+      showError(error);
       return;
     }
 
-    const data = formHelpers.form.getValues() as unknown as HabitFormData;
     const request = buildUpdateHabitRequest(
       data,
       formHelpers.isOneTime,
@@ -126,8 +134,15 @@ export function EditHabitModal({
         tagIds: tags.selectedTagIds,
       });
       onClose();
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          translate,
+          "errors.updateHabit",
+          "habit",
+        ),
+      );
     }
   }, [
     habit,
@@ -139,6 +154,8 @@ export function EditHabitModal({
     updateHabit,
     assignTags,
     onClose,
+    showError,
+    translate,
   ]);
 
   return (
@@ -163,21 +180,6 @@ export function EditHabitModal({
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
         />
-
-        {/* Detail fetch error */}
-        {detailFetchError ? (
-          <Text style={styles.errorText}>{detailFetchError}</Text>
-        ) : null}
-
-        {/* Validation error */}
-        {validationError ? (
-          <Text style={styles.errorText}>{validationError}</Text>
-        ) : null}
-
-        {/* Mutation error */}
-        {updateHabit.error && (
-          <Text style={styles.errorText}>{updateHabit.error.message}</Text>
-        )}
 
         {/* Submit buttons */}
         <View style={styles.buttonRow}>
@@ -227,11 +229,6 @@ function createStyles(
       paddingHorizontal: 20,
       paddingBottom: bottomInset + 120,
       gap: 20,
-    },
-    errorText: {
-      fontSize: 14,
-      color: colors.red500,
-      fontWeight: "500",
     },
     buttonRow: {
       flexDirection: "row",

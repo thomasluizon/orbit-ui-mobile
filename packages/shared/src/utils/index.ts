@@ -11,7 +11,19 @@ export {
   normalizeVerificationCodeInput,
   VERIFICATION_CODE_LENGTH,
 } from './auth-login'
-export { getErrorMessage, extractBackendError } from './error-utils'
+export {
+  ApiClientError,
+  createApiClientError,
+  extractBackendError,
+  extractBackendErrorCode,
+  extractBackendFieldErrors,
+  extractBackendStatus,
+  getErrorMessage,
+  getFriendlyErrorKey,
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from './error-utils'
+export type { FriendlyErrorContext } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { buildRecentChatHistory } from './chat-history'
 export {
@@ -65,7 +77,10 @@ export {
   isValidHabitTimeInput,
   validateHabitFormInput,
 } from './habit-form-helpers'
-export type { HabitFormTranslationAdapter } from './habit-form-helpers'
+export type {
+  HabitFormTranslationAdapter,
+  HabitFormValidationContext,
+} from './habit-form-helpers'
 export {
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
@@ -128,6 +143,8 @@ export {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
+  validateGoalDraftInput,
+  validateGoalProgressInput,
 } from './goal-form'
 export {
   createEmptyNotificationsResponse,

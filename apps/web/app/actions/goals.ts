@@ -8,6 +8,7 @@ import type {
   UpdateGoalStatusRequest,
   GoalPositionItem,
 } from '@orbit/shared'
+import { createApiClientError } from '@orbit/shared'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
@@ -19,7 +20,7 @@ async function authFetch(path: string, init: RequestInit) {
   })
   if (!res.ok) {
     const error = await res.json().catch(() => null)
-    throw new Error(error?.error ?? error?.message ?? `Failed with status ${res.status}`)
+    throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
   }
   if (res.status === 204) return null
   return res.json()

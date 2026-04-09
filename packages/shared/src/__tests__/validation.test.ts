@@ -9,6 +9,8 @@ import {
   validateHabitForm,
 } from '../validation/habit-form'
 import { goalFormSchema } from '../validation/goal-form'
+import { validateHabitLogNote } from '../validation/habit-log'
+import { validateTagForm } from '../validation/tag-form'
 
 // ---------------------------------------------------------------------------
 // habitFormSchema
@@ -248,8 +250,9 @@ describe('validateTime', () => {
     expect(validateTime('')).toBeNull()
   })
 
-  it('returns null for string shorter than 5 characters', () => {
-    expect(validateTime('9:00')).toBeNull()
+  it('returns error for partial time input', () => {
+    expect(validateTime('9:00')).toBe('habits.form.invalidTime')
+    expect(validateTime('12')).toBe('habits.form.invalidTime')
   })
 
   it('returns null for valid 00:00', () => {
@@ -342,6 +345,12 @@ describe('validateScheduledReminders', () => {
     ).toBe('habits.form.invalidScheduledReminderTime')
   })
 
+  it('returns error for partial reminder time', () => {
+    expect(
+      validateScheduledReminders([{ when: 'same_day', time: '12' }]),
+    ).toBe('habits.form.invalidScheduledReminderTime')
+  })
+
   it('returns error for duplicate reminders', () => {
     expect(
       validateScheduledReminders([
@@ -358,6 +367,46 @@ describe('validateScheduledReminders', () => {
         { when: 'day_before', time: '09:00' },
       ]),
     ).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateHabitLogNote
+// ---------------------------------------------------------------------------
+
+describe('validateHabitLogNote', () => {
+  it('returns null for empty note', () => {
+    expect(validateHabitLogNote('')).toBeNull()
+  })
+
+  it('returns null for note at the limit', () => {
+    expect(validateHabitLogNote('n'.repeat(500))).toBeNull()
+  })
+
+  it('returns error for note above the limit', () => {
+    expect(validateHabitLogNote('n'.repeat(501))).toBe('habits.log.noteTooLong')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateTagForm
+// ---------------------------------------------------------------------------
+
+describe('validateTagForm', () => {
+  it('returns null for valid input', () => {
+    expect(validateTagForm('Work', '#FF5733')).toBeNull()
+  })
+
+  it('returns error for empty name', () => {
+    expect(validateTagForm('   ', '#FF5733')).toBe('habits.form.tagNameRequired')
+  })
+
+  it('returns error for long name', () => {
+    expect(validateTagForm('a'.repeat(51), '#FF5733')).toBe('habits.form.tagNameTooLong')
+  })
+
+  it('returns error for invalid color', () => {
+    expect(validateTagForm('Work', 'red')).toBe('habits.form.tagColorInvalid')
   })
 })
 
@@ -449,5 +498,12 @@ describe('validateHabitForm', () => {
       checklistItems: [],
     }
     expect(validateHabitForm(data)).toBe('habits.form.titleRequired')
+  })
+
+  it('catches general habits marked as bad habits', () => {
+    const data = habitFormSchema.parse({ title: 'Test' })
+    data.isGeneral = true
+    data.isBadHabit = true
+    expect(validateHabitForm(data)).toBe('habits.form.generalBadHabit')
   })
 })
