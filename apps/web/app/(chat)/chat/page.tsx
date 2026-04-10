@@ -88,6 +88,7 @@ export default function ChatPage() {
 
       {/* Messages area */}
       <div
+        data-tour="tour-chat-area"
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto space-y-6 pb-4"
         role="log"
@@ -127,7 +128,7 @@ export default function ChatPage() {
       </div>
 
       {/* Bottom input area */}
-      <div className="shrink-0 chat-glass border-t border-border-muted">
+      <div data-tour="tour-chat-input" className="shrink-0 chat-glass border-t border-border-muted">
         <div className="pt-3 pb-[calc(1rem+var(--safe-bottom))]">
           {/* Error banner */}
           {sendError && (
@@ -232,6 +233,7 @@ export default function ChatPage() {
                   <div ref={langPickerRef} className="relative shrink-0 flex items-center">
                     <button
                       type="button"
+                      data-tour="tour-chat-voice"
                       aria-label={t('chat.toggleMic')}
                       className="p-1 text-text-muted hover:text-text-primary transition-colors"
                       disabled={isTyping}

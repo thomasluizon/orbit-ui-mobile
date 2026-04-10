@@ -189,7 +189,7 @@ export function GoalLinkedHabitsSection({
   }
 
   return (
-    <div className="mt-4">
+    <div className="mt-4" data-tour="tour-goal-link">
       <h4 className="form-label mb-2">{title}</h4>
       <div className="flex flex-wrap gap-2">
         {linkedHabits.map((habit) => (

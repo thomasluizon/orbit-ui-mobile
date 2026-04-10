@@ -20,6 +20,7 @@ export const profileSchema = z.object({
   aiMemoryEnabled: z.boolean(),
   aiSummaryEnabled: z.boolean(),
   hasCompletedOnboarding: z.boolean(),
+  hasCompletedTour: z.boolean(),
   language: supportedLocaleSchema.nullable(),
   plan: planTypeSchema,
   hasProAccess: z.boolean(),

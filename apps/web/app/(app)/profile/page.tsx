@@ -21,6 +21,7 @@ import { DeleteAccountModal } from './_components/delete-account-modal'
 import { ProfileNavCard } from './_components/profile-nav-card'
 import { ProfileActionButton } from './_components/profile-action-button'
 import { ProfileNavIcon } from './_components/profile-nav-icon'
+import { TourReplayCard } from './_components/tour-replay-card'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -33,6 +34,12 @@ export default function ProfilePage() {
   const { profile: gamificationProfile } = useGamificationProfile()
   const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
   const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
+
+  const navTourMap: Record<string, string> = {
+    preferences: 'tour-profile-preferences',
+    retrospective: 'tour-profile-retrospective',
+    achievements: 'tour-profile-achievements',
+  }
 
   const getNavHint = (item: ProfileNavItem): string => {
     if (
@@ -118,14 +125,18 @@ export default function ProfilePage() {
           </div>
 
           {/* Streak display */}
-          <ProfileStreakCard />
+          <div data-tour="tour-profile-streak">
+            <ProfileStreakCard />
+          </div>
 
           {/* Subscription */}
-          <SubscriptionCard
-            profile={profile}
-            trialDaysLeft={trialDaysLeft}
-            trialExpired={trialExpired}
-          />
+          <div data-tour="tour-profile-subscription">
+            <SubscriptionCard
+              profile={profile}
+              trialDaysLeft={trialDaysLeft}
+              trialExpired={trialExpired}
+            />
+          </div>
 
           {/* ==================== NAVIGATION CARDS ==================== */}
           <nav aria-label={t('profile.sections.account')}>
@@ -138,6 +149,7 @@ export default function ProfilePage() {
                 title={t(item.titleKey)}
                 hint={getNavHint(item)}
                 proBadgeLabel={t('common.proBadge')}
+                dataTour={navTourMap[item.id]}
               />
               ))}
             </div>
@@ -151,6 +163,7 @@ export default function ProfilePage() {
           </h2>
 
           <div className="space-y-3 stagger-enter">
+            <TourReplayCard />
             {featureNavItems.map((item) => (
               <ProfileNavCard
                 key={item.id}
@@ -161,6 +174,7 @@ export default function ProfilePage() {
                 variant={item.variant}
                 proBadge={item.proBadge}
                 proBadgeLabel={t('common.proBadge')}
+                dataTour={navTourMap[item.id]}
               />
             ))}
           </div>

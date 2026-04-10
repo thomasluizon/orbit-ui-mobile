@@ -24,6 +24,7 @@ export const API = {
     aiMemory: '/api/profile/ai-memory',
     aiSummary: '/api/profile/ai-summary',
     onboarding: '/api/profile/onboarding',
+    tour: '/api/profile/tour',
     language: '/api/profile/language',
     themePreference: '/api/profile/theme-preference',
     colorScheme: '/api/profile/color-scheme',

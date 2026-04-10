@@ -43,7 +43,7 @@ export function TodayHeader({
       </button>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <StreakBadge streak={streak} />
+        <span data-tour="tour-streak-badge"><StreakBadge streak={streak} /></span>
         <NotificationBell />
       </div>
     </header>
@@ -66,7 +66,7 @@ export function TodayTabs({
   onKeyDown,
 }: Readonly<TodayTabsProps>) {
   return (
-    <div className="pt-4">
+    <div className="pt-4" data-tour="tour-tabs-bar">
       <div
         role="tablist"
         tabIndex={0}
@@ -83,6 +83,7 @@ export function TodayTabs({
             aria-controls={
               tab.view === 'goals' ? 'tabpanel-goals' : 'tabpanel-habits'
             }
+            data-tour={tab.view === 'goals' ? 'tour-goals-tab' : undefined}
             className={`flex-1 text-center py-2 text-sm font-bold transition-all duration-200 rounded-[var(--radius-md)] ${
               activeView === tab.view
                 ? 'text-primary bg-surface shadow-[var(--shadow-sm)]'
@@ -126,7 +127,7 @@ export function TodayDateNavigation({
   if (!visible) return null
 
   return (
-    <div className="pt-4 pb-4">
+    <div className="pt-4 pb-4" data-tour="tour-date-nav">
       <div className="flex items-center justify-center gap-4">
         <button
           aria-label={previousLabel}

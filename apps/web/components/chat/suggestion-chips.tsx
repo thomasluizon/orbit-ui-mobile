@@ -25,7 +25,7 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
   ], [t])
 
   return (
-    <div className="flex gap-2 flex-wrap justify-center">
+    <div data-tour="tour-chat-suggestions" className="flex gap-2 flex-wrap justify-center">
       {suggestions.map((suggestion, index) => (
         <button
           type="button"

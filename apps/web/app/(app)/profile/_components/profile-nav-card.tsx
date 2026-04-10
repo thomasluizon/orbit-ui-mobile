@@ -12,6 +12,7 @@ interface ProfileNavCardProps {
   variant?: 'default' | 'primary'
   proBadge?: boolean
   proBadgeLabel?: string
+  dataTour?: string
 }
 
 export function ProfileNavCard({
@@ -22,6 +23,7 @@ export function ProfileNavCard({
   variant = 'default',
   proBadge = false,
   proBadgeLabel,
+  dataTour,
 }: Readonly<ProfileNavCardProps>) {
   const isPrimary = variant === 'primary'
   const titleId = useId()
@@ -32,6 +34,7 @@ export function ProfileNavCard({
       href={href}
       aria-labelledby={titleId}
       aria-describedby={hintId}
+      data-tour={dataTour}
       data-testid={isPrimary ? 'profile-primary-card' : undefined}
       className={`w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] surface-interactive group ${
         isPrimary

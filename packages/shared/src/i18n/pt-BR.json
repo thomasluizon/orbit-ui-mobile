@@ -1805,5 +1805,170 @@
     "latestLabel": "Mais recente: {version}",
     "updateCta": "Atualizar agora",
     "laterCta": "Depois"
+  },
+  "tour": {
+    "mockData": {
+      "habits": {
+        "meditation": { "title": "Meditação Matinal", "description": "10 minutos de atenção plena para começar o dia" },
+        "exercise": { "title": "Exercício", "description": "Mantenha-se ativo com treinos regulares" },
+        "pushups": { "title": "Flexões" },
+        "stretching": { "title": "Alongamento" },
+        "screenTime": { "title": "Reduzir Tempo de Tela", "description": "Manter o tempo de tela abaixo de 2 horas por dia" },
+        "readBooks": { "title": "Ler Livros", "description": "Ler pelo menos 5 vezes por semana" },
+        "drinkWater": { "title": "Beber Mais Água", "description": "Mantenha-se hidratado ao longo do dia" }
+      },
+      "goals": {
+        "marathon": { "title": "Correr uma Maratona", "description": "Treinar e completar uma maratona" },
+        "readGoal": { "title": "Ler 24 Livros", "description": "Ler 2 livros por mês este ano" }
+      },
+      "tags": {
+        "mindfulness": "Atenção Plena",
+        "health": "Saúde",
+        "learning": "Aprendizado"
+      },
+      "checklists": {
+        "warmUp": "Aquecimento",
+        "mainWorkout": "Treino principal",
+        "coolDown": "Desaquecimento"
+      }
+    },
+    "ui": {
+      "next": "Próximo",
+      "back": "Voltar",
+      "skip": "Pular tour",
+      "finish": "Finalizar",
+      "skipSection": "Pular seção",
+      "stepOf": "Passo {current} de {total}",
+      "pro": "PRO"
+    },
+    "sections": {
+      "habits": "Hábitos",
+      "goals": "Metas",
+      "chat": "Chat IA",
+      "calendar": "Calendário",
+      "profile": "Perfil"
+    },
+    "replay": {
+      "title": "Tour de Funcionalidades",
+      "hint": "Explore todas as funcionalidades com um tour guiado",
+      "modalTitle": "Repetir Tour",
+      "replayAll": "Repetir Tour Completo",
+      "replaySection": "Repetir",
+      "steps": "{count} passos"
+    },
+    "habits": {
+      "list": {
+        "title": "Seus Hábitos",
+        "description": "Este é seu painel diário. Ele mostra todos os hábitos agendados para hoje, organizados por prioridade. Hábitos concluídos aparecem com uma marca de verificação."
+      },
+      "card": {
+        "title": "Cartão de Hábito",
+        "description": "Cada hábito mostra seu status, tags e frequência. Toque no círculo para marcar como concluído, ou use o menu para mais opções como editar, pular ou excluir."
+      },
+      "tags": {
+        "title": "Tags",
+        "description": "Tags ajudam a organizar hábitos por categoria. Você pode filtrar por tags e atribuir cores para manter tudo visualmente organizado."
+      },
+      "tabs": {
+        "title": "Abas de Visualização",
+        "description": "Alterne entre Hoje (hábitos agendados), Todos (tudo), Geral (sempre disponíveis) e Metas (seus objetivos de longo prazo)."
+      },
+      "dateNav": {
+        "title": "Navegação por Data",
+        "description": "Navegue entre os dias para ver conclusões passadas ou hábitos futuros. Toque nas setas ou deslize para mover entre datas."
+      },
+      "fab": {
+        "title": "Criar Novo",
+        "description": "Toque aqui para criar um novo hábito. Escolha entre recorrente, flexível, geral ou tarefas únicas. Você também pode criar metas na aba Metas."
+      },
+      "streak": {
+        "title": "Contador de Sequência",
+        "description": "Sua sequência rastreia dias consecutivos em que você completou todos os hábitos agendados. Mantenha-a para ganhar conquistas e criar impulso!"
+      },
+      "notifications": {
+        "title": "Notificações",
+        "description": "Confira lembretes, alertas de conquistas e atualizações aqui. Configure notificações push nas configurações para nunca perder um hábito."
+      }
+    },
+    "goals": {
+      "tab": {
+        "title": "Aba de Metas",
+        "description": "Mude para Metas para ver seus objetivos de longo prazo. Metas dão direção aos seus hábitos conectando ações diárias a alvos maiores."
+      },
+      "card": {
+        "title": "Cartão de Meta",
+        "description": "Cada meta mostra sua barra de progresso, prazo e hábitos vinculados. Acompanhe sua jornada do início à conclusão."
+      },
+      "progress": {
+        "title": "Progresso da Meta",
+        "description": "Atualize o progresso manualmente ou deixe hábitos vinculados rastrearem automaticamente. A barra de progresso mostra o quão perto você está do seu alvo."
+      },
+      "link": {
+        "title": "Hábitos Vinculados",
+        "description": "Vincule hábitos a metas para que cada conclusão conte para seu objetivo. Um hábito pode contribuir para múltiplas metas."
+      },
+      "aiReview": {
+        "title": "Revisão IA de Meta",
+        "description": "Obtenha uma análise alimentada por IA do progresso da sua meta, incluindo ritmo, data prevista de conclusão e recomendações personalizadas."
+      }
+    },
+    "chat": {
+      "area": {
+        "title": "Chat IA",
+        "description": "Seu assistente de IA pode criar, editar e gerenciar hábitos usando linguagem natural. Apenas descreva o que você quer e ele cuidará do resto."
+      },
+      "input": {
+        "title": "Entrada do Chat",
+        "description": "Digite sua mensagem, anexe imagens para contexto ou use entrada de voz. Faça perguntas, obtenha insights ou gerencie seus hábitos por conversa."
+      },
+      "suggestions": {
+        "title": "Sugestões Rápidas",
+        "description": "Toque em qualquer chip de sugestão para iniciar rapidamente uma conversa. Essas são ações comuns para ajudá-lo a começar."
+      },
+      "voice": {
+        "title": "Entrada de Voz",
+        "description": "Fale para registrar hábitos ou fazer perguntas. Suporta múltiplos idiomas com conversão automática de fala para texto."
+      }
+    },
+    "calendar": {
+      "grid": {
+        "title": "Visualização do Calendário",
+        "description": "Veja seu histórico de conclusões de relance. Cada dia é codificado por cores baseado em quantos hábitos você completou."
+      },
+      "legend": {
+        "title": "Legenda de Cores",
+        "description": "Verde significa todos os hábitos feitos, amarelo significa conclusão parcial e vermelho significa hábitos perdidos. Construa uma sequência de dias verdes!"
+      },
+      "monthNav": {
+        "title": "Navegação por Mês",
+        "description": "Navegue entre meses para revisar sua consistência a longo prazo. Deslize para a esquerda ou direita para mover rapidamente."
+      },
+      "day": {
+        "title": "Detalhe do Dia",
+        "description": "Toque em qualquer dia para ver quais hábitos estavam agendados, concluídos ou perdidos. Você também pode registrar conclusões de dias passados."
+      }
+    },
+    "profile": {
+      "streak": {
+        "title": "Sequência e Congelamentos",
+        "description": "Veja sua sequência atual e mais longa. Ative congelamentos de sequência para proteger sua sequência em dias de folga (limitado por mês)."
+      },
+      "preferences": {
+        "title": "Preferências",
+        "description": "Personalize sua experiência: idioma, esquema de cores, fuso horário, dia de início da semana, notificações push e mais."
+      },
+      "subscription": {
+        "title": "Assinatura",
+        "description": "Veja seu plano atual e gerencie sua assinatura. Pro desbloqueia hábitos ilimitados, chat IA, metas, conquistas e mais."
+      },
+      "retrospective": {
+        "title": "Retrospectiva IA",
+        "description": "Obtenha análise detalhada de IA dos seus padrões de hábitos ao longo do tempo. Disponível para períodos semanais, mensais, trimestrais ou anuais."
+      },
+      "achievements": {
+        "title": "Conquistas e Níveis",
+        "description": "Ganhe XP e suba de nível conforme constrói hábitos. Desbloqueie conquistas para marcos como recordes de sequência, taxas de conclusão e mais."
+      }
+    }
   }
 }

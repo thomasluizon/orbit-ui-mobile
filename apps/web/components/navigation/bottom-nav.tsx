@@ -12,6 +12,7 @@ interface NavItem {
   name: string
   path: string
   icon: LucideIcon
+  dataTour?: string
 }
 
 interface BottomNavProps {
@@ -26,10 +27,10 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
 
   const navItems: NavItem[] = [
     { name: t('nav.habits'), path: '/', icon: Home },
-    { name: t('nav.chat'), path: '/chat', icon: MessageCircle },
+    { name: t('nav.chat'), path: '/chat', icon: MessageCircle, dataTour: 'tour-chat-nav' },
     // FAB placeholder handled separately
-    { name: t('nav.calendar'), path: '/calendar', icon: CalendarDays },
-    { name: t('nav.profile'), path: '/profile', icon: User },
+    { name: t('nav.calendar'), path: '/calendar', icon: CalendarDays, dataTour: 'tour-calendar-nav' },
+    { name: t('nav.profile'), path: '/profile', icon: User, dataTour: 'tour-profile-nav' },
   ]
 
   function isActive(path: string) {
@@ -65,6 +66,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
           {/* Central FAB button */}
           <div className="flex flex-col items-center -mt-8">
             <button
+              data-tour="tour-fab-button"
               aria-label={t('nav.createHabit')}
               className="bg-primary rounded-full size-14 flex items-center justify-center ring-4 ring-background shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:scale-105 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
               onClick={onCreate}
@@ -102,6 +104,7 @@ function NavLink({
   return (
     <Link
       href={item.path}
+      data-tour={item.dataTour}
       className={`relative flex flex-col items-center gap-1 py-2 min-w-[48px] transition-all duration-150 ${
         active ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
       }`}
