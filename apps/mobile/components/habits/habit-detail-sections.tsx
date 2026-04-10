@@ -80,37 +80,40 @@ export function HabitDetailStatsGrid({
 }: Readonly<HabitDetailStatsGridProps>) {
   if (metrics && !loading) {
     return (
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Flame size={20} color={colors.primary} />
-          <Text style={styles.statLabel}>
-            {t('habits.detail.currentStreak')}
-          </Text>
-          <Text style={styles.statValue}>
-            {t('habits.detail.streakDays', {
-              n: metrics.currentStreak,
-            })}
-          </Text>
-        </View>
-        <View style={styles.statCard}>
-          <Trophy size={20} color={colors.primary} />
-          <Text style={styles.statLabel}>
-            {t('habits.detail.longestStreak')}
-          </Text>
-          <Text style={styles.statValue}>
-            {t('habits.detail.streakDays', {
-              n: metrics.longestStreak,
-            })}
-          </Text>
-        </View>
-        <View style={styles.statCard}>
-          <BarChart3 size={20} color={colors.primary} />
-          <Text style={styles.statLabel}>
-            {t('habits.detail.monthlyRate')}
-          </Text>
-          <Text style={styles.statValue}>
-            {Math.round(metrics.monthlyCompletionRate)}%
-          </Text>
+      <View>
+        <Text style={styles.sectionTitle}>{t('habits.detail.stats')}</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Flame size={20} color={colors.primary} />
+            <Text style={styles.statLabel}>
+              {t('habits.detail.currentStreak')}
+            </Text>
+            <Text style={styles.statValue}>
+              {t('habits.detail.streakDays', {
+                n: metrics.currentStreak,
+              })}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <Trophy size={20} color={colors.primary} />
+            <Text style={styles.statLabel}>
+              {t('habits.detail.longestStreak')}
+            </Text>
+            <Text style={styles.statValue}>
+              {t('habits.detail.streakDays', {
+                n: metrics.longestStreak,
+              })}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <BarChart3 size={20} color={colors.primary} />
+            <Text style={styles.statLabel}>
+              {t('habits.detail.monthlyRate')}
+            </Text>
+            <Text style={styles.statValue}>
+              {Math.round(metrics.monthlyCompletionRate)}%
+            </Text>
+          </View>
         </View>
       </View>
     )
@@ -118,39 +121,68 @@ export function HabitDetailStatsGrid({
 
   if (!metrics && loading) {
     return (
-      <View style={styles.statsGrid}>
-        {[1, 2, 3].map((i) => (
-          <View key={i} style={styles.statCard}>
-            <View style={styles.skeletonIcon} />
-            <View style={styles.skeletonLabel} />
-            <View style={styles.skeletonValue} />
-          </View>
-        ))}
+      <View>
+        <Text style={styles.sectionTitle}>{t('habits.detail.stats')}</Text>
+        <View style={styles.statsGrid}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={styles.statCard}>
+              <View style={styles.skeletonIcon} />
+              <View style={styles.skeletonLabel} />
+              <View style={styles.skeletonValue} />
+            </View>
+          ))}
+        </View>
       </View>
     )
   }
 
-  return null
+  // metrics is null and not loading
+  return (
+    <View>
+      <Text style={styles.sectionTitle}>{t('habits.detail.stats')}</Text>
+      <Text style={[styles.noDataText, { color: colors.textMuted, textAlign: 'center', paddingVertical: 8 }]}>
+        {t('habits.detail.noDataYet')}
+      </Text>
+    </View>
+  )
 }
 
 export function HabitDetailRecentNotes({
   notes,
   t,
+  colors,
   styles,
 }: Readonly<HabitDetailRecentNotesProps>) {
+  const [showAll, setShowAll] = useState(false)
+
   if (notes.length === 0) return null
+
+  const visibleNotes = showAll ? notes : notes.slice(0, NOTES_PREVIEW_COUNT)
 
   return (
     <View style={styles.notesSection}>
       <Text style={styles.sectionTitle}>{t('habits.detail.recentNotes')}</Text>
       <View style={styles.notesList}>
-        {notes.map((note) => (
+        {visibleNotes.map((note) => (
           <View key={note.id} style={styles.noteCard}>
             <Text style={styles.noteDate}>{note.dateLabel}</Text>
             <Text style={styles.noteText}>{note.note}</Text>
           </View>
         ))}
       </View>
+      {notes.length > NOTES_PREVIEW_COUNT && (
+        <TouchableOpacity
+          onPress={() => setShowAll((prev) => !prev)}
+          activeOpacity={0.7}
+          style={{ marginTop: 8 }}
+        >
+          <Text style={[styles.showMoreButton, { color: colors.primary }]}>
+            {showAll
+              ? t('habits.detail.showLessNotes')
+              : t('habits.detail.showMoreNotes')}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   )
 }

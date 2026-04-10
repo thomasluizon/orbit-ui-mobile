@@ -1,9 +1,12 @@
+import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Text, TouchableOpacity, View } from 'react-native'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 
 type AppColors = ThemeContextValue['colors']
+
+const HISTORY_PREVIEW_COUNT = 3
 
 interface GoalProgressHistoryEntry {
   createdAtUtc: string
@@ -17,6 +20,9 @@ interface GoalProgressHistorySectionProps {
   entries: GoalProgressHistoryEntry[]
   formatDate: (dateStr: string) => string
   renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
+  showAllLabel: string
+  showLessLabel: string
+  primaryColor: string
   styles: Record<string, object>
 }
 
@@ -25,8 +31,18 @@ export function GoalProgressHistorySection({
   entries,
   formatDate,
   renderEntryLabel,
+  showAllLabel,
+  showLessLabel,
+  primaryColor,
   styles,
 }: Readonly<GoalProgressHistorySectionProps>) {
+  const [showAllHistory, setShowAllHistory] = useState(false)
+
+  const visibleEntries = useMemo(
+    () => (showAllHistory ? entries : entries.slice(-HISTORY_PREVIEW_COUNT)),
+    [entries, showAllHistory],
+  )
+
   if (entries.length === 0) {
     return null
   }
@@ -35,7 +51,7 @@ export function GoalProgressHistorySection({
     <View>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.historyList}>
-        {entries.map((entry) => (
+        {visibleEntries.map((entry) => (
           <View
             key={`${entry.createdAtUtc}-${entry.value}`}
             style={styles.historyEntry}
@@ -54,6 +70,19 @@ export function GoalProgressHistorySection({
           </View>
         ))}
       </View>
+      {entries.length > HISTORY_PREVIEW_COUNT && (
+        <TouchableOpacity
+          onPress={() => setShowAllHistory((prev) => !prev)}
+          activeOpacity={0.7}
+          style={{ marginTop: 8 }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '600', color: primaryColor }}>
+            {showAllHistory
+              ? showLessLabel
+              : `${showAllLabel} (${entries.length})`}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   )
 }

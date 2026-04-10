@@ -263,6 +263,7 @@ export function HabitDetailDrawer({
                 borderMuted: colors.borderMuted,
                 textSecondary: colors.textSecondary,
                 textPrimary: colors.textPrimary,
+                textMuted: colors.textMuted,
               }}
               styles={{
                 statsGrid: styles.statsGrid,
@@ -272,6 +273,8 @@ export function HabitDetailDrawer({
                 skeletonIcon: styles.skeletonIcon,
                 skeletonLabel: styles.skeletonLabel,
                 skeletonValue: styles.skeletonValue,
+                sectionTitle: styles.sectionTitle,
+                noDataText: styles.noDataText,
               }}
             />
 
@@ -285,6 +288,7 @@ export function HabitDetailDrawer({
             <HabitDetailRecentNotes
               notes={recentNotes}
               t={t}
+              colors={{ primary: colors.primary }}
               styles={{
                 notesSection: styles.notesSection,
                 sectionTitle: styles.sectionTitle,
@@ -292,6 +296,7 @@ export function HabitDetailDrawer({
                 noteCard: styles.noteCard,
                 noteDate: styles.noteDate,
                 noteText: styles.noteText,
+                showMoreButton: styles.showMoreButton,
               }}
             />
 
@@ -429,6 +434,13 @@ function createStyles(
     noteText: {
       fontSize: 14,
       color: colors.textSecondary,
+    },
+    showMoreButton: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    noDataText: {
+      fontSize: 14,
     },
     buttonRow: {
       flexDirection: "row",
