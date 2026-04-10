@@ -19,6 +19,7 @@ export interface GoalMetricsViewModel {
   trackingStatus?: string | null
   projectedCompletionDate: string | null
   velocityPerDay: number
+  daysToDeadline?: number | null
   habitAdherence: GoalMetricsHabitAdherence[]
 }
 

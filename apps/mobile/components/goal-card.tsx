@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { differenceInDays, parseISO } from 'date-fns'
+import { Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
+import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -24,15 +26,17 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const progress = Math.min(100, Math.round(goal.progressPercentage))
+  const isStreak = isStreakGoal(goal.type)
   const styles = useMemo(() => createStyles(colors), [colors])
 
   // Progress bar color (matches web progressColor logic)
   const progressBarColor = useMemo(() => {
     if (goal.status === 'Completed') return colors.green500
     if (goal.status === 'Abandoned') return colors.textMuted
+    if (isStreak) return colors.amber500
     if (goal.progressPercentage >= 75) return colors.green500
     return colors.primary
-  }, [goal.status, goal.progressPercentage])
+  }, [goal.status, goal.progressPercentage, isStreak])
 
   // Deadline info (matches web deadlineInfo logic)
   const deadlineInfo = useMemo(() => {
@@ -97,6 +101,18 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
     }
   }, [goal.trackingStatus])
 
+  // Progress label: streak goals use "Day X of Y", standard use "X of Y unit"
+  const progressLabel = isStreak
+    ? t('goals.streak.ofTarget', {
+        current: goal.currentValue,
+        target: goal.targetValue,
+      })
+    : t('goals.progressOf', {
+        current: goal.currentValue,
+        target: goal.targetValue,
+        unit: goal.unit,
+      })
+
   return (
     <TouchableOpacity
       style={[styles.card, trackingBorder]}
@@ -107,6 +123,9 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
       <View style={styles.content}>
         {/* Title row */}
         <View style={styles.titleRow}>
+          {isStreak && (
+            <Flame size={14} color={colors.amber400} style={styles.flameIcon} />
+          )}
           <Text
             style={[
               styles.title,
@@ -136,13 +155,7 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
         </View>
 
         {/* Progress text */}
-        <Text style={styles.progressLabel}>
-          {t('goals.progressOf', {
-            current: goal.currentValue,
-            target: goal.targetValue,
-            unit: goal.unit,
-          })}
-        </Text>
+        <Text style={styles.progressLabel}>{progressLabel}</Text>
 
         {/* Progress bar */}
         <View
@@ -226,6 +239,9 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     alignItems: 'center',
     gap: 8, // gap-2
     marginBottom: 4, // mb-1
+  },
+  flameIcon: {
+    flexShrink: 0,
   },
   title: {
     fontSize: 14, // text-sm

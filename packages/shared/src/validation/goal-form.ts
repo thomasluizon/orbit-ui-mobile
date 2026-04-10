@@ -22,6 +22,7 @@ export const goalFormSchema = z.object({
     .default(''),
   deadline: z.string().optional().default(''),
   habitIds: z.array(z.string()).optional().default([]),
+  type: z.enum(['Standard', 'Streak']).optional().default('Standard'),
 })
 
 export type GoalFormData = z.infer<typeof goalFormSchema>

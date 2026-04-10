@@ -25,6 +25,7 @@ import {
   translateErrorKey,
   validateGoalProgressInput,
 } from '@orbit/shared/utils'
+import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import {
   useGoals,
@@ -81,6 +82,8 @@ export function GoalDetailDrawer({
   const goal = goalsData?.goalsById.get(goalId) ?? null
   const detail = detailData?.goal ?? null
   const metrics = detailData?.metrics ?? null
+
+  const isStreak = isStreakGoal(goal?.type)
 
   // Local state
   const [showEditModal, setShowEditModal] = useState(false)
@@ -208,6 +211,15 @@ export function GoalDetailDrawer({
       >
         {goal && (
           <div className="space-y-6">
+            {/* Streak badge */}
+            {isStreak && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400">
+                  🔥 {t('goals.form.typeStreak')}
+                </span>
+              </div>
+            )}
+
             {/* Progress section */}
             <div>
               <h4 className="form-label mb-2">
@@ -217,18 +229,23 @@ export function GoalDetailDrawer({
               {/* Progress bar */}
               <div className="h-3 bg-surface-elevated rounded-full overflow-hidden mb-2">
                 <div
-                  className="h-full rounded-full transition-all duration-500 bg-primary"
+                  className={`h-full rounded-full transition-all duration-500 ${isStreak ? 'bg-orange-500' : 'bg-primary'}`}
                   style={{
                     width: `${Math.min(goal.progressPercentage, 100)}%`,
                   }}
                 />
               </div>
               <p className="text-sm text-text-secondary mb-4">
-                {t('goals.progressOf', {
-                  current: goal.currentValue,
-                  target: goal.targetValue,
-                  unit: goal.unit,
-                })}
+                {isStreak
+                  ? t('goals.streak.ofTarget', {
+                      current: goal.currentValue,
+                      target: goal.targetValue,
+                    })
+                  : t('goals.progressOf', {
+                      current: goal.currentValue,
+                      target: goal.targetValue,
+                      unit: goal.unit,
+                    })}
                 <span className="text-text-muted ml-1">
                   ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
                 </span>
@@ -252,7 +269,7 @@ export function GoalDetailDrawer({
                       htmlFor="goal-progress-value"
                       className="form-label"
                     >
-                      {t('goals.form.targetValue')}
+                      {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
                     </label>
                     <input
                       id="goal-progress-value"
@@ -314,6 +331,15 @@ export function GoalDetailDrawer({
                 metrics={metrics}
                 unit={goal.unit}
                 isLoading={isLoadingDetail}
+                isStreak={isStreak}
+              />
+            )}
+
+            {/* Linked Habits -- shown prominently for streak goals */}
+            {isStreak && (goal.linkedHabits ?? []).length > 0 && (
+              <GoalLinkedHabitsSection
+                title={t('goals.linkedHabits')}
+                linkedHabits={goal.linkedHabits ?? []}
               />
             )}
 
@@ -332,11 +358,13 @@ export function GoalDetailDrawer({
               }
             />
 
-            {/* Linked Habits */}
-            <GoalLinkedHabitsSection
-              title={t('goals.linkedHabits')}
-              linkedHabits={goal.linkedHabits ?? []}
-            />
+            {/* Linked Habits (standard goals) */}
+            {!isStreak && (
+              <GoalLinkedHabitsSection
+                title={t('goals.linkedHabits')}
+                linkedHabits={goal.linkedHabits ?? []}
+              />
+            )}
 
             {/* Load error (fallback to store data) */}
             {loadError && (

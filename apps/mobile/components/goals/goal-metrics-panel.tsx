@@ -17,6 +17,7 @@ interface GoalMetricsPanelProps {
   metrics: GoalMetricsViewModel | null
   unit: string
   isLoading: boolean
+  isStreak?: boolean
 }
 
 type AppColors = {
@@ -51,6 +52,7 @@ export function GoalMetricsPanel({
   metrics,
   unit,
   isLoading,
+  isStreak = false,
 }: GoalMetricsPanelProps) {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
@@ -114,6 +116,14 @@ export function GoalMetricsPanel({
 
   if (!metrics) return null
 
+  // Days remaining for streak goals
+  const daysRemaining =
+    isStreak &&
+    metrics.daysToDeadline != null &&
+    metrics.daysToDeadline > 0
+      ? metrics.daysToDeadline
+      : null
+
   return (
     <View style={styles.container}>
       {/* Tracking Status Badge */}
@@ -140,17 +150,30 @@ export function GoalMetricsPanel({
           </Text>
         </View>
 
-        {/* Velocity */}
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>
-            {t('goals.metrics.velocity')}
-          </Text>
-          <Text style={styles.statValue}>
-            {metrics.velocityPerDay > 0
-              ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
-              : t('goals.metrics.noData')}
-          </Text>
-        </View>
+        {/* For streak goals: days remaining. For standard: velocity */}
+        {isStreak ? (
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>
+              {t('goals.metrics.daysToDeadline')}
+            </Text>
+            <Text style={[styles.statValue, daysRemaining !== null && styles.statValueAmber]}>
+              {daysRemaining !== null
+                ? t('goals.streak.daysRemaining', { count: daysRemaining })
+                : t('goals.metrics.noData')}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>
+              {t('goals.metrics.velocity')}
+            </Text>
+            <Text style={styles.statValue}>
+              {metrics.velocityPerDay > 0
+                ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
+                : t('goals.metrics.noData')}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Linked Habit Adherence */}
@@ -290,6 +313,9 @@ function createStyles(colors: AppColors) {
     fontWeight: '600',
     color: colors.textPrimary,
     marginTop: 4,
+  },
+  statValueAmber: {
+    color: colors.amber400,
   },
 
   // Habit adherence

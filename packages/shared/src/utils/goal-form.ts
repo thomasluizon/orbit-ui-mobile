@@ -66,3 +66,7 @@ export function isGoalDeadlinePast(
 ): boolean {
   return deadline < today
 }
+
+export function isStreakGoal(type?: string): boolean {
+  return type === 'Streak'
+}

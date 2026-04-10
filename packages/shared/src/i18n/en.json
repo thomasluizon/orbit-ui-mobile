@@ -1384,7 +1384,24 @@
       "unitRequired": "Unit is required",
       "unitTooLong": "Unit must be 50 characters or fewer",
       "habitLimit": "You can link up to 20 habits",
-      "progressValueInvalid": "Enter a value of 0 or higher"
+      "progressValueInvalid": "Enter a value of 0 or higher",
+      "type": "Goal type",
+      "typeStandard": "Progress",
+      "typeStreak": "Streak",
+      "typeStreakDescription": "Track consecutive days of a linked habit",
+      "streakTarget": "Target streak",
+      "streakTargetPlaceholder": "e.g. 30, 60, 90",
+      "streakUnit": "consecutive days",
+      "streakRequiresHabit": "Streak goals require a linked habit"
+    },
+    "streak": {
+      "dayCount": "{count} day streak",
+      "dayCountPlural": "{count} days streak",
+      "reset": "Streak reset",
+      "ofTarget": "Day {current} of {target}",
+      "daysRemaining": "{count} days remaining",
+      "badHabitLabel": "days without",
+      "goodHabitLabel": "consecutive days"
     },
     "progress": "Progress",
     "progressOf": "{current} of {target} {unit}",

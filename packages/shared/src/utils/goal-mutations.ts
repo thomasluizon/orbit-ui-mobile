@@ -32,6 +32,7 @@ export function buildTempGoal(
     targetValue: request.targetValue,
     currentValue: 0,
     unit: request.unit,
+    type: request.type,
     status: 'Active',
     deadline: request.deadline ?? null,
     position,

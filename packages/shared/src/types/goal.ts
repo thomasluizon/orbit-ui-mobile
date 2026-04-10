@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 // --- Enums ---
 
+export const goalTypeSchema = z.enum(['Standard', 'Streak'])
+
+export type GoalType = z.infer<typeof goalTypeSchema>
+
 export const goalStatusSchema = z.enum(['Active', 'Completed', 'Abandoned'])
 
 export type GoalStatus = z.infer<typeof goalStatusSchema>
@@ -64,6 +68,7 @@ export const goalSchema = z.object({
   targetValue: z.number(),
   currentValue: z.number(),
   unit: z.string(),
+  type: goalTypeSchema.optional(),
   status: goalStatusSchema,
   deadline: z.string().nullable(),
   position: z.number(),
@@ -106,6 +111,7 @@ export const createGoalRequestSchema = z.object({
   targetValue: z.number(),
   unit: z.string(),
   deadline: z.string().optional(),
+  type: goalTypeSchema.optional(),
 })
 
 export type CreateGoalRequest = z.infer<typeof createGoalRequestSchema>

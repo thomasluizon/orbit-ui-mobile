@@ -1384,7 +1384,24 @@
       "unitRequired": "A unidade é obrigatória",
       "unitTooLong": "A unidade deve ter no máximo 50 caracteres",
       "habitLimit": "Você pode vincular até 20 hábitos",
-      "progressValueInvalid": "Informe um valor igual ou maior que 0"
+      "progressValueInvalid": "Informe um valor igual ou maior que 0",
+      "type": "Tipo de meta",
+      "typeStandard": "Progresso",
+      "typeStreak": "Sequência",
+      "typeStreakDescription": "Acompanhe dias consecutivos de um hábito vinculado",
+      "streakTarget": "Meta de sequência",
+      "streakTargetPlaceholder": "ex. 30, 60, 90",
+      "streakUnit": "dias consecutivos",
+      "streakRequiresHabit": "Metas de sequência precisam de um hábito vinculado"
+    },
+    "streak": {
+      "dayCount": "sequência de {count} dia",
+      "dayCountPlural": "sequência de {count} dias",
+      "reset": "Sequência reiniciada",
+      "ofTarget": "Dia {current} de {target}",
+      "daysRemaining": "{count} dias restantes",
+      "badHabitLabel": "dias sem",
+      "goodHabitLabel": "dias consecutivos"
     },
     "progress": "Progresso",
     "progressOf": "{current} de {target} {unit}",

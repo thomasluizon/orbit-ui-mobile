@@ -23,10 +23,12 @@ import {
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
+  isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
+import type { GoalType } from '@orbit/shared/types/goal'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -42,6 +44,7 @@ interface CreateGoalRequest {
   targetValue: number
   unit: string
   deadline?: string
+  type?: 'Standard' | 'Streak'
 }
 
 type AppColors = {
@@ -77,12 +80,14 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Form state
+  const [goalType, setGoalType] = useState<GoalType>('Standard')
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
 
   const isSubmitting = createGoal.isPending
+  const isStreak = isStreakGoal(goalType)
 
   function validate(): string | null {
     return translateErrorKey(
@@ -96,11 +101,24 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   }
 
   function resetForm() {
+    setGoalType('Standard')
     setDescription('')
     setTargetValue('')
     setUnit('')
     setDeadline('')
   }
+
+  const handleTypeChange = useCallback(
+    (type: GoalType) => {
+      setGoalType(type)
+      if (type === 'Streak') {
+        setUnit(t('goals.form.streakUnit'))
+      } else {
+        setUnit('')
+      }
+    },
+    [t],
+  )
 
   const onSubmit = useCallback(async () => {
     const err = validate()
@@ -118,6 +136,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         title,
         targetValue: numVal,
         unit: unit.trim(),
+        type: goalType,
       }
       if (deadline) request.deadline = deadline
 
@@ -128,7 +147,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createGoal, deadline, description, onClose, showError, targetValue, translate, unit])
+  }, [createGoal, deadline, description, goalType, onClose, showError, targetValue, translate, unit])
 
   const handleClose = useCallback(() => {
     resetForm()
@@ -141,7 +160,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       open={open}
       onClose={handleClose}
       title={t('goals.create')}
-      snapPoints={['70%', '90%']}
+      snapPoints={['80%', '95%']}
     >
       <BottomSheetScrollView
         style={styles.scroll}
@@ -149,30 +168,80 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Goal Type Toggle */}
+        <View>
+          <Text style={styles.label}>{t('goals.form.type')}</Text>
+          <View style={styles.typeToggle}>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                goalType === 'Standard' && styles.typeButtonSelected,
+              ]}
+              onPress={() => handleTypeChange('Standard')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  goalType === 'Standard' && styles.typeButtonTextSelected,
+                ]}
+              >
+                {t('goals.form.typeStandard')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                goalType === 'Streak' && styles.typeButtonSelected,
+              ]}
+              onPress={() => handleTypeChange('Streak')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  goalType === 'Streak' && styles.typeButtonTextSelected,
+                ]}
+              >
+                {t('goals.form.typeStreak')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {isStreak && (
+            <Text style={styles.typeDescription}>
+              {t('goals.form.typeStreakDescription')}
+            </Text>
+          )}
+        </View>
+
         {/* Quantity + Unit */}
         <View style={styles.row}>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>{t('goals.form.targetValue')}</Text>
+          <View style={isStreak ? styles.fullField : styles.halfField}>
+            <Text style={styles.label}>
+              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+            </Text>
             <TextInput
               style={styles.input}
               value={targetValue}
               onChangeText={setTargetValue}
               keyboardType="decimal-pad"
-              placeholder="12"
+              placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
               placeholderTextColor={colors.textMuted}
             />
           </View>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>{t('goals.form.unit')}</Text>
-            <TextInput
-              style={styles.input}
-              value={unit}
-              onChangeText={setUnit}
-              placeholder={t('goals.form.unitPlaceholder')}
-              placeholderTextColor={colors.textMuted}
-              maxLength={50}
-            />
-          </View>
+          {!isStreak && (
+            <View style={styles.halfField}>
+              <Text style={styles.label}>{t('goals.form.unit')}</Text>
+              <TextInput
+                style={styles.input}
+                value={unit}
+                onChangeText={setUnit}
+                placeholder={t('goals.form.unitPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                maxLength={50}
+              />
+            </View>
+          )}
         </View>
 
         {/* Description (optional) */}
@@ -279,6 +348,9 @@ function createStyles(colors: AppColors, bottomInset: number) {
   halfField: {
     flex: 1,
   },
+  fullField: {
+    flex: 1,
+  },
   label: {
     fontSize: 12,
     fontWeight: '600',
@@ -303,6 +375,39 @@ function createStyles(colors: AppColors, bottomInset: number) {
     fontSize: 14,
     color: colors.textPrimary,
     minHeight: 56,
+  },
+  // Type toggle
+  typeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: goalRadius.lg,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+  },
+  typeButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  typeButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  typeButtonTextSelected: {
+    color: colors.white,
+  },
+  typeDescription: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 8,
   },
   deadlineRow: {
     flexDirection: 'row',

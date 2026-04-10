@@ -15,9 +15,11 @@ import {
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
+  isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
+import type { GoalType } from '@orbit/shared/types/goal'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -33,6 +35,7 @@ interface CreateGoalRequest {
   targetValue: number
   unit: string
   deadline?: string
+  type?: GoalType
 }
 
 // ---------------------------------------------------------------------------
@@ -50,12 +53,23 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   const { showError } = useAppToast()
 
   // Form state
+  const [goalType, setGoalType] = useState<GoalType>('Standard')
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
 
   const isSubmitting = createGoal.isPending
+  const isStreak = isStreakGoal(goalType)
+
+  function handleTypeChange(type: GoalType) {
+    setGoalType(type)
+    if (type === 'Streak') {
+      setUnit(t('goals.form.streakUnit'))
+    } else {
+      setUnit('')
+    }
+  }
 
   function validate(): string | null {
     return translateErrorKey(
@@ -69,6 +83,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   }
 
   function resetForm() {
+    setGoalType('Standard')
     setDescription('')
     setTargetValue('')
     setUnit('')
@@ -94,6 +109,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
           title,
           targetValue: parsedTargetValue,
           unit: unit.trim(),
+          type: goalType,
         }
         if (deadline) request.deadline = deadline
 
@@ -105,7 +121,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [createGoal, deadline, description, onOpenChange, showError, targetValue, translate, unit],
+    [createGoal, deadline, description, goalType, onOpenChange, showError, targetValue, translate, unit],
   )
 
   // Reset form when modal closes
@@ -124,14 +140,47 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       title={t('goals.create')}
     >
       <form className="space-y-5" onSubmit={onSubmit}>
+        {/* Goal Type Toggle */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={`flex-1 py-2.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
+              goalType === 'Standard'
+                ? 'bg-primary text-white'
+                : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
+            }`}
+            onClick={() => handleTypeChange('Standard')}
+          >
+            {t('goals.form.typeStandard')}
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-2.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
+              goalType === 'Streak'
+                ? 'bg-primary text-white'
+                : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
+            }`}
+            onClick={() => handleTypeChange('Streak')}
+          >
+            {t('goals.form.typeStreak')}
+          </button>
+        </div>
+
+        {/* Streak description */}
+        {isStreak && (
+          <p className="text-xs text-text-secondary -mt-1">
+            {t('goals.form.typeStreakDescription')}
+          </p>
+        )}
+
         {/* Quantity + Unit */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
+        <div className={isStreak ? '' : 'grid grid-cols-2 gap-3'}>
+          <div className={isStreak ? '' : ''}>
             <label
               htmlFor="create-goal-target"
               className="form-label"
             >
-              {t('goals.form.targetValue')}
+              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
             </label>
             <input
               id="create-goal-target"
@@ -141,26 +190,28 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               className="form-input"
               min={0.01}
               step="any"
-              placeholder="12"
+              placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
             />
           </div>
-          <div>
-            <label
-              htmlFor="create-goal-unit"
-              className="form-label"
-            >
-              {t('goals.form.unit')}
-            </label>
-            <input
-              id="create-goal-unit"
-              type="text"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              className="form-input"
-              placeholder={t('goals.form.unitPlaceholder')}
-              maxLength={50}
-            />
-          </div>
+          {!isStreak && (
+            <div>
+              <label
+                htmlFor="create-goal-unit"
+                className="form-label"
+              >
+                {t('goals.form.unit')}
+              </label>
+              <input
+                id="create-goal-unit"
+                type="text"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="form-input"
+                placeholder={t('goals.form.unitPlaceholder')}
+                maxLength={50}
+              />
+            </div>
+          )}
         </div>
 
         {/* Description (optional) */}
