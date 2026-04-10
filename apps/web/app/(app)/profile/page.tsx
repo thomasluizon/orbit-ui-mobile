@@ -75,7 +75,9 @@ export default function ProfilePage() {
       {/* Store error */}
       {error && (
         <p className="mb-4 text-sm text-red-400 text-center">
-          {error instanceof Error ? error.message : t('errors.loadProfile')}
+          {process.env.NODE_ENV === 'development' && error instanceof Error
+            ? error.message
+            : t('errors.loadProfile')}
         </p>
       )}
 

@@ -21,7 +21,7 @@ export default function AppError({
     <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
       <AlertTriangle className="size-10 text-text-muted" />
       <p className="text-sm text-text-secondary">
-        {error.message || t('auth.genericError')}
+        {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
       </p>
       <button
         className="px-5 py-2.5 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-colors"
