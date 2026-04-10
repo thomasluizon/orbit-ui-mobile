@@ -17,6 +17,7 @@ interface GoalMetricsPanelProps {
   metrics: GoalMetricsViewModel | null
   unit: string
   isLoading: boolean
+  isStreak?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ export function GoalMetricsPanel({
   metrics,
   unit,
   isLoading,
+  isStreak = false,
 }: Readonly<GoalMetricsPanelProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -116,17 +118,30 @@ export function GoalMetricsPanel({
           </p>
         </div>
 
-        {/* Velocity */}
-        <div className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
-          <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold">
-            {t('goals.metrics.velocity')}
-          </p>
-          <p className="text-sm font-semibold text-text-primary mt-1">
-            {metrics.velocityPerDay > 0
-              ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
-              : t('goals.metrics.noData')}
-          </p>
-        </div>
+        {/* Streak goals: show days remaining; standard goals: show velocity */}
+        {isStreak ? (
+          <div className="bg-orange-500/10 rounded-[var(--radius-lg)] px-4 py-3 border border-orange-500/20 shadow-[var(--shadow-sm)]">
+            <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">
+              {t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
+            </p>
+            <p className="text-sm font-semibold text-orange-300 mt-1">
+              {metrics.daysToDeadline != null
+                ? metrics.daysToDeadline
+                : t('goals.metrics.noData')}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
+            <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold">
+              {t('goals.metrics.velocity')}
+            </p>
+            <p className="text-sm font-semibold text-text-primary mt-1">
+              {metrics.velocityPerDay > 0
+                ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
+                : t('goals.metrics.noData')}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Linked Habit Adherence */}

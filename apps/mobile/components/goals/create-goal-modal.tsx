@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
-import { Plus, X } from 'lucide-react-native'
+import { Plus, X, Target, Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -23,10 +23,12 @@ import {
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
+  isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
+import type { GoalType } from '@orbit/shared/types/goal'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -42,6 +44,7 @@ interface CreateGoalRequest {
   targetValue: number
   unit: string
   deadline?: string
+  type?: 'Standard' | 'Streak'
 }
 
 type AppColors = {
@@ -53,7 +56,11 @@ type AppColors = {
   surfaceElevated: string
   borderMuted: string
   amber400: string
+  amber500: string
   red400: string
+  orange400: string
+  orange500: string
+  orange300: string
 }
 const goalRadius = {
   lg: 16,
@@ -77,12 +84,14 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Form state
+  const [goalType, setGoalType] = useState<GoalType>('Standard')
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
 
   const isSubmitting = createGoal.isPending
+  const isStreak = isStreakGoal(goalType)
 
   function validate(): string | null {
     return translateErrorKey(
@@ -96,11 +105,24 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   }
 
   function resetForm() {
+    setGoalType('Standard')
     setDescription('')
     setTargetValue('')
     setUnit('')
     setDeadline('')
   }
+
+  const handleTypeChange = useCallback(
+    (type: GoalType) => {
+      setGoalType(type)
+      if (type === 'Streak') {
+        setUnit(t('goals.form.streakUnit'))
+      } else {
+        setUnit('')
+      }
+    },
+    [t],
+  )
 
   const onSubmit = useCallback(async () => {
     const err = validate()
@@ -118,6 +140,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         title,
         targetValue: numVal,
         unit: unit.trim(),
+        type: goalType,
       }
       if (deadline) request.deadline = deadline
 
@@ -128,7 +151,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createGoal, deadline, description, onClose, showError, targetValue, translate, unit])
+  }, [createGoal, deadline, description, goalType, onClose, showError, targetValue, translate, unit])
 
   const handleClose = useCallback(() => {
     resetForm()
@@ -136,12 +159,15 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose])
 
+  const isStandardSelected = goalType === 'Standard'
+  const isStreakSelected = goalType === 'Streak'
+
   return (
     <BottomSheetModal
       open={open}
       onClose={handleClose}
       title={t('goals.create')}
-      snapPoints={['70%', '90%']}
+      snapPoints={['80%', '95%']}
     >
       <BottomSheetScrollView
         style={styles.scroll}
@@ -149,30 +175,113 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Goal Type Cards */}
+        <View style={styles.typeCardsRow}>
+          {/* Progress Card */}
+          <TouchableOpacity
+            style={[
+              styles.typeCard,
+              isStandardSelected && styles.typeCardSelectedStandard,
+            ]}
+            onPress={() => handleTypeChange('Standard')}
+            activeOpacity={0.8}
+          >
+            <View style={[
+              styles.typeCardIcon,
+              isStandardSelected ? styles.typeCardIconSelectedStandard : styles.typeCardIconDefault,
+            ]}>
+              <Target size={18} color={isStandardSelected ? colors.primary : colors.textMuted} />
+            </View>
+            <Text style={[
+              styles.typeCardTitle,
+              isStandardSelected && styles.typeCardTitleSelected,
+            ]}>
+              {t('goals.form.typeStandard')}
+            </Text>
+            <Text style={styles.typeCardDescription}>
+              {t('goals.form.typeStandardDescription')}
+            </Text>
+            <Text style={styles.typeCardExample}>
+              {t('goals.form.typeStandardExample')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Streak Card */}
+          <TouchableOpacity
+            style={[
+              styles.typeCard,
+              isStreakSelected && styles.typeCardSelectedStreak,
+            ]}
+            onPress={() => handleTypeChange('Streak')}
+            activeOpacity={0.8}
+          >
+            <View style={[
+              styles.typeCardIcon,
+              isStreakSelected ? styles.typeCardIconSelectedStreak : styles.typeCardIconDefault,
+            ]}>
+              <Flame size={18} color={isStreakSelected ? (colors.orange400 ?? '#fb923c') : colors.textMuted} />
+            </View>
+            <Text style={[
+              styles.typeCardTitle,
+              isStreakSelected && styles.typeCardTitleSelected,
+            ]}>
+              {t('goals.form.typeStreak')}
+            </Text>
+            <Text style={styles.typeCardDescription}>
+              {t('goals.form.typeStreakDescription')}
+            </Text>
+            <Text style={styles.typeCardExample}>
+              {t('goals.form.typeStreakExample')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Streak how-it-works hints */}
+        {isStreak && (
+          <View style={styles.streakHints}>
+            <View style={styles.streakHintGood}>
+              <Text style={styles.streakHintIcon}>+</Text>
+              <Text style={styles.streakHintGoodText}>
+                {t('goals.form.typeStreakHintGood')}
+              </Text>
+            </View>
+            <View style={styles.streakHintBad}>
+              <Text style={styles.streakHintIcon}>!</Text>
+              <Text style={styles.streakHintBadText}>
+                {t('goals.form.typeStreakHintBad')}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Quantity + Unit */}
         <View style={styles.row}>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>{t('goals.form.targetValue')}</Text>
+          <View style={isStreak ? styles.fullField : styles.halfField}>
+            <Text style={styles.label}>
+              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+            </Text>
             <TextInput
               style={styles.input}
               value={targetValue}
               onChangeText={setTargetValue}
               keyboardType="decimal-pad"
-              placeholder="12"
+              placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
               placeholderTextColor={colors.textMuted}
             />
           </View>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>{t('goals.form.unit')}</Text>
-            <TextInput
-              style={styles.input}
-              value={unit}
-              onChangeText={setUnit}
-              placeholder={t('goals.form.unitPlaceholder')}
-              placeholderTextColor={colors.textMuted}
-              maxLength={50}
-            />
-          </View>
+          {!isStreak && (
+            <View style={styles.halfField}>
+              <Text style={styles.label}>{t('goals.form.unit')}</Text>
+              <TextInput
+                style={styles.input}
+                value={unit}
+                onChangeText={setUnit}
+                placeholder={t('goals.form.unitPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                maxLength={50}
+              />
+            </View>
+          )}
         </View>
 
         {/* Description (optional) */}
@@ -187,7 +296,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             style={styles.input}
             value={description}
             onChangeText={setDescription}
-            placeholder={t('goals.form.descriptionPlaceholder')}
+            placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
             maxLength={200}
           />
@@ -241,7 +350,11 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 
         {/* Submit */}
         <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && styles.submitDisabled]}
+          style={[
+            styles.submitButton,
+            isStreak && styles.submitButtonStreak,
+            isSubmitting && styles.submitDisabled,
+          ]}
           onPress={onSubmit}
           disabled={isSubmitting}
           activeOpacity={0.8}
@@ -262,100 +375,212 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 // ---------------------------------------------------------------------------
 
 function createStyles(colors: AppColors, bottomInset: number) {
+  const orange400 = colors.orange400 ?? '#fb923c'
+  const orange500 = colors.orange500 ?? '#f97316'
+
   return StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  form: {
-    paddingTop: 12,
-    paddingHorizontal: 24,
-    paddingBottom: Math.max(bottomInset, 16) + 24,
-    gap: 24,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  halfField: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  labelOptional: {
-    fontWeight: '400',
-    color: colors.textMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
-  },
-  input: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: goalRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    minHeight: 56,
-  },
-  deadlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  deadlinePicker: {
-    flex: 1,
-  },
-  removeDeadlineButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  warningText: {
-    fontSize: 12,
-    color: colors.amber400,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  addDeadlineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  addDeadlineText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  submitButton: {
-    marginTop: 4,
-    backgroundColor: colors.primary,
-    borderRadius: goalRadius.xl,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  submitDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
+    scroll: {
+      flex: 1,
+    },
+    form: {
+      paddingTop: 12,
+      paddingHorizontal: 24,
+      paddingBottom: Math.max(bottomInset, 16) + 24,
+      gap: 20,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: 16,
+    },
+    halfField: {
+      flex: 1,
+    },
+    fullField: {
+      flex: 1,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 10,
+    },
+    labelOptional: {
+      fontWeight: '400',
+      color: colors.textMuted,
+      textTransform: 'none',
+      letterSpacing: 0,
+    },
+    input: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: goalRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: colors.textPrimary,
+      minHeight: 56,
+    },
+    // Type cards
+    typeCardsRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    typeCard: {
+      flex: 1,
+      padding: 16,
+      borderRadius: goalRadius.xl,
+      borderWidth: 2,
+      borderColor: colors.borderMuted,
+      backgroundColor: `${colors.surfaceElevated}80`,
+    },
+    typeCardSelectedStandard: {
+      borderColor: colors.primary,
+      backgroundColor: `${colors.primary}14`,
+    },
+    typeCardSelectedStreak: {
+      borderColor: orange500,
+      backgroundColor: `${orange500}14`,
+    },
+    typeCardIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: goalRadius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    typeCardIconDefault: {
+      backgroundColor: colors.surfaceElevated,
+    },
+    typeCardIconSelectedStandard: {
+      backgroundColor: `${colors.primary}26`,
+    },
+    typeCardIconSelectedStreak: {
+      backgroundColor: `${orange500}26`,
+    },
+    typeCardTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    typeCardTitleSelected: {
+      color: colors.textPrimary,
+    },
+    typeCardDescription: {
+      fontSize: 11,
+      color: colors.textMuted,
+      lineHeight: 15,
+    },
+    typeCardExample: {
+      fontSize: 10,
+      color: `${colors.textMuted}99`,
+      fontStyle: 'italic',
+      lineHeight: 14,
+      marginTop: 6,
+    },
+    // Streak hints
+    streakHints: {
+      gap: 8,
+    },
+    streakHintGood: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: goalRadius.lg,
+      backgroundColor: '#22c55e14',
+      borderWidth: 1,
+      borderColor: '#22c55e26',
+    },
+    streakHintBad: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: goalRadius.lg,
+      backgroundColor: '#ef444414',
+      borderWidth: 1,
+      borderColor: '#ef444426',
+    },
+    streakHintIcon: {
+      fontSize: 12,
+      marginTop: 1,
+      color: colors.textMuted,
+    },
+    streakHintGoodText: {
+      flex: 1,
+      fontSize: 11,
+      color: '#86efacE6',
+      lineHeight: 16,
+    },
+    streakHintBadText: {
+      flex: 1,
+      fontSize: 11,
+      color: '#fca5a5E6',
+      lineHeight: 16,
+    },
+    deadlineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    deadlinePicker: {
+      flex: 1,
+    },
+    removeDeadlineButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    warningText: {
+      fontSize: 12,
+      color: colors.amber400,
+      fontWeight: '500',
+      marginTop: 8,
+    },
+    addDeadlineButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+    },
+    addDeadlineText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    submitButton: {
+      marginTop: 4,
+      backgroundColor: colors.primary,
+      borderRadius: goalRadius.xl,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    submitButtonStreak: {
+      backgroundColor: orange500,
+      shadowColor: orange500,
+    },
+    submitDisabled: {
+      opacity: 0.5,
+    },
+    submitText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.white,
+    },
   })
 }

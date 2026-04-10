@@ -23,6 +23,7 @@ import {
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
+  isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
@@ -41,6 +42,7 @@ interface EditGoalModalProps {
     targetValue: number
     unit: string
     deadline: string | null
+    type?: string
   }
 }
 
@@ -82,6 +84,8 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const updateGoal = useUpdateGoal()
   const { showError } = useAppToast()
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
+
+  const isStreak = isStreakGoal(goal.type)
 
   // Form state
   const [description, setDescription] = useState('')
@@ -156,10 +160,23 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Streak type badge (read-only) */}
+        {isStreak && (
+          <View style={styles.streakBadgeRow}>
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakBadgeText}>
+                {t('goals.form.typeStreak')}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Quantity + Unit */}
         <View style={styles.row}>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>{t('goals.form.targetValue')}</Text>
+          <View style={isStreak ? styles.fullField : styles.halfField}>
+            <Text style={styles.label}>
+              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+            </Text>
             <TextInput
               style={styles.input}
               value={targetValue}
@@ -167,15 +184,17 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
               keyboardType="decimal-pad"
             />
           </View>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>{t('goals.form.unit')}</Text>
-            <TextInput
-              style={styles.input}
-              value={unit}
-              onChangeText={setUnit}
-              maxLength={50}
-            />
-          </View>
+          {!isStreak && (
+            <View style={styles.halfField}>
+              <Text style={styles.label}>{t('goals.form.unit')}</Text>
+              <TextInput
+                style={styles.input}
+                value={unit}
+                onChangeText={setUnit}
+                maxLength={50}
+              />
+            </View>
+          )}
         </View>
 
         {/* Description (optional) */}
@@ -282,6 +301,9 @@ function createStyles(colors: AppColors, bottomInset: number) {
   halfField: {
     flex: 1,
   },
+  fullField: {
+    flex: 1,
+  },
   label: {
     fontSize: 12,
     fontWeight: '600',
@@ -306,6 +328,21 @@ function createStyles(colors: AppColors, bottomInset: number) {
     fontSize: 14,
     color: colors.textPrimary,
     minHeight: 56,
+  },
+  // Streak type badge
+  streakBadgeRow: {
+    flexDirection: 'row',
+  },
+  streakBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  streakBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.amber400,
   },
   deadlineRow: {
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { GoalDetailDrawer } from './goal-detail-drawer'
+import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import type { Goal } from '@orbit/shared/types/goal'
 
 // ---------------------------------------------------------------------------
@@ -23,13 +24,16 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const t = useTranslations()
   const [showDetail, setShowDetail] = useState(false)
 
+  const isStreak = isStreakGoal(goal.type)
+
   const progressColor = useMemo(() => {
     if (goal.status === 'Completed') return 'bg-green-500'
     if (goal.status === 'Abandoned') return 'bg-text-muted'
+    if (isStreak) return 'bg-orange-500'
     if (goal.progressPercentage >= 75) return 'bg-green-500'
     if (goal.progressPercentage >= 50) return 'bg-primary'
     return 'bg-primary'
-  }, [goal.status, goal.progressPercentage])
+  }, [goal.status, goal.progressPercentage, isStreak])
 
   const deadlineInfo = useMemo(() => {
     if (!goal.deadline) return null
@@ -98,6 +102,11 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
           <div className="flex-1 min-w-0">
             {/* Title row */}
             <div className="flex items-center gap-2 mb-1">
+              {isStreak && (
+                <span className="text-base leading-none" aria-hidden="true">
+                  🔥
+                </span>
+              )}
               <h3
                 className={`text-sm font-semibold text-text-primary truncate ${
                   goal.status === 'Abandoned'
@@ -118,11 +127,16 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
             {/* Progress text */}
             <p className="text-xs text-text-secondary mb-2">
-              {t('goals.progressOf', {
-                current: goal.currentValue,
-                target: goal.targetValue,
-                unit: goal.unit,
-              })}
+              {isStreak
+                ? t('goals.streak.ofTarget', {
+                    current: goal.currentValue,
+                    target: goal.targetValue,
+                  })
+                : t('goals.progressOf', {
+                    current: goal.currentValue,
+                    target: goal.targetValue,
+                    unit: goal.unit,
+                  })}
             </p>
 
             {/* Progress bar */}

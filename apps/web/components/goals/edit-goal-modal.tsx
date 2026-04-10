@@ -15,6 +15,7 @@ import {
 import {
   buildGoalTitle,
   isGoalDeadlinePast,
+  isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
@@ -32,6 +33,7 @@ interface EditGoalModalProps {
     targetValue: number
     unit: string
     deadline: string | null
+    type?: string
   }
 }
 
@@ -59,6 +61,8 @@ export function EditGoalModal({
   )
   const updateGoal = useUpdateGoal()
   const { showError } = useAppToast()
+
+  const isStreak = isStreakGoal(goal.type)
 
   // Form state
   const [description, setDescription] = useState('')
@@ -135,14 +139,23 @@ export function EditGoalModal({
       title={t('goals.detail.edit')}
     >
       <form className="space-y-5" onSubmit={onSubmit}>
+        {/* Streak type badge */}
+        {isStreak && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400">
+              {t('goals.form.typeStreak')}
+            </span>
+          </div>
+        )}
+
         {/* Quantity + Unit */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className={isStreak ? '' : 'grid grid-cols-2 gap-3'}>
           <div>
             <label
               htmlFor="edit-goal-target"
               className="form-label"
             >
-              {t('goals.form.targetValue')}
+              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
             </label>
             <input
               id="edit-goal-target"
@@ -154,22 +167,40 @@ export function EditGoalModal({
               step="any"
             />
           </div>
-          <div>
-            <label
-              htmlFor="edit-goal-unit"
-              className="form-label"
-            >
-              {t('goals.form.unit')}
-            </label>
-            <input
-              id="edit-goal-unit"
-              type="text"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              className="form-input"
-              maxLength={50}
-            />
-          </div>
+          {!isStreak ? (
+            <div>
+              <label
+                htmlFor="edit-goal-unit"
+                className="form-label"
+              >
+                {t('goals.form.unit')}
+              </label>
+              <input
+                id="edit-goal-unit"
+                type="text"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="form-input"
+                maxLength={50}
+              />
+            </div>
+          ) : (
+            <div>
+              <label
+                htmlFor="edit-goal-unit-readonly"
+                className="form-label"
+              >
+                {t('goals.form.unit')}
+              </label>
+              <input
+                id="edit-goal-unit-readonly"
+                type="text"
+                value={unit}
+                readOnly
+                className="form-input opacity-60 cursor-not-allowed"
+              />
+            </div>
+          )}
         </div>
 
         {/* Description (optional) */}

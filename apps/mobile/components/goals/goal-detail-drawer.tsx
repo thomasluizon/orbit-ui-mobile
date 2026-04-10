@@ -12,6 +12,7 @@ import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
+  Flame,
   PencilLine,
   CheckCircle2,
   ArchiveX,
@@ -34,6 +35,7 @@ import {
   translateErrorKey,
   validateGoalProgressInput,
 } from '@orbit/shared/utils'
+import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import {
   useGoals,
   useGoalDetail,
@@ -97,6 +99,8 @@ export function GoalDetailDrawer({
   const detail = detailData?.goal ?? null
   const metrics = detailData?.metrics ?? null
 
+  const isStreak = isStreakGoal(goal?.type)
+
   // Local state
   const [showEditModal, setShowEditModal] = useState(false)
   const [progressValue, setProgressValue] = useState('')
@@ -134,6 +138,20 @@ export function GoalDetailDrawer({
     },
     [locale, dateFnsLocale],
   )
+
+  // Progress text: streak goals use "Day X of Y", standard use "X of Y unit"
+  const progressText = goal
+    ? isStreak
+      ? t('goals.streak.ofTarget', {
+          current: goal.currentValue,
+          target: goal.targetValue,
+        })
+      : t('goals.progressOf', {
+          current: goal.currentValue,
+          target: goal.targetValue,
+          unit: goal.unit,
+        })
+    : ''
 
   // Handlers
   const submitProgress = useCallback(async () => {
@@ -244,6 +262,18 @@ export function GoalDetailDrawer({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* Streak type badge near title */}
+          {isStreak && (
+            <View style={styles.streakBadgeRow}>
+              <View style={styles.streakBadge}>
+                <Flame size={12} color={colors.amber400} />
+                <Text style={styles.streakBadgeText}>
+                  {t('goals.form.typeStreak')}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Progress section */}
           <View>
             <Text style={styles.sectionTitle}>{t('goals.progress')}</Text>
@@ -255,17 +285,13 @@ export function GoalDetailDrawer({
                   styles.progressFill,
                   {
                     width: `${Math.min(goal.progressPercentage, 100)}%`,
-                    backgroundColor: colors.primary,
+                    backgroundColor: isStreak ? colors.amber500 : colors.primary,
                   },
                 ]}
               />
             </View>
             <Text style={styles.progressText}>
-              {t('goals.progressOf', {
-                current: goal.currentValue,
-                target: goal.targetValue,
-                unit: goal.unit,
-              })}
+              {progressText}
               {'  '}
               <Text style={styles.progressPercent}>
                 ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
@@ -290,7 +316,7 @@ export function GoalDetailDrawer({
               <View style={styles.progressForm}>
                 <View>
                   <Text style={styles.formLabel}>
-                    {t('goals.form.targetValue')}
+                    {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
                   </Text>
                   <TextInput
                     style={styles.formInput}
@@ -355,6 +381,16 @@ export function GoalDetailDrawer({
               metrics={metrics}
               unit={goal.unit}
               isLoading={isLoadingDetail}
+              isStreak={isStreak}
+            />
+          )}
+
+          {/* Linked Habits -- shown prominently for streak goals */}
+          {isStreak && (goal.linkedHabits ?? []).length > 0 && (
+            <GoalLinkedHabitsSection
+              title={t('goals.linkedHabits')}
+              linkedHabits={goal.linkedHabits ?? []}
+              styles={styles}
             />
           )}
 
@@ -373,12 +409,14 @@ export function GoalDetailDrawer({
             styles={styles}
           />
 
-          {/* Linked Habits */}
-          <GoalLinkedHabitsSection
-            title={t('goals.linkedHabits')}
-            linkedHabits={goal.linkedHabits ?? []}
-            styles={styles}
-          />
+          {/* Linked Habits (standard goals) */}
+          {!isStreak && (
+            <GoalLinkedHabitsSection
+              title={t('goals.linkedHabits')}
+              linkedHabits={goal.linkedHabits ?? []}
+              styles={styles}
+            />
+          )}
 
           {/* Load error (fallback to store data) */}
           {loadError && (
@@ -466,6 +504,25 @@ function createStyles(colors: AppColors, bottomInset: number) {
     paddingHorizontal: 24,
     paddingBottom: Math.max(bottomInset, 16) + 24,
     gap: 24,
+  },
+
+  // Streak badge
+  streakBadgeRow: {
+    flexDirection: 'row',
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  streakBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.amber400,
   },
 
   // Section titles

@@ -40,6 +40,7 @@ import { plural } from '@/lib/plural'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useUIStore } from '@/stores/ui-store'
@@ -302,9 +303,11 @@ export default function TodayPage() {
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
 
-  // Create modal (shared with layout's BottomNav via store)
+  // Create modals (shared with layout's BottomNav via store)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
+  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
 
   // Local state
   const [showCompleted, setShowCompleted] = useState(false)
@@ -956,6 +959,14 @@ export default function TodayPage() {
           initialDate={
             activeView === 'today' ? formatAPIDate(selectedDate) : null
           }
+        />
+      )}
+
+      {/* Create goal modal (triggered from FAB on goals tab) */}
+      {showCreateGoalModal && (
+        <CreateGoalModal
+          open={showCreateGoalModal}
+          onOpenChange={setShowCreateGoalModal}
         />
       )}
     </div>
