@@ -10,9 +10,26 @@ import type { Profile } from '@orbit/shared/types/profile'
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock profile action
+// Mock profile action -- include all exports used transitively
 vi.mock('@/app/actions/profile', () => ({
   updateTimezone: vi.fn().mockResolvedValue(undefined),
+  updateThemePreference: vi.fn().mockResolvedValue(undefined),
+  updateColorScheme: vi.fn().mockResolvedValue(undefined),
+}))
+
+// Mock color scheme hook -- useProfile calls useColorScheme() which requires DOM APIs
+vi.mock('@/hooks/use-color-scheme', () => ({
+  useColorScheme: () => ({
+    scheme: null,
+    mode: 'dark',
+    definition: null,
+    setScheme: vi.fn(),
+    setMode: vi.fn(),
+    syncSchemeFromProfile: vi.fn(),
+    syncThemeFromProfile: vi.fn(),
+    detectAndSaveSchemeIfNeeded: vi.fn(),
+    detectAndSaveThemeIfNeeded: vi.fn(),
+  }),
 }))
 
 function createWrapper() {
