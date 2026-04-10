@@ -199,7 +199,7 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
   // -------------------------------------------------------------------------
 
   return (
-    <div ref={listRef} className="space-y-3">
+    <div ref={listRef} className="space-y-3 stagger-enter">
       {goals.map((goal, index) => (
         <section
           key={goal.id}

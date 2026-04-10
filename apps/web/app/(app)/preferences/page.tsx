@@ -227,7 +227,7 @@ export default function PreferencesPage() {
                   key={option.value}
                   aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
                   aria-pressed={isActive}
-                  className={`size-9 rounded-full transition-all active:scale-90 flex items-center justify-center ${
+                  className={`size-12 rounded-full transition-all active:scale-90 flex items-center justify-center ${
                     isActive
                       ? 'ring-2 ring-offset-2 ring-offset-surface scale-110'
                       : 'hover:scale-105 opacity-70 hover:opacity-100'
@@ -239,10 +239,10 @@ export default function PreferencesPage() {
                   onClick={() => handleSchemeChange(option.value)}
                 >
                   {isActive && (
-                    <Check className="size-4 text-white" />
+                    <Check className="size-5 text-white" />
                   )}
                   {!profile?.hasProAccess && option.value !== 'purple' && !isActive && (
-                    <Lock className="size-3 text-white/70" />
+                    <Lock className="size-3.5 text-white/70" />
                   )}
                 </button>
               )

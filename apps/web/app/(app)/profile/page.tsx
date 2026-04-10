@@ -80,16 +80,39 @@ export default function ProfilePage() {
           </h2>
 
           {/* User info card */}
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
+          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5">
             {isLoading ? (
-              <div className="space-y-2">
-                <div className="h-6 w-48 bg-surface-elevated rounded animate-pulse" />
-                <div className="h-4 w-64 bg-surface-elevated rounded animate-pulse" />
+              <div className="flex items-center gap-4">
+                <div className="size-14 rounded-full bg-surface-elevated skeleton-shimmer shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 w-36 bg-surface-elevated rounded skeleton-shimmer" />
+                  <div className="h-4 w-52 bg-surface-elevated rounded skeleton-shimmer" />
+                </div>
               </div>
             ) : (
-              <div>
-                <p className="text-lg font-bold text-text-primary">{profile?.name}</p>
-                <p className="text-sm text-text-secondary">{profile?.email}</p>
+              <div className="flex items-center gap-4">
+                {/* Initials avatar */}
+                <div className="size-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                  <span className="text-lg font-bold text-primary">
+                    {profile?.name
+                      ? profile.name
+                          .split(' ')
+                          .slice(0, 2)
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                      : '?'}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold text-text-primary truncate">{profile?.name}</p>
+                  <p className="text-sm text-text-secondary truncate">{profile?.email}</p>
+                  {profile?.hasProAccess && (
+                    <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                      Pro
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -106,7 +129,7 @@ export default function ProfilePage() {
 
           {/* ==================== NAVIGATION CARDS ==================== */}
           <nav aria-label={t('profile.sections.account')}>
-            <div className="space-y-3">
+            <div className="space-y-3 stagger-enter">
               {accountNavItems.map((item) => (
               <ProfileNavCard
                 key={item.id}
@@ -127,7 +150,7 @@ export default function ProfilePage() {
             {t('profile.sections.features')}
           </h2>
 
-          <div className="space-y-3">
+          <div className="space-y-3 stagger-enter">
             {featureNavItems.map((item) => (
               <ProfileNavCard
                 key={item.id}
