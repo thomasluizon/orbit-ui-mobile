@@ -315,6 +315,7 @@ function inferScope(type: MutationType): MutationScope {
     case 'setLanguage':
     case 'setWeekStartDay':
     case 'setColorScheme':
+    case 'setThemePreference':
     case 'setTimeZone':
     case 'setAiMemory':
     case 'setAiSummary':

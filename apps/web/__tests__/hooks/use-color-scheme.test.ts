@@ -4,7 +4,24 @@ import { renderHook, act } from '@testing-library/react'
 // Mock profile action
 vi.mock('@/app/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
+  updateThemePreference: vi.fn().mockResolvedValue(undefined),
 }))
+
+// Mock matchMedia for prefers-color-scheme detection
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  configurable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
 
 // Mock document.cookie
 let mockCookies: Record<string, string> = {}
@@ -173,5 +190,141 @@ describe('useColorScheme', () => {
 
     // Still purple, no unnecessary updates
     expect(result.current.currentScheme).toBe('purple')
+  })
+
+  it('syncThemeFromProfile updates theme when DB differs', () => {
+    const { result } = renderHook(() => useColorScheme())
+    expect(result.current.currentTheme).toBe('dark')
+
+    act(() => {
+      result.current.syncThemeFromProfile('light')
+    })
+
+    expect(result.current.currentTheme).toBe('light')
+  })
+
+  it('syncThemeFromProfile ignores null', () => {
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.syncThemeFromProfile(null)
+    })
+
+    expect(result.current.currentTheme).toBe('dark')
+  })
+
+  it('syncThemeFromProfile ignores undefined', () => {
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.syncThemeFromProfile(undefined)
+    })
+
+    expect(result.current.currentTheme).toBe('dark')
+  })
+
+  it('syncThemeFromProfile ignores invalid theme', () => {
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.syncThemeFromProfile('nonexistent')
+    })
+
+    expect(result.current.currentTheme).toBe('dark')
+  })
+
+  it('syncThemeFromProfile does nothing when themes match', () => {
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.syncThemeFromProfile('dark')
+    })
+
+    expect(result.current.currentTheme).toBe('dark')
+  })
+
+  it('detectAndSaveThemeIfNeeded no-ops when DB has dark', async () => {
+    const { updateThemePreference } = await import('@/app/actions/profile')
+    const mock = vi.mocked(updateThemePreference)
+    mock.mockClear()
+
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.detectAndSaveThemeIfNeeded('dark')
+    })
+
+    expect(mock).not.toHaveBeenCalled()
+  })
+
+  it('detectAndSaveThemeIfNeeded no-ops when DB has light', async () => {
+    const { updateThemePreference } = await import('@/app/actions/profile')
+    const mock = vi.mocked(updateThemePreference)
+    mock.mockClear()
+
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.detectAndSaveThemeIfNeeded('light')
+    })
+
+    expect(mock).not.toHaveBeenCalled()
+  })
+
+  it('detectAndSaveThemeIfNeeded persists detected theme when DB is null', async () => {
+    const { updateThemePreference } = await import('@/app/actions/profile')
+    const mock = vi.mocked(updateThemePreference)
+    mock.mockClear()
+
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.detectAndSaveThemeIfNeeded(null)
+    })
+
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' })
+  })
+
+  it('detectAndSaveThemeIfNeeded persists detected theme when DB is undefined', async () => {
+    const { updateThemePreference } = await import('@/app/actions/profile')
+    const mock = vi.mocked(updateThemePreference)
+    mock.mockClear()
+
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.detectAndSaveThemeIfNeeded(undefined)
+    })
+
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' })
+  })
+
+  it('applyTheme persists to DB by default', async () => {
+    const { updateThemePreference } = await import('@/app/actions/profile')
+    const mock = vi.mocked(updateThemePreference)
+    mock.mockClear()
+
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.applyTheme('light')
+    })
+
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'light' })
+  })
+
+  it('applyTheme skips persistence when persistToDb is false', async () => {
+    const { updateThemePreference } = await import('@/app/actions/profile')
+    const mock = vi.mocked(updateThemePreference)
+    mock.mockClear()
+
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => {
+      result.current.applyTheme('light', false)
+    })
+
+    expect(mock).not.toHaveBeenCalled()
+    expect(result.current.currentTheme).toBe('light')
   })
 })

@@ -8,11 +8,20 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Animated, Easing, Modal, StyleSheet, useColorScheme as useSystemColorScheme, View } from 'react-native'
+import {
+  Animated,
+  Appearance,
+  Easing,
+  Modal,
+  StyleSheet,
+  useColorScheme as useSystemColorScheme,
+  View,
+} from 'react-native'
+import { API } from '@orbit/shared/api'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   createColors,
   createNav,
@@ -26,7 +35,6 @@ import {
   type AppShadows,
 } from '@/lib/theme'
 
-const THEME_STORAGE_KEY = 'orbit_theme_preference'
 const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
   'purple',
   'blue',
@@ -61,9 +69,35 @@ function normalizeColorScheme(value: string | null | undefined): ColorScheme {
     : 'purple'
 }
 
+function isValidColorScheme(value: string | null | undefined): value is ColorScheme {
+  return !!value && VALID_COLOR_SCHEMES.has(value as ColorScheme)
+}
+
+function persistColorScheme(scheme: ColorScheme): Promise<unknown> {
+  return performQueuedApiMutation({
+    type: 'setColorScheme',
+    scope: 'profile',
+    endpoint: API.profile.colorScheme,
+    method: 'PUT',
+    payload: { colorScheme: scheme },
+    dedupeKey: 'profile-color-scheme',
+  })
+}
+
+function persistThemePreference(theme: ThemeMode): Promise<unknown> {
+  return performQueuedApiMutation({
+    type: 'setThemePreference',
+    scope: 'profile',
+    endpoint: API.profile.themePreference,
+    method: 'PUT',
+    payload: { themePreference: theme },
+    dedupeKey: 'profile-theme-preference',
+  })
+}
+
 export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const systemScheme = useSystemColorScheme()
-  const { profile } = useProfile()
+  const { profile, patchProfile } = useProfile()
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(
     normalizeColorScheme(profile?.colorScheme),
   )
@@ -105,28 +139,6 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, [transitionOpacity])
 
   useEffect(() => {
-    let active = true
-
-    AsyncStorage.getItem(THEME_STORAGE_KEY)
-      .then((stored) => {
-        if (!active) return
-        if (stored === 'light' || stored === 'dark') {
-          setCurrentTheme(stored)
-        }
-      })
-      .catch(() => {})
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
-    const profileScheme = normalizeColorScheme(profile?.colorScheme)
-    setCurrentScheme(profileScheme)
-  }, [profile?.colorScheme])
-
-  useEffect(() => {
     setRuntimeTheme({ scheme: currentScheme, themeMode: currentTheme })
   }, [currentScheme, currentTheme])
 
@@ -156,16 +168,75 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
   }, [currentScheme, currentTheme, runThemeTransition])
 
+  // Hydrate theme state from profile and auto-detect-and-save on first login.
+  useEffect(() => {
+    if (!profile) return
+
+    // syncSchemeFromProfile: DB -> state (no mutation).
+    if (isValidColorScheme(profile.colorScheme) && profile.colorScheme !== currentScheme) {
+      const next = profile.colorScheme
+      setCurrentScheme(next)
+      setRuntimeTheme({ scheme: next, themeMode: getRuntimeTheme().themeMode })
+    }
+
+    // syncThemeFromProfile: DB -> state (no mutation).
+    if (
+      (profile.themePreference === 'dark' || profile.themePreference === 'light') &&
+      profile.themePreference !== currentTheme
+    ) {
+      const next = profile.themePreference
+      setCurrentTheme(next)
+      setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: next })
+    }
+
+    // detectAndSaveSchemeIfNeeded: DB is null -> save default 'purple'.
+    if (profile.colorScheme == null) {
+      const defaultScheme: ColorScheme = 'purple'
+      patchProfile({ colorScheme: defaultScheme })
+      persistColorScheme(defaultScheme).catch(() => {
+        // Best-effort fire-and-forget
+      })
+    }
+
+    // detectAndSaveThemeIfNeeded: DB is null -> detect from system and save.
+    if (profile.themePreference == null) {
+      const detectedSystem = Appearance.getColorScheme()
+      const detected: ThemeMode = detectedSystem === 'light' ? 'light' : 'dark'
+      setCurrentTheme(detected)
+      setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: detected })
+      patchProfile({ themePreference: detected })
+      persistThemePreference(detected).catch(() => {
+        // Best-effort fire-and-forget
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts only to profile.colorScheme / profile.themePreference
+  }, [profile?.colorScheme, profile?.themePreference])
+
   const applyScheme = useCallback((scheme: ColorScheme) => {
-    setRuntimeTheme({ scheme, themeMode: getRuntimeTheme().themeMode })
+    const prev = currentScheme
     setCurrentScheme(scheme)
-  }, [])
+    setRuntimeTheme({ scheme, themeMode: getRuntimeTheme().themeMode })
+    patchProfile({ colorScheme: scheme })
+
+    persistColorScheme(scheme).catch((_err: unknown) => {
+      setCurrentScheme(prev)
+      setRuntimeTheme({ scheme: prev, themeMode: getRuntimeTheme().themeMode })
+      patchProfile({ colorScheme: prev })
+    })
+  }, [currentScheme, patchProfile])
 
   const applyTheme = useCallback((theme: ThemeMode) => {
-    AsyncStorage.setItem(THEME_STORAGE_KEY, theme).catch(() => {})
-    setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: theme })
+    const prev = currentTheme
     setCurrentTheme(theme)
-  }, [])
+    setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: theme })
+    patchProfile({ themePreference: theme })
+
+    persistThemePreference(theme).catch((_err: unknown) => {
+      setCurrentTheme(prev)
+      setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: prev })
+      patchProfile({ themePreference: prev })
+    })
+  }, [currentTheme, patchProfile])
 
   const toggleTheme = useCallback(() => {
     applyTheme(currentTheme === 'dark' ? 'light' : 'dark')

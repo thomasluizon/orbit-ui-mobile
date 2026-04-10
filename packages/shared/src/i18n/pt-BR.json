@@ -1684,7 +1684,10 @@
     "colorGreen": "Tema verde",
     "colorOrange": "Tema laranja",
     "colorPurple": "Tema roxo",
-    "colorRose": "Tema rosa"
+    "colorRose": "Tema rosa",
+    "themeMode": "Aparência",
+    "themeModeLight": "Claro",
+    "themeModeDark": "Escuro"
   },
   "aiSettings": {
     "title": "Recursos de IA"

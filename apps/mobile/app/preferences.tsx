@@ -17,6 +17,7 @@ import { ArrowLeft, Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   buildTimeFormatOptions,
   buildWeekStartOptions,
@@ -42,7 +43,7 @@ export default function PreferencesScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { profile, patchProfile } = useProfile()
-  const { colors, applyScheme } = useAppTheme()
+  const { colors, applyScheme, applyTheme, currentTheme } = useAppTheme()
   const {
     currentFormat: timeFormat,
     setFormat: setTimeFormat,
@@ -113,35 +114,23 @@ export default function PreferencesScreen() {
   })
 
   // --- Color Scheme ---
-  const colorSchemeMutation = useMutation({
-    mutationFn: (scheme: string) =>
-      performQueuedApiMutation({
-        type: 'setColorScheme',
-        scope: 'profile',
-        endpoint: API.profile.colorScheme,
-        method: 'PUT',
-        payload: { colorScheme: scheme },
-        dedupeKey: 'profile-color-scheme',
-      }),
-    onMutate: (scheme) => {
-      const previous = profile?.colorScheme
-      patchProfile({ colorScheme: scheme })
-      return { previous }
-    },
-    onError: (_err, _scheme, context) => {
-      if (context?.previous) {
-        patchProfile({ colorScheme: context.previous })
-      }
-    },
-  })
-
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
       router.push('/upgrade')
       return
     }
     applyScheme(scheme)
-    colorSchemeMutation.mutate(scheme)
+  }
+
+  // --- Theme Mode (Dark / Light) ---
+  const themeModeOptions: ReadonlyArray<{ value: ThemeMode; labelKey: string }> = [
+    { value: 'light', labelKey: 'preferences.themeModeLight' },
+    { value: 'dark', labelKey: 'preferences.themeModeDark' },
+  ]
+
+  function handleThemeModeChange(mode: ThemeMode) {
+    if (mode === currentTheme) return
+    applyTheme(mode)
   }
 
   const timeFormatOptions = buildTimeFormatOptions(t)
@@ -297,6 +286,33 @@ export default function PreferencesScreen() {
                   currentScheme !== option.value && (
                     <Lock size={12} color="rgba(255,255,255,0.7)" />
                   )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Theme Mode */}
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>{t('preferences.themeMode')}</Text>
+          <View style={styles.optionRow}>
+            {themeModeOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.optionButton,
+                  currentTheme === opt.value && styles.optionButtonActive,
+                ]}
+                onPress={() => handleThemeModeChange(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    currentTheme === opt.value && styles.optionTextActive,
+                  ]}
+                >
+                  {t(opt.labelKey)}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
