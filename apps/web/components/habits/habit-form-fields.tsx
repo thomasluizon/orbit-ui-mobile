@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useId, useCallback, type ReactNode } from 'react'
-import { X, Plus, Bell, Check, ShieldAlert, PenSquare } from 'lucide-react'
+import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
@@ -36,6 +36,8 @@ interface HabitFormFieldsProps {
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
+  /** When true, advanced fields are visible by default (used in edit modal) */
+  defaultExpanded?: boolean
   children?: ReactNode
 }
 
@@ -658,6 +660,17 @@ function SlipAlertSection({
 // Component
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Frequency type card config
+// ---------------------------------------------------------------------------
+
+const FREQUENCY_TYPE_CARDS = [
+  { key: 'one-time', icon: CalendarCheck, titleKey: 'habits.form.oneTimeTask', descKey: 'habits.form.oneTimeDescription', exampleKey: 'habits.form.oneTimeExample' },
+  { key: 'recurring', icon: Repeat, titleKey: 'habits.form.recurring', descKey: 'habits.form.recurringDescription', exampleKey: 'habits.form.recurringExample' },
+  { key: 'flexible', icon: Shuffle, titleKey: 'habits.form.flexible', descKey: 'habits.form.flexibleDescription2', exampleKey: 'habits.form.flexibleExample2' },
+  { key: 'general', icon: Infinity, titleKey: 'habits.form.general', descKey: 'habits.form.generalDescription', exampleKey: 'habits.form.generalExample' },
+] as const
+
 export function HabitFormFields({
   formHelpers,
   tags,
@@ -667,6 +680,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -742,6 +756,32 @@ export function HabitFormFields({
     setValue('reminderEnabled', nextEnabled, { shouldDirty: true })
   }, [onReminderEnabledChange, setValue])
 
+  // Progressive disclosure
+  const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
+
+  // Compute active frequency type key for card highlighting
+  const activeFrequencyKey = isOneTime ? 'one-time' : isGeneral ? 'general' : isFlexible ? 'flexible' : 'recurring'
+
+  const frequencyHandlers: Record<string, () => void> = useMemo(() => ({
+    'one-time': setOneTime,
+    recurring: setRecurring,
+    flexible: setFlexible,
+    general: setGeneral,
+  }), [setOneTime, setRecurring, setFlexible, setGeneral])
+
+  // Count filled advanced fields for the badge
+  const watchedDescription = watch('description') ?? ''
+  const advancedFieldCount = useMemo(() => {
+    return [
+      watchedDescription.length > 0,
+      watchedChecklistItems.length > 0,
+      watchedEndDate.length > 0,
+      watchedReminderEnabled,
+      selectedGoalIds.length > 0,
+      watchedIsBadHabit,
+    ].filter(Boolean).length
+  }, [watchedDescription, watchedChecklistItems, watchedEndDate, watchedReminderEnabled, selectedGoalIds, watchedIsBadHabit])
+
   // Tag pop animation
   const [justToggledTagId, setJustToggledTagId] = useState('')
 
@@ -755,6 +795,10 @@ export function HabitFormFields({
 
   return (
     <>
+      {/* ═══════════════════════════════════════════════════
+         PRIMARY FIELDS -- Always visible
+         ═══════════════════════════════════════════════════ */}
+
       {/* Title */}
       <div className="space-y-1.5">
         <label htmlFor="habit-form-title" className="form-label">
@@ -770,57 +814,51 @@ export function HabitFormFields({
         />
       </div>
 
-      {/* Description */}
-      <div className="space-y-1.5">
-        <label htmlFor="habit-form-description" className="form-label">
-          {t('habits.form.description')}
-        </label>
-        <textarea
-          id="habit-form-description"
-          placeholder={t('habits.form.descriptionPlaceholder')}
-          rows={2}
-          maxLength={2000}
-          className="form-input resize-none"
-          {...register('description')}
-        />
-      </div>
-
-      {/* Checklist */}
-      <div className="space-y-1.5">
-        <span className="form-label" aria-hidden="true">
-          {t('habits.form.checklist')}
-        </span>
-        <HabitChecklist
-          items={watchedChecklistItems ?? []}
-          editable
-          onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
-        />
-        <ChecklistTemplates
-          items={watchedChecklistItems ?? []}
-          onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
-        />
-      </div>
-
-      {/* Frequency toggle */}
+      {/* Frequency type cards (2x2 grid) */}
       <div className="space-y-1.5">
         <span className="form-label" aria-hidden="true">
           {t('habits.form.frequency')}
         </span>
-        <PillToggleRow
-          containerClassName="flex flex-wrap gap-2"
-          buttonClassName="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-          activeClassName="bg-primary text-white shadow-[var(--shadow-glow-sm)]"
-          inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
-          options={[
-            { key: 'one-time', label: t('habits.form.oneTimeTask'), active: isOneTime, onClick: setOneTime },
-            { key: 'recurring', label: t('habits.form.recurring'), active: !isOneTime && !isGeneral && !isFlexible, onClick: setRecurring },
-            { key: 'flexible', label: t('habits.form.flexible'), active: isFlexible, onClick: setFlexible },
-            { key: 'general', label: t('habits.form.general'), active: isGeneral, onClick: setGeneral },
-          ]}
-        />
+        <div className="grid grid-cols-2 gap-3">
+          {FREQUENCY_TYPE_CARDS.map((card) => {
+            const isActive = activeFrequencyKey === card.key
+            const CardIcon = card.icon
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={frequencyHandlers[card.key]}
+                className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
+                  isActive
+                    ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
+                    : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
+                }`}
+              >
+                <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
+                  isActive
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-surface-elevated text-text-muted'
+                }`}>
+                  <CardIcon className="size-[18px]" />
+                </div>
+                <p className={`text-sm font-bold mb-0.5 ${
+                  isActive ? 'text-text-primary' : 'text-text-secondary'
+                }`}>
+                  {t(card.titleKey as Parameters<typeof t>[0])}
+                </p>
+                <p className="text-[11px] text-text-muted leading-snug">
+                  {t(card.descKey as Parameters<typeof t>[0])}
+                </p>
+                <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
+                  {t(card.exampleKey as Parameters<typeof t>[0])}
+                </p>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Flexible description */}
+      {/* Type-adaptive frequency sub-fields */}
       {isFlexible && (
         <p className="text-xs text-text-muted -mt-1">
           {t('habits.form.flexibleDescription', {
@@ -832,7 +870,6 @@ export function HabitFormFields({
         </p>
       )}
 
-      {/* Frequency picker */}
       {!isOneTime && !isGeneral && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -892,141 +929,47 @@ export function HabitFormFields({
         </div>
       )}
 
-      {/* Due date */}
+      {/* Due date + Due time (combined row) */}
       {!isGeneral && (
-        <div className="space-y-1.5">
-          <span className="form-label" aria-hidden="true">
-            {t('habits.form.dueDate')}
-          </span>
-          <AppDatePicker
-            value={watchedDueDate}
-            onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <span className="form-label" aria-hidden="true">
+              {t('habits.form.dueDate')}
+            </span>
+            <AppDatePicker
+              value={watchedDueDate}
+              onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="habit-form-due-time" className="form-label">
+              {t('habits.form.dueTime')}
+            </label>
+            <input
+              id="habit-form-due-time"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{2}:[0-9]{2}"
+              placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
+              maxLength={5}
+              className="form-input"
+              value={watchedDueTime}
+              onChange={(e) => {
+                const formatted = formatTimeInput(e.target.value)
+                setValue('dueTime', formatted, { shouldDirty: true })
+              }}
+            />
+          </div>
         </div>
-      )}
-
-      {/* Due time */}
-      {!isGeneral && (
-        <div className="space-y-1.5">
-          <label htmlFor="habit-form-due-time" className="form-label">
-            {t('habits.form.dueTime')}
-          </label>
-          <input
-            id="habit-form-due-time"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]{2}:[0-9]{2}"
-            placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-            maxLength={5}
-            className="form-input"
-            value={watchedDueTime}
-            onChange={(e) => {
-              const formatted = formatTimeInput(e.target.value)
-              setValue('dueTime', formatted, { shouldDirty: true })
-            }}
-          />
-        </div>
-      )}
-
-      {/* End time */}
-      {watchedDueTime && !isGeneral && (
-        <div className="space-y-1.5">
-          <label htmlFor="habit-form-due-end-time" className="form-label">
-            {t('habits.form.dueEndTime')}
-          </label>
-          <input
-            id="habit-form-due-end-time"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]{2}:[0-9]{2}"
-            placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-            maxLength={5}
-            className="form-input"
-            value={watchedDueEndTime}
-            onChange={(e) => {
-              const formatted = formatEndTimeInput(e.target.value)
-              setValue('dueEndTime', formatted, { shouldDirty: true })
-            }}
-          />
-        </div>
-      )}
-
-      {/* End date (recurring only) */}
-      {showEndDate && (
-        <div className="space-y-1.5">
-          {watchedEndDate ? (
-            <div className="space-y-1.5">
-              <span className="form-label" aria-hidden="true">
-                {t('habits.form.endDate')}
-              </span>
-              <div className="flex items-center gap-2">
-                <AppDatePicker
-                  value={watchedEndDate}
-                  onChange={(val) =>
-                    setValue('endDate', val, { shouldDirty: true })
-                  }
-                />
-                <button
-                  type="button"
-                  aria-label={t('habits.form.removeEndDate')}
-                  className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
-                  onClick={() => setValue('endDate', '', { shouldDirty: true })}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-              <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-              onClick={() =>
-                setValue('endDate', watchedDueDate || '', {
-                  shouldDirty: true,
-                })
-              }
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              {t('habits.form.addEndDate')}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Reminder (only when dueTime is set, hidden for general habits) */}
-      {watchedDueTime && !isGeneral && (
-        <ReminderSection
-          reminderLabelId={reminderLabelId}
-          reminderEnabled={watchedReminderEnabled}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={onReminderTimesChange}
-          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
-          reminderLabel={reminderLabel}
-          t={t}
-        />
-      )}
-
-      {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
-      {!watchedDueTime && !isGeneral && (
-        <ScheduledReminderSection
-          scheduledReminderLabelId={scheduledReminderLabelId}
-          reminderEnabled={watchedReminderEnabled}
-          scheduledReminders={watchedScheduledReminders}
-          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
-          onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
-          onValidationError={showError}
-          t={t}
-        />
       )}
 
       {/* Tags */}
-        <div className="space-y-1.5">
-          <span className="form-label" aria-hidden="true">
-            {t('habits.form.tags')}
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {availableTags.map((tag) => (
+      <div className="space-y-1.5">
+        <span className="form-label" aria-hidden="true">
+          {t('habits.form.tags')}
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {availableTags.map((tag) => (
             <HabitTagChip
               key={tag.id}
               tag={tag}
@@ -1051,7 +994,7 @@ export function HabitFormFields({
                 })
               }}
             />
-            ))}
+          ))}
           {!tags.showNewTag && !tags.atTagLimit && (
             <button
               type="button"
@@ -1137,47 +1080,193 @@ export function HabitFormFields({
         )}
       </div>
 
-      {/* Goals */}
-      <GoalLinkingField
-        selectedGoalIds={selectedGoalIds}
-        atGoalLimit={atGoalLimit}
-        onToggleGoal={onToggleGoal}
-      />
+      {/* ═══════════════════════════════════════════════════
+         ADVANCED FIELDS -- Behind "More options"
+         ═══════════════════════════════════════════════════ */}
 
-      {/* Bad habit toggle */}
-      {!isGeneral && (
-        <label className="flex items-center gap-3 cursor-pointer py-1">
-          <div
-            className={`size-5 rounded-lg border-2 flex items-center justify-center transition-all ${
-              watchedIsBadHabit ? 'bg-primary border-primary' : 'border-border'
-            }`}
-          >
-            {watchedIsBadHabit && <Check className="size-3 text-white" />}
+      <div className="border-t border-border-muted pt-1">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-2"
+        >
+          <ChevronDown className={`size-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
+          {t('habits.form.moreOptions' as Parameters<typeof t>[0])}
+          {advancedFieldCount > 0 && (
+            <span className="text-xs text-primary">{t('habits.form.moreOptionsCount' as Parameters<typeof t>[0], { count: advancedFieldCount })}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Collapsible advanced section -- fields stay mounted for react-hook-form */}
+      <div className={`collapsible ${showAdvanced ? 'is-open' : ''}`}>
+        <div className="space-y-5">
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label htmlFor="habit-form-description" className="form-label">
+              {t('habits.form.description')}
+            </label>
+            <textarea
+              id="habit-form-description"
+              placeholder={t('habits.form.descriptionPlaceholder')}
+              rows={2}
+              maxLength={2000}
+              className="form-input resize-none"
+              {...register('description')}
+            />
           </div>
-          <input
-            type="checkbox"
-            className="hidden"
-            checked={watchedIsBadHabit}
-            onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
+
+          {/* Checklist */}
+          <div className="space-y-1.5">
+            <span className="form-label" aria-hidden="true">
+              {t('habits.form.checklist')}
+            </span>
+            <HabitChecklist
+              items={watchedChecklistItems ?? []}
+              editable
+              onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
+            />
+            <ChecklistTemplates
+              items={watchedChecklistItems ?? []}
+              onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
+            />
+          </div>
+
+          {/* End time */}
+          {watchedDueTime && !isGeneral && (
+            <div className="space-y-1.5">
+              <label htmlFor="habit-form-due-end-time" className="form-label">
+                {t('habits.form.dueEndTime')}
+              </label>
+              <input
+                id="habit-form-due-end-time"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{2}:[0-9]{2}"
+                placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
+                maxLength={5}
+                className="form-input"
+                value={watchedDueEndTime}
+                onChange={(e) => {
+                  const formatted = formatEndTimeInput(e.target.value)
+                  setValue('dueEndTime', formatted, { shouldDirty: true })
+                }}
+              />
+            </div>
+          )}
+
+          {/* End date (recurring only) */}
+          {showEndDate && (
+            <div className="space-y-1.5">
+              {watchedEndDate ? (
+                <div className="space-y-1.5">
+                  <span className="form-label" aria-hidden="true">
+                    {t('habits.form.endDate')}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <AppDatePicker
+                      value={watchedEndDate}
+                      onChange={(val) =>
+                        setValue('endDate', val, { shouldDirty: true })
+                      }
+                    />
+                    <button
+                      type="button"
+                      aria-label={t('habits.form.removeEndDate')}
+                      className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
+                      onClick={() => setValue('endDate', '', { shouldDirty: true })}
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  onClick={() =>
+                    setValue('endDate', watchedDueDate || '', {
+                      shouldDirty: true,
+                    })
+                  }
+                >
+                  <Plus className="size-3.5" aria-hidden="true" />
+                  {t('habits.form.addEndDate')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Reminder (only when dueTime is set, hidden for general habits) */}
+          {watchedDueTime && !isGeneral && (
+            <ReminderSection
+              reminderLabelId={reminderLabelId}
+              reminderEnabled={watchedReminderEnabled}
+              reminderTimes={reminderTimes}
+              onReminderTimesChange={onReminderTimesChange}
+              onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
+              reminderLabel={reminderLabel}
+              t={t}
+            />
+          )}
+
+          {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
+          {!watchedDueTime && !isGeneral && (
+            <ScheduledReminderSection
+              scheduledReminderLabelId={scheduledReminderLabelId}
+              reminderEnabled={watchedReminderEnabled}
+              scheduledReminders={watchedScheduledReminders}
+              onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
+              onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
+              onValidationError={showError}
+              t={t}
+            />
+          )}
+
+          {/* Goals */}
+          <GoalLinkingField
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={onToggleGoal}
           />
-          <span className="text-sm text-text-primary">{t('habits.form.badHabitLabel')}</span>
-        </label>
-      )}
 
-      {/* Slip alert toggle (only when bad habit) */}
-      {watchedIsBadHabit && (
-        <SlipAlertSection
-          hasProAccess={hasProAccess}
-          slipAlertEnabled={watchedSlipAlertEnabled}
-          slipAlertLabelId={slipAlertLabelId}
-          slipAlertDescriptionId={slipAlertDescriptionId}
-          onToggle={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
-          t={t}
-        />
-      )}
+          {/* Bad habit toggle */}
+          {!isGeneral && (
+            <label className="flex items-center gap-3 cursor-pointer py-1">
+              <div
+                className={`size-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+                  watchedIsBadHabit ? 'bg-primary border-primary' : 'border-border'
+                }`}
+              >
+                {watchedIsBadHabit && <Check className="size-3 text-white" />}
+              </div>
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={watchedIsBadHabit}
+                onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
+              />
+              <span className="text-sm text-text-primary">{t('habits.form.badHabitLabel')}</span>
+            </label>
+          )}
 
-      {/* Slot for extra fields (e.g. sub-habits) */}
-      {children}
+          {/* Slip alert toggle (only when bad habit) */}
+          {watchedIsBadHabit && (
+            <SlipAlertSection
+              hasProAccess={hasProAccess}
+              slipAlertEnabled={watchedSlipAlertEnabled}
+              slipAlertLabelId={slipAlertLabelId}
+              slipAlertDescriptionId={slipAlertDescriptionId}
+              onToggle={() => setValue('slipAlertEnabled', !watchedSlipAlertEnabled, { shouldDirty: true })}
+              t={t}
+            />
+          )}
+
+          {/* Slot for extra fields (e.g. sub-habits) */}
+          {children}
+        </div>
+      </div>
     </>
   )
 }

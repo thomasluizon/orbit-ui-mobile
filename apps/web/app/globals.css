@@ -96,6 +96,25 @@
   --radius-xl: 1.25rem;
   --radius-2xl: 1.5rem;
   --radius-full: 9999px;
+
+  /* Spacing rhythm (8px base grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+
+  /* Card padding semantic tokens */
+  --card-px: 1.25rem;
+  --card-py: 1.25rem;
+  --card-gap: 0.75rem;
+
+  /* Composite transitions */
+  --transition-interactive: var(--duration-fast) var(--ease-smooth);
+  --transition-layout: var(--duration-normal) var(--ease-out);
 }
 
 @layer base {
@@ -617,6 +636,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 1;
     transform: translateY(0);
   }
+
+  .surface-interactive:hover {
+    transform: none;
+  }
+  .surface-interactive:active {
+    transform: none;
+  }
+  .stagger-enter > * {
+    animation: none !important;
+  }
+  .collapsible {
+    transition: none !important;
+  }
 }
 
 /* Global focus-visible indicator */
@@ -692,6 +724,53 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: rgba(var(--primary-shadow), 0.03);
   backdrop-filter: blur(24px) saturate(150%);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+/* Interactive surface -- lift on hover, sink on press */
+.surface-interactive {
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) ease;
+}
+.surface-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.surface-interactive:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 80ms;
+}
+
+:root:not(.dark) .surface-interactive:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* Stagger entrance animation for lists */
+.stagger-enter > * {
+  animation: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-enter > *:nth-child(2) { animation-delay: 40ms; }
+.stagger-enter > *:nth-child(3) { animation-delay: 40ms; }
+.stagger-enter > *:nth-child(4) { animation-delay: 80ms; }
+.stagger-enter > *:nth-child(5) { animation-delay: 100ms; }
+.stagger-enter > *:nth-child(6) { animation-delay: 120ms; }
+.stagger-enter > *:nth-child(7) { animation-delay: 140ms; }
+.stagger-enter > *:nth-child(8) { animation-delay: 160ms; }
+.stagger-enter > *:nth-child(9) { animation-delay: 180ms; }
+.stagger-enter > *:nth-child(10) { animation-delay: 200ms; }
+
+/* Collapsible section animation */
+.collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-normal) var(--ease-out);
+}
+.collapsible.is-open {
+  grid-template-rows: 1fr;
+}
+.collapsible > * {
+  overflow: hidden;
 }
 
 /* Bottom navigation glass effect */
