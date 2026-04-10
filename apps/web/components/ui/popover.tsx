@@ -85,10 +85,12 @@ export function Popover({
 
   return (
     <>
-      {/* Trigger wrapper -- ref forwarded so hook can read its bounding rect */}
+      {/* Trigger wrapper -- ref forwarded so hook can read its bounding rect.
+          display:inline-flex preserves layout flow while giving a measurable rect
+          (display:contents returns a zero rect from getBoundingClientRect). */}
       <div
         ref={hook.triggerRef as unknown as React.RefObject<HTMLDivElement>}
-        style={{ display: 'contents' }}
+        style={{ display: 'inline-flex' }}
       >
         {trigger}
       </div>
