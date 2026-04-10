@@ -179,6 +179,7 @@ export function EditHabitModal({
           onToggleGoal={toggleGoal}
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
+          defaultExpanded={true}
         />
 
         {/* Submit buttons */}

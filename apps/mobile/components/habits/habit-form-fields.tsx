@@ -5,8 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   Switch,
-  ScrollView,
   StyleSheet,
+  LayoutAnimation,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -18,6 +18,11 @@ import {
   Check,
   ShieldAlert,
   PenSquare,
+  CalendarCheck,
+  Repeat,
+  Shuffle,
+  Infinity,
+  ChevronDown,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type {
@@ -64,11 +69,48 @@ interface HabitFormFieldsProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
+  /** When true, advanced fields are visible by default (used in edit modal) */
+  defaultExpanded?: boolean;
   children?: ReactNode;
 }
 
 // ---------------------------------------------------------------------------
-// Reminder presets
+// Frequency type card config
+// ---------------------------------------------------------------------------
+
+const FREQUENCY_TYPE_CARDS = [
+  {
+    key: "one-time",
+    icon: CalendarCheck,
+    titleKey: "habits.form.oneTimeTask",
+    descKey: "habits.form.oneTimeDescription",
+    exampleKey: "habits.form.oneTimeExample",
+  },
+  {
+    key: "recurring",
+    icon: Repeat,
+    titleKey: "habits.form.recurring",
+    descKey: "habits.form.recurringDescription",
+    exampleKey: "habits.form.recurringExample",
+  },
+  {
+    key: "flexible",
+    icon: Shuffle,
+    titleKey: "habits.form.flexible",
+    descKey: "habits.form.flexibleDescription2",
+    exampleKey: "habits.form.flexibleExample2",
+  },
+  {
+    key: "general",
+    icon: Infinity,
+    titleKey: "habits.form.general",
+    descKey: "habits.form.generalDescription",
+    exampleKey: "habits.form.generalExample",
+  },
+] as const;
+
+// ---------------------------------------------------------------------------
+// Day picker pills
 // ---------------------------------------------------------------------------
 
 interface ChoiceButtonOption {
@@ -100,19 +142,11 @@ function ChoiceButtonRow({
       {options.map((option) => (
         <TouchableOpacity
           key={option.key}
-          style={[
-            buttonStyle,
-            option.active && activeButtonStyle,
-          ]}
+          style={[buttonStyle, option.active && activeButtonStyle]}
           onPress={option.onPress}
           activeOpacity={0.7}
         >
-          <Text
-            style={[
-              textStyle,
-              option.active && activeTextStyle,
-            ]}
-          >
+          <Text style={[textStyle, option.active && activeTextStyle]}>
             {option.label}
           </Text>
         </TouchableOpacity>
@@ -259,10 +293,7 @@ function HabitTagChip({
           <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
         )}
         <Text
-          style={[
-            styles.tagChipText,
-            selected && { color: colors.white },
-          ]}
+          style={[styles.tagChipText, selected && { color: colors.white }]}
         >
           {tag.name}
         </Text>
@@ -787,6 +818,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t } = useTranslation();
@@ -854,17 +886,69 @@ export function HabitFormFields({
     return `${d} ${t(d === 1 ? "habits.form.reminderDay" : "habits.form.reminderDays")}`;
   }
 
-  const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
-    if (onReminderEnabledChange) {
-      onReminderEnabledChange(nextEnabled);
-      return;
-    }
+  const handleReminderEnabledChange = useCallback(
+    (nextEnabled: boolean) => {
+      if (onReminderEnabledChange) {
+        onReminderEnabledChange(nextEnabled);
+        return;
+      }
+      setValue("reminderEnabled", nextEnabled, { shouldDirty: true });
+    },
+    [onReminderEnabledChange, setValue],
+  );
 
-    setValue("reminderEnabled", nextEnabled, { shouldDirty: true });
-  }, [onReminderEnabledChange, setValue]);
+  // Progressive disclosure
+  const [showAdvanced, setShowAdvanced] = useState(defaultExpanded);
+
+  function toggleAdvanced() {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowAdvanced((prev) => !prev);
+  }
+
+  // Compute active frequency type key for card highlighting
+  const activeFrequencyKey = isOneTime
+    ? "one-time"
+    : isGeneral
+      ? "general"
+      : isFlexible
+        ? "flexible"
+        : "recurring";
+
+  const frequencyHandlers: Record<string, () => void> = useMemo(
+    () => ({
+      "one-time": setOneTime,
+      recurring: setRecurring,
+      flexible: setFlexible,
+      general: setGeneral,
+    }),
+    [setOneTime, setRecurring, setFlexible, setGeneral],
+  );
+
+  // Count filled advanced fields for the badge
+  const advancedFieldCount = useMemo(() => {
+    return [
+      watchedDescription.length > 0,
+      watchedChecklistItems.length > 0,
+      watchedEndDate.length > 0,
+      watchedReminderEnabled,
+      selectedGoalIds.length > 0,
+      watchedIsBadHabit,
+    ].filter(Boolean).length;
+  }, [
+    watchedDescription,
+    watchedChecklistItems,
+    watchedEndDate,
+    watchedReminderEnabled,
+    selectedGoalIds,
+    watchedIsBadHabit,
+  ]);
 
   return (
     <View style={styles.container}>
+      {/* ═══════════════════════════════════════════════════
+         PRIMARY FIELDS -- Always visible
+         ═══════════════════════════════════════════════════ */}
+
       {/* Title */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.title")}</Text>
@@ -878,58 +962,58 @@ export function HabitFormFields({
         />
       </View>
 
-      {/* Description */}
-      <View style={styles.fieldGroup}>
-        <Text style={styles.label}>{t("habits.form.description")}</Text>
-        <TextInput
-          value={watchedDescription}
-          placeholder={t("habits.form.descriptionPlaceholder")}
-          placeholderTextColor={colors.textMuted}
-          maxLength={2000}
-          multiline
-          numberOfLines={2}
-          style={[styles.input, styles.textarea]}
-          textAlignVertical="top"
-          onChangeText={(val) =>
-            setValue("description", val, { shouldDirty: true })
-          }
-        />
-      </View>
-
-      {/* Checklist */}
-      <View style={styles.fieldGroup}>
-        <Text style={styles.label}>{t("habits.form.checklist")}</Text>
-        <ChecklistTemplates
-          items={watchedChecklistItems ?? []}
-          onLoad={(items) =>
-            setValue("checklistItems", items, { shouldDirty: true })
-          }
-        />
-        <HabitChecklist
-          items={watchedChecklistItems ?? []}
-          editable
-          onItemsChange={(items) =>
-            setValue("checklistItems", items, { shouldDirty: true })
-          }
-        />
-      </View>
-
-      {/* Frequency toggle */}
+      {/* Frequency type cards (2x2 grid) */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.frequency")}</Text>
-        <ChoiceButtonRow
-          containerStyle={styles.toggleRow}
-          buttonStyle={styles.toggleButton}
-          activeButtonStyle={styles.toggleButtonActive}
-          textStyle={styles.toggleButtonText}
-          activeTextStyle={styles.toggleButtonTextActive}
-          options={[
-            { key: "one-time", label: t("habits.form.oneTimeTask"), active: isOneTime, onPress: setOneTime },
-            { key: "recurring", label: t("habits.form.recurring"), active: !isOneTime && !isGeneral && !isFlexible, onPress: setRecurring },
-            { key: "flexible", label: t("habits.form.flexible"), active: isFlexible, onPress: setFlexible },
-            { key: "general", label: t("habits.form.general"), active: isGeneral, onPress: setGeneral },
-          ]}
-        />
+        <View style={styles.frequencyCardGrid}>
+          {FREQUENCY_TYPE_CARDS.map((card) => {
+            const isActive = activeFrequencyKey === card.key;
+            const CardIcon = card.icon;
+            return (
+              <TouchableOpacity
+                key={card.key}
+                style={[
+                  styles.frequencyCard,
+                  isActive
+                    ? styles.frequencyCardActive
+                    : styles.frequencyCardInactive,
+                ]}
+                onPress={frequencyHandlers[card.key]}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.frequencyCardIcon,
+                    isActive
+                      ? styles.frequencyCardIconActive
+                      : styles.frequencyCardIconInactive,
+                  ]}
+                >
+                  <CardIcon
+                    size={18}
+                    color={isActive ? colors.primary : colors.textMuted}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.frequencyCardTitle,
+                    isActive
+                      ? styles.frequencyCardTitleActive
+                      : styles.frequencyCardTitleInactive,
+                  ]}
+                >
+                  {t(card.titleKey)}
+                </Text>
+                <Text style={styles.frequencyCardDesc}>
+                  {t(card.descKey)}
+                </Text>
+                <Text style={styles.frequencyCardExample}>
+                  {t(card.exampleKey)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Flexible description */}
@@ -946,7 +1030,7 @@ export function HabitFormFields({
         </Text>
       )}
 
-      {/* Frequency picker */}
+      {/* Frequency qty + unit picker */}
       {!isOneTime && !isGeneral && (
         <View style={styles.frequencyRow}>
           <View style={styles.frequencyField}>
@@ -1008,127 +1092,35 @@ export function HabitFormFields({
         </View>
       )}
 
-      {/* Due date */}
+      {/* Due date + Due time in a row */}
       {!isGeneral && (
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("habits.form.dueDate")}</Text>
-          <AppDatePicker
-            value={watchedDueDate}
-            placeholder={t("common.selectDate")}
-            onChange={(value) =>
-              setValue("dueDate", value, { shouldDirty: true })
-            }
-          />
-        </View>
-      )}
-
-      {/* Due time */}
-      {!isGeneral && (
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("habits.form.dueTime")}</Text>
-          <TextInput
-            value={watchedDueTime}
-            placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
-            placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
-            maxLength={5}
-            style={styles.input}
-            onChangeText={(val) => {
-              const formatted = formatTimeInput(val);
-              setValue("dueTime", formatted, { shouldDirty: true });
-            }}
-          />
-        </View>
-      )}
-
-      {/* End time */}
-      {watchedDueTime && !isGeneral && (
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
-          <TextInput
-            value={watchedDueEndTime}
-            placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
-            placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
-            maxLength={5}
-            style={styles.input}
-            onChangeText={(val) => {
-              const formatted = formatEndTimeInput(val);
-              setValue("dueEndTime", formatted, { shouldDirty: true });
-            }}
-          />
-        </View>
-      )}
-
-      {/* End date (recurring only) */}
-      {showEndDate && (
-        <View style={styles.fieldGroup}>
-          {watchedEndDate ? (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t("habits.form.endDate")}</Text>
-              <View style={styles.endDateRow}>
-                <View style={styles.endDatePicker}>
-                  <AppDatePicker
-                    value={watchedEndDate}
-                    placeholder={t("common.selectDate")}
-                    onChange={(value) =>
-                      setValue("endDate", value, { shouldDirty: true })
-                    }
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.removeEndDateButton}
-                  onPress={() => setValue("endDate", "", { shouldDirty: true })}
-                  activeOpacity={0.7}
-                >
-                  <X size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.hintText}>
-                {t("habits.form.endDateHint")}
-              </Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={sectionStyles.addButton}
-              onPress={() =>
-                setValue("endDate", watchedDueDate || "", { shouldDirty: true })
+        <View style={styles.dueDateRow}>
+          <View style={[styles.fieldGroup, { flex: 1 }]}>
+            <Text style={styles.label}>{t("habits.form.dueDate")}</Text>
+            <AppDatePicker
+              value={watchedDueDate}
+              placeholder={t("common.selectDate")}
+              onChange={(value) =>
+                setValue("dueDate", value, { shouldDirty: true })
               }
-              activeOpacity={0.7}
-            >
-              <Plus size={14} color={colors.primary} />
-              <Text style={sectionStyles.addButtonText}>
-                {t("habits.form.addEndDate")}
-              </Text>
-            </TouchableOpacity>
-          )}
+            />
+          </View>
+          <View style={[styles.fieldGroup, { flex: 1 }]}>
+            <Text style={styles.label}>{t("habits.form.dueTime")}</Text>
+            <TextInput
+              value={watchedDueTime}
+              placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              maxLength={5}
+              style={styles.input}
+              onChangeText={(val) => {
+                const formatted = formatTimeInput(val);
+                setValue("dueTime", formatted, { shouldDirty: true });
+              }}
+            />
+          </View>
         </View>
-      )}
-
-      {/* Reminder (only when dueTime is set, hidden for general habits) */}
-      {watchedDueTime && !isGeneral && (
-        <ReminderSection
-          colors={colors}
-          reminderEnabled={watchedReminderEnabled}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={onReminderTimesChange}
-          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
-          reminderLabel={reminderLabel}
-        />
-      )}
-
-      {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
-      {!watchedDueTime && !isGeneral && (
-        <ScheduledReminderSection
-          colors={colors}
-          reminderEnabled={watchedReminderEnabled}
-          scheduledReminders={watchedScheduledReminders}
-          onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
-          onSetScheduledReminders={(reminders) =>
-            setValue("scheduledReminders", reminders, { shouldDirty: true })
-          }
-          onValidationError={showError}
-        />
       )}
 
       {/* Tags */}
@@ -1286,51 +1278,224 @@ export function HabitFormFields({
         )}
       </View>
 
-      <GoalLinkingField
-        selectedGoalIds={selectedGoalIds}
-        atGoalLimit={atGoalLimit}
-        onToggleGoal={onToggleGoal}
-      />
+      {/* ═══════════════════════════════════════════════════
+         MORE OPTIONS toggle
+         ═══════════════════════════════════════════════════ */}
 
-      {/* Bad habit toggle */}
-      {!isGeneral && (
+      <View style={styles.moreOptionsDivider}>
         <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() =>
-            setValue("isBadHabit", !watchedIsBadHabit, { shouldDirty: true })
-          }
+          style={styles.moreOptionsButton}
+          onPress={toggleAdvanced}
           activeOpacity={0.7}
         >
-          <View
-            style={[
-              styles.customCheckbox,
-              watchedIsBadHabit && styles.customCheckboxChecked,
-            ]}
-          >
-            {watchedIsBadHabit && <Check size={12} color={colors.white} />}
+          <View style={showAdvanced ? styles.chevronRotated : undefined}>
+            <ChevronDown size={16} color={colors.textSecondary} />
           </View>
-          <Text style={styles.checkboxLabel}>
-            {t("habits.form.badHabitLabel")}
+          <Text style={styles.moreOptionsLabel}>
+            {t("habits.form.moreOptions")}
           </Text>
+          {advancedFieldCount > 0 && (
+            <Text style={styles.moreOptionsBadge}>
+              {t("habits.form.moreOptionsCount", { count: advancedFieldCount })}
+            </Text>
+          )}
         </TouchableOpacity>
+      </View>
+
+      {/* ═══════════════════════════════════════════════════
+         ADVANCED FIELDS -- Behind "More options"
+         Fields stay mounted for react-hook-form
+         ═══════════════════════════════════════════════════ */}
+
+      {showAdvanced && (
+        <View style={styles.advancedSection}>
+          {/* Description */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>{t("habits.form.description")}</Text>
+            <TextInput
+              value={watchedDescription}
+              placeholder={t("habits.form.descriptionPlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              maxLength={2000}
+              multiline
+              numberOfLines={2}
+              style={[styles.input, styles.textarea]}
+              textAlignVertical="top"
+              onChangeText={(val) =>
+                setValue("description", val, { shouldDirty: true })
+              }
+            />
+          </View>
+
+          {/* Checklist */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>{t("habits.form.checklist")}</Text>
+            <ChecklistTemplates
+              items={watchedChecklistItems ?? []}
+              onLoad={(items) =>
+                setValue("checklistItems", items, { shouldDirty: true })
+              }
+            />
+            <HabitChecklist
+              items={watchedChecklistItems ?? []}
+              editable
+              onItemsChange={(items) =>
+                setValue("checklistItems", items, { shouldDirty: true })
+              }
+            />
+          </View>
+
+          {/* End time */}
+          {watchedDueTime && !isGeneral && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
+              <TextInput
+                value={watchedDueEndTime}
+                placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+                maxLength={5}
+                style={styles.input}
+                onChangeText={(val) => {
+                  const formatted = formatEndTimeInput(val);
+                  setValue("dueEndTime", formatted, { shouldDirty: true });
+                }}
+              />
+            </View>
+          )}
+
+          {/* End date (recurring only) */}
+          {showEndDate && (
+            <View style={styles.fieldGroup}>
+              {watchedEndDate ? (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>{t("habits.form.endDate")}</Text>
+                  <View style={styles.endDateRow}>
+                    <View style={styles.endDatePicker}>
+                      <AppDatePicker
+                        value={watchedEndDate}
+                        placeholder={t("common.selectDate")}
+                        onChange={(value) =>
+                          setValue("endDate", value, { shouldDirty: true })
+                        }
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeEndDateButton}
+                      onPress={() =>
+                        setValue("endDate", "", { shouldDirty: true })
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <X size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.hintText}>
+                    {t("habits.form.endDateHint")}
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={sectionStyles.addButton}
+                  onPress={() =>
+                    setValue("endDate", watchedDueDate || "", {
+                      shouldDirty: true,
+                    })
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Plus size={14} color={colors.primary} />
+                  <Text style={sectionStyles.addButtonText}>
+                    {t("habits.form.addEndDate")}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Reminder (only when dueTime is set, hidden for general habits) */}
+          {watchedDueTime && !isGeneral && (
+            <ReminderSection
+              colors={colors}
+              reminderEnabled={watchedReminderEnabled}
+              reminderTimes={reminderTimes}
+              onReminderTimesChange={onReminderTimesChange}
+              onToggleReminder={() =>
+                handleReminderEnabledChange(!watchedReminderEnabled)
+              }
+              reminderLabel={reminderLabel}
+            />
+          )}
+
+          {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
+          {!watchedDueTime && !isGeneral && (
+            <ScheduledReminderSection
+              colors={colors}
+              reminderEnabled={watchedReminderEnabled}
+              scheduledReminders={watchedScheduledReminders}
+              onToggleReminder={() =>
+                handleReminderEnabledChange(!watchedReminderEnabled)
+              }
+              onSetScheduledReminders={(reminders) =>
+                setValue("scheduledReminders", reminders, { shouldDirty: true })
+              }
+              onValidationError={showError}
+            />
+          )}
+
+          {/* Goals */}
+          <GoalLinkingField
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={onToggleGoal}
+          />
+
+          {/* Bad habit toggle */}
+          {!isGeneral && (
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() =>
+                setValue("isBadHabit", !watchedIsBadHabit, {
+                  shouldDirty: true,
+                })
+              }
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.customCheckbox,
+                  watchedIsBadHabit && styles.customCheckboxChecked,
+                ]}
+              >
+                {watchedIsBadHabit && <Check size={12} color={colors.white} />}
+              </View>
+              <Text style={styles.checkboxLabel}>
+                {t("habits.form.badHabitLabel")}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Slip alert toggle (only when bad habit) */}
+          {watchedIsBadHabit && (
+            <SlipAlertSection
+              colors={colors}
+              hasProAccess={hasProAccess}
+              slipAlertEnabled={watchedSlipAlertEnabled}
+              onToggle={() =>
+                setValue("slipAlertEnabled", !watchedSlipAlertEnabled, {
+                  shouldDirty: true,
+                })
+              }
+            />
+          )}
+
+          {/* Slot for extra fields (e.g. sub-habits) */}
+          {children}
+        </View>
       )}
 
-      {/* Slip alert toggle (only when bad habit) */}
-      {watchedIsBadHabit && (
-        <SlipAlertSection
-          colors={colors}
-          hasProAccess={hasProAccess}
-          slipAlertEnabled={watchedSlipAlertEnabled}
-          onToggle={() =>
-            setValue("slipAlertEnabled", !watchedSlipAlertEnabled, {
-              shouldDirty: true,
-            })
-          }
-        />
-      )}
-
-      {/* Slot for extra fields (e.g. sub-habits) */}
-      {children}
+      {/* When collapsed, still render children slot outside advanced section */}
+      {!showAdvanced && children}
     </View>
   );
 }
@@ -1604,30 +1769,63 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
       marginTop: -12,
     },
-    toggleRow: {
+    // Frequency card grid
+    frequencyCardGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 8,
+      gap: 10,
     },
-    toggleButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+    frequencyCard: {
+      width: "48%",
       borderRadius: radius.xl,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 2,
+      padding: 12,
     },
-    toggleButtonActive: {
-      backgroundColor: colors.primary,
+    frequencyCardActive: {
       borderColor: colors.primary,
+      backgroundColor: colors.primary_15,
     },
-    toggleButtonText: {
-      fontSize: 14,
-      fontWeight: "600",
+    frequencyCardInactive: {
+      borderColor: colors.borderMuted,
+      backgroundColor: colors.surfaceElevated,
+    },
+    frequencyCardIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.lg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    },
+    frequencyCardIconActive: {
+      backgroundColor: colors.primary_15,
+    },
+    frequencyCardIconInactive: {
+      backgroundColor: colors.surfaceElevated,
+    },
+    frequencyCardTitle: {
+      fontSize: 13,
+      fontWeight: "700",
+      marginBottom: 2,
+    },
+    frequencyCardTitleActive: {
+      color: colors.textPrimary,
+    },
+    frequencyCardTitleInactive: {
       color: colors.textSecondary,
     },
-    toggleButtonTextActive: {
-      color: colors.white,
+    frequencyCardDesc: {
+      fontSize: 11,
+      color: colors.textMuted,
+      lineHeight: 15,
+    },
+    frequencyCardExample: {
+      fontSize: 10,
+      color: colors.textMuted,
+      lineHeight: 14,
+      marginTop: 4,
+      fontStyle: "italic",
+      opacity: 0.7,
     },
     frequencyRow: {
       flexDirection: "row",
@@ -1636,31 +1834,6 @@ function createStyles(colors: ThemeColors) {
     frequencyField: {
       flex: 1,
       gap: 6,
-    },
-    unitPicker: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 4,
-    },
-    unitOption: {
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderRadius: radius.xl,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    unitOptionActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    unitOptionText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.textSecondary,
-    },
-    unitOptionTextActive: {
-      color: colors.white,
     },
     daysRow: {
       flexDirection: "row",
@@ -1686,6 +1859,10 @@ function createStyles(colors: ThemeColors) {
     },
     dayButtonTextActive: {
       color: colors.white,
+    },
+    dueDateRow: {
+      flexDirection: "row",
+      gap: 12,
     },
     endDateRow: {
       flexDirection: "row",
@@ -1786,6 +1963,35 @@ function createStyles(colors: ThemeColors) {
     tagFormCancel: {
       padding: 8,
     },
+    // More options toggle
+    moreOptionsDivider: {
+      borderTopWidth: 1,
+      borderTopColor: colors.borderMuted,
+      paddingTop: 4,
+    },
+    moreOptionsButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 8,
+    },
+    moreOptionsLabel: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: colors.textSecondary,
+      flex: 1,
+    },
+    moreOptionsBadge: {
+      fontSize: 12,
+      color: colors.primary,
+    },
+    chevronRotated: {
+      transform: [{ rotate: "180deg" }],
+    },
+    // Advanced section
+    advancedSection: {
+      gap: 20,
+    },
     checkboxRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -1808,6 +2014,32 @@ function createStyles(colors: ThemeColors) {
     checkboxLabel: {
       fontSize: 14,
       color: colors.textPrimary,
+    },
+    // Legacy (kept for compatibility — not used in updated layout)
+    unitPicker: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 4,
+    },
+    unitOption: {
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: radius.xl,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    unitOptionActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    unitOptionText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textSecondary,
+    },
+    unitOptionTextActive: {
+      color: colors.white,
     },
   });
 }
