@@ -102,6 +102,9 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     streakFreezesAvailable: 0,
     themePreference: null,
     colorScheme: null,
+    googleCalendarAutoSyncEnabled: false,
+    googleCalendarAutoSyncStatus: 'Idle',
+    googleCalendarLastSyncedAt: null,
     ...overrides,
   }
 }

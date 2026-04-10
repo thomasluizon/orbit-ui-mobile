@@ -30,8 +30,11 @@ export type { FriendlyErrorContext } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { buildRecentChatHistory } from './chat-history'
 export {
+  buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
 } from './calendar-sync'

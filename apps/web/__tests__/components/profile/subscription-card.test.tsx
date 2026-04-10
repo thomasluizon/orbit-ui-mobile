@@ -70,6 +70,9 @@ const baseProfile = {
   streakFreezesAvailable: 0,
   themePreference: null,
   colorScheme: null,
+  googleCalendarAutoSyncEnabled: false,
+  googleCalendarAutoSyncStatus: 'Idle' as const,
+  googleCalendarLastSyncedAt: null,
 }
 
 // ---------------------------------------------------------------------------

@@ -347,6 +347,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   checklistItems?: ChecklistItem[] | null
   subHabits?: BulkHabitItem[] | null
   endDate?: string | null
+  googleEventId?: string | null
 }> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
@@ -365,12 +366,14 @@ export const bulkHabitItemSchema: z.ZodType<{
   checklistItems: z.array(checklistItemSchema).nullable().optional(),
   subHabits: z.lazy(() => z.array(bulkHabitItemSchema).nullable().optional()),
   endDate: z.string().nullable().optional(),
+  googleEventId: z.string().nullable().optional(),
 })
 
 export type BulkHabitItem = z.infer<typeof bulkHabitItemSchema>
 
 export const bulkCreateRequestSchema = z.object({
   habits: z.array(bulkHabitItemSchema),
+  fromSyncReview: z.boolean().optional(),
 })
 
 export type BulkCreateRequest = z.infer<typeof bulkCreateRequestSchema>

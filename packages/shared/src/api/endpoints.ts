@@ -127,6 +127,12 @@ export const API = {
   calendar: {
     events: '/api/calendar/events',
     dismiss: '/api/calendar/dismiss',
+    autoSyncState: '/api/calendar/auto-sync/state',
+    autoSync: '/api/calendar/auto-sync',
+    autoSyncSuggestions: '/api/calendar/auto-sync/suggestions',
+    autoSyncDismissSuggestion: (id: string) =>
+      `/api/calendar/auto-sync/suggestions/${id}/dismiss` as const,
+    autoSyncRun: '/api/calendar/auto-sync/run',
   },
 
   // -- Support ---------------------------------------------------------------

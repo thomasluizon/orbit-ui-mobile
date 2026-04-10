@@ -1,4 +1,5 @@
 import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
+import type { CalendarAutoSyncStatus, CalendarSyncSuggestion } from '../types/calendar'
 
 export interface CalendarSyncEvent {
   id: string
@@ -210,7 +211,50 @@ export function buildCalendarSyncImportRequest(
         days,
         reminderEnabled: event.reminders.length > 0,
         reminderTimes,
+        googleEventId: event.id,
       }
     }),
+    fromSyncReview: true,
   }
+}
+
+export function buildCalendarAutoSyncImportRequest(
+  suggestions: CalendarSyncSuggestion[],
+): BulkCreateRequest {
+  return buildCalendarSyncImportRequest(suggestions.map((s) => s.event))
+}
+
+export function isCalendarAutoSyncStatusReconnectRequired(
+  status: CalendarAutoSyncStatus | null | undefined,
+): boolean {
+  return status === 'ReconnectRequired'
+}
+
+/**
+ * Formats a "last synced at" timestamp into a human-readable label.
+ * The translate function must handle the 'calendar.autoSync.lastSyncedNever'
+ * and relative-time keys.
+ */
+export function formatCalendarAutoSyncLastSynced(
+  isoTimestamp: string | null,
+  translate: (key: string, values?: Record<string, unknown>) => string,
+  now: Date = new Date(),
+): string {
+  if (!isoTimestamp) return translate('calendar.autoSync.lastSyncedNever')
+
+  const then = new Date(isoTimestamp)
+  if (Number.isNaN(then.getTime())) return translate('calendar.autoSync.lastSyncedNever')
+
+  const deltaMs = now.getTime() - then.getTime()
+  const deltaMinutes = Math.floor(deltaMs / 60_000)
+
+  if (deltaMinutes < 1) return translate('calendar.autoSync.lastSyncedJustNow')
+  if (deltaMinutes < 60) return translate('calendar.autoSync.lastSyncedMinutesAgo', { n: deltaMinutes })
+
+  const deltaHours = Math.floor(deltaMinutes / 60)
+  if (deltaHours < 24) return translate('calendar.autoSync.lastSyncedHoursAgo', { n: deltaHours })
+
+  const deltaDays = Math.floor(deltaHours / 24)
+  if (deltaDays === 1) return translate('calendar.autoSync.lastSyncedYesterday')
+  return translate('calendar.autoSync.lastSyncedDaysAgo', { n: deltaDays })
 }
