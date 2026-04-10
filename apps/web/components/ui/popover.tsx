@@ -60,6 +60,17 @@ export function Popover({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isControlled, controlledOpen])
 
+  // Propagate hook dismiss events (outside click, Escape, scroll) back to
+  // the controlled parent. Without this, dismiss handlers only update the
+  // hook's internal state and the panel stays open.
+  useEffect(() => {
+    if (!isControlled) return
+    if (!hook.isOpen && controlledOpen) {
+      onOpenChange?.(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hook.isOpen])
+
   // For SSR safety, delay portal rendering until mounted.
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
