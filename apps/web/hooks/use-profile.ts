@@ -14,9 +14,16 @@ import {
 } from '@orbit/shared/utils'
 import { updateTimezone } from '@/app/actions/profile'
 import { fetchJson } from '@/lib/api-fetch'
+import { useColorScheme } from '@/hooks/use-color-scheme'
 
 export function useProfile() {
   const queryClient = useQueryClient()
+  const {
+    syncSchemeFromProfile,
+    syncThemeFromProfile,
+    detectAndSaveSchemeIfNeeded,
+    detectAndSaveThemeIfNeeded,
+  } = useColorScheme()
 
   const query = useQuery({
     queryKey: profileKeys.detail(),
@@ -47,6 +54,24 @@ export function useProfile() {
       }
     }
   }, [profile, queryClient])
+
+  // Hydrate color scheme and theme from DB (source of truth).
+  // On first login (null values), detect and persist local/system defaults.
+  useEffect(() => {
+    if (!profile) return
+    syncSchemeFromProfile(profile.colorScheme)
+    syncThemeFromProfile(profile.themePreference)
+    detectAndSaveSchemeIfNeeded(profile.colorScheme)
+    detectAndSaveThemeIfNeeded(profile.themePreference)
+  }, [
+    profile,
+    profile?.colorScheme,
+    profile?.themePreference,
+    syncSchemeFromProfile,
+    syncThemeFromProfile,
+    detectAndSaveSchemeIfNeeded,
+    detectAndSaveThemeIfNeeded,
+  ])
 
   // Invalidation helper for external consumers
   const invalidate = useCallback(() => {

@@ -1684,7 +1684,10 @@
     "colorGreen": "Green theme",
     "colorOrange": "Orange theme",
     "colorPurple": "Purple theme",
-    "colorRose": "Rose theme"
+    "colorRose": "Rose theme",
+    "themeMode": "Appearance",
+    "themeModeLight": "Light",
+    "themeModeDark": "Dark"
   },
   "aiSettings": {
     "title": "AI Features"

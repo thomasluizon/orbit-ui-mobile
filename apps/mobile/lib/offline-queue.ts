@@ -166,6 +166,7 @@ const LAST_WRITE_WINS_TYPES = new Set<MutationType>([
   'setLanguage',
   'setWeekStartDay',
   'setColorScheme',
+  'setThemePreference',
   'setTimeZone',
   'setAiMemory',
   'setAiSummary',

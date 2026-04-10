@@ -59,41 +59,12 @@ export function OnboardingWelcome() {
     },
   })
 
-  const colorSchemeMutation = useMutation({
-    mutationFn: (scheme: string) =>
-      performQueuedApiMutation({
-        type: 'setColorScheme',
-        scope: 'profile',
-        endpoint: API.profile.colorScheme,
-        method: 'PUT',
-        payload: { colorScheme: scheme },
-        dedupeKey: 'onboarding-color-scheme',
-      }),
-    onMutate: async (scheme) => {
-      await queryClient.cancelQueries({ queryKey: profileKeys.all })
-      const prev = queryClient.getQueryData<OnboardingProfileState>(profileKeys.detail())
-      queryClient.setQueryData<OnboardingProfileState>(profileKeys.detail(), (old) =>
-        old ? { ...old, colorScheme: scheme } : old,
-      )
-      return { prev }
-    },
-    onError: (_err, _scheme, context) => {
-      if (context?.prev) {
-        queryClient.setQueryData<OnboardingProfileState>(profileKeys.detail(), context.prev)
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    },
-  })
-
   function handleWeekStartDaySelect(day: number) {
     weekStartDayMutation.mutate(day)
   }
 
   function handleSchemeSelect(scheme: ColorScheme) {
     applyScheme(scheme)
-    colorSchemeMutation.mutate(scheme)
   }
 
   const weekStartDay = profile?.weekStartDay ?? 1

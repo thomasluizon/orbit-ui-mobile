@@ -167,7 +167,7 @@ function blendRgbOverHex(
   const backgroundGreen = Number.parseInt(normalized.slice(2, 4), 16)
   const backgroundBlue = Number.parseInt(normalized.slice(4, 6), 16)
 
-  const [foregroundRed, foregroundGreen, foregroundBlue] = channels
+  const [foregroundRed, foregroundGreen, foregroundBlue] = channels as [number, number, number]
   const blendChannel = (foreground: number, background: number) =>
     Math.round(foreground * opacity + background * (1 - opacity))
 

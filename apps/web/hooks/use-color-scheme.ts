@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { schemes, type ColorScheme, type ColorSchemeDefinition, type ThemeMode } from '@orbit/shared'
-import { updateColorScheme as updateColorSchemeAction } from '@/app/actions/profile'
+import {
+  updateColorScheme as updateColorSchemeAction,
+  updateThemePreference as updateThemePreferenceAction,
+} from '@/app/actions/profile'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -153,11 +156,21 @@ export function useColorScheme() {
     }
   }, [currentTheme])
 
-  const applyTheme = useCallback((theme: ThemeMode) => {
+  const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
+    const prev = currentTheme
     setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
     applySchemeToDOM(currentScheme, theme, true)
-  }, [currentScheme])
+
+    if (persistToDb) {
+      updateThemePreferenceAction({ themePreference: theme }).catch((_err: unknown) => {
+        // Rollback optimistic update on failure
+        setCookie('orbit_theme_mode', prev)
+        setCurrentTheme(prev)
+        applySchemeToDOM(currentScheme, prev, true)
+      })
+    }
+  }, [currentScheme, currentTheme])
 
   const toggleTheme = useCallback(() => {
     const next: ThemeMode = currentTheme === 'dark' ? 'light' : 'dark'
@@ -188,6 +201,39 @@ export function useColorScheme() {
     updateColorSchemeAction({ colorScheme: currentScheme }).catch(() => {})
   }, [currentScheme])
 
+  /**
+   * Sync cookie with DB value (DB is source of truth).
+   * Call this after profile loads to ensure cross-device sync.
+   */
+  const syncThemeFromProfile = useCallback((dbThemePreference: string | null | undefined) => {
+    const dbTheme: ThemeMode | null =
+      dbThemePreference === 'dark' || dbThemePreference === 'light'
+        ? dbThemePreference
+        : null
+    if (dbTheme && dbTheme !== currentTheme) {
+      setCookie('orbit_theme_mode', dbTheme)
+      setCurrentTheme(dbTheme)
+      applySchemeToDOM(currentScheme, dbTheme)
+    }
+  }, [currentScheme, currentTheme])
+
+  /**
+   * First-login detection: if DB themePreference is missing, detect
+   * system preference, apply it locally, and persist to DB so future
+   * logins are consistent across devices.
+   */
+  const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
+    if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
+    const detected: ThemeMode =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark'
+    setCookie('orbit_theme_mode', detected)
+    setCurrentTheme(detected)
+    applySchemeToDOM(currentScheme, detected)
+    updateThemePreferenceAction({ themePreference: detected }).catch(() => {})
+  }, [currentScheme])
+
   return {
     currentScheme,
     currentTheme,
@@ -196,5 +242,7 @@ export function useColorScheme() {
     toggleTheme,
     syncSchemeFromProfile,
     detectAndSaveSchemeIfNeeded,
+    syncThemeFromProfile,
+    detectAndSaveThemeIfNeeded,
   }
 }
