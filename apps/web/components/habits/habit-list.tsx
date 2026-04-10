@@ -1277,7 +1277,7 @@ const isPostponeAction = useMemo(() => {
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" data-tour="tour-habit-list">
       {renderMainContent()}
 
       {/* General habits section (shown on Today view when toggle is on) */}

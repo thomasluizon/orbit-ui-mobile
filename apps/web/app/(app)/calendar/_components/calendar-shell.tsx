@@ -39,7 +39,7 @@ export function CalendarHeader({
         </button>
       </div>
 
-      <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] flex items-center justify-between p-1">
+      <div data-tour="tour-calendar-month-nav" className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] flex items-center justify-between p-1">
         <button
           aria-label={previousMonthLabel}
           className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
@@ -82,7 +82,7 @@ export function CalendarLegend({
   missedLabel,
 }: Readonly<CalendarLegendProps>) {
   return (
-    <div className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
+    <div data-tour="tour-calendar-legend" className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
       <div className="flex items-center gap-1.5">
         <span className="size-2 rounded-full bg-green-500" />
         <span>{doneLabel}</span>

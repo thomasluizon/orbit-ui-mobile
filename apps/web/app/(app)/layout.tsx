@@ -22,8 +22,11 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
+import { useTourStore } from '@/stores/tour-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/profile'
+import { TourProvider } from '@/components/tour/tour-provider'
+import { TourOverlay } from '@/components/tour/tour-overlay'
 
 export default function AppLayout({
   children,
@@ -55,10 +58,26 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   // Google Calendar import prompt state
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
 
+  // Auto-trigger feature tour for users who completed onboarding but haven't seen the tour
+  const tourStarted = useRef(false)
   useEffect(() => {
     if (
       profile &&
       profile.hasCompletedOnboarding &&
+      !profile.hasCompletedTour &&
+      !tourStarted.current &&
+      !useTourStore.getState().isActive
+    ) {
+      tourStarted.current = true
+      setTimeout(() => useTourStore.getState().startFullTour(), 500)
+    }
+  }, [profile])
+
+  useEffect(() => {
+    if (
+      profile &&
+      profile.hasCompletedOnboarding &&
+      profile.hasCompletedTour &&
       !profile.hasImportedCalendar
     ) {
       setShowCalendarPrompt(true)
@@ -154,6 +173,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         onDismissCalendarPrompt={handleDismissCalendarPrompt}
       />
 
+      <TourProvider />
+      <TourOverlay />
     </div>
   )
 }

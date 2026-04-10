@@ -48,6 +48,7 @@ export function NotificationBell() {
 
   const trigger = (
     <button
+      data-tour="tour-notification-bell"
       aria-label={unreadCount > 0 ? plural(t('notifications.bellWithCount', { count: unreadCount }), unreadCount) : t('notifications.bell')}
       aria-expanded={isOpen}
       aria-controls="notification-dropdown"

@@ -154,7 +154,7 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
   }, [currentMonth, dayMap, weekStartsOn])
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-tour="tour-calendar-grid">
       {/* Weekday headers */}
       <div className="grid grid-cols-7 gap-1 sm:gap-2">
         {weekdayHeaders.map((day) => (
@@ -166,12 +166,13 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
 
       {/* Day grid */}
       <div className="grid grid-cols-7 gap-1 sm:gap-2">
-        {gridDays.map((cell) => {
+        {gridDays.map((cell, index) => {
           const canSelect = cell.isCurrentMonth
 
           return (
             <button
               key={cell.dateStr}
+              data-tour={index === 0 ? 'tour-calendar-day' : undefined}
               aria-label={format(cell.date, 'EEEE, MMMM d', { locale: dateFnsLocale })}
               aria-current={cell.isToday ? 'date' : undefined}
               aria-disabled={!canSelect}

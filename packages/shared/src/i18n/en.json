@@ -1805,5 +1805,170 @@
     "latestLabel": "Latest: {version}",
     "updateCta": "Update now",
     "laterCta": "Later"
+  },
+  "tour": {
+    "mockData": {
+      "habits": {
+        "meditation": { "title": "Morning Meditation", "description": "10 minutes of mindfulness to start the day" },
+        "exercise": { "title": "Exercise", "description": "Stay active with regular workouts" },
+        "pushups": { "title": "Push-ups" },
+        "stretching": { "title": "Stretching" },
+        "screenTime": { "title": "Reduce Screen Time", "description": "Keep screen time under 2 hours per day" },
+        "readBooks": { "title": "Read Books", "description": "Read at least 5 times this week" },
+        "drinkWater": { "title": "Drink More Water", "description": "Stay hydrated throughout the day" }
+      },
+      "goals": {
+        "marathon": { "title": "Run a Marathon", "description": "Train for and complete a full marathon" },
+        "readGoal": { "title": "Read 24 Books", "description": "Read 2 books per month this year" }
+      },
+      "tags": {
+        "mindfulness": "Mindfulness",
+        "health": "Health",
+        "learning": "Learning"
+      },
+      "checklists": {
+        "warmUp": "Warm up",
+        "mainWorkout": "Main workout",
+        "coolDown": "Cool down"
+      }
+    },
+    "ui": {
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip tour",
+      "finish": "Finish",
+      "skipSection": "Skip section",
+      "stepOf": "Step {current} of {total}",
+      "pro": "PRO"
+    },
+    "sections": {
+      "habits": "Habits",
+      "goals": "Goals",
+      "chat": "AI Chat",
+      "calendar": "Calendar",
+      "profile": "Profile"
+    },
+    "replay": {
+      "title": "Feature Tour",
+      "hint": "Explore all features with a guided walkthrough",
+      "modalTitle": "Replay Tour",
+      "replayAll": "Replay Full Tour",
+      "replaySection": "Replay",
+      "steps": "{count} steps"
+    },
+    "habits": {
+      "list": {
+        "title": "Your Habits",
+        "description": "This is your daily dashboard. It shows all habits scheduled for today, organized by priority. Completed habits appear with a checkmark."
+      },
+      "card": {
+        "title": "Habit Card",
+        "description": "Each habit shows its status, tags, and frequency. Tap the circle to mark it complete, or use the menu for more options like edit, skip, or delete."
+      },
+      "tags": {
+        "title": "Tags",
+        "description": "Tags help you organize habits by category. You can filter by tags and assign colors to keep things visually organized."
+      },
+      "tabs": {
+        "title": "View Tabs",
+        "description": "Switch between Today (scheduled habits), All (everything), General (always available), and Goals (your long-term targets)."
+      },
+      "dateNav": {
+        "title": "Date Navigation",
+        "description": "Navigate between days to view past completions or upcoming habits. Tap the arrows or swipe to move between dates."
+      },
+      "fab": {
+        "title": "Create New",
+        "description": "Tap here to create a new habit. Choose from recurring, flexible, general, or one-time tasks. You can also create goals from the Goals tab."
+      },
+      "streak": {
+        "title": "Streak Counter",
+        "description": "Your streak tracks consecutive days where you completed all scheduled habits. Keep it going to earn achievements and build momentum!"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Check reminders, achievement alerts, and updates here. Set up push notifications in settings to never miss a habit."
+      }
+    },
+    "goals": {
+      "tab": {
+        "title": "Goals Tab",
+        "description": "Switch to Goals to see your long-term objectives. Goals give direction to your habits by linking daily actions to bigger targets."
+      },
+      "card": {
+        "title": "Goal Card",
+        "description": "Each goal shows its progress bar, deadline, and linked habits. Track your journey from start to completion."
+      },
+      "progress": {
+        "title": "Goal Progress",
+        "description": "Update progress manually or let linked habits auto-track it. The progress bar shows how close you are to your target."
+      },
+      "link": {
+        "title": "Linked Habits",
+        "description": "Link habits to goals so every completion counts toward your target. One habit can contribute to multiple goals."
+      },
+      "aiReview": {
+        "title": "AI Goal Review",
+        "description": "Get an AI-powered analysis of your goal progress, including pace, projected completion date, and personalized recommendations."
+      }
+    },
+    "chat": {
+      "area": {
+        "title": "AI Chat",
+        "description": "Your AI assistant can create, edit, and manage habits using natural language. Just describe what you want and it will handle the rest."
+      },
+      "input": {
+        "title": "Chat Input",
+        "description": "Type your message, attach images for context, or use voice input. Ask questions, get insights, or manage your habits conversationally."
+      },
+      "suggestions": {
+        "title": "Quick Suggestions",
+        "description": "Tap any suggestion chip to quickly start a conversation. These are common actions to help you get started."
+      },
+      "voice": {
+        "title": "Voice Input",
+        "description": "Speak to log habits or ask questions. Supports multiple languages with automatic speech-to-text conversion."
+      }
+    },
+    "calendar": {
+      "grid": {
+        "title": "Calendar View",
+        "description": "See your completion history at a glance. Each day is color-coded based on how many habits you completed."
+      },
+      "legend": {
+        "title": "Color Legend",
+        "description": "Green means all habits done, yellow means partial completion, and red means habits were missed. Build a streak of green days!"
+      },
+      "monthNav": {
+        "title": "Month Navigation",
+        "description": "Navigate between months to review your long-term consistency. Swipe left or right to move quickly."
+      },
+      "day": {
+        "title": "Day Detail",
+        "description": "Tap any day to see which habits were scheduled, completed, or missed. You can also log completions for past days."
+      }
+    },
+    "profile": {
+      "streak": {
+        "title": "Streak & Freezes",
+        "description": "View your current and longest streak. Activate streak freezes to protect your streak on off days (limited per month)."
+      },
+      "preferences": {
+        "title": "Preferences",
+        "description": "Customize your experience: language, color scheme, timezone, week start day, push notifications, and more."
+      },
+      "subscription": {
+        "title": "Subscription",
+        "description": "View your current plan and manage your subscription. Pro unlocks unlimited habits, AI chat, goals, achievements, and more."
+      },
+      "retrospective": {
+        "title": "AI Retrospective",
+        "description": "Get detailed AI analysis of your habit patterns over time. Available for weekly, monthly, quarterly, or yearly periods."
+      },
+      "achievements": {
+        "title": "Achievements & Levels",
+        "description": "Earn XP and level up as you build habits. Unlock achievements for milestones like streak records, completion rates, and more."
+      }
+    }
   }
 }

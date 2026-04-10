@@ -81,6 +81,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     aiMemoryEnabled: true,
     aiSummaryEnabled: true,
     hasCompletedOnboarding: true,
+    hasCompletedTour: false,
     language: 'en',
     plan: 'free',
     hasProAccess: false,

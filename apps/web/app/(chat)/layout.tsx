@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
+import { TourProvider } from '@/components/tour/tour-provider'
+import { TourOverlay } from '@/components/tour/tour-overlay'
 
 export default function ChatLayout({
   children,
@@ -25,6 +27,8 @@ export default function ChatLayout({
         >
           {children}
         </div>
+        <TourProvider />
+        <TourOverlay />
       </div>
     </Providers>
   )

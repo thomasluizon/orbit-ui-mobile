@@ -71,6 +71,7 @@ const defaultProfile = {
   aiMemoryEnabled: true,
   aiSummaryEnabled: true,
   hasCompletedOnboarding: true,
+  hasCompletedTour: false,
   language: 'en' as const,
   plan: 'free' as const,
   hasProAccess: false,

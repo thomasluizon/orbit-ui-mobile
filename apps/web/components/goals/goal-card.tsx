@@ -95,6 +95,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
       {/* Use a button so the card is keyboard-accessible and has the correct role */}
       <button
         type="button"
+        data-tour="tour-goal-card"
         className={`w-full text-left bg-surface rounded-[var(--radius-xl)] p-5 cursor-pointer hover:bg-surface-elevated/80 border border-border-muted shadow-[var(--shadow-sm)] surface-interactive ${trackingBorderClass}`}
         onClick={() => setShowDetail(true)}
       >
@@ -140,7 +141,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
             </p>
 
             {/* Progress bar */}
-            <div className="relative mb-2">
+            <div className="relative mb-2" data-tour="tour-goal-progress">
               <progress
                 className="sr-only"
                 value={Math.min(goal.progressPercentage, 100)}

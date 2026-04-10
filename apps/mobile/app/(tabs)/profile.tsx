@@ -38,6 +38,7 @@ import {
   Sparkles as SparklesIcon,
   X,
   Check,
+  Compass,
 } from 'lucide-react-native'
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
@@ -58,6 +59,7 @@ import { plural } from '@/lib/plural'
 import { ProfileNavCard } from './profile/_components/profile-nav-card'
 import { ProfileActionButton } from './profile/_components/profile-action-button'
 import { ProfileNavIcon } from './profile/_components/profile-nav-icon'
+import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 // ---------------------------------------------------------------------------
 // ProfileStreakCard (inline -- matches web ProfileStreakCard)
@@ -240,6 +242,7 @@ export default function ProfileScreen() {
     }
   }
   // --- Delete Account ---
+  const [showTourReplay, setShowTourReplay] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
@@ -465,6 +468,13 @@ export default function ProfileScreen() {
         <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.features')}</Text>
 
         <View style={styles.cardStack}>
+        <ProfileNavCard
+          colors={colors}
+          onPress={() => setShowTourReplay(true)}
+          icon={<Compass size={20} color={colors.primary} />}
+          title={t('tour.replay.title')}
+          hint={t('tour.replay.hint')}
+        />
         {featureNavItems.map((item) => (
           <ProfileNavCard
             key={item.id}
@@ -605,6 +615,9 @@ export default function ProfileScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Tour Replay Modal */}
+      <TourReplayModal visible={showTourReplay} onClose={() => setShowTourReplay(false)} />
 
       {/* Fresh Start Animation */}
       {showFreshStartAnim && (

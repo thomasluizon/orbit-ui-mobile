@@ -233,9 +233,13 @@ function TopLevelBadges({
         </span>
       )}
       {habit.isBadHabit && <BadHabitBadge />}
-      {habit.tags?.map((tag) => (
-        <TagBadge key={tag.id} tag={tag} searchQuery={searchQuery} />
-      ))}
+      {habit.tags && habit.tags.length > 0 && (
+        <span data-tour="tour-habit-tags" className="inline-flex flex-wrap gap-1">
+          {habit.tags.map((tag) => (
+            <TagBadge key={tag.id} tag={tag} searchQuery={searchQuery} />
+          ))}
+        </span>
+      )}
       {(habit.linkedGoals ?? []).map((goal) => (
         <span key={goal.id} className="px-2 py-0.5 rounded-full text-[9px] font-bold text-primary bg-primary/10 border border-primary/10">
           {goal.title}
@@ -1072,6 +1076,7 @@ export function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <div
+          data-tour="tour-habit-card"
           role="button"
           tabIndex={0}
           className={`${articleClassName} text-left w-full`}
