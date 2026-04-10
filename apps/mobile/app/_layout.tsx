@@ -29,6 +29,8 @@ import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { AppToast } from '@/components/ui/app-toast'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
+import { TourProvider } from '@/components/tour/tour-provider'
+import { TourOverlay } from '@/components/tour/tour-overlay'
 
 // Push notifications are not supported in Expo Go (removed in SDK 53).
 // Only import PushPrompt in dev builds / standalone.
@@ -219,6 +221,9 @@ function GlobalOverlays({
       <StreakFreezeCelebration ref={streakFreezeRef} />
       <CalendarImportPrompt />
       <VersionUpdateDrawer />
+      <TourProvider>
+        <TourOverlay />
+      </TourProvider>
     </>
   )
 }
