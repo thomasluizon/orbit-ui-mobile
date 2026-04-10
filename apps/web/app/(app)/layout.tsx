@@ -11,6 +11,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
@@ -153,6 +154,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         onCalendarImport={handleCalendarImport}
         onDismissCalendarPrompt={handleDismissCalendarPrompt}
       />
+
+      <CreateGoalModalBridge />
     </div>
   )
 }
@@ -227,5 +230,16 @@ function GlobalOverlays({
         </div>
       </AppOverlay>
     </div>
+  )
+}
+
+function CreateGoalModalBridge() {
+  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
+  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
+  return (
+    <CreateGoalModal
+      open={showCreateGoalModal}
+      onOpenChange={setShowCreateGoalModal}
+    />
   )
 }
