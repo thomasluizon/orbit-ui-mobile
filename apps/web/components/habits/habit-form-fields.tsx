@@ -1099,8 +1099,12 @@ export function HabitFormFields({
       </div>
 
       {/* Collapsible advanced section -- fields stay mounted for react-hook-form */}
-      <div className={`collapsible ${showAdvanced ? 'is-open' : ''}`}>
-        <div className="space-y-5">
+      <div
+        className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
+          showAdvanced ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="space-y-5 pt-1">
           {/* Description */}
           <div className="space-y-1.5">
             <label htmlFor="habit-form-description" className="form-label">
