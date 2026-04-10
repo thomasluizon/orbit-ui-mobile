@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Target, Flame, Info } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
@@ -140,152 +140,199 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       title={t('goals.create')}
     >
       <form className="space-y-5" onSubmit={onSubmit}>
-        {/* Goal Type Toggle */}
-        <div className="flex gap-2">
+        {/* Goal Type Cards */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Progress Card */}
           <button
             type="button"
-            className={`flex-1 py-2.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-              goalType === 'Standard'
-                ? 'bg-primary text-white'
-                : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
-            }`}
             onClick={() => handleTypeChange('Standard')}
+            className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
+              goalType === 'Standard'
+                ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
+                : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
+            }`}
           >
-            {t('goals.form.typeStandard')}
+            <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
+              goalType === 'Standard'
+                ? 'bg-primary/15 text-primary'
+                : 'bg-surface-elevated text-text-muted'
+            }`}>
+              <Target className="size-[18px]" />
+            </div>
+            <p className={`text-sm font-bold mb-0.5 ${
+              goalType === 'Standard' ? 'text-text-primary' : 'text-text-secondary'
+            }`}>
+              {t('goals.form.typeStandard')}
+            </p>
+            <p className="text-[11px] text-text-muted leading-snug">
+              {t('goals.form.typeStandardDescription')}
+            </p>
+            <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
+              {t('goals.form.typeStandardExample')}
+            </p>
           </button>
+
+          {/* Streak Card */}
           <button
             type="button"
-            className={`flex-1 py-2.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
-              goalType === 'Streak'
-                ? 'bg-primary text-white'
-                : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
-            }`}
             onClick={() => handleTypeChange('Streak')}
+            className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
+              goalType === 'Streak'
+                ? 'border-orange-500 bg-orange-500/8 shadow-[0_0_20px_rgba(249,115,22,0.1)]'
+                : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
+            }`}
           >
-            {t('goals.form.typeStreak')}
+            <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
+              goalType === 'Streak'
+                ? 'bg-orange-500/15 text-orange-400'
+                : 'bg-surface-elevated text-text-muted'
+            }`}>
+              <Flame className="size-[18px]" />
+            </div>
+            <p className={`text-sm font-bold mb-0.5 ${
+              goalType === 'Streak' ? 'text-text-primary' : 'text-text-secondary'
+            }`}>
+              {t('goals.form.typeStreak')}
+            </p>
+            <p className="text-[11px] text-text-muted leading-snug">
+              {t('goals.form.typeStreakDescription')}
+            </p>
+            <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
+              {t('goals.form.typeStreakExample')}
+            </p>
           </button>
         </div>
 
-        {/* Streak description */}
+        {/* Streak reset hint */}
         {isStreak && (
-          <p className="text-xs text-text-secondary -mt-1">
-            {t('goals.form.typeStreakDescription')}
-          </p>
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-[var(--radius-lg)] bg-orange-500/8 border border-orange-500/15">
+            <Info className="size-3.5 text-orange-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-orange-300/90 leading-relaxed">
+              {t('goals.form.typeStreakHint')}
+            </p>
+          </div>
         )}
 
-        {/* Quantity + Unit */}
-        <div className={isStreak ? '' : 'grid grid-cols-2 gap-3'}>
-          <div className={isStreak ? '' : ''}>
-            <label
-              htmlFor="create-goal-target"
-              className="form-label"
-            >
-              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-            </label>
-            <input
-              id="create-goal-target"
-              type="number"
-              value={targetValue}
-              onChange={(e) => setTargetValue(e.target.value)}
-              className="form-input"
-              min={0.01}
-              step="any"
-              placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
-            />
-          </div>
-          {!isStreak && (
+        {/* Form Fields */}
+        <div className="space-y-4">
+          {/* Quantity + Unit */}
+          <div className={isStreak ? '' : 'grid grid-cols-2 gap-3'}>
             <div>
               <label
-                htmlFor="create-goal-unit"
+                htmlFor="create-goal-target"
                 className="form-label"
               >
-                {t('goals.form.unit')}
+                {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
               </label>
               <input
-                id="create-goal-unit"
-                type="text"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
+                id="create-goal-target"
+                type="number"
+                value={targetValue}
+                onChange={(e) => setTargetValue(e.target.value)}
                 className="form-input"
-                placeholder={t('goals.form.unitPlaceholder')}
-                maxLength={50}
+                min={0.01}
+                step="any"
+                placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
               />
             </div>
-          )}
-        </div>
+            {!isStreak && (
+              <div>
+                <label
+                  htmlFor="create-goal-unit"
+                  className="form-label"
+                >
+                  {t('goals.form.unit')}
+                </label>
+                <input
+                  id="create-goal-unit"
+                  type="text"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  className="form-input"
+                  placeholder={t('goals.form.unitPlaceholder')}
+                  maxLength={50}
+                />
+              </div>
+            )}
+          </div>
 
-        {/* Description (optional) */}
-        <div>
-          <label
-            htmlFor="create-goal-description"
-            className="form-label"
-          >
-            {t('goals.form.description')}
-            <span className="text-text-muted font-normal ml-1">({t('goals.form.descriptionOptional')})</span>
-          </label>
-          <input
-            id="create-goal-description"
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="form-input"
-            placeholder={t('goals.form.descriptionPlaceholder')}
-            maxLength={200}
-          />
-        </div>
+          {/* Description (optional) */}
+          <div>
+            <label
+              htmlFor="create-goal-description"
+              className="form-label"
+            >
+              {t('goals.form.description')}
+              <span className="text-text-muted font-normal ml-1">({t('goals.form.descriptionOptional')})</span>
+            </label>
+            <input
+              id="create-goal-description"
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="form-input"
+              placeholder={t('goals.form.descriptionPlaceholder')}
+              maxLength={200}
+            />
+          </div>
 
-        {/* Deadline */}
-        <div className="space-y-1.5">
-              {deadline ? (
-            <div className="space-y-1.5">
-              <span className="form-label">
-                {t('goals.form.deadline')}
-                <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <AppDatePicker
-                    value={deadline}
-                    onChange={setDeadline}
-                  />
+          {/* Deadline */}
+          <div className="space-y-1.5">
+            {deadline ? (
+              <div className="space-y-1.5">
+                <span className="form-label">
+                  {t('goals.form.deadline')}
+                  <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <AppDatePicker
+                      value={deadline}
+                      onChange={setDeadline}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
+                    onClick={() => setDeadline('')}
+                  >
+                    <X className="size-4" />
+                  </button>
                 </div>
+                {deadline && isGoalDeadlinePast(deadline) && (
+                  <p className="text-xs text-amber-400 font-medium">
+                    {t('goals.form.deadlineInPast')}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <span className="form-label">
+                  {t('goals.form.deadline')}
+                  <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
+                </span>
                 <button
                   type="button"
-                  className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
-                  onClick={() => setDeadline('')}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-1.5"
+                  onClick={() => setDeadline(formatAPIDate(new Date()))}
                 >
-                  <X className="size-4" />
+                  <Plus className="size-3.5" />
+                  {t('goals.form.addDeadline')}
                 </button>
               </div>
-              {deadline && isGoalDeadlinePast(deadline) && (
-                <p className="text-xs text-amber-400 font-medium">
-                  {t('goals.form.deadlineInPast')}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <span className="form-label">
-                {t('goals.form.deadline')}
-                <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-              </span>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-1.5"
-                onClick={() => setDeadline(formatAPIDate(new Date()))}
-              >
-                <Plus className="size-3.5" />
-                {t('goals.form.addDeadline')}
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Submit */}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
+          className={`w-full py-3.5 rounded-[var(--radius-xl)] text-white font-bold text-sm text-center transition-all duration-150 active:scale-[0.98] disabled:opacity-50 ${
+            isStreak
+              ? 'bg-orange-500 hover:bg-orange-500/90 shadow-[0_0_20px_rgba(249,115,22,0.2)]'
+              : 'bg-primary hover:bg-primary/90 shadow-[var(--shadow-glow)]'
+          }`}
         >
           {isSubmitting ? '...' : t('goals.create')}
         </button>
