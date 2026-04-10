@@ -271,7 +271,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="form-input"
-              placeholder={t('goals.form.descriptionPlaceholder')}
+              placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
               maxLength={200}
             />
           </div>

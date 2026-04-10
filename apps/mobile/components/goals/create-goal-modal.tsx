@@ -288,7 +288,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             style={styles.input}
             value={description}
             onChangeText={setDescription}
-            placeholder={t('goals.form.descriptionPlaceholder')}
+            placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
             maxLength={200}
           />

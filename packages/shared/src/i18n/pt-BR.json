@@ -1370,6 +1370,7 @@
       "description": "Descrição",
       "descriptionOptional": "Opcional",
       "descriptionPlaceholder": "ex: Ler 12 livros este ano",
+      "streakDescriptionPlaceholder": "ex: Dias na academia",
       "targetValue": "Quantidade",
       "unit": "Unidade",
       "unitPlaceholder": "ex: livros, músicas, kg",
