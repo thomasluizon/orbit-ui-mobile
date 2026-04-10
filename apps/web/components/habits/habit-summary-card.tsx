@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { SkeletonLine } from '@/components/ui/skeleton'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -52,8 +53,8 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
         </div>
         <p className="text-sm text-text-muted">{t('summary.loading')}</p>
         <div className="space-y-2">
-          <div className="h-3 w-full bg-surface-elevated rounded skeleton-shimmer" />
-          <div className="h-3 w-4/5 bg-surface-elevated rounded skeleton-shimmer" />
+          <SkeletonLine />
+          <SkeletonLine width="w-4/5" />
         </div>
       </div>
     )

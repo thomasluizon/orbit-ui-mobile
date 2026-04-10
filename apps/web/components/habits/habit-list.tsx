@@ -1044,27 +1044,29 @@ const isPostponeAction = useMemo(() => {
         isSelectMode={isSelectMode}
         isSelected={selectedHabitIds?.has(habit.id) ?? false}
         maxHabitDepth={maxHabitDepth}
-        onLog={() => promptLog(habit)}
-        onUnlog={() => logHabit.mutate({ habitId: habit.id })}
-        onForceLogParent={() => {
-          setForceLogHabitId(habit.id)
-          setShowForceLogConfirm(true)
-        }}
-        onSkip={() => promptSkip(habit.id)}
-        onDuplicate={() => promptDuplicate(habit.id)}
-        onEdit={() => {
-          setHabitToEdit(habit)
-          setShowEditModal(true)
-        }}
-        onMoveParent={() => openMoveParentPicker(habit.id)}
-        onDelete={() => promptDelete(habit.id)}
-        onDetail={() => openDetail(habit)}
-        onDrillInto={() => drill.drillInto(habit.id)}
-        onAddSubHabit={() => startAddSubHabit(habit.id)}
         showAddSubHabit
-        onToggleExpand={() => toggleExpand(habit.id)}
-        onToggleSelection={() => onToggleSelection?.(habit.id)}
-        onEnterSelectMode={() => onEnterSelectMode?.(habit.id)}
+        actions={{
+          onLog: () => promptLog(habit),
+          onUnlog: () => logHabit.mutate({ habitId: habit.id }),
+          onForceLogParent: () => {
+            setForceLogHabitId(habit.id)
+            setShowForceLogConfirm(true)
+          },
+          onSkip: () => promptSkip(habit.id),
+          onDuplicate: () => promptDuplicate(habit.id),
+          onEdit: () => {
+            setHabitToEdit(habit)
+            setShowEditModal(true)
+          },
+          onMoveParent: () => openMoveParentPicker(habit.id),
+          onDelete: () => promptDelete(habit.id),
+          onDetail: () => openDetail(habit),
+          onDrillInto: () => drill.drillInto(habit.id),
+          onAddSubHabit: () => startAddSubHabit(habit.id),
+          onToggleExpand: () => toggleExpand(habit.id),
+          onToggleSelection: () => onToggleSelection?.(habit.id),
+          onEnterSelectMode: () => onEnterSelectMode?.(habit.id),
+        }}
       />
     )
   }

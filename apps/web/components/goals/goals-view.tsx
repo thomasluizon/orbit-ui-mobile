@@ -4,6 +4,8 @@ import { useState, useCallback, useMemo } from 'react'
 import { Flag } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
+import { SkeletonCard } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useGoals } from '@/hooks/use-goals'
 import type { GoalStatus } from '@orbit/shared/types/goal'
 
@@ -65,16 +67,7 @@ export function GoalsView() {
       {!isFetched && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={`skeleton-${i}`}
-              className="bg-surface rounded-[var(--radius-xl)] p-5 border border-border-muted shadow-[var(--shadow-sm)]"
-            >
-              <div className="space-y-3">
-                <div className="h-5 w-2/3 bg-surface-elevated rounded animate-pulse" />
-                <div className="h-3 w-full bg-surface-elevated rounded animate-pulse" />
-                <div className="h-2 w-full bg-surface-elevated rounded-full animate-pulse" />
-              </div>
-            </div>
+            <SkeletonCard key={`skeleton-${i}`} lines={3} />
           ))}
         </div>
       )}
@@ -85,18 +78,11 @@ export function GoalsView() {
           {filteredGoals.length > 0 ? (
             <GoalList goals={filteredGoals} />
           ) : (
-            /* Empty state */
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="size-16 rounded-full bg-surface-ground border border-border-muted flex items-center justify-center mb-4">
-                <Flag className="size-8 text-text-muted" />
-              </div>
-              <p className="text-text-secondary font-medium mb-1">
-                {t('goals.empty')}
-              </p>
-              <p className="text-text-muted text-sm">
-                {t('goals.emptyHint')}
-              </p>
-            </div>
+            <EmptyState
+              icon={Flag}
+              title={t('goals.empty')}
+              description={t('goals.emptyHint')}
+            />
           )}
         </>
       )}

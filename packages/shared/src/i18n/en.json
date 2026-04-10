@@ -463,7 +463,11 @@
       "longestStreak": "Longest",
       "monthlyRate": "Month",
       "activity": "Activity",
-      "streakDays": "{n}d"
+      "streakDays": "{n}d",
+      "stats": "Stats",
+      "noDataYet": "No data yet",
+      "showMoreNotes": "Show more",
+      "showLessNotes": "Show less"
     },
     "filter": {
       "daily": "Daily",
@@ -1438,7 +1442,9 @@
       "delete": "Delete Goal",
       "deleteConfirm": "Are you sure you want to delete this goal? This cannot be undone.",
       "edit": "Edit Goal",
-      "loadError": "Could not load full details. Showing cached data."
+      "loadError": "Could not load full details. Showing cached data.",
+      "showAllHistory": "Show all",
+      "showLessHistory": "Show less"
     },
     "filters": {
       "all": "All",

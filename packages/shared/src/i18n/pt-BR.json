@@ -463,7 +463,11 @@
       "longestStreak": "Maior",
       "monthlyRate": "Mensal",
       "activity": "Atividade",
-      "streakDays": "{n}d"
+      "streakDays": "{n}d",
+      "stats": "Estatísticas",
+      "noDataYet": "Nenhum dado ainda",
+      "showMoreNotes": "Ver mais",
+      "showLessNotes": "Ver menos"
     },
     "filter": {
       "daily": "Diário",
@@ -1438,7 +1442,9 @@
       "delete": "Excluir Meta",
       "deleteConfirm": "Tem certeza que deseja excluir esta meta? Esta ação não pode ser desfeita.",
       "edit": "Editar Meta",
-      "loadError": "Não foi possível carregar os detalhes completos. Exibindo dados em cache."
+      "loadError": "Não foi possível carregar os detalhes completos. Exibindo dados em cache.",
+      "showAllHistory": "Ver todos",
+      "showLessHistory": "Ver menos"
     },
     "filters": {
       "all": "Todas",
