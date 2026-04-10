@@ -759,17 +759,17 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
         if (e.key === 'ArrowDown') {
           e.preventDefault()
           const next = current < items.length - 1 ? current + 1 : 0
-          items[next].focus()
+          items[next]?.focus()
         } else if (e.key === 'ArrowUp') {
           e.preventDefault()
           const prev = current > 0 ? current - 1 : items.length - 1
-          items[prev].focus()
+          items[prev]?.focus()
         } else if (e.key === 'Home') {
           e.preventDefault()
-          items[0].focus()
+          items[0]?.focus()
         } else if (e.key === 'End') {
           e.preventDefault()
-          items[items.length - 1].focus()
+          items[items.length - 1]?.focus()
         }
       }}
     >

@@ -24,16 +24,7 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
-
-// ---------------------------------------------------------------------------
-// User facts types
-// ---------------------------------------------------------------------------
-
-interface UserFact {
-  id: string
-  factText: string
-  category: string | null
-}
+import type { UserFact } from '@orbit/shared/types/user-fact'
 
 async function fetchUserFacts(): Promise<UserFact[]> {
   const res = await fetch(API.userFacts.list)

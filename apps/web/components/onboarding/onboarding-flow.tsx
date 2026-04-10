@@ -153,15 +153,15 @@ export function OnboardingFlow() {
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       )
       if (focusable.length === 0) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
+      const first = focusable[0] ?? null
+      const last = focusable[focusable.length - 1] ?? null
       if (e.shiftKey) {
-        if (document.activeElement === first) {
+        if (document.activeElement === first && last) {
           e.preventDefault()
           last.focus()
         }
       } else {
-        if (document.activeElement === last) {
+        if (document.activeElement === last && first) {
           e.preventDefault()
           first.focus()
         }

@@ -7,8 +7,8 @@ import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { isValidEmail } from '@orbit/shared/utils/email'
-import { API } from '@orbit/shared/api'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
+import { sendSupportMessage } from '@/app/actions/support'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 export default function SupportPage() {
@@ -70,23 +70,13 @@ export default function SupportPage() {
     setSuccess(false)
 
     try {
-      const res = await fetch(API.support.send, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          buildSupportRequestBody(profile, {
-            name,
-            email,
-            subject,
-            message,
-          }),
-        ),
+      const payload = buildSupportRequestBody(profile, {
+        name,
+        email,
+        subject,
+        message,
       })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.error ?? body?.message ?? `Failed with status ${res.status}`)
-      }
+      await sendSupportMessage(payload)
 
       setSuccess(true)
       setSubject('')

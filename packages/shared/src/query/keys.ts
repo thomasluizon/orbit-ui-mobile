@@ -8,6 +8,7 @@ export const habitKeys = {
   metrics: (id: string) => [...habitKeys.all, 'metrics', id] as const,
   logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
   calendar: (from: string, to: string) => [...habitKeys.all, 'calendar', from, to] as const,
+  summaryPrefix: () => [...habitKeys.all, 'summary'] as const,
   summary: (from: string, to: string, locale: string = 'en') =>
     [...habitKeys.all, 'summary', from, to, locale] as const,
   retrospective: (period: string) => [...habitKeys.all, 'retrospective', period] as const,
@@ -51,6 +52,7 @@ export const subscriptionKeys = {
   all: ['subscriptions'] as const,
   status: () => [...subscriptionKeys.all, 'status'] as const,
   plans: () => [...subscriptionKeys.all, 'plans'] as const,
+  billing: () => [...subscriptionKeys.all, 'billing'] as const,
 }
 
 export const referralKeys = {
