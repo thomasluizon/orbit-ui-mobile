@@ -8,6 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import {
   ChevronRight,
   Check,
@@ -76,6 +77,7 @@ interface HabitCardProps {
   childrenTotal?: number
   searchQuery?: string
   actions?: HabitCardActions
+  tourTargetId?: string
 }
 
 function withAlpha(color: string, opacity: number, fallback: string): string {
@@ -153,6 +155,7 @@ function HabitBadgesRow({
   t,
   styles,
   displayTime,
+  tagsRef,
 }: Readonly<{
   isChild: boolean
   habit: NormalizedHabit
@@ -164,10 +167,11 @@ function HabitBadgesRow({
   t: ReturnType<typeof useTranslation>['t']
   styles: ReturnType<typeof createStyles>
   displayTime: (value: string | null | undefined) => string
+  tagsRef?: React.RefObject<View | null>
 }>) {
   if (!isChild) {
     return (
-      <View style={styles.badgesRow}>
+      <View ref={tagsRef} style={styles.badgesRow}>
         <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
 
         {flexibleProgressLabel ? (
@@ -315,6 +319,7 @@ export function HabitCard({
   childrenTotal = 0,
   searchQuery = '',
   actions = {},
+  tourTargetId,
 }: HabitCardProps) {
   const {
     onLog,
@@ -337,6 +342,13 @@ export function HabitCard({
   const { colors } = useAppTheme()
   const { displayTime } = useTimeFormat()
   const styles = useMemo(() => createStyles(colors), [colors])
+
+  const cardTourRef = useRef<View>(null)
+  const tagsTourRef = useRef<View>(null)
+  useTourTarget(tourTargetId ?? '__noop__', cardTourRef)
+  // When this card is the tour target, also register it as tour-habit-card
+  useTourTarget(tourTargetId ? 'tour-habit-card' : '__noop__', cardTourRef)
+  useTourTarget(tourTargetId ? 'tour-habit-tags' : '__noop__', tagsTourRef)
 
   const isChild = depth > 0
   const checkedCount =
@@ -460,7 +472,7 @@ export function HabitCard({
   const indentMargin = depth > 0 ? { marginLeft: depth * 24 } : undefined
 
   return (
-    <View style={indentMargin}>
+    <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
       <TouchableOpacity
         style={cardStyle}
         onPress={handleCardPress}
@@ -657,6 +669,7 @@ export function HabitCard({
                 t={t}
                 styles={styles}
                 displayTime={displayTime}
+                tagsRef={tourTargetId ? tagsTourRef : undefined}
               />
             </View>
 

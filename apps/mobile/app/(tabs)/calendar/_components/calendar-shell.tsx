@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react-native";
 import {
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTourTarget } from "@/hooks/use-tour-target";
 
 interface AppColors {
   background: string;
@@ -145,6 +146,8 @@ export function CalendarHeader({
   colors,
 }: CalendarHeaderProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const monthNavRef = useRef<View>(null);
+  useTourTarget("tour-calendar-month-nav", monthNavRef);
 
   return (
     <View style={styles.header}>
@@ -160,7 +163,7 @@ export function CalendarHeader({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.monthNav}>
+      <View ref={monthNavRef} style={styles.monthNav}>
         <TouchableOpacity
           accessibilityLabel={previousMonthLabel}
           style={styles.monthNavButton}
@@ -208,9 +211,11 @@ export function CalendarLegend({
   colors,
 }: CalendarLegendProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const legendRef = useRef<View>(null);
+  useTourTarget("tour-calendar-legend", legendRef);
 
   return (
-    <View style={styles.legend}>
+    <View ref={legendRef} style={styles.legend}>
       <View style={styles.legendItem}>
         <View style={[styles.legendDot, { backgroundColor: colors.green500 }]} />
         <Text style={styles.legendText}>{doneLabel}</Text>

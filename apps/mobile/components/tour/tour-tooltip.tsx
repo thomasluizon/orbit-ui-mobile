@@ -1,5 +1,6 @@
-import { useMemo, useEffect, useState, useCallback } from 'react'
+import { useMemo } from 'react'
 import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
   CheckCircle,
@@ -49,6 +50,7 @@ export function TourTooltip({
 }: TourTooltipProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const styles = useMemo(() => createTooltipStyles(colors), [colors])
 
   const iconKey = step.section ? TOUR_SECTION_ICONS[step.section] : undefined
@@ -60,10 +62,19 @@ export function TourTooltip({
     ? t(`tour.sections.${sectionProgress.section}`)
     : ''
 
-  // On mobile, always render as bottom sheet style
+  // Match web behavior: if target center is in the bottom half, show tooltip at top
+  const screenHeight = Dimensions.get('window').height
+  const targetCenter = targetRect.y + targetRect.height / 2
+  const mode = targetCenter > screenHeight * 0.5 ? 'sheet-top' : 'sheet-bottom'
+
+  const containerStyle = mode === 'sheet-top' ? styles.containerTop : styles.containerBottom
+  const tooltipStyle = mode === 'sheet-top'
+    ? [styles.tooltip, styles.tooltipTop, { paddingTop: insets.top + 12 }]
+    : [styles.tooltip, styles.tooltipBottom]
+
   return (
-    <View style={styles.container}>
-      <View style={styles.tooltip}>
+    <View style={containerStyle}>
+      <View style={tooltipStyle}>
         {/* Handle */}
         <View style={styles.handle} />
 
@@ -139,27 +150,44 @@ export function TourTooltip({
 
 function createTooltipStyles(colors: AppColors) {
   return StyleSheet.create({
-    container: {
+    containerBottom: {
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
       zIndex: 9999,
     },
+    containerTop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 9999,
+    },
     tooltip: {
       backgroundColor: colors.surface,
+      paddingHorizontal: 20,
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 10,
+    },
+    tooltipBottom: {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       borderTopWidth: 1,
       borderColor: colors.border,
-      paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 32,
-      shadowColor: '#000',
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
       shadowOffset: { width: 0, height: -4 },
-      elevation: 10,
+    },
+    tooltipTop: {
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+      paddingBottom: 16,
+      shadowOffset: { width: 0, height: 4 },
     },
     handle: {
       width: 36,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import { usePathname, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
@@ -32,6 +33,8 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const { colors, nav } = useAppTheme()
   const setSelectedDate = useUIStore((s) => s.setSelectedDate)
   const setActiveView = useUIStore((s) => s.setActiveView)
+  const fabRef = useRef<View>(null)
+  useTourTarget('tour-fab-button', fabRef)
 
   const navItems = useMemo<NavItem[]>(
     () => [
@@ -73,7 +76,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
             />
           ))}
 
-          <View style={styles.fabSlot}>
+          <View style={styles.fabSlot} ref={fabRef}>
             <TouchableOpacity
               accessibilityLabel={t('nav.createHabit')}
               activeOpacity={0.85}

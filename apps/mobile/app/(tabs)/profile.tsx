@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { useTourTarget } from '@/hooks/use-tour-target'
+import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import {
   View,
   Text,
@@ -72,6 +74,8 @@ function ProfileStreakCard() {
   const streak = profile?.currentStreak ?? 0
   const router = useRouter()
   const styles = useMemo(() => createStyles(colors), [colors])
+  const streakRef = useRef<View>(null)
+  useTourTarget('tour-profile-streak', streakRef)
 
   const encouragement = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
@@ -85,6 +89,7 @@ function ProfileStreakCard() {
 
   return (
     <TouchableOpacity
+      ref={streakRef}
       style={styles.streakCard}
       onPress={() => router.push('/streak')}
       activeOpacity={0.7}
@@ -159,6 +164,19 @@ export default function ProfileScreen() {
   const { isOnline } = useOffline()
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
   const styles = useMemo(() => createStyles(colors), [colors])
+  const subscriptionRef = useRef<View>(null)
+  const preferencesRef = useRef<View>(null)
+  const retroRef = useRef<View>(null)
+  const achievementsRef = useRef<View>(null)
+  useTourTarget('tour-profile-subscription', subscriptionRef)
+  useTourTarget('tour-profile-preferences', preferencesRef)
+  useTourTarget('tour-profile-retrospective', retroRef)
+  useTourTarget('tour-profile-achievements', achievementsRef)
+  const profileScrollRef = useRef<ScrollView>(null)
+  const profileScrollTo = useCallback((y: number) => {
+    profileScrollRef.current?.scrollTo({ y, animated: true })
+  }, [])
+  const { onTourScroll: onProfileTourScroll } = useTourScrollContainer('/profile', profileScrollTo)
   const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
   const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
 
@@ -360,9 +378,12 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
+        ref={profileScrollRef}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={onProfileTourScroll}
+        scrollEventThrottle={16}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -401,6 +422,7 @@ export default function ProfileScreen() {
 
         {/* Subscription */}
         <TouchableOpacity
+          ref={subscriptionRef}
           style={[
             styles.subscriptionCard,
             isActiveSubscription
@@ -452,15 +474,16 @@ export default function ProfileScreen() {
         {/* ==================== NAVIGATION CARDS ==================== */}
 
         {accountNavItems.map((item) => (
-          <ProfileNavCard
-            key={item.id}
-            colors={colors}
-            onPress={() => router.push(item.route as Href)}
-            icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
-            title={t(item.titleKey)}
-            hint={getNavHint(item)}
-            proBadgeLabel={t('common.proBadge')}
-          />
+          <View key={item.id} ref={item.id === 'preferences' ? preferencesRef : undefined}>
+            <ProfileNavCard
+              colors={colors}
+              onPress={() => router.push(item.route as Href)}
+              icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
+              title={t(item.titleKey)}
+              hint={getNavHint(item)}
+              proBadgeLabel={t('common.proBadge')}
+            />
+          </View>
         ))}
         </View>
 
@@ -476,17 +499,25 @@ export default function ProfileScreen() {
           hint={t('tour.replay.hint')}
         />
         {featureNavItems.map((item) => (
-          <ProfileNavCard
+          <View
             key={item.id}
-            colors={colors}
-            onPress={() => router.push(item.route as Href)}
-            icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
-            title={t(item.titleKey)}
-            hint={getNavHint(item)}
-            variant={item.variant}
+            ref={
+              item.id === 'retrospective' ? retroRef
+              : item.id === 'achievements' ? achievementsRef
+              : undefined
+            }
+          >
+            <ProfileNavCard
+              colors={colors}
+              onPress={() => router.push(item.route as Href)}
+              icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
+              title={t(item.titleKey)}
+              hint={getNavHint(item)}
+              variant={item.variant}
             proBadge={item.proBadge}
             proBadgeLabel={t('common.proBadge')}
           />
+          </View>
         ))}
         </View>
 

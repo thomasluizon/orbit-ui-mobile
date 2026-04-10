@@ -30,6 +30,8 @@ export interface TourStep {
 export type TourPreAction =
   | 'switchToGoalsTab'
   | 'switchToTodayTab'
+  | 'scrollHabitsDown'
+  | 'scrollHabitsUp'
 
 export const TOUR_SECTIONS: TourSection[] = [
   'habits',

@@ -14,6 +14,7 @@ export const TOUR_STEPS: TourStep[] = [
     descriptionKey: 'tour.habits.list.description',
     placement: 'bottom',
     route: '/',
+    preAction: 'scrollHabitsDown',
   },
   {
     id: 'habits-card',
@@ -41,6 +42,7 @@ export const TOUR_STEPS: TourStep[] = [
     descriptionKey: 'tour.habits.tabs.description',
     placement: 'bottom',
     route: '/',
+    preAction: 'scrollHabitsUp',
   },
   {
     id: 'habits-date-nav',

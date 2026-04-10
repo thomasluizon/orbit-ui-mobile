@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
 import { Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -16,18 +17,23 @@ import { useAppTheme } from '@/lib/use-app-theme'
 interface GoalCardProps {
   goal: Goal
   onPress?: (goalId: string) => void
+  tourTargetId?: string
 }
 
 // ---------------------------------------------------------------------------
 // GoalCard
 // ---------------------------------------------------------------------------
 
-export function GoalCard({ goal, onPress }: GoalCardProps) {
+export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const progress = Math.min(100, Math.round(goal.progressPercentage))
   const isStreak = isStreakGoal(goal.type)
   const styles = useMemo(() => createStyles(colors), [colors])
+  const cardRef = useRef<View>(null)
+  const progressRef = useRef<View>(null)
+  useTourTarget(tourTargetId ?? '__noop__', cardRef)
+  useTourTarget(tourTargetId ? 'tour-goal-progress' : '__noop__', progressRef)
 
   // Progress bar color (matches web progressColor logic)
   const progressBarColor = useMemo(() => {
@@ -115,6 +121,7 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
 
   return (
     <TouchableOpacity
+      ref={tourTargetId ? cardRef : undefined}
       style={[styles.card, trackingBorder]}
       onPress={() => onPress?.(goal.id)}
       activeOpacity={0.85}
@@ -159,6 +166,7 @@ export function GoalCard({ goal, onPress }: GoalCardProps) {
 
         {/* Progress bar */}
         <View
+          ref={tourTargetId ? progressRef : undefined}
           style={styles.progressBar}
           accessibilityRole="progressbar"
           accessibilityValue={{

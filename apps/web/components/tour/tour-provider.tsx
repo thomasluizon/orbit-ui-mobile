@@ -93,6 +93,10 @@ export function TourProvider() {
         case 'switchToTodayTab':
           useUIStore.getState().setActiveView('today')
           break
+        case 'scrollHabitsDown':
+        case 'scrollHabitsUp':
+          // Web handles this via scrollIntoView, no-op here
+          break
       }
     },
     [],

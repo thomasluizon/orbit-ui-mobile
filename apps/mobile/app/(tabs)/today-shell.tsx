@@ -1,8 +1,10 @@
+import { useRef } from 'react'
 import { Animated, Image, Text, TouchableOpacity, View, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { useTourTarget } from '@/hooks/use-tour-target'
 
 export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
 
@@ -41,6 +43,11 @@ export function TodayHeader({
   goToTodayLabel: string
   styles: TodayShellStyles
 }) {
+  const streakRef = useRef<View>(null)
+  const bellRef = useRef<View>(null)
+  useTourTarget('tour-streak-badge', streakRef)
+  useTourTarget('tour-notification-bell', bellRef)
+
   return (
     <View style={styles.header}>
       <TouchableOpacity
@@ -62,8 +69,8 @@ export function TodayHeader({
 
       <View style={styles.headerRight}>
         <ThemeToggle />
-        <StreakBadge streak={currentStreak} />
-        <NotificationBell />
+        <View ref={streakRef}><StreakBadge streak={currentStreak} /></View>
+        <View ref={bellRef}><NotificationBell /></View>
       </View>
     </View>
   )
@@ -82,8 +89,13 @@ export function TodayTabs({
   viewsLabel: string
   styles: TodayShellStyles
 }) {
+  const tabsRef = useRef<View>(null)
+  const goalsTabRef = useRef<View>(null)
+  useTourTarget('tour-tabs-bar', tabsRef)
+  useTourTarget('tour-goals-tab', goalsTabRef)
+
   return (
-    <View style={styles.tabsWrapper}>
+    <View style={styles.tabsWrapper} ref={tabsRef}>
       <View
         style={styles.tabsRow}
         accessibilityRole="tablist"
@@ -92,6 +104,7 @@ export function TodayTabs({
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.view}
+            ref={tab.view === 'goals' ? goalsTabRef : undefined}
             style={[styles.tab, activeView === tab.view && styles.tabActive]}
             onPress={() => onChangeView(tab.view)}
             activeOpacity={0.7}
@@ -142,10 +155,13 @@ export function TodayDateNavigation({
   styles: TodayShellStyles
   dateLabelAnim: Animated.Value
 }) {
+  const dateNavRef = useRef<View>(null)
+  useTourTarget('tour-date-nav', dateNavRef)
+
   if (!visible) return null
 
   return (
-    <View style={styles.dateNav}>
+    <View style={styles.dateNav} ref={dateNavRef}>
       <TouchableOpacity
         style={styles.dateNavButton}
         onPress={onGoToPreviousDay}

@@ -25,11 +25,12 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
   return (
     <View style={styles.container}>
       <View style={styles.listContent}>
-        {goals.map((goal) => (
+        {goals.map((goal, index) => (
           <GoalCard
             key={goal.id}
             goal={goal}
             onPress={handleGoalPress}
+            tourTargetId={index === 0 ? 'tour-goal-card' : undefined}
           />
         ))}
       </View>

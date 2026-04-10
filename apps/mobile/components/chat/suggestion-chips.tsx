@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { useTourTarget } from "@/hooks/use-tour-target";
 
 interface SuggestionChipsProps {
   onSelect: (suggestion: string) => void;
@@ -12,6 +13,8 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
   const { colors } = useAppTheme();
 
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const suggestionsRef = useRef<View>(null);
+  useTourTarget("tour-chat-suggestions", suggestionsRef);
 
   const suggestions = useMemo(
     () => [
@@ -23,7 +26,7 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
   );
 
   return (
-    <View style={styles.container}>
+    <View ref={suggestionsRef} style={styles.container}>
       {suggestions.map((suggestion) => (
         <TouchableOpacity
           key={suggestion}

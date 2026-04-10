@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -21,6 +22,7 @@ import {
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
+import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import {
   format,
   isBefore,
@@ -59,6 +61,8 @@ import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
+import { useTourStore } from '@/stores/tour-store'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { HabitCard } from './habit-card'
@@ -97,6 +101,7 @@ export interface HabitListHandle {
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
   refetch: () => void
+  scrollToOffset: (offset: number) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +200,35 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
+  const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
+  const scrollTo = useCallback((y: number) => {
+    scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
+  }, [])
+  const { onTourScroll } = useTourScrollContainer('/', scrollTo)
+
+  // When the tour step changes, scroll the list to show the target
+  const isTourActive = useTourStore((s) => s.isActive)
+  const tourStepIndex = useTourStore((s) => s.currentStepIndex)
+  useEffect(() => {
+    if (!isTourActive) return
+    const stepId = useTourStore.getState().getCurrentStep()?.id
+    if (!stepId) return
+    // Steps that need the list scrolled down (to show habit cards)
+    if (stepId === 'habits-list' || stepId === 'habits-card' || stepId === 'habits-tags') {
+      const timer = setTimeout(() => {
+        scrollContainerRef.current?.scrollToOffset({ offset: 350, animated: true })
+      }, 400)
+      return () => clearTimeout(timer)
+    }
+    // Steps that need the list scrolled up (to show header elements)
+    if (stepId === 'habits-tabs' || stepId === 'habits-date-nav' || stepId === 'habits-streak' || stepId === 'habits-notifications') {
+      const timer = setTimeout(() => {
+        scrollContainerRef.current?.scrollToOffset({ offset: 0, animated: true })
+      }, 400)
+      return () => clearTimeout(timer)
+    }
+  }, [isTourActive, tourStepIndex])
+
   const { config: appConfig } = useConfig()
   const maxHabitDepth = appConfig.limits.maxHabitDepth
   const habitsQuery = useHabits(filters)
@@ -936,6 +970,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       refetch: () => {
         refetch()
       },
+      scrollToOffset: (offset: number) => {
+        try {
+          scrollContainerRef.current?.scrollToOffset?.({ offset, animated: true })
+        } catch {
+          // Scroll failed
+        }
+      },
     }),
     [
       allCollapsed,
@@ -956,6 +997,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       hasSubHabits: boolean,
       options?: {
         onLongPressCard?: () => void
+        tourTargetId?: string
       },
     ) => {
       const progress = hasChildren
@@ -970,6 +1012,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           depth={depth}
           hasChildren={hasChildren}
           hasSubHabits={hasSubHabits}
+          tourTargetId={options?.tourTargetId}
           isExpanded={!collapsedIds.has(habit.id)}
           childrenDone={progress.done}
           childrenTotal={progress.total}
@@ -1092,10 +1135,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   )
 
   const renderItem = useCallback(
-    ({ item, drag }: RenderItemParams<DragItem>) => (
+    ({ item, drag, getIndex }: RenderItemParams<DragItem>) => (
       <View style={styles.sectionInset}>
         {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, {
           onLongPressCard: isDndEnabled ? () => prepareDrag(item, drag) : undefined,
+          tourTargetId: getIndex() === 0 ? 'tour-habit-list' : undefined,
         })}
       </View>
     ),
@@ -1572,6 +1616,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   return (
     <>
       <DraggableFlatList
+        ref={scrollContainerRef}
         data={activeDragItems}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
@@ -1586,6 +1631,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         ListHeaderComponent={listHeaderComponent}
         ListEmptyComponent={renderEmptyState(view)}
         ListFooterComponent={generalHabitSection}
+        onScroll={onTourScroll}
+        scrollEventThrottle={16}
         onScrollBeginDrag={onScrollBeginDrag}
         showsVerticalScrollIndicator={false}
       />

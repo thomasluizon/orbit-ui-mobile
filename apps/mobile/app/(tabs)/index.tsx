@@ -70,6 +70,7 @@ import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import {
   TodayHeader,
   TodayTabs,
@@ -135,6 +136,11 @@ export default function TodayScreen() {
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const habitListRef = useRef<HabitListHandle>(null)
+  const goalsScrollRef = useRef<ScrollView>(null)
+  const goalsScrollTo = useCallback((y: number) => {
+    goalsScrollRef.current?.scrollTo({ y, animated: true })
+  }, [])
+  const { onTourScroll: onGoalsTourScroll } = useTourScrollContainer('/', goalsScrollTo)
   const controlsButtonRef = useRef<View>(null)
   const previousActiveViewRef = useRef(activeView)
   const dateLabelAnim = useRef(new Animated.Value(0)).current
@@ -817,6 +823,7 @@ export default function TodayScreen() {
     >
       {activeView === 'goals' ? (
         <ScrollView
+          ref={goalsScrollRef}
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
@@ -824,6 +831,8 @@ export default function TodayScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onScroll={onGoalsTourScroll}
+          scrollEventThrottle={16}
           onScrollBeginDrag={handleListScrollBeginDrag}
         >
           {sharedHeader}

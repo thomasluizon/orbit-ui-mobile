@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useTourTarget } from "@/hooks/use-tour-target";
+import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import {
   Animated,
   View,
@@ -257,6 +259,15 @@ export default function CalendarScreen() {
   const { colors } = useAppTheme();
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1;
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const calendarGridRef = useRef<View>(null);
+  const calendarDayRef = useRef<View>(null);
+  const calendarScrollRef = useRef<ScrollView>(null);
+  useTourTarget("tour-calendar-grid", calendarGridRef);
+  useTourTarget("tour-calendar-day", calendarDayRef);
+  const calendarScrollTo = useCallback((y: number) => {
+    calendarScrollRef.current?.scrollTo({ y, animated: true });
+  }, []);
+  const { onTourScroll: onCalendarTourScroll } = useTourScrollContainer("/calendar", calendarScrollTo);
 
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(new Date()),
@@ -383,9 +394,12 @@ export default function CalendarScreen() {
   return (
     <SafeAreaView style={styles.safeArea} {...swipePanResponder.panHandlers}>
       <ScrollView
+        ref={calendarScrollRef}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={onCalendarTourScroll}
+        scrollEventThrottle={16}
       >
         <CalendarHeader
           title={t("nav.calendar")}
@@ -414,6 +428,7 @@ export default function CalendarScreen() {
 
         {!isLoading && (
           <View
+            ref={calendarGridRef}
             style={[
               styles.calendarCard,
               isFetching && !isLoading ? styles.calendarCardFetching : null,
@@ -439,6 +454,7 @@ export default function CalendarScreen() {
                   return (
                     <TouchableOpacity
                       key={cell.dateStr}
+                      ref={cell.isToday ? calendarDayRef : undefined}
                       style={[
                         styles.dayCell,
                         { backgroundColor: bgColor },

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
   Text,
@@ -189,6 +190,12 @@ export default function ChatScreen() {
   const queryClient = useQueryClient();
   const { profile } = useProfile();
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const chatAreaRef = useRef<View>(null);
+  const chatInputRef = useRef<View>(null);
+  const chatVoiceRef = useRef<View>(null);
+  useTourTarget('tour-chat-area', chatAreaRef);
+  useTourTarget('tour-chat-input', chatInputRef);
+  useTourTarget('tour-chat-voice', chatVoiceRef);
   const messages = useChatStore((s) => s.messages);
   const isTyping = useChatStore((s) => s.isTyping);
   const addMessage = useChatStore((s) => s.addMessage);
@@ -521,7 +528,7 @@ export default function ChatScreen() {
         </View>
 
         {showSuggestions ? (
-          <View style={styles.emptyState}>
+          <View ref={chatAreaRef} style={styles.emptyState}>
             <AnimatedSparkle primaryColor={colors.primary} styles={styles} />
             <Text style={styles.emptyText}>{t("chat.suggestion.prompt")}</Text>
             <SuggestionChips
@@ -531,21 +538,24 @@ export default function ChatScreen() {
             />
           </View>
         ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.messageList}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={scrollToBottom}
-            ListFooterComponent={isTyping ? <TypingIndicator /> : null}
-            accessibilityLabel={t("chat.title")}
-            accessibilityLiveRegion="polite"
-          />
+          <View ref={chatAreaRef} style={{ flex: 1 }}>
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={keyExtractor}
+              contentContainerStyle={styles.messageList}
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={scrollToBottom}
+              ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+              accessibilityLabel={t("chat.title")}
+              accessibilityLiveRegion="polite"
+            />
+          </View>
         )}
 
         <View
+          ref={chatInputRef}
           style={[
             styles.inputArea,
             {
@@ -658,7 +668,7 @@ export default function ChatScreen() {
                 </TouchableOpacity>
 
                 {speechSupported && (
-                  <View style={styles.languageControl}>
+                  <View ref={chatVoiceRef} style={styles.languageControl}>
                     <TouchableOpacity
                       accessibilityRole="button"
                       accessibilityLabel={t("chat.toggleMic")}
