@@ -42,21 +42,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 // Props
 // ---------------------------------------------------------------------------
 
-interface HabitCardProps {
-  habit: NormalizedHabit
-  selectedDate?: Date
-  depth?: number
-  isSelectMode?: boolean
-  isSelected?: boolean
-  isJustCreated?: boolean
-  showAddSubHabit?: boolean
-  hasChildren?: boolean
-  hasSubHabits?: boolean
-  isExpanded?: boolean
-  isLastChild?: boolean
-  childrenDone?: number
-  childrenTotal?: number
-  searchQuery?: string
+export interface HabitCardActions {
   onLog?: () => void
   onUnlog?: () => void
   onSkip?: () => void
@@ -72,6 +58,24 @@ interface HabitCardProps {
   onForceLogParent?: () => void
   onEnterSelectMode?: () => void
   onLongPressCard?: () => void
+}
+
+interface HabitCardProps {
+  habit: NormalizedHabit
+  selectedDate?: Date
+  depth?: number
+  isSelectMode?: boolean
+  isSelected?: boolean
+  isJustCreated?: boolean
+  showAddSubHabit?: boolean
+  hasChildren?: boolean
+  hasSubHabits?: boolean
+  isExpanded?: boolean
+  isLastChild?: boolean
+  childrenDone?: number
+  childrenTotal?: number
+  searchQuery?: string
+  actions?: HabitCardActions
 }
 
 function withAlpha(color: string, opacity: number, fallback: string): string {
@@ -310,22 +314,25 @@ export function HabitCard({
   childrenDone = 0,
   childrenTotal = 0,
   searchQuery = '',
-  onLog,
-  onUnlog,
-  onSkip,
-  onDelete,
-  onDuplicate,
-  onEdit,
-  onMoveParent,
-  onDetail,
-  onDrillInto,
-  onToggleSelection,
-  onAddSubHabit,
-  onToggleExpand,
-  onForceLogParent,
-  onEnterSelectMode,
-  onLongPressCard,
+  actions = {},
 }: HabitCardProps) {
+  const {
+    onLog,
+    onUnlog,
+    onSkip,
+    onDelete,
+    onDuplicate,
+    onEdit,
+    onMoveParent,
+    onDetail,
+    onDrillInto,
+    onToggleSelection,
+    onAddSubHabit,
+    onToggleExpand,
+    onForceLogParent,
+    onEnterSelectMode,
+    onLongPressCard,
+  } = actions
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const { displayTime } = useTimeFormat()

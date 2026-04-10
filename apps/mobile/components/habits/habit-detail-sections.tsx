@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { BarChart3, Flame, Trophy } from 'lucide-react-native'
-import { Text, View, type TextStyle, type ViewStyle } from 'react-native'
+import { Text, TouchableOpacity, View, type TextStyle, type ViewStyle } from 'react-native'
 
 type TranslationFn = (key: string, values?: Record<string, unknown>) => string
+
+const NOTES_PREVIEW_COUNT = 2
 
 export interface HabitDetailMetrics {
   currentStreak: number
@@ -34,6 +37,8 @@ export interface HabitDetailSectionStyles {
   editButtonText: TextStyle
   deleteButton: ViewStyle
   deleteButtonText: TextStyle
+  showMoreButton?: TextStyle
+  noDataText?: TextStyle
 }
 
 interface HabitDetailStatsGridProps {
@@ -46,19 +51,23 @@ interface HabitDetailStatsGridProps {
     borderMuted: string
     textSecondary: string
     textPrimary: string
+    textMuted: string
   }
   styles: Pick<
     HabitDetailSectionStyles,
-    'statsGrid' | 'statCard' | 'statLabel' | 'statValue' | 'skeletonIcon' | 'skeletonLabel' | 'skeletonValue'
+    'statsGrid' | 'statCard' | 'statLabel' | 'statValue' | 'skeletonIcon' | 'skeletonLabel' | 'skeletonValue' | 'sectionTitle' | 'noDataText'
   >
 }
 
 interface HabitDetailRecentNotesProps {
   notes: HabitDetailNote[]
   t: TranslationFn
+  colors: {
+    primary: string
+  }
   styles: Pick<
     HabitDetailSectionStyles,
-    'notesSection' | 'sectionTitle' | 'notesList' | 'noteCard' | 'noteDate' | 'noteText'
+    'notesSection' | 'sectionTitle' | 'notesList' | 'noteCard' | 'noteDate' | 'noteText' | 'showMoreButton'
   >
 }
 

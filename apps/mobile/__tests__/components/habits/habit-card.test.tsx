@@ -88,8 +88,7 @@ describe('HabitCard', () => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
-          onLongPressCard={onLongPressCard}
-          onEnterSelectMode={onEnterSelectMode}
+          actions={{ onLongPressCard, onEnterSelectMode }}
         />,
       )
     })
@@ -112,7 +111,7 @@ describe('HabitCard', () => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
-          onDetail={onDetail}
+          actions={{ onDetail }}
         />,
       )
     })
@@ -135,7 +134,7 @@ describe('HabitCard', () => {
         <HabitCard
           habit={createMockHabit()}
           isSelectMode
-          onToggleSelection={onToggleSelection}
+          actions={{ onToggleSelection }}
         />,
       )
     })
@@ -157,7 +156,7 @@ describe('HabitCard', () => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
-          onEnterSelectMode={onEnterSelectMode}
+          actions={{ onEnterSelectMode }}
         />,
       )
     })

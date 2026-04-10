@@ -495,6 +495,9 @@
       "upcoming": "Próximo",
       "missed": "Perdido"
     },
+    "summary": {
+      "days": "dias completados"
+    },
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
     },

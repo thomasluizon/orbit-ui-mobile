@@ -5,6 +5,7 @@ import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCalendarData } from '@/hooks/use-calendar-data'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import {
@@ -25,6 +26,22 @@ export default function CalendarPage() {
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
   const monthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }), [currentMonth, dateFnsLocale])
+
+  // Mini completion summary for the header
+  const monthSummary = useMemo(() => {
+    if (isLoading || dayMap.size === 0) return null
+    let daysWithActivity = 0
+    let daysCompleted = 0
+    dayMap.forEach((entries: CalendarDayEntry[]) => {
+      if (entries.length === 0) return
+      daysWithActivity++
+      const allDone = entries.every((e) => e.status === 'completed')
+      if (allDone) daysCompleted++
+    })
+    if (daysWithActivity === 0) return null
+    const pct = Math.round((daysCompleted / daysWithActivity) * 100)
+    return `${daysCompleted}/${daysWithActivity} ${t('calendar.summary.days')} (${pct}%)`
+  }, [dayMap, isLoading, t])
 
   const prevMonth = useCallback(() => {
     setCurrentMonth((m) => subMonths(m, 1))
@@ -78,6 +95,7 @@ export default function CalendarPage() {
       <CalendarHeader
         title={t('nav.calendar')}
         monthLabel={monthLabel}
+        subtitle={monthSummary}
         goToTodayLabel={t('dates.goToToday')}
         previousMonthLabel={t('common.previousMonth')}
         nextMonthLabel={t('common.nextMonth')}
