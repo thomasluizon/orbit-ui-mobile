@@ -20,12 +20,14 @@ vi.mock('next/link', () => ({
 }))
 
 const mockPush = vi.fn()
+const mockSearchParams = new URLSearchParams()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     back: vi.fn(),
     refresh: vi.fn(),
   }),
+  useSearchParams: () => mockSearchParams,
 }))
 
 vi.mock('@/lib/plural', () => ({
@@ -58,8 +60,62 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@orbit/shared/api', () => ({
   API: {
-    calendar: { events: '/api/calendar/events' },
+    calendar: {
+      events: '/api/calendar/events',
+      dismiss: '/api/calendar/dismiss',
+      autoSyncState: '/api/calendar/auto-sync/state',
+      autoSync: '/api/calendar/auto-sync',
+      autoSyncSuggestions: '/api/calendar/auto-sync/suggestions',
+      autoSyncDismissSuggestion: (id: string) =>
+        `/api/calendar/auto-sync/suggestions/${id}/dismiss`,
+      autoSyncRun: '/api/calendar/auto-sync/run',
+    },
   },
+}))
+
+// Default auto-sync hook state -- tests can override via the setters below
+let mockAutoSyncState: {
+  data:
+    | {
+        enabled: boolean
+        status: 'Idle' | 'ReconnectRequired' | 'TransientError'
+        lastSyncedAt: string | null
+        hasGoogleConnection: boolean
+      }
+    | undefined
+  isLoading: boolean
+} = {
+  data: {
+    enabled: false,
+    status: 'Idle',
+    lastSyncedAt: null,
+    hasGoogleConnection: true,
+  },
+  isLoading: false,
+}
+let mockSuggestions: { data: unknown[] | undefined; isLoading: boolean } = {
+  data: [],
+  isLoading: false,
+}
+const mockSetAutoSync = vi.fn()
+const mockRunSyncNow = vi.fn()
+const mockDismissSuggestion = vi.fn()
+
+vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+  useCalendarAutoSyncState: () => mockAutoSyncState,
+  useCalendarSyncSuggestions: () => mockSuggestions,
+  useSetCalendarAutoSync: () => ({
+    mutate: mockSetAutoSync,
+    isPending: false,
+  }),
+  useRunCalendarSyncNow: () => ({
+    mutate: mockRunSyncNow,
+    isPending: false,
+  }),
+  useDismissCalendarSuggestion: () => ({
+    mutate: mockDismissSuggestion,
+    isPending: false,
+  }),
 }))
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
@@ -69,6 +125,13 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
     getErrorMessage: (err: unknown, fallback: string) => fallback,
   }
 })
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
 
 // Control fetch responses
 let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknown> } | null = null
@@ -92,6 +155,20 @@ describe('CalendarSyncPage', () => {
     mockPush.mockClear()
     mockBulkMutate.mockClear()
     mockFetchResponse = null
+    mockSearchParams.delete('mode')
+    mockAutoSyncState = {
+      data: {
+        enabled: false,
+        status: 'Idle',
+        lastSyncedAt: null,
+        hasGoogleConnection: true,
+      },
+      isLoading: false,
+    }
+    mockSuggestions = { data: [], isLoading: false }
+    mockSetAutoSync.mockClear()
+    mockRunSyncNow.mockClear()
+    mockDismissSuggestion.mockClear()
 
     // Default: loading state (fetch never resolves immediately)
     globalThis.fetch = vi.fn().mockImplementation(() => {
