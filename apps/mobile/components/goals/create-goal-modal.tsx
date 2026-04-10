@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
-import { Plus, X, Target, Flame, Info } from 'lucide-react-native'
+import { Plus, X, Target, Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -236,13 +236,21 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
           </TouchableOpacity>
         </View>
 
-        {/* Streak hint */}
+        {/* Streak how-it-works hints */}
         {isStreak && (
-          <View style={styles.streakHint}>
-            <Info size={14} color={colors.orange400 ?? '#fb923c'} />
-            <Text style={styles.streakHintText}>
-              {t('goals.form.typeStreakHint')}
-            </Text>
+          <View style={styles.streakHints}>
+            <View style={styles.streakHintGood}>
+              <Text style={styles.streakHintIcon}>+</Text>
+              <Text style={styles.streakHintGoodText}>
+                {t('goals.form.typeStreakHintGood')}
+              </Text>
+            </View>
+            <View style={styles.streakHintBad}>
+              <Text style={styles.streakHintIcon}>!</Text>
+              <Text style={styles.streakHintBadText}>
+                {t('goals.form.typeStreakHintBad')}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -474,22 +482,47 @@ function createStyles(colors: AppColors, bottomInset: number) {
       lineHeight: 14,
       marginTop: 6,
     },
-    // Streak hint
-    streakHint: {
+    // Streak hints
+    streakHints: {
+      gap: 8,
+    },
+    streakHintGood: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 10,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 10,
       borderRadius: goalRadius.lg,
-      backgroundColor: `${orange500}14`,
+      backgroundColor: '#22c55e14',
       borderWidth: 1,
-      borderColor: `${orange500}26`,
+      borderColor: '#22c55e26',
     },
-    streakHintText: {
+    streakHintBad: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: goalRadius.lg,
+      backgroundColor: '#ef444414',
+      borderWidth: 1,
+      borderColor: '#ef444426',
+    },
+    streakHintIcon: {
+      fontSize: 12,
+      marginTop: 1,
+      color: colors.textMuted,
+    },
+    streakHintGoodText: {
       flex: 1,
       fontSize: 11,
-      color: `${orange400}E6`,
+      color: '#86efacE6',
+      lineHeight: 16,
+    },
+    streakHintBadText: {
+      flex: 1,
+      fontSize: 11,
+      color: '#fca5a5E6',
       lineHeight: 16,
     },
     deadlineRow: {

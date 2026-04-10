@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Plus, X, Target, Flame, Info } from 'lucide-react'
+import { Plus, X, Target, Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
@@ -203,13 +203,21 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
           </button>
         </div>
 
-        {/* Streak reset hint */}
+        {/* Streak how-it-works hints */}
         {isStreak && (
-          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-[var(--radius-lg)] bg-orange-500/8 border border-orange-500/15">
-            <Info className="size-3.5 text-orange-400 mt-0.5 shrink-0" />
-            <p className="text-[11px] text-orange-300/90 leading-relaxed">
-              {t('goals.form.typeStreakHint')}
-            </p>
+          <div className="space-y-2 -mt-1">
+            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-lg)] bg-green-500/8 border border-green-500/15">
+              <span className="text-xs mt-px shrink-0">+</span>
+              <p className="text-[11px] text-green-300/90 leading-relaxed">
+                {t('goals.form.typeStreakHintGood')}
+              </p>
+            </div>
+            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-lg)] bg-red-500/8 border border-red-500/15">
+              <span className="text-xs mt-px shrink-0">!</span>
+              <p className="text-[11px] text-red-300/90 leading-relaxed">
+                {t('goals.form.typeStreakHintBad')}
+              </p>
+            </div>
           </div>
         )}
 
