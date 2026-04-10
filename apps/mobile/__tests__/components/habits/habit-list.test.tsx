@@ -387,7 +387,7 @@ describe('HabitList', () => {
       .find((node: any) => node.props.habit.id === 'parent')
 
     TestRenderer.act(() => {
-      parentCard?.props.onForceLogParent()
+      parentCard?.props.actions.onForceLogParent()
     })
 
     const forceLogDialog = tree.root

@@ -44,6 +44,7 @@ describe('habit detail sections', () => {
             borderMuted: '#cbd5e1',
             textSecondary: '#334155',
             textPrimary: '#0f172a',
+            textMuted: '#94a3b8',
           }}
           styles={{
             statsGrid: { flexDirection: 'row' },
@@ -53,6 +54,8 @@ describe('habit detail sections', () => {
             skeletonIcon: { width: 20, height: 20 },
             skeletonLabel: { width: 40, height: 10 },
             skeletonValue: { width: 32, height: 20 },
+            sectionTitle: { fontSize: 14 },
+            noDataText: { fontSize: 14 },
           }}
         />,
       )
@@ -77,6 +80,7 @@ describe('habit detail sections', () => {
             },
           ]}
           t={(key) => key}
+          colors={{ primary: '#2563eb' }}
           styles={{
             notesSection: { gap: 8 },
             sectionTitle: { fontSize: 14 },
@@ -84,6 +88,7 @@ describe('habit detail sections', () => {
             noteCard: { padding: 12 },
             noteDate: { fontSize: 10 },
             noteText: { fontSize: 14 },
+            showMoreButton: { fontSize: 12 },
           }}
         />,
       )

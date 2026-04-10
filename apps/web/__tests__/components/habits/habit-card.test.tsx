@@ -86,7 +86,7 @@ describe('HabitCard', () => {
   it('calls onDetail when card is clicked', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
-    render(<HabitCard habit={habit} onDetail={onDetail} />)
+    render(<HabitCard habit={habit} actions={{ onDetail }} />)
     fireEvent.click(screen.getByLabelText('Exercise'))
     expect(onDetail).toHaveBeenCalledOnce()
   })
@@ -99,8 +99,7 @@ describe('HabitCard', () => {
       <HabitCard
         habit={habit}
         isSelectMode={true}
-        onDetail={onDetail}
-        onToggleSelection={onToggleSelection}
+        actions={{ onDetail, onToggleSelection }}
       />,
     )
     fireEvent.click(screen.getByLabelText('Exercise'))
@@ -111,7 +110,7 @@ describe('HabitCard', () => {
   it('calls onLog when log button is clicked on incomplete habit', () => {
     const onLog = vi.fn()
     const habit = createMockHabit({ isCompleted: false })
-    render(<HabitCard habit={habit} onLog={onLog} />)
+    render(<HabitCard habit={habit} actions={{ onLog }} />)
     const logBtn = screen.getByLabelText('habits.logHabit')
     fireEvent.click(logBtn)
     expect(onLog).toHaveBeenCalledOnce()
@@ -120,7 +119,7 @@ describe('HabitCard', () => {
   it('calls onUnlog when log button is clicked on completed habit', () => {
     const onUnlog = vi.fn()
     const habit = createMockHabit({ isCompleted: true })
-    render(<HabitCard habit={habit} onUnlog={onUnlog} />)
+    render(<HabitCard habit={habit} actions={{ onUnlog }} />)
     const unlogBtn = screen.getByLabelText(
       /habits\.actions\.unlog/,
     )
@@ -238,7 +237,7 @@ describe('HabitCard', () => {
   it('calls onDelete when delete menu item is clicked', () => {
     const onDelete = vi.fn()
     const habit = createMockHabit()
-    render(<HabitCard habit={habit} onDelete={onDelete} />)
+    render(<HabitCard habit={habit} actions={{ onDelete }} />)
     fireEvent.click(screen.getByLabelText('habits.actions.more'))
     fireEvent.click(screen.getByText('common.delete'))
     expect(onDelete).toHaveBeenCalledOnce()
@@ -254,7 +253,7 @@ describe('HabitCard', () => {
   it('calls onDuplicate when duplicate menu item is clicked', () => {
     const onDuplicate = vi.fn()
     const habit = createMockHabit()
-    render(<HabitCard habit={habit} onDuplicate={onDuplicate} />)
+    render(<HabitCard habit={habit} actions={{ onDuplicate }} />)
     fireEvent.click(screen.getByLabelText('habits.actions.more'))
     fireEvent.click(screen.getByText('habits.actions.duplicate'))
     expect(onDuplicate).toHaveBeenCalledOnce()
@@ -296,7 +295,7 @@ describe('HabitCard', () => {
         hasChildren={true}
         childrenDone={1}
         childrenTotal={3}
-        onToggleExpand={onToggleExpand}
+        actions={{ onToggleExpand }}
       />,
     )
     fireEvent.click(screen.getByLabelText('habits.collapseAll'))
@@ -356,7 +355,7 @@ describe('HabitCard', () => {
   it('card div is focusable and clickable (Enter/Space handled via onKeyDown)', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
-    render(<HabitCard habit={habit} onDetail={onDetail} />)
+    render(<HabitCard habit={habit} actions={{ onDetail }} />)
     const card = screen.getByLabelText('Exercise')
     expect(card.tagName).toBe('DIV')
     expect(card.getAttribute('role')).toBe('button')

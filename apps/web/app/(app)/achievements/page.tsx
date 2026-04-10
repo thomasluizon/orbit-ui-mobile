@@ -7,6 +7,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection } from './_components/achievement-category-section'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { SkeletonCard } from '@/components/ui/skeleton'
 
 export default function AchievementsPage() {
   const t = useTranslations()
@@ -57,11 +58,7 @@ export default function AchievementsPage() {
           {/* Loading state */}
           {isLoading && !profile && (
             <div className="space-y-4">
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <div className="h-8 w-32 bg-surface-elevated rounded animate-pulse" />
-                <div className="h-4 w-48 bg-surface-elevated rounded animate-pulse" />
-                <div className="h-3 w-full bg-surface-elevated rounded-full animate-pulse" />
-              </div>
+              <SkeletonCard lines={3} />
             </div>
           )}
 

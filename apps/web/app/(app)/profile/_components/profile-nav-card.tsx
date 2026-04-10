@@ -33,10 +33,10 @@ export function ProfileNavCard({
       aria-labelledby={titleId}
       aria-describedby={hintId}
       data-testid={isPrimary ? 'profile-primary-card' : undefined}
-      className={`w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200 group ${
+      className={`w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] surface-interactive group ${
         isPrimary
-          ? 'bg-[var(--primary-tint-bg)] border-[var(--primary-tint-border)] hover:bg-[var(--primary-tint-bg-hover)] hover:border-[var(--primary-tint-border-hover)] hover:shadow-[var(--shadow-md)]'
-          : 'bg-surface border-border-muted hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border'
+          ? 'bg-[var(--primary-tint-bg)] border-[var(--primary-tint-border)] hover:bg-[var(--primary-tint-bg-hover)] hover:border-[var(--primary-tint-border-hover)]'
+          : 'bg-surface border-border-muted hover:bg-surface-elevated hover:border-border'
       }`}
     >
       <div

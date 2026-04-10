@@ -38,7 +38,7 @@ describe('GoalsView', () => {
     mockGoalsData = undefined
     mockIsFetched = false
     const { container } = render(<GoalsView />)
-    const skeletons = container.querySelectorAll('.animate-pulse')
+    const skeletons = container.querySelectorAll('.skeleton-shimmer')
     expect(skeletons.length).toBeGreaterThan(0)
   })
 

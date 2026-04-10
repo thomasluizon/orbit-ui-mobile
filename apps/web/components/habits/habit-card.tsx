@@ -15,6 +15,7 @@ import {
   Trash2,
   ClipboardCheck,
   Flame,
+  type LucideIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { HighlightText } from '@/components/ui/highlight-text'
@@ -34,6 +35,32 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 // Props
 // ---------------------------------------------------------------------------
 
+export interface HabitCardActions {
+  onLog?: () => void
+  onUnlog?: () => void
+  onSkip?: () => void
+  onDelete?: () => void
+  onDuplicate?: () => void
+  onEdit?: () => void
+  onMoveParent?: () => void
+  onDetail?: () => void
+  onDrillInto?: () => void
+  onToggleSelection?: () => void
+  onAddSubHabit?: () => void
+  onToggleExpand?: () => void
+  onForceLogParent?: () => void
+  onEnterSelectMode?: () => void
+}
+
+interface MenuAction {
+  key: string
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+  variant?: 'danger'
+  hidden?: boolean
+}
+
 interface HabitCardProps {
   habit: NormalizedHabit
   selectedDate?: Date
@@ -51,20 +78,7 @@ interface HabitCardProps {
   childrenTotal?: number
   searchQuery?: string
   maxHabitDepth?: number
-  onLog?: () => void
-  onUnlog?: () => void
-  onSkip?: () => void
-  onDelete?: () => void
-  onDuplicate?: () => void
-  onEdit?: () => void
-  onMoveParent?: () => void
-  onDetail?: () => void
-  onDrillInto?: () => void
-  onToggleSelection?: () => void
-  onAddSubHabit?: () => void
-  onToggleExpand?: () => void
-  onForceLogParent?: () => void
-  onEnterSelectMode?: () => void
+  actions?: HabitCardActions
 }
 
 /** Build article className from flags (replaces long ternary chain). */
@@ -701,36 +715,14 @@ function MenuActionButton({
 // Actions menu panel (portal) - S6852: tabIndex for focusability
 // ---------------------------------------------------------------------------
 
-function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit, depth, maxHabitDepth, canSkip, isPostpone, hasSubHabits, onAddSubHabit, onMoveParent, onSkip, onEdit, onDuplicate, onEnterSelectMode, onDelete, onDrillInto, closeMenu }: Readonly<{
+function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, closeMenu }: Readonly<{
   panelRef: React.RefObject<HTMLDivElement | null>
   menuPosition: { top: number; left: number }
   menuOpensUp: boolean
-  showAddSubHabit: boolean
-  depth: number
-  maxHabitDepth: number
-  canSkip: boolean
-  isPostpone: boolean
-  hasSubHabits: boolean
-  onAddSubHabit: (() => void) | undefined
-  onMoveParent: (() => void) | undefined
-  onSkip: (() => void) | undefined
-  onEdit: (() => void) | undefined
-  onDuplicate: (() => void) | undefined
-  onEnterSelectMode: (() => void) | undefined
-  onDelete: (() => void) | undefined
-  onDrillInto: (() => void) | undefined
+  menuItems: MenuAction[]
   closeMenu: () => void
 }>) {
-  const t = useTranslations()
-
-  const handleAction = useCallback(
-    (action: (() => void) | undefined) => (e: React.MouseEvent) => {
-      e.stopPropagation()
-      action?.()
-      closeMenu()
-    },
-    [closeMenu],
-  )
+  const dangerIndex = menuItems.findIndex((item) => item.variant === 'danger')
 
   return createPortal(
     <div
@@ -746,69 +738,32 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, showAddSubHabit
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => { if (e.key === 'Escape') closeMenu() }}
     >
-      {showAddSubHabit && depth < maxHabitDepth - 1 && (
-        <MenuActionButton
-          label={t('habits.form.addSubHabit')}
-          icon={<Plus className="size-4 text-text-muted" />}
-          onClick={handleAction(onAddSubHabit)}
-          className="text-text-primary hover:bg-surface-elevated/60"
-        />
-      )}
-
-      <MenuActionButton
-        label={t('habits.moveParent.button')}
-        icon={<ArrowRight className="size-4 text-text-muted" />}
-        onClick={handleAction(onMoveParent)}
-        className="text-text-primary hover:bg-surface-elevated/60"
-      />
-
-      {canSkip && (
-        <MenuActionButton
-          label={isPostpone ? t('habits.actions.postpone') : t('habits.actions.skip')}
-          icon={<FastForward className="size-4" />}
-          onClick={handleAction(onSkip)}
-          className="text-amber-400 hover:bg-amber-500/10"
-        />
-      )}
-
-      <MenuActionButton
-        label={t('common.edit')}
-        icon={<Pencil className="size-4 text-text-muted" />}
-        onClick={handleAction(onEdit)}
-        className="text-text-primary hover:bg-surface-elevated/60"
-      />
-
-      <MenuActionButton
-        label={t('habits.actions.duplicate')}
-        icon={<Copy className="size-4 text-text-muted" />}
-        onClick={handleAction(onDuplicate)}
-        className="text-text-primary hover:bg-surface-elevated/60"
-      />
-
-      <MenuActionButton
-        label={t('common.select')}
-        icon={<CheckCircle2 className="size-4 text-text-muted" />}
-        onClick={handleAction(onEnterSelectMode)}
-        className="text-text-primary hover:bg-surface-elevated/60"
-      />
-
-      <div className="my-1 mx-2 h-px bg-surface-elevated/60" />
-
-      <MenuActionButton
-        label={t('common.delete')}
-        icon={<Trash2 className="size-4" />}
-        onClick={handleAction(onDelete)}
-        className="text-red-400 hover:bg-red-500/10"
-      />
-
-      {hasSubHabits && (
-        <MenuActionButton
-          label={t('habits.actions.openSubHabits')}
-          icon={<ChevronRight className="size-4 text-text-muted" />}
-          onClick={handleAction(onDrillInto)}
-          className="text-text-primary hover:bg-surface-elevated/60"
-        />
-      )}
+      {menuItems.map((item, idx) => {
+        const isDanger = item.variant === 'danger'
+        const showDivider = isDanger && dangerIndex > 0 && idx === dangerIndex
+        const Icon = item.icon
+        return (
+          <div key={item.key}>
+            {showDivider && <div className="my-1 mx-2 h-px bg-surface-elevated/60" />}
+            <MenuActionButton
+              label={item.label}
+              icon={<Icon className={`size-4 ${isDanger ? '' : 'text-text-muted'}`} />}
+              onClick={(e) => {
+                e.stopPropagation()
+                item.onClick()
+                closeMenu()
+              }}
+              className={
+                isDanger
+                  ? 'text-red-400 hover:bg-red-500/10'
+                  : item.key === 'skip'
+                    ? 'text-amber-400 hover:bg-amber-500/10'
+                    : 'text-text-primary hover:bg-surface-elevated/60'
+              }
+            />
+          </div>
+        )
+      })}
     </div>,
     document.body,
   )
@@ -918,21 +873,24 @@ export function HabitCard({
   childrenTotal = 0,
   searchQuery = '',
   maxHabitDepth = 5,
-  onLog,
-  onUnlog,
-  onSkip,
-  onDelete,
-  onDuplicate,
-  onEdit,
-  onMoveParent,
-  onDetail,
-  onDrillInto,
-  onToggleSelection,
-  onAddSubHabit,
-  onToggleExpand,
-  onForceLogParent,
-  onEnterSelectMode,
+  actions = {},
 }: Readonly<HabitCardProps>) {
+  const {
+    onLog,
+    onUnlog,
+    onSkip,
+    onDelete,
+    onDuplicate,
+    onEdit,
+    onMoveParent,
+    onDetail,
+    onDrillInto,
+    onToggleSelection,
+    onAddSubHabit,
+    onToggleExpand,
+    onForceLogParent,
+    onEnterSelectMode,
+  } = actions
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
 
@@ -1020,6 +978,80 @@ export function HabitCard({
   const actionsMenuPanelRef = useRef<HTMLDivElement>(null)
   const { showActionsMenu, menuPosition, menuOpensUp, closeActionsMenu, toggleActionsMenu } =
     useActionsMenu(actionsMenuRef, actionsMenuPanelRef, isSelectMode)
+
+  const menuItems = useMemo<MenuAction[]>(() => {
+    const items: MenuAction[] = [
+      {
+        key: 'add-sub-habit',
+        icon: Plus,
+        label: t('habits.form.addSubHabit'),
+        onClick: () => onAddSubHabit?.(),
+        hidden: !(showAddSubHabit && depth < maxHabitDepth - 1),
+      },
+      {
+        key: 'move-parent',
+        icon: ArrowRight,
+        label: t('habits.moveParent.button'),
+        onClick: () => onMoveParent?.(),
+      },
+      {
+        key: 'skip',
+        icon: FastForward,
+        label: isPostpone ? t('habits.actions.postpone') : t('habits.actions.skip'),
+        onClick: () => onSkip?.(),
+        hidden: !canSkip,
+      },
+      {
+        key: 'edit',
+        icon: Pencil,
+        label: t('common.edit'),
+        onClick: () => onEdit?.(),
+      },
+      {
+        key: 'duplicate',
+        icon: Copy,
+        label: t('habits.actions.duplicate'),
+        onClick: () => onDuplicate?.(),
+      },
+      {
+        key: 'select',
+        icon: CheckCircle2,
+        label: t('common.select'),
+        onClick: () => onEnterSelectMode?.(),
+      },
+      {
+        key: 'delete',
+        icon: Trash2,
+        label: t('common.delete'),
+        onClick: () => onDelete?.(),
+        variant: 'danger',
+      },
+      {
+        key: 'drill-into',
+        icon: ChevronRight,
+        label: t('habits.actions.openSubHabits'),
+        onClick: () => onDrillInto?.(),
+        hidden: !hasSubHabits,
+      },
+    ]
+    return items.filter((item) => !item.hidden)
+  }, [
+    t,
+    showAddSubHabit,
+    depth,
+    maxHabitDepth,
+    canSkip,
+    isPostpone,
+    hasSubHabits,
+    onAddSubHabit,
+    onMoveParent,
+    onSkip,
+    onEdit,
+    onDuplicate,
+    onEnterSelectMode,
+    onDelete,
+    onDrillInto,
+  ])
 
   const handleCardClick = useCallback(() => {
     if (isSelectMode) {
@@ -1113,20 +1145,7 @@ export function HabitCard({
           panelRef={actionsMenuPanelRef}
           menuPosition={menuPosition}
           menuOpensUp={menuOpensUp}
-          showAddSubHabit={showAddSubHabit}
-          depth={depth}
-          maxHabitDepth={maxHabitDepth}
-          canSkip={canSkip}
-          isPostpone={isPostpone}
-          hasSubHabits={hasSubHabits}
-          onAddSubHabit={onAddSubHabit}
-          onMoveParent={onMoveParent}
-          onSkip={onSkip}
-          onEdit={onEdit}
-          onDuplicate={onDuplicate}
-          onEnterSelectMode={onEnterSelectMode}
-          onDelete={onDelete}
-          onDrillInto={onDrillInto}
+          menuItems={menuItems}
           closeMenu={closeActionsMenu}
         />
       )}

@@ -118,17 +118,17 @@ vi.mock('@/components/habits/habit-card', () => ({
     habit,
     childrenDone,
     childrenTotal,
-    onForceLogParent,
+    actions,
   }: {
     habit: NormalizedHabit
     childrenDone?: number
     childrenTotal?: number
-    onForceLogParent?: () => void
+    actions?: { onForceLogParent?: () => void }
   }) => (
     <div data-testid={`habit-card-${habit.id}`}>
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
-      <button data-testid={`force-log-${habit.id}`} onClick={onForceLogParent}>
+      <button data-testid={`force-log-${habit.id}`} onClick={actions?.onForceLogParent}>
         force
       </button>
     </div>

@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { useSearchParams } from 'next/navigation'
 import {
   addDays,
   subDays,
@@ -12,28 +10,13 @@ import {
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
-import {
-  Search,
-  X,
-  MoreVertical,
-  CheckCircle,
-  Eye,
-  Check,
-  RefreshCw,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  PlusCircle,
-  MinusCircle,
-  Forward,
-  Trash2,
-} from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'next/navigation'
 import { habitKeys } from '@orbit/shared/query'
 import {
   collectSelectableDescendantIds,
   formatAPIDate,
-  hasAncestorInSet,
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -43,11 +26,15 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ControlsMenu } from '@/components/habits/controls-menu'
+import { BulkActionBar } from '@/components/habits/bulk-action-bar'
+import { TodayFilters } from '@/components/habits/today-filters'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
-import { useHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
+import { useBulkActions } from '@/hooks/use-bulk-actions'
 import {
   TodayHeader,
   TodayTabs,
@@ -80,191 +67,6 @@ function getTodayTabLabel(
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function ControlsMenu({
-  menuPanelRef,
-  position,
-  isSelectMode,
-  showCompleted,
-  isFetching,
-  allCollapsed,
-  onToggleSelect,
-  onToggleCollapse,
-  onRefresh,
-  onToggleCompleted,
-  onClose,
-}: {
-  menuPanelRef: React.RefObject<HTMLDivElement | null>
-  position: { top: number; left: number }
-  isSelectMode: boolean
-  showCompleted: boolean
-  isFetching: boolean
-  allCollapsed: boolean
-  onToggleSelect: () => void
-  onToggleCollapse: () => void
-  onRefresh: () => void
-  onToggleCompleted: () => void
-  onClose: () => void
-}) {
-  const t = useTranslations()
-
-  return createPortal(
-    <div
-      ref={menuPanelRef}
-      role="menu"
-      tabIndex={0}
-      className="fixed z-[70] min-w-[12.5rem] rounded-[var(--radius-lg)] border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1"
-      style={{
-        left: `${position.left}px`,
-        top: `${position.top}px`,
-      }}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-    >
-      <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-        onClick={() => {
-          onToggleSelect()
-          onClose()
-        }}
-      >
-        {isSelectMode ? (
-          <X className="size-4 text-text-muted" />
-        ) : (
-          <CheckCircle className="size-4 text-text-muted" />
-        )}
-        {isSelectMode ? t('common.cancel') : t('common.select')}
-      </button>
-      <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-        onClick={() => {
-          onToggleCollapse()
-          onClose()
-        }}
-      >
-        {allCollapsed ? (
-          <ChevronsUpDown className="size-4 text-text-muted" />
-        ) : (
-          <ChevronsDownUp className="size-4 text-text-muted" />
-        )}
-        {allCollapsed
-          ? t('habits.expandAll')
-          : t('habits.collapseAll')}
-      </button>
-      <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-        disabled={isFetching}
-        onClick={() => {
-          onRefresh()
-          onClose()
-        }}
-      >
-        <RefreshCw className={`size-4 text-text-muted${isFetching ? ' animate-spin' : ''}`} />
-        {t('habits.refresh')}
-      </button>
-      <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
-        onClick={() => {
-          onToggleCompleted()
-          onClose()
-        }}
-      >
-        {showCompleted ? (
-          <Check className="size-4 text-text-muted" />
-        ) : (
-          <Eye className="size-4 text-text-muted" />
-        )}
-        {t('habits.showCompleted')}
-      </button>
-    </div>,
-    document.body,
-  )
-}
-
-function BulkActionBar({
-  selectedCount,
-  allSelected,
-  onSelectAll,
-  onDeselectAll,
-  onBulkLog,
-  onBulkSkip,
-  onBulkDelete,
-  onCancel,
-}: {
-  selectedCount: number
-  allSelected: boolean
-  onSelectAll: () => void
-  onDeselectAll: () => void
-  onBulkLog: () => void
-  onBulkSkip: () => void
-  onBulkDelete: () => void
-  onCancel: () => void
-}) {
-  const t = useTranslations()
-
-  return createPortal(
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] bg-surface-overlay border border-border-muted rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] backdrop-blur-xl px-4 py-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium shrink-0">
-          {plural(t('common.selected', { n: selectedCount }), selectedCount)}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
-            aria-label={
-              allSelected
-                ? t('common.deselectAll')
-                : t('common.selectAll')
-            }
-            onClick={() =>
-              allSelected ? onDeselectAll() : onSelectAll()
-            }
-          >
-            {allSelected ? (
-              <MinusCircle className="size-5" />
-            ) : (
-              <PlusCircle className="size-5" />
-            )}
-          </button>
-          <button
-            className="p-2 text-primary hover:text-primary/80 transition-colors rounded-xl hover:bg-primary/10"
-            aria-label={t('habits.logHabit')}
-            onClick={onBulkLog}
-          >
-            <CheckCircle className="size-5" />
-          </button>
-          <button
-            className="p-2 text-amber-400 hover:text-amber-300 transition-colors rounded-xl hover:bg-amber-500/10"
-            aria-label={t('habits.skipHabit')}
-            onClick={onBulkSkip}
-          >
-            <Forward className="size-5" />
-          </button>
-          <button
-            className="p-2 text-red-400 hover:text-red-300 transition-colors rounded-xl hover:bg-red-500/10"
-            aria-label={t('common.delete')}
-            onClick={onBulkDelete}
-          >
-            <Trash2 className="size-5" />
-          </button>
-          <div className="w-px h-5 bg-border mx-0.5" />
-          <button
-            className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface-elevated"
-            aria-label={t('common.cancel')}
-            onClick={onCancel}
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
 
@@ -283,11 +85,6 @@ export default function TodayPage() {
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false // NOSONAR - SSR guard
     return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
   }, [])
-
-  // Bulk mutation hooks
-  const bulkDelete = useBulkDeleteHabits()
-  const bulkLog = useBulkLogHabits()
-  const bulkSkip = useBulkSkipHabits()
 
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
@@ -316,9 +113,6 @@ export default function TodayPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [showControlsMenu, setShowControlsMenu] = useState(false)
   const [controlsMenuPosition, setControlsMenuPosition] = useState({ top: 0, left: 0 })
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-  const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
-  const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const controlsMenuRef = useRef<HTMLDivElement>(null)
@@ -585,70 +379,22 @@ export default function TodayPage() {
   }, [clearSelection])
 
   // Bulk actions
-  const confirmBulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
-    try {
-      await bulkDelete.mutateAsync(ids)
-    } catch {
-      // Error handled in hook
-    } finally {
-      clearSelection()
-      setShowBulkDeleteConfirm(false)
-    }
-  }, [selectedHabitIds, bulkDelete, clearSelection])
-
-  const promptParentLogsForBulkSuccesses = useCallback((successIds: string[]) => {
-    const successIdSet = new Set(successIds)
-
-    for (const id of successIds) {
-      if (hasAncestorInSet(id, habitsById, successIdSet)) {
-        continue
-      }
-
-      habitListRef.current?.checkAndPromptParentLog(id)
-    }
-  }, [habitsById])
-
-  const confirmBulkLog = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
-    try {
-      const result = await bulkLog.mutateAsync(ids.map((id) => ({ habitId: id })))
-      const successIds = result.results
-        .filter((r) => r.status === 'Success')
-        .map((r) => r.habitId)
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-      promptParentLogsForBulkSuccesses(successIds)
-    } catch {
-      // Error handled in hook
-    } finally {
-      clearSelection()
-      setShowBulkLogConfirm(false)
-    }
-  }, [selectedHabitIds, bulkLog, clearSelection, promptParentLogsForBulkSuccesses])
-
-  const confirmBulkSkip = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
-    try {
-      const result = await bulkSkip.mutateAsync(ids.map((id) => ({ habitId: id })))
-      const successIds = result.results
-        .filter((r) => r.status === 'Success')
-        .map((r) => r.habitId)
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-      promptParentLogsForBulkSuccesses(successIds)
-    } catch {
-      // Error handled in hook
-    } finally {
-      clearSelection()
-      setShowBulkSkipConfirm(false)
-    }
-  }, [selectedHabitIds, bulkSkip, clearSelection, promptParentLogsForBulkSuccesses])
+  const {
+    showBulkDeleteConfirm,
+    showBulkLogConfirm,
+    showBulkSkipConfirm,
+    setShowBulkDeleteConfirm,
+    setShowBulkLogConfirm,
+    setShowBulkSkipConfirm,
+    confirmBulkDelete,
+    confirmBulkLog,
+    confirmBulkSkip,
+  } = useBulkActions({
+    selectedHabitIds,
+    habitsById,
+    habitListRef,
+    onSuccess: clearSelection,
+  })
 
   return (
     <div className="relative">
@@ -705,116 +451,20 @@ export default function TodayPage() {
           role="tabpanel"
           aria-labelledby={`tab-${activeView}`}
         >
-          {/* Search bar */}
-          <div className="pt-3 pb-2">
-            <div className="relative">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-5 text-text-muted pointer-events-none" />
-              <input
-                value={localSearchQuery}
-                type="text"
-                aria-label={t('habits.searchPlaceholder')}
-                placeholder={t('habits.searchPlaceholder')}
-                className="w-full bg-surface text-text-primary placeholder-text-muted rounded-full py-3 pl-12 pr-12 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-              />
-              {localSearchQuery && (
-                <button
-                  aria-label={t('common.clear')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-text-secondary hover:text-text-primary transition-colors"
-                  onClick={() => setLocalSearchQuery('')}
-                >
-                  <X className="size-4" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Filter chips + controls row */}
-          <div className="pb-2 flex items-center gap-2">
-            {activeView !== 'general' || tags.length > 0 ? (
-            <div className="flex-1 overflow-x-auto thin-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
-              <div className="flex gap-2 min-w-max">
-                {/* Frequency chips (hidden in general view) */}
-                {activeView !== 'general' && (
-                  <>
-                    <button
-                      aria-pressed={!selectedFrequency}
-                      className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
-                        selectedFrequency
-                          ? 'bg-surface border border-border text-text-faded hover:text-text-primary'
-                          : 'bg-primary text-white'
-                      }`}
-                      onClick={() => setSelectedFrequency(null)}
-                    >
-                      {t('common.all')}
-                    </button>
-                    {frequencyOptions.map((opt) => (
-                      <button
-                        key={opt.key}
-                        aria-pressed={selectedFrequency === opt.key}
-                        className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
-                          selectedFrequency === opt.key
-                            ? 'bg-primary text-white'
-                            : 'bg-surface border border-border text-text-faded hover:text-text-primary'
-                        }`}
-                        onClick={() =>
-                          setSelectedFrequency(
-                            selectedFrequency === opt.key ? null : opt.key,
-                          )
-                        }
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-                {/* Tag chips */}
-                {tags.length > 0 && (
-                  <>
-                    {activeView !== 'general' && (
-                      <span className="w-px h-6 bg-border self-center" />
-                    )}
-                    {tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                          selectedTagIds.includes(tag.id)
-                            ? 'text-white'
-                            : 'bg-surface border border-border text-text-faded hover:text-text-primary'
-                        }`}
-                        style={selectedTagIds.includes(tag.id) ? { backgroundColor: tag.color } : undefined}
-                        onClick={() => toggleTagFilter(tag.id)}
-                      >
-                        {!selectedTagIds.includes(tag.id) && (
-                          <span
-                            className="size-2 rounded-full"
-                            style={{ backgroundColor: tag.color }}
-                          />
-                        )}
-                        {tag.name}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            </div>
-            ) : (
-              <div className="flex-1" />
-            )}
-            <div ref={controlsMenuRef} className="shrink-0">
-              <button
-                className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface"
-                title={t('habits.actions.more')}
-                aria-label={t('habits.actions.more')}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleControlsMenu()
-                }}
-              >
-                <MoreVertical className="size-5" />
-              </button>
-            </div>
-          </div>
+          <TodayFilters
+            activeView={activeView}
+            localSearchQuery={localSearchQuery}
+            selectedFrequency={selectedFrequency}
+            selectedTagIds={selectedTagIds}
+            tags={tags}
+            frequencyOptions={frequencyOptions}
+            controlsMenuRef={controlsMenuRef}
+            onSearchChange={setLocalSearchQuery}
+            onSearchClear={() => setLocalSearchQuery('')}
+            onFrequencyChange={setSelectedFrequency}
+            onTagToggle={toggleTagFilter}
+            onOpenControlsMenu={toggleControlsMenu}
+          />
 
           {/* Controls dropdown menu (portal) */}
           {showControlsMenu && typeof document !== 'undefined' && (

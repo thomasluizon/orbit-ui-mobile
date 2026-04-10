@@ -406,6 +406,9 @@ export function GoalDetailDrawer({
                 unit: goal.unit,
               })
             }
+            showAllLabel={t('goals.detail.showAllHistory')}
+            showLessLabel={t('goals.detail.showLessHistory')}
+            primaryColor={colors.primary}
             styles={styles}
           />
 
@@ -427,14 +430,7 @@ export function GoalDetailDrawer({
 
           {/* Actions */}
           <View style={styles.actionsSection}>
-            <GoalActionButton
-              styles={styles}
-              onPress={() => setShowEditModal(true)}
-              icon={<PencilLine size={20} color={colors.textMuted} />}
-              color={colors.textPrimary}
-              label={t('goals.detail.edit')}
-            />
-
+            {/* Status actions */}
             {goal.status === 'Active' && (
               <GoalActionButton
                 styles={styles}
@@ -467,6 +463,18 @@ export function GoalDetailDrawer({
                 label={t('goals.detail.reactivate')}
               />
             )}
+
+            {/* Separator between status and data actions */}
+            <View style={styles.actionsDivider} />
+
+            {/* Data actions */}
+            <GoalActionButton
+              styles={styles}
+              onPress={() => setShowEditModal(true)}
+              icon={<PencilLine size={20} color={colors.textMuted} />}
+              color={colors.textPrimary}
+              label={t('goals.detail.edit')}
+            />
 
             <GoalActionButton
               styles={styles}
@@ -707,6 +715,11 @@ function createStyles(colors: AppColors, bottomInset: number) {
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  actionsDivider: {
+    height: 1,
+    backgroundColor: colors.borderMuted,
+    marginVertical: 4,
   },
   actionButton: {
     flexDirection: 'row',

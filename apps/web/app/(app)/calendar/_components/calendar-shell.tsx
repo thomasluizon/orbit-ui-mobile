@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 interface CalendarHeaderProps {
   title: string
   monthLabel: string
+  subtitle?: string | null
   goToTodayLabel: string
   previousMonthLabel: string
   nextMonthLabel: string
@@ -15,6 +16,7 @@ interface CalendarHeaderProps {
 export function CalendarHeader({
   title,
   monthLabel,
+  subtitle,
   goToTodayLabel,
   previousMonthLabel,
   nextMonthLabel,
@@ -45,12 +47,17 @@ export function CalendarHeader({
         >
           <ChevronLeft className="size-3 text-text-faded" aria-hidden="true" />
         </button>
-        <button
-          className="text-base font-semibold text-text-primary hover:text-primary transition-colors"
-          onClick={onGoToToday}
-        >
-          {monthLabel}
-        </button>
+        <div className="flex flex-col items-center">
+          <button
+            className="text-base font-semibold text-text-primary hover:text-primary transition-colors"
+            onClick={onGoToToday}
+          >
+            {monthLabel}
+          </button>
+          {subtitle && (
+            <span className="text-[10px] text-text-muted font-medium mt-0.5">{subtitle}</span>
+          )}
+        </div>
         <button
           aria-label={nextMonthLabel}
           className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"

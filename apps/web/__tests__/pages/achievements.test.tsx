@@ -120,7 +120,7 @@ describe('AchievementsPage', () => {
     mockGamificationLoading = true
     mockGamificationProfile = null
     const { container } = render(<AchievementsPage />)
-    const pulseElements = container.querySelectorAll('.animate-pulse')
+    const pulseElements = container.querySelectorAll('.skeleton-shimmer')
     expect(pulseElements.length).toBeGreaterThan(0)
   })
 
@@ -252,6 +252,6 @@ describe('AchievementsPage', () => {
     const { container } = render(<AchievementsPage />)
     // Should render the header but not the locked state nor skeleton
     expect(screen.getByText('gamification.title')).toBeInTheDocument()
-    expect(container.querySelectorAll('.animate-pulse').length).toBe(0)
+    expect(container.querySelectorAll('.skeleton-shimmer').length).toBe(0)
   })
 })

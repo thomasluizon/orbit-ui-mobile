@@ -95,7 +95,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
       {/* Use a button so the card is keyboard-accessible and has the correct role */}
       <button
         type="button"
-        className={`w-full text-left bg-surface rounded-[var(--radius-xl)] p-5 cursor-pointer hover:bg-surface-elevated/80 border border-border-muted shadow-[var(--shadow-sm)] transition-all duration-150 ${trackingBorderClass}`}
+        className={`w-full text-left bg-surface rounded-[var(--radius-xl)] p-5 cursor-pointer hover:bg-surface-elevated/80 border border-border-muted shadow-[var(--shadow-sm)] surface-interactive ${trackingBorderClass}`}
         onClick={() => setShowDetail(true)}
       >
         <div className="flex items-start gap-3">

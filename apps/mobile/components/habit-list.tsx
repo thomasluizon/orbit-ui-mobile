@@ -977,50 +977,51 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           searchQuery={searchQuery}
           isSelectMode={isSelectMode}
           isSelected={selectedIds.has(habit.id)}
-          onLog={() => {
-            if (onLogHabit) {
-              onLogHabit(habit)
-              return
-            }
-            logMutation.mutate({ habitId: habit.id })
+          actions={{
+            onLog: () => {
+              if (onLogHabit) {
+                onLogHabit(habit)
+                return
+              }
+              logMutation.mutate({ habitId: habit.id })
+            },
+            onUnlog: () => logMutation.mutate({ habitId: habit.id }),
+            onSkip: () => {
+              void handleSkip(habit.id)
+            },
+            onToggleExpand: () => toggleExpand(habit.id),
+            onDelete: () => {
+              promptDelete(habit.id)
+            },
+            onDuplicate: () => promptDuplicate(habit.id),
+            onEdit: () => onEditHabit?.(habit),
+            onMoveParent: () => {
+              openMoveParentDialog(habit.id)
+            },
+            onAddSubHabit: () => {
+              startAddSubHabit(habit.id)
+            },
+            onDrillInto: hasSubHabits ? () => { void drill.drillInto(habit.id) } : undefined,
+            onForceLogParent: () => {
+              promptForceLogParent(habit.id)
+            },
+            onEnterSelectMode: () => {
+              if (!isSelectMode) toggleSelectMode()
+              toggleSelectionCascade(
+                habit.id,
+                getDescendantIds,
+                isAncestorSelected,
+              )
+            },
+            onDetail: () => onDetailHabit?.(habit),
+            onToggleSelection: () =>
+              toggleSelectionCascade(
+                habit.id,
+                getDescendantIds,
+                isAncestorSelected,
+              ),
+            onLongPressCard: options?.onLongPressCard,
           }}
-          onUnlog={() => logMutation.mutate({ habitId: habit.id })}
-          onSkip={() => {
-            void handleSkip(habit.id)
-          }}
-          onToggleExpand={() => toggleExpand(habit.id)}
-          onDelete={() => {
-            promptDelete(habit.id)
-          }}
-          onDuplicate={() => promptDuplicate(habit.id)}
-          onEdit={() => onEditHabit?.(habit)}
-          onMoveParent={() => {
-            openMoveParentDialog(habit.id)
-          }}
-          onAddSubHabit={() => {
-            startAddSubHabit(habit.id)
-          }}
-          onDrillInto={hasSubHabits ? () => { void drill.drillInto(habit.id) } : undefined}
-          onForceLogParent={() => {
-            promptForceLogParent(habit.id)
-          }}
-          onEnterSelectMode={() => {
-            if (!isSelectMode) toggleSelectMode()
-            toggleSelectionCascade(
-              habit.id,
-              getDescendantIds,
-              isAncestorSelected,
-            )
-          }}
-          onDetail={() => onDetailHabit?.(habit)}
-          onToggleSelection={() =>
-            toggleSelectionCascade(
-              habit.id,
-              getDescendantIds,
-              isAncestorSelected,
-            )
-          }
-          onLongPressCard={options?.onLongPressCard}
         />
       )
     },
