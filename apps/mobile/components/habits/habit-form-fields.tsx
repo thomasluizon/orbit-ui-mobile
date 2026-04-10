@@ -145,6 +145,8 @@ function ChoiceButtonRow({
           style={[buttonStyle, option.active && activeButtonStyle]}
           onPress={option.onPress}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ selected: option.active }}
         >
           <Text style={[textStyle, option.active && activeTextStyle]}>
             {option.label}

@@ -106,3 +106,25 @@
     ) scale(0.3);
   }
 }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .streak-ember {
+    display: none !important;
+  }
+  .streak-celebration-content {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+  .streak-flame-dance,
+  .streak-flame-dance-big {
+    animation: none;
+  }
+  .streak-glow-pulse,
+  .streak-glow-pulse-strong {
+    animation: none;
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}

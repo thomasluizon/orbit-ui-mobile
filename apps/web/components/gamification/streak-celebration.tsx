@@ -97,7 +97,7 @@ export function StreakCelebration() {
 
         {/* Flame icon */}
         <div className={`relative mx-auto mb-3 ${isMilestone ? 'streak-flame-dance-big' : 'streak-flame-dance'}`}>
-          <svg viewBox="0 0 64 80" fill="none" className="size-20 mx-auto" style={{ filter: 'drop-shadow(0 0 20px rgba(249,115,22,0.6))' }}>
+          <svg viewBox="0 0 64 80" fill="none" className="size-20 mx-auto" aria-hidden="true" style={{ filter: 'drop-shadow(0 0 20px rgba(249,115,22,0.6))' }}>
             <path
               d="M32 0C32 0 8 26 8 48a24 24 0 0 0 48 0C56 26 32 0 32 0Zm0 68a12 12 0 0 1-12-12c0-8 12-22 12-22s12 14 12 22a12 12 0 0 1-12 12Z"
               fill="url(#celebFlameGrad)"

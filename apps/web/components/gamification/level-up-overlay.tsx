@@ -44,8 +44,9 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
   if (!mounted || !shouldRender) return null
 
   return createPortal(
-    <output
-      aria-live="assertive"
+    <div
+      role="alert"
+      aria-atomic="true"
       className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70"
       style={{
         transition: 'opacity 0.5s var(--ease-spring)',
@@ -78,7 +79,7 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
           </p>
         </div>
       </div>
-    </output>,
+    </div>,
     document.body
   )
 }

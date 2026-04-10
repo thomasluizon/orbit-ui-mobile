@@ -105,6 +105,7 @@ function NavLink({
     <Link
       href={item.path}
       data-tour={item.dataTour}
+      aria-current={active ? 'page' : undefined}
       className={`relative flex flex-col items-center gap-1 py-2 min-w-[48px] transition-all duration-150 ${
         active ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
       }`}

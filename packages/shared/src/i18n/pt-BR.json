@@ -119,7 +119,10 @@
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
     "continue": "Continuar",
-    "unknown": "Desconhecido"
+    "unknown": "Desconhecido",
+    "collapse": "Recolher",
+    "expand": "Expandir",
+    "moreActions": "Mais ações"
   },
   "nav": {
     "habits": "Hábitos",

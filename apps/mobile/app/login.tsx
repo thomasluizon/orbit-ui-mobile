@@ -398,6 +398,7 @@ export default function LoginScreen() {
                     editable={!isSubmitting}
                     onSubmitEditing={sendCode}
                     returnKeyType="send"
+                    accessibilityLabel={t('auth.email')}
                   />
                 </View>
 

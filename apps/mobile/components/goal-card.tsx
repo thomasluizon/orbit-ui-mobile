@@ -126,6 +126,8 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
       onPress={() => onPress?.(goal.id)}
       activeOpacity={0.85}
       disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={goal.title}
     >
       <View style={styles.content}>
         {/* Title row */}

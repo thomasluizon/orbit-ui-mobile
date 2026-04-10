@@ -728,9 +728,20 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
 }>) {
   const dangerIndex = menuItems.findIndex((item) => item.variant === 'danger')
 
+  // Focus first menu item on mount
+  const setRef = useCallback((el: HTMLDivElement | null) => {
+    (panelRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+    if (el) {
+      requestAnimationFrame(() => {
+        const first = el.querySelector<HTMLElement>('[role="menuitem"]')
+        first?.focus()
+      })
+    }
+  }, [panelRef])
+
   return createPortal(
     <div
-      ref={panelRef}
+      ref={setRef}
       role="menu"
       tabIndex={-1}
       className="habit-actions-menu fixed z-[70] min-w-[12rem] rounded-2xl p-1.5"
@@ -740,7 +751,27 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
         transform: menuOpensUp ? 'translateY(-100%)' : 'none',
       }}
       onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => { if (e.key === 'Escape') closeMenu() }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') { closeMenu(); return }
+        const items = panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]')
+        if (!items?.length) return
+        const current = Array.from(items).indexOf(document.activeElement as HTMLElement)
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          const next = current < items.length - 1 ? current + 1 : 0
+          items[next].focus()
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          const prev = current > 0 ? current - 1 : items.length - 1
+          items[prev].focus()
+        } else if (e.key === 'Home') {
+          e.preventDefault()
+          items[0].focus()
+        } else if (e.key === 'End') {
+          e.preventDefault()
+          items[items.length - 1].focus()
+        }
+      }}
     >
       {menuItems.map((item, idx) => {
         const isDanger = item.variant === 'danger'

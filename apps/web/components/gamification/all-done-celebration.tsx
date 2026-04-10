@@ -91,7 +91,7 @@ export function AllDoneCelebration() {
       <div className="relative text-center all-done-content">
         {/* Checkmark icon */}
         <div className="all-done-check-icon mx-auto mb-4">
-          <svg viewBox="0 0 80 80" fill="none" className="size-20 mx-auto" style={{ filter: 'drop-shadow(0 0 24px rgba(var(--primary-shadow), 0.5))' }}>
+          <svg viewBox="0 0 80 80" fill="none" className="size-20 mx-auto" aria-hidden="true" style={{ filter: 'drop-shadow(0 0 24px rgba(var(--primary-shadow), 0.5))' }}>
             <circle cx="40" cy="40" r="38" fill="var(--color-primary)" opacity="0.15" stroke="var(--color-primary)" strokeWidth="2" />
             <path d="M24 40l12 12 20-24" stroke="var(--color-primary)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
           </svg>
