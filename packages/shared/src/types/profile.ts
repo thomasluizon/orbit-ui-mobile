@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { calendarAutoSyncStatusSchema } from './calendar'
 
 export const planTypeSchema = z.enum(['free', 'pro'])
 
@@ -40,6 +41,9 @@ export const profileSchema = z.object({
   streakFreezesAvailable: z.number(),
   themePreference: z.string().nullable(),
   colorScheme: z.string().nullable(),
+  googleCalendarAutoSyncEnabled: z.boolean(),
+  googleCalendarAutoSyncStatus: calendarAutoSyncStatusSchema,
+  googleCalendarLastSyncedAt: z.string().nullable(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

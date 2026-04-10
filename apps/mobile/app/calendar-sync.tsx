@@ -3,11 +3,12 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
@@ -18,23 +19,36 @@ import {
   Check,
   Link,
   Loader2,
+  RefreshCw,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
+import { calendarKeys } from '@orbit/shared/query'
 import {
+  buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { getErrorMessage } from '@orbit/shared/utils/error-utils'
+import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
+import {
+  useCalendarAutoSyncState,
+  useCalendarSyncSuggestions,
+  useRunCalendarSyncNow,
+  useSetCalendarAutoSync,
+} from '@/hooks/use-calendar-auto-sync'
 import { apiClient } from '@/lib/api-client'
 import { radius, shadows } from '@/lib/theme'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected' | 'offline'
@@ -62,12 +76,27 @@ async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
 
 export default function CalendarSyncScreen() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ mode?: string }>()
+  const isReviewMode = params.mode === 'review'
   const { t } = useTranslation()
   const { profile, isLoading: isProfileLoading } = useProfile()
   const { colors } = useAppTheme()
   const { isOnline } = useOffline()
   const styles = useMemo(() => createStyles(colors), [colors])
   const bulkCreateHabits = useBulkCreateHabits()
+  const queryClient = useQueryClient()
+  const { showError } = useAppToast()
+
+  const autoSyncStateQuery = useCalendarAutoSyncState()
+  const suggestionsQuery = useCalendarSyncSuggestions()
+  const setAutoSyncMutation = useSetCalendarAutoSync()
+  const runSyncNowMutation = useRunCalendarSyncNow()
+
+  const autoSyncState = autoSyncStateQuery.data
+  const suggestions = useMemo(
+    () => suggestionsQuery.data ?? [],
+    [suggestionsQuery.data],
+  )
 
   const [step, setStep] = useState<Step>('loading')
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -94,6 +123,22 @@ export default function CalendarSyncScreen() {
     setStep('loading')
     setErrorMessage('')
 
+    if (isReviewMode) {
+      try {
+        const result = await suggestionsQuery.refetch()
+        const nextEvents: CalendarEvent[] = (result.data ?? []).map(
+          (suggestion) => suggestion.event,
+        )
+        setEvents(nextEvents)
+        setSelectedIds(new Set(nextEvents.map((event) => event.id)))
+        setStep('select')
+      } catch (err: unknown) {
+        setErrorMessage(getErrorMessage(err, t('calendar.fetchError')))
+        setStep('error')
+      }
+      return
+    }
+
     try {
       const nextEvents = await fetchCalendarEvents()
       setEvents(nextEvents)
@@ -108,7 +153,7 @@ export default function CalendarSyncScreen() {
       setErrorMessage(getErrorMessage(err, t('calendar.fetchError')))
       setStep('error')
     }
-  }, [isOnline, t])
+  }, [isOnline, isReviewMode, suggestionsQuery, t])
 
   useFocusEffect(
     useCallback(() => {
@@ -123,8 +168,9 @@ export default function CalendarSyncScreen() {
         return
       }
 
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
       void loadEvents()
-    }, [isOnline, loadEvents, profile, router]),
+    }, [isOnline, loadEvents, profile, queryClient, router]),
   )
 
   const handleBack = useCallback(() => {
@@ -163,7 +209,7 @@ export default function CalendarSyncScreen() {
 
     try {
       const result = await startMobileGoogleAuth({
-        returnUrl: '/calendar-sync',
+        returnUrl: isReviewMode ? '/calendar-sync?mode=review' : '/calendar-sync',
       })
 
       if (result.type !== 'success') return
@@ -174,7 +220,36 @@ export default function CalendarSyncScreen() {
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, t])
+  }, [isConnecting, isOnline, isReviewMode, router, t])
+
+  const handleToggleAutoSync = useCallback(
+    (enabled: boolean) => {
+      if (!isOnline) {
+        showError(t('calendarSync.notConnected'))
+        return
+      }
+
+      setAutoSyncMutation.mutate(enabled, {
+        onError: (err: unknown) => {
+          showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+        },
+      })
+    },
+    [isOnline, setAutoSyncMutation, showError, t],
+  )
+
+  const handleSyncNow = useCallback(() => {
+    if (!isOnline) {
+      showError(t('calendarSync.notConnected'))
+      return
+    }
+
+    runSyncNowMutation.mutate(undefined, {
+      onError: (err: unknown) => {
+        showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+      },
+    })
+  }, [isOnline, runSyncNowMutation, showError, t])
 
   const handleImportSelected = useCallback(async () => {
     if (!isOnline) {
@@ -188,7 +263,11 @@ export default function CalendarSyncScreen() {
     setErrorMessage('')
 
     try {
-      const request = buildCalendarSyncImportRequest(selectedEvents)
+      const request = isReviewMode
+        ? buildCalendarAutoSyncImportRequest(
+            suggestions.filter((suggestion) => selectedIds.has(suggestion.event.id)),
+          )
+        : buildCalendarSyncImportRequest(selectedEvents)
       const result = await bulkCreateHabits.mutateAsync(request)
 
       const successCount = result.results.filter((item) => item.status === 'Success').length
@@ -211,11 +290,25 @@ export default function CalendarSyncScreen() {
           .map((item) => ({ id: item.habitId as string, title: item.title as string })),
       })
       setStep('done')
+
+      if (isReviewMode) {
+        void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+      }
     } catch (err: unknown) {
       setErrorMessage(getErrorMessage(err, t('calendar.importError')))
       setStep('error')
     }
-  }, [bulkCreateHabits, isOnline, selectedCount, selectedEvents, t])
+  }, [
+    bulkCreateHabits,
+    isOnline,
+    isReviewMode,
+    queryClient,
+    selectedCount,
+    selectedEvents,
+    selectedIds,
+    suggestions,
+    t,
+  ])
 
   const handleRetry = useCallback(() => {
     void loadEvents()
@@ -302,8 +395,106 @@ export default function CalendarSyncScreen() {
           >
             <ArrowLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('calendar.title')}</Text>
+          <Text style={styles.headerTitle}>
+            {isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
+          </Text>
         </View>
+
+        {profile?.hasProAccess && !isProfileLoading && (
+          <View style={styles.autoSyncCard}>
+            <View style={styles.toggleHeader}>
+              <View style={styles.autoSyncLabelGroup}>
+                <Text style={styles.autoSyncTitle}>
+                  {t('calendar.autoSync.title')}
+                </Text>
+                <Text style={styles.autoSyncDescription}>
+                  {t('calendar.autoSync.description')}
+                </Text>
+              </View>
+              <Switch
+                value={autoSyncState?.enabled ?? false}
+                onValueChange={handleToggleAutoSync}
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor={colors.white}
+                disabled={
+                  !autoSyncState?.hasGoogleConnection ||
+                  setAutoSyncMutation.isPending ||
+                  autoSyncStateQuery.isLoading ||
+                  !isOnline
+                }
+              />
+            </View>
+
+            {!autoSyncState?.hasGoogleConnection && (
+              <Text style={styles.autoSyncHint}>
+                {t('calendar.autoSync.connectGoogleFirst')}
+              </Text>
+            )}
+
+            {autoSyncState?.hasGoogleConnection && (
+              <View style={styles.autoSyncMetaRow}>
+                <Text style={styles.autoSyncMetaText}>
+                  {formatCalendarAutoSyncLastSynced(
+                    autoSyncState.lastSyncedAt ?? null,
+                    (key, values) => {
+                      const raw = t(key, values)
+                      const count = typeof values?.n === 'number' ? values.n : 1
+                      return plural(raw, count)
+                    },
+                  )}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.syncNowButton,
+                    (runSyncNowMutation.isPending || !isOnline) && styles.buttonDisabled,
+                  ]}
+                  onPress={handleSyncNow}
+                  disabled={runSyncNowMutation.isPending || !isOnline}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('calendar.autoSync.syncNow')}
+                >
+                  {runSyncNowMutation.isPending ? (
+                    <ActivityIndicator size="small" color={colors.primary400} />
+                  ) : (
+                    <RefreshCw size={13} color={colors.primary400} />
+                  )}
+                  <Text style={styles.syncNowButtonText}>
+                    {runSyncNowMutation.isPending
+                      ? t('calendar.autoSync.syncNowRunning')
+                      : t('calendar.autoSync.syncNow')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) && (
+              <View style={styles.reconnectBanner}>
+                <AlertTriangle size={16} color={colors.amber} />
+                <View style={styles.reconnectBannerBody}>
+                  <Text style={styles.reconnectBannerTitle}>
+                    {t('calendar.autoSync.reconnectTitle')}
+                  </Text>
+                  <Text style={styles.reconnectBannerText}>
+                    {t('calendar.autoSync.reconnectBody')}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.reconnectButton}
+                  onPress={handleConnect}
+                  disabled={isConnecting}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('calendar.autoSync.reconnectCta')}
+                >
+                  <Text style={styles.reconnectButtonText}>
+                    {t('calendar.autoSync.reconnectCta')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {(isProfileLoading || step === 'loading') && (
           <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.fetchingEvents')}>
@@ -360,11 +551,21 @@ export default function CalendarSyncScreen() {
               />
             )}
             {events.length === 0 ? (
-              <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.noEvents')}>
+              <View
+                style={styles.centerState}
+                accessibilityLiveRegion="polite"
+                accessibilityLabel={
+                  isReviewMode ? t('calendar.autoSync.reviewModeEmpty') : t('calendar.noEvents')
+                }
+              >
                 <View style={styles.stateIcon}>
                   <CalendarDays size={26} color={colors.textMuted} />
                 </View>
-                <Text style={styles.stateTitle}>{t('calendar.noEvents')}</Text>
+                <Text style={styles.stateTitle}>
+                  {isReviewMode
+                    ? t('calendar.autoSync.reviewModeEmpty')
+                    : t('calendar.noEvents')}
+                </Text>
                 <TouchableOpacity style={styles.secondaryButton} onPress={handleBack} activeOpacity={0.8}>
                   <Text style={styles.secondaryButtonText}>{t('common.goBack')}</Text>
                 </TouchableOpacity>
@@ -696,6 +897,108 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     gap: 10,
     justifyContent: 'center',
     flexWrap: 'wrap',
+  },
+  autoSyncCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    padding: 18,
+    marginBottom: 16,
+    gap: 12,
+    ...shadows.sm,
+    elevation: 2,
+  },
+  toggleHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  autoSyncLabelGroup: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  autoSyncTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  autoSyncDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  autoSyncHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
+  },
+  autoSyncMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  autoSyncMetaText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  syncNowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.primary_10,
+    borderWidth: 1,
+    borderColor: colors.primary_20,
+  },
+  syncNowButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary400,
+  },
+  reconnectBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(251, 191, 36, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.30)',
+  },
+  reconnectBannerBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  reconnectBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  reconnectBannerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  reconnectButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.amber,
+  },
+  reconnectButtonText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.white,
   },
   })
 }

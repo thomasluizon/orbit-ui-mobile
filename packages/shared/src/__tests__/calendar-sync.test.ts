@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
 } from '../utils/calendar-sync'
@@ -52,9 +55,64 @@ describe('calendar-sync utils', () => {
           days: null,
           reminderEnabled: true,
           reminderTimes: [15],
+          googleEventId: 'event-1',
         },
       ],
+      fromSyncReview: true,
     })
+  })
+
+  it('builds bulk create requests from suggestions', () => {
+    const request = buildCalendarAutoSyncImportRequest([
+      {
+        id: 'sugg-1',
+        googleEventId: 'event-42',
+        discoveredAtUtc: '2026-04-08T10:00:00Z',
+        event: {
+          id: 'event-42',
+          title: 'Standup',
+          description: null,
+          startDate: '2026-04-09',
+          startTime: '09:00',
+          endTime: '09:15',
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=DAILY',
+          reminders: [],
+        },
+      },
+    ])
+    expect(request.habits).toHaveLength(1)
+    expect(request.habits[0]?.googleEventId).toBe('event-42')
+    expect(request.fromSyncReview).toBe(true)
+  })
+
+  it('formats last-synced-at values', () => {
+    const t = (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key
+    const now = new Date('2026-04-09T12:00:00Z')
+
+    expect(formatCalendarAutoSyncLastSynced(null, t, now)).toBe('calendar.autoSync.lastSyncedNever')
+    expect(formatCalendarAutoSyncLastSynced('2026-04-09T11:59:30Z', t, now)).toBe(
+      'calendar.autoSync.lastSyncedJustNow',
+    )
+    expect(formatCalendarAutoSyncLastSynced('2026-04-09T11:55:00Z', t, now)).toBe(
+      'calendar.autoSync.lastSyncedMinutesAgo:{"n":5}',
+    )
+    expect(formatCalendarAutoSyncLastSynced('2026-04-09T10:00:00Z', t, now)).toBe(
+      'calendar.autoSync.lastSyncedHoursAgo:{"n":2}',
+    )
+    expect(formatCalendarAutoSyncLastSynced('2026-04-08T12:00:00Z', t, now)).toBe(
+      'calendar.autoSync.lastSyncedYesterday',
+    )
+    expect(formatCalendarAutoSyncLastSynced('2026-04-06T12:00:00Z', t, now)).toBe(
+      'calendar.autoSync.lastSyncedDaysAgo:{"n":3}',
+    )
+  })
+
+  it('detects reconnect-required status', () => {
+    expect(isCalendarAutoSyncStatusReconnectRequired('ReconnectRequired')).toBe(true)
+    expect(isCalendarAutoSyncStatusReconnectRequired('Idle')).toBe(false)
+    expect(isCalendarAutoSyncStatusReconnectRequired(null)).toBe(false)
   })
 
   it('recognizes not-connected messages', () => {

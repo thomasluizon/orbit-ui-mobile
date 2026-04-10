@@ -72,6 +72,8 @@ export const configKeys = {
 export const calendarKeys = {
   all: ['calendar'] as const,
   events: (from: string, to: string) => [...calendarKeys.all, 'events', from, to] as const,
+  autoSyncState: () => [...calendarKeys.all, 'auto-sync-state'] as const,
+  syncSuggestions: () => [...calendarKeys.all, 'sync-suggestions'] as const,
 }
 
 export const userFactKeys = {
