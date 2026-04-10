@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ChevronRight,
@@ -860,7 +860,7 @@ function useActionsMenu(
 // Main component
 // ---------------------------------------------------------------------------
 
-export function HabitCard({
+export const HabitCard = React.memo(function HabitCard({
   habit,
   selectedDate,
   depth = 0,
@@ -1156,4 +1156,4 @@ export function HabitCard({
       )}
     </>
   )
-}
+})

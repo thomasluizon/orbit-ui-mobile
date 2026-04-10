@@ -141,11 +141,10 @@ export function useLogHabit() {
     },
 
     onSettled: () => {
-      // Refetch for eventual consistency
+      // Refetch for eventual consistency (profileKeys removed -- already updated optimistically in onSuccess)
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })
