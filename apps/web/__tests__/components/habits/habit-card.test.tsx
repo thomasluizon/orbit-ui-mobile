@@ -78,7 +78,8 @@ describe('HabitCard', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} />)
     const article = screen.getByLabelText('Exercise')
-    expect(article.tagName).toBe('BUTTON')
+    expect(article.tagName).toBe('DIV')
+    expect(article).toHaveAttribute('role', 'button')
   })
 
   it('calls onDetail when card is clicked', () => {
@@ -355,7 +356,9 @@ describe('HabitCard', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} actions={{ onDetail }} />)
     const card = screen.getByLabelText('Exercise')
-    expect(card.tagName).toBe('BUTTON')
+    expect(card.tagName).toBe('DIV')
+    expect(card).toHaveAttribute('role', 'button')
+    expect(card).toHaveAttribute('tabIndex', '0')
     fireEvent.click(card)
     expect(onDetail).toHaveBeenCalledOnce()
   })

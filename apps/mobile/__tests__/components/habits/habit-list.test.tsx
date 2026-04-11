@@ -125,9 +125,13 @@ vi.mock('@/hooks/use-time-format', () => ({
   }),
 }))
 
-vi.mock('@/lib/theme', () => ({
-  createColors: () => colorProxy,
-}))
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
+  return {
+    ...actual,
+    createColors: () => colorProxy,
+  }
+})
 
 vi.mock('@/components/ui/anchored-menu', () => ({
   AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),

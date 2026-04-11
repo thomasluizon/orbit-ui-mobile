@@ -169,11 +169,13 @@ vi.mock('@/lib/habit-selection-state', () => ({
   shouldResetSelectionForViewChange: () => false,
 }))
 
-vi.mock('@/lib/theme', () => ({
-  createColors: () => colorProxy,
-  radius: { full: 9999, lg: 16, md: 12, xl: 20 },
-  shadows: { lg: {} },
-}))
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
+  return {
+    ...actual,
+    createColors: () => colorProxy,
+  }
+})
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
