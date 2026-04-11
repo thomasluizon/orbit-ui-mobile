@@ -24,7 +24,6 @@ let mockProfile: Record<string, unknown> | null = null
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: mockProfile,
-    patchProfile: vi.fn(),
   }),
 }))
 
@@ -59,10 +58,6 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  getTimezoneList: () => ['America/New_York', 'America/Sao_Paulo', 'Europe/London', 'Asia/Tokyo'],
-}))
-
 vi.mock('@orbit/shared/query', () => ({
   apiKeyKeys: {
     lists: () => ['api-keys', 'list'],
@@ -74,10 +69,6 @@ vi.mock('@orbit/shared/api', () => ({
   API: {
     apiKeys: { list: '/api/api-keys', create: '/api/api-keys' },
   },
-}))
-
-vi.mock('@/app/actions/profile', () => ({
-  updateTimezone: vi.fn().mockResolvedValue({}),
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
@@ -129,56 +120,6 @@ describe('AdvancedPage', () => {
     render(<AdvancedPage />)
     expect(screen.getByText('advancedSettings.title')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'common.backToProfile' })).toHaveAttribute('href', '/profile')
-  })
-
-  // ---- Timezone section ----
-
-  it('renders timezone section with current timezone', () => {
-    render(<AdvancedPage />)
-    expect(screen.getByText('profile.timezone.title')).toBeInTheDocument()
-    expect(screen.getByText('America/New_York')).toBeInTheDocument()
-  })
-
-  it('renders "not set" when timezone is empty', () => {
-    mockProfile = { ...mockProfile, timeZone: '' }
-    render(<AdvancedPage />)
-    expect(screen.getByText('profile.timezone.notSet')).toBeInTheDocument()
-  })
-
-  it('shows timezone description', () => {
-    render(<AdvancedPage />)
-    expect(screen.getByText('profile.timezone.description')).toBeInTheDocument()
-  })
-
-  it('opens timezone selector when edit is clicked', () => {
-    render(<AdvancedPage />)
-    const editButton = screen.getByText('common.edit')
-    expect(editButton.closest('button')).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(editButton)
-    expect(screen.getByPlaceholderText('profile.timezone.searchPlaceholder')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('profile.timezone.searchPlaceholder')).toHaveAttribute('id', 'timezone-selector')
-  })
-
-  it('shows close button when timezone selector is open', () => {
-    render(<AdvancedPage />)
-    fireEvent.click(screen.getByText('common.edit'))
-    expect(screen.getByText('common.close')).toBeInTheDocument()
-  })
-
-  it('renders timezone list when selector is open', () => {
-    render(<AdvancedPage />)
-    fireEvent.click(screen.getByText('common.edit'))
-    expect(screen.getByText('America/Sao_Paulo')).toBeInTheDocument()
-    expect(screen.getByText('Europe/London')).toBeInTheDocument()
-  })
-
-  it('highlights current timezone in the list', () => {
-    render(<AdvancedPage />)
-    fireEvent.click(screen.getByText('common.edit'))
-    const currentTzButton = screen.getAllByRole('button').find(
-      (b) => b.textContent === 'America/New_York',
-    )
-    expect(currentTzButton?.className).toContain('text-primary')
   })
 
   // ---- Widget tip ----

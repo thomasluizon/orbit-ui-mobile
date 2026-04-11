@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useEffect } from 'react'
-import { AppState } from 'react-native'
 import i18n from 'i18next'
 import { API } from '@orbit/shared/api'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
@@ -13,7 +12,6 @@ import {
   getTrialUrgent,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
 // ---------------------------------------------------------------------------
 // useProfile -- TanStack Query hook for the user profile (mobile)
@@ -43,40 +41,6 @@ export function useProfile() {
       void i18n.changeLanguage(profile.language)
     }
   }, [profile?.language])
-
-  // Auto-detect timezone on every session: if the device timezone differs from the stored one, sync it
-  useEffect(() => {
-    const checkAndSync = () => {
-      const current = queryClient.getQueryData<Profile>(profileKeys.detail())
-      if (!current) return
-      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (!detected || detected === 'UTC') return
-      if (current.timeZone === detected) return
-      performQueuedApiMutation({
-        type: 'setTimeZone',
-        scope: 'profile',
-        endpoint: API.profile.timezone,
-        method: 'PUT',
-        payload: { timeZone: detected },
-        dedupeKey: 'profile-timezone-auto',
-      })
-        .then(() => {
-          queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-            old ? { ...old, timeZone: detected } : old,
-          )
-        })
-        .catch(() => {
-          // Silently ignore -- timezone update is best-effort
-        })
-    }
-
-    if (profile) checkAndSync()
-
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') checkAndSync()
-    })
-    return () => subscription.remove()
-  }, [profile, queryClient])
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: profileKeys.all })

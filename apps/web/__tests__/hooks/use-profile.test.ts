@@ -12,7 +12,6 @@ vi.stubGlobal('fetch', mockFetch)
 
 // Mock profile action -- include all exports used transitively
 vi.mock('@/app/actions/profile', () => ({
-  updateTimezone: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
 }))
@@ -154,36 +153,6 @@ describe('useProfile', () => {
     expect(cached?.name).toBe('Updated')
   })
 
-  it('auto-detects timezone when profile returns UTC', async () => {
-    const { updateTimezone } = await import('@/app/actions/profile')
-    const mockedUpdateTimezone = vi.mocked(updateTimezone)
-    mockedUpdateTimezone.mockResolvedValue(undefined)
-
-    const profile = createMockProfile({ timeZone: 'UTC' })
-    mockProfileResponse(profile)
-
-    // Mock Intl to return a real timezone
-    const originalIntl = globalThis.Intl
-    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
-      locale: 'en-US',
-      calendar: 'gregory',
-      numberingSystem: 'latn',
-      timeZone: 'America/Sao_Paulo',
-    } as Intl.ResolvedDateTimeFormatOptions)
-
-    const { result } = renderHook(() => useProfile(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-
-    // Give the useEffect time to fire
-    await waitFor(() => {
-      expect(mockedUpdateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
-    })
-
-    vi.restoreAllMocks()
-  })
 })
 
 describe('useHasProAccess', () => {

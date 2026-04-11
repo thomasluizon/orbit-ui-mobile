@@ -1,7 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
 const TestRenderer = require('react-test-renderer')
@@ -21,6 +20,7 @@ const mocks = vi.hoisted(() => {
         ? updater(state.profile) ?? state.profile
         : updater
     }),
+    getQueryData: vi.fn(() => state.profile),
   }
 
   return {
@@ -33,7 +33,6 @@ const mocks = vi.hoisted(() => {
       error: null,
     })),
     useQueryClient: vi.fn(() => queryClient),
-    performQueuedApiMutation: vi.fn(async () => undefined),
     i18n: {
       language: 'en',
       changeLanguage: vi.fn(async () => undefined),
@@ -52,10 +51,6 @@ vi.mock('i18next', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
-}))
-
-vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: mocks.performQueuedApiMutation,
 }))
 
 import { useProfile } from '@/hooks/use-profile'
@@ -77,52 +72,28 @@ describe('mobile useProfile', () => {
     mocks.state.profile = createMockProfile()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.getQueryData.mockClear()
     mocks.useQuery.mockClear()
     mocks.useQueryClient.mockClear()
-    mocks.performQueuedApiMutation.mockClear()
     mocks.i18n.changeLanguage.mockClear()
     mocks.i18n.language = 'en'
   })
 
-  it('queues a timezone update when the backend profile is UTC and the device timezone is real', async () => {
-    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
-
-    const originalDateTimeFormat = Intl.DateTimeFormat
-    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(
-      () =>
-        ({
-          resolvedOptions: () => ({ timeZone: 'America/Sao_Paulo' }),
-        }) as Intl.DateTimeFormat,
-    )
-
-    try {
-      await renderHookHarness()
-      await Promise.resolve()
-    } finally {
-      Intl.DateTimeFormat = originalDateTimeFormat
-    }
-
-    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith({
-      type: 'setTimeZone',
-      scope: 'profile',
-      endpoint: '/api/profile/timezone',
-      method: 'PUT',
-      payload: { timeZone: 'America/Sao_Paulo' },
-      dedupeKey: 'profile-timezone-auto',
-    })
-
-    expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
-      profileKeys.detail(),
-      expect.any(Function),
-    )
-    expect(mocks.state.profile.timeZone).toBe('America/Sao_Paulo')
-  })
-
-  it('does not queue a timezone update when the profile already has a concrete timezone', async () => {
-    mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
+  it('renders without error and exposes profile data', async () => {
+    mocks.state.profile = createMockProfile({ email: 'thomas@example.com' })
 
     await renderHookHarness()
 
-    expect(mocks.performQueuedApiMutation).not.toHaveBeenCalled()
+    expect(mocks.useQuery).toHaveBeenCalled()
+    expect(mocks.state.profile.email).toBe('thomas@example.com')
+  })
+
+  it('syncs i18n language when profile language differs', async () => {
+    mocks.state.profile = createMockProfile({ language: 'pt-BR' })
+    mocks.i18n.language = 'en'
+
+    await renderHookHarness()
+
+    expect(mocks.i18n.changeLanguage).toHaveBeenCalledWith('pt-BR')
   })
 })
