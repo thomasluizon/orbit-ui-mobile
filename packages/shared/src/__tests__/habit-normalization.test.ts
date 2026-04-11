@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { HabitScheduleItem } from '../types/habit'
+import type { HabitDetail, HabitScheduleItem } from '../types/habit'
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
+  habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
   sortNormalizedHabits,
@@ -146,5 +147,102 @@ describe('habit normalization utils', () => {
       currentValue: 1,
       progressPercentage: 20,
     })
+  })
+})
+
+describe('habitDetailToNormalized', () => {
+  function makeHabitDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
+    return {
+      id: overrides.id ?? 'h-1',
+      title: overrides.title ?? 'Meditate',
+      description: overrides.description ?? null,
+      frequencyUnit: overrides.frequencyUnit ?? 'Day',
+      frequencyQuantity: overrides.frequencyQuantity ?? 1,
+      isBadHabit: overrides.isBadHabit ?? false,
+      isCompleted: overrides.isCompleted ?? false,
+      isGeneral: overrides.isGeneral ?? false,
+      isFlexible: overrides.isFlexible ?? false,
+      days: overrides.days ?? [],
+      dueDate: overrides.dueDate ?? '2026-04-11',
+      dueTime: overrides.dueTime ?? null,
+      dueEndTime: overrides.dueEndTime ?? null,
+      endDate: overrides.endDate ?? null,
+      position: overrides.position ?? 0,
+      checklistItems: overrides.checklistItems ?? [],
+      createdAtUtc: overrides.createdAtUtc ?? '2026-04-11T00:00:00Z',
+      reminderEnabled: overrides.reminderEnabled ?? false,
+      reminderTimes: overrides.reminderTimes ?? [],
+      scheduledReminders: overrides.scheduledReminders ?? [],
+      children: overrides.children ?? [],
+    }
+  }
+
+  it('preserves base habit fields from the detail', () => {
+    const detail = makeHabitDetail({
+      id: 'h-42',
+      title: 'Read',
+      description: 'Daily reading',
+      checklistItems: [{ text: 'Chapter 1', isChecked: false }],
+      dueTime: '20:00',
+    })
+
+    const result = habitDetailToNormalized(detail)
+
+    expect(result.id).toBe('h-42')
+    expect(result.title).toBe('Read')
+    expect(result.description).toBe('Daily reading')
+    expect(result.checklistItems).toEqual([{ text: 'Chapter 1', isChecked: false }])
+    expect(result.dueTime).toBe('20:00')
+  })
+
+  it('fills schedule/list-only fields with safe defaults', () => {
+    const result = habitDetailToNormalized(makeHabitDetail())
+
+    expect(result.parentId).toBeNull()
+    expect(result.scheduledDates).toEqual([])
+    expect(result.isOverdue).toBe(false)
+    expect(result.slipAlertEnabled).toBe(false)
+    expect(result.tags).toEqual([])
+    expect(result.flexibleTarget).toBeNull()
+    expect(result.flexibleCompleted).toBeNull()
+    expect(result.isLoggedInRange).toBe(false)
+    expect(result.instances).toEqual([])
+  })
+
+  it('derives hasSubHabits from children length', () => {
+    const withoutChildren = habitDetailToNormalized(makeHabitDetail({ children: [] }))
+    expect(withoutChildren.hasSubHabits).toBe(false)
+
+    const withChildren = habitDetailToNormalized(
+      makeHabitDetail({
+        children: [
+          {
+            id: 'c-1',
+            title: 'Child',
+            description: null,
+            frequencyUnit: 'Day',
+            frequencyQuantity: 1,
+            isBadHabit: false,
+            isCompleted: false,
+            isGeneral: false,
+            isFlexible: false,
+            days: [],
+            dueDate: '2026-04-11',
+            dueTime: null,
+            dueEndTime: null,
+            endDate: null,
+            position: 0,
+            checklistItems: [],
+            children: [],
+          },
+        ],
+      }),
+    )
+    expect(withChildren.hasSubHabits).toBe(true)
+  })
+
+  it('does not include the children property on the result', () => {
+    const result = habitDetailToNormalized(makeHabitDetail())
+    expect('children' in result).toBe(false)
   })
 })

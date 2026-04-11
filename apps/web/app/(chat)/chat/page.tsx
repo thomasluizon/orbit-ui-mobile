@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -16,9 +16,9 @@ import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { useChatComposer } from '@/hooks/use-chat-composer'
-import { useHabits } from '@/hooks/use-habits'
+import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
@@ -72,20 +72,22 @@ export default function ChatPage() {
 
   // -------------------------------------------------------------------------
   // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer)
+  // Lazy: only fetch the single habit by ID after the user taps a chip.
   // -------------------------------------------------------------------------
-  const habitsQuery = useHabits({})
-  const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
-  const [showDetailDrawer, setShowDetailDrawer] = useState(false)
-
-  const handleActionChipClick = useCallback(
-    (habitId: string) => {
-      const habit = habitsQuery.data?.habitsById.get(habitId)
-      if (!habit) return
-      setSelectedHabit(habit)
-      setShowDetailDrawer(true)
-    },
-    [habitsQuery.data],
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
+  const habitDetailQuery = useHabitDetail(selectedHabitId)
+  const selectedHabit = useMemo(
+    () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
+    [habitDetailQuery.data],
   )
+
+  const handleActionChipClick = useCallback((habitId: string) => {
+    setSelectedHabitId(habitId)
+  }, [])
+
+  const handleDrawerOpenChange = useCallback((open: boolean) => {
+    if (!open) setSelectedHabitId(null)
+  }, [])
 
   // -------------------------------------------------------------------------
   // Render
@@ -340,8 +342,8 @@ export default function ChatPage() {
 
       {/* Habit detail drawer (opened from action chips) */}
       <HabitDetailDrawer
-        open={showDetailDrawer}
-        onOpenChange={setShowDetailDrawer}
+        open={!!selectedHabitId}
+        onOpenChange={handleDrawerOpenChange}
         habit={selectedHabit}
       />
     </div>

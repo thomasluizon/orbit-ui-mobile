@@ -43,7 +43,7 @@ import type { Profile } from "@orbit/shared/types/profile";
 import { getErrorMessage } from "@orbit/shared/utils";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
-import { useHabits } from "@/hooks/use-habits";
+import { useHabitDetail } from "@/hooks/use-habits";
 import { apiClient } from "@/lib/api-client";
 import { MessageBubble } from "@/components/message-bubble";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
@@ -54,7 +54,7 @@ import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
 import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
-import type { NormalizedHabit } from "@orbit/shared/types/habit";
+import { habitDetailToNormalized } from "@orbit/shared/utils";
 
 // ---------------------------------------------------------------------------
 // Animated Sparkle Icon for empty state
@@ -496,18 +496,22 @@ export default function ChatScreen() {
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   }, [queryClient]);
 
-  // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer)
-  const habitsQuery = useHabits({});
-  const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
-
-  const handleActionChipClick = useCallback(
-    (habitId: string) => {
-      const habit = habitsQuery.data?.habitsById.get(habitId);
-      if (!habit) return;
-      setDetailHabit(habit);
-    },
-    [habitsQuery.data],
+  // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer).
+  // Lazy: only fetch the single habit by ID after the user taps a chip.
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
+  const habitDetailQuery = useHabitDetail(selectedHabitId);
+  const detailHabit = useMemo(
+    () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
+    [habitDetailQuery.data],
   );
+
+  const handleActionChipClick = useCallback((habitId: string) => {
+    setSelectedHabitId(habitId);
+  }, []);
+
+  const handleDrawerClose = useCallback(() => {
+    setSelectedHabitId(null);
+  }, []);
 
   // Render message item
   const renderMessage = useCallback(
@@ -790,8 +794,8 @@ export default function ChatScreen() {
       </KeyboardAvoidingView>
 
       <HabitDetailDrawer
-        open={!!detailHabit}
-        onClose={() => setDetailHabit(null)}
+        open={!!selectedHabitId}
+        onClose={handleDrawerClose}
         habit={detailHabit}
       />
     </SafeAreaView>
