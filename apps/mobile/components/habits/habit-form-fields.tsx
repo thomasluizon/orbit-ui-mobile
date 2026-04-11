@@ -39,6 +39,9 @@ import { validateTagForm } from "@orbit/shared/validation";
 import { HabitChecklist } from "./habit-checklist";
 import { ChecklistTemplates } from "./checklist-templates";
 import { GoalLinkingField } from "./goal-linking-field";
+import { IconPickerSheet } from "./primitives/icon-picker-sheet";
+import { ColorPickerRow } from "./primitives/color-picker-row";
+import { resolveHabitIcon } from "@/lib/habit-icon-catalog";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
 import { useAppToast } from "@/hooks/use-app-toast";
@@ -874,6 +877,8 @@ export function HabitFormFields({
   const watchedScheduledReminders = watch("scheduledReminders") ?? [];
   const watchedTitle = watch("title") ?? "";
   const watchedDescription = watch("description") ?? "";
+  const watchedIcon = watch("icon") ?? "";
+  const watchedColor = watch("color") ?? "";
 
   // Reminder label function
   function reminderLabel(minutes: number): string {
@@ -935,6 +940,7 @@ export function HabitFormFields({
       watchedReminderEnabled,
       selectedGoalIds.length > 0,
       watchedIsBadHabit,
+      watchedIcon.length > 0 || watchedColor.length > 0,
     ].filter(Boolean).length;
   }, [
     watchedDescription,
@@ -943,7 +949,11 @@ export function HabitFormFields({
     watchedReminderEnabled,
     selectedGoalIds,
     watchedIsBadHabit,
+    watchedIcon,
+    watchedColor,
   ]);
+
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -1496,6 +1506,57 @@ export function HabitFormFields({
               }
             />
           )}
+
+          {/* Appearance — icon + accent color */}
+          <View style={styles.appearanceBlock}>
+            <Text style={styles.label}>{t("habits.form.appearance")}</Text>
+            <Text style={styles.helperText}>{t("habits.form.appearanceHint")}</Text>
+
+            <View style={styles.appearanceBox}>
+              <Text style={styles.appearanceSubLabel}>{t("habits.form.color")}</Text>
+              <ColorPickerRow
+                value={watchedColor || null}
+                onChange={(next) =>
+                  setValue("color", next ?? "", { shouldDirty: true })
+                }
+              />
+
+              <Text style={[styles.appearanceSubLabel, { marginTop: 12 }]}>
+                {t("habits.form.icon")}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setIconPickerOpen(true)}
+                style={styles.iconTrigger}
+                accessibilityLabel={t("habits.form.pickIcon")}
+              >
+                {(() => {
+                  const IconComp = resolveHabitIcon(watchedIcon || null);
+                  if (IconComp) {
+                    const iconColor =
+                      watchedColor && /^#[0-9a-f]{6}$/i.test(watchedColor)
+                        ? watchedColor
+                        : colors.primary;
+                    return <IconComp size={20} color={iconColor} />;
+                  }
+                  return (
+                    <Text style={styles.iconTriggerPlaceholder}>
+                      {t("habits.form.pickIcon")}
+                    </Text>
+                  );
+                })()}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <IconPickerSheet
+            visible={iconPickerOpen}
+            value={watchedIcon || null}
+            accentColor={watchedColor || null}
+            onChange={(next) =>
+              setValue("icon", next ?? "", { shouldDirty: true })
+            }
+            onClose={() => setIconPickerOpen(false)}
+          />
 
           {/* Slot for extra fields (e.g. sub-habits) */}
           {children}
@@ -2053,6 +2114,39 @@ function createStyles(colors: ThemeColors) {
     },
     unitOptionTextActive: {
       color: colors.white,
+    },
+    appearanceBlock: {
+      gap: 6,
+    },
+    helperText: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    appearanceBox: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.lg,
+      padding: 12,
+      backgroundColor: colors.surface,
+      gap: 6,
+    },
+    appearanceSubLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textSecondary,
+    },
+    iconTrigger: {
+      height: 44,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceElevated,
+    },
+    iconTriggerPlaceholder: {
+      fontSize: 12,
+      color: colors.textMuted,
     },
   });
 }

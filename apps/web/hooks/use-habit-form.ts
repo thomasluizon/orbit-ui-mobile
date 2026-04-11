@@ -77,6 +77,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       scheduledReminders: [],
       slipAlertEnabled: false,
       checklistItems: [],
+      icon: '',
+      color: '',
       ...initialData,
     },
   })

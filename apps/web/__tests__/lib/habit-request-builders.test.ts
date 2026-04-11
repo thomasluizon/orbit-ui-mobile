@@ -24,6 +24,8 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
     reminderEnabled: false,
     scheduledReminders: [],
     checklistItems: [],
+    icon: '',
+    color: '',
     ...overrides,
   }
 }

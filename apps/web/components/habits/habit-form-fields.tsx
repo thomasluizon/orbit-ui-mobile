@@ -14,6 +14,8 @@ import { validateTagForm } from '@orbit/shared/validation'
 import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
+import { IconPickerPopover } from './primitives/icon-picker-popover'
+import { ColorPickerRow } from './primitives/color-picker-row'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -729,6 +731,8 @@ export function HabitFormFields({
   const watchedSlipAlertEnabled = watch('slipAlertEnabled') ?? false
   const watchedChecklistItems = watch('checklistItems') ?? []
   const watchedScheduledReminders = watch('scheduledReminders') ?? []
+  const watchedIcon = watch('icon') ?? ''
+  const watchedColor = watch('color') ?? ''
   const { tags: availableTags = [] } = useTags()
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
@@ -792,8 +796,9 @@ export function HabitFormFields({
       watchedReminderEnabled,
       selectedGoalIds.length > 0,
       watchedIsBadHabit,
+      watchedIcon.length > 0 || watchedColor.length > 0,
     ].filter(Boolean).length
-  }, [watchedDescription, watchedChecklistItems, watchedEndDate, watchedReminderEnabled, selectedGoalIds, watchedIsBadHabit])
+  }, [watchedDescription, watchedChecklistItems, watchedEndDate, watchedReminderEnabled, selectedGoalIds, watchedIsBadHabit, watchedIcon, watchedColor])
 
   // Tag pop animation
   const [justToggledTagId, setJustToggledTagId] = useState('')
@@ -1287,6 +1292,35 @@ export function HabitFormFields({
               t={t}
             />
           )}
+
+          {/* Appearance — icon + accent color */}
+          <div className="space-y-2" role="group" aria-labelledby="habit-form-appearance-label">
+            <span id="habit-form-appearance-label" className="form-label">
+              {t('habits.form.appearance')}
+            </span>
+            <p className="text-xs text-text-muted">{t('habits.form.appearanceHint')}</p>
+            <div className="space-y-3 rounded-xl border border-border-muted bg-surface-ground p-3">
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-text-secondary">
+                  {t('habits.form.color')}
+                </span>
+                <ColorPickerRow
+                  value={watchedColor || null}
+                  onChange={(next) => setValue('color', next ?? '', { shouldDirty: true })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-text-secondary">
+                  {t('habits.form.icon')}
+                </span>
+                <IconPickerPopover
+                  value={watchedIcon || null}
+                  accentColor={watchedColor || null}
+                  onChange={(next) => setValue('icon', next ?? '', { shouldDirty: true })}
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Slot for extra fields (e.g. sub-habits) */}
           {children}
