@@ -31,8 +31,8 @@ describe('LevelUpOverlay', () => {
     render(
       <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
     )
-    const output = document.querySelector('output')
-    expect(output).toBeInTheDocument()
+    const alert = document.querySelector('[role="alert"]')
+    expect(alert).toBeInTheDocument()
   })
 
   it('displays the new level number', () => {
@@ -63,12 +63,12 @@ describe('LevelUpOverlay', () => {
     expect(document.body.textContent).toContain('gamification.levelUp.subtitle')
   })
 
-  it('has assertive aria-live for accessibility', () => {
+  it('has alert role with aria-atomic for accessibility', () => {
     render(
       <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
     )
-    const output = document.querySelector('output')
-    expect(output).toHaveAttribute('aria-live', 'assertive')
+    const alert = document.querySelector('[role="alert"]')
+    expect(alert).toHaveAttribute('aria-atomic', 'true')
   })
 
   it('calls onClear after animation duration', () => {

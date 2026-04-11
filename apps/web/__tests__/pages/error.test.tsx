@@ -27,10 +27,10 @@ describe('AppError', () => {
     vi.clearAllMocks()
   })
 
-  it('renders error message from error.message', () => {
+  it('renders generic error message in non-development env', () => {
     const error = new Error('Something went wrong') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 
   it('renders the alert triangle icon', () => {
@@ -61,7 +61,7 @@ describe('AppError', () => {
   it('handles error with digest property', () => {
     const error = Object.assign(new Error('Server error'), { digest: 'abc123' })
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('Server error')).toBeInTheDocument()
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 })
 
@@ -76,10 +76,10 @@ describe('AuthError', () => {
     vi.clearAllMocks()
   })
 
-  it('renders error message from error.message', () => {
+  it('renders generic error message in non-development env', () => {
     const error = new Error('Auth failed') as Error & { digest?: string }
     render(<AuthError error={error} reset={mockReset} />)
-    expect(screen.getByText('Auth failed')).toBeInTheDocument()
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 
   it('falls back to generic error key when message is empty', () => {
@@ -111,6 +111,6 @@ describe('AuthError', () => {
   it('handles error with digest property', () => {
     const error = Object.assign(new Error('Session expired'), { digest: 'xyz789' })
     render(<AuthError error={error} reset={mockReset} />)
-    expect(screen.getByText('Session expired')).toBeInTheDocument()
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 })

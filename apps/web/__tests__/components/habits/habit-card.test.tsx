@@ -78,9 +78,7 @@ describe('HabitCard', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} />)
     const article = screen.getByLabelText('Exercise')
-    expect(article.tagName).toBe('DIV')
-    expect(article.getAttribute('role')).toBe('button')
-    expect(article.getAttribute('tabindex')).toBe('0')
+    expect(article.tagName).toBe('BUTTON')
   })
 
   it('calls onDetail when card is clicked', () => {
@@ -352,14 +350,12 @@ describe('HabitCard', () => {
     expect(screen.getByText('habits.actions.openSubHabits')).toBeDefined()
   })
 
-  it('card div is focusable and clickable (Enter/Space handled via onKeyDown)', () => {
+  it('card button is focusable and clickable', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
     render(<HabitCard habit={habit} actions={{ onDetail }} />)
     const card = screen.getByLabelText('Exercise')
-    expect(card.tagName).toBe('DIV')
-    expect(card.getAttribute('role')).toBe('button')
-    expect(card.getAttribute('tabindex')).toBe('0')
+    expect(card.tagName).toBe('BUTTON')
     fireEvent.click(card)
     expect(onDetail).toHaveBeenCalledOnce()
   })
