@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { CheckCircle, XCircle, Info } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ActionResult } from "@orbit/shared/types/chat";
@@ -33,6 +33,15 @@ const ACTION_LABELS: Record<string, string> = {
   AssignTags: "chat.action.tagsUpdated",
 };
 
+const NON_NAVIGABLE_ACTION_TYPES = new Set([
+  "delete_habit",
+  "DeleteHabit",
+  "delete_sub_habit",
+  "DeleteSubHabit",
+  "suggest_breakdown",
+  "SuggestBreakdown",
+]);
+
 type ChipStyleEntry = {
   text: string;
   bg: string;
@@ -46,9 +55,19 @@ type ChipStyleEntry = {
 
 interface ActionChipsProps {
   actions: ActionResult[];
+  onChipClick?: (entityId: string, actionType: string) => void;
 }
 
-export function ActionChips({ actions }: Readonly<ActionChipsProps>) {
+function isNavigable(action: ActionResult, hasHandler: boolean): boolean {
+  return (
+    hasHandler &&
+    action.status === "Success" &&
+    !!action.entityId &&
+    !NON_NAVIGABLE_ACTION_TYPES.has(action.type)
+  );
+}
+
+export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -67,23 +86,42 @@ export function ActionChips({ actions }: Readonly<ActionChipsProps>) {
         if (action.status === "Suggestion") return null;
         const style = chipStyle(action, colors);
         const IconComponent = style.Icon;
+        const navigable = isNavigable(action, !!onChipClick);
+        const label = actionLabel(action);
 
         return (
           <View key={`${action.type}-${action.entityId || index}`}>
-            <View
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: style.bg,
-                  borderColor: style.border,
-                },
-              ]}
-            >
-              <IconComponent size={10} color={style.text} />
-              <Text style={[styles.chipText, { color: style.text }]}>
-                {actionLabel(action)}
-              </Text>
-            </View>
+            {navigable ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("chat.action.openHabit", { name: label })}
+                onPress={() => onChipClick!(action.entityId!, action.type)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  {
+                    backgroundColor: style.bg,
+                    borderColor: style.border,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <IconComponent size={10} color={style.text} />
+                <Text style={[styles.chipText, { color: style.text }]}>{label}</Text>
+              </Pressable>
+            ) : (
+              <View
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: style.bg,
+                    borderColor: style.border,
+                  },
+                ]}
+              >
+                <IconComponent size={10} color={style.text} />
+                <Text style={[styles.chipText, { color: style.text }]}>{label}</Text>
+              </View>
+            )}
 
             {action.status === "Failed" && action.error && (
               <Text style={styles.errorText}>{action.error}</Text>

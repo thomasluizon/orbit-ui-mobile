@@ -15,6 +15,7 @@ import { useAppTheme } from "@/lib/use-app-theme";
 interface MessageBubbleProps {
   message: ChatMessage;
   onBreakdownConfirmed?: () => void;
+  onActionChipClick?: (entityId: string, actionType: string) => void;
 }
 
 interface FormattedSegment {
@@ -80,6 +81,7 @@ function parseFormattedSegments(value: string): FormattedSegment[] {
 export function MessageBubble({
   message,
   onBreakdownConfirmed,
+  onActionChipClick,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -169,7 +171,7 @@ export function MessageBubble({
 
         {/* Action chips for AI messages */}
         {!isUser && nonSuggestionActions.length > 0 && (
-          <ActionChips actions={nonSuggestionActions} />
+          <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />
         )}
 
         {/* Breakdown suggestions */}

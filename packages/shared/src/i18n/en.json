@@ -614,7 +614,8 @@
       "skipped": "Skipped {name}",
       "tagsUpdated": "Tags updated: {name}",
       "duplicated": "Duplicated {name}",
-      "moved": "Moved {name}"
+      "moved": "Moved {name}",
+      "openHabit": "Open habit: {name}"
     },
     "conflict": {
       "title": "Potential conflict"

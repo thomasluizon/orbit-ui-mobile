@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -15,10 +16,13 @@ import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useHabits } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
+import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -65,6 +69,23 @@ export default function ChatPage() {
     handleKeyDown,
     handleBreakdownConfirmed,
   } = useChatComposer()
+
+  // -------------------------------------------------------------------------
+  // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer)
+  // -------------------------------------------------------------------------
+  const habitsQuery = useHabits({})
+  const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
+  const [showDetailDrawer, setShowDetailDrawer] = useState(false)
+
+  const handleActionChipClick = useCallback(
+    (habitId: string) => {
+      const habit = habitsQuery.data?.habitsById.get(habitId)
+      if (!habit) return
+      setSelectedHabit(habit)
+      setShowDetailDrawer(true)
+    },
+    [habitsQuery.data],
+  )
 
   // -------------------------------------------------------------------------
   // Render
@@ -120,6 +141,7 @@ export default function ChatPage() {
             key={msg.id}
             message={msg}
             onBreakdownConfirmed={handleBreakdownConfirmed}
+            onActionChipClick={handleActionChipClick}
           />
         ))}
 
@@ -315,6 +337,13 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* Habit detail drawer (opened from action chips) */}
+      <HabitDetailDrawer
+        open={showDetailDrawer}
+        onOpenChange={setShowDetailDrawer}
+        habit={selectedHabit}
+      />
     </div>
   )
 }

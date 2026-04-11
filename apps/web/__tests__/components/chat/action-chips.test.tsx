@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -114,5 +114,57 @@ describe('ActionChips', () => {
     expect(chips[0]).toHaveStyle({ animationDelay: '0ms' })
     expect(chips[1]).toHaveStyle({ animationDelay: '80ms' })
     expect(chips[2]).toHaveStyle({ animationDelay: '160ms' })
+  })
+
+  describe('clickable chips', () => {
+    it('renders successful Create chip as a button when onChipClick is provided', () => {
+      const actions = [
+        makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-1' }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={() => {}} />)
+      expect(screen.getByRole('button')).toBeInTheDocument()
+    })
+
+    it('calls onChipClick with entityId and actionType on click', () => {
+      const onChipClick = vi.fn()
+      const actions = [
+        makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-42' }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={onChipClick} />)
+      fireEvent.click(screen.getByRole('button'))
+      expect(onChipClick).toHaveBeenCalledWith('h-42', 'CreateHabit')
+    })
+
+    it('renders Delete chip as non-interactive span even with handler', () => {
+      const actions = [
+        makeAction({ type: 'DeleteHabit', status: 'Success', entityId: 'h-1' }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={() => {}} />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('renders Failed chip as non-interactive span even with handler', () => {
+      const actions = [
+        makeAction({ type: 'CreateHabit', status: 'Failed', entityId: 'h-1', error: 'oops' }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={() => {}} />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('renders chip with null entityId as non-interactive span', () => {
+      const actions = [
+        makeAction({ type: 'CreateHabit', status: 'Success', entityId: null }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={() => {}} />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('renders as non-interactive span when no handler is provided', () => {
+      const actions = [
+        makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-1' }),
+      ]
+      render(<ActionChips actions={actions} />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    })
   })
 })

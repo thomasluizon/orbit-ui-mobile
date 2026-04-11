@@ -614,7 +614,8 @@
       "skipped": "Pulou {name}",
       "tagsUpdated": "Tags atualizadas: {name}",
       "duplicated": "Duplicou {name}",
-      "moved": "Moveu {name}"
+      "moved": "Moveu {name}",
+      "openHabit": "Abrir hábito: {name}"
     },
     "conflict": {
       "title": "Potencial conflito"
