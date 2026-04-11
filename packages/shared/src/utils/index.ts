@@ -91,16 +91,23 @@ export type {
 } from './habit-form-helpers'
 export {
   computeHabitCardStatus,
+  computeHabitChecklistCount,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitMatchBadges,
   computeHabitStatusBadge,
+  computeNextReminderLabel,
+  computeSevenDayStrip,
+  resolveHabitAccent,
 } from './habit-card-helpers'
 export type {
+  HabitAccentPalette,
   HabitCardMatchBadge,
   HabitCardStatus,
   HabitCardStatusBadge,
   HabitCardTranslationAdapter,
+  SevenDayStripCell,
+  SevenDayStripCellStatus,
 } from './habit-card-helpers'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
