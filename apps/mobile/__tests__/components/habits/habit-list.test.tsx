@@ -107,6 +107,8 @@ vi.mock('@/lib/habit-selection-state', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    radius: { sm: 8, md: 12, lg: 16, xl: 20, '2xl': 24, full: 9999 },
+    shadows: { sm: {}, md: {}, lg: {} },
   }),
 }))
 

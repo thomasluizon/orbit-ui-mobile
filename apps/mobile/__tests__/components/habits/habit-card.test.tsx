@@ -7,9 +7,32 @@ const TestRenderer = require('react-test-renderer')
 const colorProxy: any = new Proxy(
   {},
   {
-    get: (_target, prop) => (prop === 'white' ? '#ffffff' : '#111111'),
+    get: (_target, prop) => {
+      if (prop === 'white') return '#ffffff'
+      if (prop === 'primary') return '#8b5cf6'
+      if (prop === 'amber400') return '#fbbf24'
+      if (prop === 'red400') return '#f87171'
+      return '#111111'
+    },
   },
 )
+
+vi.mock('react-native', async () => {
+  const actual = await vi.importActual<any>('react-native')
+  return {
+    ...actual,
+    LayoutAnimation: {
+      configureNext: vi.fn(),
+      Presets: {
+        easeInEaseOut: {},
+        linear: {},
+        spring: {},
+      },
+      Types: {},
+      Properties: {},
+    },
+  }
+})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -26,6 +49,8 @@ vi.mock('@/hooks/use-time-format', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    radius: { sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, full: 9999 },
+    shadows: { sm: {}, md: {}, lg: {} },
   }),
 }))
 
@@ -33,33 +58,26 @@ vi.mock('@/lib/theme', () => ({
   createColors: () => colorProxy,
 }))
 
-vi.mock('@/components/ui/anchored-menu', () => ({
-  AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
+vi.mock('expo-haptics', () => ({
+  impactAsync: vi.fn().mockResolvedValue(undefined),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('react-native-gesture-handler', () => {
   const React = require('react')
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
   return {
-    ArrowRight: createIcon('ArrowRight'),
-    Check: createIcon('Check'),
-    CheckCircle2: createIcon('CheckCircle2'),
-    ChevronRight: createIcon('ChevronRight'),
-    ClipboardCheck: createIcon('ClipboardCheck'),
-    Copy: createIcon('Copy'),
-    FastForward: createIcon('FastForward'),
-    Flame: createIcon('Flame'),
-    MoreVertical: createIcon('MoreVertical'),
-    Pencil: createIcon('Pencil'),
-    Plus: createIcon('Plus'),
-    Trash2: createIcon('Trash2'),
+    Swipeable: ({ children }: any) => React.createElement('Swipeable', {}, children),
+    RectButton: ({ children }: any) => React.createElement('RectButton', {}, children),
   }
 })
+
+// Note: lucide-react-native is mocked via vitest.config alias to
+// apps/mobile/test-mocks/lucide-react-native.ts — no need to vi.mock here.
 
 vi.mock('react-native-svg', () => {
   const React = require('react')
   return {
-    default: (props: any) => React.createElement('Svg', props),
+    default: (props: any) => React.createElement('Svg', props, props.children),
     Circle: (props: any) => React.createElement('Circle', props),
   }
 })
@@ -73,74 +91,71 @@ function findOuterCardTouchables(root: any) {
   )
 }
 
-describe('HabitCard', () => {
+describe('HabitCard (v2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
   })
 
-  it('starts drag on long press instead of entering select mode', () => {
+  it('fires onLongPressCard on long press of the outer shell', () => {
     const onLongPressCard = vi.fn()
-    const onEnterSelectMode = vi.fn()
     let tree: any
-
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
-          actions={{ onLongPressCard, onEnterSelectMode }}
+          disableSwipe
+          actions={{ onLongPressCard, onLog: vi.fn() }}
         />,
       )
     })
 
     const [outerCard] = findOuterCardTouchables(tree.root)
-
     TestRenderer.act(() => {
       outerCard?.props.onLongPress?.()
     })
 
     expect(onLongPressCard).toHaveBeenCalledTimes(1)
-    expect(onEnterSelectMode).not.toHaveBeenCalled()
   })
 
-  it('opens detail on tap outside select mode', () => {
-    const onDetail = vi.fn()
+  it('toggles inline expand when a leaf card is tapped', () => {
+    const onToggleSelection = vi.fn()
     let tree: any
-
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
-          actions={{ onDetail }}
+          disableSwipe
+          actions={{ onToggleSelection, onLog: vi.fn() }}
         />,
       )
     })
 
     const [outerCard] = findOuterCardTouchables(tree.root)
-
     TestRenderer.act(() => {
       outerCard?.props.onPress?.()
     })
 
-    expect(onDetail).toHaveBeenCalledTimes(1)
+    // Leaf habit with no children: tap should not toggle selection (that's
+    // select mode only) — it should toggle the inline expand.
+    expect(onToggleSelection).not.toHaveBeenCalled()
   })
 
-  it('toggles selection on tap in select mode', () => {
+  it('toggles selection when tapped in select mode', () => {
     const onToggleSelection = vi.fn()
     let tree: any
-
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
+          disableSwipe
           isSelectMode
-          actions={{ onToggleSelection }}
+          actions={{ onToggleSelection, onLog: vi.fn() }}
         />,
       )
     })
 
     const [outerCard] = findOuterCardTouchables(tree.root)
-
     TestRenderer.act(() => {
       outerCard?.props.onPress?.()
     })
@@ -148,44 +163,27 @@ describe('HabitCard', () => {
     expect(onToggleSelection).toHaveBeenCalledTimes(1)
   })
 
-  it('enters select mode from the actions menu', () => {
-    const onEnterSelectMode = vi.fn()
+  it('calls onToggleExpand when tapping a parent with children', () => {
+    const onToggleExpand = vi.fn()
     let tree: any
-
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitCard
           habit={createMockHabit()}
-          actions={{ onEnterSelectMode }}
+          disableSwipe
+          hasChildren
+          childrenDone={1}
+          childrenTotal={3}
+          actions={{ onToggleExpand, onLog: vi.fn() }}
         />,
       )
     })
 
-    const menuButton = tree.root.findAll(
-      (node: any) =>
-        node.type === 'TouchableOpacity' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAllByType('MoreVertical').length > 0,
-    ).at(-1)
-
+    const [outerCard] = findOuterCardTouchables(tree.root)
     TestRenderer.act(() => {
-      menuButton?.props.onPress?.()
+      outerCard?.props.onPress?.()
     })
 
-    const selectButton = tree.root.findAll(
-      (node: any) =>
-        node.type === 'TouchableOpacity' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAllByType('Text').some(
-          (textNode: any) => textNode.props.children === 'common.select',
-        ),
-    )[0]
-
-    TestRenderer.act(() => {
-      selectButton?.props.onPress?.()
-      vi.runAllTimers()
-    })
-
-    expect(onEnterSelectMode).toHaveBeenCalledTimes(1)
+    expect(onToggleExpand).toHaveBeenCalledTimes(1)
   })
 })

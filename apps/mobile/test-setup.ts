@@ -104,6 +104,29 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+vi.mock('expo-haptics', () => ({
+  impactAsync: vi.fn().mockResolvedValue(undefined),
+  notificationAsync: vi.fn().mockResolvedValue(undefined),
+  selectionAsync: vi.fn().mockResolvedValue(undefined),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+}))
+
+vi.mock('react-native-gesture-handler', () => {
+  const React = require('react') as typeof import('react')
+  return {
+    Swipeable: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    RectButton: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('RectButton', null, children),
+    GestureHandlerRootView: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    FlatList: React.forwardRef<unknown, { children?: React.ReactNode }>(
+      ({ children }, _ref) => React.createElement('FlatList', null, children),
+    ),
+  }
+})
+
 vi.mock('@gorhom/bottom-sheet', () => ({
   BottomSheetBackdrop: ({ children }: { children?: React.ReactNode }) =>
     React.createElement('BottomSheetBackdrop', null, children),
