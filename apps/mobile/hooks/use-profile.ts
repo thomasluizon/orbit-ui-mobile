@@ -12,7 +12,6 @@ import {
   getTrialUrgent,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
 // ---------------------------------------------------------------------------
 // useProfile -- TanStack Query hook for the user profile (mobile)
@@ -42,33 +41,6 @@ export function useProfile() {
       void i18n.changeLanguage(profile.language)
     }
   }, [profile?.language])
-
-  // Auto-detect timezone: if backend says UTC and device has a real timezone, fix it
-  useEffect(() => {
-    if (!profile) return
-    const tz = profile.timeZone
-    if (!tz || tz === 'UTC') {
-      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (detected && detected !== 'UTC') {
-        performQueuedApiMutation({
-          type: 'setTimeZone',
-          scope: 'profile',
-          endpoint: API.profile.timezone,
-          method: 'PUT',
-          payload: { timeZone: detected },
-          dedupeKey: 'profile-timezone-auto',
-        })
-          .then(() => {
-            queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-              old ? { ...old, timeZone: detected } : old,
-            )
-          })
-          .catch(() => {
-            // Silently ignore -- timezone update is best-effort
-          })
-      }
-    }
-  }, [profile, queryClient])
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: profileKeys.all })

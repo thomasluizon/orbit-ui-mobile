@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn(),
+    getQueryData: vi.fn(() => state.profile),
   }
 
   return {

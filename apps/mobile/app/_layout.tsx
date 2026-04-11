@@ -9,6 +9,7 @@ import { usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
+import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
@@ -91,6 +92,7 @@ function RootLayoutNav() {
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
+  useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
   const { colors, currentTheme } = useAppTheme()

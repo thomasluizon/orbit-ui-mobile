@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Loader2,
   CheckCircle,
   Clock,
   List,
@@ -28,14 +27,12 @@ import {
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '@orbit/shared/utils/advanced-settings'
-import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
-import { updateTimezone } from '@/app/actions/profile'
 import type { ApiKey } from '@orbit/shared/types/api-key'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
@@ -79,42 +76,8 @@ export default function AdvancedPage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
-  const { profile, patchProfile } = useProfile()
+  const { profile } = useProfile()
   const queryClient = useQueryClient()
-
-  // --- Timezone ---
-  const [timezoneList, setTimezoneList] = useState<string[]>([])
-  const [timezoneSearch, setTimezoneSearch] = useState('')
-  const [timezoneOpen, setTimezoneOpen] = useState(false)
-  const [timezoneSaving, setTimezoneSaving] = useState(false)
-  const [timezoneSaved, setTimezoneSaved] = useState(false)
-
-  useEffect(() => {
-    setTimezoneList(getTimezoneList())
-  }, [])
-
-  const filteredTimezones = useMemo(() => {
-    const search = timezoneSearch.toLowerCase()
-    if (!search) return timezoneList.slice(0, 50)
-    return timezoneList.filter((tz) => tz.toLowerCase().includes(search)).slice(0, 100)
-  }, [timezoneSearch, timezoneList])
-
-  async function handleTimezoneChange(newTimezone: string) {
-    setTimezoneSaving(true)
-    setTimezoneSaved(false)
-    try {
-      await updateTimezone({ timeZone: newTimezone })
-      patchProfile({ timeZone: newTimezone })
-    } catch {
-      // Error handled silently
-    }
-    setTimeout(() => {
-      setTimezoneSaving(false)
-      setTimezoneSaved(true)
-      setTimezoneOpen(false)
-      setTimezoneSearch('')
-    }, 400)
-  }
 
   // --- Widget Info ---
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
@@ -188,61 +151,6 @@ export default function AdvancedPage() {
       </header>
 
       <div className="space-y-4">
-        {/* Timezone */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">{t('profile.timezone.title')}</h2>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-text-secondary flex items-center gap-1.5">
-              {t('profile.timezone.current')}
-              <span className="text-text-primary font-medium">
-                {profile?.timeZone || t('profile.timezone.notSet')}
-              </span>
-              {timezoneSaving && <Loader2 className="size-3.5 text-primary animate-spin" />}
-              {!timezoneSaving && timezoneSaved && <CheckCircle className="size-3.5 text-green-400" />}
-            </p>
-            <button
-              className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-              onClick={() => {
-                setTimezoneOpen(!timezoneOpen)
-                setTimezoneSaved(false)
-              }}
-              aria-expanded={timezoneOpen}
-              aria-controls="timezone-selector"
-            >
-              {timezoneOpen ? t('common.close') : t('common.edit')}
-            </button>
-          </div>
-          {timezoneOpen && (
-            <>
-              <input
-                id="timezone-selector"
-                type="text"
-                value={timezoneSearch}
-                onChange={(e) => setTimezoneSearch(e.target.value)}
-                placeholder={t('profile.timezone.searchPlaceholder')}
-                autoFocus
-                className="w-full bg-background text-text-primary placeholder-text-muted rounded-2xl py-2.5 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <div className="max-h-48 overflow-y-auto rounded-2xl bg-background border border-border">
-                {filteredTimezones.map((tz) => (
-                  <button
-                    key={tz}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      tz === profile?.timeZone
-                        ? 'bg-primary/20 text-primary font-medium'
-                        : 'text-text-secondary hover:bg-surface hover:text-text-primary'
-                    }`}
-                    onClick={() => handleTimezoneChange(tz)}
-                  >
-                    {tz}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <p className="text-xs text-text-muted">{t('profile.timezone.description')}</p>
-        </div>
-
         {/* Widget tip */}
         <button
           className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"

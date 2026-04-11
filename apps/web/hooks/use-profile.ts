@@ -12,7 +12,6 @@ import {
   getTrialExpired,
   getTrialUrgent,
 } from '@orbit/shared/utils'
-import { updateTimezone } from '@/app/actions/profile'
 import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 
@@ -34,26 +33,6 @@ export function useProfile() {
   })
 
   const profile = query.data
-
-  // Auto-detect timezone: if backend says UTC and browser has a real timezone, fix it
-  useEffect(() => {
-    if (!profile) return
-    const tz = profile.timeZone
-    if (!tz || tz === 'UTC') {
-      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (detected && detected !== 'UTC') {
-        updateTimezone({ timeZone: detected })
-          .then(() => {
-            queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-              old ? { ...old, timeZone: detected } : old,
-            )
-          })
-          .catch(() => {
-            // Silently ignore -- timezone update is best-effort
-          })
-      }
-    }
-  }, [profile, queryClient])
 
   // Hydrate color scheme and theme from DB (source of truth).
   // On first login (null values), detect and persist local/system defaults.

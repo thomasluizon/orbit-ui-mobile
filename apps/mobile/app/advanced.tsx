@@ -1,12 +1,10 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Modal,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -40,7 +38,6 @@ import {
   WIDGET_STEP_KEYS,
   type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
-import { getTimezoneList } from '@orbit/shared/utils'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
@@ -67,102 +64,6 @@ interface ApiKeyCreateResponse {
   name: string
 }
 
-function TimezoneSection({
-  profile,
-  timezoneSaving,
-  timezoneSaved,
-  timezoneOpen,
-  timezoneSearch,
-  filteredTimezones,
-  onToggleOpen,
-  onSearchChange,
-  onSelectTimezone,
-  t,
-  colors,
-  styles,
-}: Readonly<{
-  profile: { timeZone?: string | null } | null | undefined
-  timezoneSaving: boolean
-  timezoneSaved: boolean
-  timezoneOpen: boolean
-  timezoneSearch: string
-  filteredTimezones: string[]
-  onToggleOpen: () => void
-  onSearchChange: (value: string) => void
-  onSelectTimezone: (timezone: string) => void
-  t: (key: string, params?: Record<string, unknown>) => string
-  colors: ReturnType<typeof useAppTheme>['colors']
-  styles: ReturnType<typeof createStyles>
-}>) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.cardLabel}>{t('profile.timezone.title')}</Text>
-      <View style={styles.timezoneRow}>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={styles.timezoneValue}>{t('profile.timezone.current')} </Text>
-          <Text style={styles.timezoneHighlight}>
-            {profile?.timeZone || t('profile.timezone.notSet')}
-          </Text>
-          {timezoneSaving ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : timezoneSaved ? (
-            <CheckCircle size={14} color={colors.green} />
-          ) : null}
-        </View>
-        <TouchableOpacity
-          onPress={onToggleOpen}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: timezoneOpen }}
-          accessibilityLabel={timezoneOpen ? t('common.close') : t('common.edit')}
-        >
-          <Text style={styles.editLink}>
-            {timezoneOpen ? t('common.close') : t('common.edit')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {timezoneOpen ? (
-        <>
-          <TextInput
-            style={styles.searchInput}
-            value={timezoneSearch}
-            onChangeText={onSearchChange}
-            placeholder={t('profile.timezone.searchPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            autoFocus
-          />
-          <ScrollView style={styles.timezoneList} nestedScrollEnabled>
-            {filteredTimezones.map((tz) => (
-              <TouchableOpacity
-                key={tz}
-                style={[
-                  styles.timezoneItem,
-                  tz === profile?.timeZone && styles.timezoneItemActive,
-                ]}
-                onPress={() => onSelectTimezone(tz)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.timezoneItemText,
-                    tz === profile?.timeZone && styles.timezoneItemTextActive,
-                  ]}
-                >
-                  {tz}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
-      ) : null}
-
-      <Text style={styles.hintText}>
-        {t('profile.timezone.description')}
-      </Text>
-    </View>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Advanced Screen
 // ---------------------------------------------------------------------------
@@ -170,53 +71,12 @@ function TimezoneSection({
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const { profile, patchProfile } = useProfile()
+  const { profile } = useProfile()
   const queryClient = useQueryClient()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
   const { isOnline } = useOffline()
-
-  // --- Timezone ---
-  const [timezoneList, setTimezoneList] = useState<string[]>([])
-  const [timezoneSearch, setTimezoneSearch] = useState('')
-  const [timezoneOpen, setTimezoneOpen] = useState(false)
-  const [timezoneSaving, setTimezoneSaving] = useState(false)
-  const [timezoneSaved, setTimezoneSaved] = useState(false)
-
-  useEffect(() => {
-    setTimezoneList(getTimezoneList())
-  }, [])
-
-  const filteredTimezones = useMemo(() => {
-    const search = timezoneSearch.toLowerCase()
-    if (!search) return timezoneList.slice(0, 50)
-    return timezoneList.filter((tz) => tz.toLowerCase().includes(search)).slice(0, 100)
-  }, [timezoneSearch, timezoneList])
-
-  async function handleTimezoneChange(newTimezone: string) {
-    setTimezoneSaving(true)
-    setTimezoneSaved(false)
-    try {
-      await performQueuedApiMutation({
-        type: 'setTimeZone',
-        scope: 'profile',
-        endpoint: API.profile.timezone,
-        method: 'PUT',
-        payload: { timeZone: newTimezone },
-        dedupeKey: 'profile-timezone',
-      })
-      patchProfile({ timeZone: newTimezone })
-    } catch {
-      // Silently fail
-    }
-    setTimeout(() => {
-      setTimezoneSaving(false)
-      setTimezoneSaved(true)
-      setTimezoneOpen(false)
-      setTimezoneSearch('')
-    }, 400)
-  }
 
   // --- Widget Info ---
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
@@ -344,25 +204,6 @@ export default function AdvancedScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('advancedSettings.title')}</Text>
         </View>
-
-        {/* Timezone */}
-        <TimezoneSection
-          profile={profile ?? null}
-          timezoneSaving={timezoneSaving}
-          timezoneSaved={timezoneSaved}
-          timezoneOpen={timezoneOpen}
-          timezoneSearch={timezoneSearch}
-          filteredTimezones={filteredTimezones}
-          onToggleOpen={() => {
-            setTimezoneOpen(!timezoneOpen)
-            setTimezoneSaved(false)
-          }}
-          onSearchChange={setTimezoneSearch}
-          onSelectTimezone={handleTimezoneChange}
-          t={t}
-          colors={colors}
-          styles={styles}
-        />
 
         {/* Widget tip */}
         <TouchableOpacity
@@ -724,43 +565,6 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
-  // Timezone
-  timezoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  timezoneValue: { fontSize: 14, color: colors.textSecondary },
-  timezoneHighlight: { fontSize: 14, color: colors.textPrimary, fontWeight: '500' },
-  editLink: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  searchInput: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  timezoneList: {
-    maxHeight: 200,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  timezoneItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  timezoneItemActive: {
-    backgroundColor: 'rgba(139,92,246,0.20)',
-  },
-  timezoneItemText: { fontSize: 14, color: colors.textSecondary },
-  timezoneItemTextActive: { color: colors.primary, fontWeight: '500' },
 
   // Nav card (widget)
   navCard: {

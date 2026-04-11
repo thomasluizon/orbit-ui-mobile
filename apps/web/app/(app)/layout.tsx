@@ -19,6 +19,7 @@ import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
 import { useProfile } from '@/hooks/use-profile'
+import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -46,6 +47,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
+  useTimezoneAutoSync(profile)
   const hasProAccess = profile?.hasProAccess ?? false
   const totalHabitCount = useTotalHabitCount()
 
