@@ -827,9 +827,12 @@ function useActionsMenu(
     if (!showActionsMenu) {
       const rect = actionsMenuRef.current?.getBoundingClientRect()
       if (rect) {
+        // The fixed bottom nav occludes the lower part of the viewport, so
+        // treat its top edge as the effective viewport bottom for flip checks.
+        const bottomNav = document.querySelector<HTMLElement>('[data-bottom-nav]')
+        const effectiveBottom = bottomNav?.getBoundingClientRect().top ?? globalThis.innerHeight
         const opensUp =
-          rect.bottom + MENU_ESTIMATED_HEIGHT_PX + MENU_MARGIN_PX >
-          globalThis.innerHeight
+          rect.bottom + MENU_ESTIMATED_HEIGHT_PX + MENU_MARGIN_PX > effectiveBottom
         setMenuOpensUp(opensUp)
         const preferredLeft = rect.right - MENU_WIDTH_PX
         const maxLeft =
