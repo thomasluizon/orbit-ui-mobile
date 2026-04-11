@@ -81,6 +81,8 @@ interface HabitCardProps {
   actions?: HabitCardActions
 }
 
+type MutableDivRef = { current: HTMLDivElement | null }
+
 /** Build article className from flags (replaces long ternary chain). */
 interface ArticleClassNameOptions {
   isChild: boolean
@@ -720,7 +722,7 @@ function MenuActionButton({
 // ---------------------------------------------------------------------------
 
 function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, closeMenu }: Readonly<{
-  panelRef: React.RefObject<HTMLDivElement | null>
+  panelRef: MutableDivRef
   menuPosition: { top: number; left: number }
   menuOpensUp: boolean
   menuItems: MenuAction[]
@@ -730,7 +732,7 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
 
   // Focus first menu item on mount
   const setRef = useCallback((el: HTMLDivElement | null) => {
-    (panelRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+    panelRef.current = el
     if (el) {
       requestAnimationFrame(() => {
         const first = el.querySelector<HTMLElement>('[role="menuitem"]')
@@ -812,7 +814,7 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
 
 function useActionsMenu(
   actionsMenuRef: React.RefObject<HTMLDivElement | null>,
-  actionsMenuPanelRef: React.RefObject<HTMLDivElement | null>,
+  actionsMenuPanelRef: MutableDivRef,
   isSelectMode: boolean,
 ) {
   const [showActionsMenu, setShowActionsMenu] = useState(false)
@@ -1115,50 +1117,50 @@ export const HabitCard = React.memo(function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <div
-          role="button"
-          tabIndex={0}
           data-tour="tour-habit-card"
-          className={`${articleClassName} text-left w-full cursor-pointer`}
-          onClick={handleCardClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              handleCardClick()
-            }
-          }}
-          aria-label={habit.title}
+          className={`${articleClassName} relative text-left w-full`}
         >
+          <button
+            type="button"
+            className={`${articleClassName} absolute inset-0 z-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+            onClick={handleCardClick}
+            aria-label={habit.title}
+          />
           <div
-            className={`flex items-center ${
+            className={`pointer-events-none relative z-10 flex items-center ${
               isChild ? 'gap-3' : 'gap-3.5 sm:gap-4'
             }`}
           >
-            <ExpandToggle
-              hasChildren={hasChildren}
-              isExpanded={isExpanded}
-              isChild={isChild}
-              onToggleExpand={onToggleExpand}
-            />
+            <div className="pointer-events-auto">
+              <ExpandToggle
+                hasChildren={hasChildren}
+                isExpanded={isExpanded}
+                isChild={isChild}
+                onToggleExpand={onToggleExpand}
+              />
+            </div>
 
-            <LogIndicator
-              isSelectMode={isSelectMode}
-              isSelected={isSelected}
-              isParentWithChildren={isParentWithChildren}
-              isChild={isChild}
-              isDoneForRange={isDoneForRange}
-              isNotDueToday={isNotDueToday}
-              status={status}
-              childrenDone={childrenDone}
-              childrenTotal={childrenTotal}
-              progressPercent={progressPercent}
-              ringPulse={ringPulse}
-              justCompleted={justCompleted}
-              habitTitle={habit.title}
-              onLog={onLog}
-              onUnlog={onUnlog}
-              onForceLogParent={onForceLogParent}
-              onToggleSelection={onToggleSelection}
-            />
+            <div className="pointer-events-auto">
+              <LogIndicator
+                isSelectMode={isSelectMode}
+                isSelected={isSelected}
+                isParentWithChildren={isParentWithChildren}
+                isChild={isChild}
+                isDoneForRange={isDoneForRange}
+                isNotDueToday={isNotDueToday}
+                status={status}
+                childrenDone={childrenDone}
+                childrenTotal={childrenTotal}
+                progressPercent={progressPercent}
+                ringPulse={ringPulse}
+                justCompleted={justCompleted}
+                habitTitle={habit.title}
+                onLog={onLog}
+                onUnlog={onUnlog}
+                onForceLogParent={onForceLogParent}
+                onToggleSelection={onToggleSelection}
+              />
+            </div>
 
             <CardContent
               habit={habit}
@@ -1174,11 +1176,13 @@ export const HabitCard = React.memo(function HabitCard({
             />
 
             {!isSelectMode && (
-              <ActionsMenuTrigger
-                isChild={isChild}
-                menuRef={actionsMenuRef}
-                onToggle={toggleActionsMenu}
-              />
+              <div className="pointer-events-auto">
+                <ActionsMenuTrigger
+                  isChild={isChild}
+                  menuRef={actionsMenuRef}
+                  onToggle={toggleActionsMenu}
+                />
+              </div>
             )}
           </div>
         </div>

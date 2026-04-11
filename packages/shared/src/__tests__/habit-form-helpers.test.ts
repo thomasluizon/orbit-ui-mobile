@@ -1,15 +1,123 @@
 import { describe, expect, it } from 'vitest'
 import {
   HABIT_REMINDER_PRESETS,
+  buildHabitDaysList,
+  buildHabitFrequencyUnits,
   formatHabitTimeInput,
+  getHabitFormFlags,
   isValidHabitTimeInput,
+  normalizeHabitFormData,
   validateHabitFormInput,
 } from '../utils/habit-form-helpers'
 
 describe('habit form helpers', () => {
+  it('normalizes missing habit form values', () => {
+    expect(normalizeHabitFormData({ title: 'Exercise' })).toMatchObject({
+      title: 'Exercise',
+      description: '',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      dueDate: '',
+      dueTime: '',
+      dueEndTime: '',
+      endDate: '',
+      reminderEnabled: false,
+      scheduledReminders: [],
+      slipAlertEnabled: false,
+      checklistItems: [],
+    })
+  })
+
+  it('derives display flags for one-time, recurring, and general habits', () => {
+    expect(
+      getHabitFormFlags(
+        normalizeHabitFormData({
+          title: 'One-time',
+        }),
+      ),
+    ).toMatchObject({
+      isOneTime: true,
+      isRecurring: false,
+      showDayPicker: false,
+      showEndDate: false,
+    })
+
+    expect(
+      getHabitFormFlags(
+        normalizeHabitFormData({
+          title: 'Recurring',
+          frequencyUnit: 'Day',
+          frequencyQuantity: 1,
+        }),
+      ),
+    ).toMatchObject({
+      isOneTime: false,
+      isRecurring: true,
+      showDayPicker: true,
+      showEndDate: true,
+    })
+
+    expect(
+      getHabitFormFlags(
+        normalizeHabitFormData({
+          title: 'General',
+          isGeneral: true,
+          frequencyUnit: 'Week',
+        }),
+      ),
+    ).toMatchObject({
+      isGeneral: true,
+      isRecurring: false,
+      showEndDate: false,
+    })
+  })
+
+  it('builds localized day lists and frequency units', () => {
+    const translations = {
+      monday: 'Mon',
+      tuesday: 'Tue',
+      wednesday: 'Wed',
+      thursday: 'Thu',
+      friday: 'Fri',
+      saturday: 'Sat',
+      sunday: 'Sun',
+      unitDay: 'Day',
+      unitWeek: 'Week',
+      unitMonth: 'Month',
+      unitYear: 'Year',
+    }
+
+    expect(buildHabitDaysList(translations).map((day) => day.value)).toEqual([
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ])
+    expect(buildHabitDaysList(translations, 0).map((day) => day.value)).toEqual([
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ])
+    expect(buildHabitFrequencyUnits(translations)).toEqual([
+      { value: 'Day', label: 'Day' },
+      { value: 'Week', label: 'Week' },
+      { value: 'Month', label: 'Month' },
+      { value: 'Year', label: 'Year' },
+    ])
+  })
+
   it('formats time input into hh:mm', () => {
     expect(formatHabitTimeInput('1234')).toBe('12:34')
     expect(formatHabitTimeInput('12a3b4')).toBe('12:34')
+    expect(formatHabitTimeInput('12345')).toBe('12:34')
   })
 
   it('validates time input only when it is complete', () => {
@@ -85,5 +193,25 @@ describe('habit form helpers', () => {
         },
       ),
     ).toBe('habits.form.subHabitTitleRequired')
+  })
+
+  it('returns null when the habit form input is valid', () => {
+    expect(
+      validateHabitFormInput(
+        {
+          title: 'Exercise',
+          frequencyUnit: 'Week',
+          frequencyQuantity: 3,
+          dueTime: '09:00',
+          reminderEnabled: true,
+        },
+        {
+          reminderTimes: [0],
+          selectedGoalIds: ['goal-1'],
+          selectedTagIds: ['tag-1'],
+          subHabits: ['Warm-up'],
+        },
+      ),
+    ).toBeNull()
   })
 })

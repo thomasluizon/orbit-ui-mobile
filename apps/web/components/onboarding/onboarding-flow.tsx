@@ -141,7 +141,7 @@ export function OnboardingFlow() {
   })()
 
   // Focus trap
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (!mounted) return
     const el = overlayRef.current
@@ -155,18 +155,16 @@ export function OnboardingFlow() {
       if (focusable.length === 0) return
       const first = focusable[0] ?? null
       const last = focusable[focusable.length - 1] ?? null
-      if (e.shiftKey) {
-        if (document.activeElement === first && last) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last && first) {
+        if (e.shiftKey) {
+          if (document.activeElement === first && last) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else if (document.activeElement === last && first) {
           e.preventDefault()
           first.focus()
         }
       }
-    }
 
     el.addEventListener('keydown', handleKeyDown)
     // Focus first focusable element
@@ -179,10 +177,10 @@ export function OnboardingFlow() {
   if (!mounted) return null
 
   const overlay = (
-    <div
+    <dialog
+      open
       ref={overlayRef}
       className="fixed inset-0 z-[60] bg-background"
-      role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
@@ -254,7 +252,7 @@ export function OnboardingFlow() {
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   )
 
   return createPortal(overlay, document.body)

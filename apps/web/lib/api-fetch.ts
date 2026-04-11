@@ -62,6 +62,27 @@ export class ApiError extends Error {
   }
 }
 
+async function getStatusError(
+  status: number,
+  body: unknown,
+): Promise<ApiError | null> {
+  if (status === 401) {
+    // Dynamic import to avoid circular deps
+    const { useAuthStore } = await import('@/stores/auth-store')
+    useAuthStore.getState().logout()
+    return new ApiError(status, 'Unauthorized', body)
+  }
+
+  if (status === 403) {
+    if (globalThis.location !== undefined) {
+      globalThis.location.href = '/upgrade'
+    }
+    return new ApiError(status, 'Forbidden', body)
+  }
+
+  return null
+}
+
 export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options)
 
@@ -69,20 +90,9 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
     const body = await res.json().catch(() => null)
     const status = res.status
 
-    // 401 - auto-logout (no toast)
-    if (status === 401) {
-      // Dynamic import to avoid circular deps
-      const { useAuthStore } = await import('@/stores/auth-store')
-      useAuthStore.getState().logout()
-      throw new ApiError(status, 'Unauthorized', body)
-    }
-
-    // 403 - redirect to /upgrade (no toast)
-    if (status === 403) {
-      if (typeof globalThis !== 'undefined' && typeof globalThis.location !== 'undefined') { // NOSONAR - SSR guard
-        globalThis.location.href = '/upgrade'
-      }
-      throw new ApiError(status, 'Forbidden', body)
+    const statusError = await getStatusError(status, body)
+    if (statusError) {
+      throw statusError
     }
 
     // Extract backend error message

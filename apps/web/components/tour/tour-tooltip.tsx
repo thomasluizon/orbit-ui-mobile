@@ -47,42 +47,130 @@ interface DesktopLayoutParams {
   placement: TourStep['placement']
 }
 
+function clampDesktopPosition(
+  position: { top: number; left: number },
+  tooltipWidth: number,
+  tooltipHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  return {
+    left: Math.max(
+      EDGE_PADDING,
+      Math.min(position.left, viewportWidth - tooltipWidth - EDGE_PADDING),
+    ),
+    top: Math.max(
+      EDGE_PADDING,
+      Math.min(position.top, viewportHeight - tooltipHeight - EDGE_PADDING),
+    ),
+  }
+}
+
+function computeVerticalDesktopPosition(
+  placement: 'top' | 'bottom',
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  viewportHeight: number,
+) {
+  const left = sx + sw / 2 - tooltipWidth / 2
+
+  if (placement === 'bottom') {
+    const bottomTop = sy + sh + TOOLTIP_GAP
+    return {
+      top:
+        bottomTop + tooltipHeight > viewportHeight - EDGE_PADDING
+          ? sy - tooltipHeight - TOOLTIP_GAP
+          : bottomTop,
+      left,
+    }
+  }
+
+  const topTop = sy - tooltipHeight - TOOLTIP_GAP
+  return {
+    top: topTop < EDGE_PADDING ? sy + sh + TOOLTIP_GAP : topTop,
+    left,
+  }
+}
+
+function computeHorizontalDesktopPosition(
+  placement: 'left' | 'right',
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  viewportWidth: number,
+) {
+  const top = sy + sh / 2 - tooltipHeight / 2
+
+  if (placement === 'right') {
+    const rightLeft = sx + sw + TOOLTIP_GAP
+    return {
+      top,
+      left:
+        rightLeft + tooltipWidth > viewportWidth - EDGE_PADDING
+          ? sx - tooltipWidth - TOOLTIP_GAP
+          : rightLeft,
+    }
+  }
+
+  const leftLeft = sx - tooltipWidth - TOOLTIP_GAP
+  return {
+    top,
+    left: leftLeft < EDGE_PADDING ? sx + sw + TOOLTIP_GAP : leftLeft,
+  }
+}
+
 function computeDesktopPosition(params: DesktopLayoutParams): { top: number; left: number } {
-  const { tooltipWidth: tw, tooltipHeight: th, viewportWidth: vw, viewportHeight: vh, targetRect, placement } = params
+  const {
+    tooltipWidth,
+    tooltipHeight,
+    viewportWidth,
+    viewportHeight,
+    targetRect,
+    placement,
+  } = params
   const pad = 8
   const sx = targetRect.x - pad
   const sy = targetRect.y - pad
   const sw = targetRect.width + pad * 2
   const sh = targetRect.height + pad * 2
 
-  let top: number
-  let left: number
+  const position =
+    placement === 'bottom' || placement === 'top'
+      ? computeVerticalDesktopPosition(
+          placement,
+          sx,
+          sy,
+          sw,
+          sh,
+          tooltipWidth,
+          tooltipHeight,
+          viewportHeight,
+        )
+      : computeHorizontalDesktopPosition(
+          placement,
+          sx,
+          sy,
+          sw,
+          sh,
+          tooltipWidth,
+          tooltipHeight,
+          viewportWidth,
+        )
 
-  if (placement === 'bottom' || placement === 'top') {
-    left = sx + sw / 2 - tw / 2
-    if (placement === 'bottom') {
-      top = sy + sh + TOOLTIP_GAP
-      if (top + th > vh - EDGE_PADDING) top = sy - th - TOOLTIP_GAP
-    } else {
-      top = sy - th - TOOLTIP_GAP
-      if (top < EDGE_PADDING) top = sy + sh + TOOLTIP_GAP
-    }
-  } else {
-    top = sy + sh / 2 - th / 2
-    if (placement === 'right') {
-      left = sx + sw + TOOLTIP_GAP
-      if (left + tw > vw - EDGE_PADDING) left = sx - tw - TOOLTIP_GAP
-    } else {
-      left = sx - tw - TOOLTIP_GAP
-      if (left < EDGE_PADDING) left = sx + sw + TOOLTIP_GAP
-    }
-  }
-
-  // Clamp to viewport
-  left = Math.max(EDGE_PADDING, Math.min(left, vw - tw - EDGE_PADDING))
-  top = Math.max(EDGE_PADDING, Math.min(top, vh - th - EDGE_PADDING))
-
-  return { top, left }
+  return clampDesktopPosition(
+    position,
+    tooltipWidth,
+    tooltipHeight,
+    viewportWidth,
+    viewportHeight,
+  )
 }
 
 export function TourTooltip({
@@ -96,7 +184,7 @@ export function TourTooltip({
   onSkip,
 }: TourTooltipProps) {
   const t = useTranslations()
-  const tooltipRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDialogElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [mode, setMode] = useState<'float' | 'sheet-top' | 'sheet-bottom'>('sheet-bottom')
 
@@ -158,16 +246,18 @@ export function TourTooltip({
     return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-border bg-surface p-5 pb-8 shadow-2xl'
   })()
 
-  const floatStyle = mode === 'float'
-    ? (pos ? { top: pos.top, left: pos.left } : { top: -9999, left: -9999, opacity: 0 })
-    : undefined
+  const floatStyle = (() => {
+    if (mode !== 'float') return undefined
+    if (!pos) return { top: -9999, left: -9999, opacity: 0 }
+    return { top: pos.top, left: pos.left }
+  })()
 
   const content = (
-    <div
+    <dialog
+      open
       ref={tooltipRef}
       className={modeClassName}
       style={floatStyle}
-      role="dialog"
       aria-modal="true"
       aria-label={t(step.titleKey)}
     >
@@ -257,7 +347,7 @@ export function TourTooltip({
       >
         {t('tour.ui.skip')}
       </button>
-    </div>
+    </dialog>
   )
 
   if (typeof document === 'undefined') return null

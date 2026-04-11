@@ -225,7 +225,7 @@ export function useColorScheme() {
   const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
     const detected: ThemeMode =
-      typeof globalThis.window !== 'undefined' && globalThis.matchMedia('(prefers-color-scheme: light)').matches
+      globalThis.window !== undefined && globalThis.matchMedia('(prefers-color-scheme: light)').matches
         ? 'light'
         : 'dark'
     setCookie('orbit_theme_mode', detected)

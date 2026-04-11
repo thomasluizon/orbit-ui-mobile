@@ -835,10 +835,10 @@ export function HabitFormFields({
       </div>
 
       {/* Frequency type cards (2x2 grid) */}
-      <div className="space-y-1.5" role="group" aria-labelledby="habit-form-frequency-label">
-        <span id="habit-form-frequency-label" className="form-label">
+      <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+        <legend id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
-        </span>
+        </legend>
         <div className="grid grid-cols-2 gap-3">
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
@@ -876,7 +876,7 @@ export function HabitFormFields({
             )
           })}
         </div>
-      </div>
+      </fieldset>
 
       {/* Type-adaptive frequency sub-fields */}
       {isFlexible && (
@@ -907,10 +907,10 @@ export function HabitFormFields({
               {...register('frequencyQuantity', { valueAsNumber: true })}
             />
           </div>
-          <div className="space-y-1.5" role="group" aria-labelledby="habit-form-unit-label">
-            <span id="habit-form-unit-label" className="form-label">
+          <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+            <legend id="habit-form-unit-label" className="form-label">
               {t('habits.form.unit')}
-            </span>
+            </legend>
             <AppSelect
               value={watchedFrequencyUnit ?? ''}
               options={frequencyUnits.map((u) => ({
@@ -924,16 +924,16 @@ export function HabitFormFields({
                 })
               }
             />
-          </div>
+          </fieldset>
         </div>
       )}
 
       {/* Day picker */}
       {showDayPicker && !isGeneral && (
-        <div className="space-y-1.5" role="group" aria-labelledby="habit-form-active-days-label">
-          <span id="habit-form-active-days-label" className="form-label">
+        <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+          <legend id="habit-form-active-days-label" className="form-label">
             {t('habits.form.activeDays')}
-          </span>
+          </legend>
           <PillToggleRow
             containerClassName="flex flex-wrap gap-2"
             buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
@@ -946,21 +946,21 @@ export function HabitFormFields({
               onClick: () => toggleDay(day.value),
             }))}
           />
-        </div>
+        </fieldset>
       )}
 
       {/* Due date + Due time (combined row) */}
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5" role="group" aria-labelledby="habit-form-due-date-label">
-            <span id="habit-form-due-date-label" className="form-label">
+          <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+            <legend id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
-            </span>
+            </legend>
             <AppDatePicker
               value={watchedDueDate}
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
-          </div>
+          </fieldset>
           <div className="space-y-1.5">
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}
@@ -984,10 +984,10 @@ export function HabitFormFields({
       )}
 
       {/* Tags */}
-      <div className="space-y-1.5" role="group" aria-labelledby="habit-form-tags-label">
-        <span id="habit-form-tags-label" className="form-label">
+      <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+        <legend id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
-        </span>
+        </legend>
         <div className="flex flex-wrap gap-2">
           {availableTags.map((tag) => (
             <HabitTagChip
@@ -1098,7 +1098,7 @@ export function HabitFormFields({
             />
           </div>
         )}
-      </div>
+      </fieldset>
 
       {/* ═══════════════════════════════════════════════════
          ADVANCED FIELDS -- Behind "More options"
@@ -1142,10 +1142,10 @@ export function HabitFormFields({
           </div>
 
           {/* Checklist */}
-          <div className="space-y-1.5" role="group" aria-labelledby="habit-form-checklist-label">
-            <span id="habit-form-checklist-label" className="form-label">
+          <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+            <legend id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
-            </span>
+            </legend>
             <HabitChecklist
               items={watchedChecklistItems ?? []}
               editable
@@ -1155,7 +1155,7 @@ export function HabitFormFields({
               items={watchedChecklistItems ?? []}
               onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
-          </div>
+          </fieldset>
 
           {/* End time */}
           {watchedDueTime && !isGeneral && (
@@ -1184,10 +1184,10 @@ export function HabitFormFields({
           {showEndDate && (
             <div className="space-y-1.5">
               {watchedEndDate ? (
-                <div className="space-y-1.5" role="group" aria-labelledby="habit-form-end-date-label">
-                  <span id="habit-form-end-date-label" className="form-label">
+                <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+                  <legend id="habit-form-end-date-label" className="form-label">
                     {t('habits.form.endDate')}
-                  </span>
+                  </legend>
                   <div className="flex items-center gap-2">
                     <AppDatePicker
                       value={watchedEndDate}
@@ -1205,7 +1205,7 @@ export function HabitFormFields({
                     </button>
                   </div>
                   <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
-                </div>
+                </fieldset>
               ) : (
                 <button
                   type="button"

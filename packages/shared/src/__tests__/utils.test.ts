@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { parseAPIDate, formatAPIDate } from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
@@ -76,6 +76,10 @@ describe('formatAPIDate', () => {
 // ---------------------------------------------------------------------------
 
 describe('getTimezoneList', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('returns a non-empty array', () => {
     const list = getTimezoneList()
     expect(Array.isArray(list)).toBe(true)
@@ -107,6 +111,12 @@ describe('getTimezoneList', () => {
     for (const tz of list) {
       expect(typeof tz).toBe('string')
     }
+  })
+
+  it('falls back to an empty list when Intl.supportedValuesOf is unavailable', () => {
+    vi.stubGlobal('Intl', {})
+
+    expect(getTimezoneList()).toEqual([])
   })
 })
 

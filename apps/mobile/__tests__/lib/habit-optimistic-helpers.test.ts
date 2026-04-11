@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  optimisticInsertHabit,
+  optimisticInsertSubHabit,
+  optimisticPatchHabit,
+  optimisticRemoveHabits,
+  optimisticReorderHabits,
   optimisticToggleCompletion,
   optimisticUpdateChecklist,
 } from '@/lib/habit-optimistic-helpers'
@@ -42,6 +47,17 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
     searchMatches: null,
     ...overrides,
   } as unknown as HabitScheduleItem
+}
+
+function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
+  return {
+    ...makeHabit(overrides as Partial<HabitScheduleItem>),
+    isLoggedInRange: false,
+    instances: [],
+    children: [],
+    hasSubHabits: false,
+    ...overrides,
+  } as unknown as HabitScheduleChild
 }
 
 describe('mobile optimistic habit helpers', () => {
@@ -88,5 +104,79 @@ describe('mobile optimistic habit helpers', () => {
 
     expect(topLevelResult[0]?.checklistItems).toEqual(newItems)
     expect(childResult[0]?.children[0]?.checklistItems).toEqual(newItems)
+  })
+
+  it('patches nested child habits without mutating unrelated nodes', () => {
+    const nestedChild = makeChild({ id: 'nested-child' })
+    const child = makeChild({ id: 'child-1', children: [nestedChild], hasSubHabits: true })
+    const parent = makeHabit({
+      id: 'parent-1',
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+
+    const result = optimisticPatchHabit([parent], 'nested-child', {
+      title: 'Updated nested child',
+    })
+
+    expect(result[0]?.children[0]?.children[0]?.title).toBe('Updated nested child')
+    expect(result[0]?.children[0]?.title).toBe('Test Habit')
+  })
+
+  it('removes top-level and nested child habits while preserving subtree flags', () => {
+    const nestedChild = makeChild({ id: 'nested-child' })
+    const child = makeChild({ id: 'child-1', children: [nestedChild], hasSubHabits: true })
+    const keepParent = makeHabit({
+      id: 'keep-parent',
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+    const removeParent = makeHabit({ id: 'remove-parent' })
+
+    const result = optimisticRemoveHabits(
+      [keepParent, removeParent],
+      ['remove-parent', 'nested-child'],
+    )
+
+    expect(result).toHaveLength(1)
+    expect(result[0]?.id).toBe('keep-parent')
+    expect(result[0]?.children[0]?.children).toEqual([])
+    expect(result[0]?.children[0]?.hasSubHabits).toBe(false)
+  })
+
+  it('inserts top-level and child habits into the correct parent', () => {
+    const newHabit = makeHabit({ id: 'habit-2' })
+    const nestedParent = makeChild({ id: 'child-parent' })
+    const parent = makeHabit({
+      id: 'parent-1',
+      children: [nestedParent] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+    const newChild = makeChild({ id: 'child-2' })
+
+    const insertedTopLevel = optimisticInsertHabit([parent], newHabit)
+    const insertedChild = optimisticInsertSubHabit([parent], 'child-parent', newChild)
+
+    expect(insertedTopLevel.map((habit) => habit.id)).toEqual(['parent-1', 'habit-2'])
+    expect(insertedChild[0]?.children[0]?.children[0]?.id).toBe('child-2')
+    expect(insertedChild[0]?.children[0]?.hasSubHabits).toBe(true)
+  })
+
+  it('reorders parent and nested child positions from a position map', () => {
+    const child = makeChild({ id: 'child-1', position: 0 })
+    const parent = makeHabit({
+      id: 'parent-1',
+      position: 0,
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+
+    const result = optimisticReorderHabits([parent], [
+      { habitId: 'parent-1', position: 2 },
+      { habitId: 'child-1', position: 4 },
+    ])
+
+    expect(result[0]?.position).toBe(2)
+    expect(result[0]?.children[0]?.position).toBe(4)
   })
 })

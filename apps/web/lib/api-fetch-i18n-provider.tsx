@@ -14,7 +14,7 @@ export function ApiFetchI18nProvider() {
   const t = useTranslations()
 
   useEffect(() => {
-    setApiFetchTranslate((key: string) => t(key as Parameters<typeof t>[0]))
+    setApiFetchTranslate((key: string) => t(key))
   }, [t])
 
   return null

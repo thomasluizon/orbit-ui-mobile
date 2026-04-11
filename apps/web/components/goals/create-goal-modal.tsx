@@ -41,6 +41,64 @@ interface CreateGoalRequest {
   type?: GoalType
 }
 
+type GoalModalTranslateValues = Record<string, string | number | Date>
+type GoalModalTranslateFn = (
+  key: string,
+  values?: GoalModalTranslateValues,
+) => string
+
+function buildGoalFieldErrors(
+  submitted: boolean,
+  description: string,
+  targetValue: string,
+  unit: string,
+  translate: GoalModalTranslateFn,
+) {
+  if (!submitted) return {}
+
+  const errorKey = validateGoalDraftInput(description, targetValue, unit)
+  if (!errorKey) return {}
+
+  const translated = translateErrorKey(translate, errorKey)
+  if (!translated) return {}
+
+  if (errorKey === 'goals.form.targetValueRequired') {
+    return { targetValue: translated }
+  }
+
+  if (
+    errorKey === 'goals.form.unitRequired' ||
+    errorKey === 'goals.form.unitTooLong'
+  ) {
+    return { unit: translated }
+  }
+
+  if (
+    errorKey === 'goals.form.titleRequired' ||
+    errorKey === 'goals.form.titleTooLong'
+  ) {
+    return { description: translated }
+  }
+
+  return { _form: translated }
+}
+
+function buildCreateGoalRequest(
+  title: string,
+  parsedTargetValue: number,
+  unit: string,
+  goalType: GoalType,
+  deadline: string,
+): CreateGoalRequest {
+  return {
+    title,
+    targetValue: parsedTargetValue,
+    unit: unit.trim(),
+    type: goalType,
+    ...(deadline ? { deadline } : {}),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -48,8 +106,7 @@ interface CreateGoalRequest {
 export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModalProps>) {
   const t = useTranslations()
   const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) =>
-      t(key, values),
+    (key: string, values?: GoalModalTranslateValues) => t(key, values),
     [t],
   )
   const createGoal = useCreateGoal()
@@ -67,21 +124,17 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   const isStreak = isStreakGoal(goalType)
 
   // Per-field inline errors (shown after first submit attempt)
-  const fieldErrors = useMemo(() => {
-    if (!submitted) return {}
-    const errs: Record<string, string> = {}
-    const errorKey = validateGoalDraftInput(description, targetValue, unit)
-    if (errorKey) {
-      const translated = translateErrorKey(translate, errorKey)
-      if (translated) {
-        if (errorKey === 'goals.form.targetValueRequired') errs.targetValue = translated
-        else if (errorKey === 'goals.form.unitRequired' || errorKey === 'goals.form.unitTooLong') errs.unit = translated
-        else if (errorKey === 'goals.form.titleRequired' || errorKey === 'goals.form.titleTooLong') errs.description = translated
-        else errs._form = translated
-      }
-    }
-    return errs
-  }, [submitted, description, targetValue, unit, translate])
+  const fieldErrors = useMemo(
+    () =>
+      buildGoalFieldErrors(
+        submitted,
+        description,
+        targetValue,
+        unit,
+        translate,
+      ),
+    [submitted, description, targetValue, unit, translate],
+  )
 
   function handleTypeChange(type: GoalType) {
     setGoalType(type)
@@ -128,13 +181,13 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
 
       try {
         const title = buildTitle()
-        const request: CreateGoalRequest = {
+        const request = buildCreateGoalRequest(
           title,
-          targetValue: parsedTargetValue,
-          unit: unit.trim(),
-          type: goalType,
-        }
-        if (deadline) request.deadline = deadline
+          parsedTargetValue,
+          unit,
+          goalType,
+          deadline,
+        )
 
         await createGoal.mutateAsync(request)
         onOpenChange(false)

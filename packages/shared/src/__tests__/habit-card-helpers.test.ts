@@ -95,4 +95,172 @@ describe('habit card helpers', () => {
 
     expect(computeHabitCardStatus(habit, parseAPIDate('2025-01-02'))).toBe('due-today')
   })
+
+  it('handles completed, general, and pending habit statuses', () => {
+    expect(
+      computeHabitCardStatus(
+        createMockHabit({ isCompleted: true }),
+        parseAPIDate('2025-01-02'),
+      ),
+    ).toBe('completed')
+    expect(
+      computeHabitCardStatus(
+        createMockHabit({ isGeneral: true, isCompleted: false }),
+        parseAPIDate('2025-01-02'),
+      ),
+    ).toBe('pending')
+    expect(
+      computeHabitCardStatus(
+        createMockHabit({
+          dueDate: '2025-01-03',
+          scheduledDates: ['2025-01-03'],
+          instances: [],
+          isOverdue: false,
+        }),
+        parseAPIDate('2025-01-02'),
+      ),
+    ).toBe('pending')
+  })
+
+  it('returns null for non-overdue status badges', () => {
+    expect(computeHabitStatusBadge('pending', createTranslator())).toBeNull()
+  })
+
+  it('builds weekly, one-time, and pluralized frequency labels', () => {
+    const translator = (key: string, params?: Record<string, string | number | Date>) => {
+      if (key.startsWith('habits.frequency.everyN')) {
+        return 'none | once | many'
+      }
+      if (key.startsWith('dates.daysShort.')) {
+        return key.replace('dates.daysShort.', '')
+      }
+      if (params && Object.keys(params).length > 0) {
+        return `${key}(${JSON.stringify(params)})`
+      }
+      return key
+    }
+
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Day',
+          frequencyQuantity: 1,
+          days: ['Monday', 'Wednesday'],
+        }),
+        translator,
+      ),
+    ).toBe('monday, wednesday')
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Month',
+          frequencyQuantity: 1,
+          days: [],
+        }),
+        translator,
+      ),
+    ).toBe('habits.frequency.everyMonth')
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Week',
+          frequencyQuantity: 2,
+          days: [],
+        }),
+        translator,
+      ),
+    ).toBe('many')
+  })
+
+  it('handles two-form, three-form, and fallback plural variants', () => {
+    const twoFormTranslator = (key: string) =>
+      key.startsWith('habits.frequency.everyN') ? 'single | plural' : key
+    const threeFormTranslator = (key: string) =>
+      key.startsWith('habits.frequency.everyN') ? 'zero | one | many' : key
+    const fallbackTranslator = (key: string) =>
+      key.startsWith('habits.frequency.everyN') ? 'a | b | c | d' : key
+
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Week',
+          frequencyQuantity: null,
+          days: [],
+        }),
+        twoFormTranslator,
+      ),
+    ).toBe('single')
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Week',
+          frequencyQuantity: 2,
+          days: [],
+        }),
+        twoFormTranslator,
+      ),
+    ).toBe('plural')
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Week',
+          frequencyQuantity: 0,
+          days: [],
+        }),
+        threeFormTranslator,
+      ),
+    ).toBe('zero')
+    expect(
+      computeHabitFrequencyLabel(
+        createMockHabit({
+          frequencyUnit: 'Week',
+          frequencyQuantity: 2,
+          days: [],
+        }),
+        fallbackTranslator,
+      ),
+    ).toBe('a | b | c | d')
+  })
+
+  it('builds flexible progress labels and returns null for non-flexible habits', () => {
+    const translator = createTranslator()
+
+    expect(
+      computeHabitFlexibleProgressLabel(
+        createMockHabit({
+          isFlexible: true,
+          frequencyUnit: null,
+          flexibleTarget: null,
+          frequencyQuantity: 4,
+          flexibleCompleted: 2,
+        }),
+        translator,
+      ),
+    ).toContain('"target":4')
+    expect(
+      computeHabitFlexibleProgressLabel(
+        createMockHabit({
+          isFlexible: false,
+        }),
+        translator,
+      ),
+    ).toBeNull()
+  })
+
+  it('returns description match badges and no badges when search input is empty', () => {
+    const translator = createTranslator()
+
+    expect(
+      computeHabitMatchBadges(
+        'habit',
+        createMockHabit({
+          searchMatches: [{ field: 'description', value: 'deeper context' }],
+        }),
+        translator,
+      ),
+    ).toEqual([{ label: 'habits.search.matchDescription' }])
+    expect(
+      computeHabitMatchBadges('', createMockHabit({ searchMatches: null }), translator),
+    ).toEqual([])
+  })
 })
