@@ -28,6 +28,7 @@ import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/profile'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
+import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 
 export default function AppLayout({
   children,
@@ -180,6 +181,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         onDismissCalendarPrompt={handleDismissCalendarPrompt}
       />
 
+      <ApiFetchI18nProvider />
       <TourProvider />
       <TourOverlay />
     </div>

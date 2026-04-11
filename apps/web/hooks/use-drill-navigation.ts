@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
 import { getErrorMessage, API } from '@orbit/shared/api'
@@ -52,6 +53,7 @@ export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,
   lastUpdated: number,
 ): DrillNavigationState {
+  const t = useTranslations()
   const [drillStack, setDrillStack] = useState<string[]>([])
   const [drillChildrenMap, setDrillChildrenMap] = useState(
     new Map<string, NormalizedHabit[]>(),
@@ -90,13 +92,13 @@ export function useDrillNavigation(
         })
       } catch (err: unknown) {
         if (!silent) {
-          setDrillError(getErrorMessage(err, 'Failed to fetch sub-habits'))
+          setDrillError(getErrorMessage(err, t('errors.fetchSubHabits')))
         }
       } finally {
         if (!silent) setDrillLoading(false)
       }
     },
-    [],
+    [t],
   )
 
   const drillInto = useCallback(

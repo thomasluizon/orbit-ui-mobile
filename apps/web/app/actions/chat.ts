@@ -44,9 +44,9 @@ export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
     return { ok: true, data }
   } catch (err: unknown) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      return { ok: false, error: 'Request timed out', status: 408 }
+      return { ok: false, error: 'CHAT_TIMEOUT', status: 408 }
     }
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const message = err instanceof Error ? err.message : 'CHAT_UNKNOWN_ERROR'
     return { ok: false, error: message, status: 500 }
   } finally {
     clearTimeout(timeoutId)

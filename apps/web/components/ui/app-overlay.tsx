@@ -209,7 +209,7 @@ export function AppOverlay({
       <button
         type="button"
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-[var(--ease-out)] cursor-default ${backdropClass}`}
-        aria-label="Close"
+        aria-label={t('common.close')}
         tabIndex={-1}
         onPointerDown={handlePointerDown}
         onClick={handleBackdropClick}

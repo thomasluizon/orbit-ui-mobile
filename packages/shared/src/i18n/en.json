@@ -120,6 +120,7 @@
     "nextMonth": "Next month",
     "continue": "Continue",
     "unknown": "Unknown",
+    "failed": "Failed",
     "collapse": "Collapse",
     "expand": "Expand",
     "moreActions": "More actions"
@@ -1370,7 +1371,8 @@
     "billing": "Failed to load billing info",
     "subscriptionPlans": "Failed to load plans",
     "updateColorScheme": "Failed to update color scheme",
-    "updateThemePreference": "Failed to update theme preference"
+    "updateThemePreference": "Failed to update theme preference",
+    "fetchSubHabits": "Failed to fetch sub-habits"
   },
   "speech": {
     "micDenied": "Microphone access denied.",
