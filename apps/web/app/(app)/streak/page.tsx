@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
+import { getErrorMessage } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
@@ -188,7 +189,7 @@ export default function StreakPage() {
             hasCompletedToday={hasCompletedToday}
             canFreeze={canFreeze}
             freezeSuccess={freezeSuccess}
-            errorMessage={activateFreezeMutation.error?.message}
+            errorMessage={activateFreezeMutation.error ? getErrorMessage(activateFreezeMutation.error, t('toast.errors.activateFreeze')) : undefined}
             streakInfo={streakInfo}
             onActivateFreeze={() => setShowConfirm(true)}
           />

@@ -65,7 +65,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={[styles.navGlass, { backgroundColor: nav.tabBarBg, borderTopColor: nav.tabBarBorder }]}>
-        <View style={styles.navRow}>
+        <View style={styles.navRow} accessibilityRole="tablist">
           {navItems.slice(0, 2).map((item) => (
             <NavLink
               key={item.path}
@@ -148,7 +148,8 @@ function NavLink({ active, icon: Icon, label, onPress }: Readonly<NavLinkProps>)
 
   return (
     <TouchableOpacity
-      accessibilityRole="button"
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
       activeOpacity={0.75}
       onPress={onPress}
       style={styles.navItem}

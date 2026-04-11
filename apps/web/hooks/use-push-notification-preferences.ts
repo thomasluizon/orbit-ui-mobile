@@ -6,6 +6,10 @@ import {
   type WebPushPermission,
   type WebPushPreferenceStatus,
 } from '@orbit/shared/utils'
+import {
+  subscribePush as subscribePushAction,
+  unsubscribePush as unsubscribePushAction,
+} from '@/app/actions/notifications'
 
 export type PushPreferenceStatus = WebPushPreferenceStatus
 
@@ -135,20 +139,11 @@ export async function subscribeToPushNotifications(
     applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
   })
 
-  const keys = subscription.toJSON()
-  const response = await fetch('/api/notifications/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      endpoint: subscription.endpoint,
-      p256dh: keys.keys?.p256dh,
-      auth: keys.keys?.auth,
-    }),
-  })
-
-  if (!response.ok) {
+  try {
+    await subscribePushAction(subscription.toJSON())
+  } catch {
     await subscription.unsubscribe().catch(() => undefined)
-    throw new Error(`Failed to subscribe: ${response.status}`)
+    throw new Error('Failed to subscribe to push notifications')
   }
 
   return createSnapshot(permission, true)
@@ -165,19 +160,11 @@ export async function unsubscribeFromPushNotifications(
   const subscription = await registration.pushManager.getSubscription()
 
   if (subscription) {
-    const keys = subscription.toJSON()
-
-    await fetch('/api/notifications/unsubscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        endpoint: subscription.endpoint,
-        p256dh: keys.keys?.p256dh,
-        auth: keys.keys?.auth,
-      }),
-    })
-
-    await subscription.unsubscribe()
+    try {
+      await unsubscribePushAction(subscription.toJSON())
+    } finally {
+      await subscription.unsubscribe().catch(() => undefined)
+    }
   }
 
   const nextPermission = permission || Notification.permission

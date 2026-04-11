@@ -54,6 +54,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       getValues: mockFormGetValues,
       watch: mockFormWatch,
       register: mockFormRegister,
+      formState: { isValid: true },
     },
     isOneTime: false,
     isGeneral: false,

@@ -36,18 +36,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { updateTimezone } from '@/app/actions/profile'
-
-// ---------------------------------------------------------------------------
-// API Keys types
-// ---------------------------------------------------------------------------
-
-interface ApiKey {
-  id: string
-  name: string
-  keyPrefix: string
-  createdAtUtc: string
-  lastUsedAtUtc: string | null
-}
+import type { ApiKey } from '@orbit/shared/types/api-key'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetch(API.apiKeys.list)

@@ -269,7 +269,7 @@ export function CreateHabitModal({
           <button
             type="submit"
             className="flex-[2] py-3.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50 flex items-center justify-center gap-2"
-            disabled={isPending}
+            disabled={isPending || !formHelpers.form.formState.isValid}
           >
             {isPending && <Loader2 className="size-4 animate-spin" />}
             {isSubHabitMode

@@ -119,7 +119,11 @@
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
     "continue": "Continuar",
-    "unknown": "Desconhecido"
+    "unknown": "Desconhecido",
+    "failed": "Falhou",
+    "collapse": "Recolher",
+    "expand": "Expandir",
+    "moreActions": "Mais ações"
   },
   "nav": {
     "habits": "Hábitos",
@@ -1221,7 +1225,7 @@
         "tooltip": "Ganhe XP ao completar hábitos, suba de nível e desbloqueie conquistas que celebram sua consistência e marcos."
       },
       "slipAlerts": {
-        "label": "Alertas de Recaída",
+        "label": "Alertas de Deslize",
         "free": "Não",
         "pro": "Incluso",
         "tooltip": "Para maus hábitos, a IA detecta seus padrões de recaída e envia notificações motivacionais antes dos horários habituais."
@@ -1367,7 +1371,8 @@
     "billing": "Falha ao carregar informações de cobrança",
     "subscriptionPlans": "Falha ao carregar planos",
     "updateColorScheme": "Falha ao atualizar esquema de cores",
-    "updateThemePreference": "Falha ao atualizar preferência de tema"
+    "updateThemePreference": "Falha ao atualizar preferência de tema",
+    "fetchSubHabits": "Falha ao buscar sub-hábitos"
   },
   "speech": {
     "micDenied": "Acesso ao microfone negado.",

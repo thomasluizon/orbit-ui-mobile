@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -140,10 +140,52 @@ export function OnboardingFlow() {
     }
   })()
 
+  // Focus trap
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!mounted) return
+    const el = overlayRef.current
+    if (!el) return
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return
+      const focusable = el!.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0] ?? null
+      const last = focusable[focusable.length - 1] ?? null
+      if (e.shiftKey) {
+        if (document.activeElement === first && last) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last && first) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+
+    el.addEventListener('keydown', handleKeyDown)
+    // Focus first focusable element
+    const firstFocusable = el.querySelector<HTMLElement>('button, [href], input')
+    firstFocusable?.focus()
+
+    return () => el.removeEventListener('keydown', handleKeyDown)
+  }, [mounted, currentStep])
+
   if (!mounted) return null
 
   const overlay = (
-    <div className="fixed inset-0 z-[60] bg-background">
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[60] bg-background"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
+    >
       <div className="flex flex-col min-h-dvh bg-background relative">
         {/* Ambient glow */}
         <div
@@ -153,7 +195,7 @@ export function OnboardingFlow() {
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-6 pb-4">
-          <span className="text-xs text-text-secondary font-medium">
+          <span id="onboarding-title" className="text-xs text-text-secondary font-medium">
             {t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
           </span>
           <button

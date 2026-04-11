@@ -501,6 +501,9 @@ export function HabitCard({
                 isExpanded && styles.expandButtonRotated,
               ]}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <ChevronRight
                 size={isChild ? 14 : 16}
@@ -525,6 +528,9 @@ export function HabitCard({
                   : styles.selectionCircleDefault,
               ]}
               activeOpacity={0.7}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isSelected }}
+              accessibilityLabel={t('common.select')}
             >
               {isSelected && (
                 <Check size={isChild ? 16 : 20} color={colors.white} />
@@ -551,6 +557,8 @@ export function HabitCard({
                 },
               ]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
             >
               <Svg
                 style={[
@@ -625,6 +633,9 @@ export function HabitCard({
                     : styles.logButtonDefault,
               ]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.log.title')}
+              hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
             >
               {isDoneForRange && (
                 <Check
@@ -683,6 +694,8 @@ export function HabitCard({
                   { padding: isChild ? 6 : 8 },
                 ]}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.moreActions')}
               >
                 <MoreVertical
                   size={isChild ? 14 : 16}

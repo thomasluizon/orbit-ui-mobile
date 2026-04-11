@@ -7,3 +7,12 @@
 .level-up-content {
   animation: level-up-pop 0.6s var(--ease-spring) forwards;
 }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .level-up-content {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+}

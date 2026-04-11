@@ -162,7 +162,7 @@ describe('chat server actions', () => {
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.error).toBe('Request timed out')
+        expect(result.error).toBe('CHAT_TIMEOUT')
         expect(result.status).toBe(408)
       }
     })
@@ -190,7 +190,7 @@ describe('chat server actions', () => {
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.error).toBe('Unknown error')
+        expect(result.error).toBe('CHAT_UNKNOWN_ERROR')
         expect(result.status).toBe(500)
       }
     })

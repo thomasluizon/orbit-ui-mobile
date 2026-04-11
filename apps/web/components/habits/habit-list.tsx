@@ -342,9 +342,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   })
 
   // Wrapper for getVisibleChildren that passes the current view
-  function getVisibleChildren(parentId: string): NormalizedHabit[] {
-    return visibility.getVisibleChildren(parentId, view)
-  }
+  const getVisibleChildren = useCallback(
+    (parentId: string): NormalizedHabit[] => {
+      return visibility.getVisibleChildren(parentId, view)
+    },
+    [visibility, view],
+  )
 
   // Drill navigation
   const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)

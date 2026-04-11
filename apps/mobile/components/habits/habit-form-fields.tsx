@@ -145,6 +145,8 @@ function ChoiceButtonRow({
           style={[buttonStyle, option.active && activeButtonStyle]}
           onPress={option.onPress}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ selected: option.active }}
         >
           <Text style={[textStyle, option.active && activeTextStyle]}>
             {option.label}
@@ -856,7 +858,7 @@ export function HabitFormFields({
     formatEndTimeInput,
   } = formHelpers;
 
-  const { watch, setValue } = form;
+  const { watch, setValue, formState: { errors } } = form;
 
   const watchedFrequencyUnit = watch("frequencyUnit") ?? null;
   const watchedFrequencyQuantity = watch("frequencyQuantity") ?? null;
@@ -959,7 +961,13 @@ export function HabitFormFields({
           placeholderTextColor={colors.textMuted}
           style={styles.input}
           onChangeText={(val) => setValue("title", val, { shouldDirty: true })}
+          accessibilityLabel={t("habits.form.title")}
         />
+        {errors.title && (
+          <Text style={styles.fieldError} accessibilityRole="alert">
+            {errors.title.message}
+          </Text>
+        )}
       </View>
 
       {/* Frequency type cards (2x2 grid) */}
@@ -1759,6 +1767,11 @@ function createStyles(colors: ThemeColors) {
     textarea: {
       minHeight: 60,
       textAlignVertical: "top",
+    },
+    fieldError: {
+      fontSize: 12,
+      color: colors.red400,
+      marginTop: 2,
     },
     hintText: {
       fontSize: 12,

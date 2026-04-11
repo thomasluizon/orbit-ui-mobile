@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { profileKeys } from '@orbit/shared/query'
@@ -66,7 +67,7 @@ export function OnboardingWelcome() {
             className="absolute inset-0 -m-6 rounded-full opacity-60"
             style={{ background: 'radial-gradient(circle, rgba(var(--primary-shadow), 0.15), transparent 60%)' }}
           />
-          <img
+          <Image
             src="/logo-no-bg.png"
             alt="Orbit"
             className="relative size-20 animate-[scale-in_400ms_cubic-bezier(0.16,1,0.3,1)_100ms_both]"

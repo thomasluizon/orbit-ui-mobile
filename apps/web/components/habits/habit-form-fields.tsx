@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useId, useCallback, type ReactNode } from 'react'
+import { useState, useMemo, useId, useCallback, useEffect, type ReactNode } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
@@ -221,6 +221,7 @@ function HabitTagChip({
       <button
         type="button"
         className="pl-3 pr-1 py-1.5 flex items-center gap-1.5 hover:opacity-80"
+        aria-pressed={selected}
         onClick={onToggle}
       >
         {!selected && (
@@ -714,7 +715,7 @@ export function HabitFormFields({
     formatEndTimeInput,
   } = formHelpers
 
-  const { register, watch, setValue } = form
+  const { register, watch, setValue, formState: { errors } } = form
 
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
@@ -746,6 +747,13 @@ export function HabitFormFields({
     const d = Math.floor(minutes / 1440)
     return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
   }
+
+  // Clear dueEndTime when dueTime is emptied
+  useEffect(() => {
+    if (!watchedDueTime && watchedDueEndTime) {
+      setValue('dueEndTime', '', { shouldDirty: true })
+    }
+  }, [watchedDueTime, watchedDueEndTime, setValue])
 
   const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
     if (onReminderEnabledChange) {
@@ -810,13 +818,20 @@ export function HabitFormFields({
           maxLength={200}
           placeholder={t('habits.form.titlePlaceholder')}
           className="form-input"
+          aria-invalid={!!errors.title}
+          aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
           {...register('title')}
         />
+        {errors.title && (
+          <p id="habit-form-title-error" className="text-xs text-destructive mt-1" role="alert">
+            {errors.title.message}
+          </p>
+        )}
       </div>
 
       {/* Frequency type cards (2x2 grid) */}
-      <div className="space-y-1.5">
-        <span className="form-label" aria-hidden="true">
+      <div className="space-y-1.5" role="group" aria-labelledby="habit-form-frequency-label">
+        <span id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
         </span>
         <div className="grid grid-cols-2 gap-3">
@@ -887,8 +902,8 @@ export function HabitFormFields({
               {...register('frequencyQuantity', { valueAsNumber: true })}
             />
           </div>
-          <div className="space-y-1.5">
-            <span className="form-label" aria-hidden="true">
+          <div className="space-y-1.5" role="group" aria-labelledby="habit-form-unit-label">
+            <span id="habit-form-unit-label" className="form-label">
               {t('habits.form.unit')}
             </span>
             <AppSelect
@@ -910,8 +925,8 @@ export function HabitFormFields({
 
       {/* Day picker */}
       {showDayPicker && !isGeneral && (
-        <div className="space-y-1.5">
-          <span className="form-label" aria-hidden="true">
+        <div className="space-y-1.5" role="group" aria-labelledby="habit-form-active-days-label">
+          <span id="habit-form-active-days-label" className="form-label">
             {t('habits.form.activeDays')}
           </span>
           <PillToggleRow
@@ -932,8 +947,8 @@ export function HabitFormFields({
       {/* Due date + Due time (combined row) */}
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <span className="form-label" aria-hidden="true">
+          <div className="space-y-1.5" role="group" aria-labelledby="habit-form-due-date-label">
+            <span id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
             </span>
             <AppDatePicker
@@ -964,8 +979,8 @@ export function HabitFormFields({
       )}
 
       {/* Tags */}
-      <div className="space-y-1.5">
-        <span className="form-label" aria-hidden="true">
+      <div className="space-y-1.5" role="group" aria-labelledby="habit-form-tags-label">
+        <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
         </span>
         <div className="flex flex-wrap gap-2">
@@ -1087,6 +1102,7 @@ export function HabitFormFields({
       <div className="border-t border-border-muted pt-1">
         <button
           type="button"
+          aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-2"
         >
@@ -1121,8 +1137,8 @@ export function HabitFormFields({
           </div>
 
           {/* Checklist */}
-          <div className="space-y-1.5">
-            <span className="form-label" aria-hidden="true">
+          <div className="space-y-1.5" role="group" aria-labelledby="habit-form-checklist-label">
+            <span id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
             </span>
             <HabitChecklist
@@ -1163,8 +1179,8 @@ export function HabitFormFields({
           {showEndDate && (
             <div className="space-y-1.5">
               {watchedEndDate ? (
-                <div className="space-y-1.5">
-                  <span className="form-label" aria-hidden="true">
+                <div className="space-y-1.5" role="group" aria-labelledby="habit-form-end-date-label">
+                  <span id="habit-form-end-date-label" className="form-label">
                     {t('habits.form.endDate')}
                   </span>
                   <div className="flex items-center gap-2">

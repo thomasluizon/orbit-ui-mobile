@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -30,7 +31,7 @@ export function TodayHeader({
         onClick={onGoToToday}
         aria-label={goToTodayLabel}
       >
-        <img
+        <Image
           src="/logo-no-bg.png"
           alt="Orbit"
           className="size-10"

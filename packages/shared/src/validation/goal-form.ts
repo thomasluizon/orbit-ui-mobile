@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  MAX_GOAL_DESCRIPTION_LENGTH,
   MAX_GOAL_TITLE_LENGTH,
   MAX_GOAL_UNIT_LENGTH,
 } from './constants'
@@ -12,7 +13,7 @@ export const goalFormSchema = z.object({
     .trim()
     .min(1, 'goals.form.titleRequired')
     .max(MAX_GOAL_TITLE_LENGTH, 'goals.form.titleTooLong'),
-  description: z.string().max(500).optional().default(''),
+  description: z.string().max(MAX_GOAL_DESCRIPTION_LENGTH).optional().default(''),
   targetValue: z.number().positive().nullable().optional(),
   unit: z
     .string()

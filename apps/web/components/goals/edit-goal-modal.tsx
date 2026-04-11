@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -19,6 +19,7 @@ import {
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
+import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -69,8 +70,26 @@ export function EditGoalModal({
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = updateGoal.isPending
+
+  // Per-field inline errors (shown after first submit attempt)
+  const fieldErrors = useMemo(() => {
+    if (!submitted) return {}
+    const errs: Record<string, string> = {}
+    const errorKey = validateGoalDraftInput(description, targetValue, unit)
+    if (errorKey) {
+      const translated = translateErrorKey(translate, errorKey)
+      if (translated) {
+        if (errorKey === 'goals.form.targetValueRequired') errs.targetValue = translated
+        else if (errorKey === 'goals.form.unitRequired' || errorKey === 'goals.form.unitTooLong') errs.unit = translated
+        else if (errorKey === 'goals.form.titleRequired' || errorKey === 'goals.form.titleTooLong') errs.description = translated
+        else errs._form = translated
+      }
+    }
+    return errs
+  }, [submitted, description, targetValue, unit, translate])
 
   // Load goal data when modal opens
   useEffect(() => {
@@ -79,6 +98,7 @@ export function EditGoalModal({
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
+      setSubmitted(false)
     }
   }, [open, goal])
 
@@ -96,6 +116,7 @@ export function EditGoalModal({
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
+      setSubmitted(true)
 
       const err = validate()
       if (err) {
@@ -165,7 +186,12 @@ export function EditGoalModal({
               className="form-input"
               min={0.01}
               step="any"
+              aria-invalid={!!fieldErrors.targetValue}
+              aria-describedby={fieldErrors.targetValue ? 'edit-goal-target-error' : undefined}
             />
+            {fieldErrors.targetValue && (
+              <p id="edit-goal-target-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.targetValue}</p>
+            )}
           </div>
           {!isStreak ? (
             <div>
@@ -182,7 +208,12 @@ export function EditGoalModal({
                 onChange={(e) => setUnit(e.target.value)}
                 className="form-input"
                 maxLength={50}
+                aria-invalid={!!fieldErrors.unit}
+                aria-describedby={fieldErrors.unit ? 'edit-goal-unit-error' : undefined}
               />
+              {fieldErrors.unit && (
+                <p id="edit-goal-unit-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.unit}</p>
+              )}
             </div>
           ) : (
             <div>
@@ -219,8 +250,13 @@ export function EditGoalModal({
             onChange={(e) => setDescription(e.target.value)}
             className="form-input"
             placeholder={t('goals.form.descriptionPlaceholder')}
-            maxLength={200}
+            maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
+            aria-invalid={!!fieldErrors.description}
+            aria-describedby={fieldErrors.description ? 'edit-goal-description-error' : undefined}
           />
+          {fieldErrors.description && (
+            <p id="edit-goal-description-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.description}</p>
+          )}
         </div>
 
         {/* Deadline */}

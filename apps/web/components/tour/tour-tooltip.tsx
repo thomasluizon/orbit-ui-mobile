@@ -126,6 +126,14 @@ export function TourTooltip({
     return () => cancelAnimationFrame(frame)
   }, [layout])
 
+  // Auto-focus "Next" button on step change
+  const nextButtonRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    // Delay focus to allow layout to settle
+    const timer = setTimeout(() => nextButtonRef.current?.focus(), 100)
+    return () => clearTimeout(timer)
+  }, [step])
+
   const sectionName = sectionProgress.section
     ? t(`tour.sections.${sectionProgress.section}`)
     : ''
@@ -148,6 +156,7 @@ export function TourTooltip({
           : undefined
       }
       role="dialog"
+      aria-modal="true"
       aria-label={t(step.titleKey)}
     >
       {/* Drag handle on mobile */}
@@ -214,6 +223,7 @@ export function TourTooltip({
         )}
         <div className="flex-1" />
         <button
+          ref={nextButtonRef}
           type="button"
           onClick={onNext}
           className="flex items-center gap-1 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"

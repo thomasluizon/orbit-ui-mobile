@@ -12,6 +12,45 @@ import { extractBackendError } from '@orbit/shared/utils'
  * - 400/404/409/429/5xx: categorized error toast
  */
 
+// ---------------------------------------------------------------------------
+// i18n adapter -- set once at app startup via <ApiFetchI18nProvider />
+// ---------------------------------------------------------------------------
+
+type TranslateFn = (key: string) => string
+
+let _translate: TranslateFn | null = null
+
+/**
+ * Register the app's translation function so apiFetch can produce
+ * localised toast titles. Called once by ApiFetchI18nProvider.
+ */
+export function setApiFetchTranslate(t: TranslateFn) {
+  _translate = t
+}
+
+function getToastTitle(status: number): string {
+  if (!_translate) {
+    // Fallback when i18n is not yet initialised
+    if (status === 400) return 'Validation error'
+    if (status === 404) return 'Not found'
+    if (status === 409) return 'Conflict'
+    if (status === 429) return 'Too many requests'
+    if (status >= 500) return 'Server error'
+    return 'Something went wrong'
+  }
+
+  if (status === 400) return _translate('toast.errors.validation')
+  if (status === 404) return _translate('toast.errors.notFound')
+  if (status === 409) return _translate('toast.errors.conflict')
+  if (status === 429) return _translate('toast.errors.tooManyRequests')
+  if (status >= 500) return _translate('toast.errors.server')
+  return _translate('toast.errors.unknown')
+}
+
+// ---------------------------------------------------------------------------
+// ApiError
+// ---------------------------------------------------------------------------
+
 export class ApiError extends Error {
   status: number
   data: unknown
@@ -50,12 +89,7 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
     const backendMsg = extractBackendError({ data: body })
 
     // Categorized error toast
-    let title = 'Something went wrong'
-    if (status === 400) title = 'Validation error'
-    else if (status === 404) title = 'Not found'
-    else if (status === 409) title = 'Conflict'
-    else if (status === 429) title = 'Too many requests'
-    else if (status >= 500) title = 'Server error'
+    const title = getToastTitle(status)
 
     toast.error(title, {
       description: backendMsg || undefined,

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BellRing, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { subscribePush } from '@/app/actions/notifications'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -92,19 +93,7 @@ export function PushPrompt() {
         applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
       })
 
-      const keys = subscription.toJSON()
-      const response = await fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint,
-          p256dh: keys.keys?.p256dh,
-          auth: keys.keys?.auth,
-        }),
-      })
-      if (!response.ok) {
-        throw new Error(`Failed to subscribe: ${response.status}`)
-      }
+      await subscribePush(subscription.toJSON())
       dismiss()
     } catch {
       setShowRetryHint(true)

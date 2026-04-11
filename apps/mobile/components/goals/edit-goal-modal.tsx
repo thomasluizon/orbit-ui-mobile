@@ -28,6 +28,7 @@ import {
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -92,8 +93,26 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = updateGoal.isPending
+
+  // Per-field inline errors (shown after first submit attempt)
+  const fieldErrors = useMemo(() => {
+    if (!submitted) return {}
+    const errs: Record<string, string> = {}
+    const errorKey = validateGoalDraftInput(description, targetValue, unit)
+    if (errorKey) {
+      const translated = translateErrorKey(translate, errorKey)
+      if (translated) {
+        if (errorKey === 'goals.form.targetValueRequired') errs.targetValue = translated
+        else if (errorKey === 'goals.form.unitRequired' || errorKey === 'goals.form.unitTooLong') errs.unit = translated
+        else if (errorKey === 'goals.form.titleRequired' || errorKey === 'goals.form.titleTooLong') errs.description = translated
+        else errs._form = translated
+      }
+    }
+    return errs
+  }, [submitted, description, targetValue, unit, translate])
 
   // Load goal data when modal opens
   useEffect(() => {
@@ -102,6 +121,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
+      setSubmitted(false)
     }
   }, [open, goal])
 
@@ -117,6 +137,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   }
 
   const onSubmit = useCallback(async () => {
+    setSubmitted(true)
     const err = validate()
     if (err) {
       showError(err)
@@ -183,6 +204,9 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
               onChangeText={setTargetValue}
               keyboardType="decimal-pad"
             />
+            {fieldErrors.targetValue && (
+              <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.targetValue}</Text>
+            )}
           </View>
           {!isStreak && (
             <View style={styles.halfField}>
@@ -193,6 +217,9 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
                 onChangeText={setUnit}
                 maxLength={50}
               />
+              {fieldErrors.unit && (
+                <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.unit}</Text>
+              )}
             </View>
           )}
         </View>
@@ -211,8 +238,11 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             onChangeText={setDescription}
             placeholder={t('goals.form.descriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
-            maxLength={200}
+            maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
           />
+          {fieldErrors.description && (
+            <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.description}</Text>
+          )}
         </View>
 
         {/* Deadline */}
@@ -328,6 +358,11 @@ function createStyles(colors: AppColors, bottomInset: number) {
     fontSize: 14,
     color: colors.textPrimary,
     minHeight: 56,
+  },
+  fieldError: {
+    fontSize: 12,
+    color: colors.red400,
+    marginTop: 4,
   },
   // Streak type badge
   streakBadgeRow: {

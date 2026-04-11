@@ -345,7 +345,7 @@ export default function CalendarSyncPage() {
             const successCount = result.results.filter((r) => r.status === 'Success').length
             const failedItems = result.results.filter((r) => r.status !== 'Success')
             if (failedItems.length > 0 && successCount === 0) {
-              setErrorMessage(failedItems.map((f) => `${f.title ?? 'Unknown'}: ${f.error ?? 'Failed'}`).join(', '))
+              setErrorMessage(failedItems.map((f) => `${f.title ?? t('common.unknown')}: ${f.error ?? t('common.failed')}`).join(', '))
               setStep('error')
               return
             }

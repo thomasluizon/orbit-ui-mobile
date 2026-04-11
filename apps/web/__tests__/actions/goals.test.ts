@@ -29,6 +29,7 @@ describe('goal server actions', () => {
       ok: status >= 200 && status < 300,
       status,
       json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body)),
     })
   }
 

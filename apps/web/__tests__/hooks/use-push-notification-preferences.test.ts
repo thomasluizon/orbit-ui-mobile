@@ -1,4 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Mock the server actions before importing the module under test
+const mockSubscribePush = vi.fn()
+const mockUnsubscribePush = vi.fn()
+vi.mock('@/app/actions/notifications', () => ({
+  subscribePush: (...args: unknown[]) => mockSubscribePush(...args),
+  unsubscribePush: (...args: unknown[]) => mockUnsubscribePush(...args),
+}))
+
 import {
   getPushStatusMessageKey,
   getPushStatusTone,
@@ -82,6 +91,8 @@ describe('use-push-notification-preferences helpers', () => {
   beforeEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+    mockSubscribePush.mockReset()
+    mockUnsubscribePush.mockReset()
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'dGVzdA'
   })
 
@@ -175,23 +186,19 @@ describe('use-push-notification-preferences helpers', () => {
   it('subscribes and syncs the backend when the user grants permission', async () => {
     const staleSubscription = createMockSubscription('https://example.com/stale')
     const nextSubscription = createMockSubscription('https://example.com/current')
-    const { fetchMock, subscribe } = setupPushEnvironment({
+    const { subscribe } = setupPushEnvironment({
       permission: 'default',
       requestPermissionResult: 'granted',
       existingSubscription: staleSubscription,
       subscribeResult: nextSubscription,
     })
+    mockSubscribePush.mockResolvedValue(undefined)
 
     const result = await subscribeToPushNotifications()
 
     expect(staleSubscription.unsubscribe).toHaveBeenCalledTimes(1)
     expect(subscribe).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/notifications/subscribe',
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    )
+    expect(mockSubscribePush).toHaveBeenCalledTimes(1)
     expect(result).toEqual({
       supported: true,
       subscribed: true,
@@ -205,29 +212,24 @@ describe('use-push-notification-preferences helpers', () => {
     setupPushEnvironment({
       permission: 'granted',
       subscribeResult: subscription,
-      fetchOk: false,
-      fetchStatus: 500,
     })
+    mockSubscribePush.mockRejectedValue(new Error('Server error'))
 
-    await expect(subscribeToPushNotifications()).rejects.toThrow('Failed to subscribe: 500')
+    await expect(subscribeToPushNotifications()).rejects.toThrow('Failed to subscribe to push notifications')
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
   it('unsubscribes the current subscription and reports not-registered', async () => {
     const subscription = createMockSubscription()
-    const { fetchMock } = setupPushEnvironment({
+    setupPushEnvironment({
       permission: 'granted',
       existingSubscription: subscription,
     })
+    mockUnsubscribePush.mockResolvedValue(undefined)
 
     const result = await unsubscribeFromPushNotifications('granted')
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/notifications/unsubscribe',
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    )
+    expect(mockUnsubscribePush).toHaveBeenCalledTimes(1)
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
     expect(result).toEqual({
       supported: true,

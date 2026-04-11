@@ -29,6 +29,7 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { GoalType } from '@orbit/shared/types/goal'
+import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -89,9 +90,27 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = createGoal.isPending
   const isStreak = isStreakGoal(goalType)
+
+  // Per-field inline errors (shown after first submit attempt)
+  const fieldErrors = useMemo(() => {
+    if (!submitted) return {}
+    const errs: Record<string, string> = {}
+    const errorKey = validateGoalDraftInput(description, targetValue, unit)
+    if (errorKey) {
+      const translated = translateErrorKey(translate, errorKey)
+      if (translated) {
+        if (errorKey === 'goals.form.targetValueRequired') errs.targetValue = translated
+        else if (errorKey === 'goals.form.unitRequired' || errorKey === 'goals.form.unitTooLong') errs.unit = translated
+        else if (errorKey === 'goals.form.titleRequired' || errorKey === 'goals.form.titleTooLong') errs.description = translated
+        else errs._form = translated
+      }
+    }
+    return errs
+  }, [submitted, description, targetValue, unit, translate])
 
   function validate(): string | null {
     return translateErrorKey(
@@ -110,6 +129,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     setTargetValue('')
     setUnit('')
     setDeadline('')
+    setSubmitted(false)
   }
 
   const handleTypeChange = useCallback(
@@ -125,6 +145,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   )
 
   const onSubmit = useCallback(async () => {
+    setSubmitted(true)
     const err = validate()
     if (err) {
       showError(err)
@@ -268,6 +289,9 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
               placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
               placeholderTextColor={colors.textMuted}
             />
+            {fieldErrors.targetValue && (
+              <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.targetValue}</Text>
+            )}
           </View>
           {!isStreak && (
             <View style={styles.halfField}>
@@ -280,6 +304,9 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                 placeholderTextColor={colors.textMuted}
                 maxLength={50}
               />
+              {fieldErrors.unit && (
+                <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.unit}</Text>
+              )}
             </View>
           )}
         </View>
@@ -298,8 +325,11 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             onChangeText={setDescription}
             placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
-            maxLength={200}
+            maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
           />
+          {fieldErrors.description && (
+            <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.description}</Text>
+          )}
         </View>
 
         {/* Deadline */}
@@ -422,6 +452,11 @@ function createStyles(colors: AppColors, bottomInset: number) {
       fontSize: 14,
       color: colors.textPrimary,
       minHeight: 56,
+    },
+    fieldError: {
+      fontSize: 12,
+      color: colors.red400,
+      marginTop: 4,
     },
     // Type cards
     typeCardsRow: {

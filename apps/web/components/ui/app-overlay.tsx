@@ -209,7 +209,7 @@ export function AppOverlay({
       <button
         type="button"
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-[var(--ease-out)] cursor-default ${backdropClass}`}
-        aria-label="Close"
+        aria-label={t('common.close')}
         tabIndex={-1}
         onPointerDown={handlePointerDown}
         onClick={handleBackdropClick}
@@ -232,12 +232,12 @@ export function AppOverlay({
         {hasTitle && (
           <div className="flex items-start justify-between px-6 py-4">
             <div className="flex-1 min-w-0">
-              <div
+              <h2
                 id={titleId}
                 className="font-extrabold text-[length:var(--text-fluid-2xl)] text-text-primary tracking-tight"
               >
                 {titleContent || title}
-              </div>
+              </h2>
               {description && (
                 <div className="mt-1 flex items-start gap-2">
                   <p
@@ -282,8 +282,6 @@ export function AppOverlay({
           </div>
         )}
 
-        {/* Accessible live region for status announcements */}
-        <div aria-live="polite" aria-atomic="true" className="sr-only" />
       </dialog>
     </div>
   )

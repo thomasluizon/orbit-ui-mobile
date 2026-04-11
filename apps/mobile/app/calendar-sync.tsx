@@ -276,7 +276,7 @@ export default function CalendarSyncScreen() {
       if (failedItems.length > 0 && successCount === 0) {
         setErrorMessage(
           failedItems
-            .map((item) => `${item.title ?? 'Unknown'}: ${item.error ?? 'Failed'}`)
+            .map((item) => `${item.title ?? t('common.unknown')}: ${item.error ?? t('common.failed')}`)
             .join(', '),
         )
         setStep('error')

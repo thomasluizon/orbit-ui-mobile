@@ -34,7 +34,10 @@ export function DescriptionViewer({
       return
     }
     const raw = marked.parse(description, { async: false }) as string // NOSONAR - marked.parse with async:false returns string but typed as string | Promise<string>
-    setRenderedHtml(DOMPurify.sanitize(raw))
+    setRenderedHtml(DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'a'],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+    }))
   }, [open, description])
 
   if (!mounted || !open) return null

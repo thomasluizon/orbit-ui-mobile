@@ -633,7 +633,7 @@ export async function invalidateHabitMutationQueries(
 ): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   // Prefix invalidation: matches every (from, to, locale) summary entry.
-  await queryClient.invalidateQueries({ queryKey: [...habitKeys.all, 'summary'] })
+  await queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
 
   if (options?.habitId) {
     await queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) })

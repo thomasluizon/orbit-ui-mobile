@@ -31,7 +31,7 @@ export default function AuthError({
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
       <p className="text-sm text-text-secondary">
-        {error.message || t('auth.genericError')}
+        {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
       </p>
       <button
         onClick={reset}

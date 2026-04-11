@@ -1505,6 +1505,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           refreshControl={refreshControl}
           onScrollBeginDrag={onScrollBeginDrag}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          removeClippedSubviews={true}
         />
         {commonOverlays}
       </>
@@ -1607,6 +1611,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           refreshControl={refreshControl}
           onScrollBeginDrag={onScrollBeginDrag}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          removeClippedSubviews={true}
         />
         {commonOverlays}
       </>
