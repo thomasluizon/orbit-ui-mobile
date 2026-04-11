@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import type { Achievement } from '@orbit/shared/types/gamification'
-import { radius } from '@/lib/theme'
+import { gradients, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -103,6 +104,17 @@ export function AchievementToast() {
       accessibilityLiveRegion="polite"
     >
       <View style={styles.inner}>
+        {/* Gradient sheen overlay */}
+        <LinearGradient
+          colors={gradients.surfaceSheen}
+          locations={gradients.surfaceSheenLocations}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.25, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+        {/* Inset top highlight */}
+        <View style={styles.insetHighlight} pointerEvents="none" />
         <Text style={styles.starIcon}>{'\u2B50'}</Text>
         <View style={styles.textContainer}>
           <Text style={styles.label}>
@@ -148,7 +160,17 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows:
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      ...shadows.lg,
+      overflow: 'hidden',
+      ...shadows.cardParent,
+      elevation: 5,
+    },
+    insetHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.05)',
     },
     starIcon: {
       fontSize: 30,

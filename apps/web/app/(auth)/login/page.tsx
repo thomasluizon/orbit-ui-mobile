@@ -157,7 +157,7 @@ function CodeStep({
         <span className="text-text-primary font-medium">{email}</span>
       </p>
 
-      <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
+      <form className="flex flex-col gap-6" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
         <fieldset
           className="flex justify-center gap-1.5 sm:gap-2 border-0 p-0 m-0"
           aria-labelledby="code-sent-to"

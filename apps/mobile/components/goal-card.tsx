@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
 import { Flame } from 'lucide-react-native'
@@ -7,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
-import { createColors } from '@/lib/theme'
+import { createColors, gradients, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -119,16 +120,33 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         unit: goal.unit,
       })
 
+  const isCompleted = goal.status === 'Completed'
+
   return (
     <TouchableOpacity
       ref={tourTargetId ? cardRef : undefined}
-      style={[styles.card, trackingBorder]}
+      style={[styles.card, trackingBorder, isCompleted && styles.cardCompleted]}
       onPress={() => onPress?.(goal.id)}
       activeOpacity={0.85}
       disabled={!onPress}
       accessibilityRole="button"
       accessibilityLabel={goal.title}
     >
+      {/* Android completed glow backing */}
+      {isCompleted && Platform.OS === 'android' && (
+        <View style={styles.androidCompletedGlow} pointerEvents="none" />
+      )}
+      {/* Gradient sheen overlay */}
+      <LinearGradient
+        colors={gradients.surfaceSheen}
+        locations={gradients.surfaceSheenLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.25, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+      {/* Inset top highlight */}
+      <View style={styles.insetHighlight} pointerEvents="none" />
       <View style={styles.content}>
         {/* Title row */}
         <View style={styles.titleRow}>
@@ -230,12 +248,30 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     borderWidth: 1,
     borderColor: colors.borderMuted,
     marginBottom: 10, // space-y-2.5
-    // Shadow matching --shadow-sm
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 3,
-    elevation: 4,
+    overflow: 'hidden',
+    ...shadows.cardParent,
+    elevation: 5,
+  },
+  cardCompleted: {
+    // iOS emerald tinted glow for completed state
+    shadowColor: 'rgba(16,185,129,1)',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  },
+  androidCompletedGlow: {
+    position: 'absolute',
+    inset: -4,
+    backgroundColor: 'rgba(16,185,129,0.15)',
+    borderRadius: 24,
+  },
+  insetHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    pointerEvents: 'none',
   },
 
   content: {

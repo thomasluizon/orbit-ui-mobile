@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient'
 import Svg, {
   Path,
   Defs,
@@ -9,7 +10,7 @@ import Svg, {
 } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@/lib/plural'
-import { radius } from '@/lib/theme'
+import { gradients, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface StreakBadgeProps {
@@ -43,17 +44,54 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
     }
   })()
 
+  const tierGlow = (() => {
+    switch (tier) {
+      case 'legendary':
+        return shadows.glowLg('rgba(251,191,36,1)')
+      case 'intense':
+        return shadows.glow('rgba(249,115,22,1)')
+      case 'strong':
+        return shadows.glowSm('rgba(251,191,36,1)')
+      default:
+        return {}
+    }
+  })()
+
+  const legendaryGradientColors: readonly [string, string] = ['rgba(251,191,36,0.1)', 'rgba(239,68,68,0.08)']
+
   return (
     <View
       style={[
         styles.badge,
         { backgroundColor: tierStyle.bg, borderColor: tierStyle.border },
+        tierGlow,
       ]}
       accessibilityLabel={plural(
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
     >
+      {/* Gradient sheen overlay */}
+      <ExpoLinearGradient
+        colors={gradients.surfaceSheen}
+        locations={gradients.surfaceSheenLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.25, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+      {/* Legendary tier gradient background */}
+      {tier === 'legendary' && (
+        <ExpoLinearGradient
+          colors={legendaryGradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+      )}
+      {/* Inset top highlight */}
+      <View style={styles.insetHighlight} pointerEvents="none" />
       <Svg width={12} height={15} viewBox="0 0 16 20" fill="none">
         <Defs>
           <LinearGradient
@@ -102,6 +140,15 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radius.full,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  insetHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   count: {
     fontSize: 12,

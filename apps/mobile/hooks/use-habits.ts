@@ -504,7 +504,8 @@ export function useUpdateChecklist() {
       }
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error, variables) =>
+      finalizeHabitMutation(queryClient, data, error, { habitId: variables.habitId }),
   })
 }
 

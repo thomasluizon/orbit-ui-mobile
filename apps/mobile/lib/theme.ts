@@ -106,6 +106,12 @@ export interface AppShadows {
   sm: ShadowValue
   md: ShadowValue
   lg: ShadowValue
+  cardParent: ShadowValue
+  cardParentHover: ShadowValue
+  cardChild: ShadowValue
+  glow: (color: string) => ShadowValue
+  glowSm: (color: string) => ShadowValue
+  glowLg: (color: string) => ShadowValue
 }
 
 let runtimeTheme: ThemeRuntime = {
@@ -324,6 +330,28 @@ export const radius: AppRadius = {
 } as const
 
 // ---------------------------------------------------------------------------
+// Animation tokens
+// ---------------------------------------------------------------------------
+
+/** Raw bezier control points for use with Easing.bezier(...) */
+export const easings = {
+  spring: [0.34, 1.56, 0.64, 1] as [number, number, number, number],
+  out: [0.16, 1, 0.3, 1] as [number, number, number, number],
+  smooth: [0.4, 0, 0.2, 1] as [number, number, number, number],
+}
+
+export const durations = {
+  fast: 100,
+  base: 280,
+  slow: 500,
+  shimmer: 3000,
+  creationGlow: 1200,
+  completePop: 500,
+  completeGlow: 800,
+  completeSpark: 600,
+}
+
+// ---------------------------------------------------------------------------
 // Shadow presets (iOS shadows -- use elevation on Android)
 // ---------------------------------------------------------------------------
 
@@ -346,4 +374,97 @@ export const shadows: AppShadows = {
     shadowOpacity: 0.6,
     shadowRadius: 40,
   },
-} as const
+  cardParent: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+  },
+  cardParentHover: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+  },
+  cardChild: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+  },
+  glow: (color: string) => ({
+    shadowColor: color,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  }),
+  glowSm: (color: string) => ({
+    shadowColor: color,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+  }),
+  glowLg: (color: string) => ({
+    shadowColor: color,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 30,
+  }),
+}
+
+// ---------------------------------------------------------------------------
+// Gradient helpers (for use with expo-linear-gradient)
+// ---------------------------------------------------------------------------
+
+export const gradients = {
+  surfaceSheen: ['rgba(255,255,255,0.035)', 'transparent'] as const,
+  surfaceSheenChild: ['rgba(255,255,255,0.02)', 'transparent'] as const,
+  surfaceSheenLocations: [0, 0.4] as const,
+  /** Returns a 3-stop diagonal shimmer: transparent -> primary/0.15 -> transparent */
+  proShimmer: (primaryRgb: string) =>
+    ['transparent', `rgba(${primaryRgb},0.15)`, 'transparent'] as const,
+  proShimmerLocations: [0.3, 0.5, 0.7] as const,
+  /** Done-state log button: primary -> 30% white-mixed primary */
+  logButtonDone: (primary: string, primaryLighter: string) =>
+    [primary, primaryLighter] as const,
+  /** Status side-glow: colored -> transparent horizontal */
+  statusDue: ['rgba(245,158,11,0.12)', 'transparent'] as const,
+  statusOverdue: ['rgba(239,68,68,0.12)', 'transparent'] as const,
+}
+
+// ---------------------------------------------------------------------------
+// Color helpers
+// ---------------------------------------------------------------------------
+
+/** Returns an rgba string using the given rgb components (defaults to purple 139,92,246) */
+export function primaryRgba(alpha: number, rgb?: string): string {
+  return `rgba(${rgb ?? '139,92,246'},${alpha})`
+}
+
+/**
+ * Simulates `color-mix(in srgb, hex, white amount%)`.
+ * amount is 0-1 (0 = original, 1 = white).
+ */
+export function lightenHex(hex: string, amount: number): string {
+  const normalized = hex.replace('#', '')
+
+  let r: number
+  let g: number
+  let b: number
+
+  if (normalized.length === 3) {
+    const [rh, gh, bh] = normalized.split('')
+    r = Number.parseInt(`${rh}${rh}`, 16)
+    g = Number.parseInt(`${gh}${gh}`, 16)
+    b = Number.parseInt(`${bh}${bh}`, 16)
+  } else if (normalized.length === 6) {
+    r = Number.parseInt(normalized.slice(0, 2), 16)
+    g = Number.parseInt(normalized.slice(2, 4), 16)
+    b = Number.parseInt(normalized.slice(4, 6), 16)
+  } else {
+    return hex
+  }
+
+  const blend = (channel: number) => Math.round(channel + (255 - channel) * amount)
+  return `rgb(${blend(r)},${blend(g)},${blend(b)})`
+}

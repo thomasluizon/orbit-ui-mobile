@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { Clock, X } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
-import { radius } from '@/lib/theme'
+import { gradients, lightenHex, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function TrialBanner() {
@@ -22,21 +23,44 @@ export function TrialBanner() {
   if (!visible) return null
 
   const accentColor = trialUrgent ? colors.amber400 : colors.primary
-  const bgColor = trialUrgent
-    ? 'rgba(245,158,11,0.10)'
-    : colors.primary_10
   const borderColor = trialUrgent
     ? 'rgba(245,158,11,0.20)'
     : colors.primary_20
+
+  const gradientStart = trialUrgent ? colors.amber400 : colors.primary
+  const gradientEnd = trialUrgent
+    ? lightenHex(colors.amber400, 0.2)
+    : lightenHex(colors.primary, 0.2)
+
+  const gradientColors: [string, string] = [gradientStart, gradientEnd]
 
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: bgColor, borderColor },
+        { borderColor },
       ]}
       accessibilityRole="alert"
     >
+      {/* Full-width diagonal gradient background */}
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFillObject, styles.gradientBg]}
+        pointerEvents="none"
+      />
+      {/* Sheen overlay */}
+      <LinearGradient
+        colors={gradients.surfaceSheen}
+        locations={gradients.surfaceSheenLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.25, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+      {/* Inset top highlight */}
+      <View style={styles.insetHighlight} pointerEvents="none" />
       <Clock size={16} color={accentColor} />
       <Text style={[styles.text, { color: accentColor }]}>
         {trialDaysLeft === 0
@@ -74,6 +98,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginBottom: 8,
+    overflow: 'hidden',
+    ...shadows.cardParent,
+    elevation: 5,
+  },
+  gradientBg: {
+    borderRadius: radius.lg,
+    opacity: 0.18,
+  },
+  insetHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   text: {
     flex: 1,

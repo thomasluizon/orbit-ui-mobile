@@ -101,7 +101,12 @@ export function ConfirmDialog({
               onPress={handleCancel}
               activeOpacity={0.7}
             >
-              <Text style={styles.cancelLabel}>
+              <Text
+                style={styles.cancelLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {cancelLabel ?? t('common.cancel')}
               </Text>
             </TouchableOpacity>
@@ -111,7 +116,12 @@ export function ConfirmDialog({
               onPress={handleConfirm}
               activeOpacity={0.8}
             >
-              <Text style={styles.confirmLabel}>
+              <Text
+                style={styles.confirmLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {confirmLabel ?? t('common.confirm')}
               </Text>
             </TouchableOpacity>
@@ -177,6 +187,7 @@ function createStyles(
     cancelButton: {
       flex: 1,
       paddingVertical: 12,
+      paddingHorizontal: 8,
       borderRadius: radius.md,
       borderWidth: 1,
       borderColor: colors.border,
@@ -187,10 +198,12 @@ function createStyles(
       color: colors.textSecondary,
       fontSize: 14,
       fontWeight: '500',
+      textAlign: 'center',
     },
     confirmButton: {
       flex: 1,
       paddingVertical: 12,
+      paddingHorizontal: 8,
       borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
@@ -201,6 +214,7 @@ function createStyles(
       color: colors.white,
       fontSize: 14,
       fontWeight: '700',
+      textAlign: 'center',
     },
   })
 }

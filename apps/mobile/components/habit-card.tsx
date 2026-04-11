@@ -5,9 +5,22 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Platform,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withSequence,
+  withDelay,
+  withRepeat,
+  Easing,
+  interpolate,
+} from 'react-native-reanimated'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import {
   ChevronRight,
@@ -36,7 +49,16 @@ import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { getHabitProgressStrokeDasharray } from '@/lib/habit-progress'
-import { createColors } from '@/lib/theme'
+import {
+  createColors,
+  radius,
+  shadows,
+  gradients,
+  easings,
+  durations,
+  primaryRgba,
+  lightenHex,
+} from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -104,31 +126,78 @@ function withAlpha(color: string, opacity: number, fallback: string): string {
 
 function HabitCardSurface({
   isChild,
+  status,
   colors,
 }: Readonly<{
   isChild: boolean
+  status?: string
   colors: ReturnType<typeof createColors>
 }>) {
   return (
     <>
+      {/* Diagonal sheen gradient — mirrors the 165deg CSS overlay */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={isChild ? gradients.surfaceSheenChild : gradients.surfaceSheen}
+        locations={gradients.surfaceSheenLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.25, y: 1 }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      />
+
+      {/* Status side-glow for due-today / overdue (parent only) */}
+      {!isChild && status === 'due-today' && (
+        <LinearGradient
+          pointerEvents="none"
+          colors={gradients.statusDue}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 24,
+          }}
+        />
+      )}
+      {!isChild && status === 'overdue' && (
+        <LinearGradient
+          pointerEvents="none"
+          colors={gradients.statusOverdue}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 24,
+          }}
+        />
+      )}
+
+      {/* 1px top-edge inset highlight */}
       <View
         pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 1,
-          },
-          {
-            backgroundColor: withAlpha(
-              colors.white,
-              isChild ? 0.03 : 0.05,
-              isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
-            ),
-          },
-        ]}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 1,
+          backgroundColor: withAlpha(
+            colors.white,
+            isChild ? 0.03 : 0.05,
+            isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
+          ),
+        }}
       />
     </>
   )
@@ -339,9 +408,9 @@ export function HabitCard({
     onLongPressCard,
   } = actions
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { colors, currentTheme } = useAppTheme()
   const { displayTime } = useTimeFormat()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(colors, currentTheme), [colors, currentTheme])
 
   const cardTourRef = useRef<View>(null)
   const tagsTourRef = useRef<View>(null)
@@ -398,7 +467,130 @@ export function HabitCard({
     [habit, t],
   )
 
+  // ---------------------------------------------------------------------------
+  // Step 8: Press spring animation
+  // ---------------------------------------------------------------------------
+  const pressScale = useSharedValue(1)
+  const pressY = useSharedValue(0)
+  const pressAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: pressY.value }, { scale: pressScale.value }],
+  }))
+
+  const handlePressIn = useCallback(() => {
+    pressScale.value = withTiming(0.985, { duration: 100 })
+    pressY.value = withTiming(-1, { duration: 100 })
+  }, [pressScale, pressY])
+
+  const handlePressOut = useCallback(() => {
+    pressScale.value = withSpring(1, { stiffness: 220, damping: 18 })
+    pressY.value = withSpring(0, { stiffness: 220, damping: 18 })
+  }, [pressScale, pressY])
+
+  // ---------------------------------------------------------------------------
+  // Step 9: Completion pop / glow / sparks
+  // ---------------------------------------------------------------------------
+  const prevDoneRef = useRef(isDoneForRange)
+  const completePop = useSharedValue(1)
+  const completeGlow = useSharedValue(0)
+  const spark0 = useSharedValue(0)
+  const spark1 = useSharedValue(0)
+  const spark2 = useSharedValue(0)
+  const spark3 = useSharedValue(0)
+
+  const completePopStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: completePop.value }],
+  }))
+  const completeGlowStyle = useAnimatedStyle(() => ({
+    opacity: completeGlow.value,
+    transform: [{ scale: interpolate(completeGlow.value, [0, 1], [1, 1.4]) }],
+  }))
+  const spark0Style = useAnimatedStyle(() => ({
+    opacity: 1 - spark0.value,
+    transform: [
+      { translateX: 12 * spark0.value },
+      { translateY: -12 * spark0.value },
+      { scale: 1 - spark0.value * 0.7 },
+    ],
+  }))
+  const spark1Style = useAnimatedStyle(() => ({
+    opacity: 1 - spark1.value,
+    transform: [
+      { translateX: -12 * spark1.value },
+      { translateY: 8 * spark1.value },
+      { scale: 1 - spark1.value * 0.7 },
+    ],
+  }))
+  const spark2Style = useAnimatedStyle(() => ({
+    opacity: 1 - spark2.value,
+    transform: [
+      { translateX: 8 * spark2.value },
+      { translateY: 12 * spark2.value },
+      { scale: 1 - spark2.value * 0.7 },
+    ],
+  }))
+  const spark3Style = useAnimatedStyle(() => ({
+    opacity: 1 - spark3.value,
+    transform: [
+      { translateX: -8 * spark3.value },
+      { translateY: -8 * spark3.value },
+      { scale: 1 - spark3.value * 0.7 },
+    ],
+  }))
+
+  useEffect(() => {
+    const wasNotDone = !prevDoneRef.current
+    prevDoneRef.current = isDoneForRange
+    if (!wasNotDone || !isDoneForRange) return
+
+    // Pop
+    completePop.value = withSequence(
+      withTiming(1.3, { duration: 200, easing: Easing.bezier(...easings.spring) }),
+      withTiming(0.96, { duration: 150 }),
+      withTiming(1, { duration: 150 }),
+    )
+
+    // Glow
+    completeGlow.value = withSequence(
+      withTiming(1, { duration: 200 }),
+      withTiming(0, { duration: 600 }),
+    )
+
+    // Sparks
+    const fireAndReset = (sv: typeof spark0, delay: number) => {
+      sv.value = withDelay(delay, withTiming(1, { duration: durations.completeSpark, easing: Easing.out(Easing.ease) }))
+      // Reset after animation
+      setTimeout(() => { sv.value = 0 }, delay + durations.completeSpark + 50)
+    }
+    fireAndReset(spark0, 0)
+    fireAndReset(spark1, 50)
+    fireAndReset(spark2, 100)
+    fireAndReset(spark3, 150)
+  }, [isDoneForRange, completePop, completeGlow, spark0, spark1, spark2, spark3])
+
+  // ---------------------------------------------------------------------------
+  // Step 10: Creation glow — breathing rim
+  // ---------------------------------------------------------------------------
+  const creationGlow = useSharedValue(0)
+  const creationGlowStyle = useAnimatedStyle(() => ({
+    opacity: creationGlow.value,
+    transform: [{ scale: interpolate(creationGlow.value, [0, 0.5, 1], [1, 1.02, 1]) }],
+  }))
+
+  useEffect(() => {
+    if (!isJustCreated) return
+    creationGlow.value = withRepeat(
+      withSequence(
+        withTiming(0.4, { duration: 600, easing: Easing.bezier(...easings.out) }),
+        withTiming(0, { duration: 600 }),
+      ),
+      2,
+      false,
+    )
+  }, [isJustCreated, creationGlow])
+
+  // ---------------------------------------------------------------------------
   // Actions menu
+  // ---------------------------------------------------------------------------
   const [showActionsMenu, setShowActionsMenu] = useState(false)
   const [actionsMenuAnchorRect, setActionsMenuAnchorRect] =
     useState<MenuAnchorRect | null>(null)
@@ -471,241 +663,340 @@ export function HabitCard({
   // Indent for children
   const indentMargin = depth > 0 ? { marginLeft: depth * 24 } : undefined
 
+  const logBtnSize = isChild ? 32 : 44
+  const logBtnRadius = isChild ? 16 : 22
+
   return (
     <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
-      <TouchableOpacity
-        style={cardStyle}
-        onPress={handleCardPress}
-        onLongPress={!isSelectMode ? onLongPressCard : undefined}
-        delayLongPress={300}
-        activeOpacity={0.85}
-      >
-        <HabitCardSurface isChild={isChild} colors={colors} />
-        <View
+      {/* Step 10: creation glow rim — absolutely behind the card */}
+      {isJustCreated && (
+        <Animated.View
+          pointerEvents="none"
           style={[
-            styles.cardRow,
-            { gap: isChild ? 12 : 14 },
+            {
+              position: 'absolute',
+              top: -1,
+              left: -1,
+              right: -1,
+              bottom: -1,
+              borderRadius: isChild ? radius.md + 2 : radius.lg + 2,
+              borderWidth: 1,
+              borderColor: primaryRgba(0.25),
+            },
+            creationGlowStyle,
           ]}
-        >
-          {/* Expand/collapse toggle */}
-          {hasChildren && (
-            <TouchableOpacity
-              onPress={onToggleExpand}
-              style={[
-                styles.expandButton,
-                {
-                  width: isChild ? 24 : 28,
-                  height: isChild ? 24 : 28,
-                  borderRadius: 8,
-                },
-                isExpanded && styles.expandButtonRotated,
-              ]}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <ChevronRight
-                size={isChild ? 14 : 16}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
-          )}
+        />
+      )}
 
-          {/* Selection checkbox */}
-          {isSelectMode ? (
-            <TouchableOpacity
-              onPress={onToggleSelection}
-              style={[
-                styles.selectionCircle,
-                {
-                  width: isChild ? 32 : 44,
-                  height: isChild ? 32 : 44,
-                  borderRadius: isChild ? 16 : 22,
-                },
-                isSelected
-                  ? styles.selectionCircleSelected
-                  : styles.selectionCircleDefault,
-              ]}
-              activeOpacity={0.7}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={t('common.select')}
-            >
-              {isSelected && (
-                <Check size={isChild ? 16 : 20} color={colors.white} />
-              )}
-            </TouchableOpacity>
-          ) : isParentWithChildren ? (
-            /* Progress ring for parent habits */
-            <TouchableOpacity
-              onPress={() => {
-                if (isNotDueToday) return
-                if (isDoneForRange) {
-                  onUnlog?.()
-                } else if (childrenDone >= childrenTotal) {
-                  onLog?.()
-                } else {
-                  onForceLogParent?.()
-                }
-              }}
-              style={[
-                styles.progressRingContainer,
-                {
-                  width: isChild ? 32 : 44,
-                  height: isChild ? 32 : 44,
-                },
-              ]}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-            >
-              <Svg
+      {/* Step 8: wrap TouchableOpacity in Animated.View for press spring */}
+      <Animated.View style={pressAnimStyle}>
+        <TouchableOpacity
+          style={cardStyle}
+          onPress={handleCardPress}
+          onLongPress={!isSelectMode ? onLongPressCard : undefined}
+          delayLongPress={300}
+          activeOpacity={0.85}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+        >
+          <HabitCardSurface isChild={isChild} status={status} colors={colors} />
+          <View
+            style={[
+              styles.cardRow,
+              { gap: isChild ? 12 : 14 },
+            ]}
+          >
+            {/* Expand/collapse toggle */}
+            {hasChildren && (
+              <TouchableOpacity
+                onPress={onToggleExpand}
                 style={[
-                  styles.progressRingSvg,
+                  styles.expandButton,
+                  {
+                    width: isChild ? 24 : 28,
+                    height: isChild ? 24 : 28,
+                    borderRadius: 8,
+                  },
+                  isExpanded && styles.expandButtonRotated,
+                ]}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <ChevronRight
+                  size={isChild ? 14 : 16}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Selection checkbox */}
+            {isSelectMode ? (
+              <TouchableOpacity
+                onPress={onToggleSelection}
+                style={[
+                  styles.selectionCircle,
+                  {
+                    width: isChild ? 32 : 44,
+                    height: isChild ? 32 : 44,
+                    borderRadius: isChild ? 16 : 22,
+                  },
+                  isSelected
+                    ? styles.selectionCircleSelected
+                    : styles.selectionCircleDefault,
+                ]}
+                activeOpacity={0.7}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={t('common.select')}
+              >
+                {isSelected && (
+                  <Check size={isChild ? 16 : 20} color={colors.white} />
+                )}
+              </TouchableOpacity>
+            ) : isParentWithChildren ? (
+              /* Progress ring for parent habits */
+              <TouchableOpacity
+                onPress={() => {
+                  if (isNotDueToday) return
+                  if (isDoneForRange) {
+                    onUnlog?.()
+                  } else if (childrenDone >= childrenTotal) {
+                    onLog?.()
+                  } else {
+                    onForceLogParent?.()
+                  }
+                }}
+                style={[
+                  styles.progressRingContainer,
                   {
                     width: isChild ? 32 : 44,
                     height: isChild ? 32 : 44,
                   },
                 ]}
-                viewBox="0 0 36 36"
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
               >
-                <Circle
-                  cx="18"
-                  cy="18"
-                  r="15"
-                  fill="none"
-                  stroke={colors.borderMuted}
-                  strokeWidth="2"
-                />
-                <Circle
-                  cx="18"
-                  cy="18"
-                  r="15"
-                  fill="none"
-                  stroke={
-                    isDoneForRange || progressPercent === 100
-                      ? colors.primary
-                      : withAlpha(
-                          colors.primary,
-                          0.6,
-                          'rgba(59, 130, 246, 0.6)',
-                        )
-                  }
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeDasharray={getHabitProgressStrokeDasharray(
-                    progressPercent,
-                    isDoneForRange,
-                  )}
-                />
-              </Svg>
-              {/* Center content */}
-              {isDoneForRange ? (
-                <Check size={16} color={colors.primary} />
-              ) : (
-                <Text style={styles.progressText}>
-                  {childrenDone}/{childrenTotal}
-                </Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            /* Log button (circle indicator) */
-            <TouchableOpacity
-              onPress={() => {
-                if (isDoneForRange) {
-                  onUnlog?.()
-                } else {
-                  onLog?.()
-                }
-              }}
-              style={[
-                styles.logButton,
-                {
-                  width: isChild ? 32 : 44,
-                  height: isChild ? 32 : 44,
-                  borderRadius: isChild ? 16 : 22,
-                },
-                isDoneForRange
-                  ? styles.logButtonDone
-                  : status === 'overdue'
-                    ? styles.logButtonOverdue
-                    : styles.logButtonDefault,
-              ]}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.log.title')}
-              hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
-            >
-              {isDoneForRange && (
-                <Check
-                  size={isChild ? 14 : 16}
-                  color={colors.white}
-                />
-              )}
-            </TouchableOpacity>
-          )}
+                <Svg
+                  style={[
+                    styles.progressRingSvg,
+                    {
+                      width: isChild ? 32 : 44,
+                      height: isChild ? 32 : 44,
+                    },
+                  ]}
+                  viewBox="0 0 36 36"
+                >
+                  <Circle
+                    cx="18"
+                    cy="18"
+                    r="15"
+                    fill="none"
+                    stroke={colors.borderMuted}
+                    strokeWidth="2"
+                  />
+                  <Circle
+                    cx="18"
+                    cy="18"
+                    r="15"
+                    fill="none"
+                    stroke={
+                      isDoneForRange || progressPercent === 100
+                        ? colors.primary
+                        : withAlpha(
+                            colors.primary,
+                            0.6,
+                            'rgba(59, 130, 246, 0.6)',
+                          )
+                    }
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray={getHabitProgressStrokeDasharray(
+                      progressPercent,
+                      isDoneForRange,
+                    )}
+                  />
+                </Svg>
+                {/* Center content */}
+                {isDoneForRange ? (
+                  <Check size={16} color={colors.primary} />
+                ) : (
+                  <Text style={styles.progressText}>
+                    {childrenDone}/{childrenTotal}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              /* Step 7 + 9: Log button with gradient, glow, sparks */
+              <View style={{ position: 'relative', width: logBtnSize, height: logBtnSize, alignItems: 'center', justifyContent: 'center' }}>
+                {/* Step 9: Android glow backing — shown on Android when done */}
+                {isDoneForRange && Platform.OS === 'android' && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      left: -4,
+                      right: -4,
+                      bottom: -4,
+                      borderRadius: radius.full,
+                      backgroundColor: primaryRgba(0.10),
+                    }}
+                  />
+                )}
 
-          {/* Content */}
-          <View style={styles.content}>
-              <Text
-                style={[
-                  isChild ? styles.titleChild : styles.titleParent,
-                  isDoneForRange && styles.titleDone,
-                ]}
-                numberOfLines={1}
-              >
-                {habit.title}
-              </Text>
+                {/* Step 9: Glow halo for completion animation */}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      position: 'absolute',
+                      top: -12,
+                      left: -12,
+                      right: -12,
+                      bottom: -12,
+                      borderRadius: radius.full,
+                      backgroundColor: primaryRgba(0.35),
+                    },
+                    completeGlowStyle,
+                  ]}
+                />
 
-              {habit.description ? (
+                {/* Step 9: 4 sparks — only rendered when done to avoid idle purple dot */}
+                {isDoneForRange && [spark0Style, spark1Style, spark2Style, spark3Style].map((sparkStyle, i) => (
+                  <Animated.View
+                    key={i}
+                    pointerEvents="none"
+                    style={[
+                      {
+                        position: 'absolute',
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: colors.primary,
+                      },
+                      sparkStyle,
+                    ]}
+                  />
+                ))}
+
+                {/* The actual log button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    if (isDoneForRange) {
+                      onUnlog?.()
+                    } else {
+                      onLog?.()
+                    }
+                  }}
+                  style={[
+                    styles.logButton,
+                    {
+                      width: logBtnSize,
+                      height: logBtnSize,
+                      borderRadius: logBtnRadius,
+                    },
+                    isDoneForRange
+                      ? [
+                          styles.logButtonDone,
+                          Platform.OS === 'ios' ? shadows.glow(colors.primary) : undefined,
+                        ]
+                      : status === 'overdue'
+                        ? styles.logButtonOverdue
+                        : styles.logButtonDefault,
+                  ]}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.log.title')}
+                  hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
+                >
+                  {/* Step 7: gradient + animated pop wrapper */}
+                  <View style={{ width: logBtnSize, height: logBtnSize, borderRadius: logBtnRadius, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                    {isDoneForRange && (
+                      <LinearGradient
+                        colors={gradients.logButtonDone(colors.primary, lightenHex(colors.primary, 0.3))}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                      />
+                    )}
+                    {/* Step 9: pop scale wrapper */}
+                    <Animated.View style={completePopStyle}>
+                      {isDoneForRange && (
+                        <Check
+                          size={isChild ? 14 : 16}
+                          color={colors.white}
+                        />
+                      )}
+                    </Animated.View>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Content */}
+            <View style={styles.content}>
                 <Text
                   style={[
-                    isChild ? styles.descriptionChild : styles.descriptionParent,
+                    isChild ? styles.titleChild : styles.titleParent,
+                    isDoneForRange && styles.titleDone,
                   ]}
                   numberOfLines={1}
                 >
-                  {habit.description}
+                  {habit.title}
                 </Text>
-              ) : null}
 
-              <HabitBadgesRow
-                isChild={isChild}
-                habit={habit}
-                frequencyLabel={frequencyLabel}
-                flexibleProgressLabel={flexibleProgressLabel}
-                statusBadge={statusBadge}
-                checkedCount={checkedCount}
-                colors={colors}
-                t={t}
-                styles={styles}
-                displayTime={displayTime}
-                tagsRef={tourTargetId ? tagsTourRef : undefined}
-              />
-            </View>
+                {habit.description ? (
+                  <Text
+                    style={[
+                      isChild ? styles.descriptionChild : styles.descriptionParent,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {habit.description}
+                  </Text>
+                ) : null}
 
-          {/* Actions menu trigger */}
-          {!isSelectMode && (
-            <View ref={actionsButtonRef} collapsable={false}>
-              <TouchableOpacity
-                onPress={toggleActionsMenu}
-                style={[
-                  styles.moreButton,
-                  { padding: isChild ? 6 : 8 },
-                ]}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.moreActions')}
-              >
-                <MoreVertical
-                  size={isChild ? 14 : 16}
-                  color={colors.textMuted}
+                <HabitBadgesRow
+                  isChild={isChild}
+                  habit={habit}
+                  frequencyLabel={frequencyLabel}
+                  flexibleProgressLabel={flexibleProgressLabel}
+                  statusBadge={statusBadge}
+                  checkedCount={checkedCount}
+                  colors={colors}
+                  t={t}
+                  styles={styles}
+                  displayTime={displayTime}
+                  tagsRef={tourTargetId ? tagsTourRef : undefined}
                 />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+              </View>
+
+            {/* Actions menu trigger */}
+            {!isSelectMode && (
+              <View ref={actionsButtonRef} collapsable={false}>
+                <TouchableOpacity
+                  onPress={toggleActionsMenu}
+                  style={[
+                    styles.moreButton,
+                    { padding: isChild ? 6 : 8 },
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.moreActions')}
+                >
+                  <MoreVertical
+                    size={isChild ? 14 : 16}
+                    color={colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
 
       <AnchoredMenu
         visible={showActionsMenu}
@@ -837,29 +1128,41 @@ export function HabitCard({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof createColors>) {
+function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light' | 'dark' = 'dark') {
+  const isLight = themeMode === 'light'
+  const parentShadow = isLight
+    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 }
+    : shadows.cardParent
+  const childShadow = isLight
+    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 }
+    : shadows.cardChild
+  const cardBorder = isLight
+    ? 'rgba(0, 0, 0, 0.06)'
+    : withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)')
+  const cardBorderFaint = isLight
+    ? 'rgba(0, 0, 0, 0.04)'
+    : withAlpha(colors.white, 0.04, 'rgba(255, 255, 255, 0.04)')
   return StyleSheet.create({
   cardParent: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
+    borderColor: cardBorder,
     padding: 16,
     marginBottom: 10,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 16,
-    elevation: 5,
+    ...parentShadow,
+    elevation: isLight ? 1 : 5,
   },
 
   cardChild: {
-    backgroundColor: withAlpha(colors.surfaceGround, 0.6, colors.surfaceGround),
-    borderRadius: 12,
+    backgroundColor: isLight
+      ? colors.surface
+      : withAlpha(colors.surfaceGround, 0.6, colors.surfaceGround),
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: withAlpha(colors.white, 0.04, 'rgba(255, 255, 255, 0.04)'),
+    borderColor: cardBorderFaint,
     borderLeftWidth: 2,
     borderLeftColor: withAlpha(colors.primary, 0.25, 'rgba(59, 130, 246, 0.25)'),
     paddingVertical: 12,
@@ -867,11 +1170,8 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     marginBottom: 10,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 3,
+    ...childShadow,
+    elevation: isLight ? 0 : 3,
   },
 
   cardDueToday: {
@@ -961,12 +1261,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     borderColor: colors.borderEmphasis,
   },
   logButtonDone: {
-    backgroundColor: colors.primary,
-    // Glow shadow matching .log-btn-done
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    // Background provided by LinearGradient overlay inside the button
     elevation: 8,
   },
   logButtonOverdue: {

@@ -1,10 +1,19 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withDelay,
+  cancelAnimation,
+} from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { Achievement } from '@orbit/shared/types/gamification'
-import { radius } from '@/lib/theme'
+import { gradients, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -51,8 +60,34 @@ export function AchievementCard({
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(colors, earned), [colors, earned])
   const rarity = rarityColors(achievement.rarity, colors)
+
+  // Shimmer animation for unlocked achievements
+  const shimmerX = useSharedValue(-1)
+  const isFirstMount = useRef(true)
+
+  useEffect(() => {
+    if (!earned) return
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      shimmerX.value = withDelay(
+        800,
+        withRepeat(
+          withTiming(1, { duration: 4000 }),
+          -1,
+          false,
+        ),
+      )
+    }
+    return () => {
+      cancelAnimation(shimmerX)
+    }
+  }, [earned, shimmerX])
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerX.value * 300 }],
+  }))
 
   return (
     <View
@@ -61,6 +96,29 @@ export function AchievementCard({
         earned ? styles.cardEarned : styles.cardLocked,
       ]}
     >
+      {/* Gradient sheen overlay */}
+      <LinearGradient
+        colors={gradients.surfaceSheen}
+        locations={gradients.surfaceSheenLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.25, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+      {/* Inset top highlight */}
+      <View style={styles.insetHighlight} pointerEvents="none" />
+      {/* Amber shimmer for unlocked achievements */}
+      {earned && (
+        <Animated.View style={[styles.shimmerContainer, shimmerStyle]} pointerEvents="none">
+          <LinearGradient
+            colors={gradients.proShimmer('251,191,36')}
+            locations={gradients.proShimmerLocations}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+        </Animated.View>
+      )}
       {/* Icon */}
       <Text style={styles.icon}>{earned ? '\u2B50' : '\uD83D\uDD12'}</Text>
 
@@ -104,11 +162,22 @@ export function AchievementCard({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], earned: boolean) {
   return StyleSheet.create({
     card: {
       borderRadius: radius.lg,
       padding: 16,
+      overflow: 'hidden',
+      ...(earned
+        ? {
+            ...shadows.cardParent,
+            // Amber glow for unlocked (iOS)
+            shadowColor: 'rgba(251,191,36,1)',
+            shadowOpacity: 0.2,
+            shadowRadius: 20,
+            elevation: 5,
+          }
+        : {}),
     },
     cardEarned: {
       backgroundColor: colors.surface,
@@ -120,6 +189,21 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       borderWidth: 1,
       borderColor: colors.borderMuted,
       opacity: 0.5,
+    },
+    insetHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    shimmerContainer: {
+      position: 'absolute',
+      top: 0,
+      left: -300,
+      right: -300,
+      bottom: 0,
     },
     icon: {
       fontSize: 24,

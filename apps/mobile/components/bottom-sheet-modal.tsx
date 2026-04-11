@@ -4,7 +4,9 @@ import {
   BottomSheetBackdrop,
   BottomSheetModal as GorhomBottomSheetModal,
   type BottomSheetBackdropProps,
+  type BottomSheetBackgroundProps,
 } from '@gorhom/bottom-sheet'
+import { BlurView } from 'expo-blur'
 import { X } from 'lucide-react-native'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -50,9 +52,25 @@ export function BottomSheetModal({
         {...props}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
-        opacity={0.5}
+        opacity={0.55}
         pressBehavior="close"
       />
+    ),
+    [],
+  )
+
+  const renderBackground = useCallback(
+    ({ style }: BottomSheetBackgroundProps) => (
+      <View style={[style, sheetBgStyles.container]}>
+        <BlurView
+          intensity={32}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={[StyleSheet.absoluteFill, sheetBgStyles.blur]}
+        />
+        <View style={[StyleSheet.absoluteFill, sheetBgStyles.tint]} />
+        <View style={sheetBgStyles.topHighlight} />
+      </View>
     ),
     [],
   )
@@ -83,8 +101,8 @@ export function BottomSheetModal({
       snapPoints={snapPoints}
       onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
+      backgroundComponent={renderBackground}
       enablePanDownToClose
-      backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handleIndicator}
     >
       {title ? (
@@ -113,11 +131,6 @@ type ThemeColors = ThemeContextValue['colors']
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    background: {
-      backgroundColor: colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-    },
     handleIndicator: {
       backgroundColor: colors.handle,
       width: 36,
@@ -148,3 +161,29 @@ function createStyles(colors: ThemeColors) {
     },
   })
 }
+
+// Static styles for the blur background component (no theme dependency)
+const sheetBgStyles = StyleSheet.create({
+  container: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  blur: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  tint: {
+    backgroundColor: 'rgba(19,17,31,0.7)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  topHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+})

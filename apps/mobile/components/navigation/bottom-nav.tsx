@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { usePathname, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -14,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { shadows } from '@/lib/theme'
 
 interface BottomNavProps {
   onCreate?: () => void
@@ -30,7 +32,8 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
-  const { colors, nav } = useAppTheme()
+  const { colors, nav, currentTheme } = useAppTheme()
+  const isLight = currentTheme === 'light'
   const setSelectedDate = useUIStore((s) => s.setSelectedDate)
   const setActiveView = useUIStore((s) => s.setActiveView)
   const fabRef = useRef<View>(null)
@@ -64,7 +67,19 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={[styles.navGlass, { backgroundColor: nav.tabBarBg, borderTopColor: nav.tabBarBorder }]}>
+      <View style={[styles.navGlass, { borderTopColor: nav.tabBarBorder, ...shadows.cardParent }]}>
+        <BlurView
+          intensity={isLight ? 60 : 48}
+          tint={isLight ? 'light' : 'dark'}
+          experimentalBlurMethod="dimezisBlurView"
+          style={[StyleSheet.absoluteFill, styles.blurFill]}
+        />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: nav.tabBarBg, opacity: isLight ? 0.85 : 0.7 },
+          ]}
+        />
         <View style={styles.navRow} accessibilityRole="tablist">
           {navItems.slice(0, 2).map((item) => (
             <NavLink
@@ -195,6 +210,11 @@ const styles = StyleSheet.create({
   navGlass: {
     borderTopWidth: 1,
     paddingHorizontal: 20,
+    overflow: 'hidden',
+  },
+  blurFill: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   navRow: {
     flexDirection: 'row',

@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/use-profile";
 import { useSummary } from "@/hooks/use-habits";
 import { ProBadge } from "@/components/ui/pro-badge";
-import { radius } from "@/lib/theme";
+import { gradients, radius, shadows } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 interface HabitSummaryCardProps {
@@ -42,6 +43,15 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   if (isLoading) {
     return (
       <View style={[styles.card, styles.loadingCard]}>
+        <LinearGradient
+          colors={gradients.surfaceSheen}
+          locations={gradients.surfaceSheenLocations}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.25, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+        <View style={styles.insetHighlight} pointerEvents="none" />
         <View style={styles.header}>
           <Sparkles size={18} color={colors.primary} />
           <Text style={styles.title}>{t("summary.title")}</Text>
@@ -71,6 +81,15 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
 
   return (
     <View style={styles.card}>
+      <LinearGradient
+        colors={gradients.surfaceSheen}
+        locations={gradients.surfaceSheenLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.25, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+      <View style={styles.insetHighlight} pointerEvents="none" />
       <View style={styles.header}>
         <Sparkles size={18} color={colors.primary} />
         <Text style={styles.title}>{t("summary.title")}</Text>
@@ -90,9 +109,20 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       borderColor: colors.borderMuted,
       padding: 16,
       gap: 12,
+      overflow: "hidden",
+      ...shadows.cardParent,
+      elevation: 5,
     },
     loadingCard: {
       borderColor: colors.primary_30,
+    },
+    insetHighlight: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: "rgba(255,255,255,0.05)",
     },
     errorCard: {
       backgroundColor: colors.surface,

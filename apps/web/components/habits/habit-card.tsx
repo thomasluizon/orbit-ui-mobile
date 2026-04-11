@@ -1114,11 +1114,18 @@ export const HabitCard = React.memo(function HabitCard({
   return (
     <>
       <div style={isChild ? indentStyle : undefined}>
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           data-tour="tour-habit-card"
-          className={`${articleClassName} text-left w-full`}
+          className={`${articleClassName} text-left w-full cursor-pointer`}
           onClick={handleCardClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleCardClick()
+            }
+          }}
           aria-label={habit.title}
         >
           <div
@@ -1174,7 +1181,7 @@ export const HabitCard = React.memo(function HabitCard({
               />
             )}
           </div>
-        </button>
+        </div>
       </div>
 
       {showActionsMenu && (

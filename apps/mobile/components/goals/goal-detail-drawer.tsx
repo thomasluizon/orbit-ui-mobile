@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
@@ -22,6 +21,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -103,6 +103,7 @@ export function GoalDetailDrawer({
 
   // Local state
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [progressValue, setProgressValue] = useState('')
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
@@ -226,26 +227,17 @@ export function GoalDetailDrawer({
   }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const confirmDelete = useCallback(() => {
-    Alert.alert(
-      t('goals.detail.delete'),
-      t('goals.detail.deleteConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteGoalMut.mutateAsync(goalId)
-              onClose()
-            } catch (error) {
-              showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
-            }
-          },
-        },
-      ],
-    )
-  }, [deleteGoalMut, goalId, onClose, showError, t, translate])
+    setShowDeleteConfirm(true)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    try {
+      await deleteGoalMut.mutateAsync(goalId)
+      onClose()
+    } catch (error) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
+    }
+  }, [deleteGoalMut, goalId, onClose, showError, translate])
 
   if (!goal) return null
 
@@ -494,6 +486,17 @@ export function GoalDetailDrawer({
           goal={goal}
         />
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={t('goals.detail.delete')}
+        description={t('goals.detail.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

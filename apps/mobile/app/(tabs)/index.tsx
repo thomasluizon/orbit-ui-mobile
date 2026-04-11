@@ -289,6 +289,15 @@ export default function TodayScreen() {
   const habitsById = habitsQuery.data?.habitsById ?? new Map()
   const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
 
+  // Sync detailHabit from live query data so checklist changes are reflected in the drawer
+  useEffect(() => {
+    if (!detailHabit) return
+    const fresh = habitsQuery.data?.habitsById.get(detailHabit.id)
+    if (fresh && fresh !== detailHabit) {
+      setDetailHabit(fresh)
+    }
+  }, [habitsQuery.data, detailHabit])
+
   const bulkActions = useBulkActions({
     selectedHabitIds,
     habitsById,

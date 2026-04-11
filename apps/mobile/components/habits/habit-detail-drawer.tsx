@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   StyleSheet,
 } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -16,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { HabitChecklist } from "./habit-checklist";
 import { DescriptionViewer } from "./description-viewer";
 import { HabitCalendar } from "./habit-calendar";
@@ -94,6 +94,7 @@ export function HabitDetailDrawer({
   const logs = fullDetail?.logs ?? null;
 
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false);
+  const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] = useState(false);
 
   const recentNotes = useMemo(
     () =>
@@ -121,24 +122,7 @@ export function HabitDetailDrawer({
       items[index] = { ...item, isChecked: !item.isChecked };
       updateChecklist.mutate({ habitId: habit.id, items });
       if (items.every((i) => i.isChecked) && !habit.isCompleted) {
-        Alert.alert(
-          t("habits.checklistCompleteTitle"),
-          t("habits.checklistCompleteMessage", { name: habit.title }),
-          [
-            { text: t("common.cancel"), style: "cancel" },
-            {
-              text: t("habits.checklistCompleteConfirm"),
-              onPress: async () => {
-                try {
-                  await logHabit.mutateAsync({ habitId: habit.id });
-                  onLogged?.(habit.id);
-                } catch {
-                  // Error handled by mutation
-                }
-              },
-            },
-          ],
-        );
+        setShowChecklistCompleteConfirm(true);
       }
     },
     [habit, updateChecklist, logHabit, onLogged, t],
@@ -165,6 +149,25 @@ export function HabitDetailDrawer({
           description={habit.description}
         />
       )}
+
+      <ConfirmDialog
+        open={showChecklistCompleteConfirm}
+        onOpenChange={setShowChecklistCompleteConfirm}
+        title={t("habits.checklistCompleteTitle")}
+        description={t("habits.checklistCompleteMessage", { name: habit?.title ?? "" })}
+        confirmLabel={t("habits.checklistCompleteConfirm")}
+        cancelLabel={t("common.cancel")}
+        variant="success"
+        onConfirm={async () => {
+          if (!habit) return;
+          try {
+            await logHabit.mutateAsync({ habitId: habit.id });
+            onLogged?.(habit.id);
+          } catch {
+            // Error handled by mutation
+          }
+        }}
+      />
 
       <BottomSheetModal
         open={open}
