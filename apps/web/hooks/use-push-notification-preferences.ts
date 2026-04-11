@@ -160,8 +160,11 @@ export async function unsubscribeFromPushNotifications(
   const subscription = await registration.pushManager.getSubscription()
 
   if (subscription) {
-    await unsubscribePushAction(subscription.toJSON())
-    await subscription.unsubscribe()
+    try {
+      await unsubscribePushAction(subscription.toJSON())
+    } finally {
+      await subscription.unsubscribe().catch(() => undefined)
+    }
   }
 
   const nextPermission = permission || Notification.permission
