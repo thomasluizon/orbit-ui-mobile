@@ -50,9 +50,6 @@ function mockNotificationsResponse(response: NotificationsResponse) {
 describe('useNotifications', () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    // Mock document.addEventListener for visibility change
-    vi.spyOn(document, 'addEventListener').mockImplementation(() => {})
-    vi.spyOn(document, 'removeEventListener').mockImplementation(() => {})
   })
 
   it('fetches and returns notifications', async () => {
@@ -99,33 +96,8 @@ describe('useNotifications', () => {
     expect(result.current.unreadCount).toBe(0)
   })
 
-  it('registers visibilitychange event listener', () => {
-    mockNotificationsResponse({ items: [], unreadCount: 0 })
-
-    renderHook(() => useNotifications(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(document.addEventListener).toHaveBeenCalledWith(
-      'visibilitychange',
-      expect.any(Function),
-    )
-  })
-
-  it('removes visibilitychange listener on unmount', () => {
-    mockNotificationsResponse({ items: [], unreadCount: 0 })
-
-    const { unmount } = renderHook(() => useNotifications(), {
-      wrapper: createWrapper(),
-    })
-
-    unmount()
-
-    expect(document.removeEventListener).toHaveBeenCalledWith(
-      'visibilitychange',
-      expect.any(Function),
-    )
-  })
+  // Polling is now handled by TanStack Query's refetchInterval option,
+  // so there are no manual visibilitychange listeners to test.
 })
 
 describe('useMarkNotificationRead', () => {

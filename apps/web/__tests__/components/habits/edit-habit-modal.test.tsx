@@ -52,6 +52,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       getValues: mockFormGetValues,
       watch: mockFormWatch,
       register: mockFormRegister,
+      formState: { isValid: true },
     },
     isOneTime: false,
     isGeneral: false,
@@ -88,8 +89,11 @@ vi.mock('@/hooks/use-tag-selection', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/tags', () => ({
-  assignTags: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/hooks/use-tags', () => ({
+  useAssignTags: () => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    isPending: false,
+  }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({

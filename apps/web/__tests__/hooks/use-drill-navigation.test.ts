@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => {
+    const t = (key: string) => key
+    return t
+  },
+}))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
