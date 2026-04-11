@@ -2,6 +2,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import * as Haptics from 'expo-haptics'
 import {
   habitKeys,
   goalKeys,
@@ -145,11 +146,18 @@ export function useLogHabit() {
         return
       }
 
+      // Haptic: light impact on every successful log; upgrade to medium when the
+      // log either continues a streak or wraps up an all-done moment (checked below).
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+
       if (response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )
+        if (response.currentStreak >= 2) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+        }
       }
 
       // Apply targeted goal updates from enriched response (instant, no refetch needed)

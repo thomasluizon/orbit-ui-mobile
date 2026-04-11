@@ -1,43 +1,39 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import type { ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
-  View,
+  LayoutAnimation,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  type StyleProp,
+  View,
   type ViewStyle,
 } from 'react-native'
-import { useTourTarget } from '@/hooks/use-tour-target'
 import {
   ChevronRight,
-  Check,
+  ClipboardCheck,
+  Bell,
   MoreVertical,
   Plus,
-  ArrowRight,
-  FastForward,
-  Copy,
-  Pencil,
-  CheckCircle2,
-  Trash2,
-  ClipboardCheck,
-  Flame,
 } from 'lucide-react-native'
-import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import {
   computeHabitCardStatus,
+  computeHabitChecklistCount,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitStatusBadge,
+  computeNextReminderLabel,
+  resolveHabitAccent,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { AnchoredMenu } from '@/components/ui/anchored-menu'
-import { useTimeFormat } from '@/hooks/use-time-format'
-import type { MenuAnchorRect } from '@/lib/anchored-menu'
-import { getHabitProgressStrokeDasharray } from '@/lib/habit-progress'
-import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { HabitCardShell } from './habits/primitives/habit-card-shell'
+import { IconColorChip } from './habits/primitives/icon-color-chip'
+import { ProgressRing } from './habits/primitives/progress-ring'
+import { HabitLogButton } from './habits/primitives/habit-log-button'
+import { StreakFlameMini } from './habits/primitives/streak-flame-mini'
+import { SevenDayStrip } from './habits/primitives/seven-day-strip'
+import { SwipeableRow } from './habits/primitives/swipeable-row'
+import { HabitActionsSheet } from './habits/primitives/habit-actions-sheet'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -78,229 +74,24 @@ interface HabitCardProps {
   searchQuery?: string
   actions?: HabitCardActions
   tourTargetId?: string
-}
-
-function withAlpha(color: string, opacity: number, fallback: string): string {
-  const normalized = color.replace('#', '')
-
-  if (normalized.length === 3) {
-    const [r, g, b] = normalized.split('')
-    const expanded = `${r}${r}${g}${g}${b}${b}`
-    const red = parseInt(expanded.slice(0, 2), 16)
-    const green = parseInt(expanded.slice(2, 4), 16)
-    const blue = parseInt(expanded.slice(4, 6), 16)
-    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
-  }
-
-  if (normalized.length === 6) {
-    const red = parseInt(normalized.slice(0, 2), 16)
-    const green = parseInt(normalized.slice(2, 4), 16)
-    const blue = parseInt(normalized.slice(4, 6), 16)
-    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
-  }
-
-  return fallback
-}
-
-function HabitCardSurface({
-  isChild,
-  colors,
-}: Readonly<{
-  isChild: boolean
-  colors: ReturnType<typeof createColors>
-}>) {
-  return (
-    <>
-      <View
-        pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 1,
-          },
-          {
-            backgroundColor: withAlpha(
-              colors.white,
-              isChild ? 0.03 : 0.05,
-              isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
-            ),
-          },
-        ]}
-      />
-    </>
-  )
-}
-
-function HabitBadge({
-  children,
-  style,
-}: Readonly<{
-  children: ReactNode
-  style: StyleProp<ViewStyle>
-}>) {
-  return <View style={style}>{children}</View>
-}
-
-function HabitBadgesRow({
-  isChild,
-  habit,
-  frequencyLabel,
-  flexibleProgressLabel,
-  statusBadge,
-  checkedCount,
-  colors,
-  t,
-  styles,
-  displayTime,
-  tagsRef,
-}: Readonly<{
-  isChild: boolean
-  habit: NormalizedHabit
-  frequencyLabel: string
-  flexibleProgressLabel: string | null
-  statusBadge: { text: string } | null
-  checkedCount: number
-  colors: ReturnType<typeof createColors>
-  t: ReturnType<typeof useTranslation>['t']
-  styles: ReturnType<typeof createStyles>
-  displayTime: (value: string | null | undefined) => string
-  tagsRef?: React.RefObject<View | null>
-}>) {
-  if (!isChild) {
-    return (
-      <View ref={tagsRef} style={styles.badgesRow}>
-        <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
-
-        {flexibleProgressLabel ? (
-          <HabitBadge style={styles.badgePrimaryPill}>
-            <Text style={styles.badgePrimaryText}>{flexibleProgressLabel}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.dueTime ? (
-          <Text style={styles.dueTimeText}>
-            {displayTime(habit.dueTime)}
-            {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
-          </Text>
-        ) : null}
-
-        {statusBadge ? (
-          <HabitBadge style={styles.badgeOverdue}>
-            <Text style={styles.badgeOverdueText}>{statusBadge.text}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.isBadHabit ? (
-          <HabitBadge style={styles.badgeBadHabit}>
-            <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.tags?.map((tag) => (
-          <HabitBadge
-            key={tag.id}
-            style={[styles.badgeTag, { backgroundColor: tag.color }]}
-          >
-            <Text style={styles.badgeTagText}>{tag.name}</Text>
-          </HabitBadge>
-        ))}
-
-        {(habit.linkedGoals ?? []).map((goal) => (
-          <HabitBadge key={goal.id} style={styles.badgePrimaryPill}>
-            <Text style={styles.badgePrimaryText}>{goal.title}</Text>
-          </HabitBadge>
-        ))}
-
-        {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-          <HabitBadge style={styles.badgeStreak}>
-            <Flame size={12} color={colors.amber400} />
-            <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.checklistItems && habit.checklistItems.length > 0 ? (
-          <HabitBadge style={styles.badgeChecklist}>
-            <ClipboardCheck size={12} color={colors.textSecondary} />
-            <Text style={styles.badgeChecklistText}>
-              {checkedCount}/{habit.checklistItems.length}
-            </Text>
-          </HabitBadge>
-        ) : null}
-      </View>
-    )
-  }
-
-  if (habit.isBadHabit) {
-    return (
-      <View style={styles.badgesRowChild}>
-        <HabitBadge style={styles.badgeBadHabitNoBorder}>
-          <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
-        </HabitBadge>
-        {habit.tags?.map((tag) => (
-          <HabitBadge
-            key={tag.id}
-            style={[styles.badgeTag, { backgroundColor: tag.color }]}
-          >
-            <Text style={styles.badgeTagText}>{tag.name}</Text>
-          </HabitBadge>
-        ))}
-        {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-          <HabitBadge style={styles.badgeStreakNoBorder}>
-            <Flame size={12} color={colors.amber400} />
-            <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-          </HabitBadge>
-        ) : null}
-        {habit.checklistItems && habit.checklistItems.length > 0 ? (
-          <HabitBadge style={styles.badgeChecklistNoBorder}>
-            <ClipboardCheck size={12} color={colors.textSecondary} />
-            <Text style={styles.badgeChecklistText}>
-              {checkedCount}/{habit.checklistItems.length}
-            </Text>
-          </HabitBadge>
-        ) : null}
-      </View>
-    )
-  }
-
-  return (
-    <View style={styles.badgesRowChild}>
-      <Text style={styles.frequencyLabelChild}>{frequencyLabel}</Text>
-      {statusBadge ? (
-        <HabitBadge style={styles.badgeOverdue}>
-          <Text style={styles.badgeOverdueText}>{statusBadge.text}</Text>
-        </HabitBadge>
-      ) : null}
-      {habit.tags?.map((tag) => (
-        <HabitBadge
-          key={tag.id}
-          style={[styles.badgeTag, { backgroundColor: tag.color }]}
-        >
-          <Text style={styles.badgeTagText}>{tag.name}</Text>
-        </HabitBadge>
-      ))}
-      {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-        <HabitBadge style={styles.badgeStreakNoBorder}>
-          <Flame size={12} color={colors.amber400} />
-          <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-        </HabitBadge>
-      ) : null}
-      {habit.checklistItems && habit.checklistItems.length > 0 ? (
-        <HabitBadge style={styles.badgeChecklistNoBorder}>
-          <ClipboardCheck size={12} color={colors.textSecondary} />
-          <Text style={styles.badgeChecklistText}>
-            {checkedCount}/{habit.checklistItems.length}
-          </Text>
-        </HabitBadge>
-      ) : null}
-    </View>
-  )
+  disableSwipe?: boolean
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Helpers
+// ---------------------------------------------------------------------------
+
+function withAlpha(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '')
+  if (clean.length !== 6) return hex
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// ---------------------------------------------------------------------------
+// Card component
 // ---------------------------------------------------------------------------
 
 export function HabitCard({
@@ -310,906 +101,411 @@ export function HabitCard({
   isSelectMode = false,
   isSelected = false,
   isJustCreated = false,
-  showAddSubHabit = false,
   hasChildren = false,
   hasSubHabits = false,
-  isExpanded = true,
-  isLastChild = false,
+  isExpanded = false,
   childrenDone = 0,
   childrenTotal = 0,
-  searchQuery = '',
-  actions = {},
-  tourTargetId,
-}: HabitCardProps) {
-  const {
-    onLog,
-    onUnlog,
-    onSkip,
-    onDelete,
-    onDuplicate,
-    onEdit,
-    onMoveParent,
-    onDetail,
-    onDrillInto,
-    onToggleSelection,
-    onAddSubHabit,
-    onToggleExpand,
-    onForceLogParent,
-    onEnterSelectMode,
-    onLongPressCard,
-  } = actions
+  actions,
+  disableSwipe = false,
+}: Readonly<HabitCardProps>) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
-  const { displayTime } = useTimeFormat()
-  const styles = useMemo(() => createStyles(colors), [colors])
-
-  const cardTourRef = useRef<View>(null)
-  const tagsTourRef = useRef<View>(null)
-  useTourTarget(tourTargetId ?? '__noop__', cardTourRef)
-  // When this card is the tour target, also register it as tour-habit-card
-  useTourTarget(tourTargetId ? 'tour-habit-card' : '__noop__', cardTourRef)
-  useTourTarget(tourTargetId ? 'tour-habit-tags' : '__noop__', tagsTourRef)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [inlineExpanded, setInlineExpanded] = useState(false)
 
   const isChild = depth > 0
-  const checkedCount =
-    habit.checklistItems?.filter((i) => i.isChecked).length ?? 0
 
-  // Computed values
-  const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
+  const translateAdapter = useCallback(
+    (key: string, values?: Record<string, string | number | Date>) =>
+      t(key, values as Record<string, unknown>) as string,
+    [t],
+  )
 
   const status = useMemo(
     () => computeHabitCardStatus(habit, selectedDate),
     [habit, selectedDate],
   )
 
-  const canSkip =
-    !habit.isGeneral &&
-    !habit.isCompleted &&
-    (status === 'due-today' || status === 'overdue')
-
-  const isPostpone = !habit.frequencyUnit
+  const frequencyLabel = useMemo(
+    () => computeHabitFrequencyLabel(habit, translateAdapter),
+    [habit, translateAdapter],
+  )
 
   const statusBadge = useMemo(
-    () => computeHabitStatusBadge(status, t),
-    [status, t],
+    () => computeHabitStatusBadge(status, translateAdapter),
+    [status, translateAdapter],
   )
 
-  const isNotDueToday = useMemo(() => {
-    if (!selectedDate) return false
-    if (status !== 'pending') return false
-    return true
-  }, [selectedDate, status])
+  const flexibleLabel = useMemo(
+    () => computeHabitFlexibleProgressLabel(habit, translateAdapter),
+    [habit, translateAdapter],
+  )
 
+  const checklistCount = useMemo(() => computeHabitChecklistCount(habit), [habit])
+  const nextReminder = useMemo(
+    () => computeNextReminderLabel(habit, new Date(), translateAdapter),
+    [habit, translateAdapter],
+  )
+
+  const accent = useMemo(
+    () =>
+      resolveHabitAccent(habit, status, {
+        primary: colors.primary,
+        amber: colors.amber400 ?? '#fbbf24',
+        red: colors.red400 ?? '#f87171',
+        dim: (hex: string, alpha: number) => withAlpha(hex, alpha),
+      }),
+    [habit, status, colors.primary, colors.amber400, colors.red400],
+  )
+
+  const isDone = habit.isCompleted || habit.isLoggedInRange
   const isParentWithChildren = hasChildren && childrenTotal > 0
-  const progressPercent =
-    childrenTotal === 0
-      ? 0
-      : Math.round((childrenDone / childrenTotal) * 100)
+  const parentProgress =
+    isParentWithChildren && childrenTotal > 0 ? childrenDone / childrenTotal : 0
+  const parentAllDone = isParentWithChildren && childrenDone >= childrenTotal
+  const hasFlexibleProgress =
+    habit.isFlexible && (habit.flexibleTarget ?? 0) > 0
+  const flexibleProgress = hasFlexibleProgress
+    ? (habit.flexibleCompleted ?? 0) / (habit.flexibleTarget ?? 1)
+    : 0
 
-  // Frequency label
-  const frequencyLabel = useMemo(
-    () => computeHabitFrequencyLabel(habit, t),
-    [habit, t],
-  )
-
-  // Flexible progress label
-  const flexibleProgressLabel = useMemo(
-    () => computeHabitFlexibleProgressLabel(habit, t),
-    [habit, t],
-  )
-
-  // Actions menu
-  const [showActionsMenu, setShowActionsMenu] = useState(false)
-  const [actionsMenuAnchorRect, setActionsMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null)
-  const actionsButtonRef = useRef<View>(null)
-
-  const closeActionsMenu = useCallback(() => {
-    setShowActionsMenu(false)
+  const toggleInlineExpand = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setInlineExpanded((prev) => !prev)
   }, [])
-
-  const openActionsMenu = useCallback(() => {
-    actionsButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setActionsMenuAnchorRect({ x, y, width, height })
-      setShowActionsMenu(true)
-    })
-  }, [])
-
-  const toggleActionsMenu = useCallback(() => {
-    if (showActionsMenu) {
-      closeActionsMenu()
-      return
-    }
-
-    openActionsMenu()
-  }, [closeActionsMenu, openActionsMenu, showActionsMenu])
-
-  // Close menu on select mode
-  useEffect(() => {
-    if (isSelectMode) setShowActionsMenu(false)
-  }, [isSelectMode])
-
-  const handleEnterSelectModeFromMenu = useCallback(() => {
-    closeActionsMenu()
-    setTimeout(() => {
-      onEnterSelectMode?.()
-    }, 0)
-  }, [closeActionsMenu, onEnterSelectMode])
 
   const handleCardPress = useCallback(() => {
     if (isSelectMode) {
-      onToggleSelection?.()
-    } else {
-      onDetail?.()
+      actions?.onToggleSelection?.()
+      return
     }
-  }, [isSelectMode, onToggleSelection, onDetail])
+    if (hasChildren && actions?.onToggleExpand) {
+      actions.onToggleExpand()
+      return
+    }
+    toggleInlineExpand()
+  }, [actions, hasChildren, isSelectMode, toggleInlineExpand])
 
-  // Dynamic card styles
-  const cardStyle: ViewStyle[] = [
-    isChild ? styles.cardChild : styles.cardParent,
-  ]
-  // Status border for due-today / overdue (parent only)
-  if (!isChild && status === 'due-today') {
-    cardStyle.push(styles.cardDueToday)
+  const handleLogPress = useCallback(() => {
+    if (isDone) actions?.onUnlog?.()
+    else actions?.onLog?.()
+  }, [actions, isDone])
+
+  // Sub-habit support flags
+  const badges: Array<{ key: string; label: string; bg: string; color: string }> = []
+  if (statusBadge) {
+    badges.push({ key: 'status', label: statusBadge.text, bg: statusBadge.bg, color: statusBadge.color })
   }
-  if (!isChild && status === 'overdue') {
-    cardStyle.push(styles.cardOverdue)
+  if (flexibleLabel) {
+    badges.push({
+      key: 'flexible',
+      label: flexibleLabel,
+      bg: withAlpha(accent.iconFg, 0.14),
+      color: accent.iconFg,
+    })
   }
 
-  // Dimming for completed / not-due
-  if (isDoneForRange || isNotDueToday) {
-    cardStyle.push(styles.cardDimmed)
-  }
+  const cardContent = (
+    <View style={styles.row}>
+      {/* Left: chevron + log/ring or selection checkbox */}
+      <View style={styles.leftCol}>
+        {hasChildren && !isSelectMode && actions?.onToggleExpand && (
+          <TouchableOpacity
+            onPress={actions.onToggleExpand}
+            hitSlop={8}
+            accessibilityLabel={isExpanded ? 'Collapse' : 'Expand'}
+            style={styles.chevron}
+          >
+            <ChevronRight
+              size={16}
+              color={colors.textSecondary}
+              style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
+            />
+          </TouchableOpacity>
+        )}
 
-  // Selected ring
-  if (isSelected) {
-    cardStyle.push(styles.cardSelected)
-  } else if (isJustCreated) {
-    cardStyle.push(styles.cardJustCreated)
-  }
-
-  // Indent for children
-  const indentMargin = depth > 0 ? { marginLeft: depth * 24 } : undefined
-
-  return (
-    <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
-      <TouchableOpacity
-        style={cardStyle}
-        onPress={handleCardPress}
-        onLongPress={!isSelectMode ? onLongPressCard : undefined}
-        delayLongPress={300}
-        activeOpacity={0.85}
-      >
-        <HabitCardSurface isChild={isChild} colors={colors} />
-        <View
-          style={[
-            styles.cardRow,
-            { gap: isChild ? 12 : 14 },
-          ]}
-        >
-          {/* Expand/collapse toggle */}
-          {hasChildren && (
-            <TouchableOpacity
-              onPress={onToggleExpand}
-              style={[
-                styles.expandButton,
-                {
-                  width: isChild ? 24 : 28,
-                  height: isChild ? 24 : 28,
-                  borderRadius: 8,
-                },
-                isExpanded && styles.expandButtonRotated,
-              ]}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <ChevronRight
-                size={isChild ? 14 : 16}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
-          )}
-
-          {/* Selection checkbox */}
-          {isSelectMode ? (
-            <TouchableOpacity
-              onPress={onToggleSelection}
-              style={[
-                styles.selectionCircle,
-                {
-                  width: isChild ? 32 : 44,
-                  height: isChild ? 32 : 44,
-                  borderRadius: isChild ? 16 : 22,
-                },
-                isSelected
-                  ? styles.selectionCircleSelected
-                  : styles.selectionCircleDefault,
-              ]}
-              activeOpacity={0.7}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={t('common.select')}
-            >
-              {isSelected && (
-                <Check size={isChild ? 16 : 20} color={colors.white} />
-              )}
-            </TouchableOpacity>
-          ) : isParentWithChildren ? (
-            /* Progress ring for parent habits */
-            <TouchableOpacity
-              onPress={() => {
-                if (isNotDueToday) return
-                if (isDoneForRange) {
-                  onUnlog?.()
-                } else if (childrenDone >= childrenTotal) {
-                  onLog?.()
-                } else {
-                  onForceLogParent?.()
-                }
-              }}
-              style={[
-                styles.progressRingContainer,
-                {
-                  width: isChild ? 32 : 44,
-                  height: isChild ? 32 : 44,
-                },
-              ]}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-            >
-              <Svg
-                style={[
-                  styles.progressRingSvg,
-                  {
-                    width: isChild ? 32 : 44,
-                    height: isChild ? 32 : 44,
-                  },
-                ]}
-                viewBox="0 0 36 36"
-              >
-                <Circle
-                  cx="18"
-                  cy="18"
-                  r="15"
-                  fill="none"
-                  stroke={colors.borderMuted}
-                  strokeWidth="2"
-                />
-                <Circle
-                  cx="18"
-                  cy="18"
-                  r="15"
-                  fill="none"
-                  stroke={
-                    isDoneForRange || progressPercent === 100
-                      ? colors.primary
-                      : withAlpha(
-                          colors.primary,
-                          0.6,
-                          'rgba(59, 130, 246, 0.6)',
-                        )
-                  }
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeDasharray={getHabitProgressStrokeDasharray(
-                    progressPercent,
-                    isDoneForRange,
-                  )}
-                />
-              </Svg>
-              {/* Center content */}
-              {isDoneForRange ? (
-                <Check size={16} color={colors.primary} />
-              ) : (
-                <Text style={styles.progressText}>
-                  {childrenDone}/{childrenTotal}
-                </Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            /* Log button (circle indicator) */
-            <TouchableOpacity
-              onPress={() => {
-                if (isDoneForRange) {
-                  onUnlog?.()
-                } else {
-                  onLog?.()
-                }
-              }}
-              style={[
-                styles.logButton,
-                {
-                  width: isChild ? 32 : 44,
-                  height: isChild ? 32 : 44,
-                  borderRadius: isChild ? 16 : 22,
-                },
-                isDoneForRange
-                  ? styles.logButtonDone
-                  : status === 'overdue'
-                    ? styles.logButtonOverdue
-                    : styles.logButtonDefault,
-              ]}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.log.title')}
-              hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
-            >
-              {isDoneForRange && (
-                <Check
-                  size={isChild ? 14 : 16}
-                  color={colors.white}
-                />
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Content */}
-          <View style={styles.content}>
-              <Text
-                style={[
-                  isChild ? styles.titleChild : styles.titleParent,
-                  isDoneForRange && styles.titleDone,
-                ]}
-                numberOfLines={1}
-              >
-                {habit.title}
+        {isSelectMode ? (
+          <View
+            style={[
+              styles.selectDot,
+              {
+                borderColor: isSelected ? colors.primary : colors.border,
+                backgroundColor: isSelected ? colors.primary : 'transparent',
+              },
+            ]}
+          />
+        ) : isParentWithChildren ? (
+          <ProgressRing
+            progress={parentProgress}
+            color={accent.ringStroke}
+            done={parentAllDone}
+            size={36}
+          >
+            {!parentAllDone && (
+              <Text style={[styles.ringCenterText, { color: colors.textPrimary }]}>
+                {childrenDone}/{childrenTotal}
               </Text>
+            )}
+          </ProgressRing>
+        ) : hasFlexibleProgress ? (
+          <ProgressRing
+            progress={flexibleProgress}
+            color={accent.ringStroke}
+            done={flexibleProgress >= 1}
+            size={36}
+          >
+            <Text style={[styles.ringCenterText, { color: colors.textPrimary }]}>
+              {habit.flexibleCompleted ?? 0}/{habit.flexibleTarget ?? 0}
+            </Text>
+          </ProgressRing>
+        ) : (
+          <HabitLogButton
+            color={accent.ringStroke}
+            done={isDone}
+            size={36}
+            overdue={status === 'overdue'}
+            onPress={handleLogPress}
+            accessibilityLabel={t('habits.card.logAction') as string}
+          />
+        )}
+      </View>
 
-              {habit.description ? (
-                <Text
-                  style={[
-                    isChild ? styles.descriptionChild : styles.descriptionParent,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {habit.description}
-                </Text>
-              ) : null}
+      {/* Middle: icon chip + title + frequency */}
+      {!isChild && (
+        <IconColorChip
+          icon={habit.icon ?? null}
+          color={accent.iconFg}
+          title={habit.title}
+          size={40}
+        />
+      )}
 
-              <HabitBadgesRow
-                isChild={isChild}
-                habit={habit}
-                frequencyLabel={frequencyLabel}
-                flexibleProgressLabel={flexibleProgressLabel}
-                statusBadge={statusBadge}
-                checkedCount={checkedCount}
-                colors={colors}
-                t={t}
-                styles={styles}
-                displayTime={displayTime}
-                tagsRef={tourTargetId ? tagsTourRef : undefined}
-              />
+      <View style={styles.textCol}>
+        <Text
+          style={[
+            styles.title,
+            { color: colors.textPrimary, fontSize: isChild ? 14 : 16 },
+          ]}
+          numberOfLines={1}
+        >
+          {habit.title}
+        </Text>
+        <View style={styles.subRow}>
+          <Text
+            style={[styles.freq, { color: colors.textMuted }]}
+            numberOfLines={1}
+          >
+            {frequencyLabel}
+          </Text>
+          {badges.map((badge) => (
+            <View
+              key={badge.key}
+              style={[styles.badge, { backgroundColor: badge.bg }]}
+            >
+              <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
             </View>
+          ))}
+        </View>
+      </View>
 
-          {/* Actions menu trigger */}
-          {!isSelectMode && (
-            <View ref={actionsButtonRef} collapsable={false}>
-              <TouchableOpacity
-                onPress={toggleActionsMenu}
-                style={[
-                  styles.moreButton,
-                  { padding: isChild ? 6 : 8 },
-                ]}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.moreActions')}
-              >
-                <MoreVertical
-                  size={isChild ? 14 : 16}
-                  color={colors.textMuted}
-                />
-              </TouchableOpacity>
+      {/* Right: streak + menu */}
+      <View style={styles.rightCol}>
+        {!isChild && habit.currentStreak && habit.currentStreak >= 2 ? (
+          <StreakFlameMini streak={habit.currentStreak} />
+        ) : null}
+
+        {!isSelectMode && (
+          <TouchableOpacity
+            onPress={() => setMenuOpen(true)}
+            hitSlop={8}
+            accessibilityLabel={t('habits.card.menuAction') as string}
+            style={styles.menuBtn}
+          >
+            <MoreVertical size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  )
+
+  const inlinePreview =
+    inlineExpanded && !isChild ? (
+      <View style={styles.inlinePreview}>
+        <SevenDayStrip habit={habit} accentColor={accent.ringStroke} />
+        <View style={styles.inlineMetaRow}>
+          {checklistCount && (
+            <View style={styles.inlineMetaItem}>
+              <ClipboardCheck size={12} color={colors.textMuted} />
+              <Text style={[styles.inlineMetaText, { color: colors.textMuted }]}>
+                {checklistCount.checked}/{checklistCount.total}
+              </Text>
+            </View>
+          )}
+          {nextReminder && (
+            <View style={styles.inlineMetaItem}>
+              <Bell size={12} color={colors.textMuted} />
+              <Text style={[styles.inlineMetaText, { color: colors.textMuted }]}>{nextReminder}</Text>
             </View>
           )}
         </View>
-      </TouchableOpacity>
-
-      <AnchoredMenu
-        visible={showActionsMenu}
-        anchorRect={actionsMenuAnchorRect}
-        onClose={closeActionsMenu}
-        width={208}
-        estimatedHeight={hasSubHabits ? 320 : 276}
-      >
-        {showAddSubHabit && (
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              onAddSubHabit?.()
-              closeActionsMenu()
-            }}
-            activeOpacity={0.7}
-          >
-            <Plus size={16} color={colors.textMuted} />
-            <Text style={styles.menuItemText}>
-              {t('habits.form.addSubHabit')}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            onMoveParent?.()
-            closeActionsMenu()
-          }}
-          activeOpacity={0.7}
+          onPress={() => actions?.onDetail?.()}
+          style={[styles.seeMore, { borderColor: colors.border }]}
         >
-          <ArrowRight size={16} color={colors.textMuted} />
-          <Text style={styles.menuItemText}>
-            {t('habits.moveParent.button')}
+          <Text style={[styles.seeMoreText, { color: accent.ringStroke }]}>
+            {t('habits.card.seeMore') as string}
           </Text>
+          <ChevronRight size={14} color={accent.ringStroke} />
         </TouchableOpacity>
+      </View>
+    ) : null
 
-        {canSkip && (
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              onSkip?.()
-              closeActionsMenu()
-            }}
-            activeOpacity={0.7}
-          >
-            <FastForward size={16} color={colors.amber400} />
-            <Text style={styles.menuItemTextAmber}>
-              {isPostpone
-                ? t('habits.actions.postpone')
-                : t('habits.actions.skip')}
-            </Text>
-          </TouchableOpacity>
-        )}
+  const canSwipe = !disableSwipe && !isSelectMode && !isChild && Boolean(actions?.onLog)
 
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            onEdit?.()
-            closeActionsMenu()
-          }}
-          activeOpacity={0.7}
+  const shell = (
+    <HabitCardShell
+      accentBar={accent.accentBar}
+      status={status}
+      isSelected={isSelected}
+      isChild={isChild}
+      depth={depth}
+      dimmed={isDone && status === 'completed'}
+      onPress={handleCardPress}
+      onLongPress={actions?.onLongPressCard ?? actions?.onEnterSelectMode}
+      accessibilityLabel={habit.title}
+    >
+      {cardContent}
+      {inlinePreview}
+    </HabitCardShell>
+  )
+
+  return (
+    <>
+      {canSwipe ? (
+        <SwipeableRow
+          enabled
+          done={isDone}
+          onLog={handleLogPress}
+          onMenu={() => setMenuOpen(true)}
         >
-          <Pencil size={16} color={colors.textMuted} />
-          <Text style={styles.menuItemText}>{t('common.edit')}</Text>
-        </TouchableOpacity>
+          {shell}
+        </SwipeableRow>
+      ) : (
+        shell
+      )}
 
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            onDuplicate?.()
-            closeActionsMenu()
-          }}
-          activeOpacity={0.7}
-        >
-          <Copy size={16} color={colors.textMuted} />
-          <Text style={styles.menuItemText}>
-            {t('habits.actions.duplicate')}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={handleEnterSelectModeFromMenu}
-          activeOpacity={0.7}
-        >
-          <CheckCircle2 size={16} color={colors.textMuted} />
-          <Text style={styles.menuItemText}>{t('common.select')}</Text>
-        </TouchableOpacity>
-
-        <View style={styles.menuDivider} />
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            onDelete?.()
-            closeActionsMenu()
-          }}
-          activeOpacity={0.7}
-        >
-          <Trash2 size={16} color={colors.red400} />
-          <Text style={styles.menuItemTextDanger}>
-            {t('common.delete')}
-          </Text>
-        </TouchableOpacity>
-
-        {hasSubHabits && (
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              onDrillInto?.()
-              closeActionsMenu()
-            }}
-            activeOpacity={0.7}
-          >
-            <ChevronRight size={16} color={colors.textMuted} />
-            <Text style={styles.menuItemText}>
-              {t('habits.actions.openSubHabits')}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </AnchoredMenu>
-    </View>
+      <HabitActionsSheet
+        visible={menuOpen}
+        canSkip={Boolean(actions?.onSkip)}
+        onClose={() => setMenuOpen(false)}
+        onEdit={() => actions?.onEdit?.()}
+        onDuplicate={() => actions?.onDuplicate?.()}
+        onSkip={actions?.onSkip}
+        onDelete={() => actions?.onDelete?.()}
+      />
+    </>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof createColors>) {
-  return StyleSheet.create({
-  cardParent: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
-    padding: 16,
-    marginBottom: 10,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-
-  cardChild: {
-    backgroundColor: withAlpha(colors.surfaceGround, 0.6, colors.surfaceGround),
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: withAlpha(colors.white, 0.04, 'rgba(255, 255, 255, 0.04)'),
-    borderLeftWidth: 2,
-    borderLeftColor: withAlpha(colors.primary, 0.25, 'rgba(59, 130, 246, 0.25)'),
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-
-  cardDueToday: {
-    borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.amber500, 0.7, 'rgba(245, 158, 11, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
-  },
-
-  cardOverdue: {
-    borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.red500, 0.7, 'rgba(239, 68, 68, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
-  },
-
-  cardDimmed: {
-    opacity: 0.4,
-  },
-
-  cardSelected: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  cardJustCreated: {
-    shadowColor: colors.primary,
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-
-  cardRow: {
+const styles = StyleSheet.create({
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 1,
+    gap: 10,
+    paddingLeft: 4,
   },
-
-  // Expand/collapse button
-  expandButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  expandButtonRotated: {
-    transform: [{ rotate: '90deg' }],
-  },
-
-  // Selection checkbox (circular)
-  selectionCircle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  selectionCircleDefault: {
-    borderColor: colors.borderEmphasis,
-  },
-  selectionCircleSelected: {
-    backgroundColor: colors.primary,
-    borderColor: 'transparent',
-  },
-
-  // Progress ring container
-  progressRingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  progressRingSvg: {
-    position: 'absolute',
-    transform: [{ rotate: '-90deg' }],
-  },
-  progressText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    fontVariant: ['tabular-nums'],
-  },
-
-  // Log button
-  logButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logButtonDefault: {
-    borderWidth: 2,
-    borderColor: colors.borderEmphasis,
-  },
-  logButtonDone: {
-    backgroundColor: colors.primary,
-    // Glow shadow matching .log-btn-done
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  logButtonOverdue: {
-    borderWidth: 2,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-  },
-
-  // Content area
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  // Title - parent
-  titleParent: {
-    fontSize: 14, // text-sm sm:text-base (mobile = sm)
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-
-  // Title - child
-  titleChild: {
-    fontSize: 14, // text-sm
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-
-  // Title - completed
-  titleDone: {
-    textDecorationLine: 'line-through',
-    textDecorationColor: withAlpha(colors.textMuted, 0.4, 'rgba(122, 116, 144, 0.4)'),
-  },
-
-  // Description - parent
-  descriptionParent: {
-    fontSize: 11, // text-[11px]
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  // Description - child
-  descriptionChild: {
-    fontSize: 10, // text-[10px]
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  // Badges row - parent
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6, // gap-1.5
-    marginTop: 6, // mt-1.5
-    flexWrap: 'wrap',
-  },
-
-  // Badges row - child
-  badgesRowChild: {
+  leftCol: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2, // mt-0.5
-    flexWrap: 'wrap',
   },
-
-  // Frequency label - parent
-  frequencyLabel: {
-    fontSize: 10, // text-[10px]
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1.6, // tracking-widest
-    color: withAlpha(colors.textMuted, 0.7, 'rgba(122, 116, 144, 0.7)'),
+  chevron: {
+    padding: 2,
   },
-
-  // Frequency label - child
-  frequencyLabelChild: {
-    fontSize: 9, // text-[9px]
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1.6,
-    color: withAlpha(colors.textMuted, 0.6, 'rgba(122, 116, 144, 0.6)'),
+  selectDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
   },
-
-  // Due time text
-  dueTimeText: {
+  ringCenterText: {
     fontSize: 10,
-    fontWeight: '500',
-    color: colors.textSecondary,
+    fontWeight: '700',
   },
-
-  // Badge: primary pill (flexible progress, linked goals, match badges)
-  badgePrimaryPill: {
+  textCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontWeight: '700',
+  },
+  subRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8, // px-2
-    paddingVertical: 2, // py-0.5
-    borderRadius: 9999,
-    backgroundColor: colors.primary_10,
-    borderWidth: 1,
-    borderColor: colors.primary_20,
+    gap: 6,
+    marginTop: 2,
   },
-  badgePrimaryText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primary,
+  freq: {
+    fontSize: 11,
+    fontWeight: '500',
+    flexShrink: 1,
   },
-
-  // Badge: overdue
-  badgeOverdue: {
-    paddingHorizontal: 8,
+  badge: {
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: colors.red500_10,
+    borderRadius: 8,
   },
-  badgeOverdueText: {
+  badgeText: {
     fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase',
-    color: colors.red400, // text-red-500
+    letterSpacing: 0.6,
   },
-
-  // Badge: bad habit
-  badgeBadHabit: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: colors.red500_10,
-    borderWidth: 1,
-    borderColor: colors.red500_30,
-  },
-  badgeBadHabitNoBorder: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: colors.red500_10,
-  },
-  badgeBadHabitText: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: colors.red400,
-  },
-
-  // Badge: tag
-  badgeTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-  },
-  badgeTagText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.95)', // text-white/95
-  },
-
-  // Badge: streak
-  badgeStreak: {
+  rightCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.amber400, 0.1, 'rgba(251, 191, 36, 0.1)'),
-    borderWidth: 1,
-    borderColor: withAlpha(colors.amber400, 0.2, 'rgba(251, 191, 36, 0.2)'),
+    gap: 6,
   },
-  badgeStreakNoBorder: {
+  menuBtn: {
+    padding: 4,
+  },
+  inlinePreview: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    gap: 10,
+  },
+  inlineMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.amber400, 0.1, 'rgba(251, 191, 36, 0.1)'),
+    gap: 14,
   },
-  badgeStreakText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.amber400,
-  },
-
-  // Badge: checklist
-  badgeChecklist: {
+  inlineMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.surfaceElevated, 0.88, colors.surfaceElevated),
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
+    gap: 4,
   },
-  badgeChecklistNoBorder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.surfaceElevated, 0.88, colors.surfaceElevated),
-  },
-  badgeChecklistText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-
-  // More button (three dots)
-  moreButton: {
-    borderRadius: 9999,
-  },
-
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12, // gap-3
-    paddingHorizontal: 12, // px-3
-    paddingVertical: 10, // py-2.5
-    borderRadius: 12, // rounded-xl
-  },
-  menuItemText: {
-    fontSize: 13,
+  inlineMetaText: {
+    fontSize: 11,
     fontWeight: '500',
-    color: colors.textPrimary,
   },
-  menuItemTextAmber: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.amber400,
+  seeMore: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  menuItemTextDanger: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.red400,
+  seeMoreText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
-  menuDivider: {
-    height: 1,
-    marginVertical: 4, // my-1
-    marginHorizontal: 8, // mx-2
-    backgroundColor: colors.borderMuted,
-  },
-  })
-}
+})
+
+export default HabitCard
