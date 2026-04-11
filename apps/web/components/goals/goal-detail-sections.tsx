@@ -154,6 +154,7 @@ export function GoalProgressForm({
           onChange={(e) => onProgressNoteChange(e.target.value)}
           className="form-input"
           placeholder={labelNote}
+          maxLength={500}
         />
       </div>
       <div className="flex gap-2">

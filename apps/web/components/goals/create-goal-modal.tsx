@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Plus, X, Target, Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -20,6 +20,9 @@ import {
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import type { GoalType } from '@orbit/shared/types/goal'
+import {
+  MAX_GOAL_DESCRIPTION_LENGTH,
+} from '@orbit/shared/validation'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -58,9 +61,27 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = createGoal.isPending
   const isStreak = isStreakGoal(goalType)
+
+  // Per-field inline errors (shown after first submit attempt)
+  const fieldErrors = useMemo(() => {
+    if (!submitted) return {}
+    const errs: Record<string, string> = {}
+    const errorKey = validateGoalDraftInput(description, targetValue, unit)
+    if (errorKey) {
+      const translated = translateErrorKey(translate, errorKey)
+      if (translated) {
+        if (errorKey === 'goals.form.targetValueRequired') errs.targetValue = translated
+        else if (errorKey === 'goals.form.unitRequired' || errorKey === 'goals.form.unitTooLong') errs.unit = translated
+        else if (errorKey === 'goals.form.titleRequired' || errorKey === 'goals.form.titleTooLong') errs.description = translated
+        else errs._form = translated
+      }
+    }
+    return errs
+  }, [submitted, description, targetValue, unit, translate])
 
   function handleTypeChange(type: GoalType) {
     setGoalType(type)
@@ -88,11 +109,13 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     setTargetValue('')
     setUnit('')
     setDeadline('')
+    setSubmitted(false)
   }
 
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
+      setSubmitted(true)
 
       const err = validate()
       if (err) {
@@ -241,7 +264,12 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                 min={0.01}
                 step="any"
                 placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
+                aria-invalid={!!fieldErrors.targetValue}
+                aria-describedby={fieldErrors.targetValue ? 'create-goal-target-error' : undefined}
               />
+              {fieldErrors.targetValue && (
+                <p id="create-goal-target-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.targetValue}</p>
+              )}
             </div>
             {!isStreak && (
               <div>
@@ -259,7 +287,12 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                   className="form-input"
                   placeholder={t('goals.form.unitPlaceholder')}
                   maxLength={50}
+                  aria-invalid={!!fieldErrors.unit}
+                  aria-describedby={fieldErrors.unit ? 'create-goal-unit-error' : undefined}
                 />
+                {fieldErrors.unit && (
+                  <p id="create-goal-unit-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.unit}</p>
+                )}
               </div>
             )}
           </div>
@@ -280,8 +313,13 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               onChange={(e) => setDescription(e.target.value)}
               className="form-input"
               placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
-              maxLength={200}
+              maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
+              aria-invalid={!!fieldErrors.description}
+              aria-describedby={fieldErrors.description ? 'create-goal-description-error' : undefined}
             />
+            {fieldErrors.description && (
+              <p id="create-goal-description-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.description}</p>
+            )}
           </div>
 
           {/* Deadline */}

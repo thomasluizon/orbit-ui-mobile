@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useId, useCallback, type ReactNode } from 'react'
+import { useState, useMemo, useId, useCallback, useEffect, type ReactNode } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
@@ -748,6 +748,13 @@ export function HabitFormFields({
     return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
   }
 
+  // Clear dueEndTime when dueTime is emptied
+  useEffect(() => {
+    if (!watchedDueTime && watchedDueEndTime) {
+      setValue('dueEndTime', '', { shouldDirty: true })
+    }
+  }, [watchedDueTime, watchedDueEndTime, setValue])
+
   const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
     if (onReminderEnabledChange) {
       onReminderEnabledChange(nextEnabled)
@@ -812,8 +819,14 @@ export function HabitFormFields({
           placeholder={t('habits.form.titlePlaceholder')}
           className="form-input"
           aria-invalid={!!errors.title}
+          aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
           {...register('title')}
         />
+        {errors.title && (
+          <p id="habit-form-title-error" className="text-xs text-destructive mt-1" role="alert">
+            {errors.title.message}
+          </p>
+        )}
       </div>
 
       {/* Frequency type cards (2x2 grid) */}
