@@ -38,6 +38,8 @@ export const habitFormSchema = z.object({
   scheduledReminders: z.array(scheduledReminderTimeSchema).default([]),
   slipAlertEnabled: z.boolean().default(false),
   checklistItems: z.array(checklistItemSchema).default([]),
+  icon: z.string().max(64).default(''),
+  color: z.string().default(''),
 })
 
 export type HabitFormData = z.infer<typeof habitFormSchema>
@@ -271,5 +273,19 @@ export function validateHabitForm(data: HabitFormData): string | null {
     if (scheduledErr) return scheduledErr
   }
 
+  const colorErr = validateColor(data.color)
+  if (colorErr) return colorErr
+
+  return null
+}
+
+/**
+ * Validate accent color is a 6-digit hex code or empty.
+ */
+export function validateColor(color: string | undefined): string | null {
+  if (!color) return null
+  if (!/^#[0-9a-f]{6}$/i.test(color)) {
+    return 'habits.form.invalidColor'
+  }
   return null
 }

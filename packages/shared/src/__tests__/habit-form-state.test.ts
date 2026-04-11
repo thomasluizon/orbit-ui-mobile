@@ -97,6 +97,8 @@ describe('habit-form-state', () => {
       scheduledReminders: [],
       slipAlertEnabled: false,
       checklistItems: [],
+      icon: '',
+      color: '',
     })
   })
 

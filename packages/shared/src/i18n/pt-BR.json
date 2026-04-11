@@ -439,7 +439,28 @@
       "invalidEndTime": "Horário final inválido (deve ser HH:MM, 00:00-23:59)",
       "goals": "Metas",
       "noGoals": "Nenhuma meta ativa",
-      "goalLimit": "Limite de metas atingido"
+      "goalLimit": "Limite de metas atingido",
+      "appearance": "Aparência",
+      "appearanceHint": "Dê a este hábito um ícone e uma cor de destaque próprios",
+      "icon": "Ícone",
+      "color": "Cor",
+      "pickIcon": "Escolher um ícone",
+      "pickColor": "Escolher uma cor",
+      "customColor": "Personalizada",
+      "removeIcon": "Remover ícone",
+      "removeColor": "Remover cor",
+      "invalidColor": "A cor deve ser um hex de 6 dígitos, como #8B5CF6",
+      "iconSearchPlaceholder": "Pesquisar ícones"
+    },
+    "card": {
+      "seeMore": "Ver mais",
+      "logAction": "Registrar",
+      "menuAction": "Menu",
+      "reminderInMinutes": "em {n}m",
+      "reminderInHours": "em {n}h",
+      "reminderTomorrow": "amanhã {time}",
+      "reminderInDays": "em {n}d",
+      "childrenProgress": "{done}/{total}"
     },
     "log": {
       "title": "Registrar Hábito",

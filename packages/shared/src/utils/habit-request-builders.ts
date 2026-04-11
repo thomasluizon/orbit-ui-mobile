@@ -22,6 +22,16 @@ export interface HabitFormData {
   reminderEnabled: boolean
   scheduledReminders: ScheduledReminderTime[]
   checklistItems: Array<{ text: string; isChecked: boolean }>
+  icon: string
+  color: string
+}
+
+function applyAppearanceFields(
+  req: Record<string, unknown>,
+  data: HabitFormData,
+): void {
+  if (data.icon?.trim()) req.icon = data.icon.trim()
+  if (data.color?.trim()) req.color = data.color.trim().toLowerCase()
 }
 
 function applyScheduleFields(
@@ -76,6 +86,7 @@ export function buildSubHabitRequest(
   }
   if (data.checklistItems?.length) req.checklistItems = data.checklistItems
   if (tagIds.length) req.tagIds = tagIds
+  applyAppearanceFields(req, data)
   return req as unknown as CreateSubHabitRequest
 }
 
@@ -104,6 +115,7 @@ export function buildCreateHabitRequest(
   if (goalIds.length) req.goalIds = goalIds
   const filtered = subHabits.filter((s) => s.trim())
   if (filtered.length) req.subHabits = filtered
+  applyAppearanceFields(req, data)
   return req as unknown as CreateHabitRequest
 }
 
@@ -172,5 +184,19 @@ export function buildUpdateHabitRequest(
   request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false
   if (data.checklistItems?.length) request.checklistItems = data.checklistItems
   request.goalIds = selectedGoalIds
+
+  const trimmedIcon = data.icon?.trim() ?? ''
+  const trimmedColor = data.color?.trim().toLowerCase() ?? ''
+  if (trimmedIcon) {
+    request.icon = trimmedIcon
+  } else {
+    request.clearIcon = true
+  }
+  if (trimmedColor) {
+    request.color = trimmedColor
+  } else {
+    request.clearColor = true
+  }
+
   return request
 }

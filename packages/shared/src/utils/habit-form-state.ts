@@ -50,6 +50,8 @@ export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFor
     scheduledReminders: [],
     slipAlertEnabled: false,
     checklistItems: [],
+    icon: '',
+    color: '',
   }
 }
 
@@ -135,6 +137,8 @@ export function buildParentHabitFormState(
       scheduledReminders: parent.scheduledReminders?.map((sr) => ({ ...sr })) ?? [],
       slipAlertEnabled: parent.slipAlertEnabled ?? false,
       checklistItems: [],
+      icon: parent.icon ?? '',
+      color: parent.color ?? '',
     },
     mode: resolveHabitFormMode(parent),
     reminderTimes: parent.reminderTimes?.length ? [...parent.reminderTimes] : [...DEFAULT_REMINDER_TIMES],
@@ -165,6 +169,8 @@ export function buildEditHabitFormState(
       scheduledReminders: habit.scheduledReminders?.map((sr) => ({ ...sr })) ?? [],
       slipAlertEnabled: habit.slipAlertEnabled ?? false,
       checklistItems: habit.checklistItems ? [...habit.checklistItems] : [],
+      icon: habit.icon ?? '',
+      color: habit.color ?? '',
     },
     mode: resolveHabitFormMode(habit),
     originalEndDate: detail?.endDate ?? '',

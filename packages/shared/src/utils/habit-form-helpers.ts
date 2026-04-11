@@ -60,6 +60,8 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
     scheduledReminders: values.scheduledReminders ?? [],
     slipAlertEnabled: values.slipAlertEnabled ?? false,
     checklistItems: values.checklistItems ?? [],
+    icon: values.icon ?? '',
+    color: values.color ?? '',
   }
 }
 

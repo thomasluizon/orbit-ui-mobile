@@ -439,7 +439,28 @@
       "invalidEndTime": "Invalid end time (must be HH:MM, 00:00-23:59)",
       "goals": "Goals",
       "noGoals": "No active goals",
-      "goalLimit": "Goal limit reached"
+      "goalLimit": "Goal limit reached",
+      "appearance": "Appearance",
+      "appearanceHint": "Give this habit its own icon and accent color",
+      "icon": "Icon",
+      "color": "Color",
+      "pickIcon": "Pick an icon",
+      "pickColor": "Pick a color",
+      "customColor": "Custom",
+      "removeIcon": "Remove icon",
+      "removeColor": "Remove color",
+      "invalidColor": "Color must be a 6-digit hex like #8B5CF6",
+      "iconSearchPlaceholder": "Search icons"
+    },
+    "card": {
+      "seeMore": "See more",
+      "logAction": "Log",
+      "menuAction": "Menu",
+      "reminderInMinutes": "in {n}m",
+      "reminderInHours": "in {n}h",
+      "reminderTomorrow": "tomorrow {time}",
+      "reminderInDays": "in {n}d",
+      "childrenProgress": "{done}/{total}"
     },
     "log": {
       "title": "Log Habit",

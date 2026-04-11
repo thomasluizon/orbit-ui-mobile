@@ -85,6 +85,8 @@ const baseHabitFieldsSchema = z.object({
   endDate: z.string().nullable(),
   position: z.number().nullable(),
   checklistItems: z.array(checklistItemSchema),
+  icon: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
 })
 
 // --- Schedule types (GET /api/habits -- paginated, schedule-aware) ---
@@ -106,6 +108,8 @@ export const habitScheduleChildSchema: z.ZodType<{
   endDate: string | null
   position: number | null
   checklistItems: ChecklistItem[]
+  icon?: string | null
+  color?: string | null
   tags: HabitTag[]
   children: HabitScheduleChild[]
   hasSubHabits: boolean
@@ -182,6 +186,8 @@ export const habitDetailChildSchema: z.ZodType<{
   endDate: string | null
   position: number | null
   checklistItems: ChecklistItem[]
+  icon?: string | null
+  color?: string | null
   children: HabitDetailChild[]
 }> = baseHabitFieldsSchema.extend({
   children: z.lazy(() => z.array(habitDetailChildSchema)),
@@ -246,6 +252,12 @@ export const createHabitRequestSchema = z.object({
   goalIds: z.array(z.string()).optional(),
   checklistItems: z.array(checklistItemSchema).optional(),
   endDate: z.string().optional(),
+  icon: z.string().max(64).nullable().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .nullable()
+    .optional(),
 })
 
 export type CreateHabitRequest = z.infer<typeof createHabitRequestSchema>
@@ -270,6 +282,14 @@ export const updateHabitRequestSchema = z.object({
   goalIds: z.array(z.string()).optional(),
   endDate: z.string().nullable().optional(),
   clearEndDate: z.boolean().optional(),
+  icon: z.string().max(64).nullable().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .nullable()
+    .optional(),
+  clearIcon: z.boolean().optional(),
+  clearColor: z.boolean().optional(),
 })
 
 export type UpdateHabitRequest = z.infer<typeof updateHabitRequestSchema>
@@ -348,6 +368,8 @@ export const bulkHabitItemSchema: z.ZodType<{
   subHabits?: BulkHabitItem[] | null
   endDate?: string | null
   googleEventId?: string | null
+  icon?: string | null
+  color?: string | null
 }> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
@@ -367,6 +389,12 @@ export const bulkHabitItemSchema: z.ZodType<{
   subHabits: z.lazy(() => z.array(bulkHabitItemSchema).nullable().optional()),
   endDate: z.string().nullable().optional(),
   googleEventId: z.string().nullable().optional(),
+  icon: z.string().max(64).nullable().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .nullable()
+    .optional(),
 })
 
 export type BulkHabitItem = z.infer<typeof bulkHabitItemSchema>
@@ -471,6 +499,12 @@ export const createSubHabitRequestSchema = z.object({
   tagIds: z.array(z.string()).optional(),
   endDate: z.string().optional(),
   isFlexible: z.boolean().optional(),
+  icon: z.string().max(64).nullable().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .nullable()
+    .optional(),
 })
 
 export type CreateSubHabitRequest = z.infer<typeof createSubHabitRequestSchema>

@@ -24,6 +24,8 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
     reminderEnabled: false,
     scheduledReminders: [],
     checklistItems: [],
+    icon: '',
+    color: '',
     ...overrides,
   }
 }
@@ -211,6 +213,8 @@ describe('habit-request-builders', () => {
       checklistItems: [{ text: 'Reflect', isChecked: true }],
       goalIds: ['goal-1', 'goal-2'],
       clearEndDate: true,
+      clearIcon: true,
+      clearColor: true,
     })
   })
 
@@ -241,6 +245,8 @@ describe('habit-request-builders', () => {
       scheduledReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
+      clearIcon: true,
+      clearColor: true,
     })
 
     const disabledReminderRequest = buildUpdateHabitRequest(
@@ -264,6 +270,8 @@ describe('habit-request-builders', () => {
       scheduledReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
+      clearIcon: true,
+      clearColor: true,
     })
   })
 
@@ -292,6 +300,86 @@ describe('habit-request-builders', () => {
       scheduledReminders: [{ when: 'day_before', time: '21:00' }],
       slipAlertEnabled: false,
       goalIds: [],
+      clearIcon: true,
+      clearColor: true,
     })
+  })
+
+  it('forwards icon and color on create', () => {
+    const request = buildCreateHabitRequest(
+      makeFormData({
+        icon: 'flame',
+        color: '#F59E0B',
+      }),
+      [],
+      [],
+      [],
+      [],
+    )
+
+    expect(request.icon).toBe('flame')
+    expect(request.color).toBe('#f59e0b')
+  })
+
+  it('forwards icon and color on update, and clears them when empty', () => {
+    const setRequest = buildUpdateHabitRequest(
+      makeFormData({ icon: 'dumbbell', color: '#8B5CF6' }),
+      false,
+      '',
+      [],
+      [],
+    )
+    expect(setRequest.icon).toBe('dumbbell')
+    expect(setRequest.color).toBe('#8b5cf6')
+    expect(setRequest.clearIcon).toBeUndefined()
+    expect(setRequest.clearColor).toBeUndefined()
+
+    const clearRequest = buildUpdateHabitRequest(
+      makeFormData(),
+      false,
+      '',
+      [],
+      [],
+    )
+    expect(clearRequest.icon).toBeUndefined()
+    expect(clearRequest.color).toBeUndefined()
+    expect(clearRequest.clearIcon).toBe(true)
+    expect(clearRequest.clearColor).toBe(true)
+  })
+
+  it('computeSevenDayStrip derives cells from instances', async () => {
+    const { computeSevenDayStrip } = await import('../utils/habit-card-helpers')
+    const today = new Date('2026-04-10T12:00:00')
+    const strip = computeSevenDayStrip(
+      {
+        instances: [
+          { date: '2026-04-04', status: 'Completed', logId: 'a', note: null },
+          { date: '2026-04-05', status: 'Overdue', logId: null, note: null },
+          { date: '2026-04-08', status: 'Completed', logId: 'b', note: null },
+          { date: '2026-04-10', status: 'Pending', logId: null, note: null },
+        ],
+      },
+      today,
+    )
+
+    expect(strip).toHaveLength(7)
+    expect(strip[0]?.status).toBe('done') // 2026-04-04
+    expect(strip[1]?.status).toBe('missed') // 2026-04-05
+    expect(strip[4]?.status).toBe('done') // 2026-04-08
+    expect(strip[6]?.status).toBe('today-pending') // 2026-04-10
+  })
+
+  it('computeHabitChecklistCount returns counts or null', async () => {
+    const { computeHabitChecklistCount } = await import('../utils/habit-card-helpers')
+    expect(computeHabitChecklistCount({ checklistItems: [] })).toBeNull()
+    expect(
+      computeHabitChecklistCount({
+        checklistItems: [
+          { text: 'a', isChecked: true },
+          { text: 'b', isChecked: false },
+          { text: 'c', isChecked: true },
+        ],
+      }),
+    ).toEqual({ checked: 2, total: 3 })
   })
 })

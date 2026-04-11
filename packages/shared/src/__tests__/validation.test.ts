@@ -438,6 +438,8 @@ describe('validateHabitForm', () => {
       scheduledReminders: [],
       slipAlertEnabled: false,
       checklistItems: [],
+      icon: '',
+      color: '',
     }
     expect(validateHabitForm(data)).toBe('habits.form.titleRequired')
   })
@@ -496,6 +498,8 @@ describe('validateHabitForm', () => {
       scheduledReminders: [],
       slipAlertEnabled: false,
       checklistItems: [],
+      icon: '',
+      color: '',
     }
     expect(validateHabitForm(data)).toBe('habits.form.titleRequired')
   })
