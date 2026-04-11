@@ -947,6 +947,9 @@ export const HabitCard = React.memo(function HabitCard({
       if (creationTimer.current) clearTimeout(creationTimer.current)
       creationTimer.current = setTimeout(() => setJustCreated(false), 1200)
     }
+    return () => {
+      if (creationTimer.current) clearTimeout(creationTimer.current)
+    }
   }, [isJustCreated])
 
   // Computed values
@@ -980,6 +983,9 @@ export const HabitCard = React.memo(function HabitCard({
       completionTimer.current = setTimeout(() => setJustCompleted(false), 1200)
     }
     prevDoneRef.current = isDoneForRange
+    return () => {
+      if (completionTimer.current) clearTimeout(completionTimer.current)
+    }
   }, [isDoneForRange])
 
   // Ring pulse

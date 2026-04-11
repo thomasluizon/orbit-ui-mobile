@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import {
   useQuery,
   useMutation,
@@ -33,50 +32,17 @@ import { fetchJson } from '@/lib/api-fetch'
 // ---------------------------------------------------------------------------
 
 export function useNotifications() {
-  const queryClient = useQueryClient()
-
   const query = useQuery({
     queryKey: notificationKeys.lists(),
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list),
     staleTime: QUERY_STALE_TIMES.notifications,
     refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   })
 
   const notifications = query.data?.items ?? []
   const unreadCount = query.data?.unreadCount ?? 0
-
-  // Poll every 60 seconds, pause when tab is hidden
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    function handleVisibility() {
-      if (document.visibilityState === 'hidden') {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current)
-          intervalRef.current = null
-        }
-      } else {
-        // Refetch immediately on tab focus
-        queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
-        // Restart polling
-        intervalRef.current ??= setInterval(() => {
-          queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
-        }, 60000)
-      }
-    }
-
-    // Start polling
-    intervalRef.current = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
-    }, 60000)
-
-    document.addEventListener('visibilitychange', handleVisibility)
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      document.removeEventListener('visibilitychange', handleVisibility)
-    }
-  }, [queryClient])
 
   return {
     ...query,

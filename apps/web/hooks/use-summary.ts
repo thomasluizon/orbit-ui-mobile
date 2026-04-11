@@ -55,7 +55,7 @@ export function useSummary({
       return data.summary
     },
     enabled,
-    staleTime: QUERY_STALE_TIMES.habits,
+    staleTime: 5 * 60 * 1000, // 5 minutes -- summary is expensive, no need for frequent refresh
     // Summary is heavy/expensive -- don't refetch on window focus
     refetchOnWindowFocus: false,
   })

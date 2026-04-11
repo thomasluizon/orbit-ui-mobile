@@ -65,8 +65,6 @@ export function useProfile() {
     detectAndSaveThemeIfNeeded(profile.themePreference)
   }, [
     profile,
-    profile?.colorScheme,
-    profile?.themePreference,
     syncSchemeFromProfile,
     syncThemeFromProfile,
     detectAndSaveSchemeIfNeeded,

@@ -26,6 +26,9 @@ export function AchievementToast() {
     visibleRef.current = visible
   }, [visible])
 
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const processQueue = useCallback(() => {
     if (visibleRef.current || queueRef.current.length === 0) return
     const next = queueRef.current.shift() ?? null
@@ -33,14 +36,22 @@ export function AchievementToast() {
     setVisible(true)
     setShouldRender(true)
     requestAnimationFrame(() => setIsVisible(true))
-    setTimeout(() => {
+    showTimerRef.current = setTimeout(() => {
       setVisible(false)
       setIsVisible(false)
-      setTimeout(() => {
+      hideTimerRef.current = setTimeout(() => {
         setShouldRender(false)
         processQueue()
       }, 400)
     }, 4000)
+  }, [])
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (showTimerRef.current) clearTimeout(showTimerRef.current)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    }
   }, [])
 
   useEffect(() => {

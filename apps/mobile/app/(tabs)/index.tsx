@@ -39,7 +39,7 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate, hasAncestorInSet } from '@orbit/shared/utils'
+import { formatAPIDate } from '@orbit/shared/utils'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
@@ -47,9 +47,6 @@ import { useProfile } from '@/hooks/use-profile'
 import {
   useHabits,
   useDeleteHabit,
-  useBulkDeleteHabits,
-  useBulkLogHabits,
-  useBulkSkipHabits,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
 import { useStreakInfo } from '@/hooks/use-gamification'
@@ -67,6 +64,7 @@ import { TrialBanner } from '@/components/ui/trial-banner'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
+import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -102,9 +100,6 @@ export default function TodayScreen() {
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
-  const bulkDeleteHabits = useBulkDeleteHabits()
-  const bulkLogHabits = useBulkLogHabits()
-  const bulkSkipHabits = useBulkSkipHabits()
   const deleteHabit = useDeleteHabit()
 
   // UI Store
@@ -129,9 +124,6 @@ export default function TodayScreen() {
   const [showControlsMenu, setShowControlsMenu] = useState(false)
   const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
     useState<MenuAnchorRect | null>(null)
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-  const [showBulkLogConfirm, setShowBulkLogConfirm] = useState(false)
-  const [showBulkSkipConfirm, setShowBulkSkipConfirm] = useState(false)
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -297,6 +289,18 @@ export default function TodayScreen() {
   const habitsById = habitsQuery.data?.habitsById ?? new Map()
   const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
 
+  const bulkActions = useBulkActions({
+    selectedHabitIds,
+    habitsById,
+    habitListRef,
+    onSuccess: clearSelection,
+  })
+  const {
+    showBulkDeleteConfirm, showBulkLogConfirm, showBulkSkipConfirm,
+    setShowBulkDeleteConfirm, setShowBulkLogConfirm, setShowBulkSkipConfirm,
+    confirmBulkDelete, confirmBulkLog, confirmBulkSkip,
+  } = bulkActions
+
   // Use the shared visibility helpers so bulk-selection scope matches what
   // HabitList actually renders (Today view surfaces today's items + overdue).
   const visibility = useHabitVisibility({
@@ -443,69 +447,6 @@ export default function TodayScreen() {
     if (selectedCount === 0) return
     setShowBulkSkipConfirm(true)
   }, [selectedCount])
-
-  const confirmBulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
-    try {
-      await bulkDeleteHabits.mutateAsync(ids)
-    } finally {
-      clearSelection()
-      setShowBulkDeleteConfirm(false)
-    }
-  }, [bulkDeleteHabits, clearSelection, selectedHabitIds])
-
-  const promptParentLogsForBulkSuccesses = useCallback((successIds: string[]) => {
-    const successIdSet = new Set(successIds)
-
-    for (const id of successIds) {
-      if (hasAncestorInSet(id, habitsById, successIdSet)) {
-        continue
-      }
-
-      habitListRef.current?.checkAndPromptParentLog(id)
-    }
-  }, [habitsById])
-
-  const confirmBulkLog = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
-    try {
-      const result = await bulkLogHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
-      const successIds = result.results
-        .filter((item) => item.status === 'Success')
-        .map((item) => item.habitId)
-
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-
-      promptParentLogsForBulkSuccesses(successIds)
-    } finally {
-      clearSelection()
-      setShowBulkLogConfirm(false)
-    }
-  }, [bulkLogHabits, clearSelection, promptParentLogsForBulkSuccesses, selectedHabitIds])
-
-  const confirmBulkSkip = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
-    try {
-      const result = await bulkSkipHabits.mutateAsync(ids.map((habitId) => ({ habitId })))
-      const successIds = result.results
-        .filter((item) => item.status === 'Success')
-        .map((item) => item.habitId)
-
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-
-      promptParentLogsForBulkSuccesses(successIds)
-    } finally {
-      clearSelection()
-      setShowBulkSkipConfirm(false)
-    }
-  }, [bulkSkipHabits, clearSelection, promptParentLogsForBulkSuccesses, selectedHabitIds])
 
   const requestHabitDelete = useCallback(
     (habitId: string) => {

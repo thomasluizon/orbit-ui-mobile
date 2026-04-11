@@ -282,8 +282,6 @@ export function AppOverlay({
           </div>
         )}
 
-        {/* Accessible live region for status announcements */}
-        <div aria-live="polite" aria-atomic="true" className="sr-only" />
       </dialog>
     </div>
   )
