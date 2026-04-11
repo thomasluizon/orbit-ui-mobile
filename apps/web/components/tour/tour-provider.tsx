@@ -178,15 +178,15 @@ export function TourProvider() {
     const normalizedPathname = pathname === '/' ? '/' : pathname
     const normalizedRoute = currentStep.route === '/' ? '/' : currentStep.route
 
-    if (normalizedPathname !== normalizedRoute) {
-      setNavigating(true)
-      router.push(normalizedRoute)
-      // waitForTarget will be called when pathname changes (below)
-    } else {
+    if (normalizedPathname === normalizedRoute) {
       // Same page: find element immediately
       setNavigating(true)
       // Small delay to allow pre-actions (e.g. tab switch) to render
       setTimeout(() => waitForTarget(currentStep.targetId), 100)
+    } else {
+      setNavigating(true)
+      router.push(normalizedRoute)
+      // waitForTarget will be called when pathname changes (below)
     }
   }, [isActive, stepId, currentStep, pathname, router, setNavigating, executePreAction, waitForTarget])
 

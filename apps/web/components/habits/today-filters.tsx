@@ -34,7 +34,7 @@ export function TodayFilters({
   onFrequencyChange,
   onTagToggle,
   onOpenControlsMenu,
-}: TodayFiltersProps) {
+}: Readonly<TodayFiltersProps>) {
   const t = useTranslations()
 
   return (

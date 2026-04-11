@@ -20,8 +20,6 @@ interface TourTooltipProps {
   step: TourStep
   targetRect: TourTargetRect
   sectionProgress: { current: number; total: number; section: TourSection | null }
-  totalSteps: number
-  currentStepIndex: number
   isFirstStep: boolean
   isLastStep: boolean
   onNext: () => void
@@ -39,6 +37,53 @@ const SECTION_ICON_MAP = {
 
 const TOOLTIP_GAP = 16
 const EDGE_PADDING = 16
+
+interface DesktopLayoutParams {
+  tooltipWidth: number
+  tooltipHeight: number
+  viewportWidth: number
+  viewportHeight: number
+  targetRect: TourTargetRect
+  placement: TourStep['placement']
+}
+
+function computeDesktopPosition(params: DesktopLayoutParams): { top: number; left: number } {
+  const { tooltipWidth: tw, tooltipHeight: th, viewportWidth: vw, viewportHeight: vh, targetRect, placement } = params
+  const pad = 8
+  const sx = targetRect.x - pad
+  const sy = targetRect.y - pad
+  const sw = targetRect.width + pad * 2
+  const sh = targetRect.height + pad * 2
+
+  let top: number
+  let left: number
+
+  if (placement === 'bottom' || placement === 'top') {
+    left = sx + sw / 2 - tw / 2
+    if (placement === 'bottom') {
+      top = sy + sh + TOOLTIP_GAP
+      if (top + th > vh - EDGE_PADDING) top = sy - th - TOOLTIP_GAP
+    } else {
+      top = sy - th - TOOLTIP_GAP
+      if (top < EDGE_PADDING) top = sy + sh + TOOLTIP_GAP
+    }
+  } else {
+    top = sy + sh / 2 - th / 2
+    if (placement === 'right') {
+      left = sx + sw + TOOLTIP_GAP
+      if (left + tw > vw - EDGE_PADDING) left = sx - tw - TOOLTIP_GAP
+    } else {
+      left = sx - tw - TOOLTIP_GAP
+      if (left < EDGE_PADDING) left = sx + sw + TOOLTIP_GAP
+    }
+  }
+
+  // Clamp to viewport
+  left = Math.max(EDGE_PADDING, Math.min(left, vw - tw - EDGE_PADDING))
+  top = Math.max(EDGE_PADDING, Math.min(top, vh - th - EDGE_PADDING))
+
+  return { top, left }
+}
 
 export function TourTooltip({
   step,
@@ -63,7 +108,6 @@ export function TourTooltip({
   const layout = useCallback(() => {
     const isDesktop = window.innerWidth >= 640
     if (!isDesktop) {
-      // On mobile: if target is in the bottom half, show sheet at top; otherwise bottom
       const vh = window.innerHeight
       const targetCenter = targetRect.y + targetRect.height / 2
       setMode(targetCenter > vh * 0.5 ? 'sheet-top' : 'sheet-bottom')
@@ -75,44 +119,14 @@ export function TourTooltip({
     if (!el) return
 
     const { width: tw, height: th } = el.getBoundingClientRect()
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-
-    const pad = 8
-    const sx = targetRect.x - pad
-    const sy = targetRect.y - pad
-    const sw = targetRect.width + pad * 2
-    const sh = targetRect.height + pad * 2
-
-    let top: number
-    let left: number
-
-    // Try preferred placement, then flip
-    if (step.placement === 'bottom' || step.placement === 'top') {
-      left = sx + sw / 2 - tw / 2
-      if (step.placement === 'bottom') {
-        top = sy + sh + TOOLTIP_GAP
-        if (top + th > vh - EDGE_PADDING) top = sy - th - TOOLTIP_GAP
-      } else {
-        top = sy - th - TOOLTIP_GAP
-        if (top < EDGE_PADDING) top = sy + sh + TOOLTIP_GAP
-      }
-    } else {
-      top = sy + sh / 2 - th / 2
-      if (step.placement === 'right') {
-        left = sx + sw + TOOLTIP_GAP
-        if (left + tw > vw - EDGE_PADDING) left = sx - tw - TOOLTIP_GAP
-      } else {
-        left = sx - tw - TOOLTIP_GAP
-        if (left < EDGE_PADDING) left = sx + sw + TOOLTIP_GAP
-      }
-    }
-
-    // Clamp to viewport
-    left = Math.max(EDGE_PADDING, Math.min(left, vw - tw - EDGE_PADDING))
-    top = Math.max(EDGE_PADDING, Math.min(top, vh - th - EDGE_PADDING))
-
-    setPos({ top, left })
+    setPos(computeDesktopPosition({
+      tooltipWidth: tw,
+      tooltipHeight: th,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      targetRect,
+      placement: step.placement,
+    }))
   }, [targetRect, step.placement])
 
   useEffect(() => {
@@ -138,23 +152,21 @@ export function TourTooltip({
     ? t(`tour.sections.${sectionProgress.section}`)
     : ''
 
+  const modeClassName = (() => {
+    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-2xl border border-border bg-surface p-5 shadow-2xl'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-2xl border-b border-border bg-surface p-5 pt-3 shadow-2xl'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-border bg-surface p-5 pb-8 shadow-2xl'
+  })()
+
+  const floatStyle = mode === 'float'
+    ? (pos ? { top: pos.top, left: pos.left } : { top: -9999, left: -9999, opacity: 0 })
+    : undefined
+
   const content = (
     <div
       ref={tooltipRef}
-      className={
-        mode === 'float'
-          ? 'fixed z-[9999] w-[340px] rounded-2xl border border-border bg-surface p-5 shadow-2xl'
-          : mode === 'sheet-top'
-            ? 'fixed top-0 left-0 right-0 z-[9999] rounded-b-2xl border-b border-border bg-surface p-5 pt-3 shadow-2xl'
-            : 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-border bg-surface p-5 pb-8 shadow-2xl'
-      }
-      style={
-        mode === 'float'
-          ? pos
-            ? { top: pos.top, left: pos.left }
-            : { top: -9999, left: -9999, opacity: 0 }
-          : undefined
-      }
+      className={modeClassName}
+      style={floatStyle}
       role="dialog"
       aria-modal="true"
       aria-label={t(step.titleKey)}
@@ -193,23 +205,29 @@ export function TourTooltip({
 
       {/* Progress dots */}
       <div className="mb-4 flex items-center justify-center gap-1">
-        {Array.from({ length: sectionProgress.total }).map((_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 rounded-full transition-all duration-200 ${
-              i === sectionProgress.current - 1
-                ? 'w-4 bg-primary'
-                : i < sectionProgress.current - 1
-                  ? 'w-1.5 bg-primary/40'
-                  : 'w-1.5 bg-border'
-            }`}
-          />
-        ))}
+        {Array.from({ length: sectionProgress.total }).map((_, i) => {
+          let dotClass: string
+          if (i === sectionProgress.current - 1) {
+            dotClass = 'w-4 bg-primary'
+          } else if (i < sectionProgress.current - 1) {
+            dotClass = 'w-1.5 bg-primary/40'
+          } else {
+            dotClass = 'w-1.5 bg-border'
+          }
+          return (
+            <div
+              key={`progress-dot-${sectionProgress.section}-${i}`}
+              className={`h-1.5 rounded-full transition-all duration-200 ${dotClass}`}
+            />
+          )
+        })}
       </div>
 
       {/* Navigation */}
       <div className="flex items-center gap-2">
-        {!isFirstStep ? (
+        {isFirstStep ? (
+          <div />
+        ) : (
           <button
             type="button"
             onClick={onPrev}
@@ -218,8 +236,6 @@ export function TourTooltip({
             <ChevronLeft className="size-4" />
             {t('tour.ui.back')}
           </button>
-        ) : (
-          <div />
         )}
         <div className="flex-1" />
         <button

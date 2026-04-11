@@ -40,8 +40,8 @@ export function EditHabitModal({
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
   const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) =>
-      t(key as Parameters<typeof t>[0], values as never),
+    (key: string, values?: Record<string, string | number | Date>) =>
+      t(key, values),
     [t],
   )
   const updateHabit = useUpdateHabit()

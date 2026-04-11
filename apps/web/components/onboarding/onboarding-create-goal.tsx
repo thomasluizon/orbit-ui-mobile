@@ -27,8 +27,8 @@ interface OnboardingCreateGoalProps {
 export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingCreateGoalProps>) {
   const t = useTranslations()
   const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) =>
-      t(key as Parameters<typeof t>[0], values as never),
+    (key: string, values?: Record<string, string | number | Date>) =>
+      t(key, values),
     [t],
   )
   const [description, setDescription] = useState('')

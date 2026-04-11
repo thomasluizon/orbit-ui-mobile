@@ -85,8 +85,6 @@ export function TourOverlay() {
         step={step}
         targetRect={targetRect}
         sectionProgress={sectionProgress}
-        totalSteps={totalSteps}
-        currentStepIndex={currentStepIndex}
         isFirstStep={isFirstStep}
         isLastStep={isLastStep}
         onNext={handleNext}

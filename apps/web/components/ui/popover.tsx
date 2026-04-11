@@ -111,8 +111,6 @@ export function Popover({
         createPortal(
           <div
             ref={hook.panelRef}
-            role="dialog"
-            aria-modal="false"
             className={[
               'habit-actions-menu',
               'fixed',

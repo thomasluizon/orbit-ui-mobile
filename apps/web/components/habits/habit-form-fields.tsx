@@ -686,8 +686,8 @@ export function HabitFormFields({
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
   const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) =>
-      t(key as Parameters<typeof t>[0], values as never),
+    (key: string, values?: Record<string, string | number | Date>) =>
+      t(key, values),
     [t],
   )
   const reminderLabelId = useId()
@@ -768,7 +768,12 @@ export function HabitFormFields({
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
 
   // Compute active frequency type key for card highlighting
-  const activeFrequencyKey = isOneTime ? 'one-time' : isGeneral ? 'general' : isFlexible ? 'flexible' : 'recurring'
+  const activeFrequencyKey = (() => {
+    if (isOneTime) return 'one-time'
+    if (isGeneral) return 'general'
+    if (isFlexible) return 'flexible'
+    return 'recurring'
+  })()
 
   const frequencyHandlers: Record<string, () => void> = useMemo(() => ({
     'one-time': setOneTime,

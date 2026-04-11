@@ -19,7 +19,7 @@ export function PillToggle<T extends string>({
   onChange,
   size = 'md',
   className,
-}: PillToggleProps<T>) {
+}: Readonly<PillToggleProps<T>>) {
   const sizeClasses = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
 
   return (
