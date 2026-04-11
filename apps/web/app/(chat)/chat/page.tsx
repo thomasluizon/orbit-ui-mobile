@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -15,10 +16,13 @@ import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
+import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
+import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -65,6 +69,25 @@ export default function ChatPage() {
     handleKeyDown,
     handleBreakdownConfirmed,
   } = useChatComposer()
+
+  // -------------------------------------------------------------------------
+  // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer)
+  // Lazy: only fetch the single habit by ID after the user taps a chip.
+  // -------------------------------------------------------------------------
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
+  const habitDetailQuery = useHabitDetail(selectedHabitId)
+  const selectedHabit = useMemo(
+    () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
+    [habitDetailQuery.data],
+  )
+
+  const handleActionChipClick = useCallback((habitId: string) => {
+    setSelectedHabitId(habitId)
+  }, [])
+
+  const handleDrawerOpenChange = useCallback((open: boolean) => {
+    if (!open) setSelectedHabitId(null)
+  }, [])
 
   // -------------------------------------------------------------------------
   // Render
@@ -120,6 +143,7 @@ export default function ChatPage() {
             key={msg.id}
             message={msg}
             onBreakdownConfirmed={handleBreakdownConfirmed}
+            onActionChipClick={handleActionChipClick}
           />
         ))}
 
@@ -315,6 +339,13 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* Habit detail drawer (opened from action chips) */}
+      <HabitDetailDrawer
+        open={!!selectedHabitId}
+        onOpenChange={handleDrawerOpenChange}
+        habit={selectedHabit}
+      />
     </div>
   )
 }

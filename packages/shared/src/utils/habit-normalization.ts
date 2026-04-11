@@ -1,4 +1,5 @@
 import type {
+  HabitDetail,
   HabitScheduleChild,
   HabitScheduleItem,
   LinkedGoalUpdate,
@@ -148,4 +149,30 @@ export function applyLinkedGoalUpdates(
         : 0,
     }
   })
+}
+
+/**
+ * Converts a single HabitDetail (from GET /api/habits/:id) to a NormalizedHabit
+ * stub suitable for HabitDetailDrawer's `habit` prop. Fills schedule/list-only
+ * fields with safe defaults; the drawer's internal useHabitFullDetail loads the
+ * authoritative metrics and logs separately.
+ *
+ * Use this when opening the drawer from a context that does NOT have a cached
+ * habit list (e.g., the chat screen tapping an action chip).
+ */
+export function habitDetailToNormalized(detail: HabitDetail): NormalizedHabit {
+  const { children: _children, ...base } = detail
+  return {
+    ...base,
+    parentId: null,
+    scheduledDates: [],
+    isOverdue: false,
+    slipAlertEnabled: false,
+    tags: [],
+    hasSubHabits: detail.children.length > 0,
+    flexibleTarget: null,
+    flexibleCompleted: null,
+    isLoggedInRange: false,
+    instances: [],
+  }
 }

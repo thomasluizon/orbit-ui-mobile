@@ -15,13 +15,18 @@ import { formatChatMessage } from './format-chat-message'
 interface MessageBubbleProps {
   message: ChatMessage
   onBreakdownConfirmed?: () => void
+  onActionChipClick?: (entityId: string, actionType: string) => void
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<MessageBubbleProps>) {
+export function MessageBubble({
+  message,
+  onBreakdownConfirmed,
+  onActionChipClick,
+}: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
 
@@ -92,7 +97,7 @@ export function MessageBubble({ message, onBreakdownConfirmed }: Readonly<Messag
 
         {/* Action chips for AI messages */}
         {!isUser && nonSuggestionActions.length > 0 && (
-          <ActionChips actions={nonSuggestionActions} />
+          <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />
         )}
 
         {/* Breakdown suggestions */}

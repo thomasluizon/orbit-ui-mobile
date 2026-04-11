@@ -143,6 +143,7 @@ export {
 export {
   applyLinkedGoalUpdates,
   buildChildrenIndex,
+  habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
   sortNormalizedHabits,

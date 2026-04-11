@@ -31,6 +31,15 @@ const ACTION_LABELS: Record<string, string> = {
   AssignTags: 'chat.action.tagsUpdated',
 }
 
+const NON_NAVIGABLE_ACTION_TYPES = new Set([
+  'delete_habit',
+  'DeleteHabit',
+  'delete_sub_habit',
+  'DeleteSubHabit',
+  'suggest_breakdown',
+  'SuggestBreakdown',
+])
+
 const CHIP_STYLES: Record<
   string,
   { text: string; bg: string; border: string; Icon: typeof CheckCircle }
@@ -70,9 +79,19 @@ function chipStyle(action: ActionResult) {
 
 interface ActionChipsProps {
   actions: ActionResult[]
+  onChipClick?: (entityId: string, actionType: string) => void
 }
 
-export function ActionChips({ actions }: Readonly<ActionChipsProps>) {
+function isNavigable(action: ActionResult, hasHandler: boolean): boolean {
+  return (
+    hasHandler &&
+    action.status === 'Success' &&
+    !!action.entityId &&
+    !NON_NAVIGABLE_ACTION_TYPES.has(action.type)
+  )
+}
+
+export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>) {
   const t = useTranslations()
 
   function actionLabel(action: ActionResult): string {
@@ -89,6 +108,8 @@ export function ActionChips({ actions }: Readonly<ActionChipsProps>) {
         if (action.status === 'Suggestion') return null
         const style = chipStyle(action)
         const IconComponent = style.Icon
+        const navigable = isNavigable(action, !!onChipClick)
+        const chipClassName = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border hover:scale-[1.02] transition-all duration-150 ${style.text} ${style.bg} ${style.border}`
 
         return (
           <div
@@ -96,12 +117,22 @@ export function ActionChips({ actions }: Readonly<ActionChipsProps>) {
             className="animate-chip-in"
             style={{ animationDelay: `${index * 80}ms` }}
           >
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border hover:scale-[1.02] transition-all duration-150 ${style.text} ${style.bg} ${style.border}`}
-            >
-              <IconComponent className="size-2.5" />
-              {actionLabel(action)}
-            </span>
+            {navigable ? (
+              <button
+                type="button"
+                onClick={() => onChipClick!(action.entityId!, action.type)}
+                aria-label={t('chat.action.openHabit', { name: actionLabel(action) })}
+                className={`${chipClassName} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60`}
+              >
+                <IconComponent className="size-2.5" />
+                {actionLabel(action)}
+              </button>
+            ) : (
+              <span className={chipClassName}>
+                <IconComponent className="size-2.5" />
+                {actionLabel(action)}
+              </span>
+            )}
 
             {action.status === 'Failed' && action.error && (
               <p className="text-xs text-red-400 mt-1 pl-1">{action.error}</p>
