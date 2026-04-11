@@ -208,8 +208,8 @@ export function createColors(
     // Android renders semi-transparent elevated cards inconsistently in light
     // mode, so flatten the tint over the page background while keeping the
     // same visual result as the web overlay tokens.
-    primaryTintBg: isLight ? flattenedTint(0.30, 'rgb(215, 200, 252)') : alpha(0.1),
-    primaryTintBorder: isLight ? flattenedTint(0.50, 'rgb(194, 169, 251)') : alpha(0.2),
+    primaryTintBg: isLight ? flattenedTint(0.3, 'rgb(215, 200, 252)') : alpha(0.1),
+    primaryTintBorder: isLight ? flattenedTint(0.5, 'rgb(194, 169, 251)') : alpha(0.2),
     primaryTintIconBg: isLight ? flattenedTint(0.42, 'rgb(202, 181, 251)') : alpha(0.2),
     primaryRing: alpha(0.3),
     textPrimary: theme.textPrimary,

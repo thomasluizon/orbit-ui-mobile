@@ -20,7 +20,7 @@ const avatarSizeClasses: Record<NonNullable<SkeletonAvatarProps['size']>, string
   lg: 'size-14',
 }
 
-export function SkeletonLine({ width, height, className }: SkeletonLineProps) {
+export function SkeletonLine({ width, height, className }: Readonly<SkeletonLineProps>) {
   return (
     <div
       className={[
@@ -36,7 +36,7 @@ export function SkeletonLine({ width, height, className }: SkeletonLineProps) {
   )
 }
 
-export function SkeletonCard({ lines = 3, className }: SkeletonCardProps) {
+export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProps>) {
   const lineWidths = (index: number, total: number): { width: string; height: string } => {
     if (index === 0) return { width: 'w-1/3', height: 'h-4' }
     if (index === total - 1) return { width: 'w-2/3', height: 'h-3' }
@@ -61,7 +61,7 @@ export function SkeletonCard({ lines = 3, className }: SkeletonCardProps) {
   )
 }
 
-export function SkeletonAvatar({ size = 'md', className }: SkeletonAvatarProps) {
+export function SkeletonAvatar({ size = 'md', className }: Readonly<SkeletonAvatarProps>) {
   return (
     <div
       className={['skeleton-shimmer rounded-full', avatarSizeClasses[size], className]

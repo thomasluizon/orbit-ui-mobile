@@ -96,8 +96,8 @@ function applySchemeToDOM(scheme: ColorScheme, theme: ThemeMode, animate = false
   // Theme-aware primary tint tokens. Light mode needs stronger alphas to be
   // visible on a white surface; dark mode keeps the original 0.10/0.15/0.20/0.30 ladder.
   const tint = theme === 'light'
-    ? { bg: 0.30, bgHover: 0.38, border: 0.50, borderHover: 0.62, iconBg: 0.42, iconBgHover: 0.52 }
-    : { bg: 0.10, bgHover: 0.15, border: 0.20, borderHover: 0.30, iconBg: 0.20, iconBgHover: 0.30 }
+    ? { bg: 0.3, bgHover: 0.38, border: 0.5, borderHover: 0.62, iconBg: 0.42, iconBgHover: 0.52 }
+    : { bg: 0.1, bgHover: 0.15, border: 0.2, borderHover: 0.3, iconBg: 0.2, iconBgHover: 0.3 }
   root.style.setProperty('--primary-tint-bg', `rgba(${def.shadowRgb}, ${tint.bg})`)
   root.style.setProperty('--primary-tint-bg-hover', `rgba(${def.shadowRgb}, ${tint.bgHover})`)
   root.style.setProperty('--primary-tint-border', `rgba(${def.shadowRgb}, ${tint.border})`)
@@ -225,7 +225,7 @@ export function useColorScheme() {
   const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
     const detected: ThemeMode =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
+      typeof globalThis.window !== 'undefined' && globalThis.matchMedia('(prefers-color-scheme: light)').matches
         ? 'light'
         : 'dark'
     setCookie('orbit_theme_mode', detected)

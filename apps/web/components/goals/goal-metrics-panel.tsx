@@ -125,9 +125,7 @@ export function GoalMetricsPanel({
               {t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
             </p>
             <p className="text-sm font-semibold text-orange-300 mt-1">
-              {metrics.daysToDeadline != null
-                ? metrics.daysToDeadline
-                : t('goals.metrics.noData')}
+              {metrics.daysToDeadline ?? t('goals.metrics.noData')}
             </p>
           </div>
         ) : (

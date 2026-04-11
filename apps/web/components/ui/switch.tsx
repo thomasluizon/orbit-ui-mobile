@@ -16,7 +16,7 @@ export function Switch({
   label,
   description,
   className,
-}: SwitchProps) {
+}: Readonly<SwitchProps>) {
   const switchButton = (
     <button
       type="button"

@@ -10,7 +10,7 @@ interface TourSpotlightProps {
 
 const BORDER_RADIUS = 12
 
-export function TourSpotlight({ targetRect, padding = 8 }: TourSpotlightProps) {
+export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotlightProps>) {
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
 
   useEffect(() => {

@@ -56,8 +56,8 @@ export function EditGoalModal({
 }: Readonly<EditGoalModalProps>) {
   const t = useTranslations()
   const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) =>
-      t(key as Parameters<typeof t>[0], values as never),
+    (key: string, values?: Record<string, string | number | Date>) =>
+      t(key, values),
     [t],
   )
   const updateGoal = useUpdateGoal()
@@ -193,7 +193,23 @@ export function EditGoalModal({
               <p id="edit-goal-target-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.targetValue}</p>
             )}
           </div>
-          {!isStreak ? (
+          {isStreak ? (
+            <div>
+              <label
+                htmlFor="edit-goal-unit-readonly"
+                className="form-label"
+              >
+                {t('goals.form.unit')}
+              </label>
+              <input
+                id="edit-goal-unit-readonly"
+                type="text"
+                value={unit}
+                readOnly
+                className="form-input opacity-60 cursor-not-allowed"
+              />
+            </div>
+          ) : (
             <div>
               <label
                 htmlFor="edit-goal-unit"
@@ -214,22 +230,6 @@ export function EditGoalModal({
               {fieldErrors.unit && (
                 <p id="edit-goal-unit-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.unit}</p>
               )}
-            </div>
-          ) : (
-            <div>
-              <label
-                htmlFor="edit-goal-unit-readonly"
-                className="form-label"
-              >
-                {t('goals.form.unit')}
-              </label>
-              <input
-                id="edit-goal-unit-readonly"
-                type="text"
-                value={unit}
-                readOnly
-                className="form-input opacity-60 cursor-not-allowed"
-              />
             </div>
           )}
         </div>

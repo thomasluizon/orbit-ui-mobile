@@ -44,7 +44,7 @@ function getSectionCompletion(): Record<TourSection, boolean> {
   return { habits: false, goals: false, chat: false, calendar: false, profile: false }
 }
 
-export function TourReplayModal({ open, onOpenChange }: TourReplayModalProps) {
+export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModalProps>) {
   const t = useTranslations()
   const router = useRouter()
   const queryClient = useQueryClient()

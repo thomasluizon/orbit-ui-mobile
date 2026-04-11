@@ -34,11 +34,11 @@ export function extractVersionFromHtml(html: string): string | null {
   if (jsonLd?.[1]) return jsonLd[1].trim()
 
   // Legacy label: `Current Version</div><...>1.2.3`
-  const currentVersion = /Current Version[^0-9]*([0-9][0-9A-Za-z.\-+]*)/i.exec(html)
+  const currentVersion = /Current Version\D*(\d[\da-z.\-+]*)/i.exec(html)
   if (currentVersion?.[1]) return currentVersion[1].trim()
 
   // Fallback: `>Version<...>1.2.3<`
-  const versionLabel = /Version<\/div>[\s\S]*?>([0-9][0-9A-Za-z.\-+]*)</i.exec(html)
+  const versionLabel = /Version<\/div>[\s\S]*?>(\d[\da-z.\-+]*)</i.exec(html)
   if (versionLabel?.[1]) return versionLabel[1].trim()
 
   return null

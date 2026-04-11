@@ -46,14 +46,12 @@ export function SurfaceCard<T extends ElementType = 'div'>({
   children,
   ...rest
 }: SurfaceCardProps<T>) {
-  const Tag = (as ?? 'div') as ElementType
+  const Tag: ElementType = as ?? 'div'
 
-  const selectionClass =
-    variant === 'selection'
-      ? active
-        ? selectionActiveClasses
-        : selectionInactiveClasses
-      : ''
+  let selectionClass = ''
+  if (variant === 'selection') {
+    selectionClass = active ? selectionActiveClasses : selectionInactiveClasses
+  }
 
   const classes = [variantClasses[variant], selectionClass, paddingClasses[padding], className]
     .filter(Boolean)

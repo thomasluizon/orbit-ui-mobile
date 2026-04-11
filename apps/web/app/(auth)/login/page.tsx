@@ -250,6 +250,10 @@ function handleVerifySuccess(
   router.push(getReturnUrl())
 }
 
+function isOfflinePreflight(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -311,10 +315,6 @@ export default function LoginPage() {
     }
     return '/'
   }, [searchParams])
-
-  function isOfflinePreflight(): boolean {
-    return typeof navigator !== 'undefined' && navigator.onLine === false
-  }
 
   async function sendCode() {
     if (!email.trim()) return

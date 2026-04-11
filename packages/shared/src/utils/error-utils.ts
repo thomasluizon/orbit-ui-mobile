@@ -62,10 +62,12 @@ function asBackendErrorData(value: unknown): BackendErrorData | undefined {
   return undefined
 }
 
+type TranslateFn = (key: string, values?: Record<string, string | number | Date>) => string
+
 export function translateErrorKey(
-  translate: (key: string, values?: Record<string, unknown>) => string,
+  translate: TranslateFn,
   errorKey: string | null | undefined,
-  values?: Record<string, unknown>,
+  values?: Record<string, string | number | Date>,
 ): string | null {
   if (!errorKey) return null
   return translate(errorKey, values)
@@ -184,112 +186,84 @@ export function extractBackendError(err: unknown): string | undefined {
   return undefined
 }
 
+type ContextSet = ReadonlySet<FriendlyErrorContext>
+
+interface MessageRule {
+  /** All substrings must be present (AND logic). Use an array of arrays for OR groups. */
+  includes: readonly string[] | readonly (readonly string[])[]
+  key: string
+  contexts?: ContextSet
+}
+
+const HABIT_CONTEXTS: ContextSet = new Set(['habit', 'subHabit', 'habitLog'])
+const GOAL_CONTEXTS: ContextSet = new Set(['goal', 'goalProgress'])
+const TAG_CONTEXTS: ContextSet = new Set(['tag'])
+const AUTH_CONTEXTS: ContextSet = new Set(['auth'])
+
+const CONTEXTUAL_RULES: readonly MessageRule[] = [
+  // Habit rules
+  { includes: ['description', '2000'], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['frequency quantity', 'required'], key: 'habits.form.frequencyRequired', contexts: HABIT_CONTEXTS },
+  { includes: ['days can only be specified'], key: 'habits.form.daysOnlyForDaily', contexts: HABIT_CONTEXTS },
+  { includes: ['general habits cannot be bad habits'], key: 'habits.form.generalBadHabit', contexts: HABIT_CONTEXTS },
+  { includes: ['checklist item text'], key: 'habits.form.checklistItemTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['scheduled reminders must not contain duplicate'], key: 'habits.form.duplicateScheduledReminder', contexts: HABIT_CONTEXTS },
+  { includes: ['scheduled reminder', 'duplicate'], key: 'habits.form.duplicateScheduledReminder', contexts: HABIT_CONTEXTS },
+  { includes: ['scheduled reminder', 'at most'], key: 'habits.form.scheduledReminderMax', contexts: HABIT_CONTEXTS },
+  { includes: ['a habit can have at most', 'sub-habit'], key: 'habits.form.subHabitLimit', contexts: HABIT_CONTEXTS },
+  { includes: ['sub-habit title', 'empty'], key: 'habits.form.subHabitTitleRequired', contexts: HABIT_CONTEXTS },
+  { includes: ['sub-habit title', '200'], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['linked goals'], key: 'habits.form.goalLimit', contexts: HABIT_CONTEXTS },
+  { includes: ['at most 5 tags'], key: 'habits.form.tagLimit', contexts: HABIT_CONTEXTS },
+  { includes: ['note must not exceed 500'], key: 'habits.log.noteTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['already logged'], key: 'habits.errors.alreadyLogged', contexts: HABIT_CONTEXTS },
+  { includes: [['max depth'], ['depth reached']], key: 'habits.errors.maxDepthReached', contexts: HABIT_CONTEXTS },
+  { includes: ['circular'], key: 'habits.errors.circularReference', contexts: HABIT_CONTEXTS },
+
+  // Goal rules
+  { includes: ['unit', 'required'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['unit', '50'], key: 'goals.form.unitTooLong', contexts: GOAL_CONTEXTS },
+  { includes: [['target value'], ['must be greater than 0']], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['new value', 'greater than or equal to 0'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
+  { includes: ['linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
+
+  // Tag rules
+  { includes: ['name', 'required'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
+  { includes: ['name', '50'], key: 'habits.form.tagNameTooLong', contexts: TAG_CONTEXTS },
+  { includes: ['valid hex color'], key: 'habits.form.tagColorInvalid', contexts: TAG_CONTEXTS },
+
+  // Auth rules
+  { includes: [['invalid verification code'], ['invalid code']], key: 'auth.errors.invalidCode', contexts: AUTH_CONTEXTS },
+  { includes: ['expired'], key: 'auth.errors.codeExpired', contexts: AUTH_CONTEXTS },
+]
+
+function matchesIncludes(msg: string, includes: MessageRule['includes']): boolean {
+  if (includes.length === 0) return false
+  // If the first element is a string, treat as AND list
+  if (typeof includes[0] === 'string') {
+    return (includes as readonly string[]).every((s) => msg.includes(s))
+  }
+  // Otherwise treat as OR groups (any group matching means a match)
+  return (includes as readonly (readonly string[])[]).some((group) =>
+    group.every((s) => msg.includes(s)),
+  )
+}
+
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
 ): string | null {
+  // Context-free title rules
   if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
     return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
   }
-
   if (normalizedMessage.includes('title') && normalizedMessage.includes('200')) {
     return context === 'goal' ? 'goals.form.titleTooLong' : 'habits.form.titleTooLong'
   }
 
-  if (context === 'habit' || context === 'subHabit' || context === 'habitLog') {
-    if (normalizedMessage.includes('description') && normalizedMessage.includes('2000')) {
-      return 'habits.form.descriptionTooLong'
-    }
-    if (normalizedMessage.includes('frequency quantity') && normalizedMessage.includes('required')) {
-      return 'habits.form.frequencyRequired'
-    }
-    if (normalizedMessage.includes('days can only be specified')) {
-      return 'habits.form.daysOnlyForDaily'
-    }
-    if (normalizedMessage.includes('general habits cannot be bad habits')) {
-      return 'habits.form.generalBadHabit'
-    }
-    if (normalizedMessage.includes('checklist item text')) {
-      return 'habits.form.checklistItemTooLong'
-    }
-    if (normalizedMessage.includes('scheduled reminders must not contain duplicate')) {
-      return 'habits.form.duplicateScheduledReminder'
-    }
-    if (normalizedMessage.includes('scheduled reminder') && normalizedMessage.includes('duplicate')) {
-      return 'habits.form.duplicateScheduledReminder'
-    }
-    if (normalizedMessage.includes('scheduled reminder') && normalizedMessage.includes('at most')) {
-      return 'habits.form.scheduledReminderMax'
-    }
-    if (normalizedMessage.includes('a habit can have at most') && normalizedMessage.includes('sub-habit')) {
-      return 'habits.form.subHabitLimit'
-    }
-    if (normalizedMessage.includes('sub-habit title') && normalizedMessage.includes('empty')) {
-      return 'habits.form.subHabitTitleRequired'
-    }
-    if (normalizedMessage.includes('sub-habit title') && normalizedMessage.includes('200')) {
-      return 'habits.form.subHabitTitleTooLong'
-    }
-    if (normalizedMessage.includes('linked goals')) {
-      return 'habits.form.goalLimit'
-    }
-    if (normalizedMessage.includes('at most 5 tags')) {
-      return 'habits.form.tagLimit'
-    }
-    if (normalizedMessage.includes('note must not exceed 500')) {
-      return 'habits.log.noteTooLong'
-    }
-    if (normalizedMessage.includes('already logged')) {
-      return 'habits.errors.alreadyLogged'
-    }
-    if (normalizedMessage.includes('max depth') || normalizedMessage.includes('depth reached')) {
-      return 'habits.errors.maxDepthReached'
-    }
-    if (normalizedMessage.includes('circular')) {
-      return 'habits.errors.circularReference'
-    }
-  }
-
-  if (context === 'goal' || context === 'goalProgress') {
-    if (normalizedMessage.includes('unit') && normalizedMessage.includes('required')) {
-      return 'goals.form.unitRequired'
-    }
-    if (normalizedMessage.includes('unit') && normalizedMessage.includes('50')) {
-      return 'goals.form.unitTooLong'
-    }
-    if (
-      normalizedMessage.includes('target value') ||
-      normalizedMessage.includes('must be greater than 0')
-    ) {
-      return 'goals.form.targetValueRequired'
-    }
-    if (normalizedMessage.includes('new value') && normalizedMessage.includes('greater than or equal to 0')) {
-      return 'goals.form.progressValueInvalid'
-    }
-    if (normalizedMessage.includes('linked habits')) {
-      return 'goals.form.habitLimit'
-    }
-  }
-
-  if (context === 'tag') {
-    if (normalizedMessage.includes('name') && normalizedMessage.includes('required')) {
-      return 'habits.form.tagNameRequired'
-    }
-    if (normalizedMessage.includes('name') && normalizedMessage.includes('50')) {
-      return 'habits.form.tagNameTooLong'
-    }
-    if (normalizedMessage.includes('valid hex color')) {
-      return 'habits.form.tagColorInvalid'
-    }
-  }
-
-  if (context === 'auth') {
-    if (normalizedMessage.includes('invalid verification code') || normalizedMessage.includes('invalid code')) {
-      return 'auth.errors.invalidCode'
-    }
-    if (normalizedMessage.includes('expired')) {
-      return 'auth.errors.codeExpired'
-    }
+  for (const rule of CONTEXTUAL_RULES) {
+    if (rule.contexts && !rule.contexts.has(context)) continue
+    if (matchesIncludes(normalizedMessage, rule.includes)) return rule.key
   }
 
   return null
@@ -336,7 +310,7 @@ export function getFriendlyErrorKey(
 
 export function getFriendlyErrorMessage(
   err: unknown,
-  translate: (key: string, values?: Record<string, unknown>) => string,
+  translate: TranslateFn,
   fallbackKey: string,
   context: FriendlyErrorContext = 'generic',
 ): string {

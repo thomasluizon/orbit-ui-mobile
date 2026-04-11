@@ -777,6 +777,14 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
         const isDanger = item.variant === 'danger'
         const showDivider = isDanger && dangerIndex > 0 && idx === dangerIndex
         const Icon = item.icon
+        let itemClassName: string
+        if (isDanger) {
+          itemClassName = 'text-red-400 hover:bg-red-500/10'
+        } else if (item.key === 'skip') {
+          itemClassName = 'text-amber-400 hover:bg-amber-500/10'
+        } else {
+          itemClassName = 'text-text-primary hover:bg-surface-elevated/60'
+        }
         return (
           <div key={item.key}>
             {showDivider && <div className="my-1 mx-2 h-px bg-surface-elevated/60" />}
@@ -788,13 +796,7 @@ function ActionsMenuPanel({ panelRef, menuPosition, menuOpensUp, menuItems, clos
                 item.onClick()
                 closeMenu()
               }}
-              className={
-                isDanger
-                  ? 'text-red-400 hover:bg-red-500/10'
-                  : item.key === 'skip'
-                    ? 'text-amber-400 hover:bg-amber-500/10'
-                    : 'text-text-primary hover:bg-surface-elevated/60'
-              }
+              className={itemClassName}
             />
           </div>
         )
@@ -1112,18 +1114,11 @@ export const HabitCard = React.memo(function HabitCard({
   return (
     <>
       <div style={isChild ? indentStyle : undefined}>
-        <div
+        <button
+          type="button"
           data-tour="tour-habit-card"
-          role="button"
-          tabIndex={0}
           className={`${articleClassName} text-left w-full`}
           onClick={handleCardClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              handleCardClick()
-            }
-          }}
           aria-label={habit.title}
         >
           <div
@@ -1179,7 +1174,7 @@ export const HabitCard = React.memo(function HabitCard({
               />
             )}
           </div>
-        </div>
+        </button>
       </div>
 
       {showActionsMenu && (

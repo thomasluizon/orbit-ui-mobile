@@ -9,7 +9,6 @@ import {
   buildUrlWithQuery,
   fetchAllPaginatedItems,
   normalizeHabitQueryData,
-  normalizeHabits,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {

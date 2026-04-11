@@ -27,7 +27,7 @@ export function EmptyState({
   description,
   action,
   className,
-}: EmptyStateProps) {
+}: Readonly<EmptyStateProps>) {
   return (
     <div
       className={[

@@ -34,7 +34,7 @@ function extractFromRecord(obj: Record<string, unknown>): string | undefined {
   if (errors && typeof errors === 'object') {
     const first = Object.values(errors as Record<string, unknown>)[0]
     if (Array.isArray(first) && first.length > 0 && typeof first[0] === 'string') {
-      return first[0] as string
+      return first[0]
     }
   }
   return undefined

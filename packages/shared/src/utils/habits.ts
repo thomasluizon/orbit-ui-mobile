@@ -203,6 +203,51 @@ function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): 
  * Also supports parent changes: if the dragged item lands next to an anchor
  * with a different parentId, both the old and new parent groups are re-emitted.
  */
+function resolveAnchorParent(
+  anchor: ReorderableHabitItem | undefined,
+  movedId: string,
+  habitsById: Map<string, ReorderableHabitItem>,
+): string | null | undefined {
+  if (!anchor || anchor.id === movedId) return undefined
+  return habitsById.get(anchor.id)?.parentId ?? anchor.parentId
+}
+
+function resolveInsertIndex(
+  siblings: ReorderableHabitItem[],
+  afterAnchor: ReorderableHabitItem | undefined,
+  beforeAnchor: ReorderableHabitItem | undefined,
+  movedId: string,
+  newIndex: number,
+): number {
+  if (afterAnchor && afterAnchor.id !== movedId) {
+    const idx = siblings.findIndex((s) => s.id === afterAnchor.id)
+    if (idx >= 0) return idx
+  }
+  if (beforeAnchor && beforeAnchor.id !== movedId) {
+    const idx = siblings.findIndex((s) => s.id === beforeAnchor.id)
+    if (idx >= 0) return idx + 1
+  }
+  if (newIndex === 0) return 0
+  return siblings.length
+}
+
+function getAllSiblings(
+  parentId: string | null,
+  habitsById: Map<string, ReorderableHabitItem>,
+  getChildren: (parentId: string) => ReorderableHabitItem[],
+): ReorderableHabitItem[] {
+  if (parentId === null) {
+    return Array.from(habitsById.values()).filter(
+      (habit) => (habit.parentId ?? null) === null,
+    )
+  }
+  return getChildren(parentId)
+}
+
+function siblingsToPositions(siblings: ReorderableHabitItem[]): HabitReorderPosition[] {
+  return siblings.map((sibling, index) => ({ habitId: sibling.id, position: index }))
+}
+
 export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   items: T[],
   oldIndex: number,
@@ -227,70 +272,38 @@ export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   const movedHabit = habitsById.get(movedId) ?? movedVisible
   const originalParentId = movedHabit.parentId
 
-  // Determine the destination parent by looking at the anchor (the filtered
-  // item the dragged habit will be placed next to). This keeps parent-change
-  // semantics working in draggable-flatlist style reorders where the caller
-  // only passes visible items.
   const visibleReordered = [...items]
   visibleReordered.splice(oldIndex, 1)
   visibleReordered.splice(newIndex, 0, movedVisible)
 
-  // Find the nearest visible sibling AFTER the new index to use as anchor,
-  // else fall back to the one BEFORE. If none exists, keep original parent.
-  let destinationParentId: string | null = originalParentId
   const afterAnchor = visibleReordered[newIndex + 1]
   const beforeAnchor = newIndex > 0 ? visibleReordered[newIndex - 1] : undefined
-  if (afterAnchor && afterAnchor.id !== movedId) {
-    destinationParentId = habitsById.get(afterAnchor.id)?.parentId ?? afterAnchor.parentId
-  } else if (beforeAnchor && beforeAnchor.id !== movedId) {
-    destinationParentId = habitsById.get(beforeAnchor.id)?.parentId ?? beforeAnchor.parentId
-  }
 
-  const getAllSiblings = (parentId: string | null): ReorderableHabitItem[] => {
-    if (parentId === null) {
-      return Array.from(habitsById.values()).filter(
-        (habit) => (habit.parentId ?? null) === null,
-      )
-    }
-    return getChildren(parentId)
-  }
+  const destinationParentId =
+    resolveAnchorParent(afterAnchor, movedId, habitsById) ??
+    resolveAnchorParent(beforeAnchor, movedId, habitsById) ??
+    originalParentId
 
-  // Build the destination parent's full sibling list (sorted by current
-  // position) minus the moved habit, then splice the moved habit back in
-  // at the correct full-list index translated from the filtered view.
   const destinationSiblings = sortSiblingsByPosition(
-    getAllSiblings(destinationParentId).filter((sibling) => sibling.id !== movedId),
+    getAllSiblings(destinationParentId, habitsById, getChildren)
+      .filter((sibling) => sibling.id !== movedId),
   )
 
-  // Translate filtered index -> full-list index using anchors.
-  let fullInsertIndex = destinationSiblings.length
-  if (afterAnchor && afterAnchor.id !== movedId) {
-    const idx = destinationSiblings.findIndex((s) => s.id === afterAnchor.id)
-    if (idx >= 0) fullInsertIndex = idx
-  } else if (beforeAnchor && beforeAnchor.id !== movedId) {
-    const idx = destinationSiblings.findIndex((s) => s.id === beforeAnchor.id)
-    if (idx >= 0) fullInsertIndex = idx + 1
-  } else if (newIndex === 0) {
-    fullInsertIndex = 0
-  }
+  const fullInsertIndex = resolveInsertIndex(
+    destinationSiblings, afterAnchor, beforeAnchor, movedId, newIndex,
+  )
 
   const mergedDestination: ReorderableHabitItem[] = [...destinationSiblings]
   mergedDestination.splice(fullInsertIndex, 0, { ...movedHabit, parentId: destinationParentId })
 
-  const positions: HabitReorderPosition[] = []
-  mergedDestination.forEach((sibling, index) => {
-    positions.push({ habitId: sibling.id, position: index })
-  })
+  const positions = siblingsToPositions(mergedDestination)
 
-  // If parent changed, also re-emit contiguous positions for the OLD parent
-  // group (the dragged habit is no longer in it).
   if (destinationParentId !== originalParentId) {
     const oldSiblings = sortSiblingsByPosition(
-      getAllSiblings(originalParentId).filter((sibling) => sibling.id !== movedId),
+      getAllSiblings(originalParentId, habitsById, getChildren)
+        .filter((sibling) => sibling.id !== movedId),
     )
-    oldSiblings.forEach((sibling, index) => {
-      positions.push({ habitId: sibling.id, position: index })
-    })
+    positions.push(...siblingsToPositions(oldSiblings))
   }
 
   return positions
