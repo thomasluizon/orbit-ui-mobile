@@ -32,6 +32,7 @@ import { TrialBanner } from '@/components/ui/trial-banner'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -256,9 +257,7 @@ export default function PreferencesScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardLabel}>{t('profile.colorScheme.title')}</Text>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
-            </View>
+            <ProBadge alwaysVisible />
           </View>
           <Text style={styles.cardDescription}>
             {t('profile.colorScheme.description')}
@@ -506,20 +505,6 @@ function createStyles(colors: AppColors) {
     cardHint: {
       fontSize: 12,
       color: colors.textMuted,
-    },
-
-    proBadge: {
-      backgroundColor: colors.primary_20,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 999,
-    },
-    proBadgeText: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: colors.primary,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
     },
 
     schemeRow: {

@@ -1151,10 +1151,12 @@ export function HabitFormFields({
               editable
               onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
-            <ChecklistTemplates
-              items={watchedChecklistItems ?? []}
-              onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
-            />
+            <div className="mt-2">
+              <ChecklistTemplates
+                items={watchedChecklistItems ?? []}
+                onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
+              />
+            </div>
           </fieldset>
 
           {/* End time */}

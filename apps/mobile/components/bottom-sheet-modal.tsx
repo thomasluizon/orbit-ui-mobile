@@ -6,7 +6,6 @@ import {
   type BottomSheetBackdropProps,
   type BottomSheetBackgroundProps,
 } from '@gorhom/bottom-sheet'
-import { BlurView } from 'expo-blur'
 import { X } from 'lucide-react-native'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -64,18 +63,9 @@ export function BottomSheetModal({
 
   const renderBackground = useCallback(
     ({ style }: BottomSheetBackgroundProps) => (
-      <View style={[style, sheetBgStyles.container]}>
-        <BlurView
-          intensity={32}
-          tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
-          style={[StyleSheet.absoluteFill, sheetBgStyles.blur]}
-        />
-        <View style={[StyleSheet.absoluteFill, sheetBgStyles.tint]} />
-        <View style={sheetBgStyles.topHighlight} />
-      </View>
+      <View style={[style, styles.sheetBackground]} />
     ),
-    [],
+    [styles.sheetBackground],
   )
 
   useEffect(() => {
@@ -165,31 +155,13 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    sheetBackground: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderMuted,
+      overflow: 'hidden',
+    },
   })
 }
-
-// Static styles for the blur background component (no theme dependency)
-const sheetBgStyles = StyleSheet.create({
-  container: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  blur: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  tint: {
-    backgroundColor: 'rgba(19,17,31,0.7)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  topHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-})

@@ -15,6 +15,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection, createAchievementsScreenStyles } from './achievements-sections'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -50,9 +51,7 @@ export default function AchievementsScreen() {
           </TouchableOpacity>
           <View style={styles.headerTitleRow}>
             <Text style={styles.headerTitle}>{t('gamification.title')}</Text>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{t('common.proBadge').toUpperCase()}</Text>
-            </View>
+            <ProBadge alwaysVisible />
           </View>
         </View>
 
@@ -161,19 +160,6 @@ function createStyles(colors: AppColors) {
       fontWeight: '700',
       color: colors.textPrimary,
       letterSpacing: -0.5,
-    },
-    proBadge: {
-      backgroundColor: colors.primary_20,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 999,
-    },
-    proBadgeText: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: colors.primary,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
     },
     lockedCard: {
       backgroundColor: colors.surface,

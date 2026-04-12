@@ -45,6 +45,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 // ---------------------------------------------------------------------------
 // API Keys types
@@ -229,9 +230,7 @@ export default function AdvancedScreen() {
           <View style={styles.developerHeader}>
             <View style={styles.labelRow}>
               <Text style={styles.cardLabel}>{t('orbitMcp.title')}</Text>
-              <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>{t('common.proBadge')}</Text>
-              </View>
+              <ProBadge alwaysVisible />
             </View>
             {!profile?.hasProAccess && (
               <TouchableOpacity
@@ -543,20 +542,6 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     color: colors.textMuted,
   },
 
-  // Pro badge
-  proBadge: {
-    backgroundColor: 'rgba(139,92,246,0.20)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  proBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   lockText: { fontSize: 12, fontWeight: '700', color: colors.primary },

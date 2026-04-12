@@ -51,6 +51,7 @@ import {
 } from "@/hooks/use-tags";
 import { AppDatePicker } from "@/components/ui/app-date-picker";
 import { AppSelect } from "@/components/ui/app-select";
+import { ProBadge } from "@/components/ui/pro-badge";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -788,11 +789,7 @@ function SlipAlertSection({
               >
                 {t("habits.form.slipAlert")}
               </Text>
-              <View style={sectionStyles.proBadge}>
-                <Text style={sectionStyles.proBadgeText}>
-                  {t("common.proBadge")}
-                </Text>
-              </View>
+              <ProBadge alwaysVisible />
             </View>
             <Text style={sectionStyles.slipDescription}>
               {t("habits.form.slipAlertDescription")}
@@ -1336,7 +1333,7 @@ export function HabitFormFields({
           </View>
 
           {/* Checklist */}
-          <View style={styles.fieldGroup}>
+          <View style={[styles.fieldGroup, { marginBottom: 8 }]}>
             <Text style={styles.label}>{t("habits.form.checklist")}</Text>
             <ChecklistTemplates
               items={watchedChecklistItems ?? []}
@@ -1703,19 +1700,6 @@ function createSectionStyles(colors: ThemeColors) {
       fontSize: 12,
       color: colors.textMuted,
       marginLeft: 24,
-    },
-    proBadge: {
-      backgroundColor: colors.primary_20,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-    },
-    proBadgeText: {
-      fontSize: 10,
-      fontWeight: "700",
-      color: colors.primary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
     },
     disabledSwitch: {
       width: 40,

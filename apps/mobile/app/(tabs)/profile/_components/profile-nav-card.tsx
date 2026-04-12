@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { Pressable, Text, View, StyleSheet } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
 import { createColors } from '@/lib/theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -51,9 +52,7 @@ export function ProfileNavCard({
           <View style={styles.navCardTitleRow}>
             <Text style={styles.navCardTitle}>{title}</Text>
             {proBadge && (
-              <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>{proBadgeLabel}</Text>
-              </View>
+              <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
             )}
           </View>
           <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
@@ -125,18 +124,8 @@ function createProfileNavCardStyles(colors: AppColors) {
       fontSize: 12,
       marginTop: 2,
     },
-    proBadge: {
-      backgroundColor: colors.primary_20,
-      borderRadius: 999,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
+    proBadgeSpacing: {
       marginLeft: 8,
-    },
-    proBadgeText: {
-      color: colors.primary,
-      fontSize: 9,
-      fontWeight: '700',
-      letterSpacing: 0.8,
     },
   })
 }

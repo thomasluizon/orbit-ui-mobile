@@ -43,6 +43,7 @@ import {
   collectVisibleHabitTreeIds,
   formatAPIDate,
   getHabitEmptyStateKey,
+  hasHabitScheduleOnDate,
   type ReorderableHabitItem,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
@@ -648,7 +649,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const parentIsDueToday =
       parentHabit.isGeneral ||
       parentHabit.isOverdue ||
-      parentHabit.scheduledDates.includes(selectedDateStr)
+      hasHabitScheduleOnDate(parentHabit, selectedDateStr)
     if (!parentIsDueToday) return
 
     const progress = getChildrenProgressForPrompt(parentHabit.id)
