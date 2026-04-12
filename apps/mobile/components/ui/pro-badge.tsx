@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,7 +16,21 @@ import { useProfile } from '@/hooks/use-profile'
 import { radius, durations, gradients, primaryRgba } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function ProBadge() {
+interface ProBadgeProps {
+  /**
+   * When true, the badge is always rendered regardless of the user's pro/trial status.
+   * Use this for UI labels that should always show the PRO badge (e.g. locked feature headers).
+   */
+  alwaysVisible?: boolean
+  /** Additional styles applied to the outer badge container. */
+  style?: ViewStyle
+  /** Additional styles applied to the badge label text. */
+  textStyle?: TextStyle
+  /** Override the badge label. Defaults to the i18n trial/pro label. */
+  label?: string
+}
+
+export function ProBadge({ alwaysVisible = false, style, textStyle, label }: ProBadgeProps) {
   const { t } = useTranslation()
   const { profile } = useProfile()
   const { colors, currentScheme } = useAppTheme()
@@ -24,11 +38,13 @@ export function ProBadge() {
   const isTrialActive = profile?.isTrialActive ?? false
   const hasProAccess = profile?.hasProAccess ?? false
 
+  const shouldRender = alwaysVisible || isTrialActive || hasProAccess
+
   const shimmer = useSharedValue(0)
   const [pillWidth, setPillWidth] = useState(0)
 
   useEffect(() => {
-    if (!isTrialActive && !hasProAccess) return
+    if (!shouldRender) return
 
     shimmer.value = withRepeat(
       withTiming(1, { duration: durations.shimmer, easing: Easing.inOut(Easing.ease) }),
@@ -39,7 +55,7 @@ export function ProBadge() {
     return () => {
       cancelAnimation(shimmer)
     }
-  }, [isTrialActive, hasProAccess, shimmer])
+  }, [shouldRender, shimmer])
 
   const animatedStyle = useAnimatedStyle(() => {
     const W = pillWidth > 0 ? pillWidth : 200
@@ -48,9 +64,9 @@ export function ProBadge() {
     }
   })
 
-  if (!isTrialActive && !hasProAccess) return null
+  if (!shouldRender) return null
 
-  const badgeLabel = isTrialActive ? t('trial.proBadge') : t('common.proBadge')
+  const badgeLabel = label ?? (isTrialActive ? t('trial.proBadge') : t('common.proBadge'))
 
   const shadowRgb = schemes[currentScheme]?.shadowRgb ?? '139, 92, 246'
   const shimmerColors = gradients.proShimmer(shadowRgb)
@@ -63,6 +79,7 @@ export function ProBadge() {
           backgroundColor: colors.primary_15,
           borderColor: primaryRgba(0.2, shadowRgb),
         },
+        style,
       ]}
       onLayout={(e) => setPillWidth(e.nativeEvent.layout.width)}
     >
@@ -75,7 +92,7 @@ export function ProBadge() {
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
-      <Text style={[styles.text, { color: colors.primary }]}>{badgeLabel}</Text>
+      <Text style={[styles.text, { color: colors.primary }, textStyle]}>{badgeLabel}</Text>
     </View>
   )
 }

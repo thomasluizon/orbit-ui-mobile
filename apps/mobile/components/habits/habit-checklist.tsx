@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native'
-import { GripHorizontal, X, Copy, Check, Plus } from 'lucide-react-native'
+import { ChevronUp, ChevronDown, X, Copy, Check, Plus } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { createColors, radius } from '@/lib/theme'
@@ -41,6 +41,10 @@ interface EditableChecklistItemProps {
   onUpdateText: (index: number, text: string) => void
   onDuplicate: (index: number) => void
   onRemove: (index: number) => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  isFirst: boolean
+  isLast: boolean
   styles: ReturnType<typeof createStyles>
   colors: AppColors
 }
@@ -51,6 +55,10 @@ function EditableChecklistItem({
   onUpdateText,
   onDuplicate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
   styles,
   colors,
 }: EditableChecklistItemProps) {
@@ -79,8 +87,25 @@ function EditableChecklistItem({
 
   return (
     <View style={styles.editableItem}>
-      <View style={styles.dragHandle}>
-        <GripHorizontal size={14} color={colors.textMuted} />
+      <View style={styles.moveButtons}>
+        <TouchableOpacity
+          style={styles.moveButton}
+          onPress={onMoveUp}
+          disabled={isFirst}
+          activeOpacity={0.7}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
+          <ChevronUp size={14} color={colors.textMuted} style={{ opacity: isFirst ? 0.3 : 1 }} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.moveButton}
+          onPress={onMoveDown}
+          disabled={isLast}
+          activeOpacity={0.7}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
+          <ChevronDown size={14} color={colors.textMuted} style={{ opacity: isLast ? 0.3 : 1 }} />
+        </TouchableOpacity>
       </View>
       <View style={styles.uncheckedBox} />
       <TextInput
@@ -169,6 +194,19 @@ export function HabitChecklist({
     [items, onItemsChange],
   )
 
+  const moveItem = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (toIndex < 0 || toIndex >= items.length) return
+      const next = [...items]
+      const spliced = next.splice(fromIndex, 1)
+      const moved = spliced[0]
+      if (!moved) return
+      next.splice(toIndex, 0, moved)
+      onItemsChange?.(next)
+    },
+    [items, onItemsChange],
+  )
+
   const clearAll = useCallback(() => {
     onItemsChange?.([])
   }, [onItemsChange])
@@ -224,6 +262,10 @@ export function HabitChecklist({
               onUpdateText={updateItemText}
               onDuplicate={duplicateItem}
               onRemove={removeItem}
+              onMoveUp={() => moveItem(index, index - 1)}
+              onMoveDown={() => moveItem(index, index + 1)}
+              isFirst={index === 0}
+              isLast={index === items.length - 1}
               styles={styles}
               colors={colors}
             />
@@ -357,9 +399,17 @@ function createStyles(colors: AppColors) {
     gap: 8,
     paddingVertical: 2,
   },
-  dragHandle: {
-    width: 14,
+  moveButtons: {
+    width: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  moveButton: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   uncheckedBox: {
     width: 16,

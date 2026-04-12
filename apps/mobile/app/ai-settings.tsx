@@ -33,6 +33,7 @@ import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 interface UserFact {
   id: string
@@ -253,9 +254,7 @@ export default function AiSettingsScreen() {
           <View style={styles.toggleHeader}>
             <View style={styles.labelRow}>
               <Text style={styles.cardLabel}>{t('profile.aiMemory.title')}</Text>
-              <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>{t('common.proBadge').toUpperCase()}</Text>
-              </View>
+              <ProBadge alwaysVisible />
             </View>
             {profile?.hasProAccess ? (
               <Switch
@@ -299,9 +298,7 @@ export default function AiSettingsScreen() {
           <View style={styles.toggleHeader}>
             <View style={styles.labelRow}>
               <Text style={styles.cardLabel}>{t('profile.aiSummary.title')}</Text>
-              <View style={styles.proBadge}>
-                <Text style={styles.proBadgeText}>{t('common.proBadge').toUpperCase()}</Text>
-              </View>
+              <ProBadge alwaysVisible />
             </View>
             {profile?.hasProAccess ? (
               <Switch
@@ -535,19 +532,6 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     textTransform: 'uppercase',
     letterSpacing: 1,
     color: colors.textMuted,
-  },
-  proBadge: {
-    backgroundColor: 'rgba(139,92,246,0.20)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  proBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   lockText: { fontSize: 12, fontWeight: '700', color: colors.primary },

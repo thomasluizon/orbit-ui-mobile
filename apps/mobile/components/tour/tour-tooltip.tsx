@@ -16,6 +16,7 @@ import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createColors } from '@/lib/theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -89,9 +90,7 @@ export function TourTooltip({
             })}
           </Text>
           {step.proBadge && (
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{t('tour.ui.pro')}</Text>
-            </View>
+            <ProBadge alwaysVisible label={t('tour.ui.pro')} style={styles.proBadgeSpacing} />
           )}
         </View>
 
@@ -212,18 +211,8 @@ function createTooltipStyles(colors: AppColors) {
       fontSize: 12,
       color: colors.textMuted,
     },
-    proBadge: {
-      marginLeft: 'auto',
-      backgroundColor: colors.primary_20,
-      borderRadius: 999,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-    proBadgeText: {
-      color: colors.primary,
-      fontSize: 9,
-      fontWeight: '700',
-      letterSpacing: 0.8,
+    proBadgeSpacing: {
+      marginLeft: 'auto' as const,
     },
     title: {
       fontSize: 16,
