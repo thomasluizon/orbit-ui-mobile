@@ -3,7 +3,10 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+
+const TODAY = formatAPIDate(new Date())
 
 // ---------------------------------------------------------------------------
 // Mocks - must be defined before importing the component
@@ -393,6 +396,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
+      scheduledDates: [TODAY],
     })
     const child = createMockHabit({
       id: 'child',
@@ -422,12 +426,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
+      scheduledDates: [TODAY],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
+      scheduledDates: [TODAY],
     })
     const child = createMockHabit({
       id: 'child',

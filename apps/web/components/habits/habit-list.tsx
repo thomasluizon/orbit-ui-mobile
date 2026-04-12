@@ -730,6 +730,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     if (!child?.parentId) return
     const parent = habitsById.get(child.parentId)
     if (!parent || parent.isCompleted) return
+
+    // Only prompt if the parent itself is due today, overdue, or a general habit
+    const parentIsDueToday =
+      parent.isGeneral ||
+      parent.isOverdue ||
+      parent.scheduledDates.includes(selectedDateStr)
+    if (!parentIsDueToday) return
+
     const { done, total } = getChildrenProgressForPrompt(parent.id)
     if (total > 0 && done >= total) {
       setAutoLogParentId(parent.id)
