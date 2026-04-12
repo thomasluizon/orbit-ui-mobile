@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
-import Constants from 'expo-constants'
+import Constants, { AppOwnership } from 'expo-constants'
 import { useTranslation } from 'react-i18next'
 import { CHAT_SPEECH_LANG_KEY, getDefaultChatSpeechLanguage } from '@orbit/shared/chat'
+import {
+  buildSpeechRecognitionStartConfig,
+  resolveSpeechTranscript,
+} from '@/lib/speech-to-text'
 export {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
 
-interface SpeechResult {
-  transcript: string
-}
-
 interface SpeechResultEvent {
-  results: SpeechResult[]
+  isFinal?: boolean
+  results: Array<{ transcript: string }>
 }
 
 interface SpeechErrorEvent {
@@ -29,6 +30,7 @@ interface SpeechRecognitionModule {
       lang: string
       interimResults: boolean
       continuous: boolean
+      maxAlternatives?: number
       androidIntentOptions?: Record<string, boolean | number>
     }) => void
     stop: () => void
@@ -43,7 +45,7 @@ interface SpeechRecognitionModule {
 function getSpeechModule(): SpeechRecognitionModule | null {
   if (Platform.OS === 'web') return null
   // expo-speech-recognition is unavailable in Expo Go because the native module isn't bundled there.
-  if (Constants.executionEnvironment === 'expoGo') return null
+  if (Constants.appOwnership === AppOwnership.Expo) return null
 
   try {
     return require('expo-speech-recognition') as SpeechRecognitionModule
@@ -139,12 +141,7 @@ export function useSpeechToText() {
 
   speechEventHook('result', (event: SpeechResultEvent | SpeechErrorEvent) => {
     const resultEvent = event as SpeechResultEvent
-    const nextTranscript = (resultEvent.results ?? [])
-      .map((result) => result.transcript.trim())
-      .filter(Boolean)
-      .join(' ')
-
-    setTranscript(nextTranscript)
+    setTranscript(resolveSpeechTranscript(resultEvent.results))
   })
 
   speechEventHook('error', (event: SpeechResultEvent | SpeechErrorEvent) => {
@@ -180,15 +177,9 @@ export function useSpeechToText() {
     }
 
     try {
-      speechModule.ExpoSpeechRecognitionModule.start({
-        lang: selectedLanguage,
-        interimResults: true,
-        continuous: true,
-        androidIntentOptions: {
-          EXTRA_MASK_OFFENSIVE_WORDS: false,
-          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
-        },
-      })
+      speechModule.ExpoSpeechRecognitionModule.start(
+        buildSpeechRecognitionStartConfig(selectedLanguage),
+      )
     } catch {
       setError(t('speech.failedToStart'))
       setIsRecording(false)
