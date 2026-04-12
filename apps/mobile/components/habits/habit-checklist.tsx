@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -30,6 +30,73 @@ interface HabitChecklistProps {
 }
 
 type AppColors = ReturnType<typeof createColors>
+
+// ---------------------------------------------------------------------------
+// EditableChecklistItem -- local state avoids parent re-render per keystroke
+// ---------------------------------------------------------------------------
+
+interface EditableChecklistItemProps {
+  text: string
+  index: number
+  onUpdateText: (index: number, text: string) => void
+  onDuplicate: (index: number) => void
+  onRemove: (index: number) => void
+  styles: ReturnType<typeof createStyles>
+  colors: AppColors
+}
+
+function EditableChecklistItem({
+  text,
+  index,
+  onUpdateText,
+  onDuplicate,
+  onRemove,
+  styles,
+  colors,
+}: EditableChecklistItemProps) {
+  const [localText, setLocalText] = useState(text)
+
+  // Sync from parent when items array changes externally (e.g. template load)
+  useEffect(() => {
+    setLocalText(text)
+  }, [text])
+
+  const handleBlur = useCallback(() => {
+    if (localText !== text) {
+      onUpdateText(index, localText)
+    }
+  }, [localText, text, index, onUpdateText])
+
+  return (
+    <View style={styles.editableItem}>
+      <View style={styles.dragHandle}>
+        <GripHorizontal size={14} color={colors.textMuted} />
+      </View>
+      <View style={styles.uncheckedBox} />
+      <TextInput
+        value={localText}
+        style={styles.itemTextInput}
+        placeholderTextColor={colors.textMuted}
+        onChangeText={setLocalText}
+        onBlur={handleBlur}
+      />
+      <TouchableOpacity
+        style={styles.itemAction}
+        onPress={() => onDuplicate(index)}
+        activeOpacity={0.7}
+      >
+        <Copy size={14} color={colors.textMuted} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.itemAction}
+        onPress={() => onRemove(index)}
+        activeOpacity={0.7}
+      >
+        <X size={14} color={colors.textMuted} />
+      </TouchableOpacity>
+    </View>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -140,32 +207,16 @@ export function HabitChecklist({
       {editable ? (
         <View style={styles.itemsList}>
           {items.map((item, index) => (
-            <View key={`${item.text}-${index}`} style={styles.editableItem}>
-              <View style={styles.dragHandle}>
-                <GripHorizontal size={14} color={colors.textMuted} />
-              </View>
-              <View style={styles.uncheckedBox} />
-              <TextInput
-                value={item.text}
-                style={styles.itemTextInput}
-                placeholderTextColor={colors.textMuted}
-                onChangeText={(text) => updateItemText(index, text)}
-              />
-              <TouchableOpacity
-                style={styles.itemAction}
-                onPress={() => duplicateItem(index)}
-                activeOpacity={0.7}
-              >
-                <Copy size={14} color={colors.textMuted} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.itemAction}
-                onPress={() => removeItem(index)}
-                activeOpacity={0.7}
-              >
-                <X size={14} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+            <EditableChecklistItem
+              key={`edit-${index}`}
+              text={item.text}
+              index={index}
+              onUpdateText={updateItemText}
+              onDuplicate={duplicateItem}
+              onRemove={removeItem}
+              styles={styles}
+              colors={colors}
+            />
           ))}
         </View>
       ) : (

@@ -644,12 +644,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const parentHabit = habitsById.get(childHabit.parentId)
     if (!parentHabit || parentHabit.isCompleted) return
 
+    // Only prompt if the parent itself is due today, overdue, or a general habit
+    const parentIsDueToday =
+      parentHabit.isGeneral ||
+      parentHabit.isOverdue ||
+      parentHabit.scheduledDates.includes(selectedDateStr)
+    if (!parentIsDueToday) return
+
     const progress = getChildrenProgressForPrompt(parentHabit.id)
     if (progress.total > 0 && progress.done >= progress.total) {
       setAutoLogParentId(parentHabit.id)
       setShowAutoLogParent(true)
     }
-  }, [getChildrenProgressForPrompt, habitsById])
+  }, [getChildrenProgressForPrompt, habitsById, selectedDateStr])
 
   const confirmAutoLogParent = useCallback(async () => {
     const parentId = autoLogParentId

@@ -19,6 +19,8 @@ interface BottomSheetModalProps {
   open: boolean
   onClose: () => void
   title?: string
+  /** Change this value to force re-present when `open` stays true (e.g. switching content). */
+  contentKey?: string
   snapPoints?: (string | number)[]
   children: ReactNode
 }
@@ -31,6 +33,7 @@ export function BottomSheetModal({
   open,
   onClose,
   title,
+  contentKey,
   snapPoints: snapPointsProp,
   children,
 }: BottomSheetModalProps) {
@@ -85,7 +88,7 @@ export function BottomSheetModal({
     } else {
       bottomSheetRef.current?.dismiss()
     }
-  }, [open])
+  }, [open, contentKey])
 
   const handleDismiss = useCallback(() => {
     if (isOpenRef.current) {
@@ -103,6 +106,9 @@ export function BottomSheetModal({
       backdropComponent={renderBackdrop}
       backgroundComponent={renderBackground}
       enablePanDownToClose
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       handleIndicatorStyle={styles.handleIndicator}
     >
       {title ? (

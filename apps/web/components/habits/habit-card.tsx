@@ -89,14 +89,13 @@ interface ArticleClassNameOptions {
   status: HabitCardStatus
   isDoneForRange: boolean
   isNotDueToday: boolean
-  showActionsMenu: boolean
   isSelected: boolean
   justCompleted: boolean
   justCreated: boolean
 }
 
 function buildArticleClassName(opts: ArticleClassNameOptions): string {
-  const { isChild, status, isDoneForRange, isNotDueToday, showActionsMenu, isSelected, justCompleted, justCreated } = opts
+  const { isChild, status, isDoneForRange, isNotDueToday, isSelected, justCompleted, justCreated } = opts
   const classes: string[] = ['cursor-pointer']
 
   if (isChild) {
@@ -107,7 +106,6 @@ function buildArticleClassName(opts: ArticleClassNameOptions): string {
   if (!isChild && status === 'due-today') classes.push('habit-status-due pl-4 sm:pl-5')
   if (!isChild && status === 'overdue') classes.push('habit-status-overdue pl-4 sm:pl-5')
   if (isDoneForRange || isNotDueToday) classes.push('opacity-40')
-  if (showActionsMenu) classes.push('relative z-20')
   if (isSelected) classes.push('ring-2 ring-primary ring-offset-2 ring-offset-background')
   if (justCompleted) classes.push('animate-complete-glow')
   if (justCreated) classes.push('animate-creation-glow')
@@ -1110,7 +1108,7 @@ export const HabitCard = React.memo(function HabitCard({
 
   const articleClassName = buildArticleClassName({
     isChild, status, isDoneForRange, isNotDueToday,
-    showActionsMenu, isSelected, justCompleted, justCreated,
+    isSelected, justCompleted, justCreated,
   })
 
   return (

@@ -125,7 +125,7 @@ export function HabitDetailDrawer({
         setShowChecklistCompleteConfirm(true);
       }
     },
-    [habit, updateChecklist, logHabit, onLogged, t],
+    [habit, updateChecklist],
   );
 
   const handleChecklistReset = useCallback(() => {
@@ -173,6 +173,7 @@ export function HabitDetailDrawer({
         open={open}
         onClose={onClose}
         title={habit?.title}
+        contentKey={habitId}
         snapPoints={["68%", "92%"]}
       >
         {habit && (
