@@ -1,9 +1,12 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitCard } from '@/components/habit-card'
+
+const TODAY = formatAPIDate(new Date())
 
 const TestRenderer = require('react-test-renderer')
 
@@ -412,6 +415,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
+      scheduledDates: [TODAY],
     })
     const child = createMockHabit({
       id: 'child',
@@ -452,12 +456,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
+      scheduledDates: [TODAY],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
+      scheduledDates: [TODAY],
     })
     const child = createMockHabit({
       id: 'child',

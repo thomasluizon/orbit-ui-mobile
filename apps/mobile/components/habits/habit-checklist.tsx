@@ -61,11 +61,21 @@ function EditableChecklistItem({
     setLocalText(text)
   }, [text])
 
-  const handleBlur = useCallback(() => {
+  const flushLocalText = useCallback(() => {
     if (localText !== text) {
       onUpdateText(index, localText)
     }
   }, [localText, text, index, onUpdateText])
+
+  const handleDuplicate = useCallback(() => {
+    flushLocalText()
+    onDuplicate(index)
+  }, [flushLocalText, onDuplicate, index])
+
+  const handleRemove = useCallback(() => {
+    flushLocalText()
+    onRemove(index)
+  }, [flushLocalText, onRemove, index])
 
   return (
     <View style={styles.editableItem}>
@@ -78,18 +88,18 @@ function EditableChecklistItem({
         style={styles.itemTextInput}
         placeholderTextColor={colors.textMuted}
         onChangeText={setLocalText}
-        onBlur={handleBlur}
+        onBlur={flushLocalText}
       />
       <TouchableOpacity
         style={styles.itemAction}
-        onPress={() => onDuplicate(index)}
+        onPress={handleDuplicate}
         activeOpacity={0.7}
       >
         <Copy size={14} color={colors.textMuted} />
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.itemAction}
-        onPress={() => onRemove(index)}
+        onPress={handleRemove}
         activeOpacity={0.7}
       >
         <X size={14} color={colors.textMuted} />
