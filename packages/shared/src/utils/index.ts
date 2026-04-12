@@ -226,6 +226,7 @@ export {
   determineHabitDayStatus,
   getHabitEmptyStateKey,
   hasAncestorInSet,
+  hasHabitScheduleOnDate,
 } from './habits'
 export {
   buildHabitCalendarDayCells,

@@ -22,6 +22,7 @@ import {
   collectVisibleHabitTreeIds,
   formatAPIDate,
   getHabitEmptyStateKey,
+  hasHabitScheduleOnDate,
 } from '@orbit/shared/utils'
 import { HabitCard } from './habit-card'
 import { HabitDetailDrawer } from './habit-detail-drawer'
@@ -735,7 +736,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const parentIsDueToday =
       parent.isGeneral ||
       parent.isOverdue ||
-      parent.scheduledDates.includes(selectedDateStr)
+      hasHabitScheduleOnDate(parent, selectedDateStr)
     if (!parentIsDueToday) return
 
     const { done, total } = getChildrenProgressForPrompt(parent.id)

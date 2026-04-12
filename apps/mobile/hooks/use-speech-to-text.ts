@@ -42,7 +42,8 @@ interface SpeechRecognitionModule {
 
 function getSpeechModule(): SpeechRecognitionModule | null {
   if (Platform.OS === 'web') return null
-  if (Constants.executionEnvironment === 'storeClient') return null
+  // expo-speech-recognition is unavailable in Expo Go because the native module isn't bundled there.
+  if (Constants.executionEnvironment === 'expoGo') return null
 
   try {
     return require('expo-speech-recognition') as SpeechRecognitionModule
