@@ -50,7 +50,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50">
+    <nav data-bottom-nav="" className="fixed bottom-0 left-0 right-0 z-50">
       <div className="nav-glass border-t border-border-muted pb-[var(--safe-bottom)]">
         <div className="flex items-center justify-around h-20 max-w-[var(--app-max-w)] mx-auto px-[var(--app-px)] relative">
           {/* First two nav items */}
