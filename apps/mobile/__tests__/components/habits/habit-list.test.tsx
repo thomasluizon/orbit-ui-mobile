@@ -7,6 +7,7 @@ import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitCard } from '@/components/habit-card'
 
 const TODAY = formatAPIDate(new Date())
+const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -449,6 +450,92 @@ describe('HabitList', () => {
       .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
 
     expect(autoLogDialog?.props.description).toContain('"Parent"')
+  })
+
+  it('prompts an overdue parent when the last child is marked completed', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      isOverdue: true,
+      scheduledDates: [],
+      instances: [],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+    seedHabits([parent, child])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.markRecentlyCompleted('child')
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    const autoLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(autoLogDialog?.props.description).toContain('"Parent"')
+  })
+
+  it('does not prompt a parent that is only due in the future', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      dueDate: TOMORROW,
+      scheduledDates: [TOMORROW],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+    seedHabits([parent, child])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.markRecentlyCompleted('child')
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    const autoLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(autoLogDialog).toBeUndefined()
   })
 
   it('re-prompts the next ancestor after confirming an auto-log parent action', async () => {

@@ -7,6 +7,7 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 const TODAY = formatAPIDate(new Date())
+const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 
 // ---------------------------------------------------------------------------
 // Mocks - must be defined before importing the component
@@ -419,6 +420,70 @@ describe('HabitList', () => {
     })
 
     expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+  })
+
+  it('prompts an overdue parent when the last child is marked completed', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      isOverdue: true,
+      scheduledDates: [],
+      instances: [],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => {
+      ref.current?.markRecentlyCompleted('child')
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+  })
+
+  it('does not prompt a parent that is only due in the future', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      dueDate: TOMORROW,
+      scheduledDates: [TOMORROW],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => {
+      ref.current?.markRecentlyCompleted('child')
+      ref.current?.checkAndPromptParentLog('child')
+    })
+
+    expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
   })
 
   it('re-prompts the next ancestor after confirming an auto-log parent action', async () => {
