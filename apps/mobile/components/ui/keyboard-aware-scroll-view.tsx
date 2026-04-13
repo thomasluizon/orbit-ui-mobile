@@ -13,15 +13,19 @@ import {
   type RefObject,
 } from 'react'
 import {
+  Dimensions,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
+  UIManager,
   findNodeHandle,
   type FlatListProps,
   type KeyboardAvoidingViewProps,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
@@ -67,12 +71,23 @@ type KeyboardAwareScrollable = {
     additionalOffset?: number,
     preventNegativeScrollOffset?: boolean,
   ) => void
+  scrollTo?: (
+    y?: number | { x?: number; y?: number; animated?: boolean },
+    x?: number,
+    animated?: boolean,
+  ) => void
+  scrollToOffset?: (params: { animated?: boolean | null; offset: number }) => void
 }
 
 type KeyboardAwareInputTarget = Parameters<typeof findNodeHandle>[0]
 
+interface KeyboardAwareKeyboardFrame {
+  top: number
+}
+
 interface KeyboardAwareContextValue {
   revealInput: (input: KeyboardAwareInputTarget) => void
+  handleScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
 }
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
@@ -87,9 +102,11 @@ function resolveKeyboardBehavior(
 function scrollFocusedInputIntoView(
   scrollable: KeyboardAwareScrollable | null,
   input: KeyboardAwareInputTarget,
+  keyboardFrame: KeyboardAwareKeyboardFrame | null,
+  currentScrollY: number,
   additionalOffset: number,
 ) {
-  if (!scrollable || !input) {
+  if (!scrollable || !input || !keyboardFrame) {
     return
   }
 
@@ -100,27 +117,51 @@ function scrollFocusedInputIntoView(
     return
   }
 
-  if (
-    typeof scrollable.scrollResponderScrollNativeHandleToKeyboard === 'function'
-  ) {
-    scrollable.scrollResponderScrollNativeHandleToKeyboard(
+  UIManager.measureInWindow(nodeHandle, (_x, y, _width, height) => {
+    const desiredBottom = keyboardFrame.top - additionalOffset
+    const inputBottom = y + height
+
+    if (inputBottom <= desiredBottom) {
+      return
+    }
+
+    const nextScrollY = Math.max(
+      0,
+      currentScrollY + (inputBottom - desiredBottom),
+    )
+
+    if (typeof scrollable.scrollToOffset === 'function') {
+      scrollable.scrollToOffset({ offset: nextScrollY, animated: true })
+      return
+    }
+
+    if (typeof scrollable.scrollTo === 'function') {
+      scrollable.scrollTo({ y: nextScrollY, animated: true })
+      return
+    }
+
+    if (
+      typeof scrollable.scrollResponderScrollNativeHandleToKeyboard === 'function'
+    ) {
+      scrollable.scrollResponderScrollNativeHandleToKeyboard(
+        nodeHandle,
+        additionalOffset,
+        true,
+      )
+      return
+    }
+
+    const responder =
+      typeof scrollable.getScrollResponder === 'function'
+        ? scrollable.getScrollResponder()
+        : null
+
+    responder?.scrollResponderScrollNativeHandleToKeyboard?.(
       nodeHandle,
       additionalOffset,
       true,
     )
-    return
-  }
-
-  const responder =
-    typeof scrollable.getScrollResponder === 'function'
-      ? scrollable.getScrollResponder()
-      : null
-
-  responder?.scrollResponderScrollNativeHandleToKeyboard?.(
-    nodeHandle,
-    additionalOffset,
-    true,
-  )
+  })
 }
 
 function useKeyboardAwareContextValue(
@@ -129,6 +170,15 @@ function useKeyboardAwareContextValue(
 ) {
   const focusedInputRef = useRef<KeyboardAwareInputTarget>(null)
   const keyboardVisibleRef = useRef(false)
+  const keyboardFrameRef = useRef<KeyboardAwareKeyboardFrame | null>(null)
+  const scrollOffsetYRef = useRef(0)
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y
+    },
+    [],
+  )
 
   const revealInput = useCallback(
     (input: KeyboardAwareInputTarget) => {
@@ -142,6 +192,8 @@ function useKeyboardAwareContextValue(
         scrollFocusedInputIntoView(
           scrollableRef.current,
           input,
+          keyboardFrameRef.current,
+          scrollOffsetYRef.current,
           keyboardVerticalOffset + 24,
         )
       })
@@ -155,8 +207,21 @@ function useKeyboardAwareContextValue(
     const hideEvent =
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
 
-    const handleKeyboardShow = () => {
+    const handleKeyboardShow = (
+      event?: {
+        endCoordinates?: {
+          screenY?: number
+          height?: number
+        }
+      },
+    ) => {
       keyboardVisibleRef.current = true
+      const screenHeight = Dimensions.get('window').height
+      const keyboardTop =
+        event?.endCoordinates?.screenY ??
+        screenHeight - (event?.endCoordinates?.height ?? 0)
+
+      keyboardFrameRef.current = { top: keyboardTop }
       const focusedInput = focusedInputRef.current
 
       if (!focusedInput) {
@@ -167,6 +232,8 @@ function useKeyboardAwareContextValue(
         scrollFocusedInputIntoView(
           scrollableRef.current,
           focusedInput,
+          keyboardFrameRef.current,
+          scrollOffsetYRef.current,
           keyboardVerticalOffset + 24,
         )
       }, 40)
@@ -174,6 +241,7 @@ function useKeyboardAwareContextValue(
 
     const handleKeyboardHide = () => {
       keyboardVisibleRef.current = false
+      keyboardFrameRef.current = null
     }
 
     const showSubscription = Keyboard.addListener(showEvent, handleKeyboardShow)
@@ -188,8 +256,9 @@ function useKeyboardAwareContextValue(
   return useMemo(
     () => ({
       revealInput,
+      handleScroll,
     }),
-    [revealInput],
+    [handleScroll, revealInput],
   )
 }
 
@@ -228,6 +297,13 @@ export function KeyboardAwareScrollView({
     scrollRef as RefObject<KeyboardAwareScrollable | null>,
     keyboardVerticalOffset,
   )
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      keyboardAwareContext.handleScroll(event)
+      props.onScroll?.(event)
+    },
+    [keyboardAwareContext, props],
+  )
 
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
@@ -242,6 +318,7 @@ export function KeyboardAwareScrollView({
           keyboardShouldPersistTaps={keyboardShouldPersistTaps}
           contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
           automaticallyAdjustKeyboardInsets
+          onScroll={handleScroll}
         >
           {children}
         </ScrollView>
@@ -261,6 +338,13 @@ export function KeyboardAwareBottomSheetScrollView({
     scrollRef as RefObject<KeyboardAwareScrollable | null>,
     keyboardVerticalOffset,
   )
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      keyboardAwareContext.handleScroll(event)
+      props.onScroll?.(event)
+    },
+    [keyboardAwareContext, props],
+  )
 
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
@@ -268,6 +352,7 @@ export function KeyboardAwareBottomSheetScrollView({
         {...props}
         ref={scrollRef}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+        onScroll={handleScroll}
       >
         {children}
       </BottomSheetScrollView>
@@ -303,10 +388,17 @@ function KeyboardAwareFlatListInner<ItemT>(
     },
     [ref],
   )
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      keyboardAwareContext.handleScroll(event)
+      props.onScroll?.(event)
+    },
+    [keyboardAwareContext, props],
+  )
 
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
-      <FlatList {...props} ref={assignRef} />
+      <FlatList {...props} ref={assignRef} onScroll={handleScroll} />
     </KeyboardAwareContext.Provider>
   )
 }
