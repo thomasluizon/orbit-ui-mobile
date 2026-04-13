@@ -56,6 +56,7 @@ import {
   useReorderHabits,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useAdMob } from '@/hooks/use-ad-mob'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
@@ -254,6 +255,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const duplicateMutation = useDuplicateHabit()
   const reorderHabitsMutation = useReorderHabits()
   const moveParentMutation = useMoveHabitParent()
+  const { showInterstitialIfDue } = useAdMob()
   const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
@@ -659,6 +661,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }, [getChildrenProgressForPrompt, habitsById, selectedDateStr])
 
+  const handleLogged = useCallback((habitId: string, markAsRecentlyCompleted = true) => {
+    if (markAsRecentlyCompleted) {
+      markRecentlyCompleted(habitId)
+    }
+
+    checkAndPromptParentLog(habitId)
+    void showInterstitialIfDue()
+  }, [checkAndPromptParentLog, markRecentlyCompleted, showInterstitialIfDue])
+
+  const handleDirectLog = useCallback(async (habitId: string) => {
+    try {
+      await logMutation.mutateAsync({ habitId })
+      handleLogged(habitId)
+    } catch {
+      // Error handled by mutation
+    }
+  }, [handleLogged, logMutation])
+
   const confirmAutoLogParent = useCallback(async () => {
     const parentId = autoLogParentId
     if (!parentId) return
@@ -669,11 +689,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     try {
       await logMutation.mutateAsync({ habitId: parentId })
-      checkAndPromptParentLog(parentId)
+      handleLogged(parentId, false)
     } catch {
       // Error handled by mutation
     }
-  }, [autoLogParentId, checkAndPromptParentLog, logMutation, markRecentlyCompleted])
+  }, [autoLogParentId, handleLogged, logMutation, markRecentlyCompleted])
 
   const promptForceLogParent = useCallback((habitId: string) => {
     setForceLogHabitId(habitId)
@@ -687,13 +707,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     try {
       await logMutation.mutateAsync({ habitId: forceLogHabitId })
+      handleLogged(forceLogHabitId, false)
     } catch {
       // Error handled by mutation
     } finally {
       setForceLogHabitId(null)
       setShowForceLogConfirm(false)
     }
-  }, [forceLogHabitId, logMutation, markRecentlyCompleted])
+  }, [forceLogHabitId, handleLogged, logMutation, markRecentlyCompleted])
 
   const handleSkip = useCallback(async (habitId: string) => {
     try {
@@ -1034,7 +1055,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
                 onLogHabit(habit)
                 return
               }
-              logMutation.mutate({ habitId: habit.id })
+              void handleDirectLog(habit.id)
             },
             onUnlog: () => logMutation.mutate({ habitId: habit.id }),
             onSkip: () => {

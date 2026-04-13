@@ -172,6 +172,20 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
       : null,
 }))
 
+vi.mock('@/hooks/use-ad-mob', () => ({
+  useAdMob: () => ({
+    isInitialized: true,
+    canClaimReward: true,
+    rewardsClaimedToday: 0,
+    dailyRewardCap: 3,
+    shouldShowAds: () => true,
+    initialize: async () => {},
+    showInterstitialIfDue: async () => {},
+    showRewardedAd: async () => false,
+    markRewardClaimed: () => {},
+  }),
+}))
+
 vi.mock('@/components/ui/app-date-picker', () => ({
   AppDatePicker: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
     React.createElement('TextInput', {

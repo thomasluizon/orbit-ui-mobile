@@ -60,6 +60,14 @@ describe('proxy', () => {
       expect(NextResponse.next).toHaveBeenCalled()
     })
 
+    it('allows unauthenticated access to /app-ads.txt', () => {
+      const request = createRequest('/app-ads.txt')
+      proxy(request)
+
+      expect(NextResponse.next).toHaveBeenCalled()
+      expect(NextResponse.redirect).not.toHaveBeenCalled()
+    })
+
     it('allows unauthenticated access to /r/ base path', () => {
       const request = createRequest('/r/')
       proxy(request)
@@ -96,6 +104,14 @@ describe('proxy', () => {
       proxy(request)
 
       expect(NextResponse.next).toHaveBeenCalled()
+    })
+
+    it('passes through /app-ads.txt as a public static asset', () => {
+      const request = createRequest('/app-ads.txt')
+      proxy(request)
+
+      expect(NextResponse.next).toHaveBeenCalled()
+      expect(NextResponse.redirect).not.toHaveBeenCalled()
     })
   })
 

@@ -43,6 +43,7 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
+import { useAdMob } from '@/hooks/use-ad-mob'
 import { useProfile } from '@/hooks/use-profile'
 import {
   useHabits,
@@ -97,6 +98,7 @@ export default function TodayScreen() {
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
   const styles = useMemo(() => createStyles(colors), [colors])
 
+  const { showInterstitialIfDue } = useAdMob()
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
@@ -484,7 +486,8 @@ export default function TodayScreen() {
   const handleHabitLogged = useCallback((habitId: string) => {
     habitListRef.current?.markRecentlyCompleted(habitId)
     habitListRef.current?.checkAndPromptParentLog(habitId)
-  }, [])
+    void showInterstitialIfDue()
+  }, [showInterstitialIfDue])
 
   const handleListScrollBeginDrag = useCallback(() => {
     setShowControlsMenu(false)

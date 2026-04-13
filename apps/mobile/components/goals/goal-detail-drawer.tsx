@@ -43,6 +43,7 @@ import {
   useUpdateGoalStatus,
   useDeleteGoal,
 } from '@/hooks/use-goals'
+import { useAdMob } from '@/hooks/use-ad-mob'
 import { radius } from '@/lib/theme'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -75,6 +76,7 @@ export function GoalDetailDrawer({
   )
   const { showError } = useAppToast()
   const { colors } = useAppTheme()
+  const { showInterstitialIfDue } = useAdMob()
   const insets = useSafeAreaInsets()
   const locale = i18n.language
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -178,11 +180,21 @@ export function GoalDetailDrawer({
       setProgressValue('')
       setProgressNote('')
       setShowProgressForm(false)
-      refetchDetail()
+      await refetchDetail()
+      void showInterstitialIfDue()
     } catch (error) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.progress', 'goalProgress'))
     }
-  }, [goalId, progressNote, progressValue, refetchDetail, showError, translate, updateProgress])
+  }, [
+    goalId,
+    progressNote,
+    progressValue,
+    refetchDetail,
+    showError,
+    showInterstitialIfDue,
+    translate,
+    updateProgress,
+  ])
 
   const markCompleted = useCallback(async () => {
     if (isUpdatingStatus) return

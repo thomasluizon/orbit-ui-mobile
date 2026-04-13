@@ -1,6 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/auth-callback', '/r/', '/privacy', '/.well-known']
+const PUBLIC_PATHS = [
+  '/login',
+  '/auth-callback',
+  '/r/',
+  '/privacy',
+  '/.well-known',
+  '/app-ads.txt',
+]
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
@@ -14,7 +21,11 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value
 
   // Allow API routes and static assets to pass through
-  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/')) {
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname === '/app-ads.txt'
+  ) {
     return NextResponse.next()
   }
 
@@ -50,6 +61,6 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico, icons, images
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|app-ads\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

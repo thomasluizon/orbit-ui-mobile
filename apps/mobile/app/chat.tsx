@@ -41,6 +41,7 @@ import { habitKeys, profileKeys } from "@orbit/shared/query";
 import type { ChatMessage, ChatResponse } from "@orbit/shared/types/chat";
 import type { Profile } from "@orbit/shared/types/profile";
 import { getErrorMessage } from "@orbit/shared/utils";
+import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { useHabitDetail } from "@/hooks/use-habits";
@@ -62,6 +63,11 @@ import { habitDetailToNormalized } from "@orbit/shared/utils";
 
 type AppColors = ReturnType<typeof createColors>;
 type ChatStyles = ReturnType<typeof createStyles>;
+
+interface AdRewardResponse {
+  bonusMessagesGranted: number;
+  newLimit: number;
+}
 
 function AnimatedSparkle({
   primaryColor,
@@ -192,6 +198,15 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
+  const {
+    isInitialized: adMobReady,
+    canClaimReward,
+    rewardsClaimedToday,
+    dailyRewardCap,
+    shouldShowAds,
+    showRewardedAd,
+    markRewardClaimed,
+  } = useAdMob();
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
@@ -223,11 +238,16 @@ export default function ChatScreen() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [keyboardInset, setKeyboardInset] = useState(0);
+  const [isLoadingReward, setIsLoadingReward] = useState(false);
+  const [rewardMessage, setRewardMessage] = useState<string | null>(null);
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 10;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
+  const adsEnabledForUser = shouldShowAds();
+  const canWatchRewardAd =
+    adsEnabledForUser && adMobReady && canClaimReward && !isLoadingReward;
   const canSend =
     (input.trim().length > 0 || selectedImage !== null) &&
     !isTyping &&
@@ -490,6 +510,49 @@ export default function ChatScreen() {
   const handleSend = useCallback(() => {
     sendMessage();
   }, [sendMessage]);
+
+  const watchAdForMessages = useCallback(async () => {
+    if (!canWatchRewardAd) {
+      return;
+    }
+
+    setIsLoadingReward(true);
+    setRewardMessage(null);
+    setShowLangPicker(false);
+
+    try {
+      const rewardEarned = await showRewardedAd();
+      if (!rewardEarned) {
+        setRewardMessage(t("ads.rewardFailed"));
+        return;
+      }
+
+      const response = await apiClient<AdRewardResponse>(API.subscription.adReward, {
+        method: "POST",
+      });
+
+      markRewardClaimed();
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
+        current
+          ? {
+              ...current,
+              aiMessagesLimit: response.newLimit,
+            }
+          : current,
+      );
+      setRewardMessage(t("ads.rewardGranted"));
+    } catch {
+      setRewardMessage(t("ads.rewardFailed"));
+    } finally {
+      setIsLoadingReward(false);
+    }
+  }, [
+    canWatchRewardAd,
+    markRewardClaimed,
+    queryClient,
+    showRewardedAd,
+    t,
+  ]);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleBreakdownConfirmed = useCallback(() => {
@@ -781,9 +844,39 @@ export default function ChatScreen() {
           </View>
 
           {!hasProAccess && atMessageLimit && (
-            <Text style={styles.limitText} accessibilityLiveRegion="polite">
-              {t("chat.limitReachedError")}
-            </Text>
+            <View style={styles.rewardCard}>
+              <Text style={styles.limitText} accessibilityLiveRegion="polite">
+                {t("chat.limitReachedError")}
+              </Text>
+              {adsEnabledForUser ? (
+                <>
+                  <TouchableOpacity
+                    style={[
+                      styles.rewardButton,
+                      !canWatchRewardAd && styles.rewardButtonDisabled,
+                    ]}
+                    onPress={() => {
+                      void watchAdForMessages();
+                    }}
+                    disabled={!canWatchRewardAd}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.rewardButtonText}>
+                      {isLoadingReward
+                        ? t("common.loading")
+                        : t("ads.watchForMessages")}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.rewardMeta}>
+                    {rewardsClaimedToday}/{dailyRewardCap}{" "}
+                    {t("ads.dailyLimitReached")}
+                  </Text>
+                  {rewardMessage ? (
+                    <Text style={styles.rewardMessage}>{rewardMessage}</Text>
+                  ) : null}
+                </>
+              ) : null}
+            </View>
           )}
           {!hasProAccess && !atMessageLimit && (
             <Text style={styles.usageText}>
@@ -1091,8 +1184,40 @@ function createStyles(colors: AppColors) {
       fontSize: 10,
       color: colors.amber400,
       textAlign: "center",
-      marginTop: 8,
       fontWeight: "500",
+    },
+    rewardCard: {
+      marginTop: 8,
+      alignItems: "center",
+      gap: 8,
+    },
+    rewardButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_30,
+    },
+    rewardButtonDisabled: {
+      opacity: 0.5,
+    },
+    rewardButtonText: {
+      fontSize: 10,
+      fontWeight: "700",
+      color: colors.primary,
+      textAlign: "center",
+    },
+    rewardMeta: {
+      fontSize: 9,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    rewardMessage: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      textAlign: "center",
+      fontWeight: "600",
     },
     usageText: {
       fontSize: 10,
