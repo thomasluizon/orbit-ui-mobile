@@ -104,6 +104,7 @@ export default function CalendarSyncScreen() {
   const [errorMessage, setErrorMessage] = useState('')
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
+  const fetchErrorText = t('calendar.fetchError')
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
@@ -114,7 +115,7 @@ export default function CalendarSyncScreen() {
 
   const selectedCount = selectedIds.size
 
-  const loadEvents = useCallback(async () => {
+  const fetchManualEvents = useCallback(async () => {
     if (!isOnline) {
       setStep('offline')
       return
@@ -122,22 +123,6 @@ export default function CalendarSyncScreen() {
 
     setStep('loading')
     setErrorMessage('')
-
-    if (isReviewMode) {
-      try {
-        const result = await suggestionsQuery.refetch()
-        const nextEvents: CalendarEvent[] = (result.data ?? []).map(
-          (suggestion) => suggestion.event,
-        )
-        setEvents(nextEvents)
-        setSelectedIds(new Set(nextEvents.map((event) => event.id)))
-        setStep('select')
-      } catch (err: unknown) {
-        setErrorMessage(getErrorMessage(err, t('calendar.fetchError')))
-        setStep('error')
-      }
-      return
-    }
 
     try {
       const nextEvents = await fetchCalendarEvents()
@@ -150,10 +135,10 @@ export default function CalendarSyncScreen() {
         return
       }
 
-      setErrorMessage(getErrorMessage(err, t('calendar.fetchError')))
+      setErrorMessage(getErrorMessage(err, fetchErrorText))
       setStep('error')
     }
-  }, [isOnline, isReviewMode, suggestionsQuery, t])
+  }, [fetchErrorText, isOnline])
 
   useFocusEffect(
     useCallback(() => {
@@ -169,9 +154,63 @@ export default function CalendarSyncScreen() {
       }
 
       void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
-      void loadEvents()
-    }, [isOnline, loadEvents, profile, queryClient, router]),
+      if (isReviewMode) {
+        void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+        return
+      }
+
+      void fetchManualEvents()
+    }, [
+      fetchManualEvents,
+      isOnline,
+      isReviewMode,
+      profile?.hasProAccess,
+      queryClient,
+      router,
+    ]),
   )
+
+  useEffect(() => {
+    if (!isReviewMode) return
+    if (!isOnline) {
+      setStep('offline')
+      return
+    }
+    if (suggestionsQuery.isLoading) {
+      setStep('loading')
+      return
+    }
+    if (suggestionsQuery.isError) {
+      setErrorMessage(getErrorMessage(suggestionsQuery.error, fetchErrorText))
+      setStep('error')
+      return
+    }
+
+    const nextEvents: CalendarEvent[] = suggestions.map((suggestion) => suggestion.event)
+    setEvents(nextEvents)
+    setSelectedIds((prev) => {
+      if (prev.size === 0) {
+        return new Set(nextEvents.map((event) => event.id))
+      }
+
+      const next = new Set<string>()
+      for (const event of nextEvents) {
+        if (prev.has(event.id)) {
+          next.add(event.id)
+        }
+      }
+      return next
+    })
+    setStep('select')
+  }, [
+    isOnline,
+    isReviewMode,
+    suggestions,
+    suggestionsQuery.error,
+    suggestionsQuery.isError,
+    suggestionsQuery.isLoading,
+    fetchErrorText,
+  ])
 
   const handleBack = useCallback(() => {
     router.push('/profile')
@@ -229,7 +268,7 @@ export default function CalendarSyncScreen() {
         return
       }
 
-      setAutoSyncMutation.mutate(enabled, {
+      setAutoSyncMutation.mutate({ enabled }, {
         onError: (err: unknown) => {
           showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
         },
@@ -311,8 +350,20 @@ export default function CalendarSyncScreen() {
   ])
 
   const handleRetry = useCallback(() => {
-    void loadEvents()
-  }, [loadEvents])
+    if (!isOnline) {
+      setStep('offline')
+      return
+    }
+
+    if (isReviewMode) {
+      setStep('loading')
+      setErrorMessage('')
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+      return
+    }
+
+    void fetchManualEvents()
+  }, [fetchManualEvents, isOnline, isReviewMode, queryClient])
 
   const renderEventCard = (event: CalendarEvent) => {
     const selected = selectedIds.has(event.id)
