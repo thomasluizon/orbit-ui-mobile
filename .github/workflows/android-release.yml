@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: false
+      validate_expo_dependencies:
+        description: Run Expo dependency compatibility check before building
+        required: false
+        type: boolean
+        default: false
       message:
         description: Optional build message shown in Expo
         required: false
@@ -43,6 +48,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/package.json
+            packages/shared/package.json
 
       - uses: actions/setup-java@v5
         with:
@@ -88,9 +98,10 @@ jobs:
 
       - name: Install isolated mobile dependencies
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
-        run: npm install --package-lock=false
+        run: npm install --package-lock=false --prefer-offline --no-audit --fund=false
 
       - name: Validate Expo dependency compatibility
+        if: ${{ inputs.validate_expo_dependencies }}
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         run: npx expo install --check
 
@@ -135,7 +146,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          npx expo prebuild --platform android --clean
+          npx expo prebuild --platform android --no-install
 
       - name: Configure Android release signing
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
@@ -196,6 +207,7 @@ jobs:
           name: android-release-aab
           path: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+          compression-level: 0
 
       - name: Submit build to Google Play
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
@@ -210,8 +222,7 @@ jobs:
             --platform android \
             --profile "${RELEASE_TRACK}" \
             --path android/app/build/outputs/bundle/release/app-release.aab \
-            --non-interactive \
-            --wait
+            --non-interactive
 
       - name: Remove temporary Play service account key
         if: always()
