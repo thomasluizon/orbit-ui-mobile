@@ -6,11 +6,11 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { HabitFormFields } from "./habit-form-fields";
+import { KeyboardAwareBottomSheetScrollView } from "@/components/ui/keyboard-aware-scroll-view";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useHabitForm } from "@/hooks/use-habit-form";
 import { useTagSelection } from "@/hooks/use-tag-selection";
@@ -97,7 +97,8 @@ export function EditHabitModal({
     }
   }, [detailError, showError, translate]);
 
-  // Populate form when modal opens or detail loads
+  // Populate form when the modal session starts and once detail loads.
+  // Avoid rehydrating on every background refetch while the user is typing.
   useEffect(() => {
     if (!open || !habit) return;
 
@@ -109,7 +110,7 @@ export function EditHabitModal({
     setSelectedGoalIds(prefill.selectedGoalIds);
     applyHabitFormMode(prefill.mode, formHelpers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, habit, habitDetail]);
+  }, [open, habit?.id, habitDetail?.id]);
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return;
@@ -172,7 +173,7 @@ export function EditHabitModal({
       snapPoints={["80%", "95%"]}
       formMode
     >
-      <BottomSheetScrollView
+      <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -217,7 +218,7 @@ export function EditHabitModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </BottomSheetScrollView>
+      </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
   );
 }

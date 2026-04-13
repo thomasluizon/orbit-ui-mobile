@@ -350,6 +350,84 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.dueTime')).toBeDefined()
   })
 
+  it('formats dueTime input as hh:mm on change', () => {
+    const setValue = vi.fn()
+    const formatTimeInput = vi.fn((value: string) => (value === '1558' ? '15:58' : value))
+    const formHelpers = createMockFormHelpers({
+      isGeneral: false,
+      isOneTime: false,
+      formatTimeInput,
+    })
+    formHelpers.form.setValue = setValue
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText('habits.form.dueTime'), {
+      target: { value: '1558' },
+    })
+
+    expect(formatTimeInput).toHaveBeenCalledWith('1558')
+    expect(setValue).toHaveBeenCalledWith('dueTime', '15:58', { shouldDirty: true })
+  })
+
+  it('formats dueEndTime input as hh:mm on change', () => {
+    const setValue = vi.fn()
+    const formatEndTimeInput = vi.fn((value: string) => (value === '2215' ? '22:15' : value))
+    const formHelpers = createMockFormHelpers({
+      isGeneral: false,
+      formatEndTimeInput,
+    })
+    formHelpers.form.setValue = setValue
+    formHelpers.form.watch = vi.fn((field: string) => {
+      const defaults: Record<string, unknown> = {
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: '09:00',
+        dueEndTime: '',
+        endDate: '',
+        isBadHabit: false,
+        reminderEnabled: false,
+        slipAlertEnabled: false,
+        checklistItems: [],
+        scheduledReminders: [],
+      }
+      return defaults[field] ?? ''
+    }) as unknown as typeof formHelpers.form.watch
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText('habits.form.dueEndTime'), {
+      target: { value: '2215' },
+    })
+
+    expect(formatEndTimeInput).toHaveBeenCalledWith('2215')
+    expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:15', { shouldDirty: true })
+  })
+
   it('shows slip alert toggle for bad habits', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     // Override watch to return isBadHabit: true

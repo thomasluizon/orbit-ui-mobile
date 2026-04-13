@@ -7,6 +7,7 @@ import {
   type BottomSheetBackgroundProps,
 } from '@gorhom/bottom-sheet'
 import { X } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -39,6 +40,7 @@ export function BottomSheetModal({
   children,
 }: BottomSheetModalProps) {
   const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const styles = useMemo(() => createStyles(colors), [colors])
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
@@ -100,9 +102,10 @@ export function BottomSheetModal({
       enablePanDownToClose
       enableBlurKeyboardOnGesture={formMode}
       enableContentPanningGesture={!formMode}
-      keyboardBehavior="interactive"
+      keyboardBehavior={formMode ? 'extend' : 'interactive'}
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"
+      bottomInset={insets.bottom}
       handleIndicatorStyle={styles.handleIndicator}
     >
       {title ? (

@@ -6,8 +6,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +20,7 @@ import {
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { validateHabitLogNote } from "@orbit/shared/validation";
 import { AppTextInput } from "@/components/ui/app-text-input";
+import { KeyboardAwareScrollView } from "@/components/ui/keyboard-aware-scroll-view";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -107,80 +106,81 @@ export function LogHabitModal({
       animationType="slide"
       onRequestClose={handleCancel}
     >
-      <KeyboardAvoidingView
-        style={styles.backdrop}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.backdrop}>
         <Pressable style={styles.backdropPress} onPress={handleCancel} />
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{t("habits.log.title")}</Text>
-            <TouchableOpacity
-              style={styles.headerClose}
-              onPress={handleCancel}
-              activeOpacity={0.7}
-            >
-              <X size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-          {habit && (
-            <View style={styles.content}>
-          {/* Habit title */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t("habits.log.habitLabel")}</Text>
-            <Text style={styles.habitTitle}>{habit.title}</Text>
-          </View>
-
-          {/* Note input */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t("habits.log.noteLabel")}</Text>
-            <AppTextInput
-              value={note}
-              placeholder={t("habits.log.notePlaceholder")}
-              placeholderTextColor={colors.textMuted}
-              multiline
-              numberOfLines={3}
-              maxLength={500}
-              editable={!logHabit.isPending}
-              style={[styles.noteInput, logHabit.isPending && styles.disabled]}
-              onChangeText={setNote}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Buttons */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              disabled={logHabit.isPending}
-              onPress={handleCancel}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                logHabit.isPending && styles.disabled,
-              ]}
-              disabled={logHabit.isPending}
-              onPress={handleSubmit}
-              activeOpacity={0.7}
-            >
-              {logHabit.isPending ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <Check size={16} color={colors.white} />
-              )}
-              <Text style={styles.submitButtonText}>
-                {t("habits.logHabit")}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <KeyboardAwareScrollView
+          containerStyle={styles.keyboardContainer}
+          contentContainerStyle={styles.sheetScrollContent}
+          keyboardVerticalOffset={12}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.sheet}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>{t("habits.log.title")}</Text>
+              <TouchableOpacity
+                style={styles.headerClose}
+                onPress={handleCancel}
+                activeOpacity={0.7}
+              >
+                <X size={18} color={colors.textMuted} />
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
-      </KeyboardAvoidingView>
+            {habit && (
+              <View style={styles.content}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>{t("habits.log.habitLabel")}</Text>
+                  <Text style={styles.habitTitle}>{habit.title}</Text>
+                </View>
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>{t("habits.log.noteLabel")}</Text>
+                  <AppTextInput
+                    value={note}
+                    placeholder={t("habits.log.notePlaceholder")}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    numberOfLines={3}
+                    maxLength={500}
+                    editable={!logHabit.isPending}
+                    style={[styles.noteInput, logHabit.isPending && styles.disabled]}
+                    onChangeText={setNote}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    disabled={logHabit.isPending}
+                    onPress={handleCancel}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.submitButton,
+                      logHabit.isPending && styles.disabled,
+                    ]}
+                    disabled={logHabit.isPending}
+                    onPress={handleSubmit}
+                    activeOpacity={0.7}
+                  >
+                    {logHabit.isPending ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <Check size={16} color={colors.white} />
+                    )}
+                    <Text style={styles.submitButtonText}>
+                      {t("habits.logHabit")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </KeyboardAwareScrollView>
+      </View>
     </Modal>
   );
 }
@@ -196,8 +196,10 @@ function createStyles(
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      justifyContent: "flex-end",
       backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    keyboardContainer: {
+      flex: 1,
     },
     backdropPress: {
       position: "absolute",
@@ -205,6 +207,11 @@ function createStyles(
       left: 0,
       right: 0,
       bottom: 0,
+    },
+    sheetScrollContent: {
+      flexGrow: 1,
+      justifyContent: "flex-end",
+      paddingTop: 24,
     },
     sheet: {
       backgroundColor: colors.surface,

@@ -6,13 +6,13 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Plus, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
@@ -123,7 +123,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
     }
-  }, [open, goal])
+  }, [open, goal.id])
 
   function validate(): string | null {
     return translateErrorKey(
@@ -176,7 +176,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
       snapPoints={['70%', '90%']}
       formMode
     >
-      <BottomSheetScrollView
+      <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.form}
         showsVerticalScrollIndicator={false}
@@ -305,7 +305,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             <Text style={styles.submitText}>{t('common.save')}</Text>
           )}
         </TouchableOpacity>
-      </BottomSheetScrollView>
+      </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
   )
 }

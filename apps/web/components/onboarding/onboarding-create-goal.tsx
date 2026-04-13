@@ -8,6 +8,7 @@ import { useCreateGoal } from '@/hooks/use-goals'
 import {
   getFriendlyErrorMessage,
   ONBOARDING_GOAL_SUGGESTIONS,
+  parseGoalTargetValue,
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
@@ -32,7 +33,7 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
     [t],
   )
   const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState<number | undefined>(undefined)
+  const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [isCreated, setIsCreated] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
@@ -54,30 +55,33 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
 
   function selectSuggestion(suggestion: GoalSuggestion) {
     setDescription(suggestion.title)
-    setTargetValue(suggestion.target)
+    setTargetValue(String(suggestion.target))
     setUnit(suggestion.unit)
     setSelectedSuggestion(suggestion.key)
   }
 
-  const canCreate = targetValue && targetValue > 0 && unit.trim()
+  const parsedTargetValue = parseGoalTargetValue(targetValue)
+  const canCreate = !!parsedTargetValue && parsedTargetValue > 0 && unit.trim().length > 0
 
   const handleCreate = useCallback(async () => {
     if (!canCreate || isCreating) return
 
     const validationError = translateErrorKey(
       translate,
-      validateGoalDraftInput(description, targetValue ?? null, unit),
+      validateGoalDraftInput(description, targetValue, unit),
     )
     if (validationError) {
       showError(validationError)
       return
     }
 
-    const title = description.trim() || `${targetValue} ${unit.trim()}`
+    if (parsedTargetValue === null) return
+
+    const title = description.trim() || `${parsedTargetValue} ${unit.trim()}`
     createGoal.mutate(
       {
         title,
-        targetValue: targetValue ?? 0,
+        targetValue: parsedTargetValue,
         unit: unit.trim(),
       },
       {
@@ -92,7 +96,7 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
         },
       },
     )
-  }, [canCreate, createGoal, description, isCreating, onCreated, showError, targetValue, translate, unit])
+  }, [canCreate, createGoal, description, isCreating, onCreated, parsedTargetValue, showError, targetValue, translate, unit])
 
   if (isCreated) {
     return (
@@ -154,8 +158,8 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
         <div className="grid grid-cols-2 gap-3">
           <input
             type="number"
-            value={targetValue ?? ''}
-            onChange={(e) => setTargetValue(e.target.value ? Number(e.target.value) : undefined)}
+            value={targetValue}
+            onChange={(e) => setTargetValue(e.target.value)}
             className="form-input w-full"
             placeholder={t('onboarding.flow.createGoal.targetPlaceholder')}
             min={1}

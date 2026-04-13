@@ -36,7 +36,7 @@ import {
   getChatImageValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
-import { habitKeys, profileKeys } from "@orbit/shared/query";
+import { goalKeys, habitKeys, profileKeys } from "@orbit/shared/query";
 import type { ChatMessage, ChatResponse } from "@orbit/shared/types/chat";
 import type { Profile } from "@orbit/shared/types/profile";
 import { buildRecentChatHistory, getErrorMessage } from "@orbit/shared/utils";
@@ -48,8 +48,10 @@ import { apiClient } from "@/lib/api-client";
 import { MessageBubble } from "@/components/message-bubble";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
+import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppTextInput } from "@/components/ui/app-text-input";
+import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { useChatStore } from "@/stores/chat-store";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -68,6 +70,30 @@ interface AdRewardResponse {
   bonusMessagesGranted: number;
   newLimit: number;
 }
+
+const HABIT_ACTION_TYPES = new Set([
+  "CreateHabit",
+  "LogHabit",
+  "UpdateHabit",
+  "DeleteHabit",
+  "SkipHabit",
+  "BulkLogHabits",
+  "BulkSkipHabits",
+  "CreateSubHabit",
+  "AssignTags",
+  "DuplicateHabit",
+  "MoveHabit",
+  "SuggestBreakdown",
+]);
+
+const GOAL_ACTION_TYPES = new Set([
+  "CreateGoal",
+  "UpdateGoal",
+  "DeleteGoal",
+  "UpdateGoalProgress",
+  "UpdateGoalStatus",
+  "LinkHabitsToGoal",
+]);
 
 function AnimatedSparkle({
   primaryColor,
@@ -548,8 +574,13 @@ export default function ChatScreen() {
           );
         }
 
-        if (response.actions?.some((a) => a.status === "Success")) {
-          queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+        if (response.actions?.some((action) => action.status === "Success")) {
+          if (response.actions.some((action) => HABIT_ACTION_TYPES.has(action.type))) {
+            queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+          }
+          if (response.actions.some((action) => GOAL_ACTION_TYPES.has(action.type))) {
+            queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
+          }
         }
       } catch (err: unknown) {
         setIsTyping(false);
@@ -632,18 +663,30 @@ export default function ChatScreen() {
   // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer).
   // Lazy: only fetch the single habit by ID after the user taps a chip.
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const habitDetailQuery = useHabitDetail(selectedHabitId);
   const detailHabit = useMemo(
     () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
     [habitDetailQuery.data],
   );
 
-  const handleActionChipClick = useCallback((habitId: string) => {
-    setSelectedHabitId(habitId);
+  const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
+    if (GOAL_ACTION_TYPES.has(actionType)) {
+      setSelectedHabitId(null);
+      setSelectedGoalId(entityId);
+      return;
+    }
+
+    setSelectedGoalId(null);
+    setSelectedHabitId(entityId);
   }, []);
 
   const handleDrawerClose = useCallback(() => {
     setSelectedHabitId(null);
+  }, []);
+
+  const handleGoalDrawerClose = useCallback(() => {
+    setSelectedGoalId(null);
   }, []);
 
   // Render message item
@@ -693,7 +736,7 @@ export default function ChatScreen() {
           </View>
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
-            <FlatList
+            <KeyboardAwareFlatList
               ref={flatListRef}
               data={messages}
               renderItem={renderMessage}
@@ -949,6 +992,13 @@ export default function ChatScreen() {
         onClose={handleDrawerClose}
         habit={detailHabit}
       />
+      {selectedGoalId && (
+        <GoalDetailDrawer
+          open={!!selectedGoalId}
+          onClose={handleGoalDrawerClose}
+          goalId={selectedGoalId}
+        />
+      )}
     </SafeAreaView>
   );
 }

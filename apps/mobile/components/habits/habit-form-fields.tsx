@@ -267,7 +267,10 @@ function TagEditorRow({
 interface BufferedSheetInputProps {
   value: string;
   onCommit: (value: string) => void;
+  onDraftChange?: (value: string) => void;
+  transformDraft?: (value: string) => string;
   registerFlush?: (flush: () => void) => () => void;
+  onFocus?: () => void;
   onBlur?: () => void;
   onSubmitEditing?: () => void;
   placeholder?: string;
@@ -284,31 +287,55 @@ interface BufferedSheetInputProps {
 const BufferedSheetInput = memo(function BufferedSheetInput({
   value,
   onCommit,
+  onDraftChange,
+  transformDraft,
   registerFlush,
+  onFocus,
   onBlur,
   onSubmitEditing,
   ...props
 }: Readonly<BufferedSheetInputProps>) {
   const [draft, setDraft] = useState(value);
+  const isFocusedRef = useRef(false);
+  const lastSyncedValueRef = useRef(value);
 
   useEffect(() => {
-    setDraft(value);
+    if (!isFocusedRef.current && value !== lastSyncedValueRef.current) {
+      setDraft(value);
+      lastSyncedValueRef.current = value;
+    }
   }, [value]);
 
   const commitDraft = useCallback(() => {
     if (draft !== value) {
       onCommit(draft);
     }
+    lastSyncedValueRef.current = draft;
   }, [draft, onCommit, value]);
 
   useEffect(() => registerFlush?.(commitDraft), [commitDraft, registerFlush]);
+
+  const handleChangeText = useCallback(
+    (nextValue: string) => {
+      const nextDraft = transformDraft ? transformDraft(nextValue) : nextValue;
+      setDraft(nextDraft);
+      lastSyncedValueRef.current = nextDraft;
+      onDraftChange?.(nextDraft);
+    },
+    [onDraftChange, transformDraft],
+  );
 
   return (
     <BottomSheetAppTextInput
       {...props}
       value={draft}
-      onChangeText={setDraft}
+      onChangeText={handleChangeText}
+      onFocus={() => {
+        isFocusedRef.current = true;
+        onFocus?.();
+      }}
       onBlur={() => {
+        isFocusedRef.current = false;
         commitDraft();
         onBlur?.();
       }}
@@ -1235,6 +1262,10 @@ export function HabitFormFields({
             <BufferedSheetInput
               value={watchedDueTime}
               registerFlush={registerBufferedInputFlusher}
+              transformDraft={formatTimeInput}
+              onDraftChange={(formatted) =>
+                setValue("dueTime", formatted, { shouldDirty: true })
+              }
               placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -1479,6 +1510,10 @@ export function HabitFormFields({
               <BufferedSheetInput
                 value={watchedDueEndTime}
                 registerFlush={registerBufferedInputFlusher}
+                transformDraft={formatEndTimeInput}
+                onDraftChange={(formatted) =>
+                  setValue("dueEndTime", formatted, { shouldDirty: true })
+                }
                 placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
                 placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"

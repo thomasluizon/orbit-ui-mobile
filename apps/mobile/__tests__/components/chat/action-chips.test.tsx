@@ -116,12 +116,44 @@ describe('ActionChips (mobile)', () => {
     expect(onChipClick).toHaveBeenCalledWith('h-42', 'CreateHabit')
   })
 
+  it('calls onChipClick with goal entityId and actionType on press', () => {
+    const onChipClick = vi.fn()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <ActionChips
+          actions={[makeAction({ type: 'UpdateGoal', status: 'Success', entityId: 'g-42' })]}
+          onChipClick={onChipClick}
+        />,
+      )
+    })
+    const [pressable] = findPressableByType(tree.root)
+    TestRenderer.act(() => {
+      pressable?.props.onPress?.()
+    })
+    expect(onChipClick).toHaveBeenCalledWith('g-42', 'UpdateGoal')
+  })
+
   it('does not render Delete chip as Pressable even with handler', () => {
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <ActionChips
           actions={[makeAction({ type: 'DeleteHabit', status: 'Success', entityId: 'h-1' })]}
+          onChipClick={() => {}}
+        />,
+      )
+    })
+    const pressables = findPressableByType(tree.root)
+    expect(pressables.length).toBe(0)
+  })
+
+  it('does not render DeleteGoal chip as Pressable even with handler', () => {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <ActionChips
+          actions={[makeAction({ type: 'DeleteGoal', status: 'Success', entityId: 'g-1' })]}
           onChipClick={() => {}}
         />,
       )

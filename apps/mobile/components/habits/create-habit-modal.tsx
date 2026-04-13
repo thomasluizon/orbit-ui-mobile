@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useWatch } from "react-hook-form";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Trash2, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
+import { KeyboardAwareBottomSheetScrollView } from "@/components/ui/keyboard-aware-scroll-view";
 import { HabitFormFields } from "./habit-form-fields";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useHabitForm } from "@/hooks/use-habit-form";
@@ -265,7 +265,7 @@ export function CreateHabitModal({
       snapPoints={["80%", "95%"]}
       formMode
     >
-      <BottomSheetScrollView
+      <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -354,7 +354,7 @@ export function CreateHabitModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </BottomSheetScrollView>
+      </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
   );
 }

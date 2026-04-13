@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -119,7 +119,7 @@ export function GoalDetailDrawer({
     return numVal > goal.targetValue
   }, [progressValue, goal])
 
-  // Reset state when drawer opens
+  // Reset state when a new drawer session starts, not on every cache refresh.
   useEffect(() => {
     if (open) {
       setProgressValue(
@@ -128,7 +128,7 @@ export function GoalDetailDrawer({
       setShowProgressForm(false)
       setProgressNote('')
     }
-  }, [open, goal?.currentValue])
+  }, [open, goalId])
 
   // Format date helper
   const formatDate = useCallback(
@@ -262,7 +262,7 @@ export function GoalDetailDrawer({
         snapPoints={['60%', '90%']}
         formMode={showProgressForm}
       >
-        <BottomSheetScrollView
+        <KeyboardAwareBottomSheetScrollView
           style={styles.scroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -307,7 +307,13 @@ export function GoalDetailDrawer({
             {/* Update progress toggle */}
             {goal.status === 'Active' && !showProgressForm && (
               <TouchableOpacity
-                onPress={() => setShowProgressForm(true)}
+                onPress={() => {
+                  setProgressValue(
+                    goal.currentValue !== undefined ? String(goal.currentValue) : '',
+                  )
+                  setProgressNote('')
+                  setShowProgressForm(true)
+                }}
                 activeOpacity={0.7}
                 style={styles.updateProgressLink}
               >
@@ -490,7 +496,7 @@ export function GoalDetailDrawer({
               label={t('goals.detail.delete')}
             />
           </View>
-        </BottomSheetScrollView>
+        </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
 
       {goal && (

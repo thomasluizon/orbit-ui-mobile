@@ -11,6 +11,7 @@ import * as Clipboard from 'expo-clipboard'
 import { AlertTriangle, Clipboard as ClipboardIcon, Check, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { AppTextInput } from '@/components/ui/app-text-input'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -99,7 +100,12 @@ export function CreateApiKeyModal({
       animationType="slide"
       onRequestClose={() => onOpenChange(false)}
     >
-      <View style={styles.backdrop}>
+      <KeyboardAwareScrollView
+        containerStyle={styles.backdrop}
+        contentContainerStyle={styles.sheetScrollContent}
+        keyboardVerticalOffset={12}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>
@@ -181,7 +187,7 @@ export function CreateApiKeyModal({
             </View>
           )}
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </Modal>
   )
 }
@@ -194,7 +200,11 @@ function createStyles(
     backdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    sheetScrollContent: {
+      flexGrow: 1,
       justifyContent: 'flex-end',
+      paddingTop: 24,
     },
     sheet: {
       backgroundColor: colors.surface,

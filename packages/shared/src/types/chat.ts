@@ -9,11 +9,19 @@ export const aiActionTypeSchema = z.enum([
   'UpdateHabit',
   'DeleteHabit',
   'SkipHabit',
+  'BulkLogHabits',
+  'BulkSkipHabits',
   'CreateSubHabit',
   'SuggestBreakdown',
   'AssignTags',
   'DuplicateHabit',
   'MoveHabit',
+  'CreateGoal',
+  'UpdateGoal',
+  'DeleteGoal',
+  'UpdateGoalProgress',
+  'UpdateGoalStatus',
+  'LinkHabitsToGoal',
 ])
 
 export type AiActionType = z.infer<typeof aiActionTypeSchema>

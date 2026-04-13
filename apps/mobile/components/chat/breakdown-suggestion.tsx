@@ -22,6 +22,7 @@ import { plural } from '@/lib/plural'
 // ---------------------------------------------------------------------------
 
 interface EditableHabit {
+  id: string
   title: string
   description: string
   frequencyUnit: FrequencyUnit | null
@@ -37,6 +38,10 @@ interface BreakdownSuggestionProps {
   subHabits: SuggestedSubHabit[]
   onConfirmed: () => void
   onCancelled: () => void
+}
+
+function createEditableHabitId() {
+  return `editable-habit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +73,7 @@ export function BreakdownSuggestion({
 
   const [habits, setHabits] = useState<EditableHabit[]>(
     subHabits.map((h) => ({
+      id: createEditableHabitId(),
       title: h.title,
       description: h.description ?? '',
       frequencyUnit: h.frequencyUnit ?? null,
@@ -101,6 +107,7 @@ export function BreakdownSuggestion({
     setHabits((prev) => [
       ...prev,
       {
+        id: createEditableHabitId(),
         title: '',
         description: '',
         frequencyUnit: null,
@@ -217,7 +224,7 @@ export function BreakdownSuggestion({
       {/* Habit list */}
       <View style={styles.habitsList}>
         {habits.map((habit, index) => (
-          <View key={`${habit.title}-${index}`} style={styles.habitRow}>
+          <View key={habit.id} style={styles.habitRow}>
             <View style={styles.habitContent}>
               <AppTextInput
                 style={styles.habitInput}

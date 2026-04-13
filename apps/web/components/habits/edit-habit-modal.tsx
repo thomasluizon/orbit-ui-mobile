@@ -72,7 +72,8 @@ export function EditHabitModal({
     }
   }, [detailError, showError, translate])
 
-  // Populate form when modal opens or detail loads
+  // Populate form when the modal session starts and once detail loads.
+  // Avoid rehydrating on every background refetch while the user is typing.
   useEffect(() => {
     if (!open || !habit) return
 
@@ -84,7 +85,7 @@ export function EditHabitModal({
     setSelectedGoalIds(prefill.selectedGoalIds)
     applyHabitFormMode(prefill.mode, formHelpers)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, habit, habitDetail])
+  }, [open, habit?.id, habitDetail?.id])
 
   const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
