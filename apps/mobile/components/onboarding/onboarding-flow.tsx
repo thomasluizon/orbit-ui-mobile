@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   Modal,
   StyleSheet,
 } from 'react-native'
@@ -29,6 +28,7 @@ import { OnboardingCompleteHabit } from './onboarding-complete-habit'
 import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -195,13 +195,13 @@ export function OnboardingFlow() {
         </View>
 
         {/* Step content */}
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
+          keyboardVerticalOffset={12}
         >
           <View style={styles.stepWrapper}>{stepContent}</View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {/* Footer navigation */}
         {!hideFooter && (

@@ -3,12 +3,10 @@ import {
   View,
   Text,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Keyboard,
   Platform,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Image,
   Linking,
 } from 'react-native'
@@ -47,6 +45,7 @@ import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { AppTextInput } from '@/components/ui/app-text-input'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -315,20 +314,17 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareScrollView
+      containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      contentContainerStyle={[
+        styles.scrollContent,
+        isCodeStep && styles.scrollContentCode,
+        isAndroidKeyboardOpen && styles.scrollContentKeyboard,
+      ]}
+      keyboardShouldPersistTaps="always"
+      showsVerticalScrollIndicator={false}
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          isCodeStep && styles.scrollContentCode,
-          isAndroidKeyboardOpen && styles.scrollContentKeyboard,
-        ]}
-        keyboardShouldPersistTaps="always"
-        showsVerticalScrollIndicator={false}
-      >
         {/* Branding header - matches web auth layout */}
         <View style={styles.brandingHeader}>
           <View style={styles.brandingRow}>
@@ -521,8 +517,7 @@ export default function LoginScreen() {
             <Text style={styles.privacyText}>{t('privacy.title')}</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   )
 }
 

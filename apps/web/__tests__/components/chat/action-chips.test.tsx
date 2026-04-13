@@ -135,9 +135,28 @@ describe('ActionChips', () => {
       expect(onChipClick).toHaveBeenCalledWith('h-42', 'CreateHabit')
     })
 
+    it('renders successful goal chips as buttons and uses the goal action type', () => {
+      const onChipClick = vi.fn()
+      const actions = [
+        makeAction({ type: 'UpdateGoal', status: 'Success', entityId: 'g-42', entityName: 'Run a marathon' }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={onChipClick} />)
+      fireEvent.click(screen.getByRole('button'))
+      expect(onChipClick).toHaveBeenCalledWith('g-42', 'UpdateGoal')
+      expect(document.body.textContent).toContain('chat.action.updatedGoal')
+    })
+
     it('renders Delete chip as non-interactive span even with handler', () => {
       const actions = [
         makeAction({ type: 'DeleteHabit', status: 'Success', entityId: 'h-1' }),
+      ]
+      render(<ActionChips actions={actions} onChipClick={() => {}} />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('renders DeleteGoal chip as non-interactive span even with handler', () => {
+      const actions = [
+        makeAction({ type: 'DeleteGoal', status: 'Success', entityId: 'g-1' }),
       ]
       render(<ActionChips actions={actions} onChipClick={() => {}} />)
       expect(screen.queryByRole('button')).not.toBeInTheDocument()

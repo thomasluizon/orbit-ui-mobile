@@ -615,7 +615,14 @@
       "tagsUpdated": "Tags atualizadas: {name}",
       "duplicated": "Duplicou {name}",
       "moved": "Moveu {name}",
-      "openHabit": "Abrir hábito: {name}"
+      "createdGoal": "Meta criada: {name}",
+      "updatedGoal": "Meta atualizada: {name}",
+      "deletedGoal": "Meta excluída: {name}",
+      "updatedGoalProgress": "Progresso da meta atualizado: {name}",
+      "updatedGoalStatus": "Status da meta atualizado: {name}",
+      "linkedGoalHabits": "Hábitos vinculados à meta: {name}",
+      "openHabit": "Abrir hábito: {name}",
+      "openEntity": "Abrir detalhes: {name}"
     },
     "conflict": {
       "title": "Potencial conflito"

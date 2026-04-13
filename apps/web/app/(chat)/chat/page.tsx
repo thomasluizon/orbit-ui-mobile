@@ -22,11 +22,21 @@ import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
+import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+const GOAL_ACTION_TYPES = new Set([
+  'CreateGoal',
+  'UpdateGoal',
+  'DeleteGoal',
+  'UpdateGoalProgress',
+  'UpdateGoalStatus',
+  'LinkHabitsToGoal',
+])
 
 // ---------------------------------------------------------------------------
 // Chat Page
@@ -75,18 +85,30 @@ export default function ChatPage() {
   // Lazy: only fetch the single habit by ID after the user taps a chip.
   // -------------------------------------------------------------------------
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const habitDetailQuery = useHabitDetail(selectedHabitId)
   const selectedHabit = useMemo(
     () => (habitDetailQuery.data ? habitDetailToNormalized(habitDetailQuery.data) : null),
     [habitDetailQuery.data],
   )
 
-  const handleActionChipClick = useCallback((habitId: string) => {
-    setSelectedHabitId(habitId)
+  const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
+    if (GOAL_ACTION_TYPES.has(actionType)) {
+      setSelectedHabitId(null)
+      setSelectedGoalId(entityId)
+      return
+    }
+
+    setSelectedGoalId(null)
+    setSelectedHabitId(entityId)
   }, [])
 
   const handleDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedHabitId(null)
+  }, [])
+
+  const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
+    if (!open) setSelectedGoalId(null)
   }, [])
 
   // -------------------------------------------------------------------------
@@ -346,6 +368,13 @@ export default function ChatPage() {
         onOpenChange={handleDrawerOpenChange}
         habit={selectedHabit}
       />
+      {selectedGoalId && (
+        <GoalDetailDrawer
+          open={!!selectedGoalId}
+          onOpenChange={handleGoalDrawerOpenChange}
+          goalId={selectedGoalId}
+        />
+      )}
     </div>
   )
 }

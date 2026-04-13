@@ -603,7 +603,9 @@ describe('chat schemas', () => {
     it('parses valid action types', () => {
       const types = [
         'CreateHabit', 'LogHabit', 'UpdateHabit', 'DeleteHabit', 'SkipHabit',
-        'CreateSubHabit', 'SuggestBreakdown', 'AssignTags', 'DuplicateHabit', 'MoveHabit',
+        'BulkLogHabits', 'BulkSkipHabits', 'CreateSubHabit', 'SuggestBreakdown',
+        'AssignTags', 'DuplicateHabit', 'MoveHabit', 'CreateGoal', 'UpdateGoal',
+        'DeleteGoal', 'UpdateGoalProgress', 'UpdateGoalStatus', 'LinkHabitsToGoal',
       ]
       for (const t of types) {
         expect(aiActionTypeSchema.safeParse(t).success).toBe(true)

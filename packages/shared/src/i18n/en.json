@@ -615,7 +615,14 @@
       "tagsUpdated": "Tags updated: {name}",
       "duplicated": "Duplicated {name}",
       "moved": "Moved {name}",
-      "openHabit": "Open habit: {name}"
+      "createdGoal": "Created goal: {name}",
+      "updatedGoal": "Updated goal: {name}",
+      "deletedGoal": "Deleted goal: {name}",
+      "updatedGoalProgress": "Updated goal progress: {name}",
+      "updatedGoalStatus": "Updated goal status: {name}",
+      "linkedGoalHabits": "Linked habits to goal: {name}",
+      "openHabit": "Open habit: {name}",
+      "openEntity": "Open details: {name}"
     },
     "conflict": {
       "title": "Potential conflict"

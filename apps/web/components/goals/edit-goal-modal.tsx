@@ -100,7 +100,7 @@ export function EditGoalModal({
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
     }
-  }, [open, goal])
+  }, [open, goal.id])
 
   function validate(): string | null {
     return translateErrorKey(

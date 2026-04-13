@@ -37,6 +37,7 @@ const ScrollView = createHostComponent('ScrollView')
 const FlatList = createHostComponent('FlatList')
 const RefreshControl = createHostComponent('RefreshControl')
 const TextInput = createHostComponent('TextInput')
+const Switch = createHostComponent('Switch')
 const Image = createHostComponent('Image')
 const Modal = createHostComponent('Modal')
 const ActivityIndicator = createHostComponent('ActivityIndicator')
@@ -90,6 +91,13 @@ export const StyleSheet = {
   flatten: (style: unknown) => style,
 }
 
+export const LayoutAnimation = {
+  configureNext: () => {},
+  Presets: {
+    easeInEaseOut: {},
+  },
+}
+
 export {
   ActivityIndicator,
   FlatList,
@@ -98,6 +106,7 @@ export {
   Pressable,
   RefreshControl,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -111,12 +120,14 @@ export default {
   Easing,
   FlatList,
   Image,
+  LayoutAnimation,
   Modal,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,

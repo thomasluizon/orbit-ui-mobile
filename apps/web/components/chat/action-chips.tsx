@@ -29,11 +29,20 @@ const ACTION_LABELS: Record<string, string> = {
   CreateSubHabit: 'chat.action.createdSubHabit',
   SuggestBreakdown: 'chat.action.breakdown',
   AssignTags: 'chat.action.tagsUpdated',
+  BulkLogHabits: 'chat.action.logged',
+  BulkSkipHabits: 'chat.action.skipped',
+  CreateGoal: 'chat.action.createdGoal',
+  UpdateGoal: 'chat.action.updatedGoal',
+  DeleteGoal: 'chat.action.deletedGoal',
+  UpdateGoalProgress: 'chat.action.updatedGoalProgress',
+  UpdateGoalStatus: 'chat.action.updatedGoalStatus',
+  LinkHabitsToGoal: 'chat.action.linkedGoalHabits',
 }
 
 const NON_NAVIGABLE_ACTION_TYPES = new Set([
   'delete_habit',
   'DeleteHabit',
+  'DeleteGoal',
   'delete_sub_habit',
   'DeleteSubHabit',
   'suggest_breakdown',
@@ -121,7 +130,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
               <button
                 type="button"
                 onClick={() => onChipClick!(action.entityId!, action.type)}
-                aria-label={t('chat.action.openHabit', { name: actionLabel(action) })}
+                aria-label={t('chat.action.openEntity', { name: actionLabel(action) })}
                 className={`${chipClassName} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60`}
               >
                 <IconComponent className="size-2.5" />

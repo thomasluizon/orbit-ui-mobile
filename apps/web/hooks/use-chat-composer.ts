@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { habitKeys, profileKeys } from '@orbit/shared/query'
+import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
@@ -24,6 +24,30 @@ import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { sendChatMessage } from '@/app/actions/chat'
+
+const HABIT_ACTION_TYPES = new Set([
+  'CreateHabit',
+  'LogHabit',
+  'UpdateHabit',
+  'DeleteHabit',
+  'SkipHabit',
+  'BulkLogHabits',
+  'BulkSkipHabits',
+  'CreateSubHabit',
+  'AssignTags',
+  'DuplicateHabit',
+  'MoveHabit',
+  'SuggestBreakdown',
+])
+
+const GOAL_ACTION_TYPES = new Set([
+  'CreateGoal',
+  'UpdateGoal',
+  'DeleteGoal',
+  'UpdateGoalProgress',
+  'UpdateGoalStatus',
+  'LinkHabitsToGoal',
+])
 
 export function useChatComposer() {
   const t = useTranslations()
@@ -275,7 +299,12 @@ export function useChatComposer() {
         }
 
         if (result.data.actions?.some((action) => action.status === 'Success')) {
-          queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+          if (result.data.actions.some((action) => HABIT_ACTION_TYPES.has(action.type))) {
+            queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+          }
+          if (result.data.actions.some((action) => GOAL_ACTION_TYPES.has(action.type))) {
+            queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+          }
         }
       } catch (error: unknown) {
         setIsTyping(false)

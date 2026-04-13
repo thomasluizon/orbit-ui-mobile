@@ -101,14 +101,14 @@ export function GoalDetailDrawer({
     return progressValue > goal.targetValue
   }, [progressValue, goal])
 
-  // Reset state when drawer opens
+  // Reset state when a new drawer session starts, not on every cache refresh.
   useEffect(() => {
     if (open) {
       setProgressValue(goal?.currentValue ?? null)
       setShowProgressForm(false)
       setProgressNote('')
     }
-  }, [open, goal?.currentValue])
+  }, [open, goalId])
 
   // Format date helper
   const formatDate = useCallback(
@@ -256,7 +256,11 @@ export function GoalDetailDrawer({
               {goal.status === 'Active' && !showProgressForm && (
                 <button
                   className="text-sm text-primary font-semibold hover:text-primary/80 transition-colors"
-                  onClick={() => setShowProgressForm(true)}
+                  onClick={() => {
+                    setProgressValue(goal.currentValue)
+                    setProgressNote('')
+                    setShowProgressForm(true)
+                  }}
                 >
                   {t('goals.updateProgress')}
                 </button>
