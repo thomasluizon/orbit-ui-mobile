@@ -98,6 +98,7 @@ export function CreateHabitModal({
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([]);
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
   const reminderWasManuallyToggledRef = useRef(false);
+  const flushBufferedInputsRef = useRef<() => void>(() => {});
 
   const watchedDueTime = useWatch({
     control: formHelpers.form.control,
@@ -176,7 +177,12 @@ export function CreateHabitModal({
     });
   }, [formHelpers.form]);
 
+  const handleBufferedInputsReady = useCallback((flush: () => void) => {
+    flushBufferedInputsRef.current = flush;
+  }, []);
+
   const handleSubmit = useCallback(async () => {
+    flushBufferedInputsRef.current();
     const data = formHelpers.form.getValues() as unknown as HabitFormData;
     const subHabitValues = subHabits.map((entry) => entry.value);
     const error = formHelpers.validateAll({
@@ -274,6 +280,7 @@ export function CreateHabitModal({
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
           onReminderEnabledChange={handleReminderEnabledChange}
+          onFlushBufferedInputsReady={handleBufferedInputsReady}
         >
           {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (

@@ -192,6 +192,7 @@ function RecordingVisualizer({ styles }: Readonly<{ styles: ChatStyles }>) {
 
 interface ChatComposerInputProps {
   transcript: string;
+  resetSignal: number;
   isRecording: boolean;
   isTyping: boolean;
   atMessageLimit: boolean;
@@ -205,6 +206,7 @@ interface ChatComposerInputProps {
 
 const ChatComposerInput = memo(function ChatComposerInput({
   transcript,
+  resetSignal,
   isRecording,
   isTyping,
   atMessageLimit,
@@ -226,6 +228,10 @@ const ChatComposerInput = memo(function ChatComposerInput({
     }
     prevIsRecording.current = isRecording;
   }, [isRecording, transcript]);
+
+  useEffect(() => {
+    setDraft("");
+  }, [resetSignal]);
 
   const canSend =
     (draft.trim().length > 0 || selectedImagePresent) &&
@@ -324,6 +330,7 @@ export default function ChatScreen() {
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [isLoadingReward, setIsLoadingReward] = useState(false);
   const [rewardMessage, setRewardMessage] = useState<string | null>(null);
+  const [composerResetSignal, setComposerResetSignal] = useState(0);
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
@@ -493,6 +500,7 @@ export default function ChatScreen() {
       };
 
       addMessage(userMessage);
+      setComposerResetSignal((current) => current + 1);
       setSelectedImage(null);
       setImagePreview(null);
       scrollToBottom();
@@ -878,6 +886,7 @@ export default function ChatScreen() {
 
                 <ChatComposerInput
                   transcript={transcript}
+                  resetSignal={composerResetSignal}
                   isRecording={isRecording}
                   isTyping={isTyping}
                   atMessageLimit={atMessageLimit}

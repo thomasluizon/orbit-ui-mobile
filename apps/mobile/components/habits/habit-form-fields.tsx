@@ -1,4 +1,12 @@
-import { memo, useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
+import {
+  memo,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import {
   View,
   Text,
@@ -71,6 +79,7 @@ interface HabitFormFieldsProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
+  onFlushBufferedInputsReady?: (flush: () => void) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
   children?: ReactNode;
@@ -258,6 +267,7 @@ function TagEditorRow({
 interface BufferedSheetInputProps {
   value: string;
   onCommit: (value: string) => void;
+  registerFlush?: (flush: () => void) => () => void;
   onBlur?: () => void;
   onSubmitEditing?: () => void;
   placeholder?: string;
@@ -274,6 +284,7 @@ interface BufferedSheetInputProps {
 const BufferedSheetInput = memo(function BufferedSheetInput({
   value,
   onCommit,
+  registerFlush,
   onBlur,
   onSubmitEditing,
   ...props
@@ -289,6 +300,8 @@ const BufferedSheetInput = memo(function BufferedSheetInput({
       onCommit(draft);
     }
   }, [draft, onCommit, value]);
+
+  useEffect(() => registerFlush?.(commitDraft), [commitDraft, registerFlush]);
 
   return (
     <BottomSheetAppTextInput
@@ -871,6 +884,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  onFlushBufferedInputsReady,
   defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
@@ -910,6 +924,18 @@ export function HabitFormFields({
   } = formHelpers;
 
   const { setValue, formState: { errors } } = form;
+  const bufferedInputFlushersRef = useRef(new Set<() => void>());
+
+  const registerBufferedInputFlusher = useCallback((flush: () => void) => {
+    bufferedInputFlushersRef.current.add(flush);
+    return () => {
+      bufferedInputFlushersRef.current.delete(flush);
+    };
+  }, []);
+
+  const flushBufferedInputs = useCallback(() => {
+    bufferedInputFlushersRef.current.forEach((flush) => flush());
+  }, []);
 
   const watchedFrequencyUnit = useWatch({
     control: form.control,
@@ -1023,6 +1049,18 @@ export function HabitFormFields({
     watchedIsBadHabit,
   ]);
 
+  useEffect(() => {
+    if (!onFlushBufferedInputsReady) {
+      return;
+    }
+
+    onFlushBufferedInputsReady(flushBufferedInputs);
+
+    return () => {
+      onFlushBufferedInputsReady(() => {});
+    };
+  }, [flushBufferedInputs, onFlushBufferedInputsReady]);
+
   return (
     <View style={styles.container}>
       {/* ═══════════════════════════════════════════════════
@@ -1034,6 +1072,7 @@ export function HabitFormFields({
         <Text style={styles.label}>{t("habits.form.title")}</Text>
         <BufferedSheetInput
           value={watchedTitle}
+          registerFlush={registerBufferedInputFlusher}
           maxLength={200}
           placeholder={t("habits.form.titlePlaceholder")}
           placeholderTextColor={colors.textMuted}
@@ -1195,6 +1234,7 @@ export function HabitFormFields({
             <Text style={styles.label}>{t("habits.form.dueTime")}</Text>
             <BufferedSheetInput
               value={watchedDueTime}
+              registerFlush={registerBufferedInputFlusher}
               placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -1400,6 +1440,7 @@ export function HabitFormFields({
             <Text style={styles.label}>{t("habits.form.description")}</Text>
             <BufferedSheetInput
               value={watchedDescription}
+              registerFlush={registerBufferedInputFlusher}
               placeholder={t("habits.form.descriptionPlaceholder")}
               placeholderTextColor={colors.textMuted}
               maxLength={2000}
@@ -1437,6 +1478,7 @@ export function HabitFormFields({
               <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
               <BufferedSheetInput
                 value={watchedDueEndTime}
+                registerFlush={registerBufferedInputFlusher}
                 placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
                 placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"
