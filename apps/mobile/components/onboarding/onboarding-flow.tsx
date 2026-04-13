@@ -198,7 +198,7 @@ export function OnboardingFlow() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
         >
           <View style={styles.stepWrapper}>{stepContent}</View>
         </ScrollView>

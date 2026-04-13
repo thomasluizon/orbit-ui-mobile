@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  TextInput,
   Modal,
   KeyboardAvoidingView,
   Platform,
+  type TextInput,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -54,6 +54,7 @@ import { clearPersistedQueryCache } from '@/lib/query-client'
 import { useOffline } from '@/hooks/use-offline'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createColors } from '@/lib/theme'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
@@ -568,7 +569,7 @@ export default function ProfileScreen() {
         >
           <ScrollView
             contentContainerStyle={styles.modalScrollContent}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
           >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -617,7 +618,7 @@ export default function ProfileScreen() {
                   <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
                     {t('profile.freshStart.confirmInstruction')}
                   </Text>
-                  <TextInput
+                  <AppTextInput
                     style={styles.confirmInput}
                     value={resetConfirmText}
                     onChangeText={setResetConfirmText}
@@ -712,7 +713,7 @@ export default function ProfileScreen() {
                 </Text>
                 <View style={styles.deleteCodeRow}>
                   {deleteCodeDigits.map((digit, index) => (
-                    <TextInput
+                    <AppTextInput
                       key={`digit-${index}`}
                       ref={(node) => {
                         deleteCodeRefs.current[index] = node

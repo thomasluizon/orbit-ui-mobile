@@ -3,7 +3,6 @@ import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
   KeyboardAvoidingView,
@@ -50,6 +49,7 @@ import { MessageBubble } from "@/components/message-bubble";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
+import { AppTextInput } from "@/components/ui/app-text-input";
 import { useChatStore } from "@/stores/chat-store";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -245,7 +245,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
 
   return (
     <>
-      <TextInput
+      <AppTextInput
         style={styles.textInput}
         value={draft}
         onChangeText={setDraft}

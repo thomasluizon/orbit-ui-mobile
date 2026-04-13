@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -11,6 +10,7 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateHabit } from '@/hooks/use-habits'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
@@ -177,7 +177,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       </View>
 
       {/* Title input */}
-      <TextInput
+      <AppTextInput
         style={styles.input}
         value={title}
         onChangeText={setTitle}

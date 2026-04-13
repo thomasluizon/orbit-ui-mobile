@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Keyboard,
@@ -47,6 +46,7 @@ import {
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { AppTextInput } from '@/components/ui/app-text-input'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -384,7 +384,7 @@ export default function LoginScreen() {
               <View style={styles.formSection}>
                 <View style={styles.fieldGroup}>
                   <Text style={styles.formLabel}>{t('auth.email')}</Text>
-                  <TextInput
+                  <AppTextInput
                     style={styles.formInput}
                     value={email}
                     onChangeText={setEmail}
@@ -454,7 +454,7 @@ export default function LoginScreen() {
                   accessibilityLabel={`${t('auth.codeSentTo')} ${email}`}
                 >
                   {codeDigits.map((digit, index) => (
-                    <TextInput
+                    <AppTextInput
                       key={index}
                       ref={(el) => { codeInputRefs.current[index] = el }}
                       style={styles.codeInput}

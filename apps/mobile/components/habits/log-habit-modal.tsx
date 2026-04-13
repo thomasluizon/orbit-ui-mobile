@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -22,6 +21,7 @@ import {
 } from "@orbit/shared/utils";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { validateHabitLogNote } from "@orbit/shared/validation";
+import { AppTextInput } from "@/components/ui/app-text-input";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -134,7 +134,7 @@ export function LogHabitModal({
           {/* Note input */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>{t("habits.log.noteLabel")}</Text>
-            <TextInput
+            <AppTextInput
               value={note}
               placeholder={t("habits.log.notePlaceholder")}
               placeholderTextColor={colors.textMuted}

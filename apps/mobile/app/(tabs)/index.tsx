@@ -5,7 +5,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ScrollView,
   Platform,
@@ -61,6 +60,7 @@ import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { GoalsView } from '@/components/goals/goals-view'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
@@ -120,7 +120,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
     <View style={styles.searchWrapper}>
       <View style={styles.searchContainer}>
         <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
-        <TextInput
+        <AppTextInput
           style={styles.searchInput}
           value={draft}
           onChangeText={setDraft}

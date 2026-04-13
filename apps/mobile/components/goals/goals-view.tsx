@@ -68,7 +68,7 @@ export function GoalsView() {
         horizontal
         contentContainerStyle={styles.filtersRow}
         showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         {statusFilters.map((filter) => {
           const active = activeFilter === filter.key;

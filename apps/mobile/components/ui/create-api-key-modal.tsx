@@ -4,13 +4,13 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { AlertTriangle, Clipboard as ClipboardIcon, Check, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -149,7 +149,7 @@ export function CreateApiKeyModal({
           ) : (
             <View style={styles.content}>
               <Text style={styles.label}>{t('orbitMcp.keyName')}</Text>
-              <TextInput
+              <AppTextInput
                 style={styles.input}
                 value={keyName}
                 onChangeText={setKeyName}

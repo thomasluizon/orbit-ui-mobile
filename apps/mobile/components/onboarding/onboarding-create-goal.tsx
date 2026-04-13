@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -11,6 +10,7 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import {
   getFriendlyErrorMessage,
   ONBOARDING_GOAL_SUGGESTIONS,
@@ -187,7 +187,7 @@ export function OnboardingCreateGoal({
 
       {/* Form */}
       <View style={styles.formRow}>
-        <TextInput
+        <AppTextInput
           style={[styles.input, styles.halfInput]}
           value={targetValue !== undefined ? String(targetValue) : ''}
           onChangeText={(text) => setTargetValue(text ? Number(text) : undefined)}
@@ -196,7 +196,7 @@ export function OnboardingCreateGoal({
           keyboardType="numeric"
           editable={!isCreating}
         />
-        <TextInput
+        <AppTextInput
           style={[styles.input, styles.halfInput]}
           value={unit}
           onChangeText={setUnit}
@@ -206,7 +206,7 @@ export function OnboardingCreateGoal({
           editable={!isCreating}
         />
       </View>
-      <TextInput
+      <AppTextInput
         style={[styles.input, styles.fullInput]}
         value={description}
         onChangeText={setDescription}
