@@ -76,6 +76,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-blur.ts'),
       },
       {
+        find: 'expo-notifications',
+        replacement: path.resolve(__dirname, './test-mocks/expo-notifications.ts'),
+      },
+      {
         find: /\.(png|jpg|jpeg|gif|webp)$/,
         replacement: path.resolve(__dirname, './test-mocks/file-asset.ts'),
       },

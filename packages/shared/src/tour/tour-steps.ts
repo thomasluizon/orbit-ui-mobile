@@ -243,16 +243,6 @@ export function getTourStepsBySection(section: TourSection): TourStep[] {
   return TOUR_STEPS.filter((s) => s.section === section)
 }
 
-/** Get the first step of a section */
-export function getFirstStepOfSection(section: TourSection): TourStep | undefined {
-  return TOUR_STEPS.find((s) => s.section === section)
-}
-
-/** Get the section a step belongs to */
-export function getSectionForStep(stepId: string): TourSection | undefined {
-  return TOUR_STEPS.find((s) => s.id === stepId)?.section
-}
-
 /** Get step count per section */
 export function getSectionStepCount(section: TourSection): number {
   return TOUR_STEPS.filter((s) => s.section === section).length

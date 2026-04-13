@@ -5,12 +5,24 @@ interface ChatHistoryEntry {
   content: string | null
 }
 
+interface ChatHistoryPayloadEntry {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+function toChatHistoryRole(role: ChatMessage['role']): ChatHistoryPayloadEntry['role'] {
+  return role === 'ai' ? 'assistant' : 'user'
+}
+
 export function buildRecentChatHistory(
   messages: ReadonlyArray<ChatHistoryEntry>,
   limit = 10,
-): Array<Pick<ChatMessage, 'role' | 'content'>> {
-  return messages.slice(-(limit + 1), -1).map((message) => ({
-    role: message.role,
-    content: message.content,
-  })).filter((message): message is Pick<ChatMessage, 'role' | 'content'> => message.content !== null)
+): ChatHistoryPayloadEntry[] {
+  return messages
+    .slice(-(limit + 1), -1)
+    .filter((message): message is ChatHistoryEntry & { content: string } => message.content !== null)
+    .map((message) => ({
+      role: toChatHistoryRole(message.role),
+      content: message.content,
+    }))
 }

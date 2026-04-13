@@ -332,12 +332,14 @@ export {
   getNativePushStatusPresentation,
   getNativePushStatusTone,
   getPushStatusToneClass,
+  shouldShowNativePushPrompt,
   getWebPushStatusMessageKey,
   getWebPushStatusPresentation,
   getWebPushStatusTone,
 } from './push-notification-settings'
 export type {
   NativePushPermissionStatus,
+  NativePushPromptSnapshot,
   NativePushRegistrationStatus,
   NativePushStatusSnapshot,
   PushStatusPresentation,

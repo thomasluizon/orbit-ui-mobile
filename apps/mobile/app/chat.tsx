@@ -39,7 +39,7 @@ import {
 import { habitKeys, profileKeys } from "@orbit/shared/query";
 import type { ChatMessage, ChatResponse } from "@orbit/shared/types/chat";
 import type { Profile } from "@orbit/shared/types/profile";
-import { getErrorMessage } from "@orbit/shared/utils";
+import { buildRecentChatHistory, getErrorMessage } from "@orbit/shared/utils";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
@@ -515,9 +515,7 @@ export default function ChatScreen() {
         }
 
         const currentMessages = useChatStore.getState().messages;
-        const recentHistory = currentMessages
-          .slice(-11, -1)
-          .map((m) => ({ role: m.role, content: m.content }));
+        const recentHistory = buildRecentChatHistory(currentMessages);
 
         formData.append("history", JSON.stringify(recentHistory));
 

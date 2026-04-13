@@ -12,7 +12,6 @@ import {
   configKeys,
   calendarKeys,
   userFactKeys,
-  checklistTemplateKeys,
 } from '../query/keys'
 import { QUERY_STALE_TIMES } from '../query/options'
 
@@ -234,24 +233,6 @@ describe('userFactKeys', () => {
 
   it('lists returns list key', () => {
     expect(userFactKeys.lists()).toEqual(['userFacts', 'list'])
-  })
-})
-
-describe('checklistTemplateKeys', () => {
-  it('all returns base key', () => {
-    expect(checklistTemplateKeys.all).toEqual(['checklistTemplates'])
-  })
-
-  it('lists returns list key', () => {
-    expect(checklistTemplateKeys.lists()).toEqual(['checklistTemplates', 'list'])
-  })
-
-  it('details returns details key', () => {
-    expect(checklistTemplateKeys.details()).toEqual(['checklistTemplates', 'detail'])
-  })
-
-  it('detail appends id', () => {
-    expect(checklistTemplateKeys.detail('tpl-1')).toEqual(['checklistTemplates', 'detail', 'tpl-1'])
   })
 })
 

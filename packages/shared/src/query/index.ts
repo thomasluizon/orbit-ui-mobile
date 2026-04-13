@@ -11,7 +11,6 @@ export {
   configKeys,
   calendarKeys,
   userFactKeys,
-  checklistTemplateKeys,
   versionCheckKeys,
 } from './keys'
 

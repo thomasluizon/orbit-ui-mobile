@@ -1580,7 +1580,6 @@ describe('barrel re-exports', () => {
     expect(barrel.configKeys).toBeDefined()
     expect(barrel.calendarKeys).toBeDefined()
     expect(barrel.userFactKeys).toBeDefined()
-    expect(barrel.checklistTemplateKeys).toBeDefined()
     expect(barrel.QUERY_STALE_TIMES).toBeDefined()
   })
 
