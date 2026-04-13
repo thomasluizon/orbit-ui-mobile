@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, Platform } from 'react-native'
 import Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import { useRouter } from 'expo-router'
 import type { Href } from 'expo-router'
 import { API } from '@orbit/shared/api'
+import type { NativePushRegistrationStatus } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import {
   normalizePermissionStatus,
@@ -47,15 +49,8 @@ interface ExpoNotificationsModule {
     }) => void,
   ) => { remove: () => void }
 }
-type PushRegistrationStatus =
-  | 'unsupported'
-  | 'idle'
-  | 'permission-undetermined'
-  | 'permission-denied'
-  | 'registering'
-  | 'token-missing'
-  | 'sync-failed'
-  | 'registered'
+type PushRegistrationStatus = NativePushRegistrationStatus
+
 interface UsePushNotificationsReturn {
   expoPushToken: string | null
   error: string | null
@@ -66,14 +61,31 @@ interface UsePushNotificationsReturn {
   permissionStatus: NotificationPermissionStatus | null
   permissionCanAskAgain: boolean
   registrationStatus: PushRegistrationStatus
+  disablePushNotifications: () => Promise<boolean>
   requestPermission: () => Promise<boolean>
   refreshPermissionStatus: () => Promise<void>
 }
 
 let activeRegistrationPromise: Promise<boolean> | null = null
+const PUSH_DISABLED_STORAGE_KEY_PREFIX = 'orbit_push_disabled'
 
 function isExpoGo(): boolean {
   return Constants.appOwnership === 'expo'
+}
+
+function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsModule {
+  if (!value || typeof value !== 'object') return false
+
+  const candidate = value as Partial<ExpoNotificationsModule>
+  return (
+    typeof candidate.setNotificationHandler === 'function' &&
+    typeof candidate.setNotificationChannelAsync === 'function' &&
+    typeof candidate.getPermissionsAsync === 'function' &&
+    typeof candidate.requestPermissionsAsync === 'function' &&
+    typeof candidate.getExpoPushTokenAsync === 'function' &&
+    typeof candidate.getDevicePushTokenAsync === 'function' &&
+    typeof candidate.addNotificationResponseReceivedListener === 'function'
+  )
 }
 
 function getNotificationsModule(): ExpoNotificationsModule | null {
@@ -81,13 +93,40 @@ function getNotificationsModule(): ExpoNotificationsModule | null {
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps Expo Go from importing unsupported notifications code
-    return require('expo-notifications') as ExpoNotificationsModule
+    const requiredModule = require('expo-notifications') as unknown
+    if (isExpoNotificationsModule(requiredModule)) {
+      return requiredModule
+    }
+
+    if (
+      requiredModule &&
+      typeof requiredModule === 'object' &&
+      'default' in requiredModule &&
+      isExpoNotificationsModule(requiredModule.default)
+    ) {
+      return requiredModule.default
+    }
+
+    return null
   } catch {
     return null
   }
 }
 
-const notificationsModule = getNotificationsModule()
+let notificationsModule: ExpoNotificationsModule | null = getNotificationsModule()
+
+export function __setNotificationsModuleForTests(nextModule: unknown): void {
+  notificationsModule = isExpoNotificationsModule(nextModule) ? nextModule : null
+}
+
+function isPhysicalDevice(): boolean {
+  if (typeof Device.isDevice === 'boolean') {
+    return Device.isDevice
+  }
+
+  const deviceModule = Device as unknown as { default?: { isDevice?: unknown } }
+  return deviceModule.default?.isDevice === true
+}
 
 function isGrantedStatus(status: string): status is 'granted' {
   return status === 'granted'
@@ -141,7 +180,7 @@ async function delay(ms: number): Promise<void> {
 }
 
 async function getPushToken(): Promise<string | null> {
-  if (!notificationsModule || !Device.isDevice) return null
+  if (!notificationsModule || !isPhysicalDevice()) return null
 
   await ensureAndroidChannel()
   const projectId =
@@ -158,7 +197,7 @@ async function getPushToken(): Promise<string | null> {
 }
 
 async function getNativeAndroidPushToken(): Promise<string | null> {
-  if (!notificationsModule || !Device.isDevice || Platform.OS !== 'android') return null
+  if (!notificationsModule || !isPhysicalDevice() || Platform.OS !== 'android') return null
 
   await ensureAndroidChannel()
   let lastError: unknown = null
@@ -186,15 +225,38 @@ async function getNativeAndroidPushToken(): Promise<string | null> {
   return null
 }
 
+async function getCurrentPushToken(): Promise<string | null> {
+  return Platform.OS === 'android'
+    ? getNativeAndroidPushToken()
+    : getPushToken()
+}
+
+function buildNativePushPayload(token: string) {
+  return {
+    endpoint: token,
+    p256dh: Platform.OS === 'android' ? 'fcm' : 'native',
+    auth: Platform.OS === 'android' ? 'fcm' : 'native',
+  }
+}
+
 async function sendTokenToBackend(token: string): Promise<void> {
   await apiClient(API.notifications.subscribe, {
     method: 'POST',
-    body: JSON.stringify({
-      endpoint: token,
-      p256dh: Platform.OS === 'android' ? 'fcm' : 'native',
-      auth: Platform.OS === 'android' ? 'fcm' : 'native',
-    }),
+    body: JSON.stringify(buildNativePushPayload(token)),
   })
+}
+
+async function removeTokenFromBackend(token: string): Promise<void> {
+  await apiClient(API.notifications.unsubscribe, {
+    method: 'POST',
+    body: JSON.stringify(buildNativePushPayload(token)),
+  })
+}
+
+function getPushDisabledStorageKey(userId: string | null): string {
+  return userId
+    ? `${PUSH_DISABLED_STORAGE_KEY_PREFIX}:${userId}`
+    : PUSH_DISABLED_STORAGE_KEY_PREFIX
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
@@ -207,7 +269,29 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const [registrationStatus, setRegistrationStatus] = useState<PushRegistrationStatus>('idle')
   const [isRegistered, setIsRegistered] = useState(false)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const isSupported = !!notificationsModule && Device.isDevice
+  const userId = useAuthStore((s) => s.user?.userId ?? null)
+  const isSupported = !!notificationsModule && isPhysicalDevice()
+  const disabledStorageKey = getPushDisabledStorageKey(userId)
+
+  const readDisabledPreference = useCallback(async (): Promise<boolean> => {
+    try {
+      return (await AsyncStorage.getItem(disabledStorageKey)) === '1'
+    } catch {
+      return false
+    }
+  }, [disabledStorageKey])
+
+  const writeDisabledPreference = useCallback(async (disabled: boolean): Promise<void> => {
+    try {
+      if (disabled) {
+        await AsyncStorage.setItem(disabledStorageKey, '1')
+        return
+      }
+      await AsyncStorage.removeItem(disabledStorageKey)
+    } catch {
+      // Best-effort local preference persistence.
+    }
+  }, [disabledStorageKey])
 
   const registerAndSync = useCallback(async (): Promise<boolean> => {
     if (activeRegistrationPromise) {
@@ -221,10 +305,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       let token: string | null = null
       try {
-        token =
-          Platform.OS === 'android'
-            ? await getNativeAndroidPushToken()
-            : await getPushToken()
+        token = await getCurrentPushToken()
       } catch (err: unknown) {
         setExpoPushToken(null)
         setRegistrationStatus('token-missing')
@@ -246,6 +327,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       try {
         await sendTokenToBackend(token)
+        await writeDisabledPreference(false)
         setRegistrationStatus('registered')
         setIsRegistered(true)
         setError(null)
@@ -266,10 +348,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         activeRegistrationPromise = null
       }
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, writeDisabledPreference])
+
+  const enablePushNotifications = useCallback(async (): Promise<boolean> => {
+    await writeDisabledPreference(false)
+    return registerAndSync()
+  }, [registerAndSync, writeDisabledPreference])
 
   const syncGrantedPermission = useCallback(async (): Promise<void> => {
-    if (!isSupported) {
+    const activeNotificationsModule = notificationsModule
+    if (!isSupported || !activeNotificationsModule) {
       setPermissionStatus(null)
       setPermissionCanAskAgain(false)
       setExpoPushToken(null)
@@ -280,8 +368,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
     try {
       await ensureAndroidChannel()
-      const permissions = await notificationsModule.getPermissionsAsync()
+      const permissions = await activeNotificationsModule.getPermissionsAsync()
       const status = normalizePermissionStatus(permissions)
+      const isDisabledInOrbit = await readDisabledPreference()
       setPermissionStatus(status)
       setPermissionCanAskAgain(permissions.canAskAgain !== false)
       setError(null)
@@ -300,6 +389,12 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return
       }
 
+      if (isDisabledInOrbit) {
+        setRegistrationStatus('disabled')
+        setIsRegistered(false)
+        return
+      }
+
       await registerAndSync()
     } catch (err: unknown) {
       setPermissionStatus(null)
@@ -309,10 +404,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setIsRegistered(false)
       setError(err instanceof Error ? err.message : 'Failed to refresh push notification state.')
     }
-  }, [isSupported, registerAndSync])
+  }, [isSupported, readDisabledPreference, registerAndSync])
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (!isSupported) {
+    const activeNotificationsModule = notificationsModule
+    if (!isSupported || !activeNotificationsModule) {
       setPermissionStatus(null)
       setPermissionCanAskAgain(false)
       setRegistrationStatus('unsupported')
@@ -324,11 +420,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     setError(null)
     try {
       await ensureAndroidChannel()
-      let permissions = await notificationsModule.getPermissionsAsync()
+      let permissions = await activeNotificationsModule.getPermissionsAsync()
       let status = normalizePermissionStatus(permissions)
 
       if (status !== 'granted' && permissions.canAskAgain !== false) {
-        permissions = await notificationsModule.requestPermissionsAsync()
+        permissions = await activeNotificationsModule.requestPermissionsAsync()
         status = normalizePermissionStatus(permissions)
       }
 
@@ -341,7 +437,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false
       }
 
-      return registerAndSync()
+      return enablePushNotifications()
     } catch (err: unknown) {
       setRegistrationStatus('sync-failed')
       setIsRegistered(false)
@@ -350,7 +446,61 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [isSupported, registerAndSync])
+  }, [enablePushNotifications, isSupported])
+
+  const disablePushNotifications = useCallback(async (): Promise<boolean> => {
+    if (!isSupported) {
+      setPermissionStatus(null)
+      setPermissionCanAskAgain(false)
+      setRegistrationStatus('unsupported')
+      setIsRegistered(false)
+      return false
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      let token = expoPushToken
+
+      if (!token) {
+        try {
+          token = await getCurrentPushToken()
+        } catch (err: unknown) {
+          setRegistrationStatus('token-missing')
+          setError(err instanceof Error ? err.message : 'Push token is unavailable on this device.')
+          return false
+        }
+
+        setExpoPushToken(token)
+      }
+
+      if (!token) {
+        setRegistrationStatus('token-missing')
+        setError('Push token is unavailable on this device.')
+        return false
+      }
+
+      if (!isAuthenticated) {
+        setRegistrationStatus('sync-failed')
+        setError('Failed to sync push unsubscription.')
+        return false
+      }
+
+      await removeTokenFromBackend(token)
+      await writeDisabledPreference(true)
+      setRegistrationStatus(permissionStatus === 'granted' ? 'disabled' : 'idle')
+      setIsRegistered(false)
+      setError(null)
+      return true
+    } catch (err: unknown) {
+      setRegistrationStatus('sync-failed')
+      setError(err instanceof Error ? err.message : 'Failed to sync push unsubscription.')
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }, [expoPushToken, isAuthenticated, isSupported, permissionStatus, writeDisabledPreference])
 
   useEffect(() => {
     void syncGrantedPermission()
@@ -358,12 +508,13 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
   useEffect(() => {
     if (isAuthenticated && isGrantedStatus(permissionStatus ?? '') && !isRegistered) {
-      void registerAndSync()
+      void syncGrantedPermission()
     }
-  }, [isAuthenticated, isRegistered, permissionStatus, registerAndSync])
+  }, [isAuthenticated, isRegistered, permissionStatus, syncGrantedPermission])
 
   useEffect(() => {
-    if (!isSupported || !notificationsModule) return undefined
+    const activeNotificationsModule = notificationsModule
+    if (!isSupported || !activeNotificationsModule) return undefined
 
     const appStateSubscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
@@ -371,7 +522,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
     })
 
-    const responseSubscription = notificationsModule.addNotificationResponseReceivedListener(
+    const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
       (response) => {
         const maybeUrl = response.notification.request.content?.data?.url
         if (isSafeInternalUrl(maybeUrl)) {
@@ -396,6 +547,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     permissionStatus,
     permissionCanAskAgain,
     registrationStatus,
+    disablePushNotifications,
     requestPermission,
     refreshPermissionStatus: syncGrantedPermission,
   }

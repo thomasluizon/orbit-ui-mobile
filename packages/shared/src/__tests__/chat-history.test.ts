@@ -12,7 +12,7 @@ describe('buildRecentChatHistory', () => {
 
     expect(history).toEqual([
       { role: 'user', content: 'one' },
-      { role: 'ai', content: 'two' },
+      { role: 'assistant', content: 'two' },
       { role: 'user', content: 'three' },
     ])
   })
@@ -28,6 +28,17 @@ describe('buildRecentChatHistory', () => {
 
     expect(history).toHaveLength(5)
     expect(history[0]).toEqual({ role: 'user', content: 'message-7' })
+    expect(history[1]).toEqual({ role: 'assistant', content: 'message-8' })
     expect(history.at(-1)).toEqual({ role: 'user', content: 'message-11' })
+  })
+
+  it('omits null content entries from the serialized payload', () => {
+    const history = buildRecentChatHistory([
+      { role: 'user', content: 'one' },
+      { role: 'ai', content: null },
+      { role: 'user', content: 'two' },
+    ])
+
+    expect(history).toEqual([{ role: 'user', content: 'one' }])
   })
 })

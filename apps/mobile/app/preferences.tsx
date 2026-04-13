@@ -56,6 +56,7 @@ export default function PreferencesScreen() {
     isSupported: pushSupported,
     permissionStatus,
     registrationStatus,
+    disablePushNotifications,
     requestPermission,
     refreshPermissionStatus,
   } = usePushNotifications()
@@ -182,9 +183,7 @@ export default function PreferencesScreen() {
       return
     }
 
-    if (permissionStatus === 'granted') {
-      await Linking.openSettings().catch(() => {})
-    }
+    await disablePushNotifications()
   }
 
   const pushStatusPresentation = getNativePushStatusPresentation({
@@ -200,7 +199,7 @@ export default function PreferencesScreen() {
       : pushStatusPresentation.tone === 'accent'
         ? colors.primary
         : colors.textMuted
-  const pushToggleValue = permissionStatus === 'granted'
+  const pushToggleValue = pushEnabled
 
   return (
     <SafeAreaView style={styles.safeArea}>

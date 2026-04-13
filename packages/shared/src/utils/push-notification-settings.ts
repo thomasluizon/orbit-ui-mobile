@@ -15,6 +15,7 @@ export type NativePushPermissionStatus = 'granted' | 'denied' | 'undetermined' |
 export type NativePushRegistrationStatus =
   | 'unsupported'
   | 'idle'
+  | 'disabled'
   | 'permission-undetermined'
   | 'permission-denied'
   | 'registering'
@@ -32,6 +33,12 @@ export interface NativePushStatusSnapshot {
   registrationStatus: NativePushRegistrationStatus
   isEnabled: boolean
   isRegistered: boolean
+}
+
+export interface NativePushPromptSnapshot extends NativePushStatusSnapshot {
+  hasCompletedOnboarding: boolean
+  isSupported: boolean
+  isDismissed: boolean
 }
 
 export function getPushStatusToneClass(tone: PushStatusTone): string {
@@ -131,6 +138,10 @@ export function getNativePushStatusMessageKey({
     return 'settings.notifications.tokenMissing'
   }
 
+  if (registrationStatus === 'disabled') {
+    return 'settings.notifications.disabled'
+  }
+
   if (permissionStatus === 'granted' && !isRegistered) {
     return 'settings.notifications.notRegistered'
   }
@@ -155,4 +166,35 @@ export function getWebPushStatusPresentation(
     messageKey: getWebPushStatusMessageKey(status, permission),
     tone: getWebPushStatusTone(status),
   }
+}
+
+export function shouldShowNativePushPrompt({
+  hasCompletedOnboarding,
+  isDismissed,
+  isEnabled,
+  isRegistered,
+  isSupported,
+  permissionStatus,
+  registrationStatus,
+}: NativePushPromptSnapshot): boolean {
+  if (!hasCompletedOnboarding || isDismissed) {
+    return false
+  }
+
+  if (
+    !isSupported ||
+    permissionStatus === null ||
+    permissionStatus === 'denied' ||
+    registrationStatus === 'unsupported' ||
+    registrationStatus === 'permission-denied' ||
+    registrationStatus === 'disabled' ||
+    registrationStatus === 'registering' ||
+    registrationStatus === 'registered' ||
+    isEnabled ||
+    isRegistered
+  ) {
+    return false
+  }
+
+  return permissionStatus === 'undetermined' || permissionStatus === 'granted'
 }

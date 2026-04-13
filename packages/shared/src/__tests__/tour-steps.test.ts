@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   TOUR_STEPS,
   getTourStepsBySection,
-  getFirstStepOfSection,
-  getSectionForStep,
   getSectionStepCount,
 } from '../tour/tour-steps'
 import type { TourSection } from '../types/tour'
@@ -49,35 +47,6 @@ describe('getTourStepsBySection', () => {
   it('returns empty array for unknown section', () => {
     const steps = getTourStepsBySection('nonexistent' as TourSection)
     expect(steps).toEqual([])
-  })
-})
-
-describe('getFirstStepOfSection', () => {
-  it('returns the first step of habits section', () => {
-    const firstStep = getFirstStepOfSection('habits')
-    expect(firstStep).toBeDefined()
-    expect(firstStep?.section).toBe('habits')
-
-    // Should be the same as the first habit step in TOUR_STEPS
-    const habitsSteps = getTourStepsBySection('habits')
-    expect(firstStep?.id).toBe(habitsSteps[0]?.id)
-  })
-
-  it('returns undefined for unknown section', () => {
-    const step = getFirstStepOfSection('nonexistent' as TourSection)
-    expect(step).toBeUndefined()
-  })
-})
-
-describe('getSectionForStep', () => {
-  it('returns the section for a known step id', () => {
-    const firstStep = TOUR_STEPS[0]!
-    const section = getSectionForStep(firstStep.id)
-    expect(section).toBe(firstStep.section)
-  })
-
-  it('returns undefined for unknown step id', () => {
-    expect(getSectionForStep('nonexistent-step')).toBeUndefined()
   })
 })
 

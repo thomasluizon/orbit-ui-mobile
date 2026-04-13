@@ -208,7 +208,7 @@ function GlobalOverlays({
       <TrialExpiredModal />
       {profile && !profile.hasCompletedOnboarding ? <OnboardingFlow /> : null}
       <Suspense fallback={null}>
-        <PushPrompt />
+        {profile?.hasCompletedOnboarding ? <PushPrompt /> : null}
       </Suspense>
       {profile?.hasCompletedOnboarding ? (
         <>

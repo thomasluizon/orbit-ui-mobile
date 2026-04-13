@@ -1,16 +1,15 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
   StyleSheet,
-  InteractionManager,
-  Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BellRing, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { shouldShowNativePushPrompt } from '@orbit/shared/utils'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -30,13 +29,14 @@ export function PushPrompt() {
   const { colors, shadows } = useAppTheme()
   const {
     isEnabled,
+    isRegistered,
     isSupported,
     permissionStatus,
     registrationStatus,
     requestPermission,
   } = usePushNotifications()
   const [show, setShow] = useState(false)
-  const autoRequestedRef = useRef(false)
+  const [isDismissed, setIsDismissed] = useState<boolean | null>(null)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
@@ -44,73 +44,54 @@ export function PushPrompt() {
     registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
 
   useEffect(() => {
-    if (
-      !isSupported ||
-      permissionStatus === null ||
-      permissionStatus === 'denied' ||
-      isEnabled ||
-      registrationStatus === 'registering'
-    ) {
-      setShow(false)
-      return
-    }
-
-    if (autoRequestedRef.current && permissionStatus === 'granted' && !showRetryHint) {
-      setShow(false)
-      return
-    }
-
-    if (permissionStatus === 'undetermined' && !autoRequestedRef.current) {
-      autoRequestedRef.current = true
-      let cancelled = false
-      let timeoutId: ReturnType<typeof setTimeout> | null = null
-      const interaction = InteractionManager.runAfterInteractions(() => {
-        timeoutId = setTimeout(() => {
-          if (cancelled) return
-          void requestPermission().then((success) => {
-            if (success) {
-              AsyncStorage.setItem(STORAGE_KEY, '1')
-            } else {
-              autoRequestedRef.current = false
-            }
-          })
-        }, Platform.OS === 'android' ? 900 : 0)
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((value) => {
+        setIsDismissed(value === '1')
       })
+      .catch(() => {
+        setIsDismissed(false)
+      })
+  }, [])
 
-      return () => {
-        cancelled = true
-        interaction.cancel()
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-        }
-      }
+  useEffect(() => {
+    if (isDismissed === null) return
+
+    const shouldShow = shouldShowNativePushPrompt({
+      hasCompletedOnboarding: true,
+      isDismissed,
+      isEnabled,
+      isRegistered,
+      isSupported,
+      permissionStatus,
+      registrationStatus,
+    })
+
+    if (!shouldShow) {
+      setShow(false)
+      return
     }
 
-    AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      if (value === '1') return
-
-      setShow(true)
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    })
+    setShow(true)
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start()
   }, [
     fadeAnim,
+    isDismissed,
     isEnabled,
+    isRegistered,
     isSupported,
     permissionStatus,
     registrationStatus,
-    requestPermission,
-    showRetryHint,
     slideAnim,
   ])
 
@@ -129,6 +110,7 @@ export function PushPrompt() {
     ]).start(() => {
       setShow(false)
     })
+    setIsDismissed(true)
     AsyncStorage.setItem(STORAGE_KEY, '1')
   }, [fadeAnim, slideAnim])
 
