@@ -622,7 +622,11 @@ export function buildOptimisticHabitPatch(
   return patch
 }
 
-export async function invalidateHabitMutationQueries(
+function runBackgroundInvalidations(tasks: Array<Promise<unknown>>) {
+  void Promise.allSettled(tasks)
+}
+
+export function invalidateHabitMutationQueries(
   queryClient: QueryClient,
   options?: {
     habitId?: string
@@ -630,29 +634,34 @@ export async function invalidateHabitMutationQueries(
     includeGamification?: boolean
     includeProfile?: boolean
   },
-): Promise<void> {
-  await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-  // Prefix invalidation: matches every (from, to, locale) summary entry.
-  await queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+): void {
+  const invalidations: Array<Promise<unknown>> = [
+    queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
+  ]
 
   if (options?.habitId) {
-    await queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) })
+    invalidations.push(
+      queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) }),
+    )
   }
 
   if (options?.includeGoals) {
-    await queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    invalidations.push(queryClient.invalidateQueries({ queryKey: goalKeys.lists() }))
   }
 
   if (options?.includeProfile) {
-    await queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    invalidations.push(queryClient.invalidateQueries({ queryKey: profileKeys.all }))
   }
 
   if (options?.includeGamification) {
-    await queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    invalidations.push(queryClient.invalidateQueries({ queryKey: gamificationKeys.all }))
   }
+
+  runBackgroundInvalidations(invalidations)
 }
 
-export async function finalizeHabitMutation(
+export function finalizeHabitMutation(
   queryClient: QueryClient,
   data: unknown,
   error: Error | null,
@@ -662,11 +671,11 @@ export async function finalizeHabitMutation(
     includeGamification?: boolean
     includeProfile?: boolean
   },
-): Promise<void> {
+): void {
   if (error || isQueuedResult(data)) {
     return
   }
 
-  await invalidateHabitMutationQueries(queryClient, options)
+  invalidateHabitMutationQueries(queryClient, options)
   void refreshWidget().catch(() => {})
 }

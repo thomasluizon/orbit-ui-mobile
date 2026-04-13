@@ -160,6 +160,32 @@ describe('finalizeHabitMutation', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
     expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
   })
+
+  it('returns immediately instead of waiting for invalidations to settle', () => {
+    const pendingInvalidation = new Promise<void>(() => {})
+    const queryClient = {
+      invalidateQueries: vi.fn(() => pendingInvalidation),
+    }
+
+    const result = finalizeHabitMutation(
+      queryClient as never,
+      { ok: true },
+      null,
+      {
+        habitId: 'habit-1',
+        includeGoals: true,
+        includeProfile: true,
+        includeGamification: true,
+      },
+    )
+
+    expect(result).toBeUndefined()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.summaryPrefix(),
+    })
+    expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('habit mutation helper builders', () => {

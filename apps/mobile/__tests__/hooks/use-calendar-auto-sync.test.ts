@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { calendarKeys } from '@orbit/shared/query'
+import { calendarKeys, notificationKeys } from '@orbit/shared/query'
 import type {
   CalendarAutoSyncState,
+  CalendarAutoSyncResult,
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
 
@@ -188,43 +189,38 @@ describe('mobile calendar auto-sync hooks', () => {
 
   it('useSetCalendarAutoSync applies optimistic update then commits the server state', async () => {
     const mutation = useSetCalendarAutoSync() as unknown as MutationConfig<
-      CalendarAutoSyncState,
-      boolean,
+      void,
+      { enabled: boolean },
       { previous: CalendarAutoSyncState | undefined }
     >
 
     // Seed the store as if a useQuery had populated the cache.
     mocks.store.state = buildState({ enabled: false })
 
-    const serverResponse: CalendarAutoSyncState = {
-      enabled: true,
-      status: 'Idle',
-      lastSyncedAt: null,
-      hasGoogleConnection: true,
-    }
-    mocks.apiClient.mockResolvedValue(serverResponse)
+    mocks.apiClient.mockResolvedValue({ success: true })
 
-    const context = await mutation.onMutate?.(true)
+    const context = await mutation.onMutate?.({ enabled: true })
 
     // Optimistic update is applied immediately.
     expect(mocks.store.state?.enabled).toBe(true)
 
-    const result = await mutation.mutationFn(true)
-    mutation.onSettled?.(result, null, true, context)
+    const result = await mutation.mutationFn({ enabled: true })
+    mutation.onSettled?.(result, null, { enabled: true }, context)
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
       '/api/calendar/auto-sync',
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ enabled: true }) }),
     )
 
-    // Final state from server is committed to the cache.
-    expect(mocks.store.state).toEqual(serverResponse)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: calendarKeys.autoSyncState(),
+    })
   })
 
   it('useSetCalendarAutoSync rolls back the optimistic update when the mutation fails', async () => {
     const mutation = useSetCalendarAutoSync() as unknown as MutationConfig<
-      CalendarAutoSyncState,
-      boolean,
+      void,
+      { enabled: boolean },
       { previous: CalendarAutoSyncState | undefined }
     >
 
@@ -233,32 +229,56 @@ describe('mobile calendar auto-sync hooks', () => {
 
     mocks.apiClient.mockRejectedValue(new Error('Toggle failed'))
 
-    const context = await mutation.onMutate?.(true)
+    const context = await mutation.onMutate?.({ enabled: true })
 
     // Optimistic update toggled it on.
     expect(mocks.store.state?.enabled).toBe(true)
 
-    await expect(mutation.mutationFn(true)).rejects.toThrow('Toggle failed')
-    mutation.onError?.(new Error('Toggle failed'), true, context)
+    await expect(mutation.mutationFn({ enabled: true })).rejects.toThrow('Toggle failed')
+    mutation.onError?.(new Error('Toggle failed'), { enabled: true }, context)
 
     // Rolled back to the previous snapshot.
     expect(mocks.store.state).toEqual(initialState)
   })
 
+  it('useRunCalendarSyncNow invalidates calendar and notification queries on settle', async () => {
+    const mutation = (await import('@/hooks/use-calendar-auto-sync')).useRunCalendarSyncNow() as unknown as MutationConfig<
+      CalendarAutoSyncResult,
+      void,
+      undefined
+    >
+
+    mocks.apiClient.mockResolvedValue({
+      newSuggestions: 2,
+      reconciledHabits: 1,
+      status: 'Idle',
+    })
+
+    const result = await mutation.mutationFn(undefined)
+    mutation.onSettled?.(result, null, undefined, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: calendarKeys.all,
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: notificationKeys.all,
+    })
+  })
+
   it('useDismissCalendarSuggestion optimistically removes the suggestion from the list', async () => {
     const mutation = useDismissCalendarSuggestion() as unknown as MutationConfig<
       void,
-      string,
+      { id: string },
       { previous: CalendarSyncSuggestion[] | undefined }
     >
 
     mocks.apiClient.mockResolvedValue(undefined)
 
-    await mutation.onMutate?.('s-1')
+    await mutation.onMutate?.({ id: 's-1' })
 
     expect(mocks.store.suggestions?.map((s) => s.id)).toEqual(['s-2'])
 
-    await mutation.mutationFn('s-1')
+    await mutation.mutationFn({ id: 's-1' })
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
       '/api/calendar/auto-sync/suggestions/s-1/dismiss',
@@ -269,7 +289,7 @@ describe('mobile calendar auto-sync hooks', () => {
   it('useDismissCalendarSuggestion restores the list when the api fails', async () => {
     const mutation = useDismissCalendarSuggestion() as unknown as MutationConfig<
       void,
-      string,
+      { id: string },
       { previous: CalendarSyncSuggestion[] | undefined }
     >
 
@@ -278,11 +298,11 @@ describe('mobile calendar auto-sync hooks', () => {
 
     mocks.apiClient.mockRejectedValue(new Error('Dismiss failed'))
 
-    const context = await mutation.onMutate?.('s-1')
+    const context = await mutation.onMutate?.({ id: 's-1' })
     expect(mocks.store.suggestions?.map((s) => s.id)).toEqual(['s-2'])
 
-    await expect(mutation.mutationFn('s-1')).rejects.toThrow('Dismiss failed')
-    mutation.onError?.(new Error('Dismiss failed'), 's-1', context)
+    await expect(mutation.mutationFn({ id: 's-1' })).rejects.toThrow('Dismiss failed')
+    mutation.onError?.(new Error('Dismiss failed'), { id: 's-1' }, context)
 
     expect(mocks.store.suggestions?.map((s) => s.id)).toEqual(['s-1', 's-2'])
   })

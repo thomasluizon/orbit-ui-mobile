@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Animated,
@@ -11,6 +10,7 @@ import { ChevronUp, ChevronDown, X, Copy, Check, Plus } from 'lucide-react-nativ
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { createColors, radius } from '@/lib/theme'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ function EditableChecklistItem({
         </TouchableOpacity>
       </View>
       <View style={styles.uncheckedBox} />
-      <TextInput
+      <BottomSheetAppTextInput
         value={localText}
         style={styles.itemTextInput}
         placeholderTextColor={colors.textMuted}
@@ -319,7 +319,7 @@ export function HabitChecklist({
       {/* Add item (editable mode only) */}
       {editable && (
         <View style={styles.addItemRow}>
-          <TextInput
+          <BottomSheetAppTextInput
             value={newItemText}
             placeholder={t('habits.form.checklistPlaceholder')}
             placeholderTextColor={colors.textMuted}

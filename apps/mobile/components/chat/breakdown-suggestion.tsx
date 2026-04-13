@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -13,6 +12,7 @@ import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { plural } from '@/lib/plural'
@@ -219,7 +219,7 @@ export function BreakdownSuggestion({
         {habits.map((habit, index) => (
           <View key={`${habit.title}-${index}`} style={styles.habitRow}>
             <View style={styles.habitContent}>
-              <TextInput
+              <AppTextInput
                 style={styles.habitInput}
                 value={habit.title}
                 onChangeText={(text) => updateHabit(index, { title: text })}

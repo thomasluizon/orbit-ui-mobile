@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
 import { createColors } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -113,7 +113,7 @@ export default function SupportScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -154,7 +154,7 @@ export default function SupportScreen() {
 
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <TextInput
+              <AppTextInput
                 style={[styles.input, nameError ? styles.inputError : null]}
                 value={name}
                 onChangeText={setName}
@@ -164,7 +164,7 @@ export default function SupportScreen() {
               {nameError && <Text style={styles.inlineError}>{nameError}</Text>}
             </View>
             <View style={styles.halfField}>
-              <TextInput
+              <AppTextInput
                 style={[styles.input, emailError ? styles.inputError : null]}
                 value={email}
                 onChangeText={setEmail}
@@ -177,7 +177,7 @@ export default function SupportScreen() {
             </View>
           </View>
 
-          <TextInput
+          <AppTextInput
             style={styles.input}
             value={subject}
             onChangeText={setSubject}
@@ -186,7 +186,7 @@ export default function SupportScreen() {
             maxLength={100}
           />
 
-          <TextInput
+          <AppTextInput
             style={[styles.input, styles.textArea]}
             value={message}
             onChangeText={setMessage}

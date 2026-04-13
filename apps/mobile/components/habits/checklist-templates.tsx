@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
@@ -19,6 +18,7 @@ import {
   loadChecklistTemplates,
   saveChecklistTemplates,
 } from '@/lib/checklist-template-storage'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ChecklistTemplatesProps {
@@ -127,7 +127,7 @@ export function ChecklistTemplates({
 
       {showSave ? (
         <View style={styles.saveRow}>
-          <TextInput
+          <BottomSheetAppTextInput
             value={templateName}
             placeholder={t('habits.form.templateNamePlaceholder')}
             placeholderTextColor={colors.textMuted}

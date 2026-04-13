@@ -1,11 +1,10 @@
-import { useState, useMemo, useCallback, useRef, useEffect, type ReactElement } from 'react'
+import { memo, useState, useMemo, useCallback, useRef, useEffect, type ReactElement } from 'react'
 import {
   Animated,
   Easing,
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ScrollView,
   Platform,
@@ -61,6 +60,7 @@ import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 import { GoalsView } from '@/components/goals/goals-view'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
@@ -84,6 +84,65 @@ import {
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+
+interface TodaySearchBarProps {
+  initialValue: string
+  onChange: (value: string) => void
+  onFocusChange: (focused: boolean) => void
+  placeholder: string
+  colors: ReturnType<typeof useAppTheme>['colors']
+  styles: ReturnType<typeof createStyles>
+}
+
+const TodaySearchBar = memo(function TodaySearchBar({
+  initialValue,
+  onChange,
+  onFocusChange,
+  placeholder,
+  colors,
+  styles,
+}: Readonly<TodaySearchBarProps>) {
+  const [draft, setDraft] = useState(initialValue)
+
+  useEffect(() => {
+    setDraft(initialValue)
+  }, [initialValue])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onChange(draft)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [draft, onChange])
+
+  return (
+    <View style={styles.searchWrapper}>
+      <View style={styles.searchContainer}>
+        <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
+        <AppTextInput
+          style={styles.searchInput}
+          value={draft}
+          onChangeText={setDraft}
+          onFocus={() => onFocusChange(true)}
+          onBlur={() => onFocusChange(false)}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="search"
+          selectionColor={colors.primary}
+        />
+        {draft.length > 0 ? (
+          <TouchableOpacity
+            onPress={() => setDraft('')}
+            style={styles.searchClear}
+          >
+            <X size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  )
+})
 
 // ---------------------------------------------------------------------------
 // Today Screen
@@ -118,7 +177,6 @@ export default function TodayScreen() {
   const clearSelection = useUIStore((s) => s.clearSelection)
 
   // Local state
-  const [searchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
@@ -128,7 +186,7 @@ export default function TodayScreen() {
     useState<MenuAnchorRect | null>(null)
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
-  const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
   const goalsScrollRef = useRef<ScrollView>(null)
   const goalsScrollTo = useCallback((y: number) => {
@@ -237,17 +295,6 @@ export default function TodayScreen() {
       useNativeDriver: true,
     }).start()
   }, [dateLabelAnim, selectedDateStr, slideDirection])
-
-  // Search debounce
-  useEffect(() => {
-    if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current)
-    searchDebounceTimer.current = setTimeout(() => {
-      setSearchQueryStore(searchQuery)
-    }, 300)
-    return () => {
-      if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current)
-    }
-  }, [searchQuery, setSearchQueryStore])
 
   // Tag filter toggle
   const toggleTagFilter = useCallback((tagId: string) => {
@@ -542,28 +589,14 @@ export default function TodayScreen() {
         ) : null}
 
         <View style={styles.habitsSection}>
-          <View style={styles.searchWrapper}>
-            <View style={styles.searchContainer}>
-              <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={setLocalSearchQuery}
-                placeholder={t('habits.searchPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                returnKeyType="search"
-                selectionColor={colors.primary}
-              />
-              {searchQuery.length > 0 ? (
-                <TouchableOpacity
-                  onPress={() => setLocalSearchQuery('')}
-                  style={styles.searchClear}
-                >
-                  <X size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
+          <TodaySearchBar
+            initialValue={searchQueryStore}
+            onChange={setSearchQueryStore}
+            onFocusChange={setIsSearchFocused}
+            placeholder={t('habits.searchPlaceholder')}
+            colors={colors}
+            styles={styles}
+          />
 
           <View style={styles.filtersWrapper}>
             <ScrollView
@@ -752,11 +785,9 @@ export default function TodayScreen() {
       handleToggleControlsMenu,
       handleToggleSelectMode,
       isSelectMode,
-      searchQuery,
       selectedDate,
       selectedFrequency,
       selectedTagIds,
-      setLocalSearchQuery,
       sharedHeader,
       showCompleted,
       showControlsMenu,
@@ -772,7 +803,9 @@ export default function TodayScreen() {
   return (
     <View
       style={[styles.safeArea, { paddingTop: insets.top }]}
-      {...(activeView === 'today' ? swipePanResponder.panHandlers : {})}
+      {...(activeView === 'today' && !isSearchFocused
+        ? swipePanResponder.panHandlers
+        : {})}
     >
       {activeView === 'goals' ? (
         <ScrollView
@@ -783,7 +816,7 @@ export default function TodayScreen() {
             isSelectMode && styles.scrollContentWithBulkBar,
           ]}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           onScroll={onGoalsTourScroll}
           scrollEventThrottle={16}
           onScrollBeginDrag={handleListScrollBeginDrag}

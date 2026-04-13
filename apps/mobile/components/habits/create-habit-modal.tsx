@@ -2,16 +2,17 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { useWatch } from "react-hook-form";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Trash2, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { HabitFormFields } from "./habit-form-fields";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useHabitForm } from "@/hooks/use-habit-form";
@@ -97,10 +98,20 @@ export function CreateHabitModal({
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([]);
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
   const reminderWasManuallyToggledRef = useRef(false);
+  const flushBufferedInputsRef = useRef<() => void>(() => {});
 
-  const watchedDueTime = formHelpers.form.watch("dueTime") ?? "";
-  const watchedReminderEnabled = formHelpers.form.watch("reminderEnabled") ?? false;
-  const watchedScheduledReminders = formHelpers.form.watch("scheduledReminders") ?? [];
+  const watchedDueTime = useWatch({
+    control: formHelpers.form.control,
+    name: "dueTime",
+  }) ?? "";
+  const watchedReminderEnabled = useWatch({
+    control: formHelpers.form.control,
+    name: "reminderEnabled",
+  }) ?? false;
+  const watchedScheduledReminders = useWatch({
+    control: formHelpers.form.control,
+    name: "scheduledReminders",
+  }) ?? [];
 
   const atGoalLimit = selectedGoalIds.length >= 10;
 
@@ -166,7 +177,12 @@ export function CreateHabitModal({
     });
   }, [formHelpers.form]);
 
+  const handleBufferedInputsReady = useCallback((flush: () => void) => {
+    flushBufferedInputsRef.current = flush;
+  }, []);
+
   const handleSubmit = useCallback(async () => {
+    flushBufferedInputsRef.current();
     const data = formHelpers.form.getValues() as unknown as HabitFormData;
     const subHabitValues = subHabits.map((entry) => entry.value);
     const error = formHelpers.validateAll({
@@ -247,12 +263,13 @@ export function CreateHabitModal({
         isSubHabitMode ? t("habits.createSubHabit") : t("habits.createHabit")
       }
       snapPoints={["80%", "95%"]}
+      formMode
     >
       <BottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <HabitFormFields
           formHelpers={formHelpers}
@@ -263,6 +280,7 @@ export function CreateHabitModal({
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
           onReminderEnabledChange={handleReminderEnabledChange}
+          onFlushBufferedInputsReady={handleBufferedInputsReady}
         >
           {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (
@@ -272,13 +290,13 @@ export function CreateHabitModal({
                 <View style={styles.subHabitsList}>
                   {subHabits.map((entry) => (
                     <View key={entry.id} style={styles.subHabitRow}>
-                      <TextInput
+                      <BottomSheetAppTextInput
                         value={entry.value}
                         maxLength={200}
                         placeholder={t("habits.form.subHabitPlaceholder")}
                         placeholderTextColor={colors.textMuted}
                         style={[styles.input, { flex: 1 }]}
-                        onChangeText={(val) =>
+                        onChangeText={(val: string) =>
                           updateSubHabitValue(entry.id, val)
                         }
                       />

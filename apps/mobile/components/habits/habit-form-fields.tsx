@@ -1,8 +1,15 @@
-import { useState, useMemo, useCallback, type ReactNode } from "react";
+import {
+  memo,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Switch,
   StyleSheet,
@@ -11,6 +18,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { useWatch } from "react-hook-form";
 import {
   X,
   Plus,
@@ -51,6 +59,7 @@ import {
 } from "@/hooks/use-tags";
 import { AppDatePicker } from "@/components/ui/app-date-picker";
 import { AppSelect } from "@/components/ui/app-select";
+import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { ProBadge } from "@/components/ui/pro-badge";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -70,6 +79,7 @@ interface HabitFormFieldsProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
+  onFlushBufferedInputsReady?: (flush: () => void) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
   children?: ReactNode;
@@ -222,7 +232,7 @@ function TagEditorRow({
 }: Readonly<TagEditorRowProps>) {
   return (
     <View style={styles.tagFormRow}>
-      <TextInput
+      <BottomSheetAppTextInput
         value={value}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
@@ -253,6 +263,63 @@ function TagEditorRow({
     </View>
   );
 }
+
+interface BufferedSheetInputProps {
+  value: string;
+  onCommit: (value: string) => void;
+  registerFlush?: (flush: () => void) => () => void;
+  onBlur?: () => void;
+  onSubmitEditing?: () => void;
+  placeholder?: string;
+  placeholderTextColor?: string;
+  maxLength?: number;
+  multiline?: boolean;
+  numberOfLines?: number;
+  keyboardType?: "default" | "number-pad" | "decimal-pad";
+  accessibilityLabel?: string;
+  style?: StyleProp<TextStyle>;
+  textAlignVertical?: "auto" | "top" | "center" | "bottom";
+}
+
+const BufferedSheetInput = memo(function BufferedSheetInput({
+  value,
+  onCommit,
+  registerFlush,
+  onBlur,
+  onSubmitEditing,
+  ...props
+}: Readonly<BufferedSheetInputProps>) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const commitDraft = useCallback(() => {
+    if (draft !== value) {
+      onCommit(draft);
+    }
+  }, [draft, onCommit, value]);
+
+  useEffect(() => registerFlush?.(commitDraft), [commitDraft, registerFlush]);
+
+  return (
+    <BottomSheetAppTextInput
+      {...props}
+      value={draft}
+      onChangeText={setDraft}
+      onBlur={() => {
+        commitDraft();
+        onBlur?.();
+      }}
+      onEndEditing={commitDraft}
+      onSubmitEditing={() => {
+        commitDraft();
+        onSubmitEditing?.();
+      }}
+    />
+  );
+});
 
 interface HabitTagChipProps {
   tag: { id: string; name: string; color: string };
@@ -456,7 +523,7 @@ function ReminderSection({
               ))}
               {showCustomInput && (
                 <View style={sectionStyles.customRow}>
-                  <TextInput
+                  <BottomSheetAppTextInput
                     value={customValue}
                     placeholder={t("habits.form.reminderCustomPlaceholder")}
                     placeholderTextColor={colors.textMuted}
@@ -693,7 +760,7 @@ function ScheduledReminderSection({
 
               {/* Time input + add/cancel */}
               <View style={sectionStyles.timeRow}>
-                <TextInput
+                <BottomSheetAppTextInput
                   value={time}
                   placeholder={t(
                     "habits.form.scheduledReminderTimePlaceholder",
@@ -702,7 +769,7 @@ function ScheduledReminderSection({
                   keyboardType="number-pad"
                   maxLength={5}
                   style={sectionStyles.timeInput}
-                  onChangeText={(val) => setTime(formatHabitTimeInput(val))}
+                  onChangeText={(val: string) => setTime(formatHabitTimeInput(val))}
                   onSubmitEditing={addScheduledReminder}
                 />
                 <TouchableOpacity
@@ -817,6 +884,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  onFlushBufferedInputsReady,
   defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
@@ -855,22 +923,61 @@ export function HabitFormFields({
     formatEndTimeInput,
   } = formHelpers;
 
-  const { watch, setValue, formState: { errors } } = form;
+  const { setValue, formState: { errors } } = form;
+  const bufferedInputFlushersRef = useRef(new Set<() => void>());
 
-  const watchedFrequencyUnit = watch("frequencyUnit") ?? null;
-  const watchedFrequencyQuantity = watch("frequencyQuantity") ?? null;
-  const watchedDays = watch("days") ?? [];
-  const watchedDueDate = watch("dueDate") ?? "";
-  const watchedDueTime = watch("dueTime") ?? "";
-  const watchedDueEndTime = watch("dueEndTime") ?? "";
-  const watchedEndDate = watch("endDate") ?? "";
-  const watchedIsBadHabit = watch("isBadHabit") ?? false;
-  const watchedReminderEnabled = watch("reminderEnabled") ?? false;
-  const watchedSlipAlertEnabled = watch("slipAlertEnabled") ?? false;
-  const watchedChecklistItems = watch("checklistItems") ?? [];
-  const watchedScheduledReminders = watch("scheduledReminders") ?? [];
-  const watchedTitle = watch("title") ?? "";
-  const watchedDescription = watch("description") ?? "";
+  const registerBufferedInputFlusher = useCallback((flush: () => void) => {
+    bufferedInputFlushersRef.current.add(flush);
+    return () => {
+      bufferedInputFlushersRef.current.delete(flush);
+    };
+  }, []);
+
+  const flushBufferedInputs = useCallback(() => {
+    bufferedInputFlushersRef.current.forEach((flush) => flush());
+  }, []);
+
+  const watchedFrequencyUnit = useWatch({
+    control: form.control,
+    name: "frequencyUnit",
+  }) ?? null;
+  const watchedFrequencyQuantity = useWatch({
+    control: form.control,
+    name: "frequencyQuantity",
+  }) ?? null;
+  const watchedDays = useWatch({ control: form.control, name: "days" }) ?? [];
+  const watchedDueDate = useWatch({ control: form.control, name: "dueDate" }) ?? "";
+  const watchedDueTime = useWatch({ control: form.control, name: "dueTime" }) ?? "";
+  const watchedDueEndTime = useWatch({
+    control: form.control,
+    name: "dueEndTime",
+  }) ?? "";
+  const watchedEndDate = useWatch({ control: form.control, name: "endDate" }) ?? "";
+  const watchedIsBadHabit = useWatch({
+    control: form.control,
+    name: "isBadHabit",
+  }) ?? false;
+  const watchedReminderEnabled = useWatch({
+    control: form.control,
+    name: "reminderEnabled",
+  }) ?? false;
+  const watchedSlipAlertEnabled = useWatch({
+    control: form.control,
+    name: "slipAlertEnabled",
+  }) ?? false;
+  const watchedChecklistItems = useWatch({
+    control: form.control,
+    name: "checklistItems",
+  }) ?? [];
+  const watchedScheduledReminders = useWatch({
+    control: form.control,
+    name: "scheduledReminders",
+  }) ?? [];
+  const watchedTitle = useWatch({ control: form.control, name: "title" }) ?? "";
+  const watchedDescription = useWatch({
+    control: form.control,
+    name: "description",
+  }) ?? "";
 
   // Reminder label function
   function reminderLabel(minutes: number): string {
@@ -942,6 +1049,18 @@ export function HabitFormFields({
     watchedIsBadHabit,
   ]);
 
+  useEffect(() => {
+    if (!onFlushBufferedInputsReady) {
+      return;
+    }
+
+    onFlushBufferedInputsReady(flushBufferedInputs);
+
+    return () => {
+      onFlushBufferedInputsReady(() => {});
+    };
+  }, [flushBufferedInputs, onFlushBufferedInputsReady]);
+
   return (
     <View style={styles.container}>
       {/* ═══════════════════════════════════════════════════
@@ -951,13 +1070,14 @@ export function HabitFormFields({
       {/* Title */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.title")}</Text>
-        <TextInput
+        <BufferedSheetInput
           value={watchedTitle}
+          registerFlush={registerBufferedInputFlusher}
           maxLength={200}
           placeholder={t("habits.form.titlePlaceholder")}
           placeholderTextColor={colors.textMuted}
           style={styles.input}
-          onChangeText={(val) => setValue("title", val, { shouldDirty: true })}
+          onCommit={(val) => setValue("title", val, { shouldDirty: true })}
           accessibilityLabel={t("habits.form.title")}
         />
         {errors.title && (
@@ -1044,11 +1164,11 @@ export function HabitFormFields({
                 ? t("habits.form.timesPerUnit")
                 : t("habits.form.every")}
             </Text>
-            <TextInput
+            <BottomSheetAppTextInput
               value={String(watchedFrequencyQuantity ?? "")}
               keyboardType="number-pad"
               style={styles.input}
-              onChangeText={(val) => {
+              onChangeText={(val: string) => {
                 const num = Number(val);
                 if (!val) {
                   setValue("frequencyQuantity", null, { shouldDirty: true });
@@ -1112,14 +1232,15 @@ export function HabitFormFields({
           </View>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
             <Text style={styles.label}>{t("habits.form.dueTime")}</Text>
-            <TextInput
+            <BufferedSheetInput
               value={watchedDueTime}
+              registerFlush={registerBufferedInputFlusher}
               placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
               maxLength={5}
               style={styles.input}
-              onChangeText={(val) => {
+              onCommit={(val) => {
                 const formatted = formatTimeInput(val);
                 setValue("dueTime", formatted, { shouldDirty: true });
               }}
@@ -1317,8 +1438,9 @@ export function HabitFormFields({
           {/* Description */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>{t("habits.form.description")}</Text>
-            <TextInput
+            <BufferedSheetInput
               value={watchedDescription}
+              registerFlush={registerBufferedInputFlusher}
               placeholder={t("habits.form.descriptionPlaceholder")}
               placeholderTextColor={colors.textMuted}
               maxLength={2000}
@@ -1326,7 +1448,7 @@ export function HabitFormFields({
               numberOfLines={2}
               style={[styles.input, styles.textarea]}
               textAlignVertical="top"
-              onChangeText={(val) =>
+              onCommit={(val) =>
                 setValue("description", val, { shouldDirty: true })
               }
             />
@@ -1354,14 +1476,15 @@ export function HabitFormFields({
           {watchedDueTime && !isGeneral && (
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
-              <TextInput
+              <BufferedSheetInput
                 value={watchedDueEndTime}
+                registerFlush={registerBufferedInputFlusher}
                 placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
                 placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"
                 maxLength={5}
                 style={styles.input}
-                onChangeText={(val) => {
+                onCommit={(val) => {
                   const formatted = formatEndTimeInput(val);
                   setValue("dueEndTime", formatted, { shouldDirty: true });
                 }}

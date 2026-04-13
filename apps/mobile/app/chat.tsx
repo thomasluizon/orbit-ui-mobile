@@ -1,9 +1,8 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { memo, useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
   KeyboardAvoidingView,
@@ -50,6 +49,7 @@ import { MessageBubble } from "@/components/message-bubble";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
+import { AppTextInput } from "@/components/ui/app-text-input";
 import { useChatStore } from "@/stores/chat-store";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -190,6 +190,98 @@ function RecordingVisualizer({ styles }: Readonly<{ styles: ChatStyles }>) {
   );
 }
 
+interface ChatComposerInputProps {
+  transcript: string;
+  resetSignal: number;
+  isRecording: boolean;
+  isTyping: boolean;
+  atMessageLimit: boolean;
+  isOnline: boolean;
+  selectedImagePresent: boolean;
+  placeholder: string;
+  colors: AppColors;
+  styles: ChatStyles;
+  onSend: (message: string) => void;
+}
+
+const ChatComposerInput = memo(function ChatComposerInput({
+  transcript,
+  resetSignal,
+  isRecording,
+  isTyping,
+  atMessageLimit,
+  isOnline,
+  selectedImagePresent,
+  placeholder,
+  colors,
+  styles,
+  onSend,
+}: Readonly<ChatComposerInputProps>) {
+  const [draft, setDraft] = useState("");
+  const prevIsRecording = useRef(false);
+
+  useEffect(() => {
+    if (prevIsRecording.current && !isRecording && transcript.trim()) {
+      setDraft((current) =>
+        current ? `${current} ${transcript.trim()}` : transcript.trim(),
+      );
+    }
+    prevIsRecording.current = isRecording;
+  }, [isRecording, transcript]);
+
+  useEffect(() => {
+    setDraft("");
+  }, [resetSignal]);
+
+  const canSend =
+    (draft.trim().length > 0 || selectedImagePresent) &&
+    !isTyping &&
+    !atMessageLimit &&
+    !isRecording;
+
+  const handleSend = useCallback(() => {
+    const message = draft.trim();
+    if (!canSend || !isOnline) {
+      return;
+    }
+
+    onSend(message);
+    setDraft("");
+  }, [canSend, draft, isOnline, onSend]);
+
+  return (
+    <>
+      <AppTextInput
+        style={styles.textInput}
+        value={draft}
+        onChangeText={setDraft}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        multiline
+        maxLength={2000}
+        editable={isOnline}
+        returnKeyType="default"
+        blurOnSubmit={false}
+        onSubmitEditing={handleSend}
+      />
+
+      <TouchableOpacity
+        style={[
+          styles.sendButton,
+          !canSend && styles.sendButtonDisabled,
+        ]}
+        onPress={handleSend}
+        disabled={!canSend || !isOnline}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canSend || !isOnline }}
+        activeOpacity={0.7}
+      >
+        <SendHorizontal size={16} color="#fff" />
+      </TouchableOpacity>
+    </>
+  );
+});
+
 export default function ChatScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -230,8 +322,6 @@ export default function ChatScreen() {
     recordingDuration,
   } = useSpeechToText();
 
-  const prevIsRecording = useRef(false);
-  const [input, setInput] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -240,6 +330,7 @@ export default function ChatScreen() {
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [isLoadingReward, setIsLoadingReward] = useState(false);
   const [rewardMessage, setRewardMessage] = useState<string | null>(null);
+  const [composerResetSignal, setComposerResetSignal] = useState(0);
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
@@ -248,11 +339,6 @@ export default function ChatScreen() {
   const adsEnabledForUser = shouldShowAds();
   const canWatchRewardAd =
     adsEnabledForUser && adMobReady && canClaimReward && !isLoadingReward;
-  const canSend =
-    (input.trim().length > 0 || selectedImage !== null) &&
-    !isTyping &&
-    !atMessageLimit &&
-    !isRecording;
   const showSuggestions = messages.length === 0 && !isTyping;
   const offlineTitle = t("calendarSync.notConnected");
   const offlineDescription = `${t("chat.send")} / ${t("chat.attachImage")} / ${t("chat.toggleMic")}`;
@@ -280,15 +366,6 @@ export default function ChatScreen() {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, []);
-
-  useEffect(() => {
-    if (prevIsRecording.current && !isRecording && transcript.trim()) {
-      setInput((current) =>
-        current ? `${current} ${transcript.trim()}` : transcript.trim(),
-      );
-    }
-    prevIsRecording.current = isRecording;
-  }, [isRecording, transcript]);
 
   useEffect(() => {
     if (speechError) {
@@ -401,7 +478,7 @@ export default function ChatScreen() {
 
   const sendMessage = useCallback(
     async (content?: string) => {
-      const messageContent = content ?? input.trim();
+      const messageContent = content?.trim() ?? "";
       if ((!messageContent && !selectedImage) || isTyping) return;
       if (!isOnline) {
         setSendError(offlineTitle);
@@ -423,7 +500,7 @@ export default function ChatScreen() {
       };
 
       addMessage(userMessage);
-      setInput("");
+      setComposerResetSignal((current) => current + 1);
       setSelectedImage(null);
       setImagePreview(null);
       scrollToBottom();
@@ -487,15 +564,14 @@ export default function ChatScreen() {
           timestamp: new Date(),
         };
 
-        addMessage(errorMessage);
-        scrollToBottom();
-      }
+      addMessage(errorMessage);
+      scrollToBottom();
+    }
     },
     [
       addMessage,
       hasProAccess,
       imagePreview,
-      input,
       isTyping,
       queryClient,
       scrollToBottom,
@@ -506,10 +582,6 @@ export default function ChatScreen() {
       offlineTitle,
     ],
   );
-
-  const handleSend = useCallback(() => {
-    sendMessage();
-  }, [sendMessage]);
 
   const watchAdForMessages = useCallback(async () => {
     if (!canWatchRewardAd) {
@@ -812,33 +884,21 @@ export default function ChatScreen() {
                   </View>
                 )}
 
-                <TextInput
-                  style={styles.textInput}
-                  value={input}
-                  onChangeText={setInput}
+                <ChatComposerInput
+                  transcript={transcript}
+                  resetSignal={composerResetSignal}
+                  isRecording={isRecording}
+                  isTyping={isTyping}
+                  atMessageLimit={atMessageLimit}
+                  isOnline={isOnline}
+                  selectedImagePresent={selectedImage !== null}
                   placeholder={t("chat.placeholder")}
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  maxLength={2000}
-                  editable={isOnline}
-                  returnKeyType="default"
-                  blurOnSubmit={false}
-                  onSubmitEditing={handleSend}
+                  colors={colors}
+                  styles={styles}
+                  onSend={(message) => {
+                    void sendMessage(message);
+                  }}
                 />
-
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    !canSend && styles.sendButtonDisabled,
-                  ]}
-                  onPress={handleSend}
-                  disabled={!canSend || !isOnline}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !canSend || !isOnline }}
-                  activeOpacity={0.7}
-                >
-                  <SendHorizontal size={16} color="#fff" />
-                </TouchableOpacity>
               </>
             )}
           </View>

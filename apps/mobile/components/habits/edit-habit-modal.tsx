@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -66,6 +66,7 @@ export function EditHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
   const [originalEndDate, setOriginalEndDate] = useState("");
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
+  const flushBufferedInputsRef = useRef<() => void>(() => {});
 
   const atGoalLimit = selectedGoalIds.length >= 10;
 
@@ -76,6 +77,10 @@ export function EditHabitModal({
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId));
+  }, []);
+
+  const handleBufferedInputsReady = useCallback((flush: () => void) => {
+    flushBufferedInputsRef.current = flush;
   }, []);
 
   // Show detail fetch error
@@ -108,6 +113,7 @@ export function EditHabitModal({
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return;
+    flushBufferedInputsRef.current();
     const data = formHelpers.form.getValues() as unknown as HabitFormData;
     const error = formHelpers.validateAll({
       reminderTimes,
@@ -164,12 +170,13 @@ export function EditHabitModal({
       onClose={onClose}
       title={t("habits.editHabit")}
       snapPoints={["80%", "95%"]}
+      formMode
     >
       <BottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <HabitFormFields
           formHelpers={formHelpers}
@@ -179,6 +186,7 @@ export function EditHabitModal({
           onToggleGoal={toggleGoal}
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
+          onFlushBufferedInputsReady={handleBufferedInputsReady}
           defaultExpanded={true}
         />
 

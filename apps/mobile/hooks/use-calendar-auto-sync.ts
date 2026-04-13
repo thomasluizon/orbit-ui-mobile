@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { calendarKeys } from '@orbit/shared/query'
+import { calendarKeys, notificationKeys } from '@orbit/shared/query'
 import {
   calendarAutoSyncResultSchema,
   calendarAutoSyncStateSchema,
@@ -10,6 +10,7 @@ import {
   type CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
+import { z } from 'zod'
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -25,18 +26,16 @@ export function useCalendarAutoSyncState() {
     queryKey: calendarKeys.autoSyncState(),
     queryFn: fetchAutoSyncState,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   })
 }
 
+const suggestionListSchema = z.array(calendarSyncSuggestionSchema)
+
 async function fetchSyncSuggestions(): Promise<CalendarSyncSuggestion[]> {
   const raw = await apiClient<unknown>(API.calendar.autoSyncSuggestions)
-  if (!Array.isArray(raw)) return []
-  return raw
-    .map((entry) => {
-      const parsed = calendarSyncSuggestionSchema.safeParse(entry)
-      return parsed.success ? parsed.data : null
-    })
-    .filter((value): value is CalendarSyncSuggestion => value !== null)
+  return suggestionListSchema.parse(raw)
 }
 
 export function useCalendarSyncSuggestions() {
@@ -44,6 +43,8 @@ export function useCalendarSyncSuggestions() {
     queryKey: calendarKeys.syncSuggestions(),
     queryFn: fetchSyncSuggestions,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -58,16 +59,15 @@ interface SetAutoSyncContext {
 export function useSetCalendarAutoSync() {
   const queryClient = useQueryClient()
 
-  return useMutation<CalendarAutoSyncState, Error, boolean, SetAutoSyncContext>({
-    mutationFn: async (enabled) => {
-      const raw = await apiClient<unknown>(API.calendar.autoSync, {
+  return useMutation<void, Error, { enabled: boolean }, SetAutoSyncContext>({
+    mutationFn: async ({ enabled }) => {
+      await apiClient<unknown>(API.calendar.autoSync, {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       })
-      return calendarAutoSyncStateSchema.parse(raw)
     },
 
-    onMutate: async (enabled) => {
+    onMutate: async ({ enabled }) => {
       await queryClient.cancelQueries({ queryKey: calendarKeys.autoSyncState() })
       const previous = queryClient.getQueryData<CalendarAutoSyncState>(
         calendarKeys.autoSyncState(),
@@ -89,12 +89,8 @@ export function useSetCalendarAutoSync() {
       }
     },
 
-    onSettled: (data) => {
-      if (data) {
-        queryClient.setQueryData(calendarKeys.autoSyncState(), data)
-      } else {
-        void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
-      }
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
     },
   })
 }
@@ -110,9 +106,9 @@ export function useRunCalendarSyncNow() {
       return calendarAutoSyncResultSchema.parse(raw)
     },
 
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
-      void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      void queryClient.invalidateQueries({ queryKey: notificationKeys.all })
     },
   })
 }
@@ -124,14 +120,14 @@ interface DismissSuggestionContext {
 export function useDismissCalendarSuggestion() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, string, DismissSuggestionContext>({
-    mutationFn: async (suggestionId) => {
-      await apiClient<void>(API.calendar.autoSyncDismissSuggestion(suggestionId), {
+  return useMutation<void, Error, { id: string }, DismissSuggestionContext>({
+    mutationFn: async ({ id }) => {
+      await apiClient<void>(API.calendar.autoSyncDismissSuggestion(id), {
         method: 'PUT',
       })
     },
 
-    onMutate: async (suggestionId) => {
+    onMutate: async ({ id }) => {
       await queryClient.cancelQueries({ queryKey: calendarKeys.syncSuggestions() })
       const previous = queryClient.getQueryData<CalendarSyncSuggestion[]>(
         calendarKeys.syncSuggestions(),
@@ -140,7 +136,7 @@ export function useDismissCalendarSuggestion() {
       if (previous) {
         queryClient.setQueryData<CalendarSyncSuggestion[]>(
           calendarKeys.syncSuggestions(),
-          previous.filter((suggestion) => suggestion.id !== suggestionId),
+          previous.filter((suggestion) => suggestion.id !== id),
         )
       }
 

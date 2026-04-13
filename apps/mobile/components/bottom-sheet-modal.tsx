@@ -21,6 +21,7 @@ interface BottomSheetModalProps {
   /** Change this value to force re-present when `open` stays true (e.g. switching content). */
   contentKey?: string
   snapPoints?: (string | number)[]
+  formMode?: boolean
   children: ReactNode
 }
 
@@ -34,6 +35,7 @@ export function BottomSheetModal({
   title,
   contentKey,
   snapPoints: snapPointsProp,
+  formMode = false,
   children,
 }: BottomSheetModalProps) {
   const { colors } = useAppTheme()
@@ -96,6 +98,8 @@ export function BottomSheetModal({
       backdropComponent={renderBackdrop}
       backgroundComponent={renderBackground}
       enablePanDownToClose
+      enableBlurKeyboardOnGesture={formMode}
+      enableContentPanningGesture={!formMode}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"

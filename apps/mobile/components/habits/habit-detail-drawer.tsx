@@ -181,7 +181,7 @@ export function HabitDetailDrawer({
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
           >
             {/* Description (expandable) */}
             {habit.description && (
