@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -75,7 +75,26 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     },
   })
 
-  const watchedValues = normalizeHabitFormData(form.watch())
+  const watchedFrequencyUnit = useWatch({ control: form.control, name: 'frequencyUnit' })
+  const watchedFrequencyQuantity = useWatch({
+    control: form.control,
+    name: 'frequencyQuantity',
+  })
+  const watchedDays = useWatch({ control: form.control, name: 'days' })
+  const watchedIsGeneral = useWatch({ control: form.control, name: 'isGeneral' })
+  const watchedIsFlexible = useWatch({ control: form.control, name: 'isFlexible' })
+  const watchedDueTime = useWatch({ control: form.control, name: 'dueTime' })
+  const watchedEndDate = useWatch({ control: form.control, name: 'endDate' })
+
+  const watchedValues = normalizeHabitFormData({
+    frequencyUnit: watchedFrequencyUnit,
+    frequencyQuantity: watchedFrequencyQuantity,
+    days: watchedDays,
+    isGeneral: watchedIsGeneral,
+    isFlexible: watchedIsFlexible,
+    dueTime: watchedDueTime,
+    endDate: watchedEndDate,
+  })
   const { isOneTime, isGeneral, isFlexible, isRecurring, showDayPicker, showEndDate } =
     getHabitFormFlags(watchedValues)
 

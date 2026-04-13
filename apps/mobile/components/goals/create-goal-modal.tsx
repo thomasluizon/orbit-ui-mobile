@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -12,6 +11,7 @@ import { Plus, X, Target, Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -189,12 +189,13 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       onClose={handleClose}
       title={t('goals.create')}
       snapPoints={['80%', '95%']}
+      formMode
     >
       <BottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.form}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         {/* Goal Type Cards */}
         <View style={styles.typeCardsRow}>
@@ -281,7 +282,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             <Text style={styles.label}>
               {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
             </Text>
-            <TextInput
+            <BottomSheetAppTextInput
               style={styles.input}
               value={targetValue}
               onChangeText={setTargetValue}
@@ -296,7 +297,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
           {!isStreak && (
             <View style={styles.halfField}>
               <Text style={styles.label}>{t('goals.form.unit')}</Text>
-              <TextInput
+              <BottomSheetAppTextInput
                 style={styles.input}
                 value={unit}
                 onChangeText={setUnit}
@@ -319,7 +320,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
               {' '}({t('goals.form.descriptionOptional')})
             </Text>
           </Text>
-          <TextInput
+          <BottomSheetAppTextInput
             style={styles.input}
             value={description}
             onChangeText={setDescription}

@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -21,6 +20,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { EditGoalModal } from './edit-goal-modal'
@@ -260,11 +260,13 @@ export function GoalDetailDrawer({
         onClose={onClose}
         title={goal.title}
         snapPoints={['60%', '90%']}
+        formMode={showProgressForm}
       >
         <BottomSheetScrollView
           style={styles.scroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="always"
         >
           {/* Streak type badge near title */}
           {isStreak && (
@@ -322,7 +324,7 @@ export function GoalDetailDrawer({
                   <Text style={styles.formLabel}>
                     {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
                   </Text>
-                  <TextInput
+                  <BottomSheetAppTextInput
                     style={styles.formInput}
                     value={progressValue}
                     onChangeText={setProgressValue}
@@ -338,7 +340,7 @@ export function GoalDetailDrawer({
                   <Text style={styles.formLabel}>
                     {t('goals.progressNote')}
                   </Text>
-                  <TextInput
+                  <BottomSheetAppTextInput
                     style={styles.formInput}
                     value={progressNote}
                     onChangeText={setProgressNote}

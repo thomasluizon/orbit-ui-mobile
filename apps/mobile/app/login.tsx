@@ -326,7 +326,7 @@ export default function LoginScreen() {
           isCodeStep && styles.scrollContentCode,
           isAndroidKeyboardOpen && styles.scrollContentKeyboard,
         ]}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
         {/* Branding header - matches web auth layout */}
