@@ -41,6 +41,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_WORKDIR: ${{ github.workspace }}/.release-mobile
+      PROD_ADMOB_ANDROID_APP_ID: ca-app-pub-8521676951882691~5595921738
+      PROD_ADMOB_ANDROID_INTERSTITIAL_ID: ca-app-pub-8521676951882691/8083010939
+      PROD_ADMOB_ANDROID_REWARDED_ID: ca-app-pub-8521676951882691/3704782221
 
     steps:
       - uses: actions/checkout@v5
@@ -143,6 +146,11 @@ jobs:
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
+          EAS_BUILD_PROFILE: ${{ inputs.track == 'production' && 'production' || 'preview' }}
+          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ inputs.track == 'production' && 'false' || 'true' }}
+          EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
+          EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID: ${{ env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID }}
+          EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID: ${{ env.PROD_ADMOB_ANDROID_REWARDED_ID }}
         run: |
           set -euo pipefail
 
