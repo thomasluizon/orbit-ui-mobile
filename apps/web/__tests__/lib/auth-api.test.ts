@@ -101,7 +101,7 @@ describe('setAuthCookie', () => {
       sameSite: 'strict',
       secure: true,
       path: '/',
-      maxAge: 86400, // 1 day
+      maxAge: 604800, // 7 days (matches backend JWT lifetime)
     })
   })
 })
@@ -135,7 +135,7 @@ describe('setSessionCookies', () => {
     expect(mockCookieStore.set).toHaveBeenCalledTimes(2)
     expect(mockCookieStore.set).toHaveBeenCalledWith('auth_token', 'jwt-123', expect.objectContaining({
       httpOnly: true,
-      maxAge: 86400,
+      maxAge: 604800,
     }))
     expect(mockCookieStore.set).toHaveBeenCalledWith('refresh_token', 'refresh-456', expect.objectContaining({
       httpOnly: true,

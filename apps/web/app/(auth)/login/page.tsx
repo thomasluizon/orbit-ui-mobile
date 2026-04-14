@@ -293,9 +293,10 @@ export default function LoginPage() {
   const referralCode = getCookieValue('referral_code')
 
   // Read ref query param and store in cookie
+  // Referral codes are bounded to prevent oversized cookie writes / cookie-header bloat.
   useEffect(() => {
     const refParam = searchParams.get('ref')
-    if (refParam && /^[a-zA-Z0-9_-]+$/.test(refParam)) {
+    if (refParam && refParam.length <= 40 && /^[a-zA-Z0-9_-]+$/.test(refParam)) {
       document.cookie = `referral_code=${encodeURIComponent(refParam)};max-age=${7 * 24 * 60 * 60};path=/;samesite=strict;secure`
     }
   }, [searchParams])

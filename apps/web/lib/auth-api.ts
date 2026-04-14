@@ -38,13 +38,15 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 /**
- * Sets the auth_token httpOnly cookie. Short-lived JWT (1 day).
+ * Sets the auth_token httpOnly cookie.
+ * Aligned with backend JwtSettings.ExpiryHours = 168 (7 days) in appsettings.json.
+ * See C:/Users/thoma/.../orbit-api/src/Orbit.Api/appsettings.json JwtSettings.ExpiryHours.
  */
 export async function setAuthCookie(token: string): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set(AUTH_COOKIE, token, {
     ...COOKIE_OPTIONS,
-    maxAge: 60 * 60 * 24, // 1 day
+    maxAge: 60 * 60 * 24 * 7, // 7 days (matches backend JWT lifetime)
   })
 }
 

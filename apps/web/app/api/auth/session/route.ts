@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getAuthToken } from '@/lib/auth-api'
 
+// Hard cap on the base64url JWT payload segment. A legitimate Orbit JWT payload
+// is small (user id + exp + iat + a few claims). 4 KB is generous and blocks
+// memory-amplification attacks where a malicious cookie holds a megabyte-scale
+// payload segment that JSON.parse must decode before failing.
+const MAX_JWT_PAYLOAD_SEGMENT_LENGTH = 4096
+
 /**
  * BFF: GET /api/auth/session
  * Reads the auth_token cookie, decodes the JWT expiry, and returns { expiresAt }.
@@ -22,7 +28,7 @@ export async function GET() {
     }
 
     const payloadSegment = parts[1]
-    if (!payloadSegment) {
+    if (!payloadSegment || payloadSegment.length > MAX_JWT_PAYLOAD_SEGMENT_LENGTH) {
       return NextResponse.json({ expiresAt: null }, { status: 401 })
     }
 

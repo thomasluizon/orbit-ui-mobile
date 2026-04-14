@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { setSessionCookies } from '@/lib/auth-api'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
+import { buildForwardedClientHeaders } from '../../_utils/forwarded-client-context'
 
 /**
  * BFF: POST /api/auth/verify-code
  * Proxies to .NET backend, sets httpOnly auth + refresh cookies,
  * then returns user data without the token.
+ * Forwards client IP and geo headers so backend rate-limit partitions per user, not per Next.js server.
  */
 export async function POST(request: NextRequest) {
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
@@ -15,7 +17,10 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${apiBase}/api/auth/verify-code`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildForwardedClientHeaders(request),
+      },
       body: JSON.stringify(body),
     })
 
