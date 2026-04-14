@@ -68,6 +68,11 @@ export function PendingOperationCard({
     () => formatRiskLabel(pendingOperation.riskClass),
     [pendingOperation.riskClass],
   )
+  const primaryActionLabel = isLoading
+    ? t('common.loading')
+    : needsStepUp
+      ? t('auth.sendCode')
+      : t('common.confirm')
 
   async function handleStart() {
     setIsLoading(true)
@@ -163,7 +168,9 @@ export function PendingOperationCard({
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={verificationCode}
-                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(event) =>
+                  setVerificationCode(event.target.value.replaceAll(/\D/g, '').slice(0, 6))
+                }
                 placeholder="123456"
                 className="w-full rounded-[var(--radius-lg)] border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none transition focus:border-primary"
               />
@@ -189,11 +196,7 @@ export function PendingOperationCard({
               }}
               disabled={isLoading}
             >
-              {isLoading
-                ? t('common.loading')
-                : needsStepUp
-                  ? t('auth.sendCode')
-                  : t('common.confirm')}
+              {primaryActionLabel}
             </button>
           )}
 

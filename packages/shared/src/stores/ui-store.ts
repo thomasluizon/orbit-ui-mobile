@@ -148,6 +148,22 @@ function deriveLegacyCelebrationState(activeCelebration: CelebrationQueueItem | 
   }
 }
 
+type ActiveCelebrationState = Pick<
+  UIStoreState,
+  'activeCelebration' | 'queuedCelebrations' | 'streakCelebration' | 'allDoneCelebration' | 'goalCompletedCelebration'
+>
+
+function activateNextCelebration(queue: CelebrationQueueItem[]): ActiveCelebrationState {
+  const sortedQueue = sortCelebrationQueue(queue)
+  const [nextCelebration, ...remainingCelebrations] = sortedQueue
+
+  return {
+    activeCelebration: nextCelebration ?? null,
+    queuedCelebrations: remainingCelebrations,
+    ...deriveLegacyCelebrationState(nextCelebration ?? null),
+  }
+}
+
 export interface PersistedUIState {
   activeFilters: HabitsFilter
   selectedDate: string
@@ -239,17 +255,6 @@ export function createUIStoreState(
 ): UIStoreState {
   let createdHabitTimer: ReturnType<typeof setTimeout> | undefined
   let celebrationSequence = 0
-
-  function activateNextCelebration(queue: CelebrationQueueItem[]) {
-    const sortedQueue = sortCelebrationQueue(queue)
-    const [nextCelebration, ...remainingCelebrations] = sortedQueue
-
-    return {
-      activeCelebration: nextCelebration ?? null,
-      queuedCelebrations: remainingCelebrations,
-      ...deriveLegacyCelebrationState(nextCelebration ?? null),
-    }
-  }
 
   return {
     activeFilters: {},

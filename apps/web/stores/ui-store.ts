@@ -23,7 +23,7 @@ export const useUIStore = create<UIStoreState>()(
     {
       name: 'orbit-ui-store',
       storage: createJSONStorage<PersistedUIState>(() =>
-        typeof globalThis.localStorage === 'undefined'
+        globalThis.localStorage === undefined
           ? noopStorage
           : globalThis.localStorage,
       ),

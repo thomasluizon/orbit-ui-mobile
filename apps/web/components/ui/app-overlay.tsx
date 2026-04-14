@@ -5,7 +5,12 @@ import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
-import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
+import {
+  isTopOverlay,
+  registerOverlay,
+  unregisterOverlay,
+  type OverlayCloseReason,
+} from '@/lib/overlay-stack'
 
 // ---------------------------------------------------------------------------
 // linkifyText -- converts URLs in plain text to clickable <a> tags
@@ -51,9 +56,11 @@ interface AppOverlayProps {
   children?: ReactNode
   footer?: ReactNode
   onExpandDescription?: () => void
-  onAttemptDismiss?: (reason: 'escape' | 'backdrop' | 'close-button' | 'navigation' | 'system-back') => void
+  onAttemptDismiss?: (reason: OverlayCloseReason) => void
   initialFocusRef?: RefObject<HTMLElement | null>
 }
+
+type AppOverlayAnimationState = 'hidden' | 'entering' | 'visible' | 'leaving'
 
 let bodyScrollLockCount = 0
 let lockedScrollY = 0
@@ -81,9 +88,9 @@ export function AppOverlay({
   const panelRef = useRef<HTMLDialogElement>(null)
   const pointerDownOnBackdrop = useRef(false)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
-  const requestCloseRef = useRef<(reason: 'escape' | 'backdrop' | 'close-button' | 'navigation' | 'system-back') => boolean>(() => true)
+  const requestCloseRef = useRef<(reason: OverlayCloseReason) => void>(() => {})
   const [mounted, setMounted] = useState(false)
-  const [animState, setAnimState] = useState<'hidden' | 'entering' | 'visible' | 'leaving'>('hidden')
+  const [animState, setAnimState] = useState<AppOverlayAnimationState>('hidden')
 
   useEffect(() => {
     setMounted(true)
@@ -134,16 +141,15 @@ export function AppOverlay({
   }, [])
 
   const requestClose = useCallback(
-    (reason: 'escape' | 'backdrop' | 'close-button' | 'navigation' | 'system-back') => {
-      if (!dismissible) return true
+    (reason: OverlayCloseReason) => {
+      if (!dismissible) return
 
       if (!canDismiss || isDirty) {
         onAttemptDismiss?.(reason)
-        return true
+        return
       }
 
       onOpenChange(false)
-      return true
     },
     [canDismiss, dismissible, isDirty, onAttemptDismiss, onOpenChange],
   )
@@ -160,7 +166,9 @@ export function AppOverlay({
     previouslyFocusedElement.current = document.activeElement as HTMLElement
     registerOverlay({
       id: overlayId,
-      dismiss: (reason) => requestCloseRef.current(reason),
+      dismiss: (reason) => {
+        requestCloseRef.current(reason)
+      },
     })
 
     const FOCUSABLE_SELECTORS = [

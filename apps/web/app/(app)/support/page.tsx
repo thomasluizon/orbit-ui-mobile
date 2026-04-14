@@ -30,7 +30,7 @@ export default function SupportPage() {
   const [emailError, setEmailError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (typeof globalThis.localStorage === 'undefined') return
+    if (globalThis.localStorage === undefined) return
 
     const storedDraft = globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
     if (!storedDraft) return
@@ -55,7 +55,7 @@ export default function SupportPage() {
   }, [profile])
 
   useEffect(() => {
-    if (typeof globalThis.localStorage === 'undefined') return
+    if (globalThis.localStorage === undefined) return
 
     const draft = {
       name,
@@ -120,7 +120,7 @@ export default function SupportPage() {
       setSuccess(true)
       setSubject('')
       setMessage('')
-      if (typeof globalThis.localStorage !== 'undefined') {
+      if (globalThis.localStorage !== undefined) {
         globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
       }
     } catch (err: unknown) {

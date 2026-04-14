@@ -1,6 +1,6 @@
 'use client'
 
-type OverlayCloseReason =
+export type OverlayCloseReason =
   | 'escape'
   | 'backdrop'
   | 'close-button'
@@ -9,7 +9,7 @@ type OverlayCloseReason =
 
 interface OverlayEntry {
   id: string
-  dismiss: (reason: OverlayCloseReason) => boolean
+  dismiss: (reason: OverlayCloseReason) => void
 }
 
 const overlayStack: OverlayEntry[] = []
@@ -42,5 +42,6 @@ export function isTopOverlay(id: string): boolean {
 export function dismissTopOverlay(reason: OverlayCloseReason): boolean {
   const topOverlay = overlayStack.at(-1)
   if (!topOverlay) return false
-  return topOverlay.dismiss(reason)
+  topOverlay.dismiss(reason)
+  return true
 }

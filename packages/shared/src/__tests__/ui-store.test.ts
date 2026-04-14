@@ -91,4 +91,45 @@ describe('shared ui store', () => {
 
     expect(store.getState().lastCreatedHabitId).toBeNull()
   })
+
+  it('tracks celebration priority, de-duplicates queued items, and advances by id', () => {
+    const store = createStoreHarness()
+    const {
+      enqueueCelebration,
+      completeActiveCelebration,
+      hasCelebrationInFlight,
+    } = store.getState()
+
+    enqueueCelebration('achievement', { achievementId: 'achv-1', xpReward: 10 })
+    enqueueCelebration('level-up', { level: 2 })
+    enqueueCelebration('level-up', { level: 2 })
+
+    expect(hasCelebrationInFlight()).toBe(true)
+    expect(store.getState().activeCelebration?.kind).toBe('achievement')
+    expect(store.getState().queuedCelebrations).toHaveLength(1)
+
+    completeActiveCelebration('different-id')
+    expect(store.getState().activeCelebration?.kind).toBe('achievement')
+
+    completeActiveCelebration(store.getState().activeCelebration?.id)
+    expect(store.getState().activeCelebration?.kind).toBe('level-up')
+
+    completeActiveCelebration(store.getState().activeCelebration?.id)
+    expect(hasCelebrationInFlight()).toBe(false)
+  })
+
+  it('removes queued goal celebrations when they are cleared before becoming active', () => {
+    const store = createStoreHarness()
+
+    store.getState().setStreakCelebration({ streak: 5 })
+    store.getState().setGoalCompletedCelebration({ name: 'Ship Orbit' })
+
+    expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['goal-completed'])
+
+    store.getState().setGoalCompletedCelebration(null)
+
+    expect(store.getState().queuedCelebrations).toEqual([])
+    expect(store.getState().goalCompletedCelebration).toBeNull()
+    expect(store.getState().streakCelebration).toEqual({ streak: 5 })
+  })
 })

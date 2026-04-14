@@ -22,10 +22,11 @@ export function useGoBackOrFallback() {
       }
 
       let hasSameOriginReferrer = false
-      if (typeof globalThis.document !== 'undefined' && globalThis.document.referrer) {
+      const referrer = globalThis.document?.referrer
+      if (referrer) {
         try {
           hasSameOriginReferrer =
-            new URL(globalThis.document.referrer).origin === globalThis.location.origin
+            new URL(referrer).origin === globalThis.location.origin
         } catch {
           hasSameOriginReferrer = false
         }

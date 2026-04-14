@@ -159,9 +159,9 @@ export function Popover({
       return
     }
 
-    const currentIndex = focusableElements.findIndex(
-      (element) => element === document.activeElement,
-    )
+    const activeElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const currentIndex = activeElement ? focusableElements.indexOf(activeElement) : -1
     const step = event.key === 'ArrowDown' ? 1 : -1
     const fallbackIndex = step > 0 ? 0 : focusableElements.length - 1
     const nextIndex =
@@ -189,6 +189,8 @@ export function Popover({
         createPortal(
           <div
             ref={hook.panelRef}
+            role="dialog"
+            aria-modal="false"
             className={[
               'habit-actions-menu',
               'fixed',

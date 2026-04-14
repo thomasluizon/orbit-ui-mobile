@@ -94,8 +94,8 @@ export function CreateHabitModal({
   const atGoalLimit = selectedGoalIds.length >= 10
   const isDirty =
     formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort()) !== initialTagIdsRef.current ||
-    JSON.stringify([...selectedGoalIds].sort()) !== initialGoalIdsRef.current ||
+    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIdsRef.current ||
+    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIdsRef.current ||
     JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSubHabitsRef.current ||
     JSON.stringify(reminderTimes) !== initialReminderTimesRef.current
   const dismissGuard = useDismissGuard({
@@ -133,8 +133,12 @@ export function CreateHabitModal({
       formHelpers.setGeneral()
     }
 
-    initialTagIdsRef.current = JSON.stringify([...(prefill?.selectedTagIds ?? [])].sort())
-    initialGoalIdsRef.current = JSON.stringify([...(prefill?.selectedGoalIds ?? [])].sort())
+    initialTagIdsRef.current = JSON.stringify(
+      [...(prefill?.selectedTagIds ?? [])].sort((left, right) => left.localeCompare(right)),
+    )
+    initialGoalIdsRef.current = JSON.stringify(
+      [...(prefill?.selectedGoalIds ?? [])].sort((left, right) => left.localeCompare(right)),
+    )
     initialSubHabitsRef.current = JSON.stringify([])
     initialReminderTimesRef.current = JSON.stringify(prefill?.reminderTimes ?? [0, 15])
     // eslint-disable-next-line react-hooks/exhaustive-deps

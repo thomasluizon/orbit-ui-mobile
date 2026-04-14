@@ -47,6 +47,27 @@ interface DesktopLayoutParams {
   placement: TourStep['placement']
 }
 
+interface DesktopTargetBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+interface VerticalDesktopPositionParams extends DesktopTargetBounds {
+  placement: 'top' | 'bottom'
+  tooltipWidth: number
+  tooltipHeight: number
+  viewportHeight: number
+}
+
+interface HorizontalDesktopPositionParams extends DesktopTargetBounds {
+  placement: 'left' | 'right'
+  tooltipWidth: number
+  tooltipHeight: number
+  viewportWidth: number
+}
+
 function clampDesktopPosition(
   position: { top: number; left: number },
   tooltipWidth: number,
@@ -67,62 +88,50 @@ function clampDesktopPosition(
 }
 
 function computeVerticalDesktopPosition(
-  placement: 'top' | 'bottom',
-  sx: number,
-  sy: number,
-  sw: number,
-  sh: number,
-  tooltipWidth: number,
-  tooltipHeight: number,
-  viewportHeight: number,
+  params: VerticalDesktopPositionParams,
 ) {
-  const left = sx + sw / 2 - tooltipWidth / 2
+  const { placement, x, y, width, height, tooltipWidth, tooltipHeight, viewportHeight } = params
+  const left = x + width / 2 - tooltipWidth / 2
 
   if (placement === 'bottom') {
-    const bottomTop = sy + sh + TOOLTIP_GAP
+    const bottomTop = y + height + TOOLTIP_GAP
     return {
       top:
         bottomTop + tooltipHeight > viewportHeight - EDGE_PADDING
-          ? sy - tooltipHeight - TOOLTIP_GAP
+          ? y - tooltipHeight - TOOLTIP_GAP
           : bottomTop,
       left,
     }
   }
 
-  const topTop = sy - tooltipHeight - TOOLTIP_GAP
+  const topTop = y - tooltipHeight - TOOLTIP_GAP
   return {
-    top: topTop < EDGE_PADDING ? sy + sh + TOOLTIP_GAP : topTop,
+    top: topTop < EDGE_PADDING ? y + height + TOOLTIP_GAP : topTop,
     left,
   }
 }
 
 function computeHorizontalDesktopPosition(
-  placement: 'left' | 'right',
-  sx: number,
-  sy: number,
-  sw: number,
-  sh: number,
-  tooltipWidth: number,
-  tooltipHeight: number,
-  viewportWidth: number,
+  params: HorizontalDesktopPositionParams,
 ) {
-  const top = sy + sh / 2 - tooltipHeight / 2
+  const { placement, x, y, width, height, tooltipWidth, tooltipHeight, viewportWidth } = params
+  const top = y + height / 2 - tooltipHeight / 2
 
   if (placement === 'right') {
-    const rightLeft = sx + sw + TOOLTIP_GAP
+    const rightLeft = x + width + TOOLTIP_GAP
     return {
       top,
       left:
         rightLeft + tooltipWidth > viewportWidth - EDGE_PADDING
-          ? sx - tooltipWidth - TOOLTIP_GAP
+          ? x - tooltipWidth - TOOLTIP_GAP
           : rightLeft,
     }
   }
 
-  const leftLeft = sx - tooltipWidth - TOOLTIP_GAP
+  const leftLeft = x - tooltipWidth - TOOLTIP_GAP
   return {
     top,
-    left: leftLeft < EDGE_PADDING ? sx + sw + TOOLTIP_GAP : leftLeft,
+    left: leftLeft < EDGE_PADDING ? x + width + TOOLTIP_GAP : leftLeft,
   }
 }
 
@@ -136,32 +145,32 @@ function computeDesktopPosition(params: DesktopLayoutParams): { top: number; lef
     placement,
   } = params
   const pad = 8
-  const sx = targetRect.x - pad
-  const sy = targetRect.y - pad
-  const sw = targetRect.width + pad * 2
-  const sh = targetRect.height + pad * 2
+  const paddedTargetBounds: DesktopTargetBounds = {
+    x: targetRect.x - pad,
+    y: targetRect.y - pad,
+    width: targetRect.width + pad * 2,
+    height: targetRect.height + pad * 2,
+  }
 
   const position =
     placement === 'bottom' || placement === 'top'
       ? computeVerticalDesktopPosition(
-          placement,
-          sx,
-          sy,
-          sw,
-          sh,
-          tooltipWidth,
-          tooltipHeight,
-          viewportHeight,
+          {
+            ...paddedTargetBounds,
+            placement,
+            tooltipWidth,
+            tooltipHeight,
+            viewportHeight,
+          },
         )
       : computeHorizontalDesktopPosition(
-          placement,
-          sx,
-          sy,
-          sw,
-          sh,
-          tooltipWidth,
-          tooltipHeight,
-          viewportWidth,
+          {
+            ...paddedTargetBounds,
+            placement,
+            tooltipWidth,
+            tooltipHeight,
+            viewportWidth,
+          },
         )
 
   return clampDesktopPosition(

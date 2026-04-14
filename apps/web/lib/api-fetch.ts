@@ -28,23 +28,28 @@ export function setApiFetchTranslate(t: TranslateFn) {
   _translate = t
 }
 
+const FALLBACK_TOAST_TITLES: Record<number, string> = {
+  400: 'Validation error',
+  404: 'Not found',
+  409: 'Conflict',
+  429: 'Too many requests',
+}
+
+const TRANSLATED_TOAST_TITLE_KEYS: Record<number, string> = {
+  400: 'toast.errors.validation',
+  404: 'toast.errors.notFound',
+  409: 'toast.errors.conflict',
+  429: 'toast.errors.tooManyRequests',
+}
+
 function getToastTitle(status: number): string {
   if (!_translate) {
-    // Fallback when i18n is not yet initialised
-    if (status === 400) return 'Validation error'
-    if (status === 404) return 'Not found'
-    if (status === 409) return 'Conflict'
-    if (status === 429) return 'Too many requests'
     if (status >= 500) return 'Server error'
-    return 'Something went wrong'
+    return FALLBACK_TOAST_TITLES[status] ?? 'Something went wrong'
   }
 
-  if (status === 400) return _translate('toast.errors.validation')
-  if (status === 404) return _translate('toast.errors.notFound')
-  if (status === 409) return _translate('toast.errors.conflict')
-  if (status === 429) return _translate('toast.errors.tooManyRequests')
   if (status >= 500) return _translate('toast.errors.server')
-  return _translate('toast.errors.unknown')
+  return _translate(TRANSLATED_TOAST_TITLE_KEYS[status] ?? 'toast.errors.unknown')
 }
 
 // ---------------------------------------------------------------------------
