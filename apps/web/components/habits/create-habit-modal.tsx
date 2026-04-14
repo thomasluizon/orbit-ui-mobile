@@ -3,14 +3,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Loader2, Trash2, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ProBadge } from '@/components/ui/pro-badge'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
+import { useProfile } from '@/hooks/use-profile'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
@@ -59,15 +62,18 @@ export function CreateHabitModal({
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const t = useTranslations()
+  const router = useRouter()
   const translate = useCallback(
     (key: string, values?: Record<string, string | number | Date>) =>
       t(key, values),
     [t],
   )
+  const { profile } = useProfile()
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const { showError } = useAppToast()
   const isSubHabitMode = !!parentHabit
+  const hasProAccess = profile?.hasProAccess ?? false
   const activeView = useUIStore((s) => s.activeView)
 
   const formHelpers = useHabitForm({
@@ -107,6 +113,13 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
+  useEffect(() => {
+    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
+
+    onOpenChange(false)
+    router.push('/upgrade')
+  }, [isSubHabitMode, onOpenChange, open, profile, router])
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (!open) return
@@ -145,6 +158,11 @@ export function CreateHabitModal({
   }, [open])
 
   useEffect(() => {
+    if (hasProAccess || subHabits.length === 0) return
+    setSubHabits([])
+  }, [hasProAccess, subHabits.length])
+
+  useEffect(() => {
     if (!open) return
 
     const nextReminderEnabled = resolveAutoManagedReminderEnabled({
@@ -174,11 +192,18 @@ export function CreateHabitModal({
     async (e) => {
       e.preventDefault()
 
+      if (isSubHabitMode && !hasProAccess) {
+        onOpenChange(false)
+        router.push('/upgrade')
+        return
+      }
+
       const data = formHelpers.form.getValues() as unknown as HabitFormData
-      const subHabitValues = subHabits.map((entry) => entry.value)
+      const permittedGoalIds = hasProAccess ? selectedGoalIds : []
+      const subHabitValues = hasProAccess ? subHabits.map((entry) => entry.value) : []
       const error = formHelpers.validateAll({
         reminderTimes,
-        selectedGoalIds,
+        selectedGoalIds: permittedGoalIds,
         selectedTagIds: tags.selectedTagIds,
         subHabits: subHabitValues,
       })
@@ -192,7 +217,7 @@ export function CreateHabitModal({
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
           await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
-          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
+          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, permittedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
         onOpenChange(false)
@@ -207,7 +232,7 @@ export function CreateHabitModal({
         )
       }
     },
-    [createHabit, createSubHabit, formHelpers, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const isPending = createHabit.isPending || createSubHabit.isPending
@@ -236,7 +261,7 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         initialFocusRef={titleInputRef}
       >
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           titleInputRef={titleInputRef}
@@ -250,48 +275,73 @@ export function CreateHabitModal({
         >
           {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (
-            <div className="space-y-1.5">
-              <span className="form-label" aria-hidden="true">
-                {t('habits.form.subHabits')}
-              </span>
-              {subHabits.length > 0 && (
-                <div className="space-y-1.5">
-                  {subHabits.map((entry) => (
-                    <div key={entry.id} className="flex items-center gap-2">
-                      <input
-                        value={entry.value}
-                        type="text"
-                        maxLength={200}
-                        placeholder={t('habits.form.subHabitPlaceholder')}
-                        className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                        onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 rounded-full"
-                        onClick={() => removeSubHabit(entry.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+            hasProAccess ? (
+              <div className="space-y-2.5 pt-1">
+                <span className="form-label" aria-hidden="true">
+                  {t('habits.form.subHabits')}
+                </span>
+                {subHabits.length > 0 && (
+                  <div className="space-y-2">
+                    {subHabits.map((entry) => (
+                      <div key={entry.id} className="flex items-center gap-2">
+                        <input
+                          value={entry.value}
+                          type="text"
+                          maxLength={200}
+                          placeholder={t('habits.form.subHabitPlaceholder')}
+                          className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                          onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 rounded-full"
+                          onClick={() => removeSubHabit(entry.id)}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  disabled={subHabits.length >= 20}
+                  onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
+                >
+                  <Plus className="size-3.5" />
+                  {t('habits.form.addSubHabit')}
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="form-label !mb-0" aria-hidden="true">
+                        {t('habits.form.subHabits')}
+                      </span>
+                      <ProBadge />
                     </div>
-                  ))}
+                    <p className="text-xs text-text-muted leading-relaxed">
+                      {t('upgrade.comparison.subHabits.tooltip')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => router.push('/upgrade')}
+                  >
+                    {t('upgrade.subscribe')}
+                  </button>
                 </div>
-              )}
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-                disabled={subHabits.length >= 20}
-                onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
-              >
-                <Plus className="size-3.5" />
-                {t('habits.form.addSubHabit')}
-              </button>
-            </div>
+              </div>
+            )
           )}
         </HabitFormFields>
 
         {/* Submit buttons */}
-        <div className="flex gap-3 pt-3">
+        <div className="flex gap-3 pt-2">
           <button
             type="button"
             className="flex-1 py-3.5 rounded-xl border border-border text-text-secondary font-semibold text-sm hover:bg-surface-elevated/80 transition-all duration-150"

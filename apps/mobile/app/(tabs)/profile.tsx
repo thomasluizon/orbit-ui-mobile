@@ -26,6 +26,7 @@ import {
 } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
+  shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import {
@@ -375,6 +376,15 @@ export default function ProfileScreen() {
     }
   }, [queryClient, subscription])
 
+  const handleNavPress = useCallback((item: ProfileNavItem) => {
+    if (shouldRedirectProfileNavItem(item, profile)) {
+      router.push('/upgrade')
+      return
+    }
+
+    router.push(item.route as Href)
+  }, [profile, router])
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -477,7 +487,7 @@ export default function ProfileScreen() {
           <View key={item.id} ref={item.id === 'preferences' ? preferencesRef : undefined}>
             <ProfileNavCard
               colors={colors}
-              onPress={() => router.push(item.route as Href)}
+              onPress={() => handleNavPress(item)}
               icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
               title={t(item.titleKey)}
               hint={getNavHint(item)}
@@ -509,7 +519,7 @@ export default function ProfileScreen() {
           >
             <ProfileNavCard
               colors={colors}
-              onPress={() => router.push(item.route as Href)}
+              onPress={() => handleNavPress(item)}
               icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
               title={t(item.titleKey)}
               hint={getNavHint(item)}

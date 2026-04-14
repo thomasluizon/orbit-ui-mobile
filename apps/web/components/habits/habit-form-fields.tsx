@@ -3,6 +3,7 @@
 import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
@@ -610,6 +611,8 @@ interface SlipAlertSectionProps {
 function SlipAlertSection({
   hasProAccess, slipAlertEnabled, slipAlertLabelId, slipAlertDescriptionId, onToggle, t,
 }: Readonly<SlipAlertSectionProps>) {
+  const router = useRouter()
+
   return (
     <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
       {hasProAccess ? (
@@ -636,7 +639,11 @@ function SlipAlertSection({
         </div>
       ) : (
         /* Pro locked state */
-        <div className="flex items-center justify-between">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 text-left"
+          onClick={() => router.push('/upgrade')}
+        >
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
               <ShieldAlert className="size-4 text-text-muted" />
@@ -648,7 +655,7 @@ function SlipAlertSection({
           <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
             <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
           </div>
-        </div>
+        </button>
       )}
     </div>
   )
@@ -810,7 +817,7 @@ export function HabitFormFields({
          ═══════════════════════════════════════════════════ */}
 
       {/* Title */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <label htmlFor="habit-form-title" className="form-label">
           {t('habits.form.title')}
         </label>
@@ -838,7 +845,7 @@ export function HabitFormFields({
       </div>
 
       {/* Frequency type cards (2x2 grid) */}
-      <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+      <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
         <legend id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
         </legend>
@@ -895,7 +902,7 @@ export function HabitFormFields({
 
       {!isOneTime && !isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label htmlFor="habit-form-frequency-qty" className="form-label">
               {isFlexible
                 ? t('habits.form.timesPerUnit')
@@ -910,7 +917,7 @@ export function HabitFormFields({
               {...register('frequencyQuantity', { valueAsNumber: true })}
             />
           </div>
-          <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
             <legend id="habit-form-unit-label" className="form-label">
               {t('habits.form.unit')}
             </legend>
@@ -933,7 +940,7 @@ export function HabitFormFields({
 
       {/* Day picker */}
       {showDayPicker && !isGeneral && (
-        <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
           <legend id="habit-form-active-days-label" className="form-label">
             {t('habits.form.activeDays')}
           </legend>
@@ -955,7 +962,7 @@ export function HabitFormFields({
       {/* Due date + Due time (combined row) */}
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
             <legend id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
             </legend>
@@ -964,7 +971,7 @@ export function HabitFormFields({
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
           </fieldset>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}
             </label>
@@ -980,7 +987,7 @@ export function HabitFormFields({
       )}
 
       {/* Tags */}
-      <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+      <fieldset className="m-0 min-w-0 space-y-2.5 border-0 p-0">
         <legend id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
         </legend>
@@ -1024,7 +1031,7 @@ export function HabitFormFields({
         </div>
         {/* Inline tag edit */}
         {tags.editingTagId && (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <ColorSwatches
               colors={tags.tagColors}
               activeColor={tags.editTagColor}
@@ -1059,7 +1066,7 @@ export function HabitFormFields({
         )}
         {/* Inline new tag creation */}
         {tags.showNewTag && (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <ColorSwatches
               colors={tags.tagColors}
               activeColor={tags.newTagColor}
@@ -1100,12 +1107,12 @@ export function HabitFormFields({
          ADVANCED FIELDS -- Behind "More options"
          ═══════════════════════════════════════════════════ */}
 
-      <div className="border-t border-border-muted pt-1">
+      <div className="border-t border-border-muted pt-2">
         <button
           type="button"
           aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-2"
+          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-3"
         >
           <ChevronDown className={`size-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
           {t('habits.form.moreOptions' as Parameters<typeof t>[0])}
@@ -1121,9 +1128,9 @@ export function HabitFormFields({
           showAdvanced ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="space-y-5 pt-1">
+        <div className="space-y-6 pt-2">
           {/* Description */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label htmlFor="habit-form-description" className="form-label">
               {t('habits.form.description')}
             </label>
@@ -1138,7 +1145,7 @@ export function HabitFormFields({
           </div>
 
           {/* Checklist */}
-          <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+          <fieldset className="m-0 min-w-0 space-y-2.5 border-0 p-0">
             <legend id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
             </legend>
@@ -1147,7 +1154,7 @@ export function HabitFormFields({
               editable
               onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
-            <div className="mt-2">
+            <div className="mt-3">
               <ChecklistTemplates
                 items={watchedChecklistItems ?? []}
                 onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
@@ -1157,7 +1164,7 @@ export function HabitFormFields({
 
           {/* End time */}
           {watchedDueTime && !isGeneral && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label htmlFor="habit-form-due-end-time" className="form-label">
                 {t('habits.form.dueEndTime')}
               </label>
@@ -1175,7 +1182,7 @@ export function HabitFormFields({
           {showEndDate && (
             <div className="space-y-1.5">
               {watchedEndDate ? (
-                <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+                <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
                   <legend id="habit-form-end-date-label" className="form-label">
                     {t('habits.form.endDate')}
                   </legend>
@@ -1251,7 +1258,7 @@ export function HabitFormFields({
 
           {/* Bad habit toggle */}
           {!isGeneral && (
-            <label className="flex items-center gap-3 cursor-pointer py-1">
+            <label className="flex items-center gap-3 cursor-pointer py-2">
               <div
                 className={`size-5 rounded-lg border-2 flex items-center justify-center transition-all ${
                   watchedIsBadHabit ? 'bg-primary border-primary' : 'border-border'

@@ -49,6 +49,20 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+  }),
+}))
+
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
+}))
+
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({
     data: mockHabitsData,
@@ -69,6 +83,12 @@ vi.mock('@/hooks/use-habits', () => ({
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: { hasProAccess: true },
+  }),
 }))
 
 vi.mock('@/hooks/use-drill-navigation', () => ({

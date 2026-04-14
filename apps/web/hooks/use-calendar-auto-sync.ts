@@ -17,6 +17,10 @@ import { z } from 'zod'
 import { extractBackendError } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 
+interface CalendarQueryOptions {
+  enabled?: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Local helpers
 // ---------------------------------------------------------------------------
@@ -63,13 +67,14 @@ async function sendJsonRequest<TBody>(
 // Read hooks
 // ---------------------------------------------------------------------------
 
-export function useCalendarAutoSyncState() {
+export function useCalendarAutoSyncState(options?: CalendarQueryOptions) {
   return useQuery<CalendarAutoSyncState>({
     queryKey: calendarKeys.autoSyncState(),
     queryFn: async () => {
       const raw = await fetchJson<unknown>(API.calendar.autoSyncState)
       return calendarAutoSyncStateSchema.parse(raw)
     },
+    enabled: options?.enabled ?? true,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -78,13 +83,14 @@ export function useCalendarAutoSyncState() {
 
 const suggestionListSchema = z.array(calendarSyncSuggestionSchema)
 
-export function useCalendarSyncSuggestions() {
+export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
   return useQuery<CalendarSyncSuggestion[]>({
     queryKey: calendarKeys.syncSuggestions(),
     queryFn: async () => {
       const raw = await fetchJson<unknown>(API.calendar.autoSyncSuggestions)
       return suggestionListSchema.parse(raw)
     },
+    enabled: options?.enabled ?? true,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,

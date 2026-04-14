@@ -255,8 +255,8 @@ export function AppOverlay({
   const hasTitle = !!(title || titleContent)
   const linkedDescription = description ? linkifyText(description) : ''
   const bodyPaddingClass = footer
-    ? 'px-6 pb-4 sm:pb-6'
-    : 'px-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:pb-6'
+    ? 'px-6 pb-0'
+    : 'px-6 pb-[calc(1rem+var(--safe-bottom))] sm:pb-4'
 
   // Transition classes
   const isEntering = animState === 'entering'
@@ -349,7 +349,7 @@ export function AppOverlay({
         {footer && (
           <div
             data-slot="overlay-footer"
-            className="px-6 pt-4 pb-[calc(1.5rem+var(--safe-bottom))] border-t border-border"
+            className="px-6 pt-4 pb-[calc(1rem+var(--safe-bottom))] sm:pb-5 border-t border-border"
           >
             {footer}
           </div>

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, Lock, BarChart3 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
@@ -33,6 +34,7 @@ function renderMarkdown(text: string): string {
 
 export default function RetrospectivePage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const { isOnline } = useOffline()
@@ -58,6 +60,13 @@ export default function RetrospectivePage() {
   )
 
   const [portalError, setPortalError] = useState('')
+
+  useEffect(() => {
+    if (!profile) return
+    if (!hasProAccess || !isYearlyPro) {
+      router.replace('/upgrade')
+    }
+  }, [hasProAccess, isYearlyPro, profile, router])
 
   function selectPeriod(key: RetrospectivePeriod) {
     setPeriod(key)

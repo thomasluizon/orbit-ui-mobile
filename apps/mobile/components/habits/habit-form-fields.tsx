@@ -18,6 +18,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useWatch } from "react-hook-form";
 import {
   X,
@@ -848,6 +849,7 @@ function SlipAlertSection({
   onToggle,
 }: Readonly<SlipAlertSectionProps>) {
   const { t } = useTranslation();
+  const router = useRouter();
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
 
   return (
@@ -873,7 +875,11 @@ function SlipAlertSection({
           />
         </View>
       ) : (
-        <View style={sectionStyles.headerRow}>
+        <TouchableOpacity
+          style={sectionStyles.headerRow}
+          onPress={() => router.push("/upgrade")}
+          activeOpacity={0.8}
+        >
           <View style={{ flex: 1, gap: 2 }}>
             <View style={sectionStyles.headerLeft}>
               <ShieldAlert size={16} color={colors.textMuted} />
@@ -891,7 +897,7 @@ function SlipAlertSection({
           <View style={[sectionStyles.disabledSwitch]}>
             <View style={sectionStyles.disabledThumb} />
           </View>
-        </View>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -1474,7 +1480,7 @@ export function HabitFormFields({
           </View>
 
           {/* Checklist */}
-          <View style={[styles.fieldGroup, { marginBottom: 8 }]}>
+          <View style={[styles.fieldGroup, { marginBottom: 12 }]}>
             <Text style={styles.label}>{t("habits.form.checklist")}</Text>
             <ChecklistTemplates
               items={watchedChecklistItems ?? []}
@@ -1638,8 +1644,6 @@ export function HabitFormFields({
         </View>
       )}
 
-      {/* When collapsed, still render children slot outside advanced section */}
-      {!showAdvanced && children}
     </View>
   );
 }
@@ -1865,10 +1869,10 @@ function createSectionStyles(colors: ThemeColors) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
-      gap: 20,
+      gap: 22,
     },
     fieldGroup: {
-      gap: 6,
+      gap: 8,
     },
     label: {
       fontSize: 12,
@@ -2103,7 +2107,7 @@ function createStyles(colors: ThemeColors) {
     moreOptionsDivider: {
       borderTopWidth: 1,
       borderTopColor: colors.borderMuted,
-      paddingTop: 4,
+      paddingTop: 8,
     },
     moreOptionsButton: {
       flexDirection: "row",
@@ -2126,7 +2130,7 @@ function createStyles(colors: ThemeColors) {
     },
     // Advanced section
     advancedSection: {
-      gap: 20,
+      gap: 24,
     },
     checkboxRow: {
       flexDirection: "row",

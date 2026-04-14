@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -59,8 +60,11 @@ import type {
 import type { Profile } from "@orbit/shared/types/profile";
 import {
   buildRecentChatHistory,
+  canAccessEntitlement,
   detectDefaultTimeFormat,
   getErrorMessage,
+  resolveUpgradeEntitlementFromError,
+  resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
@@ -399,6 +403,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
 
 export default function ChatScreen() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const { colors } = useAppTheme();
   const { isOnline } = useOffline();
   const goBackOrFallback = useGoBackOrFallback();
@@ -449,7 +454,7 @@ export default function ChatScreen() {
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
-  const aiMessagesLimit = profile?.aiMessagesLimit ?? 10;
+  const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
   const adsEnabledForUser = shouldShowAds();
   const canWatchRewardAd =
@@ -463,6 +468,13 @@ export default function ChatScreen() {
       SPEECH_LANGUAGES.find((lang) => lang.value === speechLang)?.flag ??
       "\u{1F310}",
     [speechLang],
+  );
+
+  const shouldRouteToUpgrade = useCallback(
+    (resolution: { shouldUpgrade: boolean; requirement: "pro" | "yearlyPro" | null }) =>
+      resolution.shouldUpgrade &&
+      !canAccessEntitlement(profile, resolution.requirement),
+    [profile],
   );
 
   const starterChips = useMemo(
@@ -498,12 +510,21 @@ export default function ChatScreen() {
 
       scrollToBottom();
 
-      if (response.operation.status === "Succeeded") {
-        await invalidateAgentQueries(queryClient);
-      }
-    },
-    [addMessage, queryClient, scrollToBottom],
-  );
+        if (response.operation.status === "Succeeded") {
+          await invalidateAgentQueries(queryClient);
+        }
+        if (response.policyDenial) {
+          const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(
+            response.policyDenial,
+          );
+          if (shouldRouteToUpgrade(upgradeResolution)) {
+            setSendError(response.policyDenial.reason);
+            router.push("/upgrade");
+          }
+        }
+      },
+      [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade],
+    );
 
   useEffect(() => {
     if (speechError) {
@@ -687,6 +708,19 @@ export default function ChatScreen() {
         addMessage(aiMessage);
         scrollToBottom();
 
+        const premiumDenial = response.policyDenials?.find((denial) =>
+          resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
+        );
+        if (premiumDenial) {
+          const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(
+            premiumDenial,
+          );
+          setSendError(premiumDenial.reason);
+          if (shouldRouteToUpgrade(upgradeResolution)) {
+            router.push("/upgrade");
+          }
+        }
+
         if (!hasProAccess) {
           queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
             current
@@ -712,6 +746,12 @@ export default function ChatScreen() {
         }
       } catch (err: unknown) {
         setIsTyping(false);
+        const upgradeResolution = resolveUpgradeEntitlementFromError(err);
+        if (shouldRouteToUpgrade(upgradeResolution)) {
+          setSendError(getErrorMessage(err, t("chat.sendError")));
+          router.push("/upgrade");
+          return;
+        }
         setSendError(getErrorMessage(err, t("chat.sendError")));
 
         const errorMessage: ChatMessage = {
@@ -731,10 +771,12 @@ export default function ChatScreen() {
       imagePreview,
       i18n.language,
       isTyping,
+      router,
       queryClient,
       scrollToBottom,
       selectedImage,
       setIsTyping,
+      shouldRouteToUpgrade,
       t,
       isOnline,
       offlineTitle,
@@ -893,6 +935,10 @@ export default function ChatScreen() {
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (GOAL_ACTION_TYPES.has(actionType)) {
+      if (!hasProAccess) {
+        router.push("/upgrade");
+        return;
+      }
       setSelectedHabitId(null);
       setSelectedGoalId(entityId);
       return;
@@ -900,7 +946,7 @@ export default function ChatScreen() {
 
     setSelectedGoalId(null);
     setSelectedHabitId(entityId);
-  }, []);
+  }, [hasProAccess, router]);
 
   const handleDrawerClose = useCallback(() => {
     setSelectedHabitId(null);
@@ -917,6 +963,7 @@ export default function ChatScreen() {
         message={item}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
+        onUpgradeClick={() => router.push("/upgrade")}
         onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
         onPendingOperationPrepareStepUp={async (pendingOperationId) => {
           const result = await preparePendingOperationStepUp(pendingOperationId);

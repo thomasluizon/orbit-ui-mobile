@@ -23,8 +23,19 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
+
+let mockHasProAccess = false
+
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => false,
+  useHasProAccess: () => mockHasProAccess,
 }))
 
 vi.mock('@/components/habits/habit-checklist', () => ({
@@ -154,6 +165,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('HabitFormFields', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHasProAccess = false
   })
 
   it('renders without crashing', () => {
@@ -317,6 +329,7 @@ describe('HabitFormFields', () => {
   })
 
   it('shows goal linking field', () => {
+    mockHasProAccess = true
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     renderWithProviders(
@@ -1235,9 +1248,7 @@ describe('HabitFormFields', () => {
   // -------------------------------------------------------------------------
 
   it('shows slip alert toggle switch when bad habit and pro access', () => {
-    // We need to re-mock useHasProAccess to return true for this test
-    // Since vi.mock is hoisted, we test the existing non-pro path (already tested above)
-    // and verify the structure. The mock returns false, so we check non-pro state.
+    mockHasProAccess = true
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -1268,9 +1279,9 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    // In non-pro state, we should see the pro badge
-    expect(screen.getByText('common.proBadge')).toBeDefined()
+    expect(screen.queryByText('common.proBadge')).not.toBeInTheDocument()
     expect(screen.getByText('habits.form.slipAlertDescription')).toBeDefined()
+    expect(screen.getByRole('switch', { name: 'habits.form.slipAlert' })).toBeDefined()
   })
 
   // -------------------------------------------------------------------------

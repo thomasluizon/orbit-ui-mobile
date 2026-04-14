@@ -74,7 +74,7 @@ describe('AppOverlay', () => {
     )
 
     const body = document.querySelector('[data-slot="overlay-body"]')
-    expect(body?.className).toContain('pb-[calc(1.5rem+var(--safe-bottom))]')
+    expect(body?.className).toContain('pb-[calc(1rem+var(--safe-bottom))]')
   })
 
   it('keeps safe-area padding in the footer when a footer is present', () => {
@@ -87,9 +87,9 @@ describe('AppOverlay', () => {
     const body = document.querySelector('[data-slot="overlay-body"]')
     const footer = document.querySelector('[data-slot="overlay-footer"]')
 
-    expect(body?.className).toContain('pb-4')
+    expect(body?.className).toContain('pb-0')
     expect(body?.className).not.toContain('var(--safe-bottom)')
-    expect(footer?.className).toContain('pb-[calc(1.5rem+var(--safe-bottom))]')
+    expect(footer?.className).toContain('pb-[calc(1rem+var(--safe-bottom))]')
   })
 
   it('renders close button when dismissible', () => {

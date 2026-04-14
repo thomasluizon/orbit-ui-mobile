@@ -19,6 +19,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native'
+import { useRouter } from 'expo-router'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
@@ -53,6 +54,7 @@ import {
   useReorderHabits,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useProfile } from '@/hooks/use-profile'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
@@ -190,6 +192,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   ref,
 ) {
   const { t, i18n } = useTranslation()
+  const router = useRouter()
+  const { profile } = useProfile()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
@@ -890,6 +894,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [canSubmitMoveParent, closeMoveParentDialog, moveParentMutation, movingHabitId, selectedMoveParentId])
 
   const startAddSubHabit = useCallback((parentId: string) => {
+    if (profile?.hasProAccess === false) {
+      router.push('/upgrade')
+      return
+    }
+
     const parentHabitCandidate = habitsById.get(parentId)
     if (!parentHabitCandidate) return
 
@@ -899,7 +908,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     setSubHabitParent(parentHabitCandidate)
     setShowSubHabitModal(true)
-  }, [collapsedIds, habitsById, toggleExpand])
+  }, [collapsedIds, habitsById, profile?.hasProAccess, router, toggleExpand])
 
   const confirmDelete = useCallback(async () => {
     if (!habitToDelete) return

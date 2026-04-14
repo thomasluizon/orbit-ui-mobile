@@ -616,7 +616,7 @@
     "voiceUnsupportedError": "A entrada por voz não está disponível neste dispositivo.",
     "sendError": "Falha ao enviar mensagem. Tente novamente.",
     "timeoutError": "A requisição expirou. Tente novamente.",
-    "limitReachedError": "Você atingiu o limite de mensagens. Faça upgrade para Pro para mensagens ilimitadas.",
+    "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
     "aiError": "Desculpe, algo deu errado. Tente novamente.",
     "suggestion": {
       "prompt": "Peça para criar hábitos, registrar conclusões ou gerenciar sua rotina",

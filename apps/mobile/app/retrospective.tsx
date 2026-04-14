@@ -103,6 +103,13 @@ export default function RetrospectiveScreen() {
   const cacheKey = getRetrospectiveCacheKey(period)
 
   useEffect(() => {
+    if (!profile) return
+    if (!hasProAccess || !isYearlyPro) {
+      router.replace('/upgrade')
+    }
+  }, [hasProAccess, isYearlyPro, profile, router])
+
+  useEffect(() => {
     let active = true
     setIsCacheLoading(true)
 

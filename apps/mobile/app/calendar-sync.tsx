@@ -89,8 +89,10 @@ export default function CalendarSyncScreen() {
   const queryClient = useQueryClient()
   const { showError } = useAppToast()
 
-  const autoSyncStateQuery = useCalendarAutoSyncState()
-  const suggestionsQuery = useCalendarSyncSuggestions()
+  const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: profile?.hasProAccess ?? false })
+  const suggestionsQuery = useCalendarSyncSuggestions({
+    enabled: (profile?.hasProAccess ?? false) && isReviewMode,
+  })
   const setAutoSyncMutation = useSetCalendarAutoSync()
   const runSyncNowMutation = useRunCalendarSyncNow()
 

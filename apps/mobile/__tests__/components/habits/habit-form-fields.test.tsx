@@ -14,6 +14,14 @@ vi.mock('react-hook-form', () => ({
     useWatchMock(args),
 }))
 
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+  }),
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockHasProAccess,
 }))

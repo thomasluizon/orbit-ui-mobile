@@ -97,7 +97,7 @@ function RootLayoutNav() {
   useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
-  const { colors, currentTheme } = useAppTheme()
+  const { colors, currentTheme, currentScheme } = useAppTheme()
   const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
@@ -143,8 +143,8 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isAuthenticated) return
-    syncWidgetTheme(profile?.colorScheme ?? 'purple', currentTheme).catch(() => {})
-  }, [currentTheme, isAuthenticated, profile?.colorScheme])
+    syncWidgetTheme(currentScheme, currentTheme).catch(() => {})
+  }, [currentScheme, currentTheme, isAuthenticated])
 
   useEffect(() => {
     void initializeAdMob()

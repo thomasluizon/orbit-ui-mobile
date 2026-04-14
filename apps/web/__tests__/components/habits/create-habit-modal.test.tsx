@@ -33,6 +33,15 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({
     mutateAsync: mockCreateMutateAsync,
@@ -43,6 +52,12 @@ vi.mock('@/hooks/use-habits', () => ({
     mutateAsync: mockCreateSubMutateAsync,
     isPending: false,
     error: null,
+  }),
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: { hasProAccess: true },
   }),
 }))
 

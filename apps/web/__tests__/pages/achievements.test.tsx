@@ -19,6 +19,17 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+const mockReplace = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    replace: mockReplace,
+    push: vi.fn(),
+    back: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
+
 let mockProfileLoading = false
 let mockHasProAccess = true
 
@@ -72,6 +83,7 @@ import AchievementsPage from '@/app/(app)/achievements/page'
 
 describe('AchievementsPage', () => {
   beforeEach(() => {
+    mockReplace.mockClear()
     mockProfileLoading = false
     mockHasProAccess = true
     mockGamificationLoading = false

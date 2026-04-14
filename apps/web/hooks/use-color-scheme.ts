@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { type ColorScheme, type ThemeMode } from '@orbit/shared'
+import {
+  resolveAccessibleColorScheme,
+  type ColorScheme,
+  type ThemeMode,
+} from '@orbit/shared'
 import {
   updateColorScheme as updateColorSchemeAction,
   updateThemePreference as updateThemePreferenceAction,
@@ -77,8 +81,13 @@ export function useColorScheme() {
    * Sync cookie with DB value (DB is source of truth).
    * Call this after profile loads to ensure cross-device sync.
    */
-  const syncSchemeFromProfile = useCallback((dbColorScheme: string | null) => {
-    const dbScheme = dbColorScheme ? normalizeColorScheme(dbColorScheme) : null
+  const syncSchemeFromProfile = useCallback((
+    dbColorScheme: string | null,
+    hasProAccess = true,
+  ) => {
+    const dbScheme = dbColorScheme
+      ? resolveAccessibleColorScheme(normalizeColorScheme(dbColorScheme), hasProAccess)
+      : null
     if (dbScheme && dbScheme !== currentScheme) {
       setCookie('orbit_color_scheme', dbScheme)
       setCurrentScheme(dbScheme)

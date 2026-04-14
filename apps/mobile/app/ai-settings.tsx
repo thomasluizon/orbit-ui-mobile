@@ -54,6 +54,9 @@ export default function AiSettingsScreen() {
   const queryClient = useQueryClient()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
+  const hasProAccess = profile?.hasProAccess ?? false
+  const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
+  const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
 
   // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
@@ -105,10 +108,14 @@ export default function AiSettingsScreen() {
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
     queryFn: () => apiClient<UserFact[]>(API.userFacts.list),
+    enabled: hasProAccess,
     staleTime: 5 * 60 * 1000,
   })
 
-  const facts = useMemo(() => factsQuery.data ?? [], [factsQuery.data])
+  const facts = useMemo(
+    () => (hasProAccess ? (factsQuery.data ?? []) : []),
+    [factsQuery.data, hasProAccess],
+  )
   const { isOnline } = useOffline()
 
   const deleteMutation = useMutation({
@@ -258,10 +265,10 @@ export default function AiSettingsScreen() {
               <Text style={styles.cardLabel}>{t('profile.aiMemory.title')}</Text>
               <ProBadge alwaysVisible />
             </View>
-            {profile?.hasProAccess ? (
+            {hasProAccess ? (
               <Switch
-                value={profile?.aiMemoryEnabled ?? false}
-                onValueChange={(v) => aiMemoryMutation.mutate(v)}
+                value={aiMemoryEnabled}
+                onValueChange={(value) => aiMemoryMutation.mutate(value)}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor="#fff"
                 disabled={aiMemoryMutation.isPending}
@@ -288,10 +295,10 @@ export default function AiSettingsScreen() {
           <Text
             style={[
               styles.statusText,
-              { color: profile?.aiMemoryEnabled ? colors.primary : colors.textMuted },
+              { color: aiMemoryEnabled ? colors.primary : colors.textMuted },
             ]}
           >
-            {profile?.aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
+            {aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
           </Text>
         </View>
 
@@ -302,10 +309,10 @@ export default function AiSettingsScreen() {
               <Text style={styles.cardLabel}>{t('profile.aiSummary.title')}</Text>
               <ProBadge alwaysVisible />
             </View>
-            {profile?.hasProAccess ? (
+            {hasProAccess ? (
               <Switch
-                value={profile?.aiSummaryEnabled ?? false}
-                onValueChange={(v) => aiSummaryMutation.mutate(v)}
+                value={aiSummaryEnabled}
+                onValueChange={(value) => aiSummaryMutation.mutate(value)}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor="#fff"
                 disabled={aiSummaryMutation.isPending}
@@ -326,10 +333,10 @@ export default function AiSettingsScreen() {
           <Text
             style={[
               styles.statusText,
-              { color: profile?.aiSummaryEnabled ? colors.primary : colors.textMuted },
+              { color: aiSummaryEnabled ? colors.primary : colors.textMuted },
             ]}
           >
-            {profile?.aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
+            {aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
           </Text>
         </View>
 

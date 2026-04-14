@@ -274,12 +274,23 @@ export type {
   RetrospectiveResponse,
 } from './retrospective'
 export {
+  canAccessEntitlement,
+  DEFAULT_FREE_COLOR_SCHEME,
+  resolveAccessibleColorScheme,
+  resolveUpgradeEntitlementDenial,
+  resolveUpgradeEntitlementFromError,
+  resolveUpgradeEntitlementFromPolicyDenial,
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
 } from './upgrade'
 export type {
+  UpgradeAccessSnapshot,
+  UpgradeDenialInput,
+  UpgradeEntitlementMode,
+  UpgradeEntitlementRequirement,
+  UpgradeEntitlementResolution,
   UpgradeFeatureMatrixCategory,
   UpgradeFeatureMatrixRow,
   UpgradeIconKey,
@@ -325,7 +336,11 @@ export {
   USER_FACTS_PER_PAGE,
 } from './user-facts'
 export type { UserFactCategoryKey } from './user-facts'
-export { PROFILE_NAV_ITEMS } from './profile-navigation'
+export {
+  PROFILE_NAV_ITEMS,
+  isProfileNavItemLocked,
+  shouldRedirectProfileNavItem,
+} from './profile-navigation'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,

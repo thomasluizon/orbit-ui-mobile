@@ -616,7 +616,7 @@
     "voiceUnsupportedError": "Voice input is not available on this device.",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
-    "limitReachedError": "You've reached your message limit. Upgrade to Pro for unlimited messages.",
+    "limitReachedError": "You've reached your monthly AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "suggestion": {
       "prompt": "Ask me to create habits, log completions, or manage your routine",

@@ -44,7 +44,7 @@ export default function PreferencesScreen() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
-  const { colors, applyScheme, applyTheme, currentTheme } = useAppTheme()
+  const { colors, applyScheme, applyTheme, currentTheme, currentScheme } = useAppTheme()
   const {
     isEnabled: pushEnabled,
     isRegistered: pushRegistered,
@@ -57,8 +57,6 @@ export default function PreferencesScreen() {
     refreshPermissionStatus,
   } = usePushNotifications()
   const styles = useMemo(() => createStyles(colors), [colors])
-
-  const currentScheme = profile?.colorScheme ?? 'purple'
 
   // --- Language ---
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
