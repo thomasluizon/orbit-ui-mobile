@@ -11,6 +11,7 @@ const ALLOWED_PREFIXES = [
   'auth/',
   'profile/',
   'chat/',
+  'ai/',
   'user-facts/',
   'support/',
   'tags/',

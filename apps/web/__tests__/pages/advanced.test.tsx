@@ -34,11 +34,21 @@ vi.mock('@/components/ui/pro-badge', () => ({
 let mockApiKeys: { id: string; name: string; keyPrefix: string; createdAtUtc: string; lastUsedAtUtc: string | null }[] = []
 let mockApiKeysLoading = false
 let mockApiKeysError: Error | null = null
+let mockCapabilities: { scope: string; displayName: string }[] = []
+let mockCapabilitiesLoading = false
+let mockCapabilitiesError: Error | null = null
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
-    // API keys query
-    if (Array.isArray(queryKey) && queryKey.some((k) => typeof k === 'string' && k.includes('api'))) {
+    if (Array.isArray(queryKey) && queryKey[0] === 'ai-capabilities') {
+      return {
+        data: mockCapabilitiesLoading ? undefined : mockCapabilities,
+        isLoading: mockCapabilitiesLoading,
+        error: mockCapabilitiesError,
+      }
+    }
+
+    if (Array.isArray(queryKey) && queryKey[0] === 'api-keys') {
       return {
         data: mockApiKeysLoading ? undefined : mockApiKeys,
         isLoading: mockApiKeysLoading,
@@ -113,6 +123,9 @@ describe('AdvancedPage', () => {
     mockApiKeys = []
     mockApiKeysLoading = false
     mockApiKeysError = null
+    mockCapabilities = []
+    mockCapabilitiesLoading = false
+    mockCapabilitiesError = null
   })
 
   it('renders without crashing', () => {
@@ -194,6 +207,16 @@ describe('AdvancedPage', () => {
     expect(screen.getByText('orbitMcp.createKey')).toBeInTheDocument()
   })
 
+  it('enables create key button when capability scopes load', () => {
+    mockCapabilities = [
+      { scope: 'read_habits', displayName: 'Read Habits' },
+    ]
+
+    render(<AdvancedPage />)
+
+    expect(screen.getByRole('button', { name: 'orbitMcp.createKey' })).toBeEnabled()
+  })
+
   it('shows empty state when no API keys', () => {
     render(<AdvancedPage />)
     expect(screen.getByText('orbitMcp.noKeys')).toBeInTheDocument()
@@ -210,6 +233,15 @@ describe('AdvancedPage', () => {
     mockApiKeysError = new Error('Failed to load')
     render(<AdvancedPage />)
     expect(screen.getByText('orbitMcp.apiKeysError')).toBeInTheDocument()
+  })
+
+  it('shows scope loading error and keeps create key disabled when capabilities fail', () => {
+    mockCapabilitiesError = new Error('Failed to load capabilities')
+
+    render(<AdvancedPage />)
+
+    expect(screen.getByText('orbitMcp.apiKeysError')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'orbitMcp.createKey' })).toBeDisabled()
   })
 
   it('renders API key list when keys exist', () => {

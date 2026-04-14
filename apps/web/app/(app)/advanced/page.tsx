@@ -49,7 +49,9 @@ async function fetchApiKeys(): Promise<ApiKey[]> {
 
 async function fetchCapabilities(): Promise<AgentCapability[]> {
   const res = await fetch(API.ai.capabilities)
-  if (!res.ok) return []
+  if (!res.ok) {
+    throw new Error('Failed to load AI capabilities')
+  }
   return res.json()
 }
 
@@ -130,6 +132,11 @@ export default function AdvancedPage() {
   }, [capabilitiesQuery.data])
   const MAX_API_KEYS = 5
   const canCreateKey = apiKeys.length < MAX_API_KEYS
+  const canCreateScopedKey =
+    canCreateKey &&
+    !capabilitiesQuery.isLoading &&
+    !capabilitiesQuery.error &&
+    scopeOptions.length > 0
 
   const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
@@ -235,7 +242,9 @@ export default function AdvancedPage() {
                   <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t('orbitMcp.apiKeys')}</h4>
                   {canCreateKey && (
                     <button
-                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                      type="button"
+                      disabled={!canCreateScopedKey}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:text-text-muted"
                       onClick={() => setCreateKeyModalOpen(true)}
                     >
                       <Plus className="size-3.5" />
@@ -263,6 +272,10 @@ export default function AdvancedPage() {
 
                 {/* Error */}
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
+                  <p className="text-xs text-red-400">{t('orbitMcp.apiKeysError')}</p>
+                )}
+
+                {capabilitiesQuery.error && !capabilitiesQuery.isLoading && (
                   <p className="text-xs text-red-400">{t('orbitMcp.apiKeysError')}</p>
                 )}
 

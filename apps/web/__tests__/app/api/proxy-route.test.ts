@@ -97,4 +97,25 @@ describe('catch-all API proxy route', () => {
       },
     })
   })
+
+  it('allows AI metadata routes through the proxy allowlist', async () => {
+    vi.mocked(getAuthToken).mockResolvedValue('initial-token')
+    mockFetch.mockResolvedValue(
+      new Response('[]', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const request = createRequest('ai/capabilities')
+
+    const response = await GET(request, {
+      params: Promise.resolve({ path: ['ai', 'capabilities'] }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('[]')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/ai/capabilities')
+  })
 })
