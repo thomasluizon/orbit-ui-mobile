@@ -101,7 +101,17 @@ export {
   computeHabitFrequencyLabel,
   computeHabitMatchBadges,
   computeHabitStatusBadge,
+  getHabitInitial,
 } from './habit-card-helpers'
+export {
+  DEFAULT_EMOJI_RECENTS_LIMIT,
+  EMOJI_RECENTS_STORAGE_KEY,
+  EMOJI_SKIN_TONE_STORAGE_KEY,
+  addRecent,
+  parseRecents,
+  removeRecent,
+  stringifyRecents,
+} from './emoji-recents'
 export type {
   HabitCardMatchBadge,
   HabitCardStatus,

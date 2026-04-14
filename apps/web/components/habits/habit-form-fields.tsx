@@ -14,6 +14,7 @@ import { validateTagForm } from '@orbit/shared/validation'
 import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
+import { HabitIconField } from './habit-icon-field'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppTimePicker } from '@/components/ui/app-time-picker'
 import { AppSelect } from '@/components/ui/app-select'
@@ -731,6 +732,8 @@ export function HabitFormFields({
   const watchedIsBadHabit = watch('isBadHabit') ?? false
   const watchedReminderEnabled = watch('reminderEnabled') ?? false
   const watchedSlipAlertEnabled = watch('slipAlertEnabled') ?? false
+  const watchedIcon = watch('icon') ?? null
+  const watchedTitle = watch('title') ?? ''
   const watchedChecklistItems = watch('checklistItems') ?? []
   const watchedScheduledReminders = watch('scheduledReminders') ?? []
   const { tags: availableTags = [] } = useTags()
@@ -815,6 +818,14 @@ export function HabitFormFields({
       {/* ═══════════════════════════════════════════════════
          PRIMARY FIELDS -- Always visible
          ═══════════════════════════════════════════════════ */}
+
+      {/* Icon (emoji picker) */}
+      <HabitIconField
+        value={watchedIcon}
+        onChange={(next) => setValue('icon', next, { shouldDirty: true, shouldValidate: true })}
+        title={watchedTitle}
+        errorKey={(errors.icon?.message as string | undefined) ?? null}
+      />
 
       {/* Title */}
       <div className="space-y-2">

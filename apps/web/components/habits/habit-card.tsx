@@ -20,6 +20,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { HighlightText } from '@/components/ui/highlight-text'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import { HabitEmoji } from './habit-emoji'
 import {
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
@@ -1141,6 +1142,19 @@ export const HabitCard = React.memo(function HabitCard({
                 onToggleExpand={onToggleExpand}
               />
             </div>
+
+            {!isChild ? (
+              <div className="pointer-events-none hidden shrink-0 sm:block">
+                <HabitEmoji
+                  icon={habit.icon}
+                  title={habit.title}
+                  size="sm"
+                  filled={isDoneForRange}
+                  badHabit={habit.isBadHabit}
+                  overdue={status === 'overdue'}
+                />
+              </div>
+            ) : null}
 
             <div className="pointer-events-auto">
               <LogIndicator
