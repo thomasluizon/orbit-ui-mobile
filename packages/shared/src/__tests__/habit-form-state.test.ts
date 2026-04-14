@@ -83,6 +83,7 @@ describe('habit-form-state', () => {
     expect(buildEmptyHabitFormValues('2025-01-02')).toEqual({
       title: '',
       description: '',
+      icon: null,
       frequencyUnit: null,
       frequencyQuantity: null,
       days: [],

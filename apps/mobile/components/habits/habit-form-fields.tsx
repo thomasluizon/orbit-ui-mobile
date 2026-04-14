@@ -47,6 +47,7 @@ import { validateTagForm } from "@orbit/shared/validation";
 import { HabitChecklist } from "./habit-checklist";
 import { ChecklistTemplates } from "./checklist-templates";
 import { GoalLinkingField } from "./goal-linking-field";
+import { HabitIconField } from "./habit-icon-field";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
 import { useAppToast } from "@/hooks/use-app-toast";
@@ -1008,6 +1009,7 @@ export function HabitFormFields({
     control: form.control,
     name: "description",
   }) ?? "";
+  const watchedIcon = useWatch({ control: form.control, name: "icon" }) ?? null;
 
   // Reminder label function
   function reminderLabel(minutes: number): string {
@@ -1096,6 +1098,18 @@ export function HabitFormFields({
       {/* ═══════════════════════════════════════════════════
          PRIMARY FIELDS -- Always visible
          ═══════════════════════════════════════════════════ */}
+
+      {/* Icon (emoji picker) */}
+      <View style={styles.fieldGroup}>
+        <HabitIconField
+          value={watchedIcon}
+          onChange={(next) =>
+            setValue("icon", next, { shouldDirty: true, shouldValidate: true })
+          }
+          title={watchedTitle}
+          errorKey={(errors.icon?.message as string | undefined) ?? null}
+        />
+      </View>
 
       {/* Title */}
       <View style={styles.fieldGroup}>

@@ -46,6 +46,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
+import { HabitEmoji } from '@/components/habits/habit-emoji'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { getHabitProgressStrokeDasharray } from '@/lib/habit-progress'
@@ -707,6 +708,18 @@ export function HabitCard({
               { gap: isChild ? 12 : 14 },
             ]}
           >
+            {/* Habit avatar tile (parent habits only) */}
+            {!isChild && !isSelectMode && !isParentWithChildren ? (
+              <HabitEmoji
+                icon={habit.icon}
+                title={habit.title}
+                size="sm"
+                filled={isDoneForRange}
+                badHabit={habit.isBadHabit}
+                overdue={status === 'overdue'}
+              />
+            ) : null}
+
             {/* Expand/collapse toggle */}
             {hasChildren && (
               <TouchableOpacity
