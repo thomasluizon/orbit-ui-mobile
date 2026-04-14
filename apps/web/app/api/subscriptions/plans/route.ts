@@ -4,6 +4,9 @@ import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-c
 
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * BFF: GET /api/subscriptions/plans
  * Dedicated route that proxies plan pricing to the .NET backend.

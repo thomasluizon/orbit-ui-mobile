@@ -77,4 +77,12 @@ describe('mobile useSubscriptionPlans', () => {
     expect(result.formatPrice(999, 'usd')).toBe('$9.99')
     expect(result.monthlyEquivalent(7999)).toBe(667)
   })
+
+  it('forces a refetch whenever the plans hook mounts', async () => {
+    await renderUseSubscriptionPlans()
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
+      refetchOnMount: 'always',
+    }))
+  })
 })

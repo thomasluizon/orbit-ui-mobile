@@ -17,6 +17,7 @@ export function useSubscriptionPlans() {
     queryKey: subscriptionKeys.plans(),
     queryFn: () => fetchJson<SubscriptionPlans>(API.subscription.plans),
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
+    refetchOnMount: 'always',
   })
 
   const plans = query.data ?? null

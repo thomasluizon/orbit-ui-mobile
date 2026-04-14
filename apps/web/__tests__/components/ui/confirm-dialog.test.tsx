@@ -43,6 +43,20 @@ describe('ConfirmDialog', () => {
     expect(screen.getByText('This cannot be undone.')).toBeInTheDocument()
   })
 
+  it('keeps breathing room below the description above the footer divider', () => {
+    render(
+      <ConfirmDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        title="Delay task?"
+        description="This moves the task to tomorrow."
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('This moves the task to tomorrow.').className).toContain('pb-4')
+  })
+
   it('shows default confirm and cancel labels', () => {
     render(
       <ConfirmDialog

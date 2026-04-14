@@ -103,7 +103,7 @@ export function ConfirmDialog({
         </div>
       }
     >
-      <p className="text-text-secondary text-sm">{description}</p>
+      <p className="pb-4 text-sm text-text-secondary">{description}</p>
     </AppOverlay>
   )
 }

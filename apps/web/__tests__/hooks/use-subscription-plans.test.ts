@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { subscriptionKeys } from '@orbit/shared/query'
 import {
   useSubscriptionPlans,
   formatPrice,
@@ -24,12 +25,19 @@ vi.mock('@/lib/api-fetch', () => ({
 }))
 
 function createWrapper() {
-  const queryClient = new QueryClient({
+  return createWrapperWithClient(createQueryClient())
+}
+
+function createQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
+}
+
+function createWrapperWithClient(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children)
   }
@@ -163,5 +171,26 @@ describe('useSubscriptionPlans', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     // 20% off 1000 = 800
     expect(result.current.discountedAmount(1000)).toBe(800)
+  })
+
+  it('refetches plans on mount even when cached data is still fresh', async () => {
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(subscriptionKeys.plans(), makePlans())
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makePlans({
+        monthly: { unitAmount: 1990, currency: 'brl' },
+        yearly: { unitAmount: 19900, currency: 'brl' },
+        currency: 'brl',
+      })),
+    })
+
+    const { result } = renderHook(() => useSubscriptionPlans(), {
+      wrapper: createWrapperWithClient(queryClient),
+    })
+
+    await waitFor(() => expect(result.current.plans?.currency).toBe('brl'))
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
