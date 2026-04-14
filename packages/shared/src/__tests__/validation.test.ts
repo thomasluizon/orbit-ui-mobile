@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest'
 import {
   habitFormSchema,
   normalizeHabitIcon,
+  validateDueTimes,
   validateEndDate,
   validateEndTime,
   validateFrequency,
   validateHabitForm,
   validateHabitIcon,
+  validateReminderTimes,
   validateScheduledReminders,
   validateTime,
 } from '../validation/habit-form'
@@ -520,6 +522,12 @@ describe('validateHabitForm', () => {
     data.icon = '\u{1F3C3}'
     expect(validateHabitForm(data)).toBeNull()
   })
+
+  it('catches dueEndTime without dueTime', () => {
+    const data = habitFormSchema.parse({ title: 'Test' })
+    data.dueEndTime = '10:00'
+    expect(validateHabitForm(data)).toBe('habits.form.dueEndTimeWithoutStart')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -583,5 +591,58 @@ describe('normalizeHabitIcon', () => {
 
   it('preserves valid emojis', () => {
     expect(normalizeHabitIcon('\u{1F3C3}')).toBe('\u{1F3C3}')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateDueTimes
+// ---------------------------------------------------------------------------
+
+describe('validateDueTimes', () => {
+  it('allows both empty', () => {
+    expect(validateDueTimes('', '')).toBeNull()
+  })
+
+  it('allows only dueTime set', () => {
+    expect(validateDueTimes('09:00', '')).toBeNull()
+  })
+
+  it('allows both set', () => {
+    expect(validateDueTimes('09:00', '10:00')).toBeNull()
+  })
+
+  it('rejects end-only time (no start)', () => {
+    expect(validateDueTimes('', '10:00')).toBe('habits.form.dueEndTimeWithoutStart')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateReminderTimes
+// ---------------------------------------------------------------------------
+
+describe('validateReminderTimes', () => {
+  it('allows empty array', () => {
+    expect(validateReminderTimes([])).toBeNull()
+  })
+
+  it('allows valid minute offsets', () => {
+    expect(validateReminderTimes([0, 15, 30, 60, 1440])).toBeNull()
+  })
+
+  it('rejects negative values', () => {
+    expect(validateReminderTimes([-1])).toBe('habits.form.reminderMinutesInvalid')
+  })
+
+  it('rejects values above 1440', () => {
+    expect(validateReminderTimes([1441])).toBe('habits.form.reminderMinutesInvalid')
+  })
+
+  it('rejects non-integer values', () => {
+    expect(validateReminderTimes([Number.NaN])).toBe('habits.form.reminderMinutesInvalid')
+    expect(validateReminderTimes([10.5])).toBe('habits.form.reminderMinutesInvalid')
+  })
+
+  it('rejects duplicate values', () => {
+    expect(validateReminderTimes([10, 10])).toBe('habits.form.reminderMinutesDuplicate')
   })
 })

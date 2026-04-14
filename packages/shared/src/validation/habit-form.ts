@@ -192,6 +192,34 @@ export function validateScheduledReminders(
   return null
 }
 
+/**
+ * Validate the "minutes before due time" reminder offsets.
+ * Must be integers in the range [0, 1440] and unique.
+ */
+export function validateReminderTimes(reminderTimes: number[]): string | null {
+  if (reminderTimes.length === 0) return null
+  for (const minutes of reminderTimes) {
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440) {
+      return 'habits.form.reminderMinutesInvalid'
+    }
+  }
+  if (new Set(reminderTimes).size !== reminderTimes.length) {
+    return 'habits.form.reminderMinutesDuplicate'
+  }
+  return null
+}
+
+/**
+ * Validate that dueEndTime requires a corresponding dueTime (can't have an end
+ * without a start).
+ */
+export function validateDueTimes(dueTime: string, dueEndTime: string): string | null {
+  if (dueEndTime && !dueTime) {
+    return 'habits.form.dueEndTimeWithoutStart'
+  }
+  return null
+}
+
 export function validateReminderSelection(
   reminderEnabled: boolean,
   dueTime: string,
@@ -204,6 +232,8 @@ export function validateReminderSelection(
     if (reminderTimes.length === 0) {
       return 'habits.form.reminderMinimumOne'
     }
+    const minutesErr = validateReminderTimes(reminderTimes)
+    if (minutesErr) return minutesErr
     return null
   }
 
@@ -295,6 +325,9 @@ export function validateHabitForm(data: HabitFormData): string | null {
 
   const endTimeValidation = validateTime(data.dueEndTime)
   if (endTimeValidation) return endTimeValidation
+
+  const dueTimesErr = validateDueTimes(data.dueTime, data.dueEndTime)
+  if (dueTimesErr) return dueTimesErr
 
   const endTimeErr = validateEndTime(data.dueTime, data.dueEndTime)
   if (endTimeErr) return endTimeErr

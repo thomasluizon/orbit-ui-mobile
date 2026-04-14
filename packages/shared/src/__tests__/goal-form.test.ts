@@ -5,6 +5,7 @@ import {
 } from '../validation/constants'
 import {
   goalFormSchema,
+  validateGoalDeadline,
   validateGoalForm,
   validateGoalProgressValue,
 } from '../validation/goal-form'
@@ -71,6 +72,17 @@ describe('goal form validation', () => {
       'goals.form.unitTooLong',
     )
     expect(validateGoalForm('Read daily', 2, 'pages')).toBeNull()
+  })
+
+  it('validates goal deadline must be today or future', () => {
+    const today = '2026-04-14'
+    expect(validateGoalDeadline('', today)).toBeNull()
+    expect(validateGoalDeadline(undefined, today)).toBeNull()
+    expect(validateGoalDeadline(null, today)).toBeNull()
+    expect(validateGoalDeadline('2025-01-01', today)).toBe('goals.form.deadlinePast')
+    expect(validateGoalDeadline('2026-04-14', today)).toBeNull()
+    expect(validateGoalDeadline('2099-12-31', today)).toBeNull()
+    expect(validateGoalDeadline('not-a-date', today)).toBe('goals.form.deadlineInvalid')
   })
 
   it('validates progress values from numbers and string input', () => {

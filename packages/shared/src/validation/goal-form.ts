@@ -60,3 +60,30 @@ export function validateGoalProgressValue(value: number | null | undefined): str
   }
   return null
 }
+
+/**
+ * Validates that the goal deadline is today or in the future.
+ * Returns the i18n error key or null.
+ *
+ * @param deadline YYYY-MM-DD in the user's locale (as emitted by a date input)
+ * @param today    YYYY-MM-DD representing "today" in the user's timezone
+ */
+export function validateGoalDeadline(
+  deadline: string | null | undefined,
+  today: string,
+): string | null {
+  if (!deadline || deadline.trim() === '') {
+    return null
+  }
+
+  // Compare as strings — both are YYYY-MM-DD so lexicographical order matches chronological order.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+    return 'goals.form.deadlineInvalid'
+  }
+
+  if (deadline < today) {
+    return 'goals.form.deadlinePast'
+  }
+
+  return null
+}
