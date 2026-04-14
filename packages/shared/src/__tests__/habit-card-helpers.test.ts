@@ -108,7 +108,7 @@ describe('habit card helpers', () => {
         createMockHabit({ isGeneral: true, isCompleted: false }),
         parseAPIDate('2025-01-02'),
       ),
-    ).toBe('pending')
+    ).toBe('due-today')
     expect(
       computeHabitCardStatus(
         createMockHabit({
