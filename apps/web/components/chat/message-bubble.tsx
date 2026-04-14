@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Sparkles, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types/chat'
+import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { formatChatMessage } from './format-chat-message'
@@ -17,7 +18,9 @@ interface MessageBubbleProps {
   message: ChatMessage
   onBreakdownConfirmed?: () => void
   onActionChipClick?: (entityId: string, actionType: string) => void
-  onPendingOperationConfirmExecute?: (pendingOperationId: string) => Promise<{ ok: boolean; error?: string }>
+  onPendingOperationConfirmExecute?: (
+    pendingOperationId: string,
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
   onPendingOperationPrepareStepUp?: (
     pendingOperationId: string,
   ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>
@@ -26,7 +29,7 @@ interface MessageBubbleProps {
     challengeId: string,
     code: string,
     confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string }>
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
 }
 
 // ---------------------------------------------------------------------------

@@ -9,13 +9,19 @@ import {
 } from "react-native";
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import type { PendingAgentOperation } from "@orbit/shared/types";
+import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
+type PendingOperationExecutionResult = {
+  ok: boolean;
+  error?: string;
+  response?: AgentExecuteOperationResponse;
+};
+
 interface PendingOperationCardProps {
   pendingOperation: PendingAgentOperation;
-  onConfirmExecute: (pendingOperationId: string) => Promise<{ ok: boolean; error?: string }>;
+  onConfirmExecute: (pendingOperationId: string) => Promise<PendingOperationExecutionResult>;
   onPrepareStepUp: (
     pendingOperationId: string,
   ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>;
@@ -24,7 +30,7 @@ interface PendingOperationCardProps {
     challengeId: string,
     code: string,
     confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<PendingOperationExecutionResult>;
 }
 
 function formatRiskLabel(riskClass: PendingAgentOperation["riskClass"]): string {
@@ -36,6 +42,19 @@ function formatRiskLabel(riskClass: PendingAgentOperation["riskClass"]): string 
     default:
       return "Low risk";
   }
+}
+
+function resolveExecutionError(
+  result: PendingOperationExecutionResult,
+  fallback: string,
+): string {
+  return (
+    result.error ??
+    result.response?.operation.policyReason ??
+    result.response?.policyDenial?.reason ??
+    result.response?.operation.summary ??
+    fallback
+  );
 }
 
 export function PendingOperationCard({
@@ -83,6 +102,11 @@ export function PendingOperationCard({
         return;
       }
 
+      if (result.response && result.response.operation.status !== "Succeeded") {
+        setError(resolveExecutionError(result, t("chat.sendError")));
+        return;
+      }
+
       setSuccessMessage(pendingOperation.summary);
     } finally {
       setIsLoading(false);
@@ -108,6 +132,11 @@ export function PendingOperationCard({
 
       if (!result.ok) {
         setError(result.error ?? t("chat.sendError"));
+        return;
+      }
+
+      if (result.response && result.response.operation.status !== "Succeeded") {
+        setError(resolveExecutionError(result, t("chat.sendError")));
         return;
       }
 

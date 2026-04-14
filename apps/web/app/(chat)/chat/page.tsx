@@ -222,7 +222,7 @@ export default function ChatPage() {
               )
 
               return result.ok
-                ? { ok: true }
+                ? { ok: true, response: result.response }
                 : { ok: false, error: result.error }
             }}
           />

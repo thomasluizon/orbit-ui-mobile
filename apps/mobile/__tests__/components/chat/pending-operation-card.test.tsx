@@ -59,6 +59,17 @@ function findPressables(root: any) {
   )
 }
 
+function findTexts(root: any, text: string) {
+  return root.findAll((node: any) => {
+    const children = node.props?.children
+    if (typeof children === 'string') {
+      return children === text
+    }
+
+    return Array.isArray(children) && children.includes(text)
+  })
+}
+
 describe('PendingOperationCard (mobile)', () => {
   it('calls confirm handler for fresh confirmations', async () => {
     const onConfirmExecute = vi.fn().mockResolvedValue({ ok: true })
@@ -109,5 +120,42 @@ describe('PendingOperationCard (mobile)', () => {
 
     expect(onPrepareStepUp).toHaveBeenCalledWith('pending-1')
     expect(tree.root.findAllByProps({ placeholder: '123456' }).length).toBeGreaterThan(0)
+  })
+
+  it('does not show success when execution returns a denied operation', async () => {
+    const onConfirmExecute = vi.fn().mockResolvedValue({
+      ok: true,
+      response: {
+        operation: {
+          operationId: 'habit.delete',
+          sourceName: 'Delete habit',
+          riskClass: 'Destructive',
+          confirmationRequirement: 'FreshConfirmation',
+          status: 'Denied',
+          summary: 'Delete Meditation habit',
+          policyReason: 'missing_scope:delete_habits',
+          payload: null,
+        },
+      },
+    })
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <PendingOperationCard
+          pendingOperation={makePendingOperation()}
+          onConfirmExecute={onConfirmExecute}
+          onPrepareStepUp={vi.fn()}
+          onVerifyStepUp={vi.fn()}
+        />,
+      )
+    })
+
+    const [button] = findPressables(tree.root)
+    await TestRenderer.act(async () => {
+      await button.props.onPress()
+    })
+
+    expect(findTexts(tree.root, 'missing_scope:delete_habits').length).toBeGreaterThan(0)
   })
 })

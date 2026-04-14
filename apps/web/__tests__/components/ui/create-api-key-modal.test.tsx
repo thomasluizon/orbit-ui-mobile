@@ -94,6 +94,38 @@ describe('CreateApiKeyModal', () => {
     })
   })
 
+  it('preserves datetime-local input as a UTC timestamp without timezone shifting', async () => {
+    defaultProps.onCreateKey.mockResolvedValue({
+      id: 'key-1',
+      key: 'sk-test-123',
+      name: 'My Key',
+      keyPrefix: 'sk-test',
+      scopes: [],
+      isReadOnly: false,
+      expiresAtUtc: '2026-04-20T18:45:00.000Z',
+      createdAtUtc: '2025-01-01T00:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
+    })
+
+    render(<CreateApiKeyModal {...defaultProps} />)
+    fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'My Key' } })
+    fireEvent.change(screen.getByLabelText('Expires At (UTC, optional)'), {
+      target: { value: '2026-04-20T18:45' },
+    })
+
+    fireEvent.submit(screen.getByLabelText('orbitMcp.keyName').closest('form')!)
+
+    await waitFor(() => {
+      expect(defaultProps.onCreateKey).toHaveBeenCalledWith({
+        name: 'My Key',
+        scopes: undefined,
+        isReadOnly: false,
+        expiresAtUtc: '2026-04-20T18:45:00.000Z',
+      })
+    })
+  })
+
   it('shows the key after creation', async () => {
     defaultProps.onCreateKey.mockResolvedValue({
       id: 'key-1',

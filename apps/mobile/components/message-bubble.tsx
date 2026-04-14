@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, Animated } from "react-native";
 import { Sparkles, User } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
+import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { formatChatMessage } from "@/components/chat/format-chat-message";
@@ -17,7 +18,9 @@ interface MessageBubbleProps {
   message: ChatMessage;
   onBreakdownConfirmed?: () => void;
   onActionChipClick?: (entityId: string, actionType: string) => void;
-  onPendingOperationConfirmExecute?: (pendingOperationId: string) => Promise<{ ok: boolean; error?: string }>;
+  onPendingOperationConfirmExecute?: (
+    pendingOperationId: string,
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
   onPendingOperationPrepareStepUp?: (
     pendingOperationId: string,
   ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>;
@@ -26,7 +29,7 @@ interface MessageBubbleProps {
     challengeId: string,
     code: string,
     confirmationToken: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
 }
 
 interface FormattedSegment {

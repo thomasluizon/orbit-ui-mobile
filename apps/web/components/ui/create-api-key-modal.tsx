@@ -21,6 +21,39 @@ interface CreateApiKeyModalProps {
   onCreated?: () => void
 }
 
+function parseUtcDateTimeLocal(value: string): Date | null {
+  const match = value
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day, hour, minute, second] = match
+  const parsed = new Date(Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second ?? '0'),
+  ))
+
+  if (
+    parsed.getUTCFullYear() !== Number(year) ||
+    parsed.getUTCMonth() !== Number(month) - 1 ||
+    parsed.getUTCDate() !== Number(day) ||
+    parsed.getUTCHours() !== Number(hour) ||
+    parsed.getUTCMinutes() !== Number(minute) ||
+    parsed.getUTCSeconds() !== Number(second ?? '0')
+  ) {
+    return null
+  }
+
+  return parsed
+}
+
 export function CreateApiKeyModal({
   open,
   onOpenChange,
@@ -71,8 +104,7 @@ export function CreateApiKeyModal({
       return false
     }
     if (expiresAt.trim()) {
-      const parsed = new Date(expiresAt)
-      if (Number.isNaN(parsed.getTime())) {
+      if (!parseUtcDateTimeLocal(expiresAt)) {
         setValidationError(t('auth.genericError'))
         return false
       }
@@ -94,11 +126,15 @@ export function CreateApiKeyModal({
 
     setIsSubmitting(true)
     try {
+      const expiresAtUtc = expiresAt.trim()
+        ? parseUtcDateTimeLocal(expiresAt)?.toISOString() ?? null
+        : null
+
       const result = await onCreateKey({
         name: keyName.trim(),
         scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
         isReadOnly,
-        expiresAtUtc: expiresAt.trim() ? new Date(expiresAt).toISOString() : null,
+        expiresAtUtc,
       })
       if (result) {
         setCreatedKey(result)
