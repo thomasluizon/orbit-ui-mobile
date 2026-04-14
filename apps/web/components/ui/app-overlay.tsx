@@ -349,7 +349,7 @@ export function AppOverlay({
         {footer && (
           <div
             data-slot="overlay-footer"
-            className="px-6 pt-4 pb-[calc(1rem+var(--safe-bottom))] sm:pb-5 border-t border-border"
+            className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-border"
           >
             {footer}
           </div>

@@ -266,6 +266,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
   const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false)
+  const [habitToSkip, setHabitToSkip] = useState<string | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useState(false)
   const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
   const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
@@ -704,15 +706,45 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }, [forceLogHabitId, handleLogged, logMutation, markRecentlyCompleted])
 
-  const handleSkip = useCallback(async (habitId: string) => {
+  const promptSkip = useCallback((habitId: string) => {
+    setHabitToSkip(habitId)
+    setShowSkipConfirm(true)
+  }, [])
+
+  const confirmSkip = useCallback(async () => {
+    if (!habitToSkip) return
+
+    const skippedId = habitToSkip
     try {
-      await skipMutation.mutateAsync({ habitId })
-      markRecentlyCompleted(habitId)
-      checkAndPromptParentLog(habitId)
+      await skipMutation.mutateAsync({ habitId: skippedId })
+      markRecentlyCompleted(skippedId)
+      checkAndPromptParentLog(skippedId)
     } catch {
       // Error handled by mutation
+    } finally {
+      setHabitToSkip(null)
+      setShowSkipConfirm(false)
     }
-  }, [checkAndPromptParentLog, markRecentlyCompleted, skipMutation])
+  }, [checkAndPromptParentLog, habitToSkip, markRecentlyCompleted, skipMutation])
+
+  const isPostponeAction = useMemo(() => {
+    if (!habitToSkip) return false
+    const habit = habitsById.get(habitToSkip)
+    return habit ? !habit.frequencyUnit : false
+  }, [habitToSkip, habitsById])
+
+  const skipConfirmMessage = useMemo(() => {
+    if (isPostponeAction) return t('habits.postponeConfirmMessage')
+
+    if (habitToSkip) {
+      const habit = habitsById.get(habitToSkip)
+      if (habit?.flexibleTarget != null) {
+        return t('habits.skipConfirmMessageFlexible')
+      }
+    }
+
+    return t('habits.skipConfirmMessage')
+  }, [habitToSkip, habitsById, isPostponeAction, t])
 
   const getHabitDepth = useCallback((habitId: string): number => {
     let depth = 0
@@ -1052,7 +1084,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             },
             onUnlog: () => logMutation.mutate({ habitId: habit.id }),
             onSkip: () => {
-              void handleSkip(habit.id)
+              promptSkip(habit.id)
             },
             onToggleExpand: () => toggleExpand(habit.id),
             onDelete: () => {
@@ -1099,7 +1131,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       selectedIds,
       onLogHabit,
       logMutation,
-      handleSkip,
+      promptSkip,
       toggleExpand,
       t,
       promptDelete,
@@ -1310,6 +1342,29 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           setShowDuplicateConfirm(false)
         }}
         variant="success"
+      />
+
+      <ConfirmDialog
+        open={showSkipConfirm}
+        onOpenChange={setShowSkipConfirm}
+        title={t(
+          isPostponeAction
+            ? 'habits.postponeConfirmTitle'
+            : 'habits.skipConfirmTitle',
+        )}
+        description={skipConfirmMessage}
+        confirmLabel={t(
+          isPostponeAction
+            ? 'habits.postponeConfirmButton'
+            : 'habits.skipConfirmButton',
+        )}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmSkip}
+        onCancel={() => {
+          setHabitToSkip(null)
+          setShowSkipConfirm(false)
+        }}
+        variant="warning"
       />
 
       <ConfirmDialog

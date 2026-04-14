@@ -34,22 +34,26 @@ describe('subscriptions plans route', () => {
         'x-vercel-ip-country': 'BR',
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
+        'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
       },
     })
 
     const response = await GET(request)
 
     expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:5000/api/subscriptions/plans',
       expect.objectContaining({
         method: 'GET',
+        cache: 'no-store',
         headers: {
           Authorization: 'Bearer token',
           'X-Forwarded-For': '203.0.113.20',
           'X-Vercel-IP-Country': 'BR',
           'CF-IPCountry': 'BR',
           'CloudFront-Viewer-Country': 'BR',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         },
       }),
     )

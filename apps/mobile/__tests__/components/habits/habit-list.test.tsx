@@ -13,6 +13,7 @@ const TestRenderer = require('react-test-renderer')
 
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
+const skipMutateAsync = vi.fn()
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -78,7 +79,7 @@ vi.mock('@/hooks/use-habits', () => ({
     },
   }),
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
-  useSkipHabit: () => ({ mutateAsync: vi.fn() }),
+  useSkipHabit: () => ({ mutateAsync: skipMutateAsync }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
@@ -183,6 +184,7 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     logMutateAsync.mockReset()
+    skipMutateAsync.mockReset()
     logMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
       if (!habit) return
@@ -197,6 +199,81 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = []
     mockDrillState.drillStack = []
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('shows a skip confirmation before skipping a recurring habit', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    TestRenderer.act(() => {
+      habitCard?.props.actions.onSkip()
+    })
+
+    const skipDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.skipConfirmTitle')
+
+    expect(skipDialog?.props.description).toBe('habits.skipConfirmMessage')
+
+    await TestRenderer.act(async () => {
+      await skipDialog.props.onConfirm()
+    })
+
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+  })
+
+  it('shows a postpone confirmation before postponing a one-time task', () => {
+    const oneTimeTask = createMockHabit({
+      id: 'habit-1',
+      title: 'Pay bill',
+      frequencyUnit: null,
+    })
+    seedHabits([oneTimeTask])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    TestRenderer.act(() => {
+      habitCard?.props.actions.onSkip()
+    })
+
+    const postponeDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.postponeConfirmTitle')
+
+    expect(postponeDialog?.props.description).toBe('habits.postponeConfirmMessage')
+    expect(postponeDialog?.props.confirmLabel).toBe('habits.postponeConfirmButton')
   })
 
   it('uses plain draggable list for today view outside select mode', () => {
