@@ -348,7 +348,7 @@ export function useChatComposer() {
         formData.append('clientContext', JSON.stringify({
           platform: 'web',
           locale,
-          timeFormat: detectDefaultTimeFormat(),
+          timeFormat: detectDefaultTimeFormat(locale),
           currentAppArea: 'chat',
         }))
 

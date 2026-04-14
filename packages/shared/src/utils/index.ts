@@ -105,11 +105,12 @@ export type {
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   detectDefaultTimeFormat,
-  formatTime,
-  isTimeFormat,
-  TIME_FORMAT_STORAGE_KEY,
-} from './time-format'
-export type { TimeFormat } from './time-format'
+  formatLocaleDate,
+  formatLocaleDateTime,
+  formatLocaleTime,
+  resolveSupportedLocale,
+  resolveSystemLocale,
+} from './locale-format'
 export { fetchAllPaginatedItems } from './pagination'
 export { buildHabitQueryString, buildUrlWithQuery } from './habit-query'
 export {
@@ -279,7 +280,6 @@ export type {
   UpgradePlanFeature,
 } from './upgrade'
 export {
-  buildTimeFormatOptions,
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
 } from './preferences-options'

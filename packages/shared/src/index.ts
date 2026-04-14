@@ -44,9 +44,11 @@ export {
   resolveAutoManagedReminderEnabled,
   fetchAllPaginatedItems,
   detectDefaultTimeFormat,
+  formatLocaleDate,
+  formatLocaleDateTime,
+  formatLocaleTime,
   formatHabitTimeInput,
   formatPrice,
-  formatTime,
   isValidHabitTimeInput,
   parseShowGeneralOnTodayPreference,
   getHabitFormFlags,
@@ -112,8 +114,6 @@ export {
   buildReferralUrl,
   isMissingBillingError,
   isMissingBillingStatus,
-  isTimeFormat,
-  TIME_FORMAT_STORAGE_KEY,
   validateHabitFormInput,
   buildCalendarDayMap,
   computeHabitReorderPositions,
@@ -137,9 +137,10 @@ export {
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
-  buildTimeFormatOptions,
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
+  resolveSupportedLocale,
+  resolveSystemLocale,
   buildMcpConfigJson,
   MCP_CONFIG_TABS,
   MCP_ENDPOINT_URL,
@@ -170,7 +171,6 @@ export * from './chat/index'
 export * from './query/index'
 export * from './stores/index'
 export * from './validation/index'
-export type { TimeFormat } from './utils/time-format'
 export type { FriendlyErrorContext } from './utils/error-utils'
 export type { HabitFormValidationContext } from './utils/habit-form-helpers'
 export type { AutoManagedReminderEnabledInput } from './utils/habit-form-state'

@@ -34,11 +34,9 @@ import {
   isToday,
   isYesterday,
   isTomorrow,
-  format,
 } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
@@ -63,12 +61,14 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
+import { ReviewReminderCard } from '@/components/review-reminder-card'
 import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useReviewReminder } from '@/hooks/use-review-reminder'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import {
   TodayHeader,
@@ -152,13 +152,13 @@ export default function TodayScreen() {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const locale = i18n.language
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const insets = useSafeAreaInsets()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
   const styles = useMemo(() => createStyles(colors), [colors])
 
   const { showInterstitialIfDue } = useAdMob()
   const { profile } = useProfile()
+  const reviewReminder = useReviewReminder(profile)
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
   const deleteHabit = useDeleteHabit()
@@ -282,12 +282,12 @@ export default function TodayScreen() {
     if (isToday(selectedDate)) return t('dates.today')
     if (isYesterday(selectedDate)) return t('dates.yesterday')
     if (isTomorrow(selectedDate)) return t('dates.tomorrow')
-    return format(
-      selectedDate,
-      locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy',
-      { locale: dateFnsLocale },
-    )
-  }, [selectedDate, t, locale, dateFnsLocale])
+    return formatLocaleDate(selectedDate, locale, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }, [selectedDate, t, locale])
 
   useEffect(() => {
     dateLabelAnim.setValue(0)
@@ -378,9 +378,8 @@ export default function TodayScreen() {
   const visibleTopLevelHabits = useMemo(() => {
     const habits = habitsQuery.data?.topLevelHabits ?? []
     if (activeView === 'today') {
-      const todayHabits = habits.filter((habit) => !habit.isGeneral)
-      if (showCompleted) return todayHabits
-      return todayHabits.filter((habit) => visibility.hasVisibleContent(habit))
+      if (showCompleted) return habits
+      return habits.filter((habit) => visibility.hasVisibleContent(habit))
     }
     if (showCompleted) return habits
     return habits.filter((habit) => !habit.isCompleted)
@@ -556,6 +555,15 @@ export default function TodayScreen() {
 
         <TrialBanner />
 
+        {reviewReminder.shouldShow ? (
+          <ReviewReminderCard
+            onDismiss={reviewReminder.dismiss}
+            onRate={() => {
+              void reviewReminder.requestReview()
+            }}
+          />
+        ) : null}
+
         <TodayTabs
           tabs={tabItems}
           activeView={activeView}
@@ -565,7 +573,18 @@ export default function TodayScreen() {
         />
       </>
     ),
-    [activeView, currentStreak, goToToday, setActiveView, styles, tabItems, t],
+    [
+      activeView,
+      currentStreak,
+      goToToday,
+      reviewReminder.dismiss,
+      reviewReminder.requestReview,
+      reviewReminder.shouldShow,
+      setActiveView,
+      styles,
+      tabItems,
+      t,
+    ],
   )
 
   const habitsHeader = useMemo<ReactElement>(

@@ -198,20 +198,6 @@ describe('PreferencesPage', () => {
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
   })
 
-  // ---- Time Format section ----
-
-  it('renders time format section', () => {
-    render(<PreferencesPage />)
-    expect(screen.getByText('settings.timeFormat.title')).toBeInTheDocument()
-    expect(screen.getByText('settings.timeFormat.description')).toBeInTheDocument()
-  })
-
-  it('renders 12h and 24h options', () => {
-    render(<PreferencesPage />)
-    expect(screen.getByText('settings.timeFormat.12h')).toBeInTheDocument()
-    expect(screen.getByText('settings.timeFormat.24h')).toBeInTheDocument()
-  })
-
   // ---- Week Start Day section ----
 
   it('renders week start day section', () => {

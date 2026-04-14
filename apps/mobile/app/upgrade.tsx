@@ -3,11 +3,9 @@ import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TouchableOpac
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { AlertTriangle, ArrowLeft, BadgeCheck, BarChart3, Check, CheckCircle2, Clock, CreditCard, Download, Flame, MessageSquare, Palette, ShieldCheck, Sparkles, Tag, X as XIcon } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { formatLocaleDate, getErrorMessage } from '@orbit/shared/utils'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -41,6 +39,14 @@ function invoiceStatusColors(status: string, colors: ReturnType<typeof createCol
   if (status === 'paid') return { bg: 'rgba(52,211,153,0.10)', border: 'rgba(52,211,153,0.20)', text: colors.emerald400 }
   if (status === 'open') return { bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.20)', text: colors.amber400 }
   return { bg: colors.surfaceElevated, border: colors.border, text: colors.textMuted }
+}
+
+function formatBillingDate(isoDate: string, locale: string) {
+  return formatLocaleDate(isoDate, locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 type UpgradeStyles = ReturnType<typeof createStyles>
@@ -267,8 +273,7 @@ export default function UpgradeScreen() {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const { isOnline } = useOffline()
-  const locale = i18n.language === 'pt-BR' ? 'pt-BR' : 'en-US'
-  const dateLocale = locale === 'pt-BR' ? ptBR : enUS
+  const locale = i18n.language
   const styles = useMemo(() => createStyles(colors), [colors])
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
@@ -391,7 +396,7 @@ export default function UpgradeScreen() {
               ) : null}
             </View>
           </View>
-          <Text style={styles.text}>{data.cancelAtPeriodEnd ? t('upgrade.billing.plan.canceledHint', { date: format(parseISO(data.currentPeriodEnd), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale }) }) : t('upgrade.billing.plan.renewsOn', { date: format(parseISO(data.currentPeriodEnd), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale }) })}</Text>
+          <Text style={styles.text}>{data.cancelAtPeriodEnd ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(data.currentPeriodEnd, locale) }) : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(data.currentPeriodEnd, locale) })}</Text>
           {data.amountPerPeriod > 0 ? <Text style={styles.muted}>{formatPrice(data.amountPerPeriod, data.currency)}{data.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}</Text> : null}
         </View>
 
@@ -399,7 +404,7 @@ export default function UpgradeScreen() {
 
         {usageCard()}
 
-        {data.recentInvoices.length > 0 ? <View style={styles.card}><Text style={styles.label}>{t('upgrade.billing.invoices.title')}</Text>{data.recentInvoices.map((invoice, index) => { const state = invoiceStatusColors(invoice.status, colors); const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl; return <View key={invoice.id} style={[styles.invoiceRow, index < data.recentInvoices.length - 1 ? styles.invoiceBorder : null]}><View style={styles.flex}><View style={styles.iconRow}><Text style={styles.text}>{format(parseISO(invoice.date), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}</Text><View style={styles.reasonPill}><Text style={styles.reasonText}>{({ subscription_create: t('upgrade.billing.invoices.reasonCreate'), subscription_cycle: t('upgrade.billing.invoices.reasonCycle'), subscription_update: t('upgrade.billing.invoices.reasonUpdate'), manual: t('upgrade.billing.invoices.reasonManual') } as Record<string, string>)[invoice.billingReason] ?? invoice.billingReason}</Text></View></View><View style={[styles.statusPill, { backgroundColor: state.bg, borderColor: state.border }]}><Text style={[styles.statusText, { color: state.text }]}>{({ paid: t('upgrade.billing.invoices.statusPaid'), open: t('upgrade.billing.invoices.statusOpen'), void: t('upgrade.billing.invoices.statusVoid') } as Record<string, string>)[invoice.status] ?? invoice.status}</Text></View></View><View style={styles.iconRow}><Text style={styles.boldText}>{formatPrice(invoice.amountPaid, invoice.currency)}</Text>{url ? <TouchableOpacity onPress={() => { Linking.openURL(url).catch(() => {}) }}><Download size={16} color={colors.textMuted} /></TouchableOpacity> : null}</View></View> })}</View> : null}
+        {data.recentInvoices.length > 0 ? <View style={styles.card}><Text style={styles.label}>{t('upgrade.billing.invoices.title')}</Text>{data.recentInvoices.map((invoice, index) => { const state = invoiceStatusColors(invoice.status, colors); const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl; return <View key={invoice.id} style={[styles.invoiceRow, index < data.recentInvoices.length - 1 ? styles.invoiceBorder : null]}><View style={styles.flex}><View style={styles.iconRow}><Text style={styles.text}>{formatBillingDate(invoice.date, locale)}</Text><View style={styles.reasonPill}><Text style={styles.reasonText}>{({ subscription_create: t('upgrade.billing.invoices.reasonCreate'), subscription_cycle: t('upgrade.billing.invoices.reasonCycle'), subscription_update: t('upgrade.billing.invoices.reasonUpdate'), manual: t('upgrade.billing.invoices.reasonManual') } as Record<string, string>)[invoice.billingReason] ?? invoice.billingReason}</Text></View></View><View style={[styles.statusPill, { backgroundColor: state.bg, borderColor: state.border }]}><Text style={[styles.statusText, { color: state.text }]}>{({ paid: t('upgrade.billing.invoices.statusPaid'), open: t('upgrade.billing.invoices.statusOpen'), void: t('upgrade.billing.invoices.statusVoid') } as Record<string, string>)[invoice.status] ?? invoice.status}</Text></View></View><View style={styles.iconRow}><Text style={styles.boldText}>{formatPrice(invoice.amountPaid, invoice.currency)}</Text>{url ? <TouchableOpacity onPress={() => { Linking.openURL(url).catch(() => {}) }}><Download size={16} color={colors.textMuted} /></TouchableOpacity> : null}</View></View> })}</View> : null}
 
         <View style={styles.stackSmall}>
           <TouchableOpacity style={[styles.secondaryBtn, (portalLoading || !isOnline) ? styles.disabled : null]} onPress={handlePortal} disabled={portalLoading || !isOnline}><Text style={styles.secondaryBtnText}>{t('upgrade.billing.actions.manage')}</Text></TouchableOpacity>

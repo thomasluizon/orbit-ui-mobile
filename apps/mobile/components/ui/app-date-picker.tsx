@@ -22,6 +22,7 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { radius, type AppColors, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -101,8 +102,7 @@ export function AppDatePicker({
     setIsOpen(false)
   }
 
-  const dateFormat = locale === 'pt-BR' ? 'dd/MM/yyyy' : 'MM/dd/yyyy'
-  const displayValue = value ? format(parseISO(value), dateFormat) : ''
+  const displayValue = value ? formatLocaleDate(value, locale) : ''
 
   return (
     <>
@@ -195,8 +195,10 @@ export function AppDatePicker({
                       ]}
                       onPress={() => selectDay(day)}
                       activeOpacity={0.7}
-                      accessibilityLabel={format(day, 'MMMM d, yyyy', {
-                        locale: dateFnsLocale,
+                      accessibilityLabel={formatLocaleDate(day, locale, {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
                       })}
                     >
                       <Text

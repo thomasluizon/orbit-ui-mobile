@@ -321,14 +321,14 @@ export function AppOverlay({
 
         {/* Body */}
         {children && (
-          <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-[calc(1rem+var(--safe-bottom))]">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-[calc(6rem+var(--safe-bottom))]">
             {children}
           </div>
         )}
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 pt-4 pb-[calc(1rem+var(--safe-bottom))] border-t border-border">
+          <div className="px-6 pt-4 pb-[calc(1.5rem+var(--safe-bottom))] border-t border-border">
             {footer}
           </div>
         )}

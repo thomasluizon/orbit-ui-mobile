@@ -1,6 +1,7 @@
 'use client'
 
-import { format, parseISO, type Locale } from 'date-fns'
+import type { Locale } from 'date-fns'
+import { formatLocaleDate } from '@orbit/shared/utils'
 
 type StreakDayView = {
   dateStr: string
@@ -164,7 +165,10 @@ export function StreakFreezeSection({
                 key={date}
                 className="text-[10px] text-text-muted bg-surface-elevated px-2 py-0.5 rounded-full"
               >
-                {format(parseISO(date), locale === 'pt-BR' ? 'dd MMM' : 'MMM d', { locale: dateFnsLocale })}
+                {formatLocaleDate(date, locale, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
               </span>
             ))}
           </div>

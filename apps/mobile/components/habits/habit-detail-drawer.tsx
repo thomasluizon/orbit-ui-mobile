@@ -12,9 +12,8 @@ import {
   CalendarDays,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { format } from "date-fns";
-import { enUS, ptBR } from "date-fns/locale";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { HabitChecklist } from "./habit-checklist";
 import { DescriptionViewer } from "./description-viewer";
@@ -30,6 +29,7 @@ import {
   useLogHabit,
 } from "@/hooks/use-habits";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
+import { formatLocaleDate } from "@orbit/shared/utils";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -75,7 +75,6 @@ export function HabitDetailDrawer({
 }: Readonly<HabitDetailDrawerProps>) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
-  const dateFnsLocale = locale === "pt-BR" ? ptBR : enUS;
   const { displayTime } = useTimeFormat();
   const { colors, shadows } = useAppTheme();
   const styles = useMemo(
@@ -104,13 +103,13 @@ export function HabitDetailDrawer({
         .map((log) => ({
           id: log.id,
           note: log.note ?? "",
-          dateLabel: format(
-            new Date(log.date),
-            locale === "pt-BR" ? "dd MMM yyyy" : "MMM d, yyyy",
-            { locale: dateFnsLocale },
-          ),
+          dateLabel: formatLocaleDate(log.date, locale, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
         })),
-    [dateFnsLocale, locale, logs],
+    [locale, logs],
   );
 
   const handleChecklistToggle = useCallback(
@@ -179,7 +178,7 @@ export function HabitDetailDrawer({
         {habit && (
           <BottomSheetScrollView
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
           >
@@ -219,10 +218,10 @@ export function HabitDetailDrawer({
                         <Text style={styles.reminderChipText}>
                           {sr.when === "day_before"
                             ? t("habits.form.scheduledReminderDayBeforeAt", {
-                                time: sr.time.slice(0, 5),
+                                time: displayTime(sr.time),
                               })
                             : t("habits.form.scheduledReminderSameDayAt", {
-                                time: sr.time.slice(0, 5),
+                                time: displayTime(sr.time),
                               })}
                         </Text>
                       </View>
@@ -237,11 +236,11 @@ export function HabitDetailDrawer({
                 <CalendarDays size={16} color={colors.primary} />
                 <Text style={styles.infoText}>
                   {t("habits.detail.endsOn")}{" "}
-                  {format(
-                    new Date(habit.endDate),
-                    locale === "pt-BR" ? "dd MMM yyyy" : "MMM d, yyyy",
-                    { locale: dateFnsLocale },
-                  )}
+                  {formatLocaleDate(habit.endDate, locale, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
                 </Text>
               </View>
             )}

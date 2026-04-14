@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
+import { profileKeys } from '@orbit/shared/query'
 import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
 import {
   getToken,
@@ -15,6 +16,8 @@ import {
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
 import { apiClient } from '@/lib/api-client'
 import { clearPersistedQueryCache, queryClient } from '@/lib/query-client'
+import i18n from '@/lib/i18n'
+import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 
 interface AuthState {
@@ -121,6 +124,7 @@ async function refreshExpiredToken(): Promise<string | null> {
 async function loadProfileOrResetSession(tokenUser: User | null): Promise<User | null> {
   try {
     const profile = await apiClient<Profile>(API.profile.get)
+    queryClient.setQueryData(profileKeys.detail(), profile)
     return tokenUser
       ? { ...tokenUser, name: profile.name, email: profile.email }
       : null
@@ -150,9 +154,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await setRefreshToken(refreshToken)
     }
     await saveWidgetToken(token).catch(() => {})
+    let hydratedUser = user
+
+    try {
+      const profile = await apiClient<Profile>(API.profile.get)
+      queryClient.setQueryData(profileKeys.detail(), profile)
+
+      if (profile.language && i18n.language !== profile.language) {
+        void i18n.changeLanguage(profile.language)
+      }
+
+      setRuntimeTheme({
+        scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
+        themeMode:
+          profile.themePreference === 'light' || profile.themePreference === 'dark'
+            ? profile.themePreference
+            : undefined,
+      })
+
+      hydratedUser = {
+        ...user,
+        name: profile.name,
+        email: profile.email,
+      }
+    } catch {
+      // Theme/profile hydration is best-effort during login.
+    }
+
     set({
       isAuthenticated: true,
-      user,
+      user: hydratedUser,
       isLoading: false,
       expiresAt: getExpiresAt(token),
     })

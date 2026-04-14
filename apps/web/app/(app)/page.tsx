@@ -7,9 +7,7 @@ import {
   isToday,
   isYesterday,
   isTomorrow,
-  format,
 } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
@@ -17,6 +15,7 @@ import { habitKeys } from '@orbit/shared/query'
 import {
   collectSelectableDescendantIds,
   formatAPIDate,
+  formatLocaleDate,
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -73,7 +72,6 @@ function getTodayTabLabel(
 export default function TodayPage() {
   const t = useTranslations()
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
@@ -226,12 +224,12 @@ export default function TodayPage() {
     if (isToday(selectedDate)) return t('dates.today')
     if (isYesterday(selectedDate)) return t('dates.yesterday')
     if (isTomorrow(selectedDate)) return t('dates.tomorrow')
-    return format(
-      selectedDate,
-      locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy',
-      { locale: dateFnsLocale },
-    )
-  }, [selectedDate, t, locale, dateFnsLocale])
+    return formatLocaleDate(selectedDate, locale, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }, [selectedDate, t, locale])
 
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
@@ -299,12 +297,6 @@ export default function TodayPage() {
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
-
-  // General habits (shown in dedicated section on Today view)
-  const generalHabits = useMemo(
-    () => topLevelHabits.filter((h) => h.isGeneral),
-    [topLevelHabits],
-  )
 
   // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
   const getDescendantIds = useCallback(
@@ -542,7 +534,6 @@ export default function TodayPage() {
               selectedHabitIds={selectedHabitIds}
               searchQuery={searchQueryStore}
               filters={filters}
-              generalHabits={generalHabits}
               onToggleSelection={handleToggleSelection}
               onEnterSelectMode={(habitId) => {
                 if (!isSelectMode) toggleSelectMode()

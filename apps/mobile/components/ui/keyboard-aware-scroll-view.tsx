@@ -33,6 +33,7 @@ import {
   BottomSheetScrollView,
   type BottomSheetScrollViewMethods,
 } from '@gorhom/bottom-sheet'
+import { withDrawerContentInset } from './drawer-content-inset'
 
 interface KeyboardAwareViewProps {
   children: ReactNode
@@ -345,6 +346,10 @@ export function KeyboardAwareBottomSheetScrollView({
     },
     [keyboardAwareContext, props],
   )
+  const contentContainerStyle = useMemo(
+    () => withDrawerContentInset(props.contentContainerStyle),
+    [props.contentContainerStyle],
+  )
 
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
@@ -352,6 +357,7 @@ export function KeyboardAwareBottomSheetScrollView({
         {...props}
         ref={scrollRef}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+        contentContainerStyle={contentContainerStyle}
         onScroll={handleScroll}
       >
         {children}

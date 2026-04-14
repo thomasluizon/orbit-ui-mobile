@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import {
   PencilLine,
   CheckCircle2,
@@ -22,6 +20,7 @@ import {
   GoalProgressForm,
 } from './goal-detail-sections'
 import {
+  formatLocaleDateTime,
   getFriendlyErrorMessage,
   translateErrorKey,
   validateGoalProgressInput,
@@ -64,7 +63,6 @@ export function GoalDetailDrawer({
     [t],
   )
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { showError } = useAppToast()
 
   // Queries
@@ -131,13 +129,15 @@ export function GoalDetailDrawer({
   // Format date helper
   const formatDate = useCallback(
     (dateStr: string) => {
-      return format(
-        parseISO(dateStr),
-        locale === 'pt-BR' ? 'dd/MM/yyyy HH:mm' : 'MMM dd, yyyy HH:mm',
-        { locale: dateFnsLocale },
-      )
+      return formatLocaleDateTime(dateStr, locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
     },
-    [locale, dateFnsLocale],
+    [locale],
   )
 
   // Handlers

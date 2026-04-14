@@ -117,6 +117,7 @@
     "clear": "Limpar",
     "never": "Nunca",
     "yes": "Sim",
+    "done": "Concluir",
     "no": "Não",
     "all": "Todos",
     "select": "Selecionar",
@@ -125,6 +126,8 @@
     "required": "é obrigatório",
     "selectDate": "Selecionar data",
     "selectedDate": "Data selecionada: {date}",
+    "selectTime": "Selecionar horário",
+    "selectedTime": "Horário selecionado: {time}",
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
     "continue": "Continuar",
@@ -144,6 +147,11 @@
     "createHabit": "Criar hábito",
     "profile": "Perfil",
     "skipToContent": "Pular para o conteúdo principal"
+  },
+  "reviewPrompt": {
+    "title": "Está curtindo o Orbit?",
+    "body": "Se o Orbit está te ajudando, uma avaliação de 5 estrelas ajuda bastante e faz mais gente encontrar o app.",
+    "cta": "Avaliar Orbit"
   },
   "dates": {
     "today": "Hoje",

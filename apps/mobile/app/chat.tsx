@@ -661,7 +661,7 @@ export default function ChatScreen() {
           JSON.stringify({
             platform: "mobile",
             locale: i18n.language,
-            timeFormat: detectDefaultTimeFormat(),
+            timeFormat: detectDefaultTimeFormat(i18n.language),
             currentAppArea: "chat",
           }),
         );

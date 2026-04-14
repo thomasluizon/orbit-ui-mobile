@@ -62,6 +62,7 @@ import {
   snapshotHabitLists,
   updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
+import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
@@ -139,11 +140,15 @@ export function useLogHabit() {
       }
     },
 
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       // Streak celebration + update profile streak immediately so StreakBadge reflects it
       if (isQueuedResult(response)) {
         return
       }
+
+      useReviewReminderStore
+        .getState()
+        .trackCompletion(variables.date ?? formatAPIDate(new Date()))
 
       if (response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 function getCookieValue(name: string): string | undefined {
@@ -76,6 +77,7 @@ export default function AuthCallbackPage() {
         const loginResponse = (await response.json()) as LoginResponse
         setAuth(loginResponse)
         isAuthenticatedRef.current = true
+        await hydrateProfilePresentation()
 
         // Handle referral
         if (referralCode) {

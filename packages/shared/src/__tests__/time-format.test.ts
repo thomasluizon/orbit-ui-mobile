@@ -1,35 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
-  TIME_FORMAT_STORAGE_KEY,
   detectDefaultTimeFormat,
-  formatTime,
-  isTimeFormat,
-} from '../utils/time-format'
+  formatLocaleTime,
+  resolveSystemLocale,
+} from '../utils/locale-format'
 
-describe('time-format utils', () => {
-  it('exposes the storage key', () => {
-    expect(TIME_FORMAT_STORAGE_KEY).toBe('orbit_time_format')
+describe('locale-format utils', () => {
+  it('formats time for English locale', () => {
+    expect(formatLocaleTime('14:30', 'en')).toBe('2:30 PM')
   })
 
-  it('formats 24h time', () => {
-    expect(formatTime('14:30:00', '24h')).toBe('14:30')
+  it('formats time for Portuguese locale', () => {
+    expect(formatLocaleTime('14:30', 'pt-BR')).toBe('14:30')
   })
 
-  it('formats 12h time', () => {
-    expect(formatTime('14:30', '12h')).toBe('2:30 PM')
+  it('detects locale-specific default time formats', () => {
+    expect(detectDefaultTimeFormat('en')).toBe('12h')
+    expect(detectDefaultTimeFormat('pt-BR')).toBe('24h')
   })
 
-  it('passes through invalid values', () => {
-    expect(formatTime('abc', '12h')).toBe('abc')
-  })
-
-  it('recognizes valid time-format values', () => {
-    expect(isTimeFormat('12h')).toBe(true)
-    expect(isTimeFormat('24h')).toBe(true)
-    expect(isTimeFormat('other')).toBe(false)
-  })
-
-  it('detects a default format', () => {
-    expect(['12h', '24h']).toContain(detectDefaultTimeFormat())
+  it('maps Portuguese system locales to pt-BR', () => {
+    expect(resolveSystemLocale('pt-PT')).toBe('pt-BR')
+    expect(resolveSystemLocale('en-US')).toBe('en')
   })
 })

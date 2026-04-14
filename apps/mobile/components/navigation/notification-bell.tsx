@@ -19,6 +19,7 @@ import {
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -223,7 +224,7 @@ export function NotificationBell() {
           style={styles.listScroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
-            styles.listContent,
+            withDrawerContentInset(styles.listContent),
             visibleNotifications.length === 0 && styles.emptyListContainer,
           ]}
         >

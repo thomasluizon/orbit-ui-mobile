@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { Text, StyleSheet } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
@@ -41,7 +42,7 @@ export function DescriptionViewer({
     >
       <BottomSheetScrollView
         style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.descriptionText}>{description}</Text>

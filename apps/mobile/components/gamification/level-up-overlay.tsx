@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, Animated, Easing, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useUIStore } from '@/stores/ui-store'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -24,9 +25,13 @@ export function LevelUpOverlay({
   onClear,
 }: Readonly<LevelUpOverlayProps>) {
   const { t } = useTranslation()
+  const activeCelebration = useUIStore((s) => s.activeCelebration)
+  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
+  const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
   const { colors } = useAppTheme()
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
+  const [shouldRender, setShouldRender] = useState(false)
 
   const overlayOpacity = useRef(new Animated.Value(0)).current
   const contentScale = useRef(new Animated.Value(0.6)).current
@@ -34,6 +39,10 @@ export function LevelUpOverlay({
   const outerRingRotation = useRef(new Animated.Value(0)).current
   const innerRingRotation = useRef(new Animated.Value(0)).current
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const activeLevelUp =
+    activeCelebration?.kind === 'level-up'
+      ? activeCelebration
+      : null
 
   // Continuous ring spin animations
   useEffect(() => {
@@ -64,10 +73,35 @@ export function LevelUpOverlay({
   }, [outerRingRotation, innerRingRotation])
 
   useEffect(() => {
-    if (!leveledUp || !newLevel) return
+    if (leveledUp && newLevel) {
+      enqueueCelebration('level-up', { level: newLevel })
+    }
+  }, [enqueueCelebration, leveledUp, newLevel])
 
-    setLevel(newLevel)
-    setTitle(t(`gamification.levels.${newLevel}`))
+  const dismiss = useCallback(
+    (id?: string) => {
+      if (!id) return
+      if (timerRef.current) clearTimeout(timerRef.current)
+
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        setShouldRender(false)
+        completeActiveCelebration(id)
+        onClear()
+      })
+    },
+    [completeActiveCelebration, onClear, overlayOpacity],
+  )
+
+  useEffect(() => {
+    if (!activeLevelUp) return
+
+    setLevel(activeLevelUp.payload.level)
+    setTitle(t(`gamification.levels.${activeLevelUp.payload.level}`))
+    setShouldRender(true)
 
     // Reset
     overlayOpacity.setValue(0)
@@ -96,19 +130,13 @@ export function LevelUpOverlay({
 
     // Auto-dismiss
     timerRef.current = setTimeout(() => {
-      Animated.timing(overlayOpacity, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => {
-        onClear()
-      })
+      dismiss(activeLevelUp.id)
     }, 3000)
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [leveledUp, newLevel, t, overlayOpacity, contentScale, contentOpacity]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeLevelUp, contentOpacity, contentScale, dismiss, overlayOpacity, t]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const styles = useMemo(() => createStyles(colors), [colors])
 
@@ -122,7 +150,7 @@ export function LevelUpOverlay({
     outputRange: ['-360deg', '0deg'],
   })
 
-  if (!leveledUp || !newLevel) return null
+  if (!shouldRender) return null
 
   return (
     <Animated.View

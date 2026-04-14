@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useUIStore } from '@/stores/ui-store'
 import './level-up-overlay.css'
 
 interface LevelUpOverlayProps {
@@ -13,33 +14,60 @@ interface LevelUpOverlayProps {
 
 export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelUpOverlayProps>) {
   const t = useTranslations()
+  const activeCelebration = useUIStore((s) => s.activeCelebration)
+  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
+  const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
   const [mounted, setMounted] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const activeLevelUp =
+    activeCelebration?.kind === 'level-up'
+      ? activeCelebration
+      : null
 
   useEffect(() => {
     setMounted(true)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     }
   }, [])
 
   useEffect(() => {
     if (leveledUp && newLevel) {
-      setLevel(newLevel)
-      setTitle(t(`gamification.levels.${newLevel}`))
-      setShouldRender(true)
-      requestAnimationFrame(() => setIsVisible(true))
-      timerRef.current = setTimeout(() => {
-        setIsVisible(false)
-        onClear()
-        setTimeout(() => setShouldRender(false), 400)
-      }, 3000)
+      enqueueCelebration('level-up', { level: newLevel })
     }
-  }, [leveledUp, newLevel, t]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enqueueCelebration, leveledUp, newLevel])
+
+  const dismiss = useCallback((id?: string) => {
+    if (!id) return
+
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+
+    setIsVisible(false)
+    hideTimerRef.current = setTimeout(() => {
+      setShouldRender(false)
+      completeActiveCelebration(id)
+      onClear()
+    }, 400)
+  }, [completeActiveCelebration, onClear])
+
+  useEffect(() => {
+    if (!activeLevelUp) return
+
+    setLevel(activeLevelUp.payload.level)
+    setTitle(t(`gamification.levels.${activeLevelUp.payload.level}`))
+    setShouldRender(true)
+    requestAnimationFrame(() => setIsVisible(true))
+    timerRef.current = setTimeout(() => {
+      dismiss(activeLevelUp.id)
+    }, 3000)
+  }, [activeLevelUp, dismiss, t])
 
   if (!mounted || !shouldRender) return null
 

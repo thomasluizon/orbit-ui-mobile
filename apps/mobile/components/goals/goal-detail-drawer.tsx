@@ -6,8 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
-import { format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import {
   Flame,
   PencilLine,
@@ -31,6 +29,7 @@ import {
   GoalProgressHistorySection,
 } from './goal-detail-sections'
 import {
+  formatLocaleDateTime,
   getFriendlyErrorMessage,
   translateErrorKey,
   validateGoalProgressInput,
@@ -80,7 +79,6 @@ export function GoalDetailDrawer({
   const { showInterstitialIfDue } = useAdMob()
   const insets = useSafeAreaInsets()
   const locale = i18n.language
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Queries
@@ -149,13 +147,15 @@ export function GoalDetailDrawer({
   // Format date helper
   const formatDate = useCallback(
     (dateStr: string) => {
-      return format(
-        parseISO(dateStr),
-        locale === 'pt-BR' ? 'dd/MM/yyyy HH:mm' : 'MMM dd, yyyy HH:mm',
-        { locale: dateFnsLocale },
-      )
+      return formatLocaleDateTime(dateStr, locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
     },
-    [locale, dateFnsLocale],
+    [locale],
   )
 
   // Progress text: streak goals use "Day X of Y", standard use "X of Y unit"
