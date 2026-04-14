@@ -91,6 +91,7 @@ describe('catch-all API proxy route', () => {
       cache: 'no-store',
       headers: {
         Authorization: 'Bearer initial-token',
+        'X-Orbit-Country-Code': 'BR',
         'CF-Connecting-IP': '177.55.44.33',
         'X-Forwarded-For': '177.55.44.33',
         'X-Real-IP': '198.51.100.7',
@@ -109,6 +110,7 @@ describe('catch-all API proxy route', () => {
       cache: 'no-store',
       headers: {
         Authorization: 'Bearer refreshed-token',
+        'X-Orbit-Country-Code': 'BR',
         'CF-Connecting-IP': '177.55.44.33',
         'X-Forwarded-For': '177.55.44.33',
         'X-Real-IP': '198.51.100.7',

@@ -27,7 +27,7 @@ describe('subscriptions checkout route', () => {
       }),
     )
 
-    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout?timeZone=America%2FSao_Paulo', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -37,7 +37,6 @@ describe('subscriptions checkout route', () => {
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'x-orbit-time-zone': 'America/Sao_Paulo',
       },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
@@ -55,6 +54,7 @@ describe('subscriptions checkout route', () => {
         headers: {
           Authorization: 'Bearer token',
           'Content-Type': 'application/json',
+          'X-Orbit-Country-Code': 'BR',
           'CF-Connecting-IP': '177.10.20.31',
           'X-Forwarded-For': '177.10.20.31',
           'X-Vercel-IP-Country': 'BR',

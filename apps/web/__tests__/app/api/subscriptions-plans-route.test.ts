@@ -27,7 +27,7 @@ describe('subscriptions plans route', () => {
       }),
     )
 
-    const request = new NextRequest('http://localhost:3000/api/subscriptions/plans', {
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/plans?timeZone=America%2FSao_Paulo', {
       headers: {
         'cf-connecting-ip': '177.10.20.30',
         'x-forwarded-for': '203.0.113.20, 10.0.0.1',
@@ -36,7 +36,6 @@ describe('subscriptions plans route', () => {
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'x-orbit-time-zone': 'America/Sao_Paulo',
       },
     })
 
@@ -51,6 +50,7 @@ describe('subscriptions plans route', () => {
         cache: 'no-store',
         headers: {
           Authorization: 'Bearer token',
+          'X-Orbit-Country-Code': 'BR',
           'CF-Connecting-IP': '177.10.20.30',
           'X-Forwarded-For': '177.10.20.30',
           'X-Real-IP': '198.51.100.5',

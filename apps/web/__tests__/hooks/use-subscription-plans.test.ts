@@ -94,6 +94,8 @@ describe('monthlyEquivalent', () => {
 describe('useSubscriptionPlans', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    vi.unstubAllGlobals()
+    vi.stubGlobal('fetch', mockFetch)
   })
 
   it('fetches subscription plans', async () => {
@@ -192,5 +194,25 @@ describe('useSubscriptionPlans', () => {
 
     await waitFor(() => expect(result.current.plans?.currency).toBe('brl'))
     expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('includes the browser timezone in the plans request url', async () => {
+    vi.stubGlobal('Intl', {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: 'America/Sao_Paulo' }),
+      }),
+    })
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makePlans()),
+    })
+
+    renderHook(() => useSubscriptionPlans(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('timeZone=America%2FSao_Paulo')
   })
 })

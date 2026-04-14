@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
-import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
+import {
+  buildForwardedClientHeaders,
+  sanitizeClientTimeZone,
+} from '@/app/api/_utils/forwarded-client-context'
 
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
@@ -42,9 +45,18 @@ async function proxyPlans(
   })
 }
 
+function resolveForwardedClientHeaders(request: NextRequest): Record<string, string> {
+  const forwardedClientHeaders = buildForwardedClientHeaders(request)
+  const explicitTimeZone = sanitizeClientTimeZone(request.nextUrl.searchParams.get('timeZone'))
+  if (explicitTimeZone) {
+    forwardedClientHeaders['X-Orbit-Time-Zone'] = explicitTimeZone
+  }
+  return forwardedClientHeaders
+}
+
 export async function GET(request: NextRequest) {
   const token = await getAuthToken()
-  const forwardedClientHeaders = buildForwardedClientHeaders(request)
+  const forwardedClientHeaders = resolveForwardedClientHeaders(request)
 
   const response = await proxyPlans(token, forwardedClientHeaders)
 

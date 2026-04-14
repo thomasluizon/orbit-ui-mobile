@@ -22,7 +22,12 @@ import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTria
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { API } from '@orbit/shared/api'
-import { buildClientTimeZoneHeaders, formatLocaleDate, getErrorMessage } from '@orbit/shared/utils'
+import {
+  buildClientTimeZoneHeaders,
+  formatLocaleDate,
+  getClientTimeZone,
+  getErrorMessage,
+} from '@orbit/shared/utils'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const upgradeIconMap = {
@@ -766,13 +771,18 @@ export default function UpgradePage() {
     setCheckoutLoading(interval)
     setCheckoutError('')
     try {
-      const res = await fetch(API.subscription.checkout, {
+      const timeZone = getClientTimeZone()
+      const checkoutUrl = timeZone
+        ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
+        : API.subscription.checkout
+
+      const res = await fetch(checkoutUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...buildClientTimeZoneHeaders(),
         },
-        body: JSON.stringify({ interval }),
+      body: JSON.stringify({ interval }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => null)
