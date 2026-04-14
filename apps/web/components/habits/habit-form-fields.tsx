@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useId, useCallback, useEffect, type ReactNode } from 'react'
+import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
@@ -28,6 +28,7 @@ import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-t
 
 interface HabitFormFieldsProps {
   formHelpers: HabitFormHelpers
+  titleInputRef?: RefObject<HTMLInputElement | null>
   tags: TagSelectionState
   selectedGoalIds: string[]
   atGoalLimit: boolean
@@ -670,6 +671,7 @@ const FREQUENCY_TYPE_CARDS = [
 
 export function HabitFormFields({
   formHelpers,
+  titleInputRef,
   tags,
   selectedGoalIds,
   atGoalLimit,
@@ -710,6 +712,7 @@ export function HabitFormFields({
   } = formHelpers
 
   const { register, watch, setValue, formState: { errors } } = form
+  const titleRegister = register('title')
 
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
@@ -819,7 +822,13 @@ export function HabitFormFields({
           className="form-input"
           aria-invalid={!!errors.title}
           aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
-          {...register('title')}
+          {...titleRegister}
+          ref={(element) => {
+            titleRegister.ref(element)
+            if (titleInputRef) {
+              titleInputRef.current = element
+            }
+          }}
         />
         {errors.title && (
           <p id="habit-form-title-error" className="text-xs text-destructive mt-1" role="alert">

@@ -30,6 +30,7 @@ import { dismissCalendarImport } from '@/app/actions/profile'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
+import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
 
 export default function AppLayout({
   children,
@@ -133,11 +134,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo,
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        queryParams: { access_type: 'offline' },
-      },
+      options: buildGoogleCalendarOAuthOptions({ redirectTo, forceConsent: true }),
     })
   }, [profile?.hasGoogleConnection, router])
 

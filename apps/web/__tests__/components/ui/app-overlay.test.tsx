@@ -213,4 +213,41 @@ describe('AppOverlay', () => {
       expect(document.activeElement).toBe(screen.getByText('Primary action'))
     })
   })
+
+  it('does not steal focus from the active input when dirty state changes', async () => {
+    function OverlayWithDirtyForm() {
+      const [value, setValue] = React.useState('')
+      const inputRef = React.useRef<HTMLInputElement>(null)
+
+      return (
+        <AppOverlay
+          open={true}
+          onOpenChange={vi.fn()}
+          title="T"
+          isDirty={value.length > 0}
+          initialFocusRef={inputRef}
+        >
+          <input
+            ref={inputRef}
+            value={value}
+            aria-label="Title"
+            onChange={(event) => setValue(event.target.value)}
+          />
+        </AppOverlay>
+      )
+    }
+
+    render(<OverlayWithDirtyForm />)
+
+    const input = screen.getByRole('textbox', { name: 'Title' })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input)
+    })
+
+    fireEvent.change(input, { target: { value: 'A' } })
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input)
+    })
+  })
 })

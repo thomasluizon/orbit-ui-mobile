@@ -2,6 +2,7 @@ import * as WebBrowser from 'expo-web-browser'
 import type { Session } from '@supabase/supabase-js'
 import { API } from '@orbit/shared/api'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
+import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
 import { isSafeReturnUrl, storeAuthReturnUrl } from './auth-flow'
 import {
   AUTH_CALLBACK_URL,
@@ -13,7 +14,6 @@ import {
 import { supabase } from './supabase'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
@@ -101,8 +101,10 @@ export async function completeGoogleAuthFromUrl(
 
 export async function startMobileGoogleAuth({
   returnUrl,
+  forceConsent = false,
 }: Readonly<{
   returnUrl?: string
+  forceConsent?: boolean
 }>): Promise<MobileGoogleAuthResult> {
   if (returnUrl && isSafeReturnUrl(returnUrl)) {
     await storeAuthReturnUrl(returnUrl)
@@ -114,14 +116,11 @@ export async function startMobileGoogleAuth({
     const redirectTo = getGoogleAuthRedirectUrl()
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
+      options: buildGoogleCalendarOAuthOptions({
         redirectTo,
-        scopes: GOOGLE_SCOPES,
         skipBrowserRedirect: true,
-        queryParams: {
-          access_type: 'offline',
-        },
-      },
+        forceConsent,
+      }),
     })
 
     if (error || !data?.url) {

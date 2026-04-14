@@ -251,6 +251,7 @@ export default function CalendarSyncScreen() {
     try {
       const result = await startMobileGoogleAuth({
         returnUrl: isReviewMode ? '/calendar-sync?mode=review' : '/calendar-sync',
+        forceConsent: true,
       })
 
       if (result.type !== 'success') return

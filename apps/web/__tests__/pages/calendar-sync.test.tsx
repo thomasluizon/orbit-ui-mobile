@@ -40,6 +40,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 
 let mockProfile: Record<string, unknown> | null = null
 let mockHasProAccess = true
+const mockSignInWithOAuth = vi.fn().mockResolvedValue({})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),
@@ -57,7 +58,7 @@ vi.mock('@/hooks/use-habits', () => ({
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({
     auth: {
-      signInWithOAuth: vi.fn().mockResolvedValue({}),
+      signInWithOAuth: mockSignInWithOAuth,
     },
   }),
 }))
@@ -173,6 +174,7 @@ describe('CalendarSyncPage', () => {
     mockSetAutoSync.mockClear()
     mockRunSyncNow.mockClear()
     mockDismissSuggestion.mockClear()
+    mockSignInWithOAuth.mockClear()
 
     // Default: loading state (fetch never resolves immediately)
     globalThis.fetch = vi.fn().mockImplementation(() => {
@@ -238,6 +240,32 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('calendar.notConnectedDesc')).toBeInTheDocument()
     expect(screen.getByText('auth.signInWithGoogle')).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it('requests renewed Google calendar consent from the not-connected state', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ error: 'Google Calendar connection expired. Please reconnect.' }),
+    }) as unknown as typeof fetch
+
+    render(<CalendarSyncPage />)
+
+    const connectButton = await screen.findByText('auth.signInWithGoogle')
+    fireEvent.click(connectButton)
+
+    expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'http://localhost:3000/auth-callback',
+        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+          include_granted_scopes: 'true',
+        },
+      },
+    })
   })
 
   // ---- Empty events ----

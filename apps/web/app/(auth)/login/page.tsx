@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import {
+  buildGoogleCalendarOAuthOptions,
   extractAuthBackendMessage,
   isValidEmail,
   isValidVerificationCode,
@@ -416,13 +417,7 @@ export default function LoginPage() {
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo,
-          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-          queryParams: {
-            access_type: 'offline',
-          },
-        },
+        options: buildGoogleCalendarOAuthOptions({ redirectTo }),
       })
 
       if (error) {

@@ -80,6 +80,7 @@ export function CreateHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
   const reminderWasManuallyToggledRef = useRef(false)
   const initialTagIdsRef = useRef('[]')
   const initialGoalIdsRef = useRef('[]')
@@ -229,10 +230,12 @@ export function CreateHabitModal({
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
+        initialFocusRef={titleInputRef}
       >
         <form className="space-y-5" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
+          titleInputRef={titleInputRef}
           tags={tags}
           selectedGoalIds={selectedGoalIds}
           atGoalLimit={atGoalLimit}
