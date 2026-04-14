@@ -84,6 +84,14 @@ export async function clearSessionCookies(): Promise<void> {
  * Attempts to refresh the session using the refresh_token cookie.
  * On success, updates both cookies and returns the new access token.
  * On failure, clears both cookies and returns null.
+ *
+ * TODO(task3-p1): Wrap this in a per-session single-flight mutex keyed by the
+ * current refresh token value so two near-simultaneous 401 retries cannot
+ * invalidate each other when the backend rotates refresh tokens on every call.
+ * See PLAN.md Area A #6 / security P1 "tryRefreshSession retries exactly
+ * once per 401". Safer implementation needs a shared in-memory map at module
+ * scope + AbortSignal-safe deduping; deferred because it interacts with
+ * Next.js server-action request lifecycle and deserves its own focused PR.
  */
 export async function tryRefreshSession(): Promise<string | null> {
   const refreshToken = await getRefreshToken()

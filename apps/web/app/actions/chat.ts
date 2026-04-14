@@ -28,6 +28,14 @@ export type PendingOperationActionResult<T> = ActionResult<T>
  *
  * Returns a discriminated union so the caller can inspect the HTTP status
  * (Server Actions cannot propagate custom Error subclasses to the client).
+ *
+ * TODO(task3-p1): Chat `history` is currently client-supplied, so a malicious
+ * client can replay or forge prior turns. Migrate to server-persisted
+ * conversations keyed by `conversationId` — client sends only the current
+ * turn; backend loads recent N messages from a conversations table. Requires
+ * coordinated backend migration + schema work (see backend PLAN.md F4 /
+ * P0 #5) and is out of scope for this focused PR. Marked as P1 in the audit,
+ * tracked via PLAN.md Area B #3.
  */
 export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
   const headers = await getAuthHeaders()

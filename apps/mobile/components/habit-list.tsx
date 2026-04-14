@@ -77,6 +77,17 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
+// TODO(task3-p1): habit-list.tsx is 2,100+ lines with 14+ useMemos and a large
+// selection/drag state machine. Split into <HabitList>, <HabitListInner>,
+// <HabitListSelection> hook, <HabitListDragHandlers> hook. Parallel task
+// item — see C:/orbit/.claude/worktrees/task3-audit-fixes/PLAN.md Area C #1.
+//
+// TODO(task3-p1): Mobile parity gap — apps/web/components/habits/ has
+// bulk-action-bar.tsx, controls-menu.tsx, today-filters.tsx that are not
+// present on mobile, so mobile cannot bulk-log or filter on the Today view.
+// Port using @gorhom/bottom-sheet drawers. Scope too large for the audit-fix
+// PR; see PLAN.md Area E #1 / parity P1.
+
 /**
  * Approximate height of a single HabitCard row used by DraggableFlatList's
  * `getItemLayout`. Does not need to be exact: enabling getItemLayout lets
