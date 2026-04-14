@@ -89,7 +89,9 @@ describe('AppOverlay', () => {
 
     expect(body?.className).toContain('pb-0')
     expect(body?.className).not.toContain('var(--safe-bottom)')
-    expect(footer?.className).toContain('pb-[calc(1rem+var(--safe-bottom))]')
+    expect(footer?.className).toContain('pt-5')
+    expect(footer?.className).toContain('pb-[calc(1.25rem+var(--safe-bottom))]')
+    expect(footer?.className).toContain('sm:pb-6')
   })
 
   it('renders close button when dismissible', () => {

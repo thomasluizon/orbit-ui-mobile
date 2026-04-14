@@ -8,6 +8,10 @@ const GEO_COUNTRY_HEADERS = [
   ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
 ] as const
 
+const PASS_THROUGH_HEADERS = [
+  ['accept-language', 'Accept-Language'],
+] as const
+
 function sanitizeClientIp(headerValue: string | null): string {
   const candidate = headerValue?.split(',')[0]?.trim() ?? ''
   return IP_PATTERN.test(candidate) ? candidate : ''
@@ -24,6 +28,13 @@ export function buildForwardedClientHeaders(request: NextRequest): Record<string
   }
 
   for (const [headerName, forwardedHeaderName] of GEO_COUNTRY_HEADERS) {
+    const value = request.headers.get(headerName)?.trim()
+    if (value) {
+      headers[forwardedHeaderName] = value
+    }
+  }
+
+  for (const [headerName, forwardedHeaderName] of PASS_THROUGH_HEADERS) {
     const value = request.headers.get(headerName)?.trim()
     if (value) {
       headers[forwardedHeaderName] = value

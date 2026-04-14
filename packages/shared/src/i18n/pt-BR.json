@@ -902,6 +902,11 @@
       "allColors": "Todos os 6 temas",
       "aiSummary": "Resumos diários da IA",
       "subHabits": "Sub-hábitos",
+      "goals": "Metas e acompanhamento de progresso",
+      "calendar": "Integração com Google Calendar",
+      "apiKeys": "Chaves de API",
+      "slipAlerts": "Alertas de deslize",
+      "achievements": "Conquistas e XP",
       "retrospective": "Retrospectivas com IA",
       "subscribe": "Assinar Pro",
       "continueFree": "Continuar com Grátis"
@@ -1298,6 +1303,11 @@
       "proFeatures": {
         "unlimited": "Hábitos ilimitados",
         "ai": "500 mensagens IA/mês",
+        "goals": "Metas e acompanhamento de progresso",
+        "calendarImport": "Integração com Google Calendar",
+        "apiKeys": "Chaves de API",
+        "slipAlerts": "Alertas de deslize",
+        "achievements": "Conquistas e XP",
         "themes": "Todos os 6 temas",
         "adFree": "Sem anúncios",
         "retrospective": "Retrospectiva IA",

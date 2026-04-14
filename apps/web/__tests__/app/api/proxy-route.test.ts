@@ -68,6 +68,7 @@ describe('catch-all API proxy route', () => {
         'x-vercel-ip-country': 'BR',
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
+        'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
       },
     })
 
@@ -77,6 +78,7 @@ describe('catch-all API proxy route', () => {
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('{"ok":true}')
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
     expect(tryRefreshSession).toHaveBeenCalledTimes(1)
     expect(mockFetch).toHaveBeenCalledTimes(2)
 
@@ -84,12 +86,14 @@ describe('catch-all API proxy route', () => {
     expect(firstCall?.[0]).toBe('http://localhost:5000/api/profile/me?include=details')
     expect(firstCall?.[1]).toMatchObject({
       method: 'GET',
+      cache: 'no-store',
       headers: {
         Authorization: 'Bearer initial-token',
         'X-Forwarded-For': '203.0.113.10',
         'X-Vercel-IP-Country': 'BR',
         'CF-IPCountry': 'BR',
         'CloudFront-Viewer-Country': 'BR',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
       },
     })
 
@@ -97,12 +101,14 @@ describe('catch-all API proxy route', () => {
     expect(secondCall?.[0]).toBe('http://localhost:5000/api/profile/me?include=details')
     expect(secondCall?.[1]).toMatchObject({
       method: 'GET',
+      cache: 'no-store',
       headers: {
         Authorization: 'Bearer refreshed-token',
         'X-Forwarded-For': '203.0.113.10',
         'X-Vercel-IP-Country': 'BR',
         'CF-IPCountry': 'BR',
         'CloudFront-Viewer-Country': 'BR',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
       },
     })
   })

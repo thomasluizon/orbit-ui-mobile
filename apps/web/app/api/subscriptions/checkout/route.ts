@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 
+const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
+
 /**
  * BFF: POST /api/subscriptions/checkout
  * Dedicated route that proxies checkout session creation to the .NET backend.
@@ -36,6 +38,7 @@ async function proxyCheckout(
     method: 'POST',
     headers: buildHeaders(token, forwardedClientHeaders),
     body,
+    cache: 'no-store',
   })
 }
 
@@ -54,6 +57,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(retryData, {
         status: retryResponse.status,
         headers: {
+          'Cache-Control': NO_STORE_CACHE_CONTROL,
           'Content-Type': retryResponse.headers.get('Content-Type') ?? 'application/json',
         },
       })
@@ -64,6 +68,7 @@ export async function POST(request: NextRequest) {
   return new NextResponse(data, {
     status: response.status,
     headers: {
+      'Cache-Control': NO_STORE_CACHE_CONTROL,
       'Content-Type': response.headers.get('Content-Type') ?? 'application/json',
     },
   })

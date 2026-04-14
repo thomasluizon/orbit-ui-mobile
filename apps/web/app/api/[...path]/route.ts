@@ -113,10 +113,11 @@ async function proxyRequest(
     }
   }
 
-  return fetch(targetUrl, { method, headers, body })
+  return fetch(targetUrl, { method, headers, body, cache: 'no-store' })
 }
 
 const SAFE_FORWARD_HEADERS = [
+  'cache-control',
   'content-type',
   'x-ratelimit-limit',
   'x-ratelimit-remaining',
@@ -128,6 +129,7 @@ const SAFE_FORWARD_HEADERS = [
 
 function buildResponseHeaders(source: Response): Headers {
   const result = new Headers()
+  result.set('cache-control', 'private, no-store, max-age=0')
   for (const name of SAFE_FORWARD_HEADERS) {
     const value = source.headers.get(name)
     if (value) result.set(name, value)

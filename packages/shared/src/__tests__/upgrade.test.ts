@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   DEFAULT_FREE_COLOR_SCHEME,
   TRIAL_EXPIRED_FEATURE_KEYS,
@@ -9,6 +11,18 @@ import {
   resolveAccessibleColorScheme,
   resolveUpgradeEntitlementDenial,
 } from '../utils/upgrade'
+
+function getMessageValue(
+  messages: Record<string, unknown>,
+  dottedKey: string,
+): unknown {
+  return dottedKey.split('.').reduce<unknown>((current, segment) => {
+    if (current && typeof current === 'object' && segment in current) {
+      return (current as Record<string, unknown>)[segment]
+    }
+    return undefined
+  }, messages)
+}
 
 describe('upgrade utils', () => {
   it('keeps the expired trial checklist aligned', () => {
@@ -34,6 +48,21 @@ describe('upgrade utils', () => {
     expect(UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => feature.key)).toEqual([
       'retrospective',
     ])
+  })
+
+  it('has locale entries for every upgrade and trial-expired feature key', () => {
+    const localeBundles = [en, ptBR]
+    const messageKeys = [
+      ...TRIAL_EXPIRED_FEATURE_KEYS,
+      ...UPGRADE_PRO_FEATURES.map((feature) => `upgrade.plans.proFeatures.${feature.key}`),
+      ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => `upgrade.plans.proFeatures.${feature.key}`),
+    ]
+
+    for (const locale of localeBundles) {
+      for (const key of messageKeys) {
+        expect(getMessageValue(locale as Record<string, unknown>, key)).toEqual(expect.any(String))
+      }
+    }
   })
 
   it('defines all upgrade comparison categories', () => {

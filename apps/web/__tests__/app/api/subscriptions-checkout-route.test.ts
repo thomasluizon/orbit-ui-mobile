@@ -35,6 +35,7 @@ describe('subscriptions checkout route', () => {
         'x-vercel-ip-country': 'BR',
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
+        'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
       },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
@@ -42,11 +43,13 @@ describe('subscriptions checkout route', () => {
     const response = await POST(request)
 
     expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:5000/api/subscriptions/checkout',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ priceId: 'price_123' }),
+        cache: 'no-store',
         headers: {
           Authorization: 'Bearer token',
           'Content-Type': 'application/json',
@@ -54,6 +57,7 @@ describe('subscriptions checkout route', () => {
           'X-Vercel-IP-Country': 'BR',
           'CF-IPCountry': 'BR',
           'CloudFront-Viewer-Country': 'BR',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         },
       }),
     )
