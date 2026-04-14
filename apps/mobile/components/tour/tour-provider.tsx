@@ -8,6 +8,7 @@ import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
+import { useProfile } from '@/hooks/use-profile'
 import { tourTargetRegistry, tourScrollRegistry } from './tour-target-context'
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
@@ -29,6 +30,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const insets = useSafeAreaInsets()
   const { inject, restore } = useTourMockData()
+  const { profile } = useProfile()
+  const hasProAccess = profile?.hasProAccess ?? false
 
   const store = useTourStore()
   const { isActive, getCurrentStep, setTargetRect, setNavigating, endTour, nextStep } = store
@@ -93,7 +96,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const executePreAction = useCallback((preAction: string) => {
     switch (preAction) {
       case 'switchToGoalsTab':
-        useUIStore.getState().setActiveView('goals')
+        useUIStore.getState().setActiveView(hasProAccess ? 'goals' : 'today')
         break
       case 'switchToTodayTab':
         useUIStore.getState().setActiveView('today')
@@ -109,7 +112,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         break
       }
     }
-  }, [])
+  }, [hasProAccess])
 
   /** Measure an element and apply Y correction */
   const measureAndSet = useCallback(

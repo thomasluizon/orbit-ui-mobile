@@ -48,6 +48,8 @@ const habitListHandle = {
   markRecentlyCompleted,
   checkAndPromptParentLog,
 }
+const mockRouterPush = vi.fn()
+let mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
@@ -57,6 +59,9 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({
+    push: mockRouterPush,
+  }),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -77,7 +82,7 @@ vi.mock('@/stores/ui-store', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false, aiSummaryEnabled: false }),
+    profile: mockProfile,
   }),
 }))
 
@@ -126,7 +131,7 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
 }))
 
 vi.mock('@/components/goals/goals-view', () => ({
-  GoalsView: () => null,
+  GoalsView: () => <div>Goals view</div>,
 }))
 
 vi.mock('@/components/ui/theme-toggle', () => ({
@@ -160,6 +165,8 @@ import TodayPage from '@/app/(app)/page'
 describe('TodayPage bulk parent prompts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRouterPush.mockReset()
+    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
     bulkLogMutateAsync.mockReset()
     mockHabitsData.habitsById = new Map()
     mockHabitsData.childrenByParent = new Map()
@@ -207,6 +214,38 @@ describe('TodayPage bulk parent prompts', () => {
       expect(markRecentlyCompleted).toHaveBeenCalledWith('child')
       expect(checkAndPromptParentLog).toHaveBeenCalledTimes(1)
       expect(checkAndPromptParentLog).toHaveBeenCalledWith('parent')
+    })
+  })
+
+  it('routes free users to upgrade when they click goals', async () => {
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByText('goals.tab'))
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(uiState.setActiveView).not.toHaveBeenCalledWith('goals')
+  })
+
+  it('lets pro users switch to goals', async () => {
+    mockProfile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: false })
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByText('goals.tab'))
+
+    expect(uiState.setActiveView).toHaveBeenCalledWith('goals')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+
+  it('recovers a stale free goals view back to today', async () => {
+    uiState.activeView = 'goals'
+
+    render(<TodayPage />)
+
+    expect(screen.queryByText('Goals view')).not.toBeInTheDocument()
+    expect(screen.getByTestId('habit-list')).toHaveTextContent('"today"')
+    await waitFor(() => {
+      expect(uiState.setActiveView).toHaveBeenCalledWith('today')
     })
   })
 })

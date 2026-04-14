@@ -160,7 +160,7 @@ export default function ProfileScreen() {
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
-  const { profile: gamificationProfile } = useGamificationProfile()
+  const { profile: gamificationProfile } = useGamificationProfile(profile?.hasProAccess ?? false)
   const { isOnline } = useOffline()
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
   const styles = useMemo(() => createStyles(colors), [colors])

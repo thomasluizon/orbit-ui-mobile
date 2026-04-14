@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
+import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 
 /**
  * BFF: Catch-all proxy for API routes.
@@ -27,8 +28,6 @@ const ALLOWED_PREFIXES = [
   'sync/',
   'habits/',
 ]
-
-const IP_PATTERN = /^[\d.:a-fA-F]+$/
 
 function isAllowedPath(path: string): boolean {
   return ALLOWED_PREFIXES.some(
@@ -62,20 +61,6 @@ function validatePath(path: string | undefined): string | null {
   return path
 }
 
-function sanitizeClientIp(headerValue: string | null): string {
-  const candidate = headerValue?.split(',')[0]?.trim() ?? ''
-  return IP_PATTERN.test(candidate) ? candidate : ''
-}
-
-function getForwardedClientIp(request: NextRequest): string {
-  const forwarded = sanitizeClientIp(request.headers.get('x-forwarded-for'))
-  if (forwarded) {
-    return forwarded
-  }
-
-  return sanitizeClientIp(request.headers.get('x-real-ip'))
-}
-
 function buildCleanQuery(url: URL): string {
   const params = new URLSearchParams()
   url.searchParams.forEach((value, key) => {
@@ -104,11 +89,8 @@ async function proxyRequest(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  // Forward client IP for rate limiting and geolocation
-  const clientIp = getForwardedClientIp(request)
-  if (clientIp) {
-    headers['X-Forwarded-For'] = clientIp
-  }
+  // Forward client IP and geo headers for rate limiting and geo-sensitive pricing.
+  Object.assign(headers, buildForwardedClientHeaders(request))
 
   const hasBody =
     method === 'POST' ||

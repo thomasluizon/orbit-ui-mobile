@@ -254,6 +254,9 @@ export function AppOverlay({
 
   const hasTitle = !!(title || titleContent)
   const linkedDescription = description ? linkifyText(description) : ''
+  const bodyPaddingClass = footer
+    ? 'px-6 pb-4 sm:pb-6'
+    : 'px-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:pb-6'
 
   // Transition classes
   const isEntering = animState === 'entering'
@@ -334,14 +337,20 @@ export function AppOverlay({
 
         {/* Body */}
         {children && (
-          <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-[calc(6rem+var(--safe-bottom))]">
+          <div
+            data-slot="overlay-body"
+            className={`flex-1 overflow-y-auto overscroll-contain ${bodyPaddingClass}`}
+          >
             {children}
           </div>
         )}
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 pt-4 pb-[calc(1.5rem+var(--safe-bottom))] border-t border-border">
+          <div
+            data-slot="overlay-footer"
+            className="px-6 pt-4 pb-[calc(1.5rem+var(--safe-bottom))] border-t border-border"
+          >
             {footer}
           </div>
         )}

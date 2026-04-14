@@ -98,6 +98,10 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   // ---------------------------------------------------------------------------
   const handleCreate = useCallback(() => {
     if (activeView === 'goals') {
+      if (!hasProAccess) {
+        router.push('/upgrade')
+        return
+      }
       setShowCreateGoalModal(true)
       return
     }

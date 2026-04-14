@@ -31,7 +31,7 @@ export default function ProfilePage() {
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
-  const { profile: gamificationProfile } = useGamificationProfile()
+  const { profile: gamificationProfile } = useGamificationProfile(profile?.hasProAccess ?? false)
   const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
   const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
 

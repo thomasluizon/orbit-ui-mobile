@@ -41,7 +41,7 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('forwards only a sanitized client ip and retries with a refreshed token', async () => {
+  it('forwards sanitized client context and retries with a refreshed token', async () => {
     vi.mocked(getAuthToken).mockResolvedValue('initial-token')
     vi.mocked(tryRefreshSession).mockResolvedValue('refreshed-token')
     mockFetch
@@ -65,6 +65,9 @@ describe('catch-all API proxy route', () => {
       headers: {
         'x-forwarded-for': '203.0.113.10, 10.0.0.1',
         'x-real-ip': '198.51.100.7',
+        'x-vercel-ip-country': 'BR',
+        'cf-ipcountry': 'BR',
+        'cloudfront-viewer-country': 'BR',
       },
     })
 
@@ -84,6 +87,9 @@ describe('catch-all API proxy route', () => {
       headers: {
         Authorization: 'Bearer initial-token',
         'X-Forwarded-For': '203.0.113.10',
+        'X-Vercel-IP-Country': 'BR',
+        'CF-IPCountry': 'BR',
+        'CloudFront-Viewer-Country': 'BR',
       },
     })
 
@@ -94,6 +100,9 @@ describe('catch-all API proxy route', () => {
       headers: {
         Authorization: 'Bearer refreshed-token',
         'X-Forwarded-For': '203.0.113.10',
+        'X-Vercel-IP-Country': 'BR',
+        'CF-IPCountry': 'BR',
+        'CloudFront-Viewer-Country': 'BR',
       },
     })
   })

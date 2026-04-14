@@ -19,6 +19,12 @@ describe('web i18n request config', () => {
     headersMock.mockReset()
   })
 
+  function createRequestParams() {
+    return {
+      requestLocale: Promise.resolve(undefined),
+    }
+  }
+
   it('honors an explicit english locale cookie before Accept-Language', async () => {
     cookiesMock.mockResolvedValue({
       get: (key: string) => (key === 'i18n_locale' ? { value: 'en' } : undefined),
@@ -28,7 +34,7 @@ describe('web i18n request config', () => {
     )
 
     const getRequestConfig = (await import('@/i18n/request')).default
-    const result = await getRequestConfig()
+    const result = await getRequestConfig(createRequestParams())
 
     expect(result.locale).toBe('en')
   }, 10000)
@@ -42,7 +48,7 @@ describe('web i18n request config', () => {
     )
 
     const getRequestConfig = (await import('@/i18n/request')).default
-    const result = await getRequestConfig()
+    const result = await getRequestConfig(createRequestParams())
 
     expect(result.locale).toBe('pt-BR')
   }, 10000)

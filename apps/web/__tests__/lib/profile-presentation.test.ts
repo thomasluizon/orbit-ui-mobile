@@ -19,6 +19,19 @@ import {
   hydrateProfilePresentation,
 } from '@/lib/profile-presentation'
 
+function createMatchMediaMock(matches: boolean): typeof globalThis.window.matchMedia {
+  return ((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as typeof globalThis.window.matchMedia
+}
+
 describe('profile presentation helpers', () => {
   beforeEach(() => {
     themeDomMocks.applyThemeTokensToDOM.mockClear()
@@ -30,7 +43,7 @@ describe('profile presentation helpers', () => {
     Object.defineProperty(globalThis.window, 'matchMedia', {
       configurable: true,
       writable: true,
-      value: vi.fn(() => ({ matches: false })),
+      value: createMatchMediaMock(false),
     })
   })
 
@@ -39,7 +52,7 @@ describe('profile presentation helpers', () => {
   })
 
   it('applies cookies and uses the system light preference when needed', () => {
-    globalThis.window.matchMedia = vi.fn(() => ({ matches: true })) as typeof globalThis.window.matchMedia
+    globalThis.window.matchMedia = createMatchMediaMock(true)
 
     applyProfilePresentation({
       colorScheme: 'green',
@@ -60,7 +73,7 @@ describe('profile presentation helpers', () => {
     applyProfilePresentation({
       colorScheme: null,
       themePreference: null,
-      language: 'en-US',
+      language: 'en',
     })
 
     expect(themeDomMocks.applyThemeTokensToDOM).toHaveBeenCalledWith('purple', 'dark', false)

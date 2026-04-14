@@ -10,7 +10,7 @@ import {
 } from 'date-fns'
 import { useTranslations, useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { habitKeys } from '@orbit/shared/query'
 import {
   collectSelectableDescendantIds,
@@ -72,6 +72,7 @@ function getTodayTabLabel(
 export default function TodayPage() {
   const t = useTranslations()
   const locale = useLocale()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
@@ -103,6 +104,8 @@ export default function TodayPage() {
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
+  const hasProAccess = profile?.hasProAccess ?? false
+  const currentActiveView = !hasProAccess && activeView === 'goals' ? 'today' : activeView
 
   // Create modals (shared with layout's BottomNav via store)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
@@ -240,6 +243,19 @@ export default function TodayPage() {
     [t],
   )
 
+  const attemptViewChange = useCallback(
+    (nextView: typeof TAB_VIEWS[number]) => {
+      if (nextView === 'goals' && !hasProAccess) {
+        router.push('/upgrade')
+        return false
+      }
+
+      setActiveView(nextView)
+      return true
+    },
+    [hasProAccess, router, setActiveView],
+  )
+
   // Search debounce
   useEffect(() => {
     if (searchDebounceTimer.current)
@@ -259,7 +275,7 @@ export default function TodayPage() {
 
   // Build filters
   const filters = useMemo<HabitsFilter>(() => {
-    if (activeView === 'general') {
+    if (currentActiveView === 'general') {
       const f: HabitsFilter = { isGeneral: true }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
       if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
@@ -268,7 +284,7 @@ export default function TodayPage() {
 
     const dateStr = formatAPIDate(selectedDate)
 
-    if (activeView === 'today') {
+    if (currentActiveView === 'today') {
       const f: HabitsFilter = {
         dateFrom: dateStr,
         dateTo: dateStr,
@@ -287,7 +303,7 @@ export default function TodayPage() {
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
     if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [activeView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
+  }, [currentActiveView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   // Query habits for selection cascade helpers and count
   const habitsQuery = useHabits(filters)
@@ -330,7 +346,7 @@ export default function TodayPage() {
   const handleTabKeydown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      const idx = TAB_VIEWS.indexOf(activeView)
+      const idx = TAB_VIEWS.indexOf(currentActiveView)
       if (idx === -1) return
       e.preventDefault()
       const nextIdx =
@@ -338,16 +354,21 @@ export default function TodayPage() {
           ? (idx + 1) % TAB_VIEWS.length
           : (idx - 1 + TAB_VIEWS.length) % TAB_VIEWS.length
       const nextView = TAB_VIEWS[nextIdx]
-      if (nextView) {
-        setActiveView(nextView)
+      if (nextView && attemptViewChange(nextView)) {
         // Focus the newly selected tab button (a11y: focus follows selection)
         requestAnimationFrame(() => {
           document.getElementById(`tab-${nextView}`)?.focus()
         })
       }
     },
-    [activeView, setActiveView],
+    [attemptViewChange, currentActiveView],
   )
+
+  useEffect(() => {
+    if (!hasProAccess && activeView === 'goals') {
+      setActiveView('today')
+    }
+  }, [activeView, hasProAccess, setActiveView])
 
   // Clear select mode when view changes
   useEffect(() => {
@@ -405,8 +426,8 @@ export default function TodayPage() {
 
       <TodayTabs
         tabs={tabItems}
-        activeView={activeView}
-        onChangeView={setActiveView}
+        activeView={currentActiveView}
+        onChangeView={attemptViewChange}
         viewsLabel={t('habits.viewsLabel')}
         onKeyDown={handleTabKeydown}
       />
@@ -417,11 +438,11 @@ export default function TodayPage() {
         role="tabpanel"
         aria-labelledby="tab-goals"
       >
-        {activeView === 'goals' && <GoalsView />}
+        {currentActiveView === 'goals' && <GoalsView />}
       </div>
 
       <TodayDateNavigation
-        visible={activeView === 'today'}
+        visible={currentActiveView === 'today'}
         dateLabel={dateLabel}
         isTodaySelected={isToday(selectedDate)}
         slideDirection={slideDirection}
@@ -434,7 +455,7 @@ export default function TodayPage() {
       />
 
       {/* AI Summary card (Today view only, when summary is enabled) */}
-      {activeView === 'today' &&
+      {currentActiveView === 'today' &&
         isToday(selectedDate) &&
         profile?.hasProAccess &&
         profile?.aiSummaryEnabled && (
@@ -444,14 +465,14 @@ export default function TodayPage() {
         )}
 
       {/* Habits content (hidden on goals tab) */}
-      {activeView !== 'goals' && (
+      {currentActiveView !== 'goals' && (
         <div
           id="tabpanel-habits"
           role="tabpanel"
-          aria-labelledby={`tab-${activeView}`}
+          aria-labelledby={`tab-${currentActiveView}`}
         >
           <TodayFilters
-            activeView={activeView}
+            activeView={currentActiveView}
             localSearchQuery={localSearchQuery}
             selectedFrequency={selectedFrequency}
             selectedTagIds={selectedTagIds}
@@ -521,10 +542,10 @@ export default function TodayPage() {
             <HabitList
               ref={habitListRef}
               view={
-                activeView === 'today' ||
-                activeView === 'all' ||
-                activeView === 'general'
-                  ? activeView
+                currentActiveView === 'today' ||
+                currentActiveView === 'all' ||
+                currentActiveView === 'general'
+                  ? currentActiveView
                   : 'today'
               }
               selectedDate={selectedDate}
@@ -605,7 +626,7 @@ export default function TodayPage() {
           open={showCreateModal}
           onOpenChange={setShowCreateModal}
           initialDate={
-            activeView === 'today' ? formatAPIDate(selectedDate) : null
+            currentActiveView === 'today' ? formatAPIDate(selectedDate) : null
           }
         />
       )}

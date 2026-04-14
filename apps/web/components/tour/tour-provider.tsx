@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
+import { useProfile } from '@/hooks/use-profile'
 import { completeTour } from '@/app/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
@@ -22,6 +23,8 @@ export function TourProvider() {
   const pathname = usePathname()
   const queryClient = useQueryClient()
   const { inject, restore } = useTourMockData()
+  const { profile } = useProfile()
+  const hasProAccess = profile?.hasProAccess ?? false
 
   const store = useTourStore()
   const { isActive, getCurrentStep, setTargetRect, setNavigating, endTour, nextStep } = store
@@ -88,7 +91,7 @@ export function TourProvider() {
     (preAction: string) => {
       switch (preAction) {
         case 'switchToGoalsTab':
-          useUIStore.getState().setActiveView('goals')
+          useUIStore.getState().setActiveView(hasProAccess ? 'goals' : 'today')
           break
         case 'switchToTodayTab':
           useUIStore.getState().setActiveView('today')
@@ -99,7 +102,7 @@ export function TourProvider() {
           break
       }
     },
-    [],
+    [hasProAccess],
   )
 
   // Find target element and set rect

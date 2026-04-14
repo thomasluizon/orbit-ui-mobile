@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
+import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 
 /**
  * BFF: POST /api/subscriptions/checkout
@@ -11,18 +12,13 @@ import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
  * which breaks geolocation-based pricing on the backend.
  */
 
-const IP_PATTERN = /^[\d.:a-fA-F]+$/
-
-function getClientIp(request: NextRequest): string {
-  const forwardedRaw = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
-  const realIpRaw = request.headers.get('x-real-ip') ?? ''
-  return [forwardedRaw, realIpRaw].find((ip) => ip && IP_PATTERN.test(ip)) ?? ''
-}
-
-function buildHeaders(token: string | null, clientIp: string): Record<string, string> {
+function buildHeaders(
+  token: string | null,
+  forwardedClientHeaders: Record<string, string>,
+): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-Forwarded-For': clientIp,
+    ...forwardedClientHeaders,
   }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
@@ -33,27 +29,27 @@ function buildHeaders(token: string | null, clientIp: string): Record<string, st
 async function proxyCheckout(
   body: string,
   token: string | null,
-  clientIp: string,
+  forwardedClientHeaders: Record<string, string>,
 ): Promise<Response> {
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
   return fetch(`${apiBase}/api/subscriptions/checkout`, {
     method: 'POST',
-    headers: buildHeaders(token, clientIp),
+    headers: buildHeaders(token, forwardedClientHeaders),
     body,
   })
 }
 
 export async function POST(request: NextRequest) {
   const token = await getAuthToken()
-  const clientIp = getClientIp(request)
+  const forwardedClientHeaders = buildForwardedClientHeaders(request)
   const body = await request.text()
 
-  const response = await proxyCheckout(body, token, clientIp)
+  const response = await proxyCheckout(body, token, forwardedClientHeaders)
 
   if (response.status === 401) {
     const newToken = await tryRefreshSession()
     if (newToken) {
-      const retryResponse = await proxyCheckout(body, newToken, clientIp)
+      const retryResponse = await proxyCheckout(body, newToken, forwardedClientHeaders)
       const retryData = await retryResponse.text()
       return new NextResponse(retryData, {
         status: retryResponse.status,

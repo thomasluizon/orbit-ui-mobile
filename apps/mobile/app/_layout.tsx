@@ -116,6 +116,10 @@ function RootLayoutNav() {
   const handleCreate = useMemo(
     () => () => {
       if (activeView === 'goals') {
+        if (!hasProAccess) {
+          router.push('/upgrade')
+          return
+        }
         setShowCreateGoalModal(true)
         return
       }

@@ -1241,11 +1241,13 @@ export function HabitFormFields({
           )}
 
           {/* Goals */}
-          <GoalLinkingField
-            selectedGoalIds={selectedGoalIds}
-            atGoalLimit={atGoalLimit}
-            onToggleGoal={onToggleGoal}
-          />
+          {hasProAccess && (
+            <GoalLinkingField
+              selectedGoalIds={selectedGoalIds}
+              atGoalLimit={atGoalLimit}
+              onToggleGoal={onToggleGoal}
+            />
+          )}
 
           {/* Bad habit toggle */}
           {!isGeneral && (
