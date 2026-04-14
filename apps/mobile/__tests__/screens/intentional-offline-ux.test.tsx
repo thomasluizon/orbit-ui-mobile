@@ -116,9 +116,17 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
+  const keyboardListener = {
+    remove: vi.fn(),
+  }
   return {
     ...actual,
     KeyboardAvoidingView: actual.View,
+    Keyboard: {
+      ...actual.Keyboard,
+      addListener: vi.fn(() => keyboardListener),
+      dismiss: vi.fn(),
+    },
   }
 })
 
