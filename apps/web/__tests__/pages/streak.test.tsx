@@ -37,6 +37,11 @@ vi.mock('@/hooks/use-profile', () => ({
 let mockStreakQuery = { isLoading: false, data: null }
 let mockStreakInfo: Record<string, unknown> | null = null
 let mockFreezesAvailable = 2
+let mockStreakFreezeBalance = 2
+let mockFreezesUsedThisMonth = 0
+let mockIsAtHeldCap = false
+let mockDaysUntilNextFreeze = 7
+let mockProgressToNextFreeze = 0
 let mockIsFrozenToday = false
 let mockHasCompletedToday = false
 let mockCanFreeze = true
@@ -46,6 +51,15 @@ vi.mock('@/hooks/use-gamification', () => ({
     streakQuery: mockStreakQuery,
     streakInfo: mockStreakInfo,
     freezesAvailable: mockFreezesAvailable,
+    streakFreezeBalance: mockStreakFreezeBalance,
+    freezesUsedThisMonth: mockFreezesUsedThisMonth,
+    maxFreezesPerMonth: 3,
+    maxFreezesHeld: 3,
+    daysUntilNextFreeze: mockDaysUntilNextFreeze,
+    progressToNextFreeze: mockProgressToNextFreeze,
+    isAtHeldCap: mockIsAtHeldCap,
+    monthlyLimitReached: mockFreezesUsedThisMonth >= 3,
+    canEarnMore: !mockIsAtHeldCap,
     isFrozenToday: mockIsFrozenToday,
     hasCompletedToday: mockHasCompletedToday,
     canFreeze: mockCanFreeze,
@@ -99,6 +113,11 @@ describe('StreakPage', () => {
       isFrozenToday: false,
     }
     mockFreezesAvailable = 2
+    mockStreakFreezeBalance = 2
+    mockFreezesUsedThisMonth = 0
+    mockIsAtHeldCap = false
+    mockDaysUntilNextFreeze = 7
+    mockProgressToNextFreeze = 0
     mockIsFrozenToday = false
     mockHasCompletedToday = false
     mockCanFreeze = true

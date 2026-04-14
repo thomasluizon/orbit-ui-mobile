@@ -7,6 +7,20 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
 import { getErrorMessage } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
+
+type TranslateFn = (key: string, params?: Record<string, string | number | Date>) => string
+
+function mapFreezeError(err: unknown, t: TranslateFn): string {
+  const raw = getErrorMessage(err, t('toast.errors.activateFreeze'))
+  if (!raw) return t('toast.errors.activateFreeze')
+  if (raw.includes('NO_STREAK_FREEZES_EARNED') || raw.toLowerCase().includes("haven't earned")) {
+    return t('toast.errors.noStreakFreezesEarned')
+  }
+  if (raw.includes('STREAK_FREEZE_MONTHLY_LIMIT_REACHED') || raw.toLowerCase().includes('all 3 streak freezes')) {
+    return t('toast.errors.streakFreezeMonthlyLimitReached')
+  }
+  return raw
+}
 import { useProfile } from '@/hooks/use-profile'
 import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
@@ -22,7 +36,21 @@ export default function StreakPage() {
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
-  const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze(profile)
+  const {
+    streakQuery,
+    streakInfo,
+    freezesAvailable,
+    streakFreezeBalance,
+    freezesUsedThisMonth,
+    maxFreezesPerMonth,
+    maxFreezesHeld,
+    daysUntilNextFreeze,
+    progressToNextFreeze,
+    isAtHeldCap,
+    isFrozenToday,
+    hasCompletedToday,
+    canFreeze,
+  } = useStreakFreeze(profile)
   const activateFreezeMutation = useActivateStreakFreeze()
 
   const [showConfirm, setShowConfirm] = useState(false)
@@ -191,11 +219,18 @@ export default function StreakPage() {
             dateFnsLocale={dateFnsLocale}
             streak={streak}
             freezesAvailable={freezesAvailable}
+            streakFreezeBalance={streakFreezeBalance}
+            freezesUsedThisMonth={freezesUsedThisMonth}
+            maxFreezesPerMonth={maxFreezesPerMonth}
+            maxFreezesHeld={maxFreezesHeld}
+            daysUntilNextFreeze={daysUntilNextFreeze}
+            progressToNextFreeze={progressToNextFreeze}
+            isAtHeldCap={isAtHeldCap}
             isFrozenToday={isFrozenToday}
             hasCompletedToday={hasCompletedToday}
             canFreeze={canFreeze}
             freezeSuccess={freezeSuccess}
-            errorMessage={activateFreezeMutation.error ? getErrorMessage(activateFreezeMutation.error, t('toast.errors.activateFreeze')) : undefined}
+            errorMessage={activateFreezeMutation.error ? mapFreezeError(activateFreezeMutation.error, t) : undefined}
             streakInfo={streakInfo}
             onActivateFreeze={() => setShowConfirm(true)}
           />
@@ -210,7 +245,11 @@ export default function StreakPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary leading-relaxed">
-            {plural(t('streakDisplay.freeze.confirmBody', { count: freezesAvailable, remaining: freezesAvailable, streak }), freezesAvailable)}
+            {t('streakDisplay.freeze.confirmBody', {
+              streak,
+              held: streakFreezeBalance,
+              monthlyRemaining: Math.max(0, maxFreezesPerMonth - freezesUsedThisMonth),
+            })}
           </p>
           <div className="flex flex-col gap-2">
             <button

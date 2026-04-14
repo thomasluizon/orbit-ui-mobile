@@ -100,6 +100,11 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
     freezesUsedThisMonth: 1,
     freezesAvailable: 2,
     maxFreezesPerMonth: 3,
+    maxFreezesHeld: 3,
+    streakFreezeBalance: 2,
+    daysUntilNextFreeze: 7,
+    progressToNextFreeze: 0,
+    isAtHeldCap: false,
     isFrozenToday: false,
     recentFreezeDates: ['2025-01-05'],
     ...overrides,
@@ -299,7 +304,30 @@ describe('useStreakFreeze', () => {
 
     expect(result.current.freezesAvailable).toBe(1)
     expect(result.current.currentStreak).toBe(4)
-    expect(result.current.canFreeze).toBe(true)
+    // Merit-based: no earned balance known, so canFreeze stays false.
+    expect(result.current.canFreeze).toBe(false)
+  })
+
+  it('disallows freeze when monthly cap is reached', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve(
+          makeStreakInfo({
+            streakFreezeBalance: 3,
+            freezesUsedThisMonth: 3,
+            freezesAvailable: 0,
+          }),
+        ),
+    })
+
+    const { result } = renderHook(() => useStreakFreeze(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.streakQuery.isSuccess).toBe(true))
+    expect(result.current.monthlyLimitReached).toBe(true)
+    expect(result.current.canFreeze).toBe(false)
   })
 })
 
@@ -313,7 +341,10 @@ describe('useActivateStreakFreeze', () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          freezesRemainingThisMonth: 1,
+          freezesRemainingBalance: 1,
+          freezesUsedThisMonth: 1,
+          maxFreezesPerMonth: 3,
+          maxFreezesHeld: 3,
           frozenDate: '2025-01-15',
           currentStreak: 7,
         }),

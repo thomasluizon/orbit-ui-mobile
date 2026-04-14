@@ -22,6 +22,22 @@ import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/c
 import { plural } from '@/lib/plural'
 import { StreakFreezeSection, StreakTimelineCard } from './streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { getErrorMessage } from '@orbit/shared/utils'
+
+type TranslateFn = (key: string, params?: Record<string, unknown>) => string
+
+function mapFreezeError(err: unknown, t: TranslateFn): string | undefined {
+  if (!err) return undefined
+  const raw = getErrorMessage(err, t('toast.errors.activateFreeze') as string)
+  if (!raw) return t('toast.errors.activateFreeze') as string
+  if (raw.includes('NO_STREAK_FREEZES_EARNED') || raw.toLowerCase().includes("haven't earned")) {
+    return t('toast.errors.noStreakFreezesEarned') as string
+  }
+  if (raw.includes('STREAK_FREEZE_MONTHLY_LIMIT_REACHED') || raw.toLowerCase().includes('all 3 streak freezes')) {
+    return t('toast.errors.streakFreezeMonthlyLimitReached') as string
+  }
+  return raw
+}
 
 // ---------------------------------------------------------------------------
 // Streak Screen
@@ -36,7 +52,21 @@ export default function StreakScreen() {
   const streak = profile?.currentStreak ?? 0
   const dateFnsLocale = useMemo(() => (i18n.language === 'pt-BR' ? ptBR : enUS), [i18n.language])
   const styles = useMemo(() => createStyles(colors), [colors])
-  const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze()
+  const {
+    streakQuery,
+    streakInfo,
+    freezesAvailable,
+    streakFreezeBalance,
+    freezesUsedThisMonth,
+    maxFreezesPerMonth,
+    maxFreezesHeld,
+    daysUntilNextFreeze,
+    progressToNextFreeze,
+    isAtHeldCap,
+    isFrozenToday,
+    hasCompletedToday,
+    canFreeze,
+  } = useStreakFreeze()
   const activateFreezeMutation = useActivateStreakFreeze()
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
 
@@ -237,11 +267,18 @@ export default function StreakScreen() {
               dateFnsLocale={dateFnsLocale}
               streak={streak}
               freezesAvailable={freezesAvailable}
+              streakFreezeBalance={streakFreezeBalance}
+              freezesUsedThisMonth={freezesUsedThisMonth}
+              maxFreezesPerMonth={maxFreezesPerMonth}
+              maxFreezesHeld={maxFreezesHeld}
+              daysUntilNextFreeze={daysUntilNextFreeze}
+              progressToNextFreeze={progressToNextFreeze}
+              isAtHeldCap={isAtHeldCap}
               isFrozenToday={isFrozenToday}
               hasCompletedToday={hasCompletedToday}
               canFreeze={canFreeze}
               freezeSuccess={freezeSuccess}
-              errorMessage={activateFreezeMutation.error?.message}
+              errorMessage={mapFreezeError(activateFreezeMutation.error, t)}
               streakInfo={streakInfo}
               styles={styles}
               onActivateFreeze={() => setShowConfirm(true)}
@@ -266,7 +303,11 @@ export default function StreakScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.modalDescription}>
-              {t('streakDisplay.freeze.confirmBody', { streak, remaining: freezesAvailable, count: freezesAvailable })}
+              {t('streakDisplay.freeze.confirmBody', {
+                streak,
+                held: streakFreezeBalance,
+                monthlyRemaining: Math.max(0, maxFreezesPerMonth - freezesUsedThisMonth),
+              })}
             </Text>
             <View style={{ gap: 8, marginTop: 16 }}>
               <TouchableOpacity

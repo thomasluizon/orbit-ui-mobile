@@ -1731,7 +1731,9 @@
       "server": "Algo deu errado. Tente novamente mais tarde.",
       "unknown": "Ocorreu um erro inesperado",
       "fetchStreak": "Falha ao carregar informações da sequência",
-      "activateFreeze": "Falha ao ativar o congelamento da sequência"
+      "activateFreeze": "Falha ao ativar o congelamento da sequência",
+      "noStreakFreezesEarned": "Você ainda não ganhou nenhum congelamento. Continue sua sequência!",
+      "streakFreezeMonthlyLimitReached": "Você já usou os 3 congelamentos deste mês."
     }
   },
   "streakDisplay": {
@@ -1760,15 +1762,27 @@
     "freeze": {
       "title": "Congelamento de Sequência",
       "available": "Nenhum congelamento disponível | {count} congelamento disponível | {count} congelamentos disponíveis",
+      "balanceHeld": "{held}/{max} congelamentos guardados",
+      "monthlyUsage": "{used}/{max} usados neste mês",
+      "earnProgressTitle": "Próximo congelamento",
+      "earnProgressLabel": "{progress}/7 dias",
+      "earnProgressHint": "Mantenha sua sequência para ganhar um congelamento",
+      "earnProgressRemaining": "Em 1 dia | Em {count} dias",
+      "cappedTitle": "Limite de congelamentos atingido",
+      "cappedHint": "Use um para ganhar mais",
+      "noneEarnedTitle": "Nenhum congelamento ainda",
+      "noneEarnedBody": "Alcance uma sequência de 7 dias para ganhar seu primeiro congelamento.",
       "activate": "Ativar Congelamento",
       "confirmTitle": "Tirar um dia de descanso?",
-      "confirmBody": "Sem estresse! Use um congelamento para manter sua sequência de {streak} dias segura. Você tem {remaining} congelamento disponível este mês -- use quando precisar! | Sem estresse! Use um congelamento para manter sua sequência de {streak} dias segura. Você tem {remaining} congelamentos disponíveis este mês -- use quando precisar!",
+      "confirmBody": "Use um congelamento de sequência para proteger sua sequência de {streak} dias. Você tem {held} guardados e {monthlyRemaining} usos restantes neste mês.",
       "activeToday": "Congelamento ativo hoje",
       "success": "Congelamento de sequência ativado!",
       "recentLabel": "Usados recentemente",
       "completedToday": "Você já completou um hábito hoje. Não precisa congelar!",
       "celebrationTitle": "Sequência salva!",
-      "celebrationSubtitle": "Seu congelamento protegeu sua sequência."
+      "celebrationSubtitle": "Seu congelamento protegeu sua sequência.",
+      "earnedCelebrationTitle": "Congelamento conquistado!",
+      "earnedCelebrationBody": "Você ganhou um congelamento por alcançar uma sequência de {streak} dias."
     },
     "detail": {
       "title": "Detalhes da Sequência",
@@ -2023,7 +2037,7 @@
     "profile": {
       "streak": {
         "title": "Sequência e Congelamentos",
-        "description": "Veja sua sequência atual e mais longa. Ative congelamentos de sequência para proteger sua sequência em dias de folga (limitado por mês)."
+        "description": "Veja sua sequência atual e mais longa. Ganhe 1 congelamento a cada 7 dias consecutivos de atividade. Guarde até 3. Use até 3 por mês."
       },
       "preferences": {
         "title": "Preferências",

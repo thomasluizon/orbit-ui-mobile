@@ -77,6 +77,13 @@ interface StreakFreezeSectionProps {
   dateFnsLocale: Locale
   streak: number
   freezesAvailable: number
+  streakFreezeBalance: number
+  freezesUsedThisMonth: number
+  maxFreezesPerMonth: number
+  maxFreezesHeld: number
+  daysUntilNextFreeze: number
+  progressToNextFreeze: number
+  isAtHeldCap: boolean
   isFrozenToday: boolean
   hasCompletedToday: boolean
   canFreeze: boolean
@@ -92,6 +99,13 @@ export function StreakFreezeSection({
   dateFnsLocale,
   streak,
   freezesAvailable,
+  streakFreezeBalance,
+  freezesUsedThisMonth,
+  maxFreezesPerMonth,
+  maxFreezesHeld,
+  daysUntilNextFreeze,
+  progressToNextFreeze,
+  isAtHeldCap,
   isFrozenToday,
   hasCompletedToday,
   canFreeze,
@@ -113,19 +127,84 @@ export function StreakFreezeSection({
     </button>
   ) : null
 
+  const progressCells = Array.from({ length: 7 }, (_, i) => i < progressToNextFreeze)
+
   return (
     <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <svg viewBox="0 0 12 14" fill="none" className="size-4">
             <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" stroke="#93c5fd" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="text-sm font-bold text-text-primary">{t('streakDisplay.freeze.title')}</span>
         </div>
-        <span className="text-xs text-text-muted">
-          {t('streakDisplay.freeze.available', { count: freezesAvailable })}
-        </span>
+        <div className="text-right">
+          <div className="text-xs font-medium text-text-primary">
+            {t('streakDisplay.freeze.balanceHeld', { held: streakFreezeBalance, max: maxFreezesHeld })}
+          </div>
+          <div className="text-[10px] text-text-muted mt-0.5">
+            {t('streakDisplay.freeze.monthlyUsage', { used: freezesUsedThisMonth, max: maxFreezesPerMonth })}
+          </div>
+        </div>
       </div>
+
+      {streak > 0 ? (
+        <div className="rounded-[var(--radius-lg)] bg-surface-elevated border border-border-muted p-3 space-y-2">
+          {isAtHeldCap ? (
+            <>
+              <div className="text-xs font-bold text-text-primary">
+                {t('streakDisplay.freeze.cappedTitle')}
+              </div>
+              <div className="text-[11px] text-text-muted">
+                {t('streakDisplay.freeze.cappedHint')}
+              </div>
+            </>
+          ) : streakFreezeBalance === 0 && streak < 7 ? (
+            <>
+              <div className="text-xs font-bold text-text-primary">
+                {t('streakDisplay.freeze.noneEarnedTitle')}
+              </div>
+              <div className="text-[11px] text-text-muted">
+                {t('streakDisplay.freeze.noneEarnedBody')}
+              </div>
+              <div className="flex gap-1 pt-1">
+                {progressCells.map((filled, i) => (
+                  <span
+                    key={`progress-${i}`}
+                    className={`h-1.5 flex-1 rounded-full ${filled ? 'bg-primary' : 'bg-border-muted'}`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-text-muted">
+                <span>{t('streakDisplay.freeze.earnProgressLabel', { progress: progressToNextFreeze })}</span>
+                <span>{t('streakDisplay.freeze.earnProgressRemaining', { count: daysUntilNextFreeze })}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-text-primary">
+                  {t('streakDisplay.freeze.earnProgressTitle')}
+                </span>
+                <span className="text-[10px] text-text-muted">
+                  {t('streakDisplay.freeze.earnProgressRemaining', { count: daysUntilNextFreeze })}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {progressCells.map((filled, i) => (
+                  <span
+                    key={`progress-${i}`}
+                    className={`h-1.5 flex-1 rounded-full ${filled ? 'bg-primary' : 'bg-border-muted'}`}
+                  />
+                ))}
+              </div>
+              <div className="text-[10px] text-text-muted">
+                {t('streakDisplay.freeze.earnProgressLabel', { progress: progressToNextFreeze })}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {isFrozenToday ? (
         <div className="flex items-center gap-2 bg-blue-500/8 border border-blue-500/15 rounded-[var(--radius-lg)] px-3.5 py-2.5">

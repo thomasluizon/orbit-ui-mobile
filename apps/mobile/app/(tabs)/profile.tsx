@@ -44,7 +44,7 @@ import {
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
-import { useGamificationProfile } from '@/hooks/use-gamification'
+import { useGamificationProfile, useStreakFreeze } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
 import { buildQueuedMutation, createQueuedAck, isQueuedResult, queueOrExecute } from '@/lib/offline-mutations'
@@ -77,6 +77,7 @@ function ProfileStreakCard() {
   const styles = useMemo(() => createStyles(colors), [colors])
   const streakRef = useRef<View>(null)
   useTourTarget('tour-profile-streak', streakRef)
+  const { streakFreezeBalance, maxFreezesHeld, daysUntilNextFreeze, isAtHeldCap } = useStreakFreeze(profile)
 
   const encouragement = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
@@ -137,6 +138,16 @@ function ProfileStreakCard() {
           )}
           {encouragement && streak > 0 ? (
             <Text style={styles.streakEncouragement}>{encouragement}</Text>
+          ) : null}
+          {streak > 0 && !isAtHeldCap ? (
+            <Text style={styles.streakEncouragement}>
+              {t('streakDisplay.freeze.earnProgressTitle')}: {t('streakDisplay.freeze.earnProgressRemaining', { count: daysUntilNextFreeze })}
+            </Text>
+          ) : null}
+          {streak > 0 && isAtHeldCap ? (
+            <Text style={styles.streakEncouragement}>
+              {t('streakDisplay.freeze.balanceHeld', { held: streakFreezeBalance, max: maxFreezesHeld })}
+            </Text>
           ) : null}
         </View>
 

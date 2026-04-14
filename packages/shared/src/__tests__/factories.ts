@@ -2,7 +2,7 @@ import type { NormalizedHabit } from '../types/habit'
 import type { Goal } from '../types/goal'
 import type { Profile } from '../types/profile'
 import type { NotificationItem } from '../types/notification'
-import type { Achievement, GamificationProfile } from '../types/gamification'
+import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
 
@@ -173,6 +173,29 @@ export function createMockGamificationProfile(
     currentStreak: 7,
     longestStreak: 14,
     lastActiveDate: '2025-01-15',
+    ...overrides,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// StreakInfo factory
+// ---------------------------------------------------------------------------
+
+export function createMockStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
+  return {
+    currentStreak: 0,
+    longestStreak: 0,
+    lastActiveDate: null,
+    freezesUsedThisMonth: 0,
+    freezesAvailable: 0,
+    maxFreezesPerMonth: 3,
+    maxFreezesHeld: 3,
+    streakFreezeBalance: 0,
+    daysUntilNextFreeze: 7,
+    progressToNextFreeze: 0,
+    isAtHeldCap: false,
+    isFrozenToday: false,
+    recentFreezeDates: [],
     ...overrides,
   }
 }

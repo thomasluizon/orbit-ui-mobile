@@ -17,10 +17,26 @@ export interface StreakFreezeFallback {
 
 export interface StreakFreezeDerivedState {
   freezesAvailable: number
+  streakFreezeBalance: number
+  freezesUsedThisMonth: number
+  maxFreezesPerMonth: number
+  maxFreezesHeld: number
+  daysUntilNextFreeze: number
+  progressToNextFreeze: number
+  isAtHeldCap: boolean
+  canEarnMore: boolean
+  monthlyLimitReached: boolean
   isFrozenToday: boolean
   hasCompletedToday: boolean
   currentStreak: number
   canFreeze: boolean
+}
+
+export const STREAK_FREEZE_EARN_TARGET = 7
+
+export function formatFreezeEarnProgress(progress: number, target: number = STREAK_FREEZE_EARN_TARGET): string {
+  const clamped = Math.max(0, Math.min(target, Math.floor(progress)))
+  return `${clamped} / ${target}`
 }
 
 export interface GamificationProfileDerivedState {
@@ -86,18 +102,40 @@ export function getAchievementsByCategory(
 }
 
 export function deriveStreakFreezeState(
-  streakInfo: Pick<StreakInfo, 'currentStreak' | 'lastActiveDate' | 'freezesAvailable' | 'isFrozenToday'> | null | undefined,
+  streakInfo: StreakInfo | null | undefined,
   fallbackProfile?: StreakFreezeFallback | null,
   today = formatAPIDate(new Date()),
 ): StreakFreezeDerivedState {
   const freezesAvailable = streakInfo?.freezesAvailable ?? fallbackProfile?.streakFreezesAvailable ?? 0
+  const streakFreezeBalance = streakInfo?.streakFreezeBalance ?? 0
+  const freezesUsedThisMonth = streakInfo?.freezesUsedThisMonth ?? 0
+  const maxFreezesPerMonth = streakInfo?.maxFreezesPerMonth ?? 3
+  const maxFreezesHeld = streakInfo?.maxFreezesHeld ?? 3
+  const daysUntilNextFreeze = streakInfo?.daysUntilNextFreeze ?? STREAK_FREEZE_EARN_TARGET
+  const progressToNextFreeze = streakInfo?.progressToNextFreeze ?? 0
+  const isAtHeldCap = streakInfo?.isAtHeldCap ?? streakFreezeBalance >= maxFreezesHeld
+  const monthlyLimitReached = freezesUsedThisMonth >= maxFreezesPerMonth
   const isFrozenToday = streakInfo?.isFrozenToday ?? false
   const hasCompletedToday = streakInfo?.lastActiveDate === today
   const currentStreak = streakInfo?.currentStreak ?? fallbackProfile?.currentStreak ?? 0
-  const canFreeze = freezesAvailable > 0 && !isFrozenToday && !hasCompletedToday && currentStreak > 0
+  const canFreeze =
+    streakFreezeBalance > 0
+    && !monthlyLimitReached
+    && !isFrozenToday
+    && !hasCompletedToday
+    && currentStreak > 0
 
   return {
     freezesAvailable,
+    streakFreezeBalance,
+    freezesUsedThisMonth,
+    maxFreezesPerMonth,
+    maxFreezesHeld,
+    daysUntilNextFreeze,
+    progressToNextFreeze,
+    isAtHeldCap,
+    canEarnMore: !isAtHeldCap,
+    monthlyLimitReached,
     isFrozenToday,
     hasCompletedToday,
     currentStreak,

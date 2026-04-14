@@ -6,12 +6,14 @@ import { ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
+import { useStreakFreeze } from '@/hooks/use-gamification'
 import './profile-streak-card.css'
 
 export function ProfileStreakCard() {
   const t = useTranslations()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
+  const { streakFreezeBalance, maxFreezesHeld, daysUntilNextFreeze, isAtHeldCap } = useStreakFreeze(profile)
 
   // Count-up animation
   const [displayStreak, setDisplayStreak] = useState(0)
@@ -118,6 +120,16 @@ export function ProfileStreakCard() {
               {encouragement}
             </p>
           )}
+          {streak > 0 && !isAtHeldCap ? (
+            <p className="text-[11px] text-text-muted mt-0.5" data-testid="next-freeze-hint">
+              {t('streakDisplay.freeze.earnProgressTitle')}: {t('streakDisplay.freeze.earnProgressRemaining', { count: daysUntilNextFreeze })}
+            </p>
+          ) : null}
+          {streak > 0 && isAtHeldCap ? (
+            <p className="text-[11px] text-text-muted mt-0.5" data-testid="freeze-balance-cap">
+              {t('streakDisplay.freeze.balanceHeld', { held: streakFreezeBalance, max: maxFreezesHeld })}
+            </p>
+          ) : null}
         </div>
 
         {/* Chevron */}

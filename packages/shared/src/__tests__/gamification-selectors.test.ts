@@ -4,6 +4,7 @@ import {
   deriveGamificationProfileState,
   deriveStreakFreezeState,
   detectGamificationMilestones,
+  formatFreezeEarnProgress,
   getAchievementsByCategory,
   getEarnedAchievements,
   getLockedAchievements,
@@ -74,6 +75,11 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
     freezesUsedThisMonth: 1,
     freezesAvailable: 2,
     maxFreezesPerMonth: 3,
+    maxFreezesHeld: 3,
+    streakFreezeBalance: 2,
+    daysUntilNextFreeze: 7,
+    progressToNextFreeze: 0,
+    isAtHeldCap: false,
     isFrozenToday: false,
     recentFreezeDates: ['2025-01-05'],
     ...overrides,
@@ -144,30 +150,72 @@ describe('gamification-selectors', () => {
   })
 
   it('derives streak freeze state from streak info', () => {
-    expect(deriveStreakFreezeState(makeStreakInfo(), null, '2025-01-16')).toEqual({
-      freezesAvailable: 2,
-      isFrozenToday: false,
-      hasCompletedToday: false,
-      currentStreak: 7,
-      canFreeze: true,
-    })
+    const derived = deriveStreakFreezeState(makeStreakInfo(), null, '2025-01-16')
+    expect(derived.freezesAvailable).toBe(2)
+    expect(derived.streakFreezeBalance).toBe(2)
+    expect(derived.freezesUsedThisMonth).toBe(1)
+    expect(derived.maxFreezesPerMonth).toBe(3)
+    expect(derived.maxFreezesHeld).toBe(3)
+    expect(derived.isAtHeldCap).toBe(false)
+    expect(derived.canEarnMore).toBe(true)
+    expect(derived.monthlyLimitReached).toBe(false)
+    expect(derived.canFreeze).toBe(true)
+    expect(derived.currentStreak).toBe(7)
   })
 
   it('falls back to profile values when streak info is missing', () => {
-    expect(
-      deriveStreakFreezeState(null, { streakFreezesAvailable: 1, currentStreak: 4 }, '2025-01-16'),
-    ).toEqual({
-      freezesAvailable: 1,
-      isFrozenToday: false,
-      hasCompletedToday: false,
-      currentStreak: 4,
-      canFreeze: true,
-    })
+    const derived = deriveStreakFreezeState(
+      null,
+      { streakFreezesAvailable: 1, currentStreak: 4 },
+      '2025-01-16',
+    )
+    expect(derived.freezesAvailable).toBe(1)
+    expect(derived.streakFreezeBalance).toBe(0)
+    expect(derived.currentStreak).toBe(4)
+    // No earned balance means canFreeze is false despite the fallback value.
+    expect(derived.canFreeze).toBe(false)
+  })
+
+  it('disallows freezes when balance is zero', () => {
+    const derived = deriveStreakFreezeState(
+      makeStreakInfo({ streakFreezeBalance: 0, freezesAvailable: 0 }),
+      null,
+      '2025-01-16',
+    )
+    expect(derived.canFreeze).toBe(false)
+  })
+
+  it('disallows freezes when the monthly cap is reached', () => {
+    const derived = deriveStreakFreezeState(
+      makeStreakInfo({ freezesUsedThisMonth: 3, freezesAvailable: 0 }),
+      null,
+      '2025-01-16',
+    )
+    expect(derived.monthlyLimitReached).toBe(true)
+    expect(derived.canFreeze).toBe(false)
+  })
+
+  it('reports held cap correctly', () => {
+    const derived = deriveStreakFreezeState(
+      makeStreakInfo({ streakFreezeBalance: 3, isAtHeldCap: true }),
+      null,
+      '2025-01-16',
+    )
+    expect(derived.isAtHeldCap).toBe(true)
+    expect(derived.canEarnMore).toBe(false)
   })
 
   it('disallows freezes when the user already completed today', () => {
     expect(
       deriveStreakFreezeState(makeStreakInfo({ lastActiveDate: '2025-01-16' }), null, '2025-01-16').canFreeze,
     ).toBe(false)
+  })
+
+  it('formats earn progress with target default 7', () => {
+    expect(formatFreezeEarnProgress(0)).toBe('0 / 7')
+    expect(formatFreezeEarnProgress(3)).toBe('3 / 7')
+    expect(formatFreezeEarnProgress(7)).toBe('7 / 7')
+    expect(formatFreezeEarnProgress(99)).toBe('7 / 7')
+    expect(formatFreezeEarnProgress(-2)).toBe('0 / 7')
   })
 })

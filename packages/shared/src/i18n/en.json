@@ -1731,7 +1731,9 @@
       "server": "Something went wrong. Please try again later.",
       "unknown": "An unexpected error occurred",
       "fetchStreak": "Failed to load streak info",
-      "activateFreeze": "Failed to activate streak freeze"
+      "activateFreeze": "Failed to activate streak freeze",
+      "noStreakFreezesEarned": "You have not earned any streak freezes yet. Keep your streak going!",
+      "streakFreezeMonthlyLimitReached": "You have used all 3 streak freezes this month."
     }
   },
   "streakDisplay": {
@@ -1760,15 +1762,27 @@
     "freeze": {
       "title": "Streak Freeze",
       "available": "No freezes available | {count} freeze available | {count} freezes available",
+      "balanceHeld": "{held}/{max} freezes stored",
+      "monthlyUsage": "{used}/{max} used this month",
+      "earnProgressTitle": "Next freeze",
+      "earnProgressLabel": "{progress}/7 days",
+      "earnProgressHint": "Keep your streak going to earn a freeze",
+      "earnProgressRemaining": "In 1 day | In {count} days",
+      "cappedTitle": "Max freezes stored",
+      "cappedHint": "Spend one to earn more",
+      "noneEarnedTitle": "No freezes yet",
+      "noneEarnedBody": "Reach a 7-day streak to earn your first freeze.",
       "activate": "Activate Freeze",
       "confirmTitle": "Take a rest day?",
-      "confirmBody": "No worries! Use a streak freeze to keep your {streak}-day streak safe. You have {remaining} freeze left this month -- use it whenever you need! | No worries! Use a streak freeze to keep your {streak}-day streak safe. You have {remaining} freezes left this month -- use them whenever you need!",
+      "confirmBody": "Use a streak freeze to keep your {streak}-day streak safe. You have {held} stored and {monthlyRemaining} monthly uses left.",
       "activeToday": "Freeze active today",
       "success": "Streak freeze activated!",
       "recentLabel": "Recently used",
       "completedToday": "You already completed a habit today. No freeze needed!",
       "celebrationTitle": "Streak saved!",
-      "celebrationSubtitle": "Your freeze protected your streak."
+      "celebrationSubtitle": "Your freeze protected your streak.",
+      "earnedCelebrationTitle": "Freeze earned!",
+      "earnedCelebrationBody": "You earned a streak freeze for hitting a {streak}-day streak."
     },
     "detail": {
       "title": "Streak Details",
@@ -2023,7 +2037,7 @@
     "profile": {
       "streak": {
         "title": "Streak & Freezes",
-        "description": "View your current and longest streak. Activate streak freezes to protect your streak on off days (limited per month)."
+        "description": "View your current and longest streak. Earn 1 streak freeze for every 7 consecutive days of activity. Hold up to 3. Use up to 3 per calendar month."
       },
       "preferences": {
         "title": "Preferences",

@@ -126,6 +126,13 @@ interface StreakFreezeSectionProps {
   dateFnsLocale: Locale
   streak: number
   freezesAvailable: number
+  streakFreezeBalance: number
+  freezesUsedThisMonth: number
+  maxFreezesPerMonth: number
+  maxFreezesHeld: number
+  daysUntilNextFreeze: number
+  progressToNextFreeze: number
+  isAtHeldCap: boolean
   isFrozenToday: boolean
   hasCompletedToday: boolean
   canFreeze: boolean
@@ -142,6 +149,13 @@ export function StreakFreezeSection({
   dateFnsLocale,
   streak,
   freezesAvailable,
+  streakFreezeBalance,
+  freezesUsedThisMonth,
+  maxFreezesPerMonth,
+  maxFreezesHeld,
+  daysUntilNextFreeze,
+  progressToNextFreeze,
+  isAtHeldCap,
   isFrozenToday,
   hasCompletedToday,
   canFreeze,
@@ -151,6 +165,8 @@ export function StreakFreezeSection({
   styles,
   onActivateFreeze,
 }: StreakFreezeSectionProps) {
+  const progressCells = Array.from({ length: 7 }, (_, i) => i < progressToNextFreeze)
+
   return (
     <View style={styles.card}>
       <View style={styles.freezeHeaderRow}>
@@ -158,10 +174,67 @@ export function StreakFreezeSection({
           <SvgFreezeIcon strokeColor="#93c5fd" />
           <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.title')}</Text>
         </View>
-        <Text style={styles.freezeAvailable} numberOfLines={2}>
-          {t('streakDisplay.freeze.available', { count: freezesAvailable })}
-        </Text>
+        <View>
+          <Text style={styles.freezeAvailable} numberOfLines={1}>
+            {t('streakDisplay.freeze.balanceHeld', { held: streakFreezeBalance, max: maxFreezesHeld })}
+          </Text>
+          <Text style={styles.freezeAvailable} numberOfLines={1}>
+            {t('streakDisplay.freeze.monthlyUsage', { used: freezesUsedThisMonth, max: maxFreezesPerMonth })}
+          </Text>
+        </View>
       </View>
+
+      {streak > 0 ? (
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 12, gap: 6 }}>
+          {isAtHeldCap ? (
+            <>
+              <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.cappedTitle')}</Text>
+              <Text style={styles.legendText}>{t('streakDisplay.freeze.cappedHint')}</Text>
+            </>
+          ) : streakFreezeBalance === 0 && streak < 7 ? (
+            <>
+              <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.noneEarnedTitle')}</Text>
+              <Text style={styles.legendText}>{t('streakDisplay.freeze.noneEarnedBody')}</Text>
+              <View style={{ flexDirection: 'row', gap: 4, paddingTop: 4 }}>
+                {progressCells.map((filled, i) => (
+                  <View
+                    key={`progress-${i}`}
+                    style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: filled ? '#6366f1' : '#3f3f46' }}
+                  />
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={styles.legendText}>
+                  {t('streakDisplay.freeze.earnProgressLabel', { progress: progressToNextFreeze })}
+                </Text>
+                <Text style={styles.legendText}>
+                  {t('streakDisplay.freeze.earnProgressRemaining', { count: daysUntilNextFreeze })}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={styles.freezeTitle}>{t('streakDisplay.freeze.earnProgressTitle')}</Text>
+                <Text style={styles.legendText}>
+                  {t('streakDisplay.freeze.earnProgressRemaining', { count: daysUntilNextFreeze })}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                {progressCells.map((filled, i) => (
+                  <View
+                    key={`progress-${i}`}
+                    style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: filled ? '#6366f1' : '#3f3f46' }}
+                  />
+                ))}
+              </View>
+              <Text style={styles.legendText}>
+                {t('streakDisplay.freeze.earnProgressLabel', { progress: progressToNextFreeze })}
+              </Text>
+            </>
+          )}
+        </View>
+      ) : null}
 
       {isFrozenToday ? (
         <View style={styles.frozenTodayBadge}>

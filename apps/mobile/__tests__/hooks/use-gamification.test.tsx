@@ -204,6 +204,11 @@ describe('mobile useStreakInfo and streak freeze', () => {
       freezesUsedThisMonth: 1,
       freezesAvailable: 2,
       maxFreezesPerMonth: 3,
+      maxFreezesHeld: 3,
+      streakFreezeBalance: 2,
+      daysUntilNextFreeze: 7,
+      progressToNextFreeze: 0,
+      isAtHeldCap: false,
       isFrozenToday: false,
       recentFreezeDates: ['2025-01-05'],
     }
@@ -234,7 +239,10 @@ describe('mobile useStreakInfo and streak freeze', () => {
 
   it('syncs the streak cache after activating a freeze', async () => {
     mocks.apiClient.mockResolvedValue({
-      freezesRemainingThisMonth: 1,
+      freezesRemainingBalance: 1,
+      freezesUsedThisMonth: 1,
+      maxFreezesPerMonth: 3,
+      maxFreezesHeld: 3,
       frozenDate: '2025-01-15',
       currentStreak: 7,
     })
