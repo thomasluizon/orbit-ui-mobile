@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import { ArrowLeft, Loader2, Send } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
@@ -10,9 +9,13 @@ import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
 import { sendSupportMessage } from '@/app/actions/support'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+
+const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
 export default function SupportPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const { isOnline } = useOffline()
 
@@ -26,13 +29,49 @@ export default function SupportPage() {
   const [nameError, setNameError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (typeof globalThis.localStorage === 'undefined') return
+
+    const storedDraft = globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+    if (!storedDraft) return
+
+    try {
+      const draft = JSON.parse(storedDraft) as Partial<Record<'name' | 'email' | 'subject' | 'message', string>>
+      setName(draft.name ?? '')
+      setEmail(draft.email ?? '')
+      setSubject(draft.subject ?? '')
+      setMessage(draft.message ?? '')
+    } catch {
+      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+    }
+  }, [])
+
   // Pre-fill from profile
   useEffect(() => {
     if (profile) {
-      setName(profile.name ?? '')
-      setEmail(profile.email ?? '')
+      setName((current) => current || profile.name || '')
+      setEmail((current) => current || profile.email || '')
     }
   }, [profile])
+
+  useEffect(() => {
+    if (typeof globalThis.localStorage === 'undefined') return
+
+    const draft = {
+      name,
+      email,
+      subject,
+      message,
+    }
+    const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
+
+    if (!hasDraft) {
+      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      return
+    }
+
+    globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  }, [email, message, name, subject])
 
   function validateForm(): boolean {
     setNameError(null)
@@ -81,6 +120,9 @@ export default function SupportPage() {
       setSuccess(true)
       setSubject('')
       setMessage('')
+      if (typeof globalThis.localStorage !== 'undefined') {
+        globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, t('auth.genericError')))
     } finally {
@@ -92,13 +134,14 @@ export default function SupportPage() {
     <div className="pb-8">
       {/* Header */}
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link
-          href="/profile"
+        <button
+          type="button"
           aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
+          onClick={() => goBackOrFallback('/profile')}
         >
           <ArrowLeft className="size-5 text-text-primary" />
-        </Link>
+        </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
           {t('profile.support.title')}
         </h1>

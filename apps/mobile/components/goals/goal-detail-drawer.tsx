@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -59,6 +59,7 @@ interface GoalDetailDrawerProps {
 }
 
 type AppColors = ThemeContextValue['colors']
+type ProgressDismissTarget = 'drawer' | 'form'
 
 // ---------------------------------------------------------------------------
 // Component
@@ -109,6 +110,9 @@ export function GoalDetailDrawer({
   const [progressValue, setProgressValue] = useState('')
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
+  const [showProgressDiscardDialog, setShowProgressDiscardDialog] = useState(false)
+  const initialProgressValueRef = useRef('')
+  const pendingProgressDismissRef = useRef<ProgressDismissTarget | null>(null)
 
   const isUpdatingProgress = updateProgress.isPending
   const isUpdatingStatus = updateStatus.isPending
@@ -119,14 +123,26 @@ export function GoalDetailDrawer({
     return numVal > goal.targetValue
   }, [progressValue, goal])
 
+  const isProgressDirty = useMemo(() => {
+    if (!showProgressForm) return false
+
+    return (
+      progressValue !== initialProgressValueRef.current ||
+      progressNote.trim().length > 0
+    )
+  }, [progressNote, progressValue, showProgressForm])
+
   // Reset state when a new drawer session starts, not on every cache refresh.
   useEffect(() => {
     if (open) {
-      setProgressValue(
-        goal?.currentValue !== undefined ? String(goal.currentValue) : '',
-      )
+      const initialProgressValue =
+        goal?.currentValue !== undefined ? String(goal.currentValue) : ''
+      initialProgressValueRef.current = initialProgressValue
+      pendingProgressDismissRef.current = null
+      setProgressValue(initialProgressValue)
       setShowProgressForm(false)
       setProgressNote('')
+      setShowProgressDiscardDialog(false)
     }
   }, [open, goalId])
 
@@ -251,6 +267,45 @@ export function GoalDetailDrawer({
     }
   }, [deleteGoalMut, goalId, onClose, showError, translate])
 
+  const closeProgressForm = useCallback(() => {
+    setProgressValue(initialProgressValueRef.current)
+    setProgressNote('')
+    setShowProgressForm(false)
+  }, [])
+
+  const requestProgressDismiss = useCallback((target: ProgressDismissTarget) => {
+    if (isProgressDirty) {
+      pendingProgressDismissRef.current = target
+      setShowProgressDiscardDialog(true)
+      return
+    }
+
+    if (target === 'drawer') {
+      onClose()
+      return
+    }
+
+    closeProgressForm()
+  }, [closeProgressForm, isProgressDirty, onClose])
+
+  const confirmProgressDismiss = useCallback(() => {
+    const target = pendingProgressDismissRef.current
+    pendingProgressDismissRef.current = null
+    setShowProgressDiscardDialog(false)
+
+    if (target === 'drawer') {
+      onClose()
+      return
+    }
+
+    closeProgressForm()
+  }, [closeProgressForm, onClose])
+
+  const cancelProgressDismiss = useCallback(() => {
+    pendingProgressDismissRef.current = null
+    setShowProgressDiscardDialog(false)
+  }, [])
+
   if (!goal) return null
 
   return (
@@ -261,6 +316,9 @@ export function GoalDetailDrawer({
         title={goal.title}
         snapPoints={['60%', '90%']}
         formMode={showProgressForm}
+        canDismiss={!isProgressDirty}
+        isDirty={isProgressDirty}
+        onAttemptDismiss={() => requestProgressDismiss('drawer')}
       >
         <KeyboardAwareBottomSheetScrollView
           style={styles.scroll}
@@ -308,6 +366,8 @@ export function GoalDetailDrawer({
             {goal.status === 'Active' && !showProgressForm && (
               <TouchableOpacity
                 onPress={() => {
+                  initialProgressValueRef.current =
+                    goal.currentValue !== undefined ? String(goal.currentValue) : ''
                   setProgressValue(
                     goal.currentValue !== undefined ? String(goal.currentValue) : '',
                   )
@@ -335,6 +395,8 @@ export function GoalDetailDrawer({
                     value={progressValue}
                     onChangeText={setProgressValue}
                     keyboardType="decimal-pad"
+                    accessibilityLabel={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+                    accessibilityHint={t('goals.updateProgress')}
                   />
                   {progressExceedsTarget && (
                     <Text style={styles.warningText}>
@@ -352,6 +414,8 @@ export function GoalDetailDrawer({
                     onChangeText={setProgressNote}
                     placeholder={t('goals.progressNote')}
                     placeholderTextColor={colors.textMuted}
+                    accessibilityLabel={t('goals.progressNote')}
+                    accessibilityHint={t('goals.updateProgress')}
                   />
                 </View>
                 <View style={styles.progressFormActions}>
@@ -364,6 +428,8 @@ export function GoalDetailDrawer({
                     onPress={submitProgress}
                     disabled={!progressValue || isUpdatingProgress}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.save')}
                   >
                     {isUpdatingProgress ? (
                       <ActivityIndicator size="small" color={colors.white} />
@@ -375,8 +441,11 @@ export function GoalDetailDrawer({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.progressCancelButton}
-                    onPress={() => setShowProgressForm(false)}
+                    onPress={() => requestProgressDismiss('form')}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
+                    accessibilityHint={t('common.discardChangesDescription')}
                   >
                     <Text style={styles.progressCancelText}>
                       {t('common.cancel')}
@@ -506,6 +575,20 @@ export function GoalDetailDrawer({
           goal={goal}
         />
       )}
+
+      <ConfirmDialog
+        open={showProgressDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) cancelProgressDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        variant="warning"
+        onConfirm={confirmProgressDismiss}
+        onCancel={cancelProgressDismiss}
+      />
 
       <ConfirmDialog
         open={showDeleteConfirm}

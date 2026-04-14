@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
@@ -201,6 +202,7 @@ function AutoSyncSettingsCard() {
 
 export default function CalendarSyncPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile } = useProfile()
@@ -370,12 +372,13 @@ export default function CalendarSyncPage() {
       <div className="text-center pt-12" role="status" aria-live="polite">
         <CalendarDays className="size-12 text-text-muted mx-auto mb-4" />
         <p className="text-text-secondary">{title}</p>
-        <Link
-          href="/profile"
+        <button
+          type="button"
           className="inline-block mt-4 text-primary font-semibold text-sm hover:underline"
+          onClick={() => goBackOrFallback('/profile')}
         >
           {t('common.goBack')}
-        </Link>
+        </button>
       </div>
     )
   }
@@ -390,9 +393,13 @@ export default function CalendarSyncPage() {
       {/* Header */}
       <header className="pt-6">
         <div className="flex items-center gap-3">
-          <Link href="/profile" className="p-2 rounded-full hover:bg-surface transition-colors">
+          <button
+            type="button"
+            className="p-2 rounded-full hover:bg-surface transition-colors"
+            onClick={() => goBackOrFallback('/profile')}
+          >
             <ArrowLeft className="size-4 text-text-primary" />
-          </Link>
+          </button>
           <h1 className="text-[length:var(--text-fluid-xl)] font-bold text-text-primary">
             {isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
           </h1>
@@ -593,12 +600,13 @@ export default function CalendarSyncPage() {
             >
               {t('calendar.retry')}
             </button>
-            <Link
-              href="/profile"
+            <button
+              type="button"
               className="border border-border text-text-secondary font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-surface transition-all"
+              onClick={() => goBackOrFallback('/profile')}
             >
               {t('common.goBack')}
-            </Link>
+            </button>
           </div>
         </div>
       )}

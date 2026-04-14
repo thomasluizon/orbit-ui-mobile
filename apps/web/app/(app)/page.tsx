@@ -93,6 +93,12 @@ export default function TodayPage() {
   const setActiveView = useUIStore((s) => s.setActiveView)
   const searchQueryStore = useUIStore((s) => s.searchQuery)
   const setSearchQuery = useUIStore((s) => s.setSearchQuery)
+  const selectedFrequency = useUIStore((s) => s.selectedFrequency)
+  const setSelectedFrequency = useUIStore((s) => s.setSelectedFrequency)
+  const selectedTagIds = useUIStore((s) => s.selectedTagIds)
+  const setSelectedTagIds = useUIStore((s) => s.setSelectedTagIds)
+  const showCompleted = useUIStore((s) => s.showCompleted)
+  const setShowCompleted = useUIStore((s) => s.setShowCompleted)
   const isSelectMode = useUIStore((s) => s.isSelectMode)
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
@@ -107,10 +113,7 @@ export default function TodayPage() {
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
 
   // Local state
-  const [showCompleted, setShowCompleted] = useState(false)
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
-  const [selectedFrequency, setSelectedFrequency] = useState<'Day' | 'Week' | 'Month' | 'Year' | 'none' | null>(null)
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [showControlsMenu, setShowControlsMenu] = useState(false)
   const [controlsMenuPosition, setControlsMenuPosition] = useState({ top: 0, left: 0 })
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
@@ -252,6 +255,10 @@ export default function TodayPage() {
     }
   }, [localSearchQuery, setSearchQuery])
 
+  useEffect(() => {
+    setLocalSearchQuery(searchQueryStore)
+  }, [searchQueryStore])
+
   // Build filters
   const filters = useMemo<HabitsFilter>(() => {
     if (activeView === 'general') {
@@ -354,18 +361,19 @@ export default function TodayPage() {
   // Clear select mode when view changes
   useEffect(() => {
     if (isSelectMode) clearSelection()
-    setSelectedFrequency(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView])
 
   // Tag filter toggle
   const toggleTagFilter = useCallback((tagId: string) => {
-    setSelectedTagIds((prev) => {
-      const idx = prev.indexOf(tagId)
-      if (idx >= 0) return prev.filter((id) => id !== tagId)
-      return [...prev, tagId]
-    })
-  }, [])
+    const idx = selectedTagIds.indexOf(tagId)
+    if (idx >= 0) {
+      setSelectedTagIds(selectedTagIds.filter((id) => id !== tagId))
+      return
+    }
+
+    setSelectedTagIds([...selectedTagIds, tagId])
+  }, [selectedTagIds, setSelectedTagIds])
 
   // Select all / deselect all
   const allSelected = habitsCount > 0 && selectedHabitIds.size === habitsCount
@@ -517,7 +525,7 @@ export default function TodayPage() {
           <div
             className={`overflow-x-hidden overflow-y-visible pt-2 transition-opacity duration-200 ${
               isSelectMode ? 'pb-20' : ''
-            } ${isRefetching ? 'opacity-40 pointer-events-none' : ''}`}
+            } ${isRefetching ? 'opacity-75' : ''}`}
           >
             <HabitList
               ref={habitListRef}

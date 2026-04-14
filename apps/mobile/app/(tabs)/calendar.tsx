@@ -392,7 +392,7 @@ export default function CalendarScreen() {
   ).length;
 
   return (
-    <SafeAreaView style={styles.safeArea} {...swipePanResponder.panHandlers}>
+    <SafeAreaView style={styles.safeArea}>
       <ScrollView
         ref={calendarScrollRef}
         style={styles.container}
@@ -433,6 +433,7 @@ export default function CalendarScreen() {
               styles.calendarCard,
               isFetching && !isLoading ? styles.calendarCardFetching : null,
             ]}
+            {...swipePanResponder.panHandlers}
           >
             <View style={styles.weekDayRow}>
               {weekdayHeaders.map((d) => (

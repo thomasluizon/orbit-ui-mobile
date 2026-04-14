@@ -12,6 +12,7 @@ import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospe
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 function escapeHtml(text: string): string {
   return text
@@ -32,6 +33,7 @@ function renderMarkdown(text: string): string {
 
 export default function RetrospectivePage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const { isOnline } = useOffline()
   const hasProAccess = useHasProAccess()
@@ -90,9 +92,13 @@ export default function RetrospectivePage() {
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link href="/profile" className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors">
-          <ArrowLeft className="size-5 text-text-primary" />
-        </Link>
+            <button
+              type="button"
+              className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
+              onClick={() => goBackOrFallback('/profile')}
+            >
+              <ArrowLeft className="size-5 text-text-primary" />
+            </button>
         <div className="flex items-center gap-2">
           <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
             {t('retrospective.title')}

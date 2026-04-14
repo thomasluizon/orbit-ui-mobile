@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native'
 import {
   BottomSheetBackdrop,
   BottomSheetModal as GorhomBottomSheetModal,
@@ -10,6 +10,7 @@ import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -23,6 +24,9 @@ interface BottomSheetModalProps {
   contentKey?: string
   snapPoints?: (string | number)[]
   formMode?: boolean
+  canDismiss?: boolean
+  isDirty?: boolean
+  onAttemptDismiss?: (reason: 'backdrop' | 'close-button' | 'navigation' | 'system-back') => void
   children: ReactNode
 }
 
@@ -37,6 +41,9 @@ export function BottomSheetModal({
   contentKey,
   snapPoints: snapPointsProp,
   formMode = false,
+  canDismiss = true,
+  isDirty = false,
+  onAttemptDismiss,
   children,
 }: BottomSheetModalProps) {
   const { colors } = useAppTheme()
@@ -44,12 +51,26 @@ export function BottomSheetModal({
   const styles = useMemo(() => createStyles(colors), [colors])
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
+  const overlayIdRef = useRef(`sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`)
 
   const snapPointsKey = (snapPointsProp ?? ['50%', '80%']).join('|')
   const snapPoints = useMemo(
     () => snapPointsProp ?? ['50%', '80%'],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [snapPointsKey],
+  )
+
+  const requestClose = useCallback(
+    (reason: 'backdrop' | 'close-button' | 'navigation' | 'system-back') => {
+      if (!canDismiss || isDirty) {
+        onAttemptDismiss?.(reason)
+        return true
+      }
+
+      bottomSheetRef.current?.dismiss()
+      return true
+    },
+    [canDismiss, isDirty, onAttemptDismiss],
   )
 
   const renderBackdrop = useCallback(
@@ -59,10 +80,15 @@ export function BottomSheetModal({
         disappearsOnIndex={-1}
         appearsOnIndex={0}
         opacity={0.55}
-        pressBehavior="close"
+        pressBehavior={canDismiss && !isDirty ? 'close' : 'none'}
+        onPress={() => {
+          if (isTopOverlay(overlayIdRef.current)) {
+            requestClose('backdrop')
+          }
+        }}
       />
     ),
-    [],
+    [canDismiss, isDirty, requestClose],
   )
 
   const renderBackground = useCallback(
@@ -84,6 +110,30 @@ export function BottomSheetModal({
     }
   }, [open, contentKey])
 
+  useEffect(() => {
+    if (!open) return
+
+    registerOverlay({
+      id: overlayIdRef.current,
+      dismiss: requestClose,
+    })
+
+    return () => {
+      unregisterOverlay(overlayIdRef.current)
+    }
+  }, [open, requestClose])
+
+  useEffect(() => {
+    if (!open) return
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!isTopOverlay(overlayIdRef.current)) return false
+      return requestClose('system-back')
+    })
+
+    return () => subscription.remove()
+  }, [open, requestClose])
+
   const handleDismiss = useCallback(() => {
     if (isOpenRef.current) {
       isOpenRef.current = false
@@ -99,7 +149,7 @@ export function BottomSheetModal({
       onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       backgroundComponent={renderBackground}
-      enablePanDownToClose
+      enablePanDownToClose={canDismiss && !isDirty}
       enableBlurKeyboardOnGesture={formMode}
       enableContentPanningGesture={!formMode}
       keyboardBehavior={formMode ? 'extend' : 'interactive'}
@@ -113,7 +163,7 @@ export function BottomSheetModal({
           <Text style={styles.title}>{title}</Text>
           <TouchableOpacity
             style={styles.closeButton}
-            onPress={() => bottomSheetRef.current?.dismiss()}
+            onPress={() => requestClose('close-button')}
             activeOpacity={0.7}
           >
             <X size={18} color={colors.textMuted} />

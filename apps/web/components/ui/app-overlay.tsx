@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useId, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useCallback, useId, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
+import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
 // ---------------------------------------------------------------------------
 // linkifyText -- converts URLs in plain text to clickable <a> tags
@@ -44,11 +45,18 @@ interface AppOverlayProps {
   titleContent?: ReactNode
   description?: string
   dismissible?: boolean
+  canDismiss?: boolean
+  isDirty?: boolean
   expandable?: boolean
   children?: ReactNode
   footer?: ReactNode
   onExpandDescription?: () => void
+  onAttemptDismiss?: (reason: 'escape' | 'backdrop' | 'close-button' | 'navigation' | 'system-back') => void
+  initialFocusRef?: RefObject<HTMLElement | null>
 }
+
+let bodyScrollLockCount = 0
+let lockedScrollY = 0
 
 export function AppOverlay({
   open,
@@ -57,16 +65,21 @@ export function AppOverlay({
   titleContent,
   description,
   dismissible = true,
+  canDismiss = true,
+  isDirty = false,
   expandable = false,
   children,
   footer,
   onExpandDescription,
+  onAttemptDismiss,
+  initialFocusRef,
 }: Readonly<AppOverlayProps>) {
   const t = useTranslations()
+  const overlayId = useId()
   const titleId = useId()
+  const descriptionId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)
   const pointerDownOnBackdrop = useRef(false)
-  const savedScrollY = useRef(0)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
   const [mounted, setMounted] = useState(false)
   const [animState, setAnimState] = useState<'hidden' | 'entering' | 'visible' | 'leaving'>('hidden')
@@ -92,24 +105,47 @@ export function AppOverlay({
   }, [open, mounted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lockBodyScroll = useCallback(() => {
-    savedScrollY.current = globalThis.scrollY
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${savedScrollY.current}px`
-    document.body.style.width = '100%'
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    document.documentElement.style.overscrollBehavior = 'contain'
+    if (bodyScrollLockCount === 0) {
+      lockedScrollY = globalThis.scrollY
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${lockedScrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+      document.documentElement.style.overscrollBehavior = 'contain'
+    }
+
+    bodyScrollLockCount += 1
   }, [])
 
   const unlockBodyScroll = useCallback(() => {
+    bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1)
+
+    if (bodyScrollLockCount > 0) return
+
     document.body.style.position = ''
     document.body.style.top = ''
     document.body.style.width = ''
     document.body.style.overflow = ''
     document.documentElement.style.overflow = ''
     document.documentElement.style.overscrollBehavior = ''
-    globalThis.scrollTo(0, savedScrollY.current)
+    globalThis.scrollTo(0, lockedScrollY)
   }, [])
+
+  const requestClose = useCallback(
+    (reason: 'escape' | 'backdrop' | 'close-button' | 'navigation' | 'system-back') => {
+      if (!dismissible) return true
+
+      if (!canDismiss || isDirty) {
+        onAttemptDismiss?.(reason)
+        return true
+      }
+
+      onOpenChange(false)
+      return true
+    },
+    [canDismiss, dismissible, isDirty, onAttemptDismiss, onOpenChange],
+  )
 
   // Focus trap
   useEffect(() => {
@@ -117,6 +153,10 @@ export function AppOverlay({
 
     lockBodyScroll()
     previouslyFocusedElement.current = document.activeElement as HTMLElement
+    registerOverlay({
+      id: overlayId,
+      dismiss: requestClose,
+    })
 
     const FOCUSABLE_SELECTORS = [
       'button:not([disabled])',
@@ -135,11 +175,17 @@ export function AppOverlay({
 
     // Auto-focus first focusable element
     requestAnimationFrame(() => {
+      if (!isTopOverlay(overlayId)) return
+      if (initialFocusRef?.current) {
+        initialFocusRef.current.focus()
+        return
+      }
       const focusable = getFocusableElements()
       if (focusable.length > 0) focusable[0]!.focus()
     })
 
     function trapFocus(e: KeyboardEvent) {
+      if (!isTopOverlay(overlayId)) return
       if (e.key !== 'Tab') return
       const focusable = getFocusableElements()
       if (focusable.length === 0) return
@@ -157,8 +203,10 @@ export function AppOverlay({
     }
 
     function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape' && dismissible) {
-        onOpenChange(false)
+      if (e.key === 'Escape' && isTopOverlay(overlayId)) {
+        e.preventDefault()
+        e.stopPropagation()
+        requestClose('escape')
       }
     }
 
@@ -167,6 +215,7 @@ export function AppOverlay({
 
     return () => {
       unlockBodyScroll()
+      unregisterOverlay(overlayId)
       document.removeEventListener('keydown', trapFocus)
       document.removeEventListener('keydown', handleEscape)
       if (previouslyFocusedElement.current) {
@@ -174,7 +223,7 @@ export function AppOverlay({
         previouslyFocusedElement.current = null
       }
     }
-  }, [open, dismissible, onOpenChange, lockBodyScroll, unlockBodyScroll])
+  }, [open, initialFocusRef, lockBodyScroll, overlayId, requestClose, unlockBodyScroll])
 
   function handlePointerDown(e: React.PointerEvent) {
     const target = e.target as HTMLElement
@@ -182,8 +231,8 @@ export function AppOverlay({
   }
 
   function handleBackdropClick() {
-    if (dismissible && pointerDownOnBackdrop.current) {
-      onOpenChange(false)
+    if (pointerDownOnBackdrop.current && isTopOverlay(overlayId)) {
+      requestClose('backdrop')
     }
     pointerDownOnBackdrop.current = false
   }
@@ -221,6 +270,7 @@ export function AppOverlay({
         open
         aria-modal="true"
         aria-labelledby={hasTitle ? titleId : undefined}
+        aria-describedby={description ? descriptionId : undefined}
         className={`relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain transition-all duration-300 ease-[var(--ease-out)] ${panelClass}`}
       >
         {/* Drag handle (mobile) */}
@@ -241,6 +291,7 @@ export function AppOverlay({
               {description && (
                 <div className="mt-1 flex items-start gap-2">
                   <p
+                    id={descriptionId}
                     className="flex-1 text-sm text-text-secondary whitespace-pre-wrap max-h-32 overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: linkedDescription }}
                   />
@@ -260,7 +311,7 @@ export function AppOverlay({
               <button
                 className="shrink-0 size-8 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors ml-4"
                 aria-label={t('common.close')}
-                onClick={() => onOpenChange(false)}
+                onClick={() => requestClose('close-button')}
               >
                 <X className="size-3" />
               </button>

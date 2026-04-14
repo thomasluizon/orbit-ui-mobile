@@ -4,8 +4,10 @@ import { useState, useCallback, useMemo } from 'react'
 import { Plus, X, Target, Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import {
@@ -122,6 +124,19 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
 
   const isSubmitting = createGoal.isPending
   const isStreak = isStreakGoal(goalType)
+  const isDirty =
+    goalType !== 'Standard' ||
+    description.trim().length > 0 ||
+    targetValue.trim().length > 0 ||
+    unit.trim().length > 0 ||
+    deadline.length > 0
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () => {
+      resetForm()
+      onOpenChange(false)
+    },
+  })
 
   // Per-field inline errors (shown after first submit attempt)
   const fieldErrors = useMemo(
@@ -200,22 +215,17 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     [createGoal, deadline, description, goalType, onOpenChange, showError, targetValue, translate, unit],
   )
 
-  // Reset form when modal closes
-  const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      if (!isOpen) resetForm()
-      onOpenChange(isOpen)
-    },
-    [onOpenChange],
-  )
-
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={t('goals.create')}
-    >
-      <form className="space-y-5" onSubmit={onSubmit}>
+    <>
+      <AppOverlay
+        open={open}
+        onOpenChange={onOpenChange}
+        title={t('goals.create')}
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
+        <form className="space-y-5" onSubmit={onSubmit}>
         {/* Goal Type Cards */}
         <div className="grid grid-cols-2 gap-3">
           {/* Progress Card */}
@@ -435,7 +445,21 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         >
           {isSubmitting ? '...' : t('goals.create')}
         </button>
-      </form>
-    </AppOverlay>
+        </form>
+      </AppOverlay>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   )
 }

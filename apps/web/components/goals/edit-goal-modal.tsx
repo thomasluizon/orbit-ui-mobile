@@ -4,8 +4,10 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import {
@@ -73,6 +75,15 @@ export function EditGoalModal({
   const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = updateGoal.isPending
+  const isDirty =
+    description !== goal.title ||
+    targetValue !== String(goal.targetValue) ||
+    unit !== goal.unit ||
+    deadline !== (goal.deadline ?? '')
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () => onOpenChange(false),
+  })
 
   // Per-field inline errors (shown after first submit attempt)
   const fieldErrors = useMemo(() => {
@@ -146,20 +157,17 @@ export function EditGoalModal({
     [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
-  const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      onOpenChange(isOpen)
-    },
-    [onOpenChange],
-  )
-
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={t('goals.detail.edit')}
-    >
-      <form className="space-y-5" onSubmit={onSubmit}>
+    <>
+      <AppOverlay
+        open={open}
+        onOpenChange={onOpenChange}
+        title={t('goals.detail.edit')}
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
+        <form className="space-y-5" onSubmit={onSubmit}>
         {/* Streak type badge */}
         {isStreak && (
           <div className="flex items-center gap-2">
@@ -314,7 +322,21 @@ export function EditGoalModal({
         >
           {isSubmitting ? '...' : t('common.save')}
         </button>
-      </form>
-    </AppOverlay>
+        </form>
+      </AppOverlay>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   )
 }

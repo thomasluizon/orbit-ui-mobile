@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { AlertCircle } from 'lucide-react-native'
+import { AlertCircle, CheckCircle2, Clock3, Info } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { radius } from '@/lib/theme'
@@ -16,12 +16,14 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 420)
 const TOAST_DURATION_MS = 4500
+const ACTION_TOAST_DURATION_MS = 6000
 
 export function AppToast() {
   const insets = useSafeAreaInsets()
   const { colors, shadows } = useAppTheme()
   const currentToast = useAppToastStore((state) => state.currentToast)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
+  const triggerAction = useAppToastStore((state) => state.triggerAction)
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const translateY = useRef(new Animated.Value(-48)).current
   const opacity = useRef(new Animated.Value(0)).current
@@ -88,7 +90,10 @@ export function AppToast() {
     ]).start()
 
     clearTimer()
-    dismissTimerRef.current = setTimeout(hideToast, TOAST_DURATION_MS)
+    dismissTimerRef.current = setTimeout(
+      hideToast,
+      currentToast.actionLabel ? ACTION_TOAST_DURATION_MS : TOAST_DURATION_MS,
+    )
 
     return clearTimer
   }, [clearTimer, currentToast, hideToast, opacity, scale, translateY])
@@ -96,6 +101,9 @@ export function AppToast() {
   useEffect(() => clearTimer, [clearTimer])
 
   if (!currentToast) return null
+
+  const variantConfig = getVariantConfig(currentToast.variant, colors)
+  const Icon = variantConfig.icon
 
   return (
     <Animated.View
@@ -112,10 +120,19 @@ export function AppToast() {
       accessibilityLiveRegion="polite"
     >
       <Pressable style={styles.toast} onPress={hideToast}>
-        <View style={styles.iconWrap}>
-          <AlertCircle size={18} color={colors.red400} />
+        <View style={[styles.iconWrap, { backgroundColor: variantConfig.iconBackground }]}>
+          <Icon size={18} color={variantConfig.iconColor} />
         </View>
-        <Text style={styles.message}>{currentToast.message}</Text>
+        <View style={styles.messageWrap}>
+          <Text style={styles.message}>{currentToast.message}</Text>
+          {currentToast.actionLabel ? (
+            <Pressable onPress={triggerAction} style={styles.actionButton}>
+              <Text style={[styles.actionText, { color: variantConfig.actionColor }]}>
+                {currentToast.actionLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       </Pressable>
     </Animated.View>
   )
@@ -134,11 +151,11 @@ function createStyles(
     },
     toast: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 12,
       backgroundColor: colors.surfaceOverlay,
       borderWidth: 1,
-      borderColor: colors.red500_30,
+      borderColor: colors.border,
       borderRadius: radius.xl,
       paddingHorizontal: 18,
       paddingVertical: 15,
@@ -150,13 +167,63 @@ function createStyles(
       borderRadius: radius.full,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.red500_10,
+      marginTop: 1,
+    },
+    messageWrap: {
+      flex: 1,
+      gap: 10,
     },
     message: {
-      flex: 1,
       fontSize: 14,
       fontWeight: '600',
       color: colors.textPrimary,
     },
+    actionButton: {
+      alignSelf: 'flex-start',
+    },
+    actionText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
   })
+}
+
+function getVariantConfig(
+  variant: ReturnType<typeof useAppToastStore.getState>['currentToast'] extends infer T
+    ? T extends { variant: infer V }
+      ? V
+      : never
+    : never,
+  colors: ReturnType<typeof useAppTheme>['colors'],
+) {
+  switch (variant) {
+    case 'success':
+      return {
+        icon: CheckCircle2,
+        iconColor: colors.green400,
+        iconBackground: colors.emerald400_10,
+        actionColor: colors.green400,
+      }
+    case 'info':
+      return {
+        icon: Info,
+        iconColor: colors.primary,
+        iconBackground: colors.primary_10,
+        actionColor: colors.primary,
+      }
+    case 'queued':
+      return {
+        icon: Clock3,
+        iconColor: colors.amber400,
+        iconBackground: 'rgba(245, 158, 11, 0.10)',
+        actionColor: colors.amber400,
+      }
+    default:
+      return {
+        icon: AlertCircle,
+        iconColor: colors.red400,
+        iconBackground: colors.red500_10,
+        actionColor: colors.red400,
+      }
+  }
 }

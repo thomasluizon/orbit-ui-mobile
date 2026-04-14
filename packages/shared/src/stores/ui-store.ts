@@ -8,6 +8,18 @@ type UIStoreSet = {
 
 type UIStoreGet = () => UIStoreState
 
+export type HabitFrequencyFilter = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+
+export interface PersistedUIState {
+  activeFilters: HabitsFilter
+  selectedDate: string
+  activeView: UIStoreState['activeView']
+  searchQuery: string
+  selectedFrequency: HabitFrequencyFilter | null
+  selectedTagIds: string[]
+  showCompleted: boolean
+}
+
 export interface UIStoreState {
   activeFilters: HabitsFilter
   setFilters: (filters: Partial<HabitsFilter>) => void
@@ -51,6 +63,27 @@ export interface UIStoreState {
 
   searchQuery: string
   setSearchQuery: (query: string) => void
+
+  selectedFrequency: HabitFrequencyFilter | null
+  setSelectedFrequency: (frequency: HabitFrequencyFilter | null) => void
+
+  selectedTagIds: string[]
+  setSelectedTagIds: (tagIds: string[]) => void
+
+  showCompleted: boolean
+  setShowCompleted: (show: boolean) => void
+}
+
+export function getPersistedUIState(state: UIStoreState): PersistedUIState {
+  return {
+    activeFilters: state.activeFilters,
+    selectedDate: state.selectedDate,
+    activeView: state.activeView,
+    searchQuery: state.searchQuery,
+    selectedFrequency: state.selectedFrequency,
+    selectedTagIds: state.selectedTagIds,
+    showCompleted: state.showCompleted,
+  }
 }
 
 export function createUIStoreState(
@@ -177,5 +210,14 @@ export function createUIStoreState(
 
     searchQuery: '',
     setSearchQuery: (query) => set({ searchQuery: query }),
+
+    selectedFrequency: null,
+    setSelectedFrequency: (frequency) => set({ selectedFrequency: frequency }),
+
+    selectedTagIds: [],
+    setSelectedTagIds: (tagIds) => set({ selectedTagIds: tagIds }),
+
+    showCompleted: false,
+    setShowCompleted: (show) => set({ showCompleted: show }),
   }
 }

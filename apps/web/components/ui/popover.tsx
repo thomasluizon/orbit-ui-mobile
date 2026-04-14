@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePopoverMenu, type UsePopoverMenuOptions } from '@/hooks/use-popover-menu'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,6 +20,14 @@ interface PopoverProps extends UsePopoverMenuOptions {
   onOpenChange?: (open: boolean) => void
   /** Additional className applied to the panel div. */
   className?: string
+}
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.hasAttribute('disabled') && element.tabIndex !== -1)
 }
 
 // ---------------------------------------------------------------------------
@@ -39,6 +47,7 @@ export function Popover({
   const isControlled = controlledOpen !== undefined
 
   const hook = usePopoverMenu({ placement, offset, margin })
+  const wasOpenRef = useRef(false)
 
   // Resolve effective open state and close function based on mode.
   const isOpen = isControlled ? controlledOpen : hook.isOpen
@@ -77,6 +86,41 @@ export function Popover({
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) return
+
+    const rafId = requestAnimationFrame(() => {
+      const panel = hook.panelRef.current
+      if (!panel) return
+
+      const [firstFocusable] = getFocusableElements(panel)
+      ;(firstFocusable ?? panel).focus()
+    })
+
+    return () => cancelAnimationFrame(rafId)
+  }, [hook.panelRef, isOpen])
+
+  useEffect(() => {
+    if (!wasOpenRef.current || isOpen) {
+      wasOpenRef.current = isOpen
+      return
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      const triggerContainer = hook.triggerRef.current
+      if (!triggerContainer) return
+
+      const triggerTarget =
+        triggerContainer.querySelector<HTMLElement>(
+          'button, [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? triggerContainer
+      triggerTarget.focus()
+    })
+
+    wasOpenRef.current = isOpen
+    return () => cancelAnimationFrame(rafId)
+  }, [hook.triggerRef, isOpen])
+
   // Wrap the trigger so we can forward the triggerRef.
   // We render it inside a span that gets the ref forwarded via a hidden button
   // wrapper -- but since we need the ref on a button, we clone/wrap differently.
@@ -93,6 +137,40 @@ export function Popover({
 
   const resolvedPanel =
     typeof children === 'function' ? children(close) : children
+
+  function handlePanelKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+
+    const panel = hook.panelRef.current
+    if (!panel) return
+
+    const focusableElements = getFocusableElements(panel)
+    if (focusableElements.length === 0) return
+
+    event.preventDefault()
+
+    if (event.key === 'Home') {
+      focusableElements[0]?.focus()
+      return
+    }
+
+    if (event.key === 'End') {
+      focusableElements.at(-1)?.focus()
+      return
+    }
+
+    const currentIndex = focusableElements.findIndex(
+      (element) => element === document.activeElement,
+    )
+    const step = event.key === 'ArrowDown' ? 1 : -1
+    const fallbackIndex = step > 0 ? 0 : focusableElements.length - 1
+    const nextIndex =
+      currentIndex === -1
+        ? fallbackIndex
+        : (currentIndex + step + focusableElements.length) % focusableElements.length
+
+    focusableElements[nextIndex]?.focus()
+  }
 
   return (
     <>
@@ -125,6 +203,8 @@ export function Popover({
               top: `${hook.position.top}px`,
               left: `${hook.position.left}px`,
             }}
+            tabIndex={-1}
+            onKeyDown={handlePanelKeyDown}
           >
             {resolvedPanel}
           </div>,

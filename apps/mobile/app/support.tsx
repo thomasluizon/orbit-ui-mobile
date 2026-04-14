@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Send } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -21,11 +21,13 @@ import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-v
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type AppColors = ReturnType<typeof createColors>
+const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
 export default function SupportScreen() {
-  const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const { isOnline } = useOffline()
@@ -42,11 +44,47 @@ export default function SupportScreen() {
   const [emailError, setEmailError] = useState<string | null>(null)
 
   useEffect(() => {
+    let isMounted = true
+
+    void AsyncStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+      .then((storedDraft) => {
+        if (!isMounted || !storedDraft) return
+
+        try {
+          const draft = JSON.parse(storedDraft) as Partial<Record<'name' | 'email' | 'subject' | 'message', string>>
+          setName(draft.name ?? '')
+          setEmail(draft.email ?? '')
+          setSubject(draft.subject ?? '')
+          setMessage(draft.message ?? '')
+        } catch {
+          void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
     if (profile) {
-      setName(profile.name ?? '')
-      setEmail(profile.email ?? '')
+      setName((current) => current || profile.name || '')
+      setEmail((current) => current || profile.email || '')
     }
   }, [profile])
+
+  useEffect(() => {
+    const draft = { name, email, subject, message }
+    const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
+
+    if (!hasDraft) {
+      void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      return
+    }
+
+    void AsyncStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  }, [email, message, name, subject])
 
   function validateForm(): boolean {
     setNameError(null)
@@ -100,6 +138,7 @@ export default function SupportScreen() {
       setSuccess(true)
       setSubject('')
       setMessage('')
+      void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     } catch (err: unknown) {
       setError(getErrorMessage(err, t('auth.genericError')))
     } finally {
@@ -119,7 +158,7 @@ export default function SupportScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={t('common.goBack')}

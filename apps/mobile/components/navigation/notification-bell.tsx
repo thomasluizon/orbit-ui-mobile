@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -20,6 +20,8 @@ import {
 } from '@/hooks/use-notifications'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { NotificationDetailModal } from './notification-detail-modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { plural } from '@/lib/plural'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -36,17 +38,74 @@ export function NotificationBell() {
   const markAllAsRead = useMarkAllNotificationsRead()
   const deleteNotification = useDeleteNotification()
   const deleteAll = useDeleteAllNotifications()
+  const { showQueued } = useAppToast()
 
   const [isOpen, setIsOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set())
+  const pendingDeleteTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
 
   const toggle = useCallback(() => {
     setIsOpen((prev) => !prev)
   }, [])
 
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const visibleNotifications = useMemo(
+    () => notifications.filter((item) => !pendingDeleteIds.has(item.id)),
+    [notifications, pendingDeleteIds],
+  )
+  const visibleUnreadCount = useMemo(
+    () => visibleNotifications.filter((item) => !item.isRead).length,
+    [visibleNotifications],
+  )
+
+  useEffect(() => {
+    return () => {
+      for (const timer of pendingDeleteTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
+      pendingDeleteTimersRef.current.clear()
+    }
+  }, [])
+
+  const cancelPendingDelete = useCallback((notificationId: string) => {
+    const timer = pendingDeleteTimersRef.current.get(notificationId)
+    if (timer) {
+      clearTimeout(timer)
+      pendingDeleteTimersRef.current.delete(notificationId)
+    }
+
+    setPendingDeleteIds((current) => {
+      if (!current.has(notificationId)) return current
+      const next = new Set(current)
+      next.delete(notificationId)
+      return next
+    })
+  }, [])
+
+  const requestDeleteNotification = useCallback((notification: NotificationItem) => {
+    if (pendingDeleteTimersRef.current.has(notification.id)) return
+
+    setPendingDeleteIds((current) => new Set(current).add(notification.id))
+
+    const timer = setTimeout(() => {
+      pendingDeleteTimersRef.current.delete(notification.id)
+      setPendingDeleteIds((current) => {
+        const next = new Set(current)
+        next.delete(notification.id)
+        return next
+      })
+      deleteNotification.mutate(notification.id)
+    }, 5000)
+
+    pendingDeleteTimersRef.current.set(notification.id, timer)
+    showQueued(t('notifications.deleteQueued'), t('notifications.deleteUndo'), () => {
+      cancelPendingDelete(notification.id)
+    })
+  }, [cancelPendingDelete, deleteNotification, showQueued, t])
 
   function handlePress(notification: NotificationItem) {
     setSelectedNotification(notification)
@@ -62,7 +121,10 @@ export function NotificationBell() {
   }
 
   function handleDetailDelete(id: string) {
-    deleteNotification.mutate(id)
+    const notification = notifications.find((item) => item.id === id)
+    if (notification) {
+      requestDeleteNotification(notification)
+    }
     setSelectedNotification(null)
   }
 
@@ -99,7 +161,7 @@ export function NotificationBell() {
         <TouchableOpacity
           style={styles.deleteBtn}
           activeOpacity={0.7}
-          onPress={() => deleteNotification.mutate(item.id)}
+          onPress={() => requestDeleteNotification(item)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <X size={14} color={colors.textMuted} />
@@ -133,15 +195,15 @@ export function NotificationBell() {
         onPress={toggle}
         accessibilityLabel={
           unreadCount > 0
-            ? plural(t('notifications.bellWithCount', { count: unreadCount }), unreadCount)
+            ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount)
             : t('notifications.bell')
         }
       >
         <Bell size={16} color={colors.textSecondary} />
-        {unreadCount > 0 && (
+        {visibleUnreadCount > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {visibleUnreadCount > 9 ? '9+' : visibleUnreadCount}
             </Text>
           </View>
         )}
@@ -156,7 +218,7 @@ export function NotificationBell() {
       >
         {/* Actions header */}
         <View style={styles.actionsRow}>
-          {unreadCount > 0 && (
+          {visibleUnreadCount > 0 && (
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => markAllAsRead.mutate()}
@@ -166,11 +228,11 @@ export function NotificationBell() {
               </Text>
             </TouchableOpacity>
           )}
-          {notifications.length > 0 && (
+          {visibleNotifications.length > 0 && (
             <TouchableOpacity
               style={styles.deleteAllBtn}
               activeOpacity={0.7}
-              onPress={() => deleteAll.mutate()}
+              onPress={() => setShowDeleteAllConfirm(true)}
             >
               <Trash2 size={14} color={colors.textMuted} />
             </TouchableOpacity>
@@ -182,15 +244,15 @@ export function NotificationBell() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listContent,
-            notifications.length === 0 && styles.emptyListContainer,
+            visibleNotifications.length === 0 && styles.emptyListContainer,
           ]}
         >
-          {isLoading && notifications.length === 0 ? (
+          {isLoading && visibleNotifications.length === 0 ? (
             renderEmpty()
-          ) : notifications.length === 0 ? (
+          ) : visibleNotifications.length === 0 ? (
             renderEmpty()
           ) : (
-            notifications.map((item) => renderNotification({ item }))
+            visibleNotifications.map((item) => renderNotification({ item }))
           )}
         </BottomSheetScrollView>
       </BottomSheetModal>
@@ -205,6 +267,16 @@ export function NotificationBell() {
           onDelete={handleDetailDelete}
         />
       )}
+      <ConfirmDialog
+        open={showDeleteAllConfirm}
+        onOpenChange={setShowDeleteAllConfirm}
+        title={t('notifications.deleteAllConfirmTitle')}
+        description={t('notifications.deleteAllConfirmDescription')}
+        confirmLabel={t('notifications.deleteAll')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => deleteAll.mutate()}
+        variant="danger"
+      />
     </View>
   )
 }

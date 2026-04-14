@@ -18,6 +18,12 @@ const uiState = {
   setActiveView: vi.fn(),
   searchQuery: '',
   setSearchQuery: vi.fn(),
+  selectedFrequency: null,
+  setSelectedFrequency: vi.fn(),
+  selectedTagIds: [],
+  setSelectedTagIds: vi.fn(),
+  showCompleted: false,
+  setShowCompleted: vi.fn(),
   isSelectMode: false,
   selectedHabitIds: new Set<string>(),
   toggleSelectMode: vi.fn(),
@@ -218,6 +224,9 @@ describe('TodayScreen', () => {
     uiState.activeView = 'today'
     uiState.isSelectMode = false
     uiState.searchQuery = ''
+    uiState.selectedFrequency = null
+    uiState.selectedTagIds = []
+    uiState.showCompleted = false
     uiState.selectedHabitIds = new Set<string>()
     uiState.showCreateModal = false
     uiState.showCreateGoalModal = false

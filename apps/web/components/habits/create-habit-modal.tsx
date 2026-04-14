@@ -4,9 +4,11 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { Loader2, Trash2, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import {
@@ -79,12 +81,26 @@ export function CreateHabitModal({
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const reminderWasManuallyToggledRef = useRef(false)
+  const initialTagIdsRef = useRef('[]')
+  const initialGoalIdsRef = useRef('[]')
+  const initialSubHabitsRef = useRef('[]')
+  const initialReminderTimesRef = useRef('[0,15]')
 
   const watchedDueTime = formHelpers.form.watch('dueTime') ?? ''
   const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
 
   const atGoalLimit = selectedGoalIds.length >= 10
+  const isDirty =
+    formHelpers.form.formState.isDirty ||
+    JSON.stringify([...tags.selectedTagIds].sort()) !== initialTagIdsRef.current ||
+    JSON.stringify([...selectedGoalIds].sort()) !== initialGoalIdsRef.current ||
+    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSubHabitsRef.current ||
+    JSON.stringify(reminderTimes) !== initialReminderTimesRef.current
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () => onOpenChange(false),
+  })
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -103,8 +119,10 @@ export function CreateHabitModal({
     setSubHabits([])
     setReminderTimes([0, 15])
 
+    let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
+
     if (parentHabit) {
-      const prefill = buildParentHabitFormState(parentHabit, fallbackDate)
+      prefill = buildParentHabitFormState(parentHabit, fallbackDate)
       formHelpers.form.reset(prefill.formValues)
       applyHabitFormMode(prefill.mode, formHelpers)
       tags.resetTags(prefill.selectedTagIds)
@@ -113,6 +131,11 @@ export function CreateHabitModal({
     } else if (activeView === 'general') {
       formHelpers.setGeneral()
     }
+
+    initialTagIdsRef.current = JSON.stringify([...(prefill?.selectedTagIds ?? [])].sort())
+    initialGoalIdsRef.current = JSON.stringify([...(prefill?.selectedGoalIds ?? [])].sort())
+    initialSubHabitsRef.current = JSON.stringify([])
+    initialReminderTimesRef.current = JSON.stringify(prefill?.reminderTimes ?? [0, 15])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -193,17 +216,21 @@ export function CreateHabitModal({
   }, [])
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
-      description={
-        isSubHabitMode
-          ? t('habits.form.createSubHabitDescription')
-          : t('habits.form.createDescription')
-      }
-    >
-      <form className="space-y-5" onSubmit={handleSubmit}>
+    <>
+      <AppOverlay
+        open={open}
+        onOpenChange={onOpenChange}
+        title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
+        description={
+          isSubHabitMode
+            ? t('habits.form.createSubHabitDescription')
+            : t('habits.form.createDescription')
+        }
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
+        <form className="space-y-5" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
@@ -262,7 +289,7 @@ export function CreateHabitModal({
             type="button"
             className="flex-1 py-3.5 rounded-xl border border-border text-text-secondary font-semibold text-sm hover:bg-surface-elevated/80 transition-all duration-150"
             disabled={isPending}
-            onClick={() => onOpenChange(false)}
+            onClick={dismissGuard.requestDismiss}
           >
             {t('common.cancel')}
           </button>
@@ -277,7 +304,21 @@ export function CreateHabitModal({
               : t('habits.createHabit')}
           </button>
         </div>
-      </form>
-    </AppOverlay>
+        </form>
+      </AppOverlay>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
@@ -126,6 +127,17 @@ export function useDrillNavigation(
       }
     }
   }, [lastUpdated, currentParentId, fetchDrillChildren])
+
+  useEffect(() => {
+    if (!currentParentId) return
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      drillBack()
+      return true
+    })
+
+    return () => subscription.remove()
+  }, [currentParentId, drillBack])
 
   return {
     drillStack,

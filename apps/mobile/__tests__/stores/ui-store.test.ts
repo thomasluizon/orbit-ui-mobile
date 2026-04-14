@@ -1,10 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+const asyncStorageState = vi.hoisted(() => ({
+  data: new Map<string, string>(),
+}))
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn(async (key: string) => asyncStorageState.data.get(key) ?? null),
+    setItem: vi.fn(async (key: string, value: string) => {
+      asyncStorageState.data.set(key, value)
+    }),
+    removeItem: vi.fn(async (key: string) => {
+      asyncStorageState.data.delete(key)
+    }),
+  },
+}))
+
 import { useUIStore } from '@/stores/ui-store'
 
 describe('mobile ui store', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-06T12:00:00Z'))
+    asyncStorageState.data.clear()
     useUIStore.setState({
       activeFilters: {},
       selectedDate: '2026-04-06',
@@ -20,25 +37,42 @@ describe('mobile ui store', () => {
       showCreateModal: false,
       showCreateGoalModal: false,
       searchQuery: '',
+      selectedFrequency: null,
+      selectedTagIds: [],
+      showCompleted: false,
     })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    asyncStorageState.data.clear()
   })
 
   it('merges filters and updates search state', () => {
-    const { setFilters, setSearchQuery, setActiveView } = useUIStore.getState()
+    const {
+      setFilters,
+      setSearchQuery,
+      setActiveView,
+      setSelectedFrequency,
+      setSelectedTagIds,
+      setShowCompleted,
+    } = useUIStore.getState()
 
     setFilters({ dateFrom: '2026-04-06' })
     setFilters({ dateTo: '2026-04-06' })
     setSearchQuery('focus')
     setActiveView('goals')
+    setSelectedFrequency('Week')
+    setSelectedTagIds(['tag-1'])
+    setShowCompleted(true)
 
     expect(useUIStore.getState()).toMatchObject({
       activeFilters: { dateFrom: '2026-04-06', dateTo: '2026-04-06' },
       searchQuery: 'focus',
       activeView: 'goals',
+      selectedFrequency: 'Week',
+      selectedTagIds: ['tag-1'],
+      showCompleted: true,
     })
   })
 
@@ -111,5 +145,35 @@ describe('mobile ui store', () => {
     await vi.advanceTimersByTimeAsync(1500)
 
     expect(useUIStore.getState().lastCreatedHabitId).toBeNull()
+  })
+
+  it('rehydrates the durable today context from async storage', async () => {
+    asyncStorageState.data.set(
+      'orbit-ui-store',
+      JSON.stringify({
+        state: {
+          activeFilters: { search: 'focus' },
+          selectedDate: '2026-04-08',
+          activeView: 'general',
+          searchQuery: 'focus',
+          selectedFrequency: 'Month',
+          selectedTagIds: ['tag-2'],
+          showCompleted: true,
+        },
+        version: 0,
+      }),
+    )
+
+    await useUIStore.persist.rehydrate()
+
+    expect(useUIStore.getState()).toMatchObject({
+      activeFilters: { search: 'focus' },
+      selectedDate: '2026-04-08',
+      activeView: 'general',
+      searchQuery: 'focus',
+      selectedFrequency: 'Month',
+      selectedTagIds: ['tag-2'],
+      showCompleted: true,
+    })
   })
 })

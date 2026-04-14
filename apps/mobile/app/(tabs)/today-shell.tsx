@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Animated, Image, Text, TouchableOpacity, View, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native'
+import { Animated, Image, Text, TouchableOpacity, View, type GestureResponderHandlers, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -140,6 +140,7 @@ export function TodayDateNavigation({
   iconColor,
   styles,
   dateLabelAnim,
+  panHandlers,
 }: {
   visible: boolean
   dateLabel: string
@@ -154,6 +155,7 @@ export function TodayDateNavigation({
   iconColor: string
   styles: TodayShellStyles
   dateLabelAnim: Animated.Value
+  panHandlers?: GestureResponderHandlers
 }) {
   const dateNavRef = useRef<View>(null)
   useTourTarget('tour-date-nav', dateNavRef)
@@ -161,7 +163,7 @@ export function TodayDateNavigation({
   if (!visible) return null
 
   return (
-    <View style={styles.dateNav} ref={dateNavRef}>
+    <View style={styles.dateNav} ref={dateNavRef} {...panHandlers}>
       <TouchableOpacity
         style={styles.dateNavButton}
         onPress={onGoToPreviousDay}

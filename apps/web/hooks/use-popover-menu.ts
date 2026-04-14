@@ -153,7 +153,10 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     }
 
     function handleKeydown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false)
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      setIsOpen(false)
     }
 
     function handleScroll() {

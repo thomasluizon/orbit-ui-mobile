@@ -4,6 +4,7 @@ import { formatAPIDate } from '@orbit/shared/utils'
 
 describe('ui store', () => {
   beforeEach(() => {
+    globalThis.localStorage.clear()
     // Reset store state between tests
     useUIStore.setState({
       activeFilters: {},
@@ -15,9 +16,19 @@ describe('ui store', () => {
       goalCompletedCelebration: null,
       isSelectMode: false,
       selectedHabitIds: new Set<string>(),
+      manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
+      showCreateModal: false,
+      showCreateGoalModal: false,
       searchQuery: '',
+      selectedFrequency: null,
+      selectedTagIds: [],
+      showCompleted: false,
     })
+  })
+
+  afterEach(() => {
+    globalThis.localStorage.clear()
   })
 
   // -------------------------------------------------------------------------
@@ -492,6 +503,57 @@ describe('ui store', () => {
       setSearchQuery('test')
       setSearchQuery('')
       expect(useUIStore.getState().searchQuery).toBe('')
+    })
+  })
+
+  describe('durable today context', () => {
+    it('updates the persisted today context fields', () => {
+      const {
+        setSelectedFrequency,
+        setSelectedTagIds,
+        setShowCompleted,
+      } = useUIStore.getState()
+
+      setSelectedFrequency('Week')
+      setSelectedTagIds(['fitness', 'health'])
+      setShowCompleted(true)
+
+      expect(useUIStore.getState()).toMatchObject({
+        selectedFrequency: 'Week',
+        selectedTagIds: ['fitness', 'health'],
+        showCompleted: true,
+      })
+    })
+
+    it('rehydrates the durable today context from local storage', async () => {
+      globalThis.localStorage.setItem(
+        'orbit-ui-store',
+        JSON.stringify({
+          state: {
+            activeFilters: { search: 'focus' },
+            selectedDate: '2026-04-07',
+            activeView: 'goals',
+            searchQuery: 'focus',
+            selectedFrequency: 'Month',
+            selectedTagIds: ['deep-work'],
+            showCompleted: true,
+          },
+          version: 0,
+        }),
+      )
+
+      await useUIStore.persist.rehydrate()
+
+      expect(useUIStore.getState()).toMatchObject({
+        activeFilters: { search: 'focus' },
+        selectedDate: '2026-04-07',
+        activeView: 'goals',
+        searchQuery: 'focus',
+        selectedFrequency: 'Month',
+        selectedTagIds: ['deep-work'],
+        showCompleted: true,
+      })
+      expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
     })
   })
 })

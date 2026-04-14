@@ -25,6 +25,7 @@ import { apiClient } from '@/lib/api-client'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 function RetrospectiveBody({
   text,
@@ -77,6 +78,7 @@ function RetrospectiveBody({
 
 export default function RetrospectiveScreen() {
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
   const { profile } = useProfile()
   const { colors } = useAppTheme()
@@ -176,7 +178,7 @@ export default function RetrospectiveScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={t('common.goBack')}

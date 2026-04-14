@@ -13,10 +13,12 @@ import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamificati
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { StreakFreezeSection, StreakTimelineCard } from './_components/streak-sections'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import './streak.css'
 
 export default function StreakPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
@@ -95,9 +97,13 @@ export default function StreakPage() {
     <div className="pb-8">
       {/* Header */}
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link href="/profile" className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors">
-          <ArrowLeft className="size-5 text-text-primary" />
-        </Link>
+          <button
+            type="button"
+            className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
+            onClick={() => goBackOrFallback('/profile')}
+          >
+            <ArrowLeft className="size-5 text-text-primary" />
+          </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
           {t('streakDisplay.detail.title')}
         </h1>

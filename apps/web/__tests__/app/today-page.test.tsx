@@ -11,14 +11,23 @@ const uiState = {
   setActiveView: vi.fn(),
   searchQuery: '',
   setSearchQuery: vi.fn(),
+  selectedFrequency: null,
+  setSelectedFrequency: vi.fn(),
+  selectedTagIds: [],
+  setSelectedTagIds: vi.fn(),
+  showCompleted: false,
+  setShowCompleted: vi.fn(),
   isSelectMode: false,
   selectedHabitIds: new Set<string>(),
   toggleSelectMode: vi.fn(),
   toggleSelectionCascade: vi.fn(),
   selectAllHabits: vi.fn(),
   clearSelection: vi.fn(),
+  setFilters: vi.fn(),
   showCreateModal: false,
   setShowCreateModal: vi.fn(),
+  showCreateGoalModal: false,
+  setShowCreateGoalModal: vi.fn(),
 }
 
 const bulkLogMutateAsync = vi.fn()
@@ -159,6 +168,9 @@ describe('TodayPage bulk parent prompts', () => {
     uiState.activeView = 'today'
     uiState.isSelectMode = true
     uiState.searchQuery = ''
+    uiState.selectedFrequency = null
+    uiState.selectedTagIds = []
+    uiState.showCompleted = false
     uiState.selectedHabitIds = new Set<string>()
   })
 

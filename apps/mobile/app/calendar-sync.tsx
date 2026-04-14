@@ -50,6 +50,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected' | 'offline'
 
@@ -76,6 +77,7 @@ async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
 
 export default function CalendarSyncScreen() {
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const params = useLocalSearchParams<{ mode?: string }>()
   const isReviewMode = params.mode === 'review'
   const { t } = useTranslation()
@@ -213,8 +215,8 @@ export default function CalendarSyncScreen() {
   ])
 
   const handleBack = useCallback(() => {
-    router.push('/profile')
-  }, [router])
+    goBackOrFallback('/profile')
+  }, [goBackOrFallback])
 
   const toggleAll = useCallback(() => {
     setSelectedIds((prev) => {

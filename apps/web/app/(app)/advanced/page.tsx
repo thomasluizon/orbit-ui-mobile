@@ -33,6 +33,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import type { ApiKey } from '@orbit/shared/types/api-key'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
@@ -74,6 +75,7 @@ async function copyToClipboard(text: string): Promise<void> {
 
 export default function AdvancedPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { profile } = useProfile()
@@ -138,13 +140,14 @@ export default function AdvancedPage() {
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link
-          href="/profile"
+        <button
+          type="button"
           aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
+          onClick={() => goBackOrFallback('/profile')}
         >
           <ArrowLeft className="size-5" />
-        </Link>
+        </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
           {t('advancedSettings.title')}
         </h1>

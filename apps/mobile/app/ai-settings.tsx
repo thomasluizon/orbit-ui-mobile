@@ -34,6 +34,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 interface UserFact {
   id: string
@@ -48,6 +49,7 @@ interface UserFact {
 export default function AiSettingsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
   const { colors } = useAppTheme()
@@ -241,7 +243,7 @@ export default function AiSettingsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />

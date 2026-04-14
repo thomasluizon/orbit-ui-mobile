@@ -12,8 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import {
@@ -96,6 +98,15 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = updateGoal.isPending
+  const isDirty =
+    description !== goal.title ||
+    targetValue !== String(goal.targetValue) ||
+    unit !== goal.unit ||
+    deadline !== (goal.deadline ?? '')
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: onClose,
+  })
 
   // Per-field inline errors (shown after first submit attempt)
   const fieldErrors = useMemo(() => {
@@ -164,18 +175,18 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline, description, goal.id, onClose, showError, targetValue, translate, unit, updateGoal])
 
-  const handleClose = useCallback(() => {
-    onClose()
-  }, [onClose])
-
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={handleClose}
-      title={t('goals.detail.edit')}
-      snapPoints={['70%', '90%']}
-      formMode
-    >
+    <>
+      <BottomSheetModal
+        open={open}
+        onClose={onClose}
+        title={t('goals.detail.edit')}
+        snapPoints={['70%', '90%']}
+        formMode
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
       <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.form}
@@ -204,6 +215,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
               value={targetValue}
               onChangeText={setTargetValue}
               keyboardType="decimal-pad"
+              accessibilityLabel={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
             />
             {fieldErrors.targetValue && (
               <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.targetValue}</Text>
@@ -217,6 +229,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
                 value={unit}
                 onChangeText={setUnit}
                 maxLength={50}
+                accessibilityLabel={t('goals.form.unit')}
               />
               {fieldErrors.unit && (
                 <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.unit}</Text>
@@ -240,6 +253,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             placeholder={t('goals.form.descriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
             maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
+            accessibilityLabel={t('goals.form.description')}
           />
           {fieldErrors.description && (
             <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.description}</Text>
@@ -307,6 +321,20 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
         </TouchableOpacity>
       </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   )
 }
 

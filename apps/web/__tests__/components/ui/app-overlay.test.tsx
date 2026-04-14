@@ -1,5 +1,6 @@
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -140,5 +141,76 @@ describe('AppOverlay', () => {
     const dialog = document.querySelector('dialog')
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toHaveAttribute('open')
+  })
+
+  it('routes dirty dismiss attempts through onAttemptDismiss instead of closing', () => {
+    const onOpenChange = vi.fn()
+    const onAttemptDismiss = vi.fn()
+
+    render(
+      <AppOverlay
+        open={true}
+        onOpenChange={onOpenChange}
+        onAttemptDismiss={onAttemptDismiss}
+        title="T"
+        canDismiss={false}
+        isDirty
+      >
+        <button>Focusable</button>
+      </AppOverlay>,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(onAttemptDismiss).toHaveBeenCalledWith('escape')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('only lets the topmost overlay handle escape', () => {
+    const firstOnOpenChange = vi.fn()
+    const secondOnOpenChange = vi.fn()
+
+    render(
+      <>
+        <AppOverlay open={true} onOpenChange={firstOnOpenChange} title="First">
+          <button>First button</button>
+        </AppOverlay>
+        <AppOverlay open={true} onOpenChange={secondOnOpenChange} title="Second">
+          <button>Second button</button>
+        </AppOverlay>
+      </>,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(secondOnOpenChange).toHaveBeenCalledWith(false)
+    expect(firstOnOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('wires aria-describedby and initial focus when provided', async () => {
+    function OverlayWithFocus() {
+      const focusRef = React.useRef<HTMLButtonElement>(null)
+
+      return (
+        <AppOverlay
+          open={true}
+          onOpenChange={vi.fn()}
+          title="T"
+          description="Helpful description"
+          initialFocusRef={focusRef}
+        >
+          <button ref={focusRef}>Primary action</button>
+        </AppOverlay>
+      )
+    }
+
+    render(<OverlayWithFocus />)
+
+    const dialog = document.querySelector('dialog')
+    const description = screen.getByText('Helpful description')
+    expect(dialog).toHaveAttribute('aria-describedby', description.id)
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByText('Primary action'))
+    })
   })
 })
