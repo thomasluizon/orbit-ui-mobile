@@ -36,10 +36,32 @@ import {
   getChatImageValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
-import { goalKeys, habitKeys, profileKeys } from "@orbit/shared/query";
-import type { ChatMessage, ChatResponse } from "@orbit/shared/types/chat";
+import {
+  apiKeyKeys,
+  calendarKeys,
+  gamificationKeys,
+  goalKeys,
+  habitKeys,
+  notificationKeys,
+  profileKeys,
+  referralKeys,
+  subscriptionKeys,
+  tagKeys,
+  userFactKeys,
+} from "@orbit/shared/query";
+import type {
+  AgentExecuteOperationResponse,
+  AgentStepUpChallenge,
+  ChatMessage,
+  ChatResponse,
+  PendingAgentOperationConfirmation,
+} from "@orbit/shared/types";
 import type { Profile } from "@orbit/shared/types/profile";
-import { buildRecentChatHistory, getErrorMessage } from "@orbit/shared/utils";
+import {
+  buildRecentChatHistory,
+  detectDefaultTimeFormat,
+  getErrorMessage,
+} from "@orbit/shared/utils";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
@@ -97,6 +119,45 @@ const GOAL_ACTION_TYPES = new Set([
 ]);
 
 const CHAT_DRAFT_STORAGE_KEY = "orbit-chat-draft";
+
+type PendingExecutionResult =
+  | { ok: true; response: AgentExecuteOperationResponse }
+  | { ok: false; error: string };
+
+type PreparedStepUpExecution =
+  | {
+      ok: true;
+      challenge: AgentStepUpChallenge;
+      confirmationToken: string;
+    }
+  | { ok: false; error: string };
+
+function buildAgentExecutionMessage(response: AgentExecuteOperationResponse): string {
+  return (
+    response.operation.summary ??
+    response.policyDenial?.reason ??
+    response.operation.policyReason ??
+    response.operation.sourceName
+  );
+}
+
+async function invalidateAgentQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: habitKeys.all }),
+    queryClient.invalidateQueries({ queryKey: goalKeys.all }),
+    queryClient.invalidateQueries({ queryKey: profileKeys.all }),
+    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+    queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
+    queryClient.invalidateQueries({ queryKey: calendarKeys.all }),
+    queryClient.invalidateQueries({ queryKey: userFactKeys.all }),
+    queryClient.invalidateQueries({ queryKey: gamificationKeys.all }),
+    queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }),
+    queryClient.invalidateQueries({ queryKey: referralKeys.all }),
+    queryClient.invalidateQueries({ queryKey: apiKeyKeys.all }),
+  ]);
+}
 
 function AnimatedSparkle({
   primaryColor,
@@ -337,7 +398,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
 });
 
 export default function ChatScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useAppTheme();
   const { isOnline } = useOffline();
   const goBackOrFallback = useGoBackOrFallback();
@@ -420,6 +481,29 @@ export default function ChatScreen() {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, []);
+
+  const appendExecutionMessage = useCallback(
+    async (response: AgentExecuteOperationResponse) => {
+      addMessage({
+        id: `msg-${Date.now()}-agent`,
+        role: "ai",
+        content: buildAgentExecutionMessage(response),
+        operations: [response.operation],
+        pendingOperations: response.pendingOperation
+          ? [response.pendingOperation]
+          : undefined,
+        policyDenials: response.policyDenial ? [response.policyDenial] : undefined,
+        timestamp: new Date(),
+      });
+
+      scrollToBottom();
+
+      if (response.operation.status === "Succeeded") {
+        await invalidateAgentQueries(queryClient);
+      }
+    },
+    [addMessage, queryClient, scrollToBottom],
+  );
 
   useEffect(() => {
     if (speechError) {
@@ -572,6 +656,15 @@ export default function ChatScreen() {
         const recentHistory = buildRecentChatHistory(currentMessages);
 
         formData.append("history", JSON.stringify(recentHistory));
+        formData.append(
+          "clientContext",
+          JSON.stringify({
+            platform: "mobile",
+            locale: i18n.language,
+            timeFormat: detectDefaultTimeFormat(),
+            currentAppArea: "chat",
+          }),
+        );
 
         const response = await apiClient<ChatResponse>(API.chat.send, {
           method: "POST",
@@ -585,6 +678,9 @@ export default function ChatScreen() {
           role: "ai",
           content: response.aiMessage || "",
           actions: response.actions,
+          operations: response.operations,
+          pendingOperations: response.pendingOperations,
+          policyDenials: response.policyDenials,
           timestamp: new Date(),
         };
 
@@ -610,6 +706,10 @@ export default function ChatScreen() {
             queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
           }
         }
+
+        if (response.operations?.some((operation) => operation.status === "Succeeded")) {
+          await invalidateAgentQueries(queryClient);
+        }
       } catch (err: unknown) {
         setIsTyping(false);
         setSendError(getErrorMessage(err, t("chat.sendError")));
@@ -621,14 +721,15 @@ export default function ChatScreen() {
           timestamp: new Date(),
         };
 
-      addMessage(errorMessage);
-      scrollToBottom();
-    }
+        addMessage(errorMessage);
+        scrollToBottom();
+      }
     },
     [
       addMessage,
       hasProAccess,
       imagePreview,
+      i18n.language,
       isTyping,
       queryClient,
       scrollToBottom,
@@ -638,6 +739,98 @@ export default function ChatScreen() {
       isOnline,
       offlineTitle,
     ],
+  );
+
+  const confirmAndExecutePendingOperation = useCallback(
+    async (pendingOperationId: string): Promise<PendingExecutionResult> => {
+      try {
+        const confirmation = await apiClient<PendingAgentOperationConfirmation>(
+          API.ai.pendingOperationConfirm(pendingOperationId),
+          {
+            method: "POST",
+          },
+        );
+
+        const execution = await apiClient<AgentExecuteOperationResponse>(
+          API.ai.pendingOperationExecute(pendingOperationId),
+          {
+            method: "POST",
+            body: JSON.stringify({
+              confirmationToken: confirmation.confirmationToken,
+            }),
+          },
+        );
+
+        await appendExecutionMessage(execution);
+        return { ok: true, response: execution };
+      } catch (error: unknown) {
+        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
+      }
+    },
+    [appendExecutionMessage, t],
+  );
+
+  const preparePendingOperationStepUp = useCallback(
+    async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
+      try {
+        const confirmation = await apiClient<PendingAgentOperationConfirmation>(
+          API.ai.pendingOperationConfirm(pendingOperationId),
+          {
+            method: "POST",
+          },
+        );
+
+        const challenge = await apiClient<AgentStepUpChallenge>(
+          API.ai.pendingOperationStepUp(pendingOperationId),
+          {
+            method: "POST",
+            body: JSON.stringify({ language: i18n.language }),
+          },
+        );
+
+        return {
+          ok: true,
+          challenge,
+          confirmationToken: confirmation.confirmationToken,
+        };
+      } catch (error: unknown) {
+        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
+      }
+    },
+    [i18n.language, t],
+  );
+
+  const verifyAndExecutePendingOperationStepUp = useCallback(
+    async (
+      pendingOperationId: string,
+      challengeId: string,
+      code: string,
+      confirmationToken: string,
+    ): Promise<PendingExecutionResult> => {
+      try {
+        await apiClient<{ id: string } | null>(
+          API.ai.pendingOperationVerifyStepUp(pendingOperationId),
+          {
+            method: "POST",
+            body: JSON.stringify({ challengeId, code }),
+          },
+        );
+
+        const execution = await apiClient<AgentExecuteOperationResponse>(
+          API.ai.pendingOperationExecute(pendingOperationId),
+          {
+            method: "POST",
+            body: JSON.stringify({ confirmationToken }),
+          },
+        );
+
+        await appendExecutionMessage(execution);
+        return { ok: true, response: execution };
+      } catch (error: unknown) {
+        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
+      }
+    },
+    [appendExecutionMessage, t],
   );
 
   const watchAdForMessages = useCallback(async () => {
@@ -724,9 +917,45 @@ export default function ChatScreen() {
         message={item}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
+        onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
+        onPendingOperationPrepareStepUp={async (pendingOperationId) => {
+          const result = await preparePendingOperationStepUp(pendingOperationId);
+          if (!result.ok) {
+            return { ok: false, error: result.error };
+          }
+
+          return {
+            ok: true,
+            challengeId: result.challenge.challengeId,
+            confirmationToken: result.confirmationToken,
+          };
+        }}
+        onPendingOperationVerifyStepUp={async (
+          pendingOperationId,
+          challengeId,
+          code,
+          confirmationToken,
+        ) => {
+          const result = await verifyAndExecutePendingOperationStepUp(
+            pendingOperationId,
+            challengeId,
+            code,
+            confirmationToken,
+          );
+
+          return result.ok
+            ? { ok: true }
+            : { ok: false, error: result.error };
+        }}
       />
     ),
-    [handleBreakdownConfirmed, handleActionChipClick],
+    [
+      confirmAndExecutePendingOperation,
+      handleActionChipClick,
+      handleBreakdownConfirmed,
+      preparePendingOperationStepUp,
+      verifyAndExecutePendingOperationStepUp,
+    ],
   );
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);

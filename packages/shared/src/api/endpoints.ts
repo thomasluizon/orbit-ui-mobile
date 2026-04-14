@@ -117,6 +117,18 @@ export const API = {
     send: '/api/chat',
   },
 
+  ai: {
+    capabilities: '/api/ai/capabilities',
+    operations: '/api/ai/operations',
+    dataCatalog: '/api/ai/data-catalog',
+    surfaces: '/api/ai/surfaces',
+    pendingOperationConfirm: (id: string) => `/api/ai/pending-operations/${id}/confirm` as const,
+    pendingOperationStepUp: (id: string) => `/api/ai/pending-operations/${id}/step-up` as const,
+    pendingOperationVerifyStepUp: (id: string) =>
+      `/api/ai/pending-operations/${id}/step-up/verify` as const,
+    pendingOperationExecute: (id: string) => `/api/ai/pending-operations/${id}/execute` as const,
+  },
+
   // -- User Facts ------------------------------------------------------------
   userFacts: {
     list: '/api/user-facts',
@@ -156,6 +168,13 @@ export const API = {
   // -- Config ----------------------------------------------------------------
   config: {
     get: '/api/config',
+  },
+
+  // -- Sync ------------------------------------------------------------------
+  sync: {
+    batch: '/api/sync/batch',
+    changes: '/api/sync/changes',
+    changesV2: '/api/sync/v2/changes',
   },
 
   // -- Checklist Templates ---------------------------------------------------

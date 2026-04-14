@@ -1,5 +1,10 @@
 import { z } from 'zod'
 import { frequencyUnitSchema } from './habit'
+import {
+  agentOperationResultSchema,
+  pendingAgentOperationSchema,
+  agentPolicyDenialSchema,
+} from './ai'
 
 // --- Enums ---
 
@@ -98,6 +103,9 @@ export const chatMessageSchema = z.object({
   role: z.enum(['user', 'ai']),
   content: z.string(),
   actions: z.array(actionResultSchema).optional(),
+  operations: z.array(agentOperationResultSchema).optional(),
+  pendingOperations: z.array(pendingAgentOperationSchema).optional(),
+  policyDenials: z.array(agentPolicyDenialSchema).optional(),
   imageUrl: z.string().nullable().optional(),
   timestamp: z.date(),
 })
@@ -107,6 +115,9 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>
 export const chatResponseSchema = z.object({
   aiMessage: z.string().nullable(),
   actions: z.array(actionResultSchema),
+  operations: z.array(agentOperationResultSchema).optional(),
+  pendingOperations: z.array(pendingAgentOperationSchema).optional(),
+  policyDenials: z.array(agentPolicyDenialSchema).optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

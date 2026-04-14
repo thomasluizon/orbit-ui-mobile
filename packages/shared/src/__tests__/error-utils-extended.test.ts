@@ -458,7 +458,7 @@ describe('getErrorMessage (edge cases)', () => {
 
   it('prefers backend error over Error.message', () => {
     const err = new Error('generic')
-    ;(err as Record<string, unknown>).data = { error: 'Backend says no' }
+    ;(err as unknown as Record<string, unknown>).data = { error: 'Backend says no' }
     expect(getErrorMessage(err, 'Fallback')).toBe('Backend says no')
   })
 

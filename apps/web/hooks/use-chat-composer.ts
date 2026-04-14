@@ -11,19 +11,41 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
-import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
+import { useLocale, useTranslations } from 'next-intl'
+import {
+  apiKeyKeys,
+  calendarKeys,
+  gamificationKeys,
+  goalKeys,
+  habitKeys,
+  notificationKeys,
+  profileKeys,
+  referralKeys,
+  subscriptionKeys,
+  tagKeys,
+  userFactKeys,
+} from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
+import type {
+  AgentExecuteOperationResponse,
+  AgentStepUpChallenge,
+} from '@orbit/shared/types/ai'
 import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_STARTER_CHIP_KEYS,
   getChatImageValidationError,
 } from '@orbit/shared/chat'
-import { buildRecentChatHistory, getErrorMessage } from '@orbit/shared/utils'
+import { buildRecentChatHistory, detectDefaultTimeFormat, getErrorMessage } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
-import { sendChatMessage } from '@/app/actions/chat'
+import {
+  confirmPendingOperation,
+  executePendingOperation,
+  issuePendingOperationStepUp,
+  sendChatMessage,
+  verifyPendingOperationStepUp,
+} from '@/app/actions/chat'
 
 const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
 
@@ -51,8 +73,48 @@ const GOAL_ACTION_TYPES = new Set([
   'LinkHabitsToGoal',
 ])
 
+type PendingExecutionResult =
+  | { ok: true; response: AgentExecuteOperationResponse }
+  | { ok: false; error: string }
+
+type PreparedStepUpExecution =
+  | {
+      ok: true
+      challenge: AgentStepUpChallenge
+      confirmationToken: string
+    }
+  | { ok: false; error: string }
+
+function buildAgentExecutionMessage(response: AgentExecuteOperationResponse): string {
+  return (
+    response.operation.summary ??
+    response.policyDenial?.reason ??
+    response.operation.policyReason ??
+    response.operation.sourceName
+  )
+}
+
+async function invalidateAgentQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: habitKeys.all }),
+    queryClient.invalidateQueries({ queryKey: goalKeys.all }),
+    queryClient.invalidateQueries({ queryKey: profileKeys.all }),
+    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+    queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
+    queryClient.invalidateQueries({ queryKey: calendarKeys.all }),
+    queryClient.invalidateQueries({ queryKey: userFactKeys.all }),
+    queryClient.invalidateQueries({ queryKey: gamificationKeys.all }),
+    queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }),
+    queryClient.invalidateQueries({ queryKey: referralKeys.all }),
+    queryClient.invalidateQueries({ queryKey: apiKeyKeys.all }),
+  ])
+}
+
 export function useChatComposer() {
   const t = useTranslations()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
 
@@ -114,6 +176,24 @@ export function useChatComposer() {
       if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
     })
   }, [])
+
+  const appendExecutionMessage = useCallback(async (response: AgentExecuteOperationResponse) => {
+    addMessage({
+      id: crypto.randomUUID(),
+      role: 'ai',
+      content: buildAgentExecutionMessage(response),
+      operations: [response.operation],
+      pendingOperations: response.pendingOperation ? [response.pendingOperation] : undefined,
+      policyDenials: response.policyDenial ? [response.policyDenial] : undefined,
+      timestamp: new Date(),
+    })
+
+    scrollToBottom()
+
+    if (response.operation.status === 'Succeeded') {
+      await invalidateAgentQueries(queryClient)
+    }
+  }, [addMessage, queryClient, scrollToBottom])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -265,6 +345,12 @@ export function useChatComposer() {
         const currentMessages = useChatStore.getState().messages
         const recentHistory = buildRecentChatHistory(currentMessages)
         formData.append('history', JSON.stringify(recentHistory))
+        formData.append('clientContext', JSON.stringify({
+          platform: 'web',
+          locale,
+          timeFormat: detectDefaultTimeFormat(),
+          currentAppArea: 'chat',
+        }))
 
         const result = await sendChatMessage(formData)
 
@@ -296,6 +382,9 @@ export function useChatComposer() {
           role: 'ai',
           content: result.data.aiMessage || '',
           actions: result.data.actions,
+          operations: result.data.operations,
+          pendingOperations: result.data.pendingOperations,
+          policyDenials: result.data.policyDenials,
           timestamp: new Date(),
         })
 
@@ -314,6 +403,10 @@ export function useChatComposer() {
           if (result.data.actions.some((action) => GOAL_ACTION_TYPES.has(action.type))) {
             queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
           }
+        }
+
+        if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {
+          await invalidateAgentQueries(queryClient)
         }
       } catch (error: unknown) {
         setIsTyping(false)
@@ -335,12 +428,77 @@ export function useChatComposer() {
       input,
       isTyping,
       queryClient,
+      locale,
       scrollToBottom,
       selectedImage,
       setIsTyping,
       t,
     ],
   )
+
+  const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
+    const confirmation = await confirmPendingOperation(pendingOperationId)
+    if (!confirmation.ok) {
+      return { ok: false, error: getErrorMessage(confirmation.error, t('chat.sendError')) }
+    }
+
+    const execution = await executePendingOperation(
+      pendingOperationId,
+      confirmation.data.confirmationToken,
+    )
+
+    if (!execution.ok) {
+      return { ok: false, error: getErrorMessage(execution.error, t('chat.sendError')) }
+    }
+
+    await appendExecutionMessage(execution.data)
+    return { ok: true, response: execution.data }
+  }, [appendExecutionMessage, t])
+
+  const preparePendingOperationStepUp = useCallback(async (
+    pendingOperationId: string,
+  ): Promise<PreparedStepUpExecution> => {
+    const confirmation = await confirmPendingOperation(pendingOperationId)
+    if (!confirmation.ok) {
+      return { ok: false, error: getErrorMessage(confirmation.error, t('chat.sendError')) }
+    }
+
+    const challenge = await issuePendingOperationStepUp(pendingOperationId, locale)
+    if (!challenge.ok) {
+      return { ok: false, error: getErrorMessage(challenge.error, t('chat.sendError')) }
+    }
+
+    return {
+      ok: true,
+      challenge: challenge.data,
+      confirmationToken: confirmation.data.confirmationToken,
+    }
+  }, [locale, t])
+
+  const verifyAndExecutePendingOperationStepUp = useCallback(async (
+    pendingOperationId: string,
+    challengeId: string,
+    code: string,
+    confirmationToken: string,
+  ): Promise<PendingExecutionResult> => {
+    const verification = await verifyPendingOperationStepUp(
+      pendingOperationId,
+      challengeId,
+      code,
+    )
+
+    if (!verification.ok) {
+      return { ok: false, error: getErrorMessage(verification.error, t('chat.sendError')) }
+    }
+
+    const execution = await executePendingOperation(pendingOperationId, confirmationToken)
+    if (!execution.ok) {
+      return { ok: false, error: getErrorMessage(execution.error, t('chat.sendError')) }
+    }
+
+    await appendExecutionMessage(execution.data)
+    return { ok: true, response: execution.data }
+  }, [appendExecutionMessage, t])
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -390,6 +548,9 @@ export function useChatComposer() {
     sendMessage,
     handleKeyDown,
     handleBreakdownConfirmed,
+    confirmAndExecutePendingOperation,
+    preparePendingOperationStepUp,
+    verifyAndExecutePendingOperationStepUp,
     scrollToBottom,
   }
 }

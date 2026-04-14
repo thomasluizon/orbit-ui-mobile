@@ -28,6 +28,7 @@ describe('CreateApiKeyModal', () => {
     open: true,
     onOpenChange: vi.fn(),
     onCreateKey: vi.fn(),
+    availableScopes: [],
   }
 
   beforeEach(() => {
@@ -68,6 +69,13 @@ describe('CreateApiKeyModal', () => {
       id: 'key-1',
       key: 'sk-test-123',
       name: 'My Key',
+      keyPrefix: 'sk-test',
+      scopes: [],
+      isReadOnly: false,
+      expiresAtUtc: null,
+      createdAtUtc: '2025-01-01T00:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
     })
 
     render(<CreateApiKeyModal {...defaultProps} />)
@@ -77,7 +85,12 @@ describe('CreateApiKeyModal', () => {
     fireEvent.submit(form!)
 
     await waitFor(() => {
-      expect(defaultProps.onCreateKey).toHaveBeenCalledWith('My Key')
+      expect(defaultProps.onCreateKey).toHaveBeenCalledWith({
+        name: 'My Key',
+        scopes: undefined,
+        isReadOnly: false,
+        expiresAtUtc: null,
+      })
     })
   })
 
@@ -86,6 +99,13 @@ describe('CreateApiKeyModal', () => {
       id: 'key-1',
       key: 'sk-test-secret-123',
       name: 'My Key',
+      keyPrefix: 'sk-test',
+      scopes: [],
+      isReadOnly: false,
+      expiresAtUtc: null,
+      createdAtUtc: '2025-01-01T00:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
     })
 
     render(<CreateApiKeyModal {...defaultProps} />)

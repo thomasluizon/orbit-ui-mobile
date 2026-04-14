@@ -20,6 +20,6 @@ describe('tour mock data', () => {
     expect(goals).toHaveLength(2)
     expect(habits[1]?.hasSubHabits).toBe(true)
     expect(habits[4]?.isGeneral).toBe(true)
-    expect(goals[0]?.linkedHabits[0]?.id).toBe('tour-habit-2')
+    expect(goals[0]?.linkedHabits?.[0]?.id).toBe('tour-habit-2')
   })
 })

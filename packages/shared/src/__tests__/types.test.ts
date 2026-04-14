@@ -32,6 +32,14 @@ import {
   chatMessageSchema,
   chatResponseSchema,
 } from '../types/chat'
+import {
+  agentCapabilitySchema,
+  agentExecuteOperationResponseSchema,
+  appSurfaceSchema,
+  pendingAgentOperationConfirmationSchema,
+  pendingAgentOperationSchema,
+  userDataCatalogEntrySchema,
+} from '../types/ai'
 
 // Sync schemas
 import {
@@ -41,6 +49,7 @@ import {
   syncMutationResultSchema,
   syncBatchResponseSchema,
   syncChangesResponseSchema,
+  syncChangesV2ResponseSchema,
 } from '../types/sync'
 
 // Subscription schemas
@@ -63,7 +72,11 @@ import {
 import { userFactSchema } from '../types/user-fact'
 
 // API key schemas
-import { apiKeySchema, apiKeyCreateResponseSchema } from '../types/api-key'
+import {
+  apiKeySchema,
+  apiKeyCreateRequestSchema,
+  apiKeyCreateResponseSchema,
+} from '../types/api-key'
 
 // Checklist template schema
 import { checklistTemplateSchema } from '../types/checklist-template'
@@ -851,6 +864,109 @@ describe('chat schemas', () => {
 })
 
 // ---------------------------------------------------------------------------
+// AI schemas
+// ---------------------------------------------------------------------------
+
+describe('ai schemas', () => {
+  it('parses a valid capability entry', () => {
+    const result = agentCapabilitySchema.safeParse({
+      id: 'habit.read',
+      displayName: 'Read habits',
+      description: 'Lists habit data',
+      domain: 'habits',
+      scope: 'habits.read',
+      riskClass: 'Low',
+      isMutation: false,
+      isPhaseOneReadOnly: false,
+      confirmationRequirement: 'None',
+      planRequirement: null,
+      featureFlagKeys: ['ai.reliable'],
+      chatToolNames: ['read_habits'],
+      mcpToolNames: ['execute_agent_operation_v2'],
+      controllerActionKeys: ['HabitsController.List'],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('parses a valid app surface', () => {
+    const result = appSurfaceSchema.safeParse({
+      id: 'chat',
+      displayName: 'Chat',
+      description: 'AI chat surface',
+      howToSteps: ['Open chat', 'Ask Orbit to do something'],
+      notes: ['Mobile and web supported'],
+      relatedCapabilityIds: ['habit.read'],
+      relatedControllerActionKeys: ['ChatController.Post'],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('parses a valid user data catalog entry', () => {
+    const result = userDataCatalogEntrySchema.safeParse({
+      id: 'profile',
+      displayName: 'Profile',
+      description: 'User profile data',
+      sensitivity: 'moderate',
+      retentionNotes: 'Retained until account deletion',
+      aiReadable: true,
+      aiMutableInPhaseOne: true,
+      fields: [
+        {
+          name: 'timeZone',
+          meaning: 'User timezone',
+          aiReadable: true,
+          aiMutableInPhaseOne: true,
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('parses pending-operation confirmation and execution payloads', () => {
+    const pendingResult = pendingAgentOperationSchema.safeParse({
+      id: 'pending-1',
+      capabilityId: 'habit.delete',
+      displayName: 'Delete habit',
+      summary: 'Delete Meditation habit',
+      riskClass: 'Destructive',
+      confirmationRequirement: 'FreshConfirmation',
+      expiresAtUtc: '2025-01-15T10:00:00Z',
+    })
+
+    const confirmationResult = pendingAgentOperationConfirmationSchema.safeParse({
+      pendingOperationId: 'pending-1',
+      confirmationToken: 'confirm-token',
+      expiresAtUtc: '2025-01-15T10:05:00Z',
+    })
+
+    const executionResult = agentExecuteOperationResponseSchema.safeParse({
+      operation: {
+        operationId: 'habit.delete',
+        sourceName: 'Delete habit',
+        riskClass: 'Destructive',
+        confirmationRequirement: 'FreshConfirmation',
+        status: 'Succeeded',
+        summary: 'Deleted Meditation habit',
+        targetId: 'habit-1',
+        targetName: 'Meditation',
+        policyReason: null,
+        pendingOperationId: null,
+        payload: { id: 'habit-1' },
+      },
+      pendingOperation: null,
+      policyDenial: null,
+    })
+
+    expect(pendingResult.success).toBe(true)
+    expect(confirmationResult.success).toBe(true)
+    expect(executionResult.success).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Sync schemas
 // ---------------------------------------------------------------------------
 
@@ -1061,6 +1177,24 @@ describe('sync schemas', () => {
         },
       })
       expect(result.success).toBe(false)
+    })
+  })
+
+  describe('syncChangesV2ResponseSchema', () => {
+    it('parses valid redacted sync v2 response', () => {
+      const result = syncChangesV2ResponseSchema.safeParse({
+        habits: { updated: [], deleted: [] },
+        habitLogs: { updated: [], deleted: [] },
+        goals: { updated: [], deleted: [] },
+        goalProgressLogs: { updated: [], deleted: [] },
+        tags: { updated: [], deleted: [] },
+        notifications: { updated: [], deleted: [] },
+        checklistTemplates: { updated: [], deleted: [] },
+        serverTimestamp: '2025-01-15T10:00:00Z',
+        version: 2,
+      })
+
+      expect(result.success).toBe(true)
     })
   })
 })
@@ -1392,6 +1526,9 @@ describe('api key schemas', () => {
         id: 'key-1',
         name: 'My API Key',
         keyPrefix: 'orb_abc',
+        scopes: ['habits.read'],
+        isReadOnly: true,
+        expiresAtUtc: null,
         createdAtUtc: '2025-01-01T00:00:00Z',
         lastUsedAtUtc: null,
         isRevoked: false,
@@ -1404,6 +1541,9 @@ describe('api key schemas', () => {
         id: 'key-1',
         name: 'Key',
         keyPrefix: 'orb_xyz',
+        scopes: ['habits.read', 'goals.read'],
+        isReadOnly: false,
+        expiresAtUtc: '2025-06-15T10:00:00Z',
         createdAtUtc: '2025-01-01T00:00:00Z',
         lastUsedAtUtc: '2025-06-15T10:00:00Z',
         isRevoked: false,
@@ -1415,6 +1555,9 @@ describe('api key schemas', () => {
       const result = apiKeySchema.safeParse({
         id: 'key-1',
         keyPrefix: 'orb_abc',
+        scopes: [],
+        isReadOnly: false,
+        expiresAtUtc: null,
         createdAtUtc: '2025-01-01T00:00:00Z',
         lastUsedAtUtc: null,
         isRevoked: false,
@@ -1429,6 +1572,9 @@ describe('api key schemas', () => {
         id: 'key-1',
         name: 'My API Key',
         keyPrefix: 'orb_abc',
+        scopes: ['habits.read'],
+        isReadOnly: true,
+        expiresAtUtc: null,
         createdAtUtc: '2025-01-01T00:00:00Z',
         lastUsedAtUtc: null,
         isRevoked: false,
@@ -1442,11 +1588,27 @@ describe('api key schemas', () => {
         id: 'key-1',
         name: 'My API Key',
         keyPrefix: 'orb_abc',
+        scopes: ['habits.read'],
+        isReadOnly: true,
+        expiresAtUtc: null,
         createdAtUtc: '2025-01-01T00:00:00Z',
         lastUsedAtUtc: null,
         isRevoked: false,
       })
       expect(result.success).toBe(false)
+    })
+  })
+
+  describe('apiKeyCreateRequestSchema', () => {
+    it('parses scoped create requests', () => {
+      const result = apiKeyCreateRequestSchema.safeParse({
+        name: 'Claude Desktop',
+        scopes: ['habits.read', 'goals.write'],
+        isReadOnly: false,
+        expiresAtUtc: '2025-06-15T10:00:00Z',
+      })
+
+      expect(result.success).toBe(true)
     })
   })
 })
@@ -1526,9 +1688,13 @@ describe('barrel re-exports', () => {
     // Chat
     expect(barrel.chatMessageSchema).toBeDefined()
     expect(barrel.chatResponseSchema).toBeDefined()
+    // AI
+    expect(barrel.agentCapabilitySchema).toBeDefined()
+    expect(barrel.pendingAgentOperationSchema).toBeDefined()
     // Sync
     expect(barrel.mutationTypeSchema).toBeDefined()
     expect(barrel.syncBatchResponseSchema).toBeDefined()
+    expect(barrel.syncChangesV2ResponseSchema).toBeDefined()
     // Subscription
     expect(barrel.planPriceSchema).toBeDefined()
     expect(barrel.billingDetailsSchema).toBeDefined()
@@ -1539,6 +1705,7 @@ describe('barrel re-exports', () => {
     expect(barrel.userFactSchema).toBeDefined()
     // API key
     expect(barrel.apiKeySchema).toBeDefined()
+    expect(barrel.apiKeyCreateRequestSchema).toBeDefined()
     // Checklist template
     expect(barrel.checklistTemplateSchema).toBeDefined()
     // API error

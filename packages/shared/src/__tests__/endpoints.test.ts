@@ -140,6 +140,22 @@ describe('API endpoints', () => {
     })
   })
 
+  describe('ai', () => {
+    it('has correct static paths', () => {
+      expect(API.ai.capabilities).toBe('/api/ai/capabilities')
+      expect(API.ai.operations).toBe('/api/ai/operations')
+      expect(API.ai.dataCatalog).toBe('/api/ai/data-catalog')
+      expect(API.ai.surfaces).toBe('/api/ai/surfaces')
+    })
+
+    it('has correct parameterized pending-operation paths', () => {
+      expect(API.ai.pendingOperationConfirm('op-1')).toBe('/api/ai/pending-operations/op-1/confirm')
+      expect(API.ai.pendingOperationStepUp('op-1')).toBe('/api/ai/pending-operations/op-1/step-up')
+      expect(API.ai.pendingOperationVerifyStepUp('op-1')).toBe('/api/ai/pending-operations/op-1/step-up/verify')
+      expect(API.ai.pendingOperationExecute('op-1')).toBe('/api/ai/pending-operations/op-1/execute')
+    })
+  })
+
   describe('userFacts', () => {
     it('has correct static paths', () => {
       expect(API.userFacts.list).toBe('/api/user-facts')
@@ -184,6 +200,14 @@ describe('API endpoints', () => {
   describe('config', () => {
     it('has correct static path', () => {
       expect(API.config.get).toBe('/api/config')
+    })
+  })
+
+  describe('sync', () => {
+    it('has correct static paths', () => {
+      expect(API.sync.batch).toBe('/api/sync/batch')
+      expect(API.sync.changes).toBe('/api/sync/changes')
+      expect(API.sync.changesV2).toBe('/api/sync/v2/changes')
     })
   })
 

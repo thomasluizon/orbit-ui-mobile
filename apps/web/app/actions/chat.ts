@@ -1,15 +1,25 @@
 'use server'
 
 import { getAuthHeaders } from '@/lib/auth-api'
-import type { ChatResponse } from '@orbit/shared'
+import { API } from '@orbit/shared/api'
+import type {
+  AgentExecuteOperationResponse,
+  AgentStepUpChallenge,
+  ChatResponse,
+  PendingAgentOperationConfirmation,
+} from '@orbit/shared'
+import { serverAuthFetch } from '@/lib/server-fetch'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
 const CHAT_TIMEOUT_MS = 60_000
 
-export type ChatResult =
-  | { ok: true; data: ChatResponse }
+type ActionResult<T> =
+  | { ok: true; data: T }
   | { ok: false; error: string; status: number }
+
+export type ChatResult = ActionResult<ChatResponse>
+export type PendingOperationActionResult<T> = ActionResult<T>
 
 /**
  * Send a chat message to the AI assistant.
@@ -51,4 +61,68 @@ export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
   } finally {
     clearTimeout(timeoutId)
   }
+}
+
+async function wrapServerAction<T>(fn: () => Promise<T>): Promise<PendingOperationActionResult<T>> {
+  try {
+    const data = await fn()
+    return { ok: true, data }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    const status = typeof error === 'object' &&
+      error !== null &&
+      'status' in error &&
+      typeof (error as { status?: unknown }).status === 'number'
+      ? ((error as { status: number }).status)
+      : 500
+
+    return { ok: false, error: message, status }
+  }
+}
+
+export async function confirmPendingOperation(
+  id: string,
+): Promise<PendingOperationActionResult<PendingAgentOperationConfirmation>> {
+  return wrapServerAction(() =>
+    serverAuthFetch<PendingAgentOperationConfirmation>(API.ai.pendingOperationConfirm(id), {
+      method: 'POST',
+    }),
+  )
+}
+
+export async function issuePendingOperationStepUp(
+  id: string,
+  language: string,
+): Promise<PendingOperationActionResult<AgentStepUpChallenge>> {
+  return wrapServerAction(() =>
+    serverAuthFetch<AgentStepUpChallenge>(API.ai.pendingOperationStepUp(id), {
+      method: 'POST',
+      body: JSON.stringify({ language }),
+    }),
+  )
+}
+
+export async function verifyPendingOperationStepUp(
+  id: string,
+  challengeId: string,
+  code: string,
+): Promise<PendingOperationActionResult<{ id: string } | null>> {
+  return wrapServerAction(() =>
+    serverAuthFetch<{ id: string } | null>(API.ai.pendingOperationVerifyStepUp(id), {
+      method: 'POST',
+      body: JSON.stringify({ challengeId, code }),
+    }),
+  )
+}
+
+export async function executePendingOperation(
+  id: string,
+  confirmationToken: string,
+): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
+  return wrapServerAction(() =>
+    serverAuthFetch<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(id), {
+      method: 'POST',
+      body: JSON.stringify({ confirmationToken }),
+    }),
+  )
 }
