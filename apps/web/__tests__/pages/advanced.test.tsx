@@ -89,6 +89,10 @@ vi.mock('@/components/ui/create-api-key-modal', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 // ---------------------------------------------------------------------------
 // Import component after mocks
 // ---------------------------------------------------------------------------
@@ -116,10 +120,10 @@ describe('AdvancedPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back link', () => {
+  it('renders the page header with title and back button', () => {
     render(<AdvancedPage />)
     expect(screen.getByText('advancedSettings.title')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'common.backToProfile' })).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
   // ---- Widget tip ----

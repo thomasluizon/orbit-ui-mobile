@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
+import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -52,6 +53,7 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 describe('NotificationBell', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    resetPendingNotificationDeletesForTests()
     mockNotifications = []
     mockUnreadCount = 0
     mockIsLoading = false
@@ -234,5 +236,35 @@ describe('NotificationBell', () => {
 
     expect(screen.getByText('notifications.deleteAllConfirmTitle')).toBeInTheDocument()
     expect(deleteAllMutate).not.toHaveBeenCalled()
+  })
+
+  it('preserves queued notification deletes across unmounts', () => {
+    mockNotifications = [
+      {
+        id: '1',
+        title: 'Test notification',
+        body: 'Test body',
+        isRead: false,
+        createdAtUtc: new Date().toISOString(),
+        url: null,
+        habitId: null,
+      },
+    ]
+    mockUnreadCount = 1
+
+    const firstRender = render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
+    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
+    firstRender.unmount()
+
+    render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText('notifications.bell'))
+    expect(screen.queryByText('Test notification')).not.toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(deleteNotificationMutate).toHaveBeenCalledWith('1')
   })
 })

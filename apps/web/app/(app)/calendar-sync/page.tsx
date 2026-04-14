@@ -395,6 +395,7 @@ export default function CalendarSyncPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
+            aria-label={t('common.backToProfile')}
             className="p-2 rounded-full hover:bg-surface transition-colors"
             onClick={() => goBackOrFallback('/profile')}
           >

@@ -106,6 +106,10 @@ vi.mock('@/app/actions/profile', () => ({
   updateLanguage: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 // ---------------------------------------------------------------------------
 // Import component after mocks
 // ---------------------------------------------------------------------------
@@ -141,10 +145,10 @@ describe('PreferencesPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back link', () => {
+  it('renders the page header with title and back button', () => {
     render(<PreferencesPage />)
     expect(screen.getByText('preferences.title')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'common.backToProfile' })).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
   // ---- Language section ----

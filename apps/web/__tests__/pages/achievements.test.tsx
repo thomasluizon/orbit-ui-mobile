@@ -56,6 +56,10 @@ vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => <span data-testid="pro-badge">PRO</span>,
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 // ---------------------------------------------------------------------------
 // Import component after mocks
 // ---------------------------------------------------------------------------
@@ -81,10 +85,10 @@ describe('AchievementsPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back link', () => {
+  it('renders the page header with title and back button', () => {
     render(<AchievementsPage />)
     expect(screen.getByText('gamification.title')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'common.backToProfile' })).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
   it('renders ProBadge in header', () => {

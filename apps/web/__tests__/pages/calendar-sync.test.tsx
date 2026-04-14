@@ -34,6 +34,10 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 let mockProfile: Record<string, unknown> | null = null
 let mockHasProAccess = true
 
@@ -191,11 +195,10 @@ describe('CalendarSyncPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back link', () => {
+  it('renders the page header with title and back button', () => {
     render(<CalendarSyncPage />)
     expect(screen.getByText('calendar.title')).toBeInTheDocument()
-    const backLink = screen.getAllByRole('link').find((a) => a.getAttribute('href') === '/profile')
-    expect(backLink).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
   // ---- Non-Pro redirect ----

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
 import {
   View,
   Text,
@@ -25,6 +25,12 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { plural } from '@/lib/plural'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import {
+  cancelPendingNotificationDelete,
+  getPendingNotificationDeleteIdsSnapshot,
+  queuePendingNotificationDelete,
+  subscribePendingNotificationDeleteIds,
+} from '@/lib/pending-notification-deletes'
 
 // ---------------------------------------------------------------------------
 // NotificationBell
@@ -33,7 +39,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 export function NotificationBell() {
   const { t } = useTranslation()
   const { colors, shadows } = useAppTheme()
-  const { notifications, unreadCount, isLoading } = useNotifications()
+  const { notifications, isLoading } = useNotifications()
   const markAsRead = useMarkNotificationRead()
   const markAllAsRead = useMarkAllNotificationsRead()
   const deleteNotification = useDeleteNotification()
@@ -45,8 +51,12 @@ export function NotificationBell() {
     useState<NotificationItem | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set())
-  const pendingDeleteTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const pendingDeleteIds = useSyncExternalStore(
+    subscribePendingNotificationDeleteIds,
+    getPendingNotificationDeleteIdsSnapshot,
+    getPendingNotificationDeleteIdsSnapshot,
+  )
+  const pendingDeleteIdSet = useMemo(() => new Set(pendingDeleteIds), [pendingDeleteIds])
 
   const toggle = useCallback(() => {
     setIsOpen((prev) => !prev)
@@ -54,54 +64,24 @@ export function NotificationBell() {
 
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const visibleNotifications = useMemo(
-    () => notifications.filter((item) => !pendingDeleteIds.has(item.id)),
-    [notifications, pendingDeleteIds],
+    () => notifications.filter((item) => !pendingDeleteIdSet.has(item.id)),
+    [notifications, pendingDeleteIdSet],
   )
   const visibleUnreadCount = useMemo(
     () => visibleNotifications.filter((item) => !item.isRead).length,
     [visibleNotifications],
   )
 
-  useEffect(() => {
-    return () => {
-      for (const timer of pendingDeleteTimersRef.current.values()) {
-        clearTimeout(timer)
-      }
-      pendingDeleteTimersRef.current.clear()
-    }
-  }, [])
-
   const cancelPendingDelete = useCallback((notificationId: string) => {
-    const timer = pendingDeleteTimersRef.current.get(notificationId)
-    if (timer) {
-      clearTimeout(timer)
-      pendingDeleteTimersRef.current.delete(notificationId)
-    }
-
-    setPendingDeleteIds((current) => {
-      if (!current.has(notificationId)) return current
-      const next = new Set(current)
-      next.delete(notificationId)
-      return next
-    })
+    cancelPendingNotificationDelete(notificationId)
   }, [])
 
   const requestDeleteNotification = useCallback((notification: NotificationItem) => {
-    if (pendingDeleteTimersRef.current.has(notification.id)) return
-
-    setPendingDeleteIds((current) => new Set(current).add(notification.id))
-
-    const timer = setTimeout(() => {
-      pendingDeleteTimersRef.current.delete(notification.id)
-      setPendingDeleteIds((current) => {
-        const next = new Set(current)
-        next.delete(notification.id)
-        return next
-      })
+    const queued = queuePendingNotificationDelete(notification.id, () => {
       deleteNotification.mutate(notification.id)
-    }, 5000)
+    })
+    if (!queued) return
 
-    pendingDeleteTimersRef.current.set(notification.id, timer)
     showQueued(t('notifications.deleteQueued'), t('notifications.deleteUndo'), () => {
       cancelPendingDelete(notification.id)
     })
@@ -194,7 +174,7 @@ export function NotificationBell() {
         activeOpacity={0.7}
         onPress={toggle}
         accessibilityLabel={
-          unreadCount > 0
+          visibleUnreadCount > 0
             ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount)
             : t('notifications.bell')
         }

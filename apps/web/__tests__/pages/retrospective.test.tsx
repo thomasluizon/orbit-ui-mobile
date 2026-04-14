@@ -11,6 +11,10 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 vi.mock('dompurify', () => ({
   default: {
     sanitize: (value: string) => value,

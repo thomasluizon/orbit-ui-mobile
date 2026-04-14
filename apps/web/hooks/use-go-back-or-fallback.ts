@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { canGoBackInAppHistory } from '@/lib/app-navigation-history'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 interface UseGoBackOrFallbackOptions {
@@ -20,7 +21,20 @@ export function useGoBackOrFallback() {
         return
       }
 
-      if (globalThis.history.length > 1) {
+      let hasSameOriginReferrer = false
+      if (typeof globalThis.document !== 'undefined' && globalThis.document.referrer) {
+        try {
+          hasSameOriginReferrer =
+            new URL(globalThis.document.referrer).origin === globalThis.location.origin
+        } catch {
+          hasSameOriginReferrer = false
+        }
+      }
+
+      if (
+        canGoBackInAppHistory() ||
+        (globalThis.history.length > 1 && hasSameOriginReferrer)
+      ) {
         router.back()
         return
       }

@@ -23,6 +23,10 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 let mockProfile: Record<string, unknown> | null = null
 let mockHasProAccess = false
 let mockTrialExpired = false
@@ -114,11 +118,10 @@ describe('UpgradePage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back link', () => {
+  it('renders the page header with title and back button', () => {
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.title')).toBeInTheDocument()
-    const backLink = screen.getAllByRole('link').find((a) => a.getAttribute('href') === '/profile')
-    expect(backLink).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
   it('labels feature tooltip buttons accessibly', () => {

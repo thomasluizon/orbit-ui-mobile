@@ -99,6 +99,7 @@ export default function StreakPage() {
       <header className="pt-8 pb-6 flex items-center gap-3">
           <button
             type="button"
+            aria-label={t('common.backToProfile')}
             className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
             onClick={() => goBackOrFallback('/profile')}
           >
