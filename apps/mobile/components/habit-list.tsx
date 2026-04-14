@@ -74,6 +74,18 @@ import {
 } from './habit-list-sections'
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Approximate height of a single HabitCard row used by DraggableFlatList's
+ * `getItemLayout`. Does not need to be exact: enabling getItemLayout lets
+ * RN skip per-item layout passes for off-screen rows, which materially
+ * improves initial scroll performance and drag smoothness on Android.
+ */
+const ESTIMATED_HABIT_ITEM_HEIGHT = 104
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
@@ -1189,6 +1201,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [],
   )
 
+  // Approximate fixed item height so DraggableFlatList can skip layout-pass for
+  // off-screen items. A habit card is ~104px tall in practice (title + subtitle +
+  // padding). The value doesn't need to be perfect: it unlocks fast initial
+  // scroll-to-offset and smoother drag performance on mid-tier Android.
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<DragItem> | null | undefined, index: number) => ({
+      length: ESTIMATED_HABIT_ITEM_HEIGHT,
+      offset: ESTIMATED_HABIT_ITEM_HEIGHT * index,
+      index,
+    }),
+    [],
+  )
+
   const renderEmptyState = useCallback(
     (currentView: 'today' | 'all' | 'general') => (
       <HabitListEmptyState
@@ -1688,6 +1713,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         data={activeDragItems}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
         extraData={listExtraData}
         testID={isDraggingList ? 'dragging-habit-list' : 'habit-list'}
         contentContainerStyle={[
