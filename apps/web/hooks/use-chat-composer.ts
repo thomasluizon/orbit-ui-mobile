@@ -12,6 +12,7 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import {
   apiKeyKeys,
   calendarKeys,
@@ -35,7 +36,14 @@ import {
   CHAT_STARTER_CHIP_KEYS,
   getChatImageValidationError,
 } from '@orbit/shared/chat'
-import { buildRecentChatHistory, detectDefaultTimeFormat, getErrorMessage } from '@orbit/shared/utils'
+import {
+  buildRecentChatHistory,
+  canAccessEntitlement,
+  detectDefaultTimeFormat,
+  getErrorMessage,
+  resolveUpgradeEntitlementDenial,
+  resolveUpgradeEntitlementFromPolicyDenial,
+} from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
@@ -118,6 +126,7 @@ async function invalidateAgentQueries(
 export function useChatComposer() {
   const t = useTranslations()
   const locale = useLocale()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
 
@@ -151,7 +160,7 @@ export function useChatComposer() {
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
-  const aiMessagesLimit = profile?.aiMessagesLimit ?? 10
+  const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const canSend =
     (input.trim().length > 0 || selectedImage !== null) && !isTyping && !atMessageLimit
@@ -180,6 +189,12 @@ export function useChatComposer() {
     })
   }, [])
 
+  const shouldRouteToUpgrade = useCallback(
+    (resolution: { shouldUpgrade: boolean; requirement: 'pro' | 'yearlyPro' | null }) =>
+      resolution.shouldUpgrade && !canAccessEntitlement(profile, resolution.requirement),
+    [profile],
+  )
+
   const appendExecutionMessage = useCallback(async (response: AgentExecuteOperationResponse) => {
     addMessage({
       id: crypto.randomUUID(),
@@ -196,10 +211,28 @@ export function useChatComposer() {
     if (response.operation.status === 'Succeeded') {
       await invalidateAgentQueries(queryClient)
     }
-  }, [addMessage, queryClient, scrollToBottom])
+    if (response.policyDenial) {
+      const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(response.policyDenial)
+      if (shouldRouteToUpgrade(upgradeResolution)) {
+        setSendError(response.policyDenial.reason)
+        router.push('/upgrade')
+      }
+    }
+  }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade])
 
   const handleFailedSend = useCallback((result: FailedSendChatMessageResult) => {
     setIsTyping(false)
+    const resolvedError = getErrorMessage(result.error, t('chat.sendError'))
+    const upgradeResolution = resolveUpgradeEntitlementDenial({
+      status: result.status,
+      reason: resolvedError,
+    })
+
+    if (shouldRouteToUpgrade(upgradeResolution)) {
+      setSendError(resolvedError)
+      router.push('/upgrade')
+      return
+    }
 
     if (result.status === 408) {
       setSendError(t('chat.timeoutError'))
@@ -216,7 +249,7 @@ export function useChatComposer() {
       timestamp: new Date(),
     })
     scrollToBottom()
-  }, [addMessage, scrollToBottom, setIsTyping, t])
+  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t])
 
   const handleSuccessfulSend = useCallback(async (result: SendChatMessageResult & { ok: true }) => {
     setIsTyping(false)
@@ -233,6 +266,17 @@ export function useChatComposer() {
     })
 
     scrollToBottom()
+
+    const premiumDenial = result.data.policyDenials?.find((denial) =>
+      resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
+    )
+    if (premiumDenial) {
+      const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(premiumDenial)
+      setSendError(premiumDenial.reason)
+      if (shouldRouteToUpgrade(upgradeResolution)) {
+        router.push('/upgrade')
+      }
+    }
 
     if (!hasProAccess) {
       queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
@@ -253,7 +297,7 @@ export function useChatComposer() {
     if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
-  }, [addMessage, hasProAccess, queryClient, scrollToBottom, setIsTyping])
+  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade])
 
   useEffect(() => {
     const textarea = textareaRef.current

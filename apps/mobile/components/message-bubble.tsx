@@ -4,6 +4,7 @@ import { Sparkles, User } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
+import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { formatChatMessage } from "@/components/chat/format-chat-message";
@@ -30,6 +31,7 @@ interface MessageBubbleProps {
     code: string,
     confirmationToken: string,
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
+  onUpgradeClick?: () => void;
 }
 
 interface FormattedSegment {
@@ -99,6 +101,7 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
+  onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -260,15 +263,30 @@ export function MessageBubble({
 
         {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
           <View style={styles.operationStack}>
-            {message.policyDenials.map((denial) => (
-              <View
-                key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                style={styles.denialCard}
-              >
-                <Text style={styles.denialTitle}>{denial.sourceName}</Text>
-                <Text style={styles.denialReason}>{denial.reason}</Text>
-              </View>
-            ))}
+            {message.policyDenials.map((denial) => {
+              const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(
+                denial,
+              );
+
+              return (
+                <View
+                  key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
+                  style={styles.denialCard}
+                >
+                  <Text style={styles.denialTitle}>{denial.sourceName}</Text>
+                  <Text style={styles.denialReason}>{denial.reason}</Text>
+                  {upgradeResolution.shouldUpgrade && onUpgradeClick ? (
+                    <Text
+                      style={styles.denialUpgrade}
+                      onPress={onUpgradeClick}
+                      accessibilityRole="button"
+                    >
+                      {t("upgrade.subscribe")}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
         )}
       </View>
@@ -523,6 +541,12 @@ function createStyles(colors: ThemeColors) {
       fontSize: 11,
       lineHeight: 16,
       color: colors.red400,
+    },
+    denialUpgrade: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: colors.primary,
+      marginTop: 8,
     },
 
     // Typing indicator

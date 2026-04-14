@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import {
   PROFILE_NAV_ITEMS,
+  shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { LogOut, RotateCcw, Trash2 } from 'lucide-react'
@@ -25,13 +26,14 @@ import { TourReplayCard } from './_components/tour-replay-card'
 
 export default function ProfilePage() {
   const t = useTranslations()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { profile, isLoading, error } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
-  const { profile: gamificationProfile } = useGamificationProfile()
+  const { profile: gamificationProfile } = useGamificationProfile(profile?.hasProAccess ?? false)
   const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
   const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
 
@@ -61,6 +63,15 @@ export default function ProfilePage() {
 
   const [showResetModal, setShowResetModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+
+  function handleNavClick(item: ProfileNavItem) {
+    if (shouldRedirectProfileNavItem(item, profile)) {
+      router.push('/upgrade')
+      return
+    }
+
+    router.push(item.route)
+  }
 
   return (
     <div className="pb-8">
@@ -147,6 +158,11 @@ export default function ProfilePage() {
               <ProfileNavCard
                 key={item.id}
                 href={item.route}
+                onNavigate={(event) => {
+                  if (!shouldRedirectProfileNavItem(item, profile)) return
+                  event.preventDefault()
+                  handleNavClick(item)
+                }}
                 icon={<ProfileNavIcon iconKey={item.iconKey} />}
                 title={t(item.titleKey)}
                 hint={getNavHint(item)}
@@ -170,6 +186,11 @@ export default function ProfilePage() {
               <ProfileNavCard
                 key={item.id}
                 href={item.route}
+                onNavigate={(event) => {
+                  if (!shouldRedirectProfileNavItem(item, profile)) return
+                  event.preventDefault()
+                  handleNavClick(item)
+                }}
                 icon={<ProfileNavIcon iconKey={item.iconKey} />}
                 title={t(item.titleKey)}
                 hint={getNavHint(item)}

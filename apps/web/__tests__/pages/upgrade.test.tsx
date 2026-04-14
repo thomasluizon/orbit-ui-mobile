@@ -100,7 +100,7 @@ describe('UpgradePage', () => {
       hasProAccess: false,
       isTrialActive: false,
       aiMessagesUsed: 5,
-      aiMessagesLimit: 50,
+      aiMessagesLimit: 20,
     }
     mockHasProAccess = false
     mockTrialExpired = false
@@ -193,7 +193,7 @@ describe('UpgradePage', () => {
       hasProAccess: true,
       isTrialActive: false,
       aiMessagesUsed: 10,
-      aiMessagesLimit: 100,
+      aiMessagesLimit: 500,
     }
     mockBilling = {
       interval: 'monthly',
@@ -278,7 +278,7 @@ describe('UpgradePage', () => {
       hasProAccess: true,
       isTrialActive: false,
       aiMessagesUsed: 10,
-      aiMessagesLimit: 100,
+      aiMessagesLimit: 500,
     }
     mockBilling = {
       interval: 'monthly',

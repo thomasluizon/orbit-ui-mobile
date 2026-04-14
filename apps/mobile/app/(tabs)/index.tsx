@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import {
@@ -82,6 +82,15 @@ import {
 // ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
+type TodayView = typeof TAB_VIEWS[number]
+
+export function resolveTodayView(activeView: TodayView, hasProAccess: boolean): TodayView {
+  return !hasProAccess && activeView === 'goals' ? 'today' : activeView
+}
+
+export function shouldRedirectGoalsTab(nextView: TodayView, hasProAccess: boolean): boolean {
+  return nextView === 'goals' && !hasProAccess
+}
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
 
@@ -151,6 +160,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
 export default function TodayScreen() {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
+  const router = useRouter()
   const locale = i18n.language
   const insets = useSafeAreaInsets()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
@@ -181,6 +191,8 @@ export default function TodayScreen() {
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
+  const hasProAccess = profile?.hasProAccess ?? false
+  const currentActiveView = resolveTodayView(activeView, hasProAccess)
 
   // Local state
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
@@ -238,6 +250,18 @@ export default function TodayScreen() {
       { key: 'none', label: t('habits.filter.oneTime') },
     ],
     [t],
+  )
+
+  const handleChangeView = useCallback(
+    (nextView: TodayView) => {
+      if (shouldRedirectGoalsTab(nextView, hasProAccess)) {
+        router.push('/upgrade')
+        return
+      }
+
+      setActiveView(nextView)
+    },
+    [hasProAccess, router, setActiveView],
   )
 
   const tabItems = useMemo<TodayTabItem[]>(
@@ -313,13 +337,13 @@ export default function TodayScreen() {
   // Build filters (matching web exactly)
   const dateStr = formatAPIDate(selectedDate)
   const filters = useMemo<HabitsFilter>(() => {
-    if (activeView === 'general') {
+    if (currentActiveView === 'general') {
       const f: HabitsFilter = { isGeneral: true }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
       if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
       return f
     }
-    if (activeView === 'today') {
+    if (currentActiveView === 'today') {
       const f: HabitsFilter = {
         dateFrom: dateStr,
         dateTo: dateStr,
@@ -337,7 +361,7 @@ export default function TodayScreen() {
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
     if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [activeView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
+  }, [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? new Map()
@@ -377,13 +401,13 @@ export default function TodayScreen() {
 
   const visibleTopLevelHabits = useMemo(() => {
     const habits = habitsQuery.data?.topLevelHabits ?? []
-    if (activeView === 'today') {
+    if (currentActiveView === 'today') {
       if (showCompleted) return habits
       return habits.filter((habit) => visibility.hasVisibleContent(habit))
     }
     if (showCompleted) return habits
     return habits.filter((habit) => !habit.isCompleted)
-  }, [habitsQuery.data?.topLevelHabits, showCompleted, activeView, visibility])
+  }, [currentActiveView, habitsQuery.data?.topLevelHabits, showCompleted, visibility])
 
   const visibleHabitIds = useMemo(() => {
     const ids = new Set<string>()
@@ -421,10 +445,16 @@ export default function TodayScreen() {
   }, [filters, setFilters])
 
   const showSummary =
-    activeView === 'today' &&
+    currentActiveView === 'today' &&
     isToday(selectedDate) &&
     profile?.hasProAccess &&
     profile?.aiSummaryEnabled
+
+  useEffect(() => {
+    if (!hasProAccess && activeView === 'goals') {
+      setActiveView('today')
+    }
+  }, [activeView, hasProAccess, setActiveView])
 
   // Clear filters on view change
   useEffect(() => {
@@ -566,8 +596,8 @@ export default function TodayScreen() {
 
         <TodayTabs
           tabs={tabItems}
-          activeView={activeView}
-          onChangeView={setActiveView}
+          activeView={currentActiveView}
+          onChangeView={handleChangeView}
           viewsLabel={t('habits.viewsLabel')}
           styles={styles}
         />
@@ -592,7 +622,7 @@ export default function TodayScreen() {
       <>
         {sharedHeader}
         <TodayDateNavigation
-          visible={activeView === 'today'}
+          visible={currentActiveView === 'today'}
           dateLabel={dateLabel}
           isTodaySelected={isToday(selectedDate)}
           slideDirection={slideDirection}
@@ -826,7 +856,7 @@ export default function TodayScreen() {
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-      {activeView === 'goals' ? (
+      {currentActiveView === 'goals' ? (
         <ScrollView
           ref={goalsScrollRef}
           style={styles.scrollView}
@@ -846,9 +876,9 @@ export default function TodayScreen() {
       ) : (
         <HabitList
           ref={habitListRef}
-          view={activeView}
+          view={currentActiveView}
           filters={filters}
-          selectedDate={activeView === 'today' ? selectedDate : undefined}
+          selectedDate={currentActiveView === 'today' ? selectedDate : undefined}
           showCompleted={showCompleted}
           searchQuery={searchQueryStore}
           isSelectMode={isSelectMode}
@@ -936,7 +966,7 @@ export default function TodayScreen() {
       <CreateHabitModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        initialDate={activeView === 'today' ? formatAPIDate(selectedDate) : null}
+        initialDate={currentActiveView === 'today' ? formatAPIDate(selectedDate) : null}
       />
 
       <LogHabitModal

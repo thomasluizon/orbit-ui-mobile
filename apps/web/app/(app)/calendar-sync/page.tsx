@@ -213,7 +213,7 @@ export default function CalendarSyncPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
 
   // Review mode hooks (only drive behavior when isReviewMode)
-  const suggestionsQuery = useCalendarSyncSuggestions()
+  const suggestionsQuery = useCalendarSyncSuggestions({ enabled: hasProAccess && isReviewMode })
   const dismissSuggestion = useDismissCalendarSuggestion()
   const suggestions: CalendarSyncSuggestion[] = useMemo(
     () => suggestionsQuery.data ?? [],
@@ -225,7 +225,7 @@ export default function CalendarSyncPage() {
   // Redirect non-Pro users
   useEffect(() => {
     if (profile && !hasProAccess) {
-      router.push('/upgrade')
+      router.replace('/upgrade')
     }
   }, [profile, hasProAccess, router])
 
@@ -403,7 +403,7 @@ export default function CalendarSyncPage() {
       </header>
 
       {/* Auto-sync settings card (always visible at top) */}
-      <AutoSyncSettingsCard />
+      {hasProAccess && <AutoSyncSettingsCard />}
 
       {/* Loading */}
       {step === 'loading' && (

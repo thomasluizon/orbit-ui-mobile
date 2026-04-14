@@ -1,3 +1,10 @@
+import type { Profile } from '../types/profile'
+import {
+  canAccessEntitlement,
+  type UpgradeEntitlementMode,
+  type UpgradeEntitlementRequirement,
+} from './upgrade'
+
 export type ProfileNavSection = 'account' | 'features'
 
 export type ProfileNavVariant = 'default' | 'primary'
@@ -23,6 +30,8 @@ export interface ProfileNavItem {
   variant: ProfileNavVariant
   proBadge: boolean
   hintMode: ProfileNavHintMode
+  entitlementRequirement: UpgradeEntitlementRequirement | null
+  entitlementMode: UpgradeEntitlementMode | null
 }
 
 export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
@@ -36,6 +45,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     variant: 'default',
     proBadge: false,
     hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: 'mixed',
   },
   {
     id: 'ai-settings',
@@ -47,6 +58,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     variant: 'default',
     proBadge: false,
     hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: 'mixed',
   },
   {
     id: 'retrospective',
@@ -58,6 +71,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     variant: 'primary',
     proBadge: true,
     hintMode: 'static',
+    entitlementRequirement: 'yearlyPro',
+    entitlementMode: 'redirect',
   },
   {
     id: 'achievements',
@@ -69,6 +84,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     variant: 'primary',
     proBadge: true,
     hintMode: 'gamificationProfile',
+    entitlementRequirement: 'pro',
+    entitlementMode: 'redirect',
   },
   {
     id: 'calendar-sync',
@@ -78,8 +95,10 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     titleKey: 'calendar.profileButton',
     hintKey: 'calendar.profileHint',
     variant: 'primary',
-    proBadge: false,
+    proBadge: true,
     hintMode: 'static',
+    entitlementRequirement: 'pro',
+    entitlementMode: 'redirect',
   },
   {
     id: 'about',
@@ -91,6 +110,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     variant: 'default',
     proBadge: false,
     hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
   },
   {
     id: 'advanced',
@@ -102,5 +123,25 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     variant: 'default',
     proBadge: false,
     hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: 'mixed',
   },
 ]
+
+export function isProfileNavItemLocked(
+  item: Pick<ProfileNavItem, 'entitlementRequirement'>,
+  profile: Pick<Profile, 'hasProAccess' | 'isLifetimePro' | 'subscriptionInterval'> | null | undefined,
+): boolean {
+  return !canAccessEntitlement(profile, item.entitlementRequirement)
+}
+
+export function shouldRedirectProfileNavItem(
+  item: Pick<ProfileNavItem, 'entitlementMode' | 'entitlementRequirement'>,
+  profile: Pick<Profile, 'hasProAccess' | 'isLifetimePro' | 'subscriptionInterval'> | null | undefined,
+): boolean {
+  if (item.entitlementMode !== 'redirect') {
+    return false
+  }
+
+  return !canAccessEntitlement(profile, item.entitlementRequirement)
+}

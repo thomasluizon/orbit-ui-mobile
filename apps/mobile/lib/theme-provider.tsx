@@ -34,6 +34,7 @@ import {
   type AppRadius,
   type AppShadows,
 } from '@/lib/theme'
+import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 
 const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
   'purple',
@@ -99,7 +100,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const systemScheme = useSystemColorScheme()
   const { profile, patchProfile } = useProfile()
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(
-    normalizeColorScheme(profile?.colorScheme),
+    resolveAccessibleColorScheme(profile?.colorScheme, profile?.hasProAccess ?? false),
   )
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
     systemScheme === 'light' ? 'light' : 'dark',
@@ -173,8 +174,12 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     if (!profile) return
 
     // syncSchemeFromProfile: DB -> state (no mutation).
-    if (isValidColorScheme(profile.colorScheme) && profile.colorScheme !== currentScheme) {
-      const next = profile.colorScheme
+    const accessibleScheme = resolveAccessibleColorScheme(
+      profile.colorScheme,
+      profile.hasProAccess,
+    )
+    if (accessibleScheme !== currentScheme) {
+      const next = accessibleScheme
       setCurrentScheme(next)
       setRuntimeTheme({ scheme: next, themeMode: getRuntimeTheme().themeMode })
     }

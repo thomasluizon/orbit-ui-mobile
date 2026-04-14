@@ -34,6 +34,7 @@ describe('createTourStoreState', () => {
     expect(s.isActive).toBe(false)
     expect(s.currentStepIndex).toBe(0)
     expect(s.replaySection).toBeNull()
+    expect(s.hiddenSections).toEqual([])
     expect(s.isNavigating).toBe(false)
     expect(s.targetRect).toBeNull()
   })
@@ -166,5 +167,20 @@ describe('createTourStoreState', () => {
     expect(getState().isNavigating).toBe(true)
     getState().setNavigating(false)
     expect(getState().isNavigating).toBe(false)
+  })
+
+  it('filters hidden sections out of the active steps', () => {
+    getState().setHiddenSections(['goals'])
+    getState().startFullTour()
+
+    expect(getState().getActiveSteps().every((step) => step.section !== 'goals')).toBe(true)
+  })
+
+  it('prevents replaying a hidden section', () => {
+    getState().setHiddenSections(['goals'])
+    getState().startSectionReplay('goals')
+
+    expect(getState().isActive).toBe(false)
+    expect(getState().replaySection).toBeNull()
   })
 })

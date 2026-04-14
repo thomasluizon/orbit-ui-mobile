@@ -20,10 +20,12 @@ vi.mock('next/link', () => ({
 }))
 
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 const mockSearchParams = new URLSearchParams()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
+    replace: mockReplace,
     back: vi.fn(),
     refresh: vi.fn(),
   }),
@@ -158,6 +160,7 @@ describe('CalendarSyncPage', () => {
     mockProfile = { id: 'u1', hasProAccess: true }
     mockHasProAccess = true
     mockPush.mockClear()
+    mockReplace.mockClear()
     mockBulkMutate.mockClear()
     mockFetchResponse = null
     mockSearchParams.delete('mode')
@@ -210,7 +213,7 @@ describe('CalendarSyncPage', () => {
     mockProfile = { id: 'u1', hasProAccess: false }
     render(<CalendarSyncPage />)
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/upgrade')
+      expect(mockReplace).toHaveBeenCalledWith('/upgrade')
     })
   })
 

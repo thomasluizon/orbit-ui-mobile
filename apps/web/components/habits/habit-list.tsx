@@ -12,6 +12,7 @@ import {
   Plus,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import {
   computeHabitReorderPositions,
   collectVisibleHabitTreeIds,
@@ -41,6 +42,7 @@ import {
   useReorderHabits,
   useMoveHabitParent,
 } from '@/hooks/use-habits'
+import { useProfile } from '@/hooks/use-profile'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
@@ -272,6 +274,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   onSeeUpcoming,
 }, ref) {
   const t = useTranslations()
+  const router = useRouter()
+  const { profile } = useProfile()
   const locale = useLocale()
 
   // Queries & mutations
@@ -931,6 +935,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }
 
   function startAddSubHabit(parentId: string) {
+    if (profile?.hasProAccess === false) {
+      router.push('/upgrade')
+      return
+    }
+
     const parent = habitsById.get(parentId)
     if (!parent) return
     if (collapsedIds.has(parentId)) toggleExpand(parentId)

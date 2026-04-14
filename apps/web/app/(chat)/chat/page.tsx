@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   Sparkles,
@@ -44,6 +45,7 @@ const GOAL_ACTION_TYPES = new Set([
 
 export default function ChatPage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const {
     chatContainerRef,
@@ -98,6 +100,10 @@ export default function ChatPage() {
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (GOAL_ACTION_TYPES.has(actionType)) {
+      if (!hasProAccess) {
+        router.push('/upgrade')
+        return
+      }
       setSelectedHabitId(null)
       setSelectedGoalId(entityId)
       return
@@ -105,7 +111,7 @@ export default function ChatPage() {
 
     setSelectedGoalId(null)
     setSelectedHabitId(entityId)
-  }, [])
+  }, [hasProAccess, router])
 
   const handleDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedHabitId(null)
@@ -195,6 +201,7 @@ export default function ChatPage() {
             message={msg}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
+            onUpgradeClick={() => router.push('/upgrade')}
             onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
             onPendingOperationPrepareStepUp={async (pendingOperationId) => {
               const result = await preparePendingOperationStepUp(pendingOperationId)

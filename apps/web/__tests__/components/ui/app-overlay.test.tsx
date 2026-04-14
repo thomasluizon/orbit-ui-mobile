@@ -66,6 +66,32 @@ describe('AppOverlay', () => {
     expect(screen.getByText('Save')).toBeInTheDocument()
   })
 
+  it('uses safe-area bottom padding on the body when there is no footer', () => {
+    render(
+      <AppOverlay open={true} onOpenChange={vi.fn()} title="T">
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const body = document.querySelector('[data-slot="overlay-body"]')
+    expect(body?.className).toContain('pb-[calc(1rem+var(--safe-bottom))]')
+  })
+
+  it('keeps safe-area padding in the footer when a footer is present', () => {
+    render(
+      <AppOverlay open={true} onOpenChange={vi.fn()} title="T" footer={<button>Save</button>}>
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const body = document.querySelector('[data-slot="overlay-body"]')
+    const footer = document.querySelector('[data-slot="overlay-footer"]')
+
+    expect(body?.className).toContain('pb-0')
+    expect(body?.className).not.toContain('var(--safe-bottom)')
+    expect(footer?.className).toContain('pb-[calc(1rem+var(--safe-bottom))]')
+  })
+
   it('renders close button when dismissible', () => {
     render(
       <AppOverlay open={true} onOpenChange={vi.fn()} title="T" dismissible={true}>

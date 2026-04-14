@@ -7,14 +7,23 @@ import type { TagSelectionState } from '@/hooks/use-tag-selection'
 const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
+let mockHasProAccess = false
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
     useWatchMock(args),
 }))
 
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+  }),
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => false,
+  useHasProAccess: () => mockHasProAccess,
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -167,6 +176,7 @@ function findTimePickers(root: { findAll: (predicate: (node: any) => boolean) =>
 describe('HabitFormFields (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHasProAccess = false
     useWatchMock.mockImplementation(
       ({ control, name }: { control: MockControl; name: string }) => control.values[name],
     )
@@ -239,5 +249,52 @@ describe('HabitFormFields (mobile)', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '22:15', {
       shouldDirty: true,
     })
+  })
+
+  it('hides goal linking for free users', async () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          defaultExpanded
+        />,
+      )
+    })
+
+    expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(0)
+  })
+
+  it('shows goal linking for pro users', async () => {
+    mockHasProAccess = true
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          defaultExpanded
+        />,
+      )
+    })
+
+    expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(1)
   })
 })

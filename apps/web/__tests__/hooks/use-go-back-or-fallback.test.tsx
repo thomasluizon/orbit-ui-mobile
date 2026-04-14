@@ -31,15 +31,27 @@ vi.mock('@/lib/overlay-stack', () => ({
 
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
-function renderHookHarness() {
-  let callback: ReturnType<typeof useGoBackOrFallback> | null = null
+type GoBackOrFallback = (
+  fallbackRoute: string,
+  options?: {
+    dismissFirst?: boolean
+    replace?: boolean
+  },
+) => void
+
+function renderHookHarness(): GoBackOrFallback {
+  let callback: GoBackOrFallback | null = null
 
   function Harness() {
-    callback = useGoBackOrFallback()
+    callback = useGoBackOrFallback() as GoBackOrFallback
     return null
   }
 
   render(<Harness />)
+  if (!callback) {
+    throw new Error('Expected useGoBackOrFallback to initialize')
+  }
+
   return callback
 }
 
@@ -66,9 +78,9 @@ describe('useGoBackOrFallback', () => {
 
   it('stops when dismissing the top overlay succeeds', async () => {
     mocks.dismissTopOverlay.mockReturnValue(true)
-    const goBackOrFallback = await renderHookHarness()
+    const goBackOrFallback = renderHookHarness()
 
-    goBackOrFallback?.('/profile')
+    goBackOrFallback('/profile')
 
     expect(mocks.dismissTopOverlay).toHaveBeenCalledWith('navigation')
     expect(mocks.router.back).not.toHaveBeenCalled()
@@ -77,9 +89,9 @@ describe('useGoBackOrFallback', () => {
 
   it('uses router.back when app history says navigation can go back', async () => {
     mocks.canGoBackInAppHistory.mockReturnValue(true)
-    const goBackOrFallback = await renderHookHarness()
+    const goBackOrFallback = renderHookHarness()
 
-    goBackOrFallback?.('/profile')
+    goBackOrFallback('/profile')
 
     expect(mocks.router.back).toHaveBeenCalledTimes(1)
   })
@@ -93,9 +105,9 @@ describe('useGoBackOrFallback', () => {
       configurable: true,
       value: `${globalThis.location.origin}/today`,
     })
-    const goBackOrFallback = await renderHookHarness()
+    const goBackOrFallback = renderHookHarness()
 
-    goBackOrFallback?.('/profile', { dismissFirst: false })
+    goBackOrFallback('/profile', { dismissFirst: false })
 
     expect(mocks.dismissTopOverlay).not.toHaveBeenCalled()
     expect(mocks.router.back).toHaveBeenCalledTimes(1)
@@ -106,10 +118,10 @@ describe('useGoBackOrFallback', () => {
       configurable: true,
       value: 'not-a-valid-url',
     })
-    const goBackOrFallback = await renderHookHarness()
+    const goBackOrFallback = renderHookHarness()
 
-    goBackOrFallback?.('/profile', { dismissFirst: false })
-    goBackOrFallback?.('/settings', { dismissFirst: false, replace: false })
+    goBackOrFallback('/profile', { dismissFirst: false })
+    goBackOrFallback('/settings', { dismissFirst: false, replace: false })
 
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
     expect(mocks.router.push).toHaveBeenCalledWith('/settings')

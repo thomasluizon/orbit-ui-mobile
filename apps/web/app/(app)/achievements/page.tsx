@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Lock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
@@ -12,15 +14,22 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 export default function AchievementsPage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
-  const { isLoading: profileLoading } = useProfile()
+  const { profile: accountProfile, isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
   const {
     profile,
     isLoading,
     xpProgress,
     achievementsByCategory,
-  } = useGamificationProfile()
+  } = useGamificationProfile(hasProAccess)
+
+  useEffect(() => {
+    if (accountProfile && !hasProAccess) {
+      router.replace('/upgrade')
+    }
+  }, [accountProfile, hasProAccess, router])
 
   return (
     <div className="pb-8">

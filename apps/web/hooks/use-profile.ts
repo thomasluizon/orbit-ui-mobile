@@ -38,7 +38,7 @@ export function useProfile() {
   // On first login (null values), detect and persist local/system defaults.
   useEffect(() => {
     if (!profile) return
-    syncSchemeFromProfile(profile.colorScheme)
+    syncSchemeFromProfile(profile.colorScheme, profile.hasProAccess)
     syncThemeFromProfile(profile.themePreference)
     detectAndSaveSchemeIfNeeded(profile.colorScheme)
     detectAndSaveThemeIfNeeded(profile.themePreference)

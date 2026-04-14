@@ -1,21 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_FREE_COLOR_SCHEME,
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
+  canAccessEntitlement,
+  resolveAccessibleColorScheme,
+  resolveUpgradeEntitlementDenial,
 } from '../utils/upgrade'
 
 describe('upgrade utils', () => {
   it('keeps the expired trial checklist aligned', () => {
     expect(TRIAL_EXPIRED_FEATURE_KEYS).toContain('trial.expired.retrospective')
-    expect(TRIAL_EXPIRED_FEATURE_KEYS).toHaveLength(6)
+    expect(TRIAL_EXPIRED_FEATURE_KEYS).toContain('trial.expired.goals')
+    expect(TRIAL_EXPIRED_FEATURE_KEYS).toContain('trial.expired.apiKeys')
+    expect(TRIAL_EXPIRED_FEATURE_KEYS).toContain('trial.expired.achievements')
+    expect(TRIAL_EXPIRED_FEATURE_KEYS).toHaveLength(11)
   })
 
   it('defines the pro and yearly feature lists', () => {
     expect(UPGRADE_PRO_FEATURES.map((feature) => feature.key)).toEqual([
       'unlimited',
       'ai',
+      'goals',
+      'calendarImport',
+      'apiKeys',
+      'slipAlerts',
+      'achievements',
       'themes',
       'adFree',
     ])
@@ -35,6 +47,83 @@ describe('upgrade utils', () => {
       UPGRADE_FEATURE_CATEGORIES.flatMap((category) =>
         category.features.map((feature) => feature.key),
       ),
-    ).toContain('calendarImport')
+    ).toEqual(
+      expect.arrayContaining([
+        'calendarImport',
+        'goals',
+        'apiKeys',
+        'premiumColors',
+        'retrospective',
+      ]),
+    )
+  })
+
+  it('applies plan checks consistently', () => {
+    expect(canAccessEntitlement(null, null)).toBe(true)
+    expect(
+      canAccessEntitlement(
+        { hasProAccess: false, subscriptionInterval: null, isLifetimePro: false },
+        'pro',
+      ),
+    ).toBe(false)
+    expect(
+      canAccessEntitlement(
+        { hasProAccess: true, subscriptionInterval: 'monthly', isLifetimePro: false },
+        'pro',
+      ),
+    ).toBe(true)
+    expect(
+      canAccessEntitlement(
+        { hasProAccess: true, subscriptionInterval: 'monthly', isLifetimePro: false },
+        'yearlyPro',
+      ),
+    ).toBe(false)
+    expect(
+      canAccessEntitlement(
+        { hasProAccess: true, subscriptionInterval: 'yearly', isLifetimePro: false },
+        'yearlyPro',
+      ),
+    ).toBe(true)
+  })
+
+  it('falls back to the default free color scheme', () => {
+    expect(resolveAccessibleColorScheme('blue', false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+    expect(resolveAccessibleColorScheme('purple', false)).toBe('purple')
+    expect(resolveAccessibleColorScheme('blue', true)).toBe('blue')
+  })
+
+  it('parses premium denials into upgrade actions', () => {
+    expect(
+      resolveUpgradeEntitlementDenial({
+        code: 'PAY_GATE',
+      }),
+    ).toEqual({
+      shouldUpgrade: true,
+      requirement: 'pro',
+      reason: null,
+    })
+
+    expect(
+      resolveUpgradeEntitlementDenial({
+        reason: 'feature_plan_required:ai_retrospective:YearlyPro',
+      }),
+    ).toEqual({
+      shouldUpgrade: true,
+      requirement: 'yearlyPro',
+      reason: 'feature_plan_required:ai_retrospective:YearlyPro',
+    })
+  })
+
+  it('does not infer an upgrade path from a generic message-limit denial reason', () => {
+    expect(
+      resolveUpgradeEntitlementDenial({
+        status: 403,
+        reason: "You've reached your monthly AI message limit (500).",
+      }),
+    ).toEqual({
+      shouldUpgrade: false,
+      requirement: null,
+      reason: "You've reached your monthly AI message limit (500).",
+    })
   })
 })

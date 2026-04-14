@@ -5,6 +5,7 @@ import { Sparkles, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { formatChatMessage } from './format-chat-message'
@@ -30,6 +31,7 @@ interface MessageBubbleProps {
     code: string,
     confirmationToken: string,
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
+  onUpgradeClick?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -43,6 +45,7 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
+  onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
@@ -180,15 +183,28 @@ export function MessageBubble({
 
         {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
           <div className="mt-3 w-full space-y-2">
-            {message.policyDenials.map((denial) => (
-              <div
-                key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                className="rounded-[var(--radius-xl)] border border-red-500/20 bg-red-500/8 px-3 py-2"
-              >
-                <p className="text-xs font-medium text-red-300">{denial.sourceName}</p>
-                <p className="mt-1 text-[11px] text-red-200/90">{denial.reason}</p>
-              </div>
-            ))}
+            {message.policyDenials.map((denial) => {
+              const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(denial)
+
+              return (
+                <div
+                  key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
+                  className="rounded-[var(--radius-xl)] border border-red-500/20 bg-red-500/8 px-3 py-2"
+                >
+                  <p className="text-xs font-medium text-red-300">{denial.sourceName}</p>
+                  <p className="mt-1 text-[11px] text-red-200/90">{denial.reason}</p>
+                  {upgradeResolution.shouldUpgrade && onUpgradeClick && (
+                    <button
+                      type="button"
+                      onClick={onUpgradeClick}
+                      className="mt-3 inline-flex items-center rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-primary/90"
+                    >
+                      {t('upgrade.subscribe')}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

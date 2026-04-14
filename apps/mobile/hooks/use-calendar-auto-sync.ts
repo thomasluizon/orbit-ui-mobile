@@ -12,6 +12,10 @@ import {
 import { apiClient } from '@/lib/api-client'
 import { z } from 'zod'
 
+interface CalendarQueryOptions {
+  enabled?: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
@@ -21,10 +25,11 @@ async function fetchAutoSyncState(): Promise<CalendarAutoSyncState> {
   return calendarAutoSyncStateSchema.parse(raw)
 }
 
-export function useCalendarAutoSyncState() {
+export function useCalendarAutoSyncState(options?: CalendarQueryOptions) {
   return useQuery({
     queryKey: calendarKeys.autoSyncState(),
     queryFn: fetchAutoSyncState,
+    enabled: options?.enabled ?? true,
     staleTime: 30_000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -38,10 +43,11 @@ async function fetchSyncSuggestions(): Promise<CalendarSyncSuggestion[]> {
   return suggestionListSchema.parse(raw)
 }
 
-export function useCalendarSyncSuggestions() {
+export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
   return useQuery({
     queryKey: calendarKeys.syncSuggestions(),
     queryFn: fetchSyncSuggestions,
+    enabled: options?.enabled ?? true,
     staleTime: 30_000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,

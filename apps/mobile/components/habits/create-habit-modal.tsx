@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useWatch } from "react-hook-form";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Trash2, Plus } from "lucide-react-native";
@@ -18,6 +19,7 @@ import { HabitFormFields } from "./habit-form-fields";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useDismissGuard } from "@/hooks/use-dismiss-guard";
 import { useHabitForm } from "@/hooks/use-habit-form";
+import { useProfile } from "@/hooks/use-profile";
 import { useTagSelection } from "@/hooks/use-tag-selection";
 import { useCreateHabit, useCreateSubHabit } from "@/hooks/use-habits";
 import {
@@ -38,6 +40,7 @@ import {
 } from "@/lib/habit-request-builders";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { ProBadge } from "@/components/ui/pro-badge";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,6 +79,7 @@ export function CreateHabitModal({
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const { t } = useTranslation();
+  const router = useRouter();
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -83,10 +87,12 @@ export function CreateHabitModal({
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
+  const { profile } = useProfile();
   const createHabit = useCreateHabit();
   const createSubHabit = useCreateSubHabit();
   const { showError } = useAppToast();
   const isSubHabitMode = !!parentHabit;
+  const hasProAccess = profile?.hasProAccess ?? false;
   const activeView = useUIStore((s) => s.activeView);
 
   const formHelpers = useHabitForm({
@@ -139,6 +145,13 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId));
   }, []);
 
+  useEffect(() => {
+    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return;
+
+    onClose();
+    router.push("/upgrade");
+  }, [isSubHabitMode, onClose, open, profile, router]);
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (!open) return;
@@ -175,6 +188,11 @@ export function CreateHabitModal({
     initialReminderTimesRef.current = JSON.stringify(prefill?.reminderTimes ?? [0, 15]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    if (hasProAccess || subHabits.length === 0) return;
+    setSubHabits([]);
+  }, [hasProAccess, subHabits.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -214,11 +232,21 @@ export function CreateHabitModal({
 
   const handleSubmit = useCallback(async () => {
     flushBufferedInputsRef.current();
+
+    if (isSubHabitMode && !hasProAccess) {
+      onClose();
+      router.push("/upgrade");
+      return;
+    }
+
     const data = formHelpers.form.getValues() as unknown as HabitFormData;
-    const subHabitValues = subHabits.map((entry) => entry.value);
+    const permittedGoalIds = hasProAccess ? selectedGoalIds : [];
+    const subHabitValues = hasProAccess
+      ? subHabits.map((entry) => entry.value)
+      : [];
     const error = formHelpers.validateAll({
       reminderTimes,
-      selectedGoalIds,
+      selectedGoalIds: permittedGoalIds,
       selectedTagIds: tags.selectedTagIds,
       subHabits: subHabitValues,
     });
@@ -243,7 +271,7 @@ export function CreateHabitModal({
           data,
           reminderTimes,
           tags.selectedTagIds,
-          selectedGoalIds,
+          permittedGoalIds,
           subHabitValues,
         );
         await createHabit.mutateAsync(request);
@@ -269,7 +297,9 @@ export function CreateHabitModal({
     reminderTimes,
     createHabit,
     createSubHabit,
+    hasProAccess,
     onClose,
+    router,
     showError,
     translate,
   ]);
@@ -319,47 +349,66 @@ export function CreateHabitModal({
         >
           {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (
-            <View style={styles.subHabitsSection}>
-              <Text style={styles.label}>{t("habits.form.subHabits")}</Text>
-              {subHabits.length > 0 && (
-                <View style={styles.subHabitsList}>
-                  {subHabits.map((entry) => (
-                    <View key={entry.id} style={styles.subHabitRow}>
-                      <BottomSheetAppTextInput
-                        value={entry.value}
-                        maxLength={200}
-                        placeholder={t("habits.form.subHabitPlaceholder")}
-                        placeholderTextColor={colors.textMuted}
-                        style={[styles.input, { flex: 1 }]}
-                        onChangeText={(val: string) =>
-                          updateSubHabitValue(entry.id, val)
-                        }
-                      />
-                      <TouchableOpacity
-                        style={styles.removeSubHabit}
-                        onPress={() => removeSubHabit(entry.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Trash2 size={16} color={colors.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
+            hasProAccess ? (
+              <View style={styles.subHabitsSection}>
+                <Text style={styles.label}>{t("habits.form.subHabits")}</Text>
+                {subHabits.length > 0 && (
+                  <View style={styles.subHabitsList}>
+                    {subHabits.map((entry) => (
+                      <View key={entry.id} style={styles.subHabitRow}>
+                        <BottomSheetAppTextInput
+                          value={entry.value}
+                          maxLength={200}
+                          placeholder={t("habits.form.subHabitPlaceholder")}
+                          placeholderTextColor={colors.textMuted}
+                          style={[styles.input, { flex: 1 }]}
+                          onChangeText={(val: string) =>
+                            updateSubHabitValue(entry.id, val)
+                          }
+                        />
+                        <TouchableOpacity
+                          style={styles.removeSubHabit}
+                          onPress={() => removeSubHabit(entry.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Trash2 size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.addSubHabitButton}
+                  disabled={subHabits.length >= 20}
+                  onPress={() =>
+                    setSubHabits((prev) => [...prev, createSubHabitEntry()])
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Plus size={14} color={colors.primary} />
+                  <Text style={styles.addSubHabitText}>
+                    {t("habits.form.addSubHabit")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <TouchableOpacity
-                style={styles.addSubHabitButton}
-                disabled={subHabits.length >= 20}
-                onPress={() =>
-                  setSubHabits((prev) => [...prev, createSubHabitEntry()])
-                }
-                activeOpacity={0.7}
+                style={styles.lockedSubHabitsCard}
+                onPress={() => router.push("/upgrade")}
+                activeOpacity={0.8}
               >
-                <Plus size={14} color={colors.primary} />
-                <Text style={styles.addSubHabitText}>
-                  {t("habits.form.addSubHabit")}
+                <View style={styles.lockedSubHabitsHeader}>
+                  <Text style={styles.label}>{t("habits.form.subHabits")}</Text>
+                  <ProBadge alwaysVisible />
+                </View>
+                <Text style={styles.lockedSubHabitsDescription}>
+                  {t("upgrade.comparison.subHabits.tooltip")}
+                </Text>
+                <Text style={styles.lockedSubHabitsAction}>
+                  {t("upgrade.subscribe")}
                 </Text>
               </TouchableOpacity>
-            </View>
+            )
           )}
         </HabitFormFields>
 
@@ -421,9 +470,9 @@ function createStyles(
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: Math.max(bottomInset, 16) + 24,
-      gap: 20,
+      paddingHorizontal: 24,
+      paddingBottom: Math.max(bottomInset, 16) + 20,
+      gap: 22,
     },
     label: {
       fontSize: 12,
@@ -443,10 +492,10 @@ function createStyles(
       borderColor: colors.border,
     },
     subHabitsSection: {
-      gap: 6,
+      gap: 10,
     },
     subHabitsList: {
-      gap: 6,
+      gap: 8,
     },
     subHabitRow: {
       flexDirection: "row",
@@ -460,7 +509,7 @@ function createStyles(
     addSubHabitButton: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 8,
     },
     addSubHabitText: {
       fontSize: 12,
@@ -470,7 +519,31 @@ function createStyles(
     buttonRow: {
       flexDirection: "row",
       gap: 12,
-      paddingTop: 12,
+      paddingTop: 16,
+    },
+    lockedSubHabitsCard: {
+      gap: 10,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      backgroundColor: colors.surfaceGround,
+      padding: 16,
+    },
+    lockedSubHabitsHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    lockedSubHabitsDescription: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textMuted,
+    },
+    lockedSubHabitsAction: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: colors.primary,
     },
     cancelButton: {
       flex: 1,

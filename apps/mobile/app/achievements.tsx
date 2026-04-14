@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -27,14 +27,20 @@ export default function AchievementsScreen() {
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const categoryStyles = useMemo(() => createAchievementsScreenStyles(colors), [colors])
-  const { isLoading: profileLoading } = useProfile()
+  const { profile: accountProfile, isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
   const {
     profile,
     isLoading,
     xpProgress,
     achievementsByCategory,
-  } = useGamificationProfile()
+  } = useGamificationProfile(hasProAccess)
+
+  useEffect(() => {
+    if (accountProfile && !hasProAccess) {
+      router.replace('/upgrade')
+    }
+  }, [accountProfile, hasProAccess, router])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

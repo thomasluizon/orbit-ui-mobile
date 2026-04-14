@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, type ReactNode } from 'react'
+import { useId, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 
@@ -13,6 +13,7 @@ interface ProfileNavCardProps {
   proBadge?: boolean
   proBadgeLabel?: string
   dataTour?: string
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void
 }
 
 export function ProfileNavCard({
@@ -24,6 +25,7 @@ export function ProfileNavCard({
   proBadge = false,
   proBadgeLabel,
   dataTour,
+  onNavigate,
 }: Readonly<ProfileNavCardProps>) {
   const isPrimary = variant === 'primary'
   const titleId = useId()
@@ -36,6 +38,7 @@ export function ProfileNavCard({
       aria-describedby={hintId}
       data-tour={dataTour}
       data-testid={isPrimary ? 'profile-primary-card' : undefined}
+      onClick={onNavigate}
       className={`w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] surface-interactive group ${
         isPrimary
           ? 'bg-[var(--primary-tint-bg)] border-[var(--primary-tint-border)] hover:bg-[var(--primary-tint-bg-hover)] hover:border-[var(--primary-tint-border-hover)]'

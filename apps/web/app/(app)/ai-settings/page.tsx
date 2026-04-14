@@ -193,6 +193,9 @@ export default function AiSettingsPage() {
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
+  const hasProAccess = profile?.hasProAccess ?? false
+  const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
+  const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
 
   // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
@@ -228,10 +231,11 @@ export default function AiSettingsPage() {
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
     queryFn: fetchUserFacts,
+    enabled: hasProAccess,
     staleTime: 5 * 60 * 1000,
   })
 
-  const facts = factsQuery.data ?? []
+  const facts = hasProAccess ? (factsQuery.data ?? []) : []
 
   const deleteMutation = useMutation({
     mutationFn: deleteUserFact,
@@ -320,11 +324,11 @@ export default function AiSettingsPage() {
               </h2>
               <ProBadge />
             </div>
-            {profile?.hasProAccess ? (
+            {hasProAccess ? (
               <ToggleSwitch
-                enabled={!!profile?.aiMemoryEnabled}
+                enabled={aiMemoryEnabled}
                 disabled={aiMemoryMutation.isPending}
-                onToggle={() => aiMemoryMutation.mutate(!profile?.aiMemoryEnabled)}
+                onToggle={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
               />
             ) : (
               <ProUpgradeLink label={t('common.proBadge')} />
@@ -339,10 +343,10 @@ export default function AiSettingsPage() {
           </p>
           <p
             className={`text-xs font-medium ${
-              profile?.aiMemoryEnabled ? 'text-primary' : 'text-text-muted'
+              aiMemoryEnabled ? 'text-primary' : 'text-text-muted'
             }`}
           >
-            {profile?.aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
+            {aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
           </p>
         </div>
 
@@ -355,11 +359,11 @@ export default function AiSettingsPage() {
               </h2>
               <ProBadge />
             </div>
-            {profile?.hasProAccess ? (
+            {hasProAccess ? (
               <ToggleSwitch
-                enabled={!!profile?.aiSummaryEnabled}
+                enabled={aiSummaryEnabled}
                 disabled={aiSummaryMutation.isPending}
-                onToggle={() => aiSummaryMutation.mutate(!profile?.aiSummaryEnabled)}
+                onToggle={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
               />
             ) : (
               <ProUpgradeLink label={t('common.proBadge')} />
@@ -370,10 +374,10 @@ export default function AiSettingsPage() {
           </p>
           <p
             className={`text-xs font-medium ${
-              profile?.aiSummaryEnabled ? 'text-primary' : 'text-text-muted'
+              aiSummaryEnabled ? 'text-primary' : 'text-text-muted'
             }`}
           >
-            {profile?.aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
+            {aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
           </p>
         </div>
 

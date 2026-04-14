@@ -27,6 +27,8 @@ export interface TourStoreState {
   currentStepIndex: number
   /** non-null when replaying a single section from profile */
   replaySection: TourSection | null
+  /** sections hidden by entitlement gating */
+  hiddenSections: TourSection[]
   /** true while waiting for route change + element to appear */
   isNavigating: boolean
   /** bounding rect of the current target element */
@@ -47,6 +49,7 @@ export interface TourStoreState {
   endTour: () => void
   setTargetRect: (rect: TourTargetRect | null) => void
   setNavigating: (v: boolean) => void
+  setHiddenSections: (sections: TourSection[]) => void
 }
 
 export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): TourStoreState {
@@ -54,12 +57,16 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
     isActive: false,
     currentStepIndex: 0,
     replaySection: null,
+    hiddenSections: [],
     isNavigating: false,
     targetRect: null,
 
     getActiveSteps: () => {
-      const { replaySection } = get()
-      return replaySection ? getTourStepsBySection(replaySection) : TOUR_STEPS
+      const { replaySection, hiddenSections } = get()
+      const visibleSteps = TOUR_STEPS.filter((step) => !hiddenSections.includes(step.section))
+      return replaySection
+        ? visibleSteps.filter((step) => step.section === replaySection)
+        : visibleSteps
     },
 
     getCurrentStep: () => {
@@ -95,13 +102,13 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
       }),
 
     startSectionReplay: (section) =>
-      set({
-        isActive: true,
+      set((state) => ({
+        isActive: !state.hiddenSections.includes(section),
         currentStepIndex: 0,
-        replaySection: section,
+        replaySection: state.hiddenSections.includes(section) ? null : section,
         isNavigating: false,
         targetRect: null,
-      }),
+      })),
 
     nextStep: () => {
       const { currentStepIndex } = get()
@@ -151,5 +158,25 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
 
     setTargetRect: (rect) => set({ targetRect: rect }),
     setNavigating: (v) => set({ isNavigating: v }),
+    setHiddenSections: (sections) =>
+      set((state) => {
+        const nextSteps = (state.replaySection
+          ? TOUR_STEPS.filter((step) => step.section === state.replaySection)
+          : TOUR_STEPS
+        ).filter((step) => !sections.includes(step.section))
+
+        return {
+          hiddenSections: sections,
+          currentStepIndex:
+            nextSteps.length === 0
+              ? 0
+              : Math.min(state.currentStepIndex, nextSteps.length - 1),
+          replaySection:
+            state.replaySection && sections.includes(state.replaySection)
+              ? null
+              : state.replaySection,
+          isActive: nextSteps.length === 0 ? false : state.isActive,
+        }
+      }),
   }
 }
