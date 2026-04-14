@@ -38,6 +38,12 @@ import {
   WIDGET_STEP_KEYS,
   type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
+import type {
+  AgentCapability,
+  ApiKey,
+  ApiKeyCreateRequest,
+  ApiKeyCreateResponse,
+} from '@orbit/shared/types'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
@@ -47,24 +53,6 @@ import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
-
-// ---------------------------------------------------------------------------
-// API Keys types
-// ---------------------------------------------------------------------------
-
-interface ApiKey {
-  id: string
-  name: string
-  keyPrefix: string
-  createdAtUtc: string
-  lastUsedAtUtc: string | null
-}
-
-interface ApiKeyCreateResponse {
-  id: string
-  key: string
-  name: string
-}
 
 // ---------------------------------------------------------------------------
 // Advanced Screen
@@ -92,7 +80,31 @@ export default function AdvancedScreen() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const capabilitiesQuery = useQuery({
+    queryKey: ['ai-capabilities'],
+    queryFn: () => apiClient<AgentCapability[]>(API.ai.capabilities),
+    enabled: profile?.hasProAccess ?? false,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const apiKeys = apiKeysQuery.data ?? []
+  const scopeOptions = useMemo(() => {
+    const grouped = new Map<string, string[]>()
+
+    for (const capability of capabilitiesQuery.data ?? []) {
+      const descriptions = grouped.get(capability.scope) ?? []
+      descriptions.push(capability.displayName)
+      grouped.set(capability.scope, descriptions)
+    }
+
+    return Array.from(grouped.entries())
+      .map(([scope, labels]) => ({
+        scope,
+        label: scope,
+        description: labels.join(', '),
+      }))
+      .sort((left, right) => left.scope.localeCompare(right.scope))
+  }, [capabilitiesQuery.data])
   const MAX_API_KEYS = 5
   const canCreateKey = apiKeys.length < MAX_API_KEYS
 
@@ -146,7 +158,7 @@ export default function AdvancedScreen() {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
   }
 
-  async function handleCreateKey(name: string): Promise<ApiKeyCreateResponse | null> {
+  async function handleCreateKey(request: ApiKeyCreateRequest): Promise<ApiKeyCreateResponse | null> {
     setCreateKeyError(null)
     if (!isOnline) {
       setCreateKeyError(t('calendarSync.notConnected'))
@@ -155,7 +167,7 @@ export default function AdvancedScreen() {
     try {
       const result = await apiClient<ApiKeyCreateResponse>(API.apiKeys.create, {
         method: 'POST',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(request),
       })
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
@@ -305,12 +317,23 @@ export default function AdvancedScreen() {
                           <View style={{ flex: 1 }}>
                             <Text style={styles.apiKeyName}>{key.name}</Text>
                             <Text style={styles.apiKeyPrefix}>{key.keyPrefix}...</Text>
+                            <Text style={styles.apiKeyMeta}>
+                              {key.scopes.length > 0 ? key.scopes.join(', ') : 'No scopes'}
+                            </Text>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.apiKeyDate}>{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</Text>
                             <Text style={styles.apiKeyDate}>
                               {t('orbitMcp.lastUsed')} {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </Text>
+                            <Text style={styles.apiKeyDate}>
+                              {key.isReadOnly ? 'Read-only' : 'Read/write'}
+                            </Text>
+                            {key.expiresAtUtc && (
+                              <Text style={styles.apiKeyDate}>
+                                Expires {formatKeyDate(key.expiresAtUtc)}
+                              </Text>
+                            )}
                           </View>
                         </View>
 
@@ -479,6 +502,7 @@ export default function AdvancedScreen() {
         open={createKeyModalOpen}
         onOpenChange={setCreateKeyModalOpen}
         onCreateKey={handleCreateKey}
+        availableScopes={scopeOptions}
         apiError={createKeyError}
       />
     </SafeAreaView>
@@ -610,6 +634,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   },
   apiKeyName: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
   apiKeyPrefix: { fontSize: 12, color: colors.textMuted, fontFamily: 'monospace', marginTop: 2 },
+  apiKeyMeta: { fontSize: 10, color: colors.textMuted, marginTop: 4 },
   apiKeyDate: { fontSize: 10, color: colors.textMuted },
   revokeText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   revokeConfirmBar: {

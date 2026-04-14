@@ -125,27 +125,29 @@ describe('useGoalDetail', () => {
 
   it('fetches goal detail when id is provided', async () => {
     const detail: GoalDetailWithMetrics = {
-      id: 'g-1',
-      title: 'Read Books',
-      description: 'Read 12 books this year',
-      targetValue: 12,
-      currentValue: 3,
-      unit: 'books',
-      status: 'Active',
-      deadline: null,
-      position: 0,
-      createdAtUtc: '2025-01-01T00:00:00Z',
-      completedAtUtc: null,
-      progressPercentage: 25,
-      linkedHabits: [],
+      goal: {
+        id: 'g-1',
+        title: 'Read Books',
+        description: 'Read 12 books this year',
+        targetValue: 12,
+        currentValue: 3,
+        unit: 'books',
+        status: 'Active',
+        deadline: null,
+        position: 0,
+        createdAtUtc: '2025-01-01T00:00:00Z',
+        completedAtUtc: null,
+        progressPercentage: 25,
+        progressHistory: [],
+        linkedHabits: [],
+      },
       metrics: {
-        totalHabitsLinked: 0,
-        totalHabitCompletions: 0,
-        averageWeeklyCompletions: 0,
-        averageMonthlyCompletions: 0,
-        currentStreak: 0,
-        longestStreak: 0,
-        lastActivityDate: null,
+        progressPercentage: 25,
+        velocityPerDay: 0,
+        projectedCompletionDate: null,
+        daysToDeadline: null,
+        trackingStatus: 'OnTrack',
+        habitAdherence: [],
       },
     }
     mockFetch.mockResolvedValue({
@@ -158,7 +160,7 @@ describe('useGoalDetail', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.title).toBe('Read Books')
+    expect(result.current.data?.goal.title).toBe('Read Books')
   })
 
   it('does not fetch when id is null', () => {
@@ -178,13 +180,12 @@ describe('useGoalMetrics', () => {
 
   it('fetches goal metrics when id is provided', async () => {
     const metrics: GoalMetrics = {
-      totalHabitsLinked: 3,
-      totalHabitCompletions: 45,
-      averageWeeklyCompletions: 5,
-      averageMonthlyCompletions: 20,
-      currentStreak: 7,
-      longestStreak: 14,
-      lastActivityDate: '2025-01-15',
+      progressPercentage: 25,
+      velocityPerDay: 0.4,
+      projectedCompletionDate: '2025-12-31',
+      daysToDeadline: 120,
+      trackingStatus: 'OnTrack',
+      habitAdherence: [],
     }
     mockFetch.mockResolvedValue({
       ok: true,
@@ -196,7 +197,7 @@ describe('useGoalMetrics', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.totalHabitsLinked).toBe(3)
+    expect(result.current.data?.trackingStatus).toBe('OnTrack')
   })
 
   it('does not fetch when id is null', () => {

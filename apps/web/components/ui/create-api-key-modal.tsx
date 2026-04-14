@@ -3,31 +3,70 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Clipboard, Check, AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { AppOverlay } from '@/components/ui/app-overlay'
 
-interface ApiKeyCreateResponse {
-  id: string
-  key: string
-  name: string
+interface ScopeOption {
+  scope: string
+  label: string
+  description: string
 }
 
 interface CreateApiKeyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreateKey: (name: string) => Promise<ApiKeyCreateResponse | null>
+  availableScopes: ScopeOption[]
+  onCreateKey: (request: ApiKeyCreateRequest) => Promise<ApiKeyCreateResponse | null>
   apiError?: string | null
   onCreated?: () => void
+}
+
+function parseUtcDateTimeLocal(value: string): Date | null {
+  const match = value
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day, hour, minute, second] = match
+  const parsed = new Date(Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second ?? '0'),
+  ))
+
+  if (
+    parsed.getUTCFullYear() !== Number(year) ||
+    parsed.getUTCMonth() !== Number(month) - 1 ||
+    parsed.getUTCDate() !== Number(day) ||
+    parsed.getUTCHours() !== Number(hour) ||
+    parsed.getUTCMinutes() !== Number(minute) ||
+    parsed.getUTCSeconds() !== Number(second ?? '0')
+  ) {
+    return null
+  }
+
+  return parsed
 }
 
 export function CreateApiKeyModal({
   open,
   onOpenChange,
+  availableScopes,
   onCreateKey,
   apiError,
   onCreated,
 }: Readonly<CreateApiKeyModalProps>) {
   const t = useTranslations()
   const [keyName, setKeyName] = useState('')
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([])
+  const [isReadOnly, setIsReadOnly] = useState(false)
+  const [expiresAt, setExpiresAt] = useState('')
   const [validationError, setValidationError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
@@ -38,6 +77,9 @@ export function CreateApiKeyModal({
 
   function resetForm() {
     setKeyName('')
+    setSelectedScopes([])
+    setIsReadOnly(false)
+    setExpiresAt('')
     setValidationError('')
     setIsSubmitting(false)
     setCreatedKey(null)
@@ -61,7 +103,21 @@ export function CreateApiKeyModal({
       setValidationError(t('orbitMcp.keyNameMaxLength'))
       return false
     }
+    if (expiresAt.trim()) {
+      if (!parseUtcDateTimeLocal(expiresAt)) {
+        setValidationError(t('auth.genericError'))
+        return false
+      }
+    }
     return true
+  }
+
+  function toggleScope(scope: string) {
+    setSelectedScopes((current) =>
+      current.includes(scope)
+        ? current.filter((value) => value !== scope)
+        : [...current, scope],
+    )
   }
 
   const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(async (e) => {
@@ -70,7 +126,16 @@ export function CreateApiKeyModal({
 
     setIsSubmitting(true)
     try {
-      const result = await onCreateKey(keyName.trim())
+      const expiresAtUtc = expiresAt.trim()
+        ? parseUtcDateTimeLocal(expiresAt)?.toISOString() ?? null
+        : null
+
+      const result = await onCreateKey({
+        name: keyName.trim(),
+        scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
+        isReadOnly,
+        expiresAtUtc,
+      })
       if (result) {
         setCreatedKey(result)
         onCreated?.()
@@ -78,7 +143,7 @@ export function CreateApiKeyModal({
     } finally {
       setIsSubmitting(false)
     }
-  }, [keyName, onCreateKey, onCreated])
+  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes])
 
   async function copyKey() {
     if (!createdKey) return
@@ -138,6 +203,23 @@ export function CreateApiKeyModal({
             </p>
           )}
 
+          <div className="rounded-[var(--radius-lg)] border border-border bg-background px-4 py-3 text-xs text-text-secondary space-y-1">
+            <p>
+              <span className="font-semibold text-text-primary">Scopes:</span>{' '}
+              {createdKey?.scopes.length ? createdKey.scopes.join(', ') : 'None'}
+            </p>
+            <p>
+              <span className="font-semibold text-text-primary">Read-only:</span>{' '}
+              {createdKey?.isReadOnly ? t('common.yes') : t('common.no')}
+            </p>
+            {createdKey?.expiresAtUtc && (
+              <p>
+                <span className="font-semibold text-text-primary">Expires:</span>{' '}
+                {createdKey.expiresAtUtc}
+              </p>
+            )}
+          </div>
+
           {/* Done button */}
           <button
             type="button"
@@ -165,6 +247,74 @@ export function CreateApiKeyModal({
             {validationError && (
               <p className="mt-1.5 text-xs text-red-400">{validationError}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="form-label mb-0">{t('orbitMcp.apiKeys')}</label>
+              <div className="flex items-center gap-2 text-[11px]">
+                <button
+                  type="button"
+                  className="text-text-secondary hover:text-text-primary transition-colors"
+                  onClick={() => setSelectedScopes(availableScopes.map((scope) => scope.scope))}
+                >
+                  {t('common.selectAll')}
+                </button>
+                <button
+                  type="button"
+                  className="text-text-secondary hover:text-text-primary transition-colors"
+                  onClick={() => setSelectedScopes([])}
+                >
+                  {t('common.clear')}
+                </button>
+              </div>
+            </div>
+            <div className="max-h-48 overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-background p-2 space-y-2">
+              {availableScopes.map((scope) => (
+                <label
+                  key={scope.scope}
+                  className="flex items-start gap-3 rounded-[var(--radius-lg)] px-2 py-2 hover:bg-surface-elevated"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedScopes.includes(scope.scope)}
+                    onChange={() => toggleScope(scope.scope)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span className="space-y-0.5">
+                    <span className="block text-xs font-semibold text-text-primary">
+                      {scope.scope}
+                    </span>
+                    <span className="block text-[11px] text-text-secondary">
+                      {scope.description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-background px-3 py-3">
+            <input
+              type="checkbox"
+              checked={isReadOnly}
+              onChange={(event) => setIsReadOnly(event.target.checked)}
+              className="accent-primary"
+            />
+            <span className="text-xs text-text-primary">Read-only key</span>
+          </label>
+
+          <div>
+            <label htmlFor="api-key-expiry" className="form-label">
+              Expires At (UTC, optional)
+            </label>
+            <input
+              id="api-key-expiry"
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(event) => setExpiresAt(event.target.value)}
+              className="form-input"
+            />
           </div>
 
           {apiError && (

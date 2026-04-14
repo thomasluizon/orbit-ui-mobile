@@ -4,9 +4,11 @@ import { useState, useMemo } from 'react'
 import { Sparkles, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types/chat'
+import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { formatChatMessage } from './format-chat-message'
+import { PendingOperationCard } from './pending-operation-card'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,6 +18,18 @@ interface MessageBubbleProps {
   message: ChatMessage
   onBreakdownConfirmed?: () => void
   onActionChipClick?: (entityId: string, actionType: string) => void
+  onPendingOperationConfirmExecute?: (
+    pendingOperationId: string,
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
+  onPendingOperationPrepareStepUp?: (
+    pendingOperationId: string,
+  ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>
+  onPendingOperationVerifyStepUp?: (
+    pendingOperationId: string,
+    challengeId: string,
+    code: string,
+    confirmationToken: string,
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
 }
 
 // ---------------------------------------------------------------------------
@@ -26,6 +40,9 @@ export function MessageBubble({
   message,
   onBreakdownConfirmed,
   onActionChipClick,
+  onPendingOperationConfirmExecute,
+  onPendingOperationPrepareStepUp,
+  onPendingOperationVerifyStepUp,
 }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
@@ -41,6 +58,12 @@ export function MessageBubble({
   const nonSuggestionActions = useMemo(
     () => message.actions?.filter((a) => a.status !== 'Suggestion') ?? [],
     [message.actions],
+  )
+
+  const operationResults = useMemo(
+    () =>
+      message.operations?.filter((operation) => operation.status !== 'PendingConfirmation') ?? [],
+    [message.operations],
   )
 
   function dismissBreakdown(key: string) {
@@ -115,6 +138,57 @@ export function MessageBubble({
                 />
               )
             })}
+          </div>
+        )}
+
+        {!isUser && message.pendingOperations && message.pendingOperations.length > 0 && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp && (
+          <div className="mt-3 w-full space-y-3">
+            {message.pendingOperations.map((pendingOperation) => (
+              <PendingOperationCard
+                key={pendingOperation.id}
+                pendingOperation={pendingOperation}
+                onConfirmExecute={onPendingOperationConfirmExecute}
+                onPrepareStepUp={onPendingOperationPrepareStepUp}
+                onVerifyStepUp={onPendingOperationVerifyStepUp}
+              />
+            ))}
+          </div>
+        )}
+
+        {!isUser && operationResults.length > 0 && (
+          <div className="mt-3 w-full space-y-2">
+            {operationResults.map((operation) => (
+              <div
+                key={`${operation.operationId}-${operation.targetId ?? operation.sourceName}`}
+                className="rounded-[var(--radius-xl)] border border-border bg-surface px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium text-text-primary">
+                    {operation.summary ?? operation.sourceName}
+                  </p>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                    {operation.status}
+                  </span>
+                </div>
+                {operation.policyReason && (
+                  <p className="mt-1 text-[11px] text-text-secondary">{operation.policyReason}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
+          <div className="mt-3 w-full space-y-2">
+            {message.policyDenials.map((denial) => (
+              <div
+                key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
+                className="rounded-[var(--radius-xl)] border border-red-500/20 bg-red-500/8 px-3 py-2"
+              >
+                <p className="text-xs font-medium text-red-300">{denial.sourceName}</p>
+                <p className="mt-1 text-[11px] text-red-200/90">{denial.reason}</p>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -3,9 +3,11 @@ import { View, Text, Image, StyleSheet, Animated } from "react-native";
 import { Sparkles, User } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
+import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { formatChatMessage } from "@/components/chat/format-chat-message";
+import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
@@ -16,6 +18,18 @@ interface MessageBubbleProps {
   message: ChatMessage;
   onBreakdownConfirmed?: () => void;
   onActionChipClick?: (entityId: string, actionType: string) => void;
+  onPendingOperationConfirmExecute?: (
+    pendingOperationId: string,
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
+  onPendingOperationPrepareStepUp?: (
+    pendingOperationId: string,
+  ) => Promise<{ ok: boolean; error?: string; challengeId?: string; confirmationToken?: string }>;
+  onPendingOperationVerifyStepUp?: (
+    pendingOperationId: string,
+    challengeId: string,
+    code: string,
+    confirmationToken: string,
+  ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
 }
 
 interface FormattedSegment {
@@ -82,6 +96,9 @@ export function MessageBubble({
   message,
   onBreakdownConfirmed,
   onActionChipClick,
+  onPendingOperationConfirmExecute,
+  onPendingOperationPrepareStepUp,
+  onPendingOperationVerifyStepUp,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -103,6 +120,13 @@ export function MessageBubble({
   const nonSuggestionActions = useMemo(
     () => message.actions?.filter((a) => a.status !== "Suggestion") ?? [],
     [message.actions],
+  );
+  const operationResults = useMemo(
+    () =>
+      message.operations?.filter(
+        (operation) => operation.status !== "PendingConfirmation",
+      ) ?? [],
+    [message.operations],
   );
   const formattedSegments = useMemo(
     () => parseFormattedSegments(message.content ?? ""),
@@ -191,6 +215,60 @@ export function MessageBubble({
                 />
               );
             })}
+          </View>
+        )}
+
+        {!isUser &&
+          message.pendingOperations &&
+          message.pendingOperations.length > 0 &&
+          onPendingOperationConfirmExecute &&
+          onPendingOperationPrepareStepUp &&
+          onPendingOperationVerifyStepUp && (
+            <View style={styles.operationStack}>
+              {message.pendingOperations.map((pendingOperation) => (
+                <PendingOperationCard
+                  key={pendingOperation.id}
+                  pendingOperation={pendingOperation}
+                  onConfirmExecute={onPendingOperationConfirmExecute}
+                  onPrepareStepUp={onPendingOperationPrepareStepUp}
+                  onVerifyStepUp={onPendingOperationVerifyStepUp}
+                />
+              ))}
+            </View>
+          )}
+
+        {!isUser && operationResults.length > 0 && (
+          <View style={styles.operationStack}>
+            {operationResults.map((operation) => (
+              <View
+                key={`${operation.operationId}-${operation.targetId ?? operation.sourceName}`}
+                style={styles.operationCard}
+              >
+                <View style={styles.operationHeader}>
+                  <Text style={styles.operationTitle}>
+                    {operation.summary ?? operation.sourceName}
+                  </Text>
+                  <Text style={styles.operationStatus}>{operation.status}</Text>
+                </View>
+                {operation.policyReason ? (
+                  <Text style={styles.operationDetail}>{operation.policyReason}</Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
+          <View style={styles.operationStack}>
+            {message.policyDenials.map((denial) => (
+              <View
+                key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
+                style={styles.denialCard}
+              >
+                <Text style={styles.denialTitle}>{denial.sourceName}</Text>
+                <Text style={styles.denialReason}>{denial.reason}</Text>
+              </View>
+            ))}
           </View>
         )}
       </View>
@@ -388,6 +466,63 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       marginTop: 12,
       width: "100%",
+    },
+    operationStack: {
+      gap: 12,
+      marginTop: 12,
+      width: "100%",
+    },
+    operationCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 6,
+    },
+    operationHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    operationTitle: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textPrimary,
+    },
+    operationStatus: {
+      fontSize: 10,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      color: colors.textMuted,
+    },
+    operationDetail: {
+      fontSize: 11,
+      lineHeight: 16,
+      color: colors.textSecondary,
+    },
+    denialCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: "rgba(248,113,113,0.2)",
+      backgroundColor: "rgba(248,113,113,0.08)",
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 4,
+    },
+    denialTitle: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.red400,
+    },
+    denialReason: {
+      fontSize: 11,
+      lineHeight: 16,
+      color: colors.red400,
     },
 
     // Typing indicator

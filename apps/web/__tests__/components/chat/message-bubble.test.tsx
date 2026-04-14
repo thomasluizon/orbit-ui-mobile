@@ -24,6 +24,9 @@ vi.mock('@/components/chat/breakdown-suggestion', () => ({
 vi.mock('@/components/chat/format-chat-message', () => ({
   formatChatMessage: (text: string) => text,
 }))
+vi.mock('@/components/chat/pending-operation-card', () => ({
+  PendingOperationCard: () => <div data-testid="pending-operation-card" />,
+}))
 
 import { MessageBubble } from '@/components/chat/message-bubble'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -122,5 +125,64 @@ describe('MessageBubble', () => {
     )
     const bubble = container.querySelector('.bg-surface-elevated')
     expect(bubble).toBeInTheDocument()
+  })
+
+  it('renders pending operation cards for AI messages', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          pendingOperations: [
+            {
+              id: 'pending-1',
+              capabilityId: 'habit.delete',
+              displayName: 'Delete habit',
+              summary: 'Delete Meditation habit',
+              riskClass: 'Destructive',
+              confirmationRequirement: 'FreshConfirmation',
+              expiresAtUtc: '2025-01-15T10:00:00Z',
+            },
+          ],
+        })}
+        onPendingOperationConfirmExecute={async () => ({ ok: true })}
+        onPendingOperationPrepareStepUp={async () => ({ ok: true, challengeId: 'challenge-1', confirmationToken: 'token' })}
+        onPendingOperationVerifyStepUp={async () => ({ ok: true })}
+      />,
+    )
+
+    expect(screen.getByTestId('pending-operation-card')).toBeInTheDocument()
+  })
+
+  it('renders policy denials and operation summaries', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          operations: [
+            {
+              operationId: 'habit.read',
+              sourceName: 'Read habits',
+              riskClass: 'Low',
+              confirmationRequirement: 'None',
+              status: 'Succeeded',
+              summary: 'Loaded habits',
+              payload: null,
+            },
+          ],
+          policyDenials: [
+            {
+              operationId: 'habit.delete',
+              sourceName: 'Delete habit',
+              riskClass: 'Destructive',
+              confirmationRequirement: 'FreshConfirmation',
+              reason: 'Fresh confirmation required',
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Loaded habits')).toBeInTheDocument()
+    expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
   })
 })

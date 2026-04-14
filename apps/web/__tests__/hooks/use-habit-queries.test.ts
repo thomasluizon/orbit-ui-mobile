@@ -201,6 +201,7 @@ describe('useHabitDetail', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       isBadHabit: false,
+      isCompleted: false,
       isGeneral: false,
       isFlexible: false,
       days: [],
@@ -214,12 +215,7 @@ describe('useHabitDetail', () => {
       reminderEnabled: false,
       reminderTimes: [],
       scheduledReminders: [],
-      slipAlertEnabled: false,
-      tags: [],
-      goalIds: [],
-      flexibleTarget: null,
       children: [],
-      hasSubHabits: false,
     }
     mockFetch.mockResolvedValue({
       ok: true,
@@ -255,6 +251,7 @@ describe('useHabitMetrics', () => {
       currentStreak: 5,
       longestStreak: 14,
       totalCompletions: 100,
+      lastCompletedDate: null,
     }
     mockFetch.mockResolvedValue({
       ok: true,
@@ -319,31 +316,29 @@ describe('useHabitFullDetail', () => {
 
   it('fetches full detail when id is provided', async () => {
     const detail: HabitFullDetail = {
-      id: 'h-1',
-      title: 'Exercise',
-      description: 'Daily exercise',
-      frequencyUnit: 'Day',
-      frequencyQuantity: 1,
-      isBadHabit: false,
-      isGeneral: false,
-      isFlexible: false,
-      days: [],
-      dueDate: '2025-01-01',
-      dueTime: null,
-      dueEndTime: null,
-      endDate: null,
-      position: 0,
-      checklistItems: [],
-      createdAtUtc: '2025-01-01T00:00:00Z',
-      reminderEnabled: false,
-      reminderTimes: [],
-      scheduledReminders: [],
-      slipAlertEnabled: false,
-      tags: [],
-      goalIds: [],
-      flexibleTarget: null,
-      children: [],
-      hasSubHabits: false,
+      habit: {
+        id: 'h-1',
+        title: 'Exercise',
+        description: 'Daily exercise',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        isBadHabit: false,
+        isCompleted: false,
+        isGeneral: false,
+        isFlexible: false,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: null,
+        dueEndTime: null,
+        endDate: null,
+        position: 0,
+        checklistItems: [],
+        createdAtUtc: '2025-01-01T00:00:00Z',
+        reminderEnabled: false,
+        reminderTimes: [],
+        scheduledReminders: [],
+        children: [],
+      },
       logs: [],
       metrics: {
         weeklyCompletionRate: 80,
@@ -351,6 +346,7 @@ describe('useHabitFullDetail', () => {
         currentStreak: 5,
         longestStreak: 10,
         totalCompletions: 50,
+        lastCompletedDate: null,
       },
     }
     mockFetch.mockResolvedValue({
@@ -363,7 +359,7 @@ describe('useHabitFullDetail', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.title).toBe('Exercise')
+    expect(result.current.data?.habit.title).toBe('Exercise')
   })
 
   it('does not fetch when id is null', () => {

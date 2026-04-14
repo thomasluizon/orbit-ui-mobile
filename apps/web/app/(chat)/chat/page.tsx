@@ -79,6 +79,9 @@ export default function ChatPage() {
     sendMessage,
     handleKeyDown,
     handleBreakdownConfirmed,
+    confirmAndExecutePendingOperation,
+    preparePendingOperationStepUp,
+    verifyAndExecutePendingOperationStepUp,
   } = useChatComposer()
 
   // -------------------------------------------------------------------------
@@ -192,6 +195,36 @@ export default function ChatPage() {
             message={msg}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
+            onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
+            onPendingOperationPrepareStepUp={async (pendingOperationId) => {
+              const result = await preparePendingOperationStepUp(pendingOperationId)
+              if (!result.ok) {
+                return { ok: false, error: result.error }
+              }
+
+              return {
+                ok: true,
+                challengeId: result.challenge.challengeId,
+                confirmationToken: result.confirmationToken,
+              }
+            }}
+            onPendingOperationVerifyStepUp={async (
+              pendingOperationId,
+              challengeId,
+              code,
+              confirmationToken,
+            ) => {
+              const result = await verifyAndExecutePendingOperationStepUp(
+                pendingOperationId,
+                challengeId,
+                code,
+                confirmationToken,
+              )
+
+              return result.ok
+                ? { ok: true, response: result.response }
+                : { ok: false, error: result.error }
+            }}
           />
         ))}
 

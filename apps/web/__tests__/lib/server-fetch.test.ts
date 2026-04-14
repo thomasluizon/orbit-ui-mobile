@@ -9,8 +9,8 @@ vi.mock('@/lib/auth-api', () => ({
 vi.mock('@orbit/shared', () => ({
   createApiClientError: vi.fn((status: number, _payload: unknown, fallbackMessage: string) => {
     const err = new Error(fallbackMessage)
-    ;(err as Record<string, unknown>).status = status
-    ;(err as Record<string, unknown>).name = 'ApiClientError'
+    ;(err as unknown as Record<string, unknown>).status = status
+    ;(err as unknown as Record<string, unknown>).name = 'ApiClientError'
     return err
   }),
 }))

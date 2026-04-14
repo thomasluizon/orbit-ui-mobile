@@ -34,7 +34,12 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import type { ApiKey } from '@orbit/shared/types/api-key'
+import type {
+  AgentCapability,
+  ApiKey,
+  ApiKeyCreateRequest,
+  ApiKeyCreateResponse,
+} from '@orbit/shared/types'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetch(API.apiKeys.list)
@@ -42,11 +47,17 @@ async function fetchApiKeys(): Promise<ApiKey[]> {
   return res.json()
 }
 
-async function createApiKey(name: string): Promise<{ id: string; key: string; name: string }> {
+async function fetchCapabilities(): Promise<AgentCapability[]> {
+  const res = await fetch(API.ai.capabilities)
+  if (!res.ok) return []
+  return res.json()
+}
+
+async function createApiKey(request: ApiKeyCreateRequest): Promise<ApiKeyCreateResponse> {
   const res = await fetch(API.apiKeys.create, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(request),
   })
   if (!res.ok) throw new Error('Failed to create API key')
   return res.json()
@@ -92,7 +103,31 @@ export default function AdvancedPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const capabilitiesQuery = useQuery({
+    queryKey: ['ai-capabilities'],
+    queryFn: fetchCapabilities,
+    enabled: profile?.hasProAccess ?? false,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const apiKeys = apiKeysQuery.data ?? []
+  const scopeOptions = useMemo(() => {
+    const grouped = new Map<string, string[]>()
+
+    for (const capability of capabilitiesQuery.data ?? []) {
+      const descriptions = grouped.get(capability.scope) ?? []
+      descriptions.push(capability.displayName)
+      grouped.set(capability.scope, descriptions)
+    }
+
+    return Array.from(grouped.entries())
+      .map(([scope, labels]) => ({
+        scope,
+        label: scope,
+        description: labels.join(', '),
+      }))
+      .sort((left, right) => left.scope.localeCompare(right.scope))
+  }, [capabilitiesQuery.data])
   const MAX_API_KEYS = 5
   const canCreateKey = apiKeys.length < MAX_API_KEYS
 
@@ -125,10 +160,10 @@ export default function AdvancedPage() {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
   }
 
-  async function handleCreateKey(name: string) {
+  async function handleCreateKey(request: ApiKeyCreateRequest) {
     setCreateKeyError(null)
     try {
-      const result = await createApiKey(name)
+      const result = await createApiKey(request)
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
     } catch (err: unknown) {
@@ -241,12 +276,20 @@ export default function AdvancedPage() {
                 {/* Key list */}
                 {apiKeys.length > 0 && (
                   <div className="space-y-2">
-                    {apiKeys.map((key) => (
+                    {apiKeys.map((key) => {
+                      const scopes = Array.isArray(key.scopes) ? key.scopes : []
+                      const isReadOnly = key.isReadOnly ?? false
+                      const expiresAtUtc = key.expiresAtUtc ?? null
+
+                      return (
                       <div key={key.id} className="rounded-2xl bg-background p-3 space-y-2">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-text-primary truncate">{key.name}</p>
                             <p className="text-xs font-mono text-text-muted mt-0.5">{key.keyPrefix}...</p>
+                            <p className="text-[10px] text-text-muted mt-1">
+                              {scopes.length > 0 ? scopes.join(', ') : 'No scopes'}
+                            </p>
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-[10px] text-text-muted">{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
@@ -254,6 +297,14 @@ export default function AdvancedPage() {
                               {t('orbitMcp.lastUsed')}{' '}
                               {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </p>
+                            <p className="text-[10px] text-text-muted">
+                              {isReadOnly ? 'Read-only' : 'Read/write'}
+                            </p>
+                            {expiresAtUtc && (
+                              <p className="text-[10px] text-text-muted">
+                                Expires {formatKeyDate(expiresAtUtc)}
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -289,7 +340,8 @@ export default function AdvancedPage() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -436,7 +488,13 @@ export default function AdvancedPage() {
       </AppOverlay>
 
       {/* Create API Key Modal */}
-      <CreateApiKeyModal open={createKeyModalOpen} onOpenChange={setCreateKeyModalOpen} onCreateKey={handleCreateKey} apiError={createKeyError} />
+      <CreateApiKeyModal
+        open={createKeyModalOpen}
+        onOpenChange={setCreateKeyModalOpen}
+        onCreateKey={handleCreateKey}
+        availableScopes={scopeOptions}
+        apiError={createKeyError}
+      />
     </div>
   )
 }

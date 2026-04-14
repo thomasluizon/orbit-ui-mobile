@@ -6,25 +6,28 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { AlertTriangle, Clipboard as ClipboardIcon, Check, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface ApiKeyCreateResponse {
-  id: string
-  key: string
-  name: string
+interface ScopeOption {
+  scope: string
+  label: string
+  description: string
 }
 
 interface CreateApiKeyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreateKey: (name: string) => Promise<ApiKeyCreateResponse | null>
+  availableScopes: ScopeOption[]
+  onCreateKey: (request: ApiKeyCreateRequest) => Promise<ApiKeyCreateResponse | null>
   apiError?: string | null
   onCreated?: () => void
 }
@@ -32,6 +35,7 @@ interface CreateApiKeyModalProps {
 export function CreateApiKeyModal({
   open,
   onOpenChange,
+  availableScopes,
   onCreateKey,
   apiError,
   onCreated,
@@ -39,6 +43,9 @@ export function CreateApiKeyModal({
   const { t } = useTranslation()
   const { colors, shadows } = useAppTheme()
   const [keyName, setKeyName] = useState('')
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([])
+  const [isReadOnly, setIsReadOnly] = useState(false)
+  const [expiresAt, setExpiresAt] = useState('')
   const [validationError, setValidationError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
@@ -50,6 +57,9 @@ export function CreateApiKeyModal({
   useEffect(() => {
     if (!open) {
       setKeyName('')
+      setSelectedScopes([])
+      setIsReadOnly(false)
+      setExpiresAt('')
       setValidationError('')
       setIsSubmitting(false)
       setCreatedKey(null)
@@ -68,7 +78,22 @@ export function CreateApiKeyModal({
       setValidationError(t('orbitMcp.keyNameMaxLength'))
       return false
     }
+    if (expiresAt.trim()) {
+      const parsed = new Date(expiresAt)
+      if (Number.isNaN(parsed.getTime())) {
+        setValidationError(t('auth.genericError'))
+        return false
+      }
+    }
     return true
+  }
+
+  function toggleScope(scope: string) {
+    setSelectedScopes((current) =>
+      current.includes(scope)
+        ? current.filter((value) => value !== scope)
+        : [...current, scope],
+    )
   }
 
   const handleSubmit = useCallback(async () => {
@@ -76,7 +101,12 @@ export function CreateApiKeyModal({
 
     setIsSubmitting(true)
     try {
-      const result = await onCreateKey(keyName.trim())
+      const result = await onCreateKey({
+        name: keyName.trim(),
+        scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
+        isReadOnly,
+        expiresAtUtc: expiresAt.trim() ? new Date(expiresAt).toISOString() : null,
+      })
       if (result) {
         setCreatedKey(result)
         onCreated?.()
@@ -84,7 +114,7 @@ export function CreateApiKeyModal({
     } finally {
       setIsSubmitting(false)
     }
-  }, [keyName, onCreateKey, onCreated])
+  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes])
 
   async function copyKey() {
     if (!createdKey) return
@@ -144,6 +174,23 @@ export function CreateApiKeyModal({
                 <Text style={styles.copiedText}>{t('orbitMcp.copied')}</Text>
               )}
 
+              <View style={styles.metaBox}>
+                <Text style={styles.metaText}>
+                  <Text style={styles.metaTextStrong}>Scopes: </Text>
+                  {createdKey?.scopes.length ? createdKey.scopes.join(', ') : 'None'}
+                </Text>
+                <Text style={styles.metaText}>
+                  <Text style={styles.metaTextStrong}>Read-only: </Text>
+                  {createdKey?.isReadOnly ? t('common.yes') : t('common.no')}
+                </Text>
+                {createdKey?.expiresAtUtc ? (
+                  <Text style={styles.metaText}>
+                    <Text style={styles.metaTextStrong}>Expires: </Text>
+                    {createdKey.expiresAtUtc}
+                  </Text>
+                ) : null}
+              </View>
+
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => onOpenChange(false)}
@@ -162,6 +209,59 @@ export function CreateApiKeyModal({
                 placeholder={t('orbitMcp.keyNamePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 maxLength={50}
+              />
+
+              <View style={styles.scopeHeaderRow}>
+                <Text style={styles.label}>Scopes</Text>
+                <View style={styles.scopeActions}>
+                  <TouchableOpacity onPress={() => setSelectedScopes(availableScopes.map((scope) => scope.scope))}>
+                    <Text style={styles.scopeActionText}>{t('common.selectAll')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setSelectedScopes([])}>
+                    <Text style={styles.scopeActionText}>{t('common.clear')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <ScrollView style={styles.scopeList} contentContainerStyle={styles.scopeListContent}>
+                {availableScopes.map((scope) => {
+                  const isSelected = selectedScopes.includes(scope.scope)
+                  return (
+                    <TouchableOpacity
+                      key={scope.scope}
+                      style={[styles.scopeChip, isSelected && styles.scopeChipSelected]}
+                      onPress={() => toggleScope(scope.scope)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.scopeChipTitle, isSelected && styles.scopeChipTitleSelected]}>
+                        {scope.scope}
+                      </Text>
+                      <Text style={[styles.scopeChipDescription, isSelected && styles.scopeChipDescriptionSelected]}>
+                        {scope.description}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.readOnlyToggle, isReadOnly && styles.readOnlyToggleSelected]}
+                onPress={() => setIsReadOnly((current) => !current)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.readOnlyToggleText, isReadOnly && styles.readOnlyToggleTextSelected]}>
+                  Read-only key
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.label}>Expires At (UTC, optional)</Text>
+              <AppTextInput
+                style={styles.input}
+                value={expiresAt}
+                onChangeText={setExpiresAt}
+                placeholder="2026-04-20T18:00:00Z"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
               />
 
               {validationError ? (
@@ -229,6 +329,22 @@ function createStyles(
     content: {
       gap: 16,
     },
+    metaBox: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      padding: 14,
+      gap: 6,
+    },
+    metaText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    metaTextStrong: {
+      color: colors.textPrimary,
+      fontWeight: '700',
+    },
     label: {
       fontSize: 11,
       fontWeight: '700',
@@ -245,6 +361,78 @@ function createStyles(
       paddingVertical: 12,
       fontSize: 14,
       color: colors.textPrimary,
+    },
+    scopeHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    scopeActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    scopeActionText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    scopeList: {
+      maxHeight: 180,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    scopeListContent: {
+      padding: 8,
+      gap: 8,
+    },
+    scopeChip: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 4,
+    },
+    scopeChipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary_10,
+    },
+    scopeChipTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    scopeChipTitleSelected: {
+      color: colors.primary,
+    },
+    scopeChipDescription: {
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    scopeChipDescriptionSelected: {
+      color: colors.textPrimary,
+    },
+    readOnlyToggle: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    readOnlyToggleSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary_10,
+    },
+    readOnlyToggleText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    readOnlyToggleTextSelected: {
+      color: colors.primary,
     },
     warningBox: {
       flexDirection: 'row',
