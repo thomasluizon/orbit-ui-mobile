@@ -46,6 +46,10 @@ vi.mock('@/components/ui/app-select', () => ({
   AppSelect: () => React.createElement('View'),
 }))
 
+vi.mock('@/components/ui/app-time-picker', () => ({
+  AppTimePicker: (props: Record<string, unknown>) => React.createElement('AppTimePicker', props),
+}))
+
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
 }))
@@ -153,13 +157,10 @@ function createMockTags(overrides?: Partial<TagSelectionState>): TagSelectionSta
   }
 }
 
-function findTimeInputs(root: { findAll: (predicate: (node: any) => boolean) => any[] }) {
+function findTimePickers(root: { findAll: (predicate: (node: any) => boolean) => any[] }) {
   return root.findAll(
     (node: any) =>
-      node.type === 'TextInput' &&
-      node.props.keyboardType === 'number-pad' &&
-      node.props.maxLength === 5 &&
-      node.props.placeholder === 'habits.form.scheduledReminderTimePlaceholder',
+      node.type === 'AppTimePicker',
   )
 }
 
@@ -190,11 +191,14 @@ describe('HabitFormFields (mobile)', () => {
       )
     })
 
-    const dueTimeInput = findTimeInputs(tree.root)[0]
-    expect(findTimeInputs(tree.root)).toHaveLength(1)
+    const dueTimePicker = findTimePickers(tree.root).find(
+      (node: any) => node.props.accessibilityLabel === 'habits.form.dueTime',
+    )
+
+    expect(dueTimePicker).toBeTruthy()
 
     await TestRenderer.act(async () => {
-      dueTimeInput.props.onChangeText('1558')
+      dueTimePicker.props.onChange('15:58')
     })
 
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '15:58', {
@@ -222,10 +226,14 @@ describe('HabitFormFields (mobile)', () => {
       )
     })
 
-    const dueEndTimeInput = findTimeInputs(tree.root)[1]
+    const dueEndTimePicker = findTimePickers(tree.root).find(
+      (node: any) => node.props.accessibilityLabel === 'habits.form.dueEndTime',
+    )
+
+    expect(dueEndTimePicker).toBeTruthy()
 
     await TestRenderer.act(async () => {
-      dueEndTimeInput.props.onChangeText('2215')
+      dueEndTimePicker.props.onChange('22:15')
     })
 
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '22:15', {

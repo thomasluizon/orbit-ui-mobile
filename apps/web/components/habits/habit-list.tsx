@@ -5,12 +5,7 @@ import {
   isToday as isDateToday,
   isTomorrow,
   isYesterday,
-  format,
-  isBefore,
-  startOfDay,
 } from 'date-fns'
-import type { Locale } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import {
   ArrowLeft,
   Home,
@@ -21,6 +16,7 @@ import {
   computeHabitReorderPositions,
   collectVisibleHabitTreeIds,
   formatAPIDate,
+  formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
 } from '@orbit/shared/utils'
@@ -79,7 +75,6 @@ interface HabitListProps {
   selectedHabitIds?: Set<string>
   searchQuery?: string
   filters: HabitsFilter
-  generalHabits?: NormalizedHabit[]
   onToggleSelection?: (habitId: string) => void
   onEnterSelectMode?: (habitId: string) => void
   onCreate?: () => void
@@ -132,29 +127,22 @@ interface DragItem {
 function formatDateGroupLabel(
   key: string,
   locale: string,
-  dateFnsLocale: Locale,
   t: (key: string) => string,
 ): string {
   if (!key) return t('common.unknown')
 
   const date = new Date(key + 'T00:00:00')
-  const todayDate = startOfDay(new Date())
 
   if (isDateToday(date)) return t('dates.today')
   if (isTomorrow(date)) return t('dates.tomorrow')
   if (isYesterday(date)) return t('dates.yesterday')
 
-  if (isBefore(date, todayDate)) {
-    return format(date, locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy', {
-      locale: dateFnsLocale,
-    })
-  }
-
-  return format(
-    date,
-    locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
-    { locale: dateFnsLocale },
-  )
+  return formatLocaleDate(date, locale, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 function getEmptyHabitsMessage(
@@ -278,7 +266,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   selectedHabitIds,
   searchQuery = '',
   filters,
-  generalHabits,
   onToggleSelection,
   onEnterSelectMode,
   onCreate,
@@ -286,7 +273,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 }, ref) {
   const t = useTranslations()
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
   // Queries & mutations
   const habitsQuery = useHabits(filters)
@@ -575,14 +561,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     for (const [key, groupHabits] of sorted) {
       result.push({
         key,
-        label: formatDateGroupLabel(key, locale, dateFnsLocale, t),
+        label: formatDateGroupLabel(key, locale, t),
         isOverdue: false,
         habits: groupHabits,
       })
     }
 
     return result
-  }, [view, habits, t, locale, dateFnsLocale])
+  }, [view, habits, t, locale])
 
   // Flat drag items for rendering
   const dragItems = useMemo<DragItem[]>(() => {
@@ -1291,28 +1277,6 @@ const isPostponeAction = useMemo(() => {
   return (
     <div className="space-y-2.5" data-tour="tour-habit-list">
       {renderMainContent()}
-
-      {/* General habits section (shown on Today view when toggle is on) */}
-      {view === 'today' && generalHabits && generalHabits.length > 0 && (
-        <div className="mt-6 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary/70 whitespace-nowrap">
-              {t('habits.generalSection')}
-            </span>
-            <div className="flex-1 h-px bg-primary/20" />
-          </div>
-          <div className="space-y-2.5">
-            {generalHabits.map((habit) =>
-              renderHabitCard(
-                habit,
-                0,
-                false,
-                false,
-              ),
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Modals */}
       <HabitDetailDrawer

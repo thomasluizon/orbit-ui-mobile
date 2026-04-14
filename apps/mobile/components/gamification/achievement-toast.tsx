@@ -4,8 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import type { Achievement } from '@orbit/shared/types/gamification'
-import { gradients, radius, shadows } from '@/lib/theme'
+import { useUIStore } from '@/stores/ui-store'
+import { gradients, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -15,22 +15,78 @@ export function AchievementToast() {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { newAchievements, invalidate } = useGamificationProfile()
+  const activeCelebration = useUIStore((s) => s.activeCelebration)
+  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
+  const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
   const { colors, shadows } = useAppTheme()
-  const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null)
-  const queueRef = useRef<Achievement[]>([])
-  const visibleRef = useRef(false)
+  const [currentAchievement, setCurrentAchievement] = useState<{
+    id: string
+    xpReward: number
+  } | null>(null)
   const translateY = useRef(new Animated.Value(-100)).current
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.95)).current
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const activeAchievement =
+    activeCelebration?.kind === 'achievement'
+      ? activeCelebration
+      : null
 
-  const processQueue = useCallback(() => {
-    if (visibleRef.current || queueRef.current.length === 0) return
-    const next = queueRef.current.shift() ?? null
-    setCurrentAchievement(next)
-    visibleRef.current = true
+  const dismiss = useCallback(
+    (id?: string) => {
+      if (!id) return
+      if (timerRef.current) clearTimeout(timerRef.current)
 
-    // Animate in
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: -100,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 0.95,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setCurrentAchievement(null)
+        completeActiveCelebration(id)
+      })
+    },
+    [completeActiveCelebration, opacity, scale, translateY],
+  )
+
+  useEffect(() => {
+    if (newAchievements.length === 0) return
+
+    for (const achievement of newAchievements) {
+      enqueueCelebration('achievement', {
+        achievementId: achievement.id,
+        xpReward: achievement.xpReward,
+      })
+    }
+
+    invalidate()
+  }, [enqueueCelebration, invalidate, newAchievements])
+
+  useEffect(() => {
+    if (!activeAchievement) return
+
+    setCurrentAchievement({
+      id: activeAchievement.payload.achievementId,
+      xpReward: activeAchievement.payload.xpReward,
+    })
+
+    translateY.setValue(-100)
+    opacity.setValue(0)
+    scale.setValue(0.95)
+
     Animated.parallel([
       Animated.spring(translateY, {
         toValue: 0,
@@ -51,41 +107,21 @@ export function AchievementToast() {
       }),
     ]).start()
 
-    // Auto-dismiss after 4s
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -100,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 0.95,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        visibleRef.current = false
-        setCurrentAchievement(null)
-        processQueue()
-      })
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      dismiss(activeAchievement.id)
     }, 4000)
-  }, [translateY, opacity, scale])
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [activeAchievement, dismiss, opacity, scale, translateY])
 
   useEffect(() => {
-    if (newAchievements.length > 0) {
-      queueRef.current.push(...newAchievements)
-      invalidate()
-      if (!visibleRef.current) {
-        processQueue()
-      }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [newAchievements, invalidate, processQueue])
+  }, [])
 
   if (!currentAchievement) return null
 

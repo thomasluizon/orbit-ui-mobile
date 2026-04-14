@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import {
+  buildGoogleCalendarOAuthOptions,
   extractAuthBackendMessage,
   isValidEmail,
   isValidVerificationCode,
@@ -13,6 +14,7 @@ import {
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
@@ -230,7 +232,7 @@ async function fetchAuthEndpoint(
   return response.json()
 }
 
-function handleVerifySuccess(
+async function handleVerifySuccess(
   loginResponse: LoginResponse,
   referralCode: string | undefined,
   setAuth: (lr: LoginResponse) => void,
@@ -240,6 +242,7 @@ function handleVerifySuccess(
   getReturnUrl: () => string,
 ) {
   setAuth(loginResponse)
+  await hydrateProfilePresentation()
   if (referralCode) {
     localStorage.setItem('orbit_referral_applied', '1')
     document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
@@ -357,7 +360,15 @@ export default function LoginPage() {
         language: locale,
         ...(referralCode ? { referralCode } : {}),
       }) as LoginResponse
-      handleVerifySuccess(loginResponse, referralCode, setAuth, setSuccessMessage, t, router, getReturnUrl)
+      await handleVerifySuccess(
+        loginResponse,
+        referralCode,
+        setAuth,
+        setSuccessMessage,
+        t,
+        router,
+        getReturnUrl,
+      )
     } catch (err: unknown) {
       showError(resolveLoginErrorMessage(err, t))
       resetCodeDigits()
@@ -406,13 +417,7 @@ export default function LoginPage() {
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo,
-          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-          queryParams: {
-            access_type: 'offline',
-          },
-        },
+        options: buildGoogleCalendarOAuthOptions({ redirectTo }),
       })
 
       if (error) {

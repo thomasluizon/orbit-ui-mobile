@@ -1,46 +1,19 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import {
-  detectDefaultTimeFormat,
-  formatTime,
-  isTimeFormat,
-  TIME_FORMAT_STORAGE_KEY,
-  type TimeFormat,
-} from '@orbit/shared/utils'
-
-export type { TimeFormat } from '@orbit/shared/utils'
-export { formatTime } from '@orbit/shared/utils'
+import { useCallback, useMemo } from 'react'
+import { useLocale } from 'next-intl'
+import { formatLocaleTime } from '@orbit/shared/utils'
 
 export function useTimeFormat() {
-  const [currentFormat, setCurrentFormat] = useState<TimeFormat>(() => {
-    if (typeof globalThis === 'undefined' || globalThis.localStorage === undefined) {
-      return '24h'
-    }
-
-    const savedFormat = localStorage.getItem(TIME_FORMAT_STORAGE_KEY)
-    if (isTimeFormat(savedFormat)) {
-      return savedFormat
-    }
-
-    return detectDefaultTimeFormat()
-  })
-
-  const setFormat = useCallback((fmt: TimeFormat) => {
-    setCurrentFormat(fmt)
-    localStorage.setItem(TIME_FORMAT_STORAGE_KEY, fmt)
-  }, [])
+  const locale = useLocale()
 
   const displayTime = useCallback(
     (time: string | null | undefined): string => {
       if (!time) return ''
-      return formatTime(time, currentFormat)
+      return formatLocaleTime(time, locale)
     },
-    [currentFormat],
+    [locale],
   )
 
-  return useMemo(
-    () => ({ currentFormat, setFormat, displayTime }),
-    [currentFormat, setFormat, displayTime],
-  )
+  return useMemo(() => ({ displayTime }), [displayTime])
 }

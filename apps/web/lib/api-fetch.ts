@@ -74,7 +74,10 @@ async function getStatusError(
   }
 
   if (status === 403) {
-    if (globalThis.location !== undefined) {
+    if (
+      globalThis.location !== undefined &&
+      globalThis.location.pathname !== '/upgrade'
+    ) {
       globalThis.location.href = '/upgrade'
     }
     return new ApiError(status, 'Forbidden', body)

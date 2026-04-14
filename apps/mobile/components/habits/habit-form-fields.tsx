@@ -39,9 +39,8 @@ import type {
 } from "@orbit/shared/types/habit";
 import {
   HABIT_REMINDER_PRESETS,
-  formatHabitTimeInput,
+  formatLocaleTime,
   getFriendlyErrorMessage,
-  isValidHabitTimeInput,
 } from "@orbit/shared/utils";
 import { validateTagForm } from "@orbit/shared/validation";
 import { HabitChecklist } from "./habit-checklist";
@@ -58,6 +57,7 @@ import {
   useUpdateTag,
 } from "@/hooks/use-tags";
 import { AppDatePicker } from "@/components/ui/app-date-picker";
+import { AppTimePicker } from "@/components/ui/app-time-picker";
 import { AppSelect } from "@/components/ui/app-select";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { ProBadge } from "@/components/ui/pro-badge";
@@ -640,7 +640,7 @@ function ScheduledReminderSection({
   onSetScheduledReminders,
   onValidationError,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
   const MAX_SCHEDULED_REMINDERS = 5;
   const [showForm, setShowForm] = useState(false);
@@ -650,7 +650,7 @@ function ScheduledReminderSection({
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
 
   function addScheduledReminder() {
-    if (!isValidHabitTimeInput(time)) {
+    if (!time) {
       onValidationError(t("habits.form.invalidScheduledReminderTime"));
       return;
     }
@@ -680,7 +680,7 @@ function ScheduledReminderSection({
     when: ScheduledReminderWhen;
     time: string;
   }): string {
-    const timeDisplay = sr.time.slice(0, 5);
+    const timeDisplay = formatLocaleTime(sr.time, i18n.language);
     if (sr.when === "day_before") {
       return t("habits.form.scheduledReminderDayBeforeAt", {
         time: timeDisplay,
@@ -787,24 +787,23 @@ function ScheduledReminderSection({
 
               {/* Time input + add/cancel */}
               <View style={sectionStyles.timeRow}>
-                <BottomSheetAppTextInput
+                <AppTimePicker
                   value={time}
+                  containerStyle={{ flex: 1 }}
+                  accessibilityLabel={t(
+                    "habits.form.scheduledReminderTimePlaceholder",
+                  )}
                   placeholder={t(
                     "habits.form.scheduledReminderTimePlaceholder",
                   )}
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={5}
-                  style={sectionStyles.timeInput}
-                  onChangeText={(val: string) => setTime(formatHabitTimeInput(val))}
-                  onSubmitEditing={addScheduledReminder}
+                  onChange={setTime}
                 />
                 <TouchableOpacity
                   style={[
                     sectionStyles.timeAddButton,
-                    !isValidHabitTimeInput(time) && { opacity: 0.4 },
+                    !time && { opacity: 0.4 },
                   ]}
-                  disabled={!isValidHabitTimeInput(time)}
+                  disabled={!time}
                   onPress={addScheduledReminder}
                   activeOpacity={0.7}
                 >
@@ -946,8 +945,6 @@ export function HabitFormFields({
     setFlexible,
     setGeneral,
     toggleDay,
-    formatTimeInput,
-    formatEndTimeInput,
   } = formHelpers;
 
   const { setValue, formState: { errors } } = form;
@@ -1259,22 +1256,13 @@ export function HabitFormFields({
           </View>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
             <Text style={styles.label}>{t("habits.form.dueTime")}</Text>
-            <BufferedSheetInput
+            <AppTimePicker
               value={watchedDueTime}
-              registerFlush={registerBufferedInputFlusher}
-              transformDraft={formatTimeInput}
-              onDraftChange={(formatted) =>
-                setValue("dueTime", formatted, { shouldDirty: true })
-              }
               placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
-              placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
-              maxLength={5}
-              style={styles.input}
-              onCommit={(val) => {
-                const formatted = formatTimeInput(val);
-                setValue("dueTime", formatted, { shouldDirty: true });
-              }}
+              accessibilityLabel={t("habits.form.dueTime")}
+              onChange={(nextValue) =>
+                setValue("dueTime", nextValue, { shouldDirty: true })
+              }
             />
           </View>
         </View>
@@ -1507,22 +1495,13 @@ export function HabitFormFields({
           {watchedDueTime && !isGeneral && (
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
-              <BufferedSheetInput
+              <AppTimePicker
                 value={watchedDueEndTime}
-                registerFlush={registerBufferedInputFlusher}
-                transformDraft={formatEndTimeInput}
-                onDraftChange={(formatted) =>
-                  setValue("dueEndTime", formatted, { shouldDirty: true })
-                }
                 placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
-                placeholderTextColor={colors.textMuted}
-                keyboardType="number-pad"
-                maxLength={5}
-                style={styles.input}
-                onCommit={(val) => {
-                  const formatted = formatEndTimeInput(val);
-                  setValue("dueEndTime", formatted, { shouldDirty: true });
-                }}
+                accessibilityLabel={t("habits.form.dueEndTime")}
+                onChange={(nextValue) =>
+                  setValue("dueEndTime", nextValue, { shouldDirty: true })
+                }
               />
             </View>
           )}

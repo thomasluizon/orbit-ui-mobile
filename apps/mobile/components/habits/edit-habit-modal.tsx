@@ -272,7 +272,7 @@ function createStyles(
     },
     scrollContent: {
       paddingHorizontal: 20,
-      paddingBottom: bottomInset + 120,
+      paddingBottom: Math.max(bottomInset, 16) + 24,
       gap: 20,
     },
     buttonRow: {

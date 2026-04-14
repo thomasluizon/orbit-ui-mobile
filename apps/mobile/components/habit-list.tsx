@@ -24,14 +24,10 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import {
-  format,
-  isBefore,
   isToday as isDateToday,
   isTomorrow,
   isYesterday,
-  startOfDay,
 } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import {
   CheckCircle2,
   ChevronLeft,
@@ -42,6 +38,7 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
+  formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   type ReorderableHabitItem,
@@ -156,24 +153,17 @@ function formatDateGroupLabel(
   if (!key) return t('common.unknown')
 
   const date = new Date(`${key}T00:00:00`)
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
-  const todayDate = startOfDay(new Date())
 
   if (isDateToday(date)) return t('dates.today')
   if (isTomorrow(date)) return t('dates.tomorrow')
   if (isYesterday(date)) return t('dates.yesterday')
 
-  if (isBefore(date, todayDate)) {
-    return format(date, locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM dd, yyyy', {
-      locale: dateFnsLocale,
-    })
-  }
-
-  return format(
-    date,
-    locale === 'pt-BR' ? "EEEE, dd 'de' MMM" : 'EEEE, MMM dd',
-    { locale: dateFnsLocale },
-  )
+  return formatLocaleDate(date, locale, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -335,9 +325,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   const visibleHabits = useMemo(() => {
     if (view === 'today') {
-      const todayHabits = topLevelHabits.filter((habit) => !habit.isGeneral)
-      if (showCompleted) return todayHabits
-      return todayHabits.filter((habit) => visibility.hasVisibleContent(habit))
+      if (showCompleted) return topLevelHabits
+      return topLevelHabits.filter((habit) => visibility.hasVisibleContent(habit))
     }
 
     if (showCompleted) return topLevelHabits
@@ -345,11 +334,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
     )
   }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
-
-  const generalHabits = useMemo(() => {
-    if (view !== 'today') return []
-    return topLevelHabits.filter((habit) => habit.isGeneral)
-  }, [topLevelHabits, view])
 
   const dateGroups = useMemo<HabitListDateGroup[]>(() => {
     if (view !== 'all') return []
@@ -1123,22 +1107,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     ],
   )
 
-  const generalHabitSection = useMemo(() => {
-    if (view !== 'today' || generalHabits.length === 0) return null
-
-    return (
-      <View style={styles.generalSection}>
-        <View style={styles.generalSectionHeader}>
-          <Text style={styles.generalSectionLabel}>{t('habits.generalSection')}</Text>
-          <View style={styles.generalSectionDivider} />
-        </View>
-        <View style={styles.generalSectionList}>
-          {generalHabits.map((habit) => renderHabitCard(habit, 0, false, false))}
-        </View>
-      </View>
-    )
-  }, [generalHabits, renderHabitCard, styles, t, view])
-
   const renderAllViewChildren = useCallback(
     (parentId: string, depth: number) => {
       if (collapsedIds.has(parentId) || depth >= 3) return null
@@ -1610,7 +1578,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
               </View>
             </View>
           }
-          ListFooterComponent={generalHabitSection}
           contentContainerStyle={[
             styles.listContent,
             isSelectMode ? styles.listContentWithBulkBar : null,
@@ -1667,7 +1634,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         onDragEnd={handleDragEnd}
         ListHeaderComponent={listHeaderComponent}
         ListEmptyComponent={renderEmptyState(view)}
-        ListFooterComponent={generalHabitSection}
         onScroll={onTourScroll}
         scrollEventThrottle={16}
         onScrollBeginDrag={onScrollBeginDrag}

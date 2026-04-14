@@ -55,6 +55,7 @@ export function createHabitVisibilityHelpers({
   }
 
   const isRelevantToday = (habit: NormalizedHabit): boolean => {
+    if (habit.isGeneral) return true
     if (isDueOnSelectedDate(habit)) return true
     const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
     return children.some((child) => isRelevantToday(child))
@@ -62,7 +63,9 @@ export function createHabitVisibilityHelpers({
 
   const hasVisibleContent = (habit: NormalizedHabit): boolean => {
     if (recentlyCompletedIds.has(habit.id)) return true
-    if (!habit.isCompleted && (isDueOnSelectedDate(habit) || habit.isOverdue)) return true
+    if (!habit.isCompleted && (habit.isGeneral || isDueOnSelectedDate(habit) || habit.isOverdue)) {
+      return true
+    }
     const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
     return children.some((child) => hasVisibleContent(child))
   }

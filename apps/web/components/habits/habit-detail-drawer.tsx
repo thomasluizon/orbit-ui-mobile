@@ -3,8 +3,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Clock, Bell, CalendarDays } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
-import { format } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
@@ -18,6 +16,7 @@ import { DescriptionViewer } from './description-viewer'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { formatLocaleDate } from '@orbit/shared/utils'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -42,7 +41,6 @@ export function HabitDetailDrawer({
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { displayTime } = useTimeFormat()
   const habitId = habit?.id ?? ''
 
@@ -66,13 +64,13 @@ export function HabitDetailDrawer({
         .map((log) => ({
           id: log.id,
           note: log.note ?? '',
-          dateLabel: format(
-            new Date(log.date),
-            locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy',
-            { locale: dateFnsLocale },
-          ),
+          dateLabel: formatLocaleDate(log.date, locale, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
         })),
-    [dateFnsLocale, locale, logs],
+    [locale, logs],
   )
 
   const handleChecklistToggle = useCallback(
@@ -153,10 +151,10 @@ export function HabitDetailDrawer({
                     >
                       {sr.when === 'day_before'
                         ? t('habits.form.scheduledReminderDayBeforeAt', {
-                            time: sr.time.slice(0, 5),
+                            time: displayTime(sr.time),
                           })
                         : t('habits.form.scheduledReminderSameDayAt', {
-                            time: sr.time.slice(0, 5),
+                            time: displayTime(sr.time),
                           })}
                     </span>
                   ))}
@@ -170,7 +168,11 @@ export function HabitDetailDrawer({
                 <CalendarDays className="size-4 text-primary" />
                 <span>
                   {t('habits.detail.endsOn')}{' '}
-                  {format(new Date(habit.endDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })}
+                  {formatLocaleDate(habit.endDate, locale, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
                 </span>
               </div>
             )}

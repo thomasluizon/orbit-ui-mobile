@@ -38,6 +38,7 @@ import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import {
   CalendarHeader,
   CalendarLegend,
@@ -517,7 +518,7 @@ export default function CalendarScreen() {
         ) : (
           <BottomSheetScrollView
             style={styles.dayDetailScroll}
-            contentContainerStyle={styles.dayDetailContent}
+            contentContainerStyle={withDrawerContentInset(styles.dayDetailContent)}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.summaryRow}>

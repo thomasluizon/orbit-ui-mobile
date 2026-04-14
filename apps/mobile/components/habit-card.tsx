@@ -445,9 +445,10 @@ export function HabitCard({
 
   const isNotDueToday = useMemo(() => {
     if (!selectedDate) return false
+    if (habit.isGeneral) return false
     if (status !== 'pending') return false
     return true
-  }, [selectedDate, status])
+  }, [habit.isGeneral, selectedDate, status])
 
   const isParentWithChildren = hasChildren && childrenTotal > 0
   const progressPercent =

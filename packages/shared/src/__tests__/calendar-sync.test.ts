@@ -118,6 +118,7 @@ describe('calendar-sync utils', () => {
   it('recognizes not-connected messages', () => {
     expect(isCalendarSyncNotConnectedMessage('Unauthorized')).toBe(true)
     expect(isCalendarSyncNotConnectedMessage('Calendar connection is missing')).toBe(true)
+    expect(isCalendarSyncNotConnectedMessage('Google Calendar connection expired. Please reconnect.')).toBe(true)
     expect(isCalendarSyncNotConnectedMessage('Something else')).toBe(false)
   })
 })

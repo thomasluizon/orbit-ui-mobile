@@ -1,4 +1,4 @@
-import { format, parseISO, type Locale } from 'date-fns'
+import type { Locale } from 'date-fns'
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
+import { formatLocaleDate } from '@orbit/shared/utils'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
@@ -208,7 +209,10 @@ export function StreakFreezeSection({
             {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
               <View key={date} style={styles.recentDateChip}>
                 <Text style={styles.recentDateText}>
-                  {format(parseISO(date), locale === 'pt-BR' ? 'dd MMM' : 'MMM d', { locale: dateFnsLocale })}
+                  {formatLocaleDate(date, locale, {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
                 </Text>
               </View>
             ))}

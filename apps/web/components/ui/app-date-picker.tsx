@@ -17,6 +17,7 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
+import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 
 interface AppDatePickerProps {
@@ -88,8 +89,7 @@ export function AppDatePicker({
     setIsOpen(false)
   }
 
-  const dateFormat = locale === 'pt-BR' ? 'dd/MM/yyyy' : 'MM/dd/yyyy'
-  const displayValue = value ? format(parseISO(value), dateFormat) : ''
+  const displayValue = value ? formatLocaleDate(value, locale) : ''
 
   // Close on click outside
   const handleClickOutside = useCallback(
@@ -190,7 +190,11 @@ export function AppDatePicker({
                         <td key={day.toISOString()} className="p-0">
                           <button
                             type="button"
-                            aria-label={format(day, 'MMMM d, yyyy', { locale: dateFnsLocale })}
+                            aria-label={formatLocaleDate(day, locale, {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
                             aria-pressed={!!isSelected}
                             aria-current={isToday ? 'date' : undefined}
                             className={`flex aspect-square w-full items-center justify-center rounded-lg text-xs transition-colors ${

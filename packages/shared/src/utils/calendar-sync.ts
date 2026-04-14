@@ -186,7 +186,8 @@ export function isCalendarSyncNotConnectedMessage(message: string): boolean {
     lower.includes('unauthorized') ||
     lower.includes('invalid authentication credentials') ||
     lower.includes('google calendar') ||
-    lower.includes('calendar connection')
+    lower.includes('calendar connection') ||
+    (lower.includes('reconnect') && lower.includes('calendar'))
   )
 }
 

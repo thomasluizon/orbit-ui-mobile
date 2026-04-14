@@ -19,7 +19,6 @@ import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
-  buildTimeFormatOptions,
   buildWeekStartOptions,
   getNativePushStatusPresentation,
   LANGUAGE_OPTIONS,
@@ -27,7 +26,6 @@ import {
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
-import { useTimeFormat } from '@/hooks/use-time-format'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createColors } from '@/lib/theme'
@@ -47,10 +45,6 @@ export default function PreferencesScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const { colors, applyScheme, applyTheme, currentTheme } = useAppTheme()
-  const {
-    currentFormat: timeFormat,
-    setFormat: setTimeFormat,
-  } = useTimeFormat()
   const {
     isEnabled: pushEnabled,
     isRegistered: pushRegistered,
@@ -137,12 +131,11 @@ export default function PreferencesScreen() {
     applyTheme(mode)
   }
 
-  const timeFormatOptions = buildTimeFormatOptions(t)
-
   // --- Home Screen Toggle ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
+    void AsyncStorage.removeItem('orbit_time_format')
     AsyncStorage.getItem('orbit_show_general_on_today')
       .then((saved) => {
         setShowGeneralOnToday(parseShowGeneralOnTodayPreference(saved))
@@ -312,36 +305,6 @@ export default function PreferencesScreen() {
                   ]}
                 >
                   {t(opt.labelKey)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Time Format */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('settings.timeFormat.title')}</Text>
-          <Text style={styles.cardDescription}>
-            {t('settings.timeFormat.description')}
-          </Text>
-          <View style={styles.optionRow}>
-            {timeFormatOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  styles.optionButton,
-                  timeFormat === opt.value && styles.optionButtonActive,
-                ]}
-                onPress={() => setTimeFormat(opt.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    timeFormat === opt.value && styles.optionTextActive,
-                  ]}
-                >
-                  {opt.label}
                 </Text>
               </TouchableOpacity>
             ))}

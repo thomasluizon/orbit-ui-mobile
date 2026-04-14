@@ -1,20 +1,20 @@
 'use client'
 
-import { useState, useMemo, useId, useCallback, useEffect, type ReactNode } from 'react'
+import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
-  formatHabitTimeInput,
+  formatLocaleTime,
   getFriendlyErrorMessage,
-  isValidHabitTimeInput,
 } from '@orbit/shared/utils'
 import { validateTagForm } from '@orbit/shared/validation'
 import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { AppTimePicker } from '@/components/ui/app-time-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -28,6 +28,7 @@ import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-t
 
 interface HabitFormFieldsProps {
   formHelpers: HabitFormHelpers
+  titleInputRef?: RefObject<HTMLInputElement | null>
   tags: TagSelectionState
   selectedGoalIds: string[]
   atGoalLimit: boolean
@@ -439,6 +440,7 @@ function ScheduledReminderSection({
   scheduledReminderLabelId, reminderEnabled, scheduledReminders,
   onToggleReminder, onSetScheduledReminders, onValidationError, t,
 }: Readonly<ScheduledReminderSectionProps>) {
+  const locale = useLocale()
   const MAX_SCHEDULED_REMINDERS = 5
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
@@ -447,7 +449,7 @@ function ScheduledReminderSection({
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
 
   function addScheduledReminder() {
-    if (!isValidHabitTimeInput(time)) {
+    if (!time) {
       onValidationError(t('habits.form.invalidScheduledReminderTime'))
       return
     }
@@ -472,7 +474,7 @@ function ScheduledReminderSection({
   }
 
   function scheduledReminderLabel(sr: { when: ScheduledReminderWhen; time: string }): string {
-    const timeDisplay = sr.time.slice(0, 5)
+    const timeDisplay = formatLocaleTime(sr.time, locale)
     if (sr.when === 'day_before') {
       return t('habits.form.scheduledReminderDayBeforeAt', { time: timeDisplay })
     }
@@ -559,22 +561,17 @@ function ScheduledReminderSection({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <input
+                  <AppTimePicker
                     value={time}
-                    type="text"
-                    inputMode="numeric"
-                    aria-label={t('habits.form.scheduledReminderTimePlaceholder')}
-                    pattern="[0-9]{2}:[0-9]{2}"
+                    ariaLabel={t('habits.form.scheduledReminderTimePlaceholder')}
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                    maxLength={5}
                     className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                    onChange={(e) => setTime(formatHabitTimeInput(e.target.value))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addScheduledReminder() } }}
+                    onChange={setTime}
                   />
                   <button
                     type="button"
                     className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
-                    disabled={!isValidHabitTimeInput(time)}
+                    disabled={!time}
                     onClick={addScheduledReminder}
                   >
                     {t('common.add')}
@@ -674,6 +671,7 @@ const FREQUENCY_TYPE_CARDS = [
 
 export function HabitFormFields({
   formHelpers,
+  titleInputRef,
   tags,
   selectedGoalIds,
   atGoalLimit,
@@ -711,11 +709,10 @@ export function HabitFormFields({
     setFlexible,
     setGeneral,
     toggleDay,
-    formatTimeInput,
-    formatEndTimeInput,
   } = formHelpers
 
   const { register, watch, setValue, formState: { errors } } = form
+  const titleRegister = register('title')
 
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
@@ -825,7 +822,13 @@ export function HabitFormFields({
           className="form-input"
           aria-invalid={!!errors.title}
           aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
-          {...register('title')}
+          {...titleRegister}
+          ref={(element) => {
+            titleRegister.ref(element)
+            if (titleInputRef) {
+              titleInputRef.current = element
+            }
+          }}
         />
         {errors.title && (
           <p id="habit-form-title-error" className="text-xs text-destructive mt-1" role="alert">
@@ -965,19 +968,12 @@ export function HabitFormFields({
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}
             </label>
-            <input
+            <AppTimePicker
               id="habit-form-due-time"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{2}:[0-9]{2}"
               placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-              maxLength={5}
-              className="form-input"
               value={watchedDueTime}
-              onChange={(e) => {
-                const formatted = formatTimeInput(e.target.value)
-                setValue('dueTime', formatted, { shouldDirty: true })
-              }}
+              ariaLabel={t('habits.form.dueTime')}
+              onChange={(nextValue) => setValue('dueTime', nextValue, { shouldDirty: true })}
             />
           </div>
         </div>
@@ -1165,19 +1161,12 @@ export function HabitFormFields({
               <label htmlFor="habit-form-due-end-time" className="form-label">
                 {t('habits.form.dueEndTime')}
               </label>
-              <input
+              <AppTimePicker
                 id="habit-form-due-end-time"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{2}:[0-9]{2}"
                 placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                maxLength={5}
-                className="form-input"
                 value={watchedDueEndTime}
-                onChange={(e) => {
-                  const formatted = formatEndTimeInput(e.target.value)
-                  setValue('dueEndTime', formatted, { shouldDirty: true })
-                }}
+                ariaLabel={t('habits.form.dueEndTime')}
+                onChange={(nextValue) => setValue('dueEndTime', nextValue, { shouldDirty: true })}
               />
             </div>
           )}

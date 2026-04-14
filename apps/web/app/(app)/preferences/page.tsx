@@ -8,14 +8,9 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import {
-  buildTimeFormatOptions,
   buildWeekStartOptions,
-  detectDefaultTimeFormat,
-  isTimeFormat,
   LANGUAGE_OPTIONS,
   parseShowGeneralOnTodayPreference,
-  TIME_FORMAT_STORAGE_KEY,
-  type TimeFormat,
 } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
@@ -54,7 +49,11 @@ export default function PreferencesPage() {
   // Hydration guard: cookie/localStorage reads differ between server and client.
   // Defer client-only state until after mount to prevent aria-pressed mismatches.
   const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    setMounted(true)
+    localStorage.removeItem('orbit_time_format')
+    document.cookie = 'orbit_time_format=;max-age=0;path=/;samesite=strict'
+  }, [])
 
   // --- Language ---
   const [selectedLanguage, setSelectedLanguage] = useState('en')
@@ -122,35 +121,6 @@ export default function PreferencesPage() {
     applyScheme(scheme)
     colorSchemeMutation.mutate(scheme)
   }
-
-  // --- Time Format (local-only preference, cookie for SSR safety) ---
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h')
-
-  useEffect(() => {
-    // Check cookie first
-    const match = new RegExp(`(?:^|; )${TIME_FORMAT_STORAGE_KEY}=([^;]*)`).exec(document.cookie)
-    if (isTimeFormat(match?.[1])) {
-      setTimeFormat(match[1])
-      return
-    }
-    // Migrate from localStorage if present
-    const stored = localStorage.getItem(TIME_FORMAT_STORAGE_KEY)
-    if (isTimeFormat(stored)) {
-      setTimeFormat(stored)
-      return
-    }
-    // Auto-detect from browser locale
-    setTimeFormat(detectDefaultTimeFormat())
-  }, [])
-
-  function handleTimeFormatChange(format: TimeFormat) {
-    setTimeFormat(format)
-    // Store in both cookie (SSR-safe) and localStorage (backward compat)
-    document.cookie = `${TIME_FORMAT_STORAGE_KEY}=${format};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
-    localStorage.setItem(TIME_FORMAT_STORAGE_KEY, format)
-  }
-
-  const timeFormatOptions = buildTimeFormatOptions(t)
 
   // --- Home Screen Toggle (local-only preference) ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
@@ -247,35 +217,6 @@ export default function PreferencesPage() {
                   {!profile?.hasProAccess && option.value !== 'purple' && !isActive && (
                     <Lock className="size-3.5 text-white/70" />
                   )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Time Format */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {t('settings.timeFormat.title')}
-          </h2>
-          <p className="text-sm text-text-secondary">
-            {t('settings.timeFormat.description')}
-          </p>
-          <div className="flex gap-2">
-            {timeFormatOptions.map((opt) => {
-              const isActive = mounted && timeFormat === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                  }`}
-                  onClick={() => handleTimeFormatChange(opt.value)}
-                >
-                  {opt.label}
                 </button>
               )
             })}

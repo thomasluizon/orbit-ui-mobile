@@ -1,10 +1,16 @@
 import { getRequestConfig } from 'next-intl/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { resolveSystemLocale } from '@orbit/shared/utils'
 
 export default getRequestConfig(async () => {
   const cookieStore = await cookies()
-  const locale = cookieStore.get('i18n_locale')?.value ?? 'en'
-  const validLocale = locale === 'pt-BR' ? 'pt-BR' : 'en'
+  const headerStore = await headers()
+  const cookieLocale = cookieStore.get('i18n_locale')?.value
+  const acceptLanguage = headerStore.get('accept-language')
+  const validLocale =
+    cookieLocale === 'en' || cookieLocale === 'pt-BR'
+      ? cookieLocale
+    : resolveSystemLocale(acceptLanguage)
 
   const messages = (await import(`@orbit/shared/i18n/${validLocale}.json`)).default
 

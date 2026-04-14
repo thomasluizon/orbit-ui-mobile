@@ -24,7 +24,7 @@ import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTria
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { API } from '@orbit/shared/api'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { formatLocaleDate, getErrorMessage } from '@orbit/shared/utils'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const upgradeIconMap = {
@@ -119,7 +119,11 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
 }
 
 function formatBillingDate(isoDate: string, locale: string, dateFnsLocale: Locale): string {
-  return format(parseISO(isoDate), locale === 'pt-BR' ? 'dd MMM yyyy' : 'MMM d, yyyy', { locale: dateFnsLocale })
+  return formatLocaleDate(isoDate, locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 function invoiceReasonLabelFn(reason: string, t: ReturnType<typeof useTranslations>): string {

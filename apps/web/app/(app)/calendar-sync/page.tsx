@@ -30,6 +30,7 @@ import { getSupabaseClient } from '@/lib/supabase'
 import { API } from '@orbit/shared/api'
 import type { CalendarSyncEvent, CalendarSyncSuggestion } from '@orbit/shared'
 import {
+  buildGoogleCalendarOAuthOptions,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
@@ -59,13 +60,7 @@ async function connectGoogle(): Promise<void> {
 
   await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      redirectTo,
-      scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-      queryParams: {
-        access_type: 'offline',
-      },
-    },
+    options: buildGoogleCalendarOAuthOptions({ redirectTo, forceConsent: true }),
   })
 }
 

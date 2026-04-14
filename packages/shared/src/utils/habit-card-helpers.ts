@@ -52,7 +52,9 @@ export function computeHabitCardStatus(
   selectedDate?: Date,
 ): HabitCardStatus {
   if (habit.isCompleted || habit.isLoggedInRange) return 'completed'
-  if (habit.isGeneral) return 'pending'
+  if (habit.isGeneral) {
+    return selectedDate ? 'due-today' : 'pending'
+  }
   if (habit.isOverdue && !habit.frequencyUnit) return 'overdue'
   const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
   const hasTodaySchedule = hasHabitScheduleOnDate(habit, selectedDateStr)

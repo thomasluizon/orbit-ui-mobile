@@ -9,6 +9,7 @@ import {
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { radius } from '@/lib/theme'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -94,7 +95,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.settingsSection.timezoneTitle', descKey: 'onboarding.featureGuide.settingsSection.timezoneDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.supportTitle', descKey: 'onboarding.featureGuide.settingsSection.supportDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.pushNotificationsTitle', descKey: 'onboarding.featureGuide.settingsSection.pushNotificationsDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.timeFormatTitle', descKey: 'onboarding.featureGuide.settingsSection.timeFormatDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.subscriptionTitle', descKey: 'onboarding.featureGuide.settingsSection.subscriptionDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.settingsSection.retrospectiveDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.weekStartDayTitle', descKey: 'onboarding.featureGuide.settingsSection.weekStartDayDesc' },
@@ -172,7 +172,7 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
       <BottomSheetScrollView
         style={styles.sectionScroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.sectionContent}
+        contentContainerStyle={withDrawerContentInset(styles.sectionContent)}
       >
         {items.map((item) => (
           <View key={item.titleKey} style={styles.sectionItem}>

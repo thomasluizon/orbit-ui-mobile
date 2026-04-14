@@ -30,6 +30,7 @@ import { dismissCalendarImport } from '@/app/actions/profile'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
+import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
 
 export default function AppLayout({
   children,
@@ -56,8 +57,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     const cleanup = useAuthStore.getState().startExpiryMonitor()
     return cleanup
   }, [])
-  const gamification = useGamificationProfile()
-
   const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
@@ -133,11 +132,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo,
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        queryParams: { access_type: 'offline' },
-      },
+      options: buildGoogleCalendarOAuthOptions({ redirectTo, forceConsent: true }),
     })
   }, [profile?.hasGoogleConnection, router])
 
@@ -175,7 +170,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <GlobalOverlays
         profile={profile}
         hasProAccess={hasProAccess}
-        gamification={gamification}
         streakFreezeRef={streakFreezeRef}
         showCalendarPrompt={showCalendarPrompt}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
@@ -195,7 +189,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 function GlobalOverlays({
   profile,
   hasProAccess,
-  gamification,
   streakFreezeRef,
   showCalendarPrompt,
   onCalendarPromptOpenChange,
@@ -204,7 +197,6 @@ function GlobalOverlays({
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
-  gamification: ReturnType<typeof useGamificationProfile>
   streakFreezeRef: React.RefObject<{ show: () => void } | null>
   showCalendarPrompt: boolean
   onCalendarPromptOpenChange: (open: boolean) => void
@@ -212,6 +204,7 @@ function GlobalOverlays({
   onDismissCalendarPrompt: () => void
 }>) {
   const t = useTranslations()
+  const gamification = useGamificationProfile(hasProAccess)
 
   return (
     <div className="contents">

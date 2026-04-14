@@ -81,6 +81,7 @@ export function AppOverlay({
   const panelRef = useRef<HTMLDialogElement>(null)
   const pointerDownOnBackdrop = useRef(false)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
+  const requestCloseRef = useRef<(reason: 'escape' | 'backdrop' | 'close-button' | 'navigation' | 'system-back') => boolean>(() => true)
   const [mounted, setMounted] = useState(false)
   const [animState, setAnimState] = useState<'hidden' | 'entering' | 'visible' | 'leaving'>('hidden')
 
@@ -147,6 +148,10 @@ export function AppOverlay({
     [canDismiss, dismissible, isDirty, onAttemptDismiss, onOpenChange],
   )
 
+  useEffect(() => {
+    requestCloseRef.current = requestClose
+  }, [requestClose])
+
   // Focus trap
   useEffect(() => {
     if (!open) return
@@ -155,7 +160,7 @@ export function AppOverlay({
     previouslyFocusedElement.current = document.activeElement as HTMLElement
     registerOverlay({
       id: overlayId,
-      dismiss: requestClose,
+      dismiss: (reason) => requestCloseRef.current(reason),
     })
 
     const FOCUSABLE_SELECTORS = [
@@ -206,7 +211,7 @@ export function AppOverlay({
       if (e.key === 'Escape' && isTopOverlay(overlayId)) {
         e.preventDefault()
         e.stopPropagation()
-        requestClose('escape')
+        requestCloseRef.current('escape')
       }
     }
 
@@ -223,7 +228,7 @@ export function AppOverlay({
         previouslyFocusedElement.current = null
       }
     }
-  }, [open, initialFocusRef, lockBodyScroll, overlayId, requestClose, unlockBodyScroll])
+  }, [open, initialFocusRef, lockBodyScroll, overlayId, unlockBodyScroll])
 
   function handlePointerDown(e: React.PointerEvent) {
     const target = e.target as HTMLElement
@@ -321,14 +326,14 @@ export function AppOverlay({
 
         {/* Body */}
         {children && (
-          <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-[calc(1rem+var(--safe-bottom))]">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-[calc(6rem+var(--safe-bottom))]">
             {children}
           </div>
         )}
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 pt-4 pb-[calc(1rem+var(--safe-bottom))] border-t border-border">
+          <div className="px-6 pt-4 pb-[calc(1.5rem+var(--safe-bottom))] border-t border-border">
             {footer}
           </div>
         )}

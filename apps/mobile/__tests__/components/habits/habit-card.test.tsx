@@ -77,6 +77,14 @@ function findOuterCardTouchables(root: any) {
   )
 }
 
+function hasDimmedStyle(style: unknown): boolean {
+  if (!style) return false
+  if (Array.isArray(style)) {
+    return style.some((entry) => hasDimmedStyle(entry))
+  }
+  return typeof style === 'object' && style !== null && 'opacity' in style && (style as { opacity?: number }).opacity === 0.4
+}
+
 describe('HabitCard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -191,5 +199,21 @@ describe('HabitCard', () => {
     })
 
     expect(onEnterSelectMode).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not dim general habits on today view', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({ isGeneral: true, isCompleted: false })}
+          selectedDate={new Date('2025-01-02')}
+        />,
+      )
+    })
+
+    const [outerCard] = findOuterCardTouchables(tree.root)
+    expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
   })
 })

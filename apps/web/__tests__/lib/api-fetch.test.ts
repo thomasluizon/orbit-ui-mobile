@@ -125,6 +125,28 @@ describe('apiFetch', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it('does not redirect again when already on /upgrade', async () => {
+    const locationOnUpgrade = {
+      href: 'https://app.useorbit.org/upgrade',
+      pathname: '/upgrade',
+    }
+    Object.defineProperty(globalThis, 'location', {
+      value: locationOnUpgrade,
+      writable: true,
+      configurable: true,
+    })
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ error: 'Forbidden' }),
+    })
+
+    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+    expect(locationOnUpgrade.href).toBe('https://app.useorbit.org/upgrade')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('shows validation error toast on 400', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

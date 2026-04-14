@@ -10,6 +10,8 @@ describe('ui store', () => {
       activeFilters: {},
       selectedDate: formatAPIDate(new Date()),
       activeView: 'today',
+      activeCelebration: null,
+      queuedCelebrations: [],
       streakCelebration: null,
       allDoneCelebration: false,
       allDoneCelebratedDate: '',
@@ -207,14 +209,13 @@ describe('ui store', () => {
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
       })
 
-      it('delays allDone celebration when streak celebration is active', () => {
-        vi.useFakeTimers()
+      it('queues allDone celebration behind an active streak celebration', () => {
         const today = formatAPIDate(new Date())
         useUIStore.setState({
           activeFilters: { dateFrom: today, dateTo: today },
           allDoneCelebratedDate: '',
-          streakCelebration: { streak: 7 },
         })
+        useUIStore.getState().setStreakCelebration({ streak: 7 })
 
         const { checkAllDoneCelebration } = useUIStore.getState()
         const habits = new Map([
@@ -222,13 +223,14 @@ describe('ui store', () => {
         ])
         checkAllDoneCelebration(habits)
 
-        // Should NOT be immediately true because of the streak celebration delay
+        expect(useUIStore.getState().streakCelebration).toEqual({ streak: 7 })
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
+        expect(useUIStore.getState().queuedCelebrations).toHaveLength(1)
+        expect(useUIStore.getState().queuedCelebrations[0]?.kind).toBe('all-done')
 
-        // After the 3s delay, it fires
-        vi.advanceTimersByTime(3000)
+        useUIStore.getState().completeActiveCelebration()
         expect(useUIStore.getState().allDoneCelebration).toBe(true)
-        vi.useRealTimers()
+        expect(useUIStore.getState().streakCelebration).toBeNull()
       })
 
       it('does not trigger when some habits are incomplete', () => {

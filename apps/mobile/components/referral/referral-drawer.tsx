@@ -12,6 +12,7 @@ import { Check, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -74,7 +75,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
     >
       <BottomSheetScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={withDrawerContentInset(styles.content)}
         showsVerticalScrollIndicator={false}
       >
         {/* Loading */}

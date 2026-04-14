@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Sparkles, CheckCircle2 } from 'lucide-react-native'
-import { useRouter } from 'expo-router'
+import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
@@ -37,6 +37,7 @@ const FEATURES = [
 export function TrialExpiredModal() {
   const { t } = useTranslation()
   const router = useRouter()
+  const pathname = usePathname()
   const { colors, shadows } = useAppTheme()
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
@@ -49,7 +50,7 @@ export function TrialExpiredModal() {
     })
   }, [])
 
-  const isOpen = !dismissed && trialExpired && !alreadySeen
+  const isOpen = pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
 
   const dismiss = useCallback(() => {
     setDismissed(true)
