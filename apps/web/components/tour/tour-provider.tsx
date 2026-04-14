@@ -27,12 +27,16 @@ export function TourProvider() {
   const hasProAccess = profile?.hasProAccess ?? false
 
   const store = useTourStore()
-  const { isActive, getCurrentStep, setTargetRect, setNavigating, endTour, nextStep } = store
+  const { isActive, getCurrentStep, setTargetRect, setNavigating, endTour, nextStep, setHiddenSections } = store
 
   const prevStepIdRef = useRef<string | null>(null)
   const mockDataInjectedRef = useRef(false)
   const observerRef = useRef<MutationObserver | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setHiddenSections(hasProAccess ? [] : ['goals'])
+  }, [hasProAccess, setHiddenSections])
 
   // Inject mock data and reset view when tour starts
   useEffect(() => {

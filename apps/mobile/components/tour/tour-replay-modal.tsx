@@ -23,6 +23,7 @@ import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createColors } from '@/lib/theme'
+import { useProfile } from '@/hooks/use-profile'
 
 type AppColors = ReturnType<typeof createColors>
 
@@ -46,6 +47,7 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { startFullTour, startSectionReplay } = useTourStore()
+  const { profile } = useProfile()
   const [sectionCompletion, setSectionCompletion] = useState<Record<TourSection, boolean>>({
     habits: false,
     goals: false,
@@ -53,6 +55,9 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
     calendar: false,
     profile: false,
   })
+  const availableSections = TOUR_SECTIONS.filter((section) =>
+    profile?.hasProAccess ? true : section !== 'goals',
+  )
 
   useEffect(() => {
     if (visible) {
@@ -124,7 +129,7 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
           <View style={styles.divider} />
 
           {/* Section cards */}
-          {TOUR_SECTIONS.map((section) => {
+          {availableSections.map((section) => {
             const iconKey = TOUR_SECTION_ICONS[section]
             const Icon = SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
             const stepCount = getSectionStepCount(section)

@@ -9,6 +9,7 @@ import { resetTour } from '@/app/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile, TourSection } from '@orbit/shared/types'
+import { useProfile } from '@/hooks/use-profile'
 import { TOUR_SECTIONS, TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { getSectionStepCount } from '@orbit/shared/tour'
 import {
@@ -49,7 +50,11 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
   const router = useRouter()
   const queryClient = useQueryClient()
   const { startFullTour, startSectionReplay } = useTourStore()
+  const { profile } = useProfile()
   const sectionCompletion = getSectionCompletion()
+  const availableSections = TOUR_SECTIONS.filter((section) =>
+    profile?.hasProAccess ? true : section !== 'goals',
+  )
 
   const handleReplayAll = useCallback(async () => {
     onOpenChange(false)
@@ -116,7 +121,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
 
         {/* Section cards */}
         <div className="space-y-2">
-          {TOUR_SECTIONS.map((section) => {
+          {availableSections.map((section) => {
             const iconKey = TOUR_SECTION_ICONS[section]
             const Icon = SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
             const stepCount = getSectionStepCount(section)

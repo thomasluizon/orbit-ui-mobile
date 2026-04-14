@@ -12,6 +12,7 @@ describe('tour-store (web)', () => {
     expect(state.isActive).toBe(false)
     expect(state.currentStepIndex).toBe(0)
     expect(state.replaySection).toBeNull()
+    expect(state.hiddenSections).toEqual([])
     expect(state.isNavigating).toBe(false)
     expect(state.targetRect).toBeNull()
   })
@@ -164,5 +165,20 @@ describe('tour-store (web)', () => {
     // Should end tour since there's only one section in replay mode
     expect(result).toBeNull()
     expect(useTourStore.getState().isActive).toBe(false)
+  })
+
+  it('filters hidden sections out of the active steps', () => {
+    useTourStore.getState().setHiddenSections(['goals'])
+    useTourStore.getState().startFullTour()
+
+    expect(useTourStore.getState().getActiveSteps().every((step) => step.section !== 'goals')).toBe(true)
+  })
+
+  it('does not start replay for a hidden section', () => {
+    useTourStore.getState().setHiddenSections(['goals'])
+    useTourStore.getState().startSectionReplay('goals')
+
+    expect(useTourStore.getState().isActive).toBe(false)
+    expect(useTourStore.getState().replaySection).toBeNull()
   })
 })
