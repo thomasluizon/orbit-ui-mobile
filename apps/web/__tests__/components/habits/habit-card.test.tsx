@@ -131,6 +131,12 @@ describe('HabitCard', () => {
     expect(screen.getByLabelText('Exercise').className).toContain('opacity-40')
   })
 
+  it('does not apply opacity-40 to general habits on today view', () => {
+    const habit = createMockHabit({ isGeneral: true, isCompleted: false })
+    render(<HabitCard habit={habit} selectedDate={new Date('2025-01-02')} />)
+    expect(screen.getByLabelText('Exercise').className).not.toContain('opacity-40')
+  })
+
   it('applies line-through to title when completed', () => {
     const habit = createMockHabit({ isCompleted: true })
     render(<HabitCard habit={habit} />)

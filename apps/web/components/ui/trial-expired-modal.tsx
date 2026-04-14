@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Sparkles, CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -20,6 +21,7 @@ const features = [
 
 export function TrialExpiredModal() {
   const t = useTranslations()
+  const pathname = usePathname()
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -28,7 +30,12 @@ export function TrialExpiredModal() {
     setMounted(true)
   }, [])
 
-  const isOpen = mounted && !dismissed && trialExpired && !localStorage.getItem(STORAGE_KEY)
+  const isOpen =
+    mounted &&
+    pathname !== '/upgrade' &&
+    !dismissed &&
+    trialExpired &&
+    !localStorage.getItem(STORAGE_KEY)
 
   function dismiss() {
     setDismissed(true)

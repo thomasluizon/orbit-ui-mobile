@@ -4,6 +4,7 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import mobileAds, {
   AdEventType,
+  AdsConsent,
   InterstitialAd,
   RewardedAd,
   RewardedAdEventType,
@@ -18,10 +19,14 @@ const DAILY_REWARD_CAP = 3
 
 const TEST_INTERSTITIAL_ID = TestIds.INTERSTITIAL
 const TEST_REWARDED_ID = TestIds.REWARDED
-
-// Replace these placeholders with your real AdMob unit IDs before going live.
-const PROD_INTERSTITIAL_ID = TEST_INTERSTITIAL_ID
-const PROD_REWARDED_ID = TEST_REWARDED_ID
+type AdUnitKind = 'interstitial' | 'rewarded'
+type AdMobExtra = {
+  useTestIds?: boolean
+  androidInterstitialId?: string | null
+  androidRewardedId?: string | null
+  iosInterstitialId?: string | null
+  iosRewardedId?: string | null
+}
 
 let isInitializedState = false
 let initializationPromise: Promise<boolean> | null = null
@@ -57,8 +62,67 @@ function canUseNativeAds() {
   return Platform.OS !== 'web' && Constants.appOwnership !== 'expo'
 }
 
-function getAdUnitId(testId: string, productionId: string) {
-  return __DEV__ ? testId : productionId
+function getAdMobConfig(): AdMobExtra {
+  const expoConfig = (Constants as typeof Constants & {
+    expoConfig?: {
+      extra?: {
+        adMob?: AdMobExtra
+      }
+    }
+  }).expoConfig
+
+  return expoConfig?.extra?.adMob ?? {}
+}
+
+function shouldUseTestIds() {
+  const configuredValue = getAdMobConfig().useTestIds
+
+  if (configuredValue === true) {
+    return true
+  }
+
+  if (configuredValue === false) {
+    return false
+  }
+
+  return __DEV__
+}
+
+function getProductionAdUnitId(adUnitKind: AdUnitKind) {
+  const adMobConfig = getAdMobConfig()
+
+  if (Platform.OS === 'ios') {
+    return adUnitKind === 'interstitial'
+      ? adMobConfig.iosInterstitialId ?? null
+      : adMobConfig.iosRewardedId ?? null
+  }
+
+  return adUnitKind === 'interstitial'
+    ? adMobConfig.androidInterstitialId ?? null
+    : adMobConfig.androidRewardedId ?? null
+}
+
+function getAdUnitId(adUnitKind: AdUnitKind) {
+  if (shouldUseTestIds()) {
+    return adUnitKind === 'interstitial'
+      ? TEST_INTERSTITIAL_ID
+      : TEST_REWARDED_ID
+  }
+
+  return getProductionAdUnitId(adUnitKind)
+}
+
+async function canRequestAds() {
+  try {
+    await AdsConsent.gatherConsent()
+  } catch {}
+
+  try {
+    const consentInfo = await AdsConsent.getConsentInfo()
+    return consentInfo.canRequestAds
+  } catch {
+    return true
+  }
 }
 
 async function ensureInitialized(): Promise<boolean> {
@@ -74,16 +138,22 @@ async function ensureInitialized(): Promise<boolean> {
     return initializationPromise
   }
 
-  initializationPromise = mobileAds()
-    .initialize()
-    .then(() => {
+  initializationPromise = (async () => {
+    const requestable = await canRequestAds()
+    if (!requestable) {
+      return false
+    }
+
+    try {
+      await mobileAds().initialize()
       setInitializedState(true)
       return true
-    })
-    .catch(() => false)
-    .finally(() => {
+    } catch {
+      return false
+    } finally {
       initializationPromise = null
-    })
+    }
+  })()
 
   return initializationPromise
 }
@@ -119,6 +189,11 @@ export function useAdMob() {
       return
     }
 
+    const interstitialAdUnitId = getAdUnitId('interstitial')
+    if (!interstitialAdUnitId) {
+      return
+    }
+
     completionCount += 1
     if (
       completionCount !== 1 &&
@@ -127,9 +202,7 @@ export function useAdMob() {
       return
     }
 
-    const interstitial = InterstitialAd.createForAdRequest(
-      getAdUnitId(TEST_INTERSTITIAL_ID, PROD_INTERSTITIAL_ID),
-    )
+    const interstitial = InterstitialAd.createForAdRequest(interstitialAdUnitId)
 
     await new Promise<void>((resolve) => {
       let settled = false
@@ -185,9 +258,12 @@ export function useAdMob() {
       return false
     }
 
-    const rewardedAd = RewardedAd.createForAdRequest(
-      getAdUnitId(TEST_REWARDED_ID, PROD_REWARDED_ID),
-    )
+    const rewardedAdUnitId = getAdUnitId('rewarded')
+    if (!rewardedAdUnitId) {
+      return false
+    }
+
+    const rewardedAd = RewardedAd.createForAdRequest(rewardedAdUnitId)
 
     return new Promise<boolean>((resolve) => {
       let settled = false

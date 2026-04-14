@@ -20,9 +20,14 @@ vi.mock('@/lib/plural', () => ({
 }))
 
 let mockTrialExpired = false
+let mockPathname = '/'
 
 vi.mock('@/hooks/use-profile', () => ({
   useTrialExpired: () => mockTrialExpired,
+}))
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => mockPathname,
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
@@ -48,6 +53,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 describe('TrialExpiredModal', () => {
   beforeEach(() => {
     mockTrialExpired = false
+    mockPathname = '/'
     localStorage.clear()
   })
 
@@ -60,6 +66,13 @@ describe('TrialExpiredModal', () => {
   it('renders nothing when already dismissed via localStorage', () => {
     mockTrialExpired = true
     localStorage.setItem('orbit_trial_expired_seen', '1')
+    const { container } = render(<TrialExpiredModal />)
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('renders nothing on the upgrade page itself', () => {
+    mockTrialExpired = true
+    mockPathname = '/upgrade'
     const { container } = render(<TrialExpiredModal />)
     expect(container.innerHTML).toBe('')
   })

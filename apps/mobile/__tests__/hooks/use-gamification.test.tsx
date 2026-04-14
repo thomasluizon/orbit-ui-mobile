@@ -185,6 +185,14 @@ describe('mobile useGamificationProfile', () => {
     expect(hook.value.newLevel).toBe(4)
     expect(hook.value.newAchievements.map((achievement) => achievement.id)).toContain('a-3')
   })
+
+  it('passes enabled false to the query when disabled', async () => {
+    await renderHookValue(() => useGamificationProfile(false))
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false }),
+    )
+  })
 })
 
 describe('mobile useStreakInfo and streak freeze', () => {

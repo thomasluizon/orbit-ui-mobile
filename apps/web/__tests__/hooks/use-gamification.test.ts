@@ -162,6 +162,15 @@ describe('useGamificationProfile', () => {
     expect(result.current.xpProgress).toBe(0)
   })
 
+  it('does not fetch the gamification profile when disabled', () => {
+    const { result } = renderHook(() => useGamificationProfile(false), {
+      wrapper: createWrapper(),
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(result.current.profile).toBeNull()
+  })
+
   it('returns 100 xpProgress when range is zero', async () => {
     const profile = makeGamificationProfile({
       totalXp: 1000,

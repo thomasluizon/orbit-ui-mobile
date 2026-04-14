@@ -57,8 +57,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     const cleanup = useAuthStore.getState().startExpiryMonitor()
     return cleanup
   }, [])
-  const gamification = useGamificationProfile()
-
   const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
@@ -172,7 +170,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <GlobalOverlays
         profile={profile}
         hasProAccess={hasProAccess}
-        gamification={gamification}
         streakFreezeRef={streakFreezeRef}
         showCalendarPrompt={showCalendarPrompt}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
@@ -192,7 +189,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 function GlobalOverlays({
   profile,
   hasProAccess,
-  gamification,
   streakFreezeRef,
   showCalendarPrompt,
   onCalendarPromptOpenChange,
@@ -201,7 +197,6 @@ function GlobalOverlays({
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
-  gamification: ReturnType<typeof useGamificationProfile>
   streakFreezeRef: React.RefObject<{ show: () => void } | null>
   showCalendarPrompt: boolean
   onCalendarPromptOpenChange: (open: boolean) => void
@@ -209,6 +204,7 @@ function GlobalOverlays({
   onDismissCalendarPrompt: () => void
 }>) {
   const t = useTranslations()
+  const gamification = useGamificationProfile(hasProAccess)
 
   return (
     <div className="contents">

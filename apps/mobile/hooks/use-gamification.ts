@@ -23,7 +23,7 @@ import { apiClient } from '@/lib/api-client'
 // Gamification profile query
 // ---------------------------------------------------------------------------
 
-export function useGamificationProfile() {
+export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
   const previousAchievementIdsRef = useRef<Set<string>>(new Set())
@@ -33,6 +33,7 @@ export function useGamificationProfile() {
     queryKey: gamificationKeys.profile(),
     queryFn: () => apiClient<GamificationProfile>(API.gamification.profile),
     staleTime: QUERY_STALE_TIMES.gamification,
+    enabled,
   })
 
   const profile = query.data ?? null

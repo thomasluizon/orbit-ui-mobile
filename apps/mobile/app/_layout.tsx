@@ -199,9 +199,9 @@ function GlobalOverlays({
   profile: ReturnType<typeof useProfile>['profile']
   showSharedCelebrations: boolean
 }>) {
-  const gamification = useGamificationProfile()
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
   const hasProAccess = profile?.hasProAccess ?? false
+  const gamification = useGamificationProfile(hasProAccess)
 
   return (
     <>
