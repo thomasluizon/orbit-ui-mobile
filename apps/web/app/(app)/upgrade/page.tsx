@@ -22,7 +22,7 @@ import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTria
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { API } from '@orbit/shared/api'
-import { formatLocaleDate, getErrorMessage } from '@orbit/shared/utils'
+import { buildClientTimeZoneHeaders, formatLocaleDate, getErrorMessage } from '@orbit/shared/utils'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const upgradeIconMap = {
@@ -768,7 +768,10 @@ export default function UpgradePage() {
     try {
       const res = await fetch(API.subscription.checkout, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...buildClientTimeZoneHeaders(),
+        },
         body: JSON.stringify({ interval }),
       })
       if (!res.ok) {

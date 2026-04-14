@@ -63,12 +63,14 @@ describe('catch-all API proxy route', () => {
 
     const request = createRequest('profile/me?include=details', {
       headers: {
+        'cf-connecting-ip': '177.55.44.33',
         'x-forwarded-for': '203.0.113.10, 10.0.0.1',
         'x-real-ip': '198.51.100.7',
         'x-vercel-ip-country': 'BR',
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'x-orbit-time-zone': 'America/Sao_Paulo',
       },
     })
 
@@ -89,11 +91,14 @@ describe('catch-all API proxy route', () => {
       cache: 'no-store',
       headers: {
         Authorization: 'Bearer initial-token',
-        'X-Forwarded-For': '203.0.113.10',
+        'CF-Connecting-IP': '177.55.44.33',
+        'X-Forwarded-For': '177.55.44.33',
+        'X-Real-IP': '198.51.100.7',
         'X-Vercel-IP-Country': 'BR',
         'CF-IPCountry': 'BR',
         'CloudFront-Viewer-Country': 'BR',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'X-Orbit-Time-Zone': 'America/Sao_Paulo',
       },
     })
 
@@ -104,11 +109,14 @@ describe('catch-all API proxy route', () => {
       cache: 'no-store',
       headers: {
         Authorization: 'Bearer refreshed-token',
-        'X-Forwarded-For': '203.0.113.10',
+        'CF-Connecting-IP': '177.55.44.33',
+        'X-Forwarded-For': '177.55.44.33',
+        'X-Real-IP': '198.51.100.7',
         'X-Vercel-IP-Country': 'BR',
         'CF-IPCountry': 'BR',
         'CloudFront-Viewer-Country': 'BR',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'X-Orbit-Time-Zone': 'America/Sao_Paulo',
       },
     })
   })

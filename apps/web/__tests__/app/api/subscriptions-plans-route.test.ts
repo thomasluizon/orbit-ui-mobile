@@ -29,12 +29,14 @@ describe('subscriptions plans route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/plans', {
       headers: {
+        'cf-connecting-ip': '177.10.20.30',
         'x-forwarded-for': '203.0.113.20, 10.0.0.1',
         'x-real-ip': '198.51.100.5',
         'x-vercel-ip-country': 'BR',
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'x-orbit-time-zone': 'America/Sao_Paulo',
       },
     })
 
@@ -49,11 +51,14 @@ describe('subscriptions plans route', () => {
         cache: 'no-store',
         headers: {
           Authorization: 'Bearer token',
-          'X-Forwarded-For': '203.0.113.20',
+          'CF-Connecting-IP': '177.10.20.30',
+          'X-Forwarded-For': '177.10.20.30',
+          'X-Real-IP': '198.51.100.5',
           'X-Vercel-IP-Country': 'BR',
           'CF-IPCountry': 'BR',
           'CloudFront-Viewer-Country': 'BR',
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),
     )

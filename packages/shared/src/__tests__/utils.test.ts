@@ -3,6 +3,11 @@ import { parseAPIDate, formatAPIDate } from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
 import {
+  buildClientTimeZoneHeaders,
+  CLIENT_TIME_ZONE_HEADER,
+  getClientTimeZone,
+} from '../utils/client-context'
+import {
   createApiClientError,
   extractBackendError,
   getErrorMessage,
@@ -117,6 +122,66 @@ describe('getTimezoneList', () => {
     vi.stubGlobal('Intl', {})
 
     expect(getTimezoneList()).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// client context
+// ---------------------------------------------------------------------------
+
+describe('getClientTimeZone', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns the detected IANA timezone when available', () => {
+    vi.stubGlobal('Intl', {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: 'America/Sao_Paulo' }),
+      }),
+    })
+
+    expect(getClientTimeZone()).toBe('America/Sao_Paulo')
+  })
+
+  it('returns null when timezone detection fails', () => {
+    vi.stubGlobal('Intl', {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => {
+          throw new Error('unsupported')
+        },
+      }),
+    })
+
+    expect(getClientTimeZone()).toBeNull()
+  })
+})
+
+describe('buildClientTimeZoneHeaders', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns the timezone header when detection succeeds', () => {
+    vi.stubGlobal('Intl', {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: 'America/Sao_Paulo' }),
+      }),
+    })
+
+    expect(buildClientTimeZoneHeaders()).toEqual({
+      [CLIENT_TIME_ZONE_HEADER]: 'America/Sao_Paulo',
+    })
+  })
+
+  it('returns an empty object when timezone detection is unavailable', () => {
+    vi.stubGlobal('Intl', {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: '' }),
+      }),
+    })
+
+    expect(buildClientTimeZoneHeaders()).toEqual({})
   })
 })
 

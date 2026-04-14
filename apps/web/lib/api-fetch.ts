@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-import { extractBackendError } from '@orbit/shared/utils'
+import { buildClientTimeZoneHeaders, extractBackendError } from '@orbit/shared/utils'
 
 /**
  * Centralized API fetch with error categorization matching Nuxt's api.ts plugin.
@@ -92,7 +92,15 @@ async function getStatusError(
 }
 
 export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options)
+  const headers = new Headers(options?.headers)
+  for (const [key, value] of Object.entries(buildClientTimeZoneHeaders())) {
+    headers.set(key, value)
+  }
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  })
 
   if (!res.ok) {
     const body = await res.json().catch(() => null)

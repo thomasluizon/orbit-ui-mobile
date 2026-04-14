@@ -1,5 +1,5 @@
 import { getToken, clearAllTokens } from './secure-store'
-import { createApiClientError } from '@orbit/shared'
+import { buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -18,7 +18,10 @@ export async function apiClient<T = unknown>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const token = await getToken()
-  const headers: Record<string, string> = options.headers ?? {}
+  const headers: Record<string, string> = {
+    ...buildClientTimeZoneHeaders(),
+    ...(options.headers ?? {}),
+  }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }

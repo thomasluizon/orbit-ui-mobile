@@ -31,11 +31,13 @@ describe('subscriptions checkout route', () => {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        'cf-connecting-ip': '177.10.20.31',
         'x-forwarded-for': '203.0.113.21, 10.0.0.1',
         'x-vercel-ip-country': 'BR',
         'cf-ipcountry': 'BR',
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'x-orbit-time-zone': 'America/Sao_Paulo',
       },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
@@ -53,11 +55,13 @@ describe('subscriptions checkout route', () => {
         headers: {
           Authorization: 'Bearer token',
           'Content-Type': 'application/json',
-          'X-Forwarded-For': '203.0.113.21',
+          'CF-Connecting-IP': '177.10.20.31',
+          'X-Forwarded-For': '177.10.20.31',
           'X-Vercel-IP-Country': 'BR',
           'CF-IPCountry': 'BR',
           'CloudFront-Viewer-Country': 'BR',
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),
     )
