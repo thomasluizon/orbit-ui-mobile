@@ -80,6 +80,18 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-notifications.ts'),
       },
       {
+        find: 'expo-constants',
+        replacement: path.resolve(__dirname, './test-mocks/expo-constants.ts'),
+      },
+      {
+        find: 'expo-store-review',
+        replacement: path.resolve(__dirname, './test-mocks/expo-store-review.ts'),
+      },
+      {
+        find: '@react-native-community/datetimepicker',
+        replacement: path.resolve(__dirname, './test-mocks/react-native-datetimepicker.tsx'),
+      },
+      {
         find: /\.(png|jpg|jpeg|gif|webp)$/,
         replacement: path.resolve(__dirname, './test-mocks/file-asset.ts'),
       },

@@ -19,6 +19,7 @@ import { clearPersistedQueryCache, queryClient } from '@/lib/query-client'
 import i18n from '@/lib/i18n'
 import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
+import { useReviewReminderStore } from './review-reminder-store'
 
 interface AuthState {
   isAuthenticated: boolean
@@ -95,6 +96,7 @@ async function clearSessionAndResetAuth(): Promise<void> {
   queryClient.clear()
   await clearPersistedQueryCache()
   useChatStore.getState().clearMessages()
+  useReviewReminderStore.getState().setAccountScope(null)
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
 }
 
@@ -148,6 +150,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     queryClient.clear()
     await clearPersistedQueryCache()
     useChatStore.getState().clearMessages()
+    useReviewReminderStore.getState().setAccountScope(user.userId)
     await clearRefreshToken()
     await setToken(token)
     if (refreshToken) {
@@ -210,6 +213,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     queryClient.clear()
     await clearPersistedQueryCache()
     useChatStore.getState().clearMessages()
+    useReviewReminderStore.getState().setAccountScope(null)
     set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
     router.replace('/login')
   },
@@ -218,6 +222,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let token = await getToken()
     if (!token) {
       await clearWidgetToken().catch(() => {})
+      useReviewReminderStore.getState().setAccountScope(null)
       set({ isAuthenticated: false, user: null, expiresAt: null })
       return false
     }
@@ -245,25 +250,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const isValid = await get().checkAuth()
       if (isValid) {
         const token = await getToken()
-        if (token) {
-          await saveWidgetToken(token).catch(() => {})
-        }
-        const tokenUser = token ? getUserFromToken(token) : null
-        const user = await loadProfileOrResetSession(tokenUser)
+      if (token) {
+        await saveWidgetToken(token).catch(() => {})
+      }
+      const tokenUser = token ? getUserFromToken(token) : null
+      const user = await loadProfileOrResetSession(tokenUser)
         if (!user && !(await getToken())) {
           set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
           return
         }
 
-        set({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-          expiresAt: token ? getExpiresAt(token) : null,
-        })
-      } else {
-        set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
-      }
+      set({
+        isAuthenticated: true,
+        user,
+        isLoading: false,
+        expiresAt: token ? getExpiresAt(token) : null,
+      })
+      useReviewReminderStore.getState().setAccountScope(user?.userId ?? null)
+    } else {
+      set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
+    }
     } catch {
       set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
     }

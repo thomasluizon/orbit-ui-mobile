@@ -7,8 +7,9 @@ export default getRequestConfig(async () => {
   const headerStore = await headers()
   const cookieLocale = cookieStore.get('i18n_locale')?.value
   const acceptLanguage = headerStore.get('accept-language')
-  const validLocale = cookieLocale === 'pt-BR'
-    ? 'pt-BR'
+  const validLocale =
+    cookieLocale === 'en' || cookieLocale === 'pt-BR'
+      ? cookieLocale
     : resolveSystemLocale(acceptLanguage)
 
   const messages = (await import(`@orbit/shared/i18n/${validLocale}.json`)).default

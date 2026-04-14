@@ -53,13 +53,14 @@ export function AppTimePicker({
   disabled = false,
   containerStyle,
 }: Readonly<AppTimePickerProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const { colors, shadows, currentTheme } = useAppTheme()
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const [isOpen, setIsOpen] = useState(false)
   const [draftValue, setDraftValue] = useState(() => parseTimeValue(value))
-  const is24Hour = detectDefaultTimeFormat() === '24h'
-  const displayValue = value ? formatLocaleTime(value) : ''
+  const is24Hour = detectDefaultTimeFormat(locale) === '24h'
+  const displayValue = value ? formatLocaleTime(value, locale) : ''
 
   const openPicker = useCallback(() => {
     if (disabled) return

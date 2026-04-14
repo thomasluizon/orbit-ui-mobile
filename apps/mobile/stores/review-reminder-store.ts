@@ -8,14 +8,37 @@ const REVIEW_REMINDER_STORAGE_KEY = 'orbit-review-reminder'
 const REVIEW_REMINDER_COOLDOWN_DAYS = 120
 const MAX_DISTINCT_ACTIVE_DAYS = 365
 
-interface ReviewReminderState {
+interface ReviewReminderSnapshot {
+  accountKey: string | null
   completionCount: number
   activeDays: string[]
   dismissedUntil: string | null
   acceptedAt: string | null
+}
+
+interface ReviewReminderState {
+  accountKey: string | null
+  completionCount: number
+  activeDays: string[]
+  dismissedUntil: string | null
+  acceptedAt: string | null
+  setAccountScope: (accountKey: string | null) => void
+  reset: () => void
   trackCompletion: (date?: string) => void
   dismiss: () => void
   accept: () => void
+}
+
+function createReviewReminderSnapshot(
+  accountKey: string | null = null,
+): ReviewReminderSnapshot {
+  return {
+    accountKey,
+    completionCount: 0,
+    activeDays: [],
+    dismissedUntil: null,
+    acceptedAt: null,
+  }
 }
 
 function normalizeActiveDays(activeDays: string[], day: string): string[] {
@@ -30,10 +53,16 @@ function normalizeActiveDays(activeDays: string[], day: string): string[] {
 export const useReviewReminderStore = create<ReviewReminderState>()(
   persist(
     (set) => ({
-      completionCount: 0,
-      activeDays: [],
-      dismissedUntil: null,
-      acceptedAt: null,
+      ...createReviewReminderSnapshot(),
+      setAccountScope: (accountKey) =>
+        set((state) => {
+          if (state.accountKey === accountKey) {
+            return {}
+          }
+
+          return createReviewReminderSnapshot(accountKey)
+        }),
+      reset: () => set(createReviewReminderSnapshot()),
       trackCompletion: (date) =>
         set((state) => {
           const completionDate = date ?? formatAPIDate(new Date())
@@ -58,6 +87,7 @@ export const useReviewReminderStore = create<ReviewReminderState>()(
       name: REVIEW_REMINDER_STORAGE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
+        accountKey: state.accountKey,
         completionCount: state.completionCount,
         activeDays: state.activeDays,
         dismissedUntil: state.dismissedUntil,

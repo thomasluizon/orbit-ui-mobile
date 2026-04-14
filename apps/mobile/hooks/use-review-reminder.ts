@@ -17,6 +17,7 @@ export function useReviewReminder(profile?: Profile | null) {
   const acceptStore = useReviewReminderStore((s) => s.accept)
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const queuedCelebrations = useUIStore((s) => s.queuedCelebrations)
+  const queuedCelebrationCount = queuedCelebrations?.length ?? 0
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState)
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export function useReviewReminder(profile?: Profile | null) {
     if (acceptedAt) return false
     if (dismissedUntil && dismissedUntil >= today) return false
     if (!isForeground) return false
-    if (activeCelebration || queuedCelebrations.length > 0) return false
+    if (activeCelebration || queuedCelebrationCount > 0) return false
 
     return true
   }, [
@@ -47,7 +48,7 @@ export function useReviewReminder(profile?: Profile | null) {
     completionCount,
     dismissedUntil,
     profile?.hasCompletedOnboarding,
-    queuedCelebrations.length,
+    queuedCelebrationCount,
   ])
 
   const dismiss = useCallback(() => {
