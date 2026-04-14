@@ -8,9 +8,11 @@ import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection } from './_components/achievement-category-section'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { SkeletonCard } from '@/components/ui/skeleton'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 export default function AchievementsPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const { isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
   const {
@@ -23,13 +25,14 @@ export default function AchievementsPage() {
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link
-          href="/profile"
+        <button
+          type="button"
           aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
+          onClick={() => goBackOrFallback('/profile')}
         >
           <ArrowLeft className="size-5 text-text-primary" />
-        </Link>
+        </button>
         <div className="flex items-center gap-2">
           <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
             {t('gamification.title')}

@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useDismissGuard } from "@/hooks/use-dismiss-guard";
 import { useLogHabit } from "@/hooks/use-habits";
 import {
   getFriendlyErrorMessage,
@@ -60,6 +62,14 @@ export function LogHabitModal({
   const { showError } = useAppToast();
 
   const [note, setNote] = useState("");
+  const isDirty = note.trim().length > 0;
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () => {
+      onClose();
+      setNote("");
+    },
+  });
 
   useEffect(() => {
     if (!open) {
@@ -94,20 +104,16 @@ export function LogHabitModal({
     }
   }, [habit, logHabit, note, onLogged, onClose, showError, translate]);
 
-  const handleCancel = useCallback(() => {
-    onClose();
-    setNote("");
-  }, [onClose]);
-
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={handleCancel}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={styles.backdropPress} onPress={handleCancel} />
+    <>
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={dismissGuard.requestDismiss}
+      >
+        <View style={styles.backdrop}>
+        <Pressable style={styles.backdropPress} onPress={dismissGuard.requestDismiss} />
         <KeyboardAwareScrollView
           containerStyle={styles.keyboardContainer}
           contentContainerStyle={styles.sheetScrollContent}
@@ -119,7 +125,7 @@ export function LogHabitModal({
               <Text style={styles.headerTitle}>{t("habits.log.title")}</Text>
               <TouchableOpacity
                 style={styles.headerClose}
-                onPress={handleCancel}
+                onPress={dismissGuard.requestDismiss}
                 activeOpacity={0.7}
               >
                 <X size={18} color={colors.textMuted} />
@@ -152,7 +158,7 @@ export function LogHabitModal({
                   <TouchableOpacity
                     style={styles.cancelButton}
                     disabled={logHabit.isPending}
-                    onPress={handleCancel}
+                    onPress={dismissGuard.requestDismiss}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
@@ -182,6 +188,20 @@ export function LogHabitModal({
         </KeyboardAwareScrollView>
       </View>
     </Modal>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss();
+        }}
+        title={t("common.discardChangesTitle")}
+        description={t("common.discardChangesDescription")}
+        confirmLabel={t("common.discard")}
+        cancelLabel={t("common.keepEditing")}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   );
 }
 

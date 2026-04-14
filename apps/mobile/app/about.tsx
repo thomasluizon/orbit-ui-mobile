@@ -20,6 +20,7 @@ import { createColors } from '@/lib/theme'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -65,6 +66,7 @@ function NavRow({
 export default function AboutScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const [showGuide, setShowGuide] = useState(false)
@@ -81,7 +83,7 @@ export default function AboutScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />

@@ -9,9 +9,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { HabitFormFields } from "./habit-form-fields";
 import { KeyboardAwareBottomSheetScrollView } from "@/components/ui/keyboard-aware-scroll-view";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { useDismissGuard } from "@/hooks/use-dismiss-guard";
 import { useHabitForm } from "@/hooks/use-habit-form";
 import { useTagSelection } from "@/hooks/use-tag-selection";
 import { useUpdateHabit, useHabitDetail } from "@/hooks/use-habits";
@@ -67,8 +69,20 @@ export function EditHabitModal({
   const [originalEndDate, setOriginalEndDate] = useState("");
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
   const flushBufferedInputsRef = useRef<() => void>(() => {});
+  const [initialTagIds, setInitialTagIds] = useState("[]");
+  const [initialGoalIds, setInitialGoalIds] = useState("[]");
+  const [initialReminderTimes, setInitialReminderTimes] = useState("[0,15]");
 
   const atGoalLimit = selectedGoalIds.length >= 10;
+  const isDirty =
+    formHelpers.form.formState.isDirty ||
+    JSON.stringify([...tags.selectedTagIds].sort()) !== initialTagIds ||
+    JSON.stringify([...selectedGoalIds].sort()) !== initialGoalIds ||
+    JSON.stringify(reminderTimes) !== initialReminderTimes;
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: onClose,
+  });
 
   // Fetch detail to get dueDate, dueTime, endDate etc.
   const { data: habitDetail, error: detailError } = useHabitDetail(
@@ -108,6 +122,9 @@ export function EditHabitModal({
     setReminderTimes(prefill.reminderTimes);
     tags.resetTags(prefill.selectedTagIds);
     setSelectedGoalIds(prefill.selectedGoalIds);
+    setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort()));
+    setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort()));
+    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes));
     applyHabitFormMode(prefill.mode, formHelpers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, habit?.id, habitDetail?.id]);
@@ -166,13 +183,17 @@ export function EditHabitModal({
   ]);
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={onClose}
-      title={t("habits.editHabit")}
-      snapPoints={["80%", "95%"]}
-      formMode
-    >
+    <>
+      <BottomSheetModal
+        open={open}
+        onClose={onClose}
+        title={t("habits.editHabit")}
+        snapPoints={["80%", "95%"]}
+        formMode
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
       <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -196,7 +217,7 @@ export function EditHabitModal({
           <TouchableOpacity
             style={styles.cancelButton}
             disabled={updateHabit.isPending}
-            onPress={onClose}
+            onPress={dismissGuard.requestDismiss}
             activeOpacity={0.7}
           >
             <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
@@ -220,6 +241,20 @@ export function EditHabitModal({
         </View>
       </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss();
+        }}
+        title={t("common.discardChangesTitle")}
+        description={t("common.discardChangesDescription")}
+        confirmLabel={t("common.discard")}
+        cancelLabel={t("common.keepEditing")}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   );
 }
 

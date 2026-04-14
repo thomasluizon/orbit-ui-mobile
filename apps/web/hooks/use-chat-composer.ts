@@ -25,6 +25,8 @@ import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { sendChatMessage } from '@/app/actions/chat'
 
+const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
+
 const HABIT_ACTION_TYPES = new Set([
   'CreateHabit',
   'LogHabit',
@@ -121,15 +123,22 @@ export function useChatComposer() {
   }, [input])
 
   useEffect(() => {
-    function handleKeydown(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') {
-        globalThis.location.assign('/')
-      }
+    if (typeof globalThis.localStorage === 'undefined') return
+    const storedDraft = globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)
+    if (storedDraft) {
+      setInput(storedDraft)
     }
-
-    document.addEventListener('keydown', handleKeydown)
-    return () => document.removeEventListener('keydown', handleKeydown)
   }, [])
+
+  useEffect(() => {
+    if (typeof globalThis.localStorage === 'undefined') return
+    const trimmedDraft = input.trim()
+    if (!trimmedDraft) {
+      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+      return
+    }
+    globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, input)
+  }, [input])
 
   useEffect(() => {
     if (prevIsRecording.current && !isRecording && transcript.trim()) {

@@ -14,6 +14,7 @@ import { createColors } from '@/lib/theme'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection, createAchievementsScreenStyles } from './achievements-sections'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
@@ -22,6 +23,7 @@ type AppColors = ReturnType<typeof createColors>
 export default function AchievementsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
   const categoryStyles = useMemo(() => createAchievementsScreenStyles(colors), [colors])
@@ -44,7 +46,7 @@ export default function AchievementsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />

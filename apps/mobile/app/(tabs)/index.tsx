@@ -170,6 +170,12 @@ export default function TodayScreen() {
   const setActiveView = useUIStore((s) => s.setActiveView)
   const searchQueryStore = useUIStore((s) => s.searchQuery)
   const setSearchQueryStore = useUIStore((s) => s.setSearchQuery)
+  const selectedFrequency = useUIStore((s) => s.selectedFrequency)
+  const setSelectedFrequency = useUIStore((s) => s.setSelectedFrequency)
+  const selectedTagIds = useUIStore((s) => s.selectedTagIds)
+  const setSelectedTagIds = useUIStore((s) => s.setSelectedTagIds)
+  const showCompleted = useUIStore((s) => s.showCompleted)
+  const setShowCompleted = useUIStore((s) => s.setShowCompleted)
   const isSelectMode = useUIStore((s) => s.isSelectMode)
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
@@ -178,9 +184,6 @@ export default function TodayScreen() {
 
   // Local state
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
-  const [showCompleted, setShowCompleted] = useState(false)
-  const [selectedFrequency, setSelectedFrequency] = useState<FreqKey | null>(null)
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [showControlsMenu, setShowControlsMenu] = useState(false)
   const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
     useState<MenuAnchorRect | null>(null)
@@ -298,12 +301,14 @@ export default function TodayScreen() {
 
   // Tag filter toggle
   const toggleTagFilter = useCallback((tagId: string) => {
-    setSelectedTagIds((prev) => {
-      const idx = prev.indexOf(tagId)
-      if (idx >= 0) return prev.filter((id) => id !== tagId)
-      return [...prev, tagId]
-    })
-  }, [])
+    const idx = selectedTagIds.indexOf(tagId)
+    if (idx >= 0) {
+      setSelectedTagIds(selectedTagIds.filter((id) => id !== tagId))
+      return
+    }
+
+    setSelectedTagIds([...selectedTagIds, tagId])
+  }, [selectedTagIds, setSelectedTagIds])
 
   // Build filters (matching web exactly)
   const dateStr = formatAPIDate(selectedDate)
@@ -434,7 +439,6 @@ export default function TodayScreen() {
     }
 
     previousActiveViewRef.current = activeView
-    setSelectedFrequency(null)
     setShowControlsMenu(false)
     if (isSelectMode) clearSelection()
   }, [activeView, clearSelection, isSelectMode])
@@ -463,9 +467,9 @@ export default function TodayScreen() {
   }, [])
 
   const handleToggleCompleted = useCallback(() => {
-    setShowCompleted((prev) => !prev)
+    setShowCompleted(!showCompleted)
     setShowControlsMenu(false)
-  }, [])
+  }, [setShowCompleted, showCompleted])
 
   const measureControlsButton = useCallback(() => {
     controlsButtonRef.current?.measureInWindow((x, y, width, height) => {
@@ -582,6 +586,7 @@ export default function TodayScreen() {
           iconColor={colors.textSecondary}
           styles={styles}
           dateLabelAnim={dateLabelAnim}
+          panHandlers={!isSearchFocused ? swipePanResponder.panHandlers : undefined}
         />
 
         {showSummary ? (
@@ -801,12 +806,7 @@ export default function TodayScreen() {
   )
 
   return (
-    <View
-      style={[styles.safeArea, { paddingTop: insets.top }]}
-      {...(activeView === 'today' && !isSearchFocused
-        ? swipePanResponder.panHandlers
-        : {})}
-    >
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       {activeView === 'goals' ? (
         <ScrollView
           ref={goalsScrollRef}

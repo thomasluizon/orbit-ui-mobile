@@ -13,22 +13,25 @@ import { useTranslations } from 'next-intl'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 export default function AboutPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const [showGuide, setShowGuide] = useState(false)
   const [showReferral, setShowReferral] = useState(false)
 
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link
-          href="/profile"
+        <button
+          type="button"
           aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
+          onClick={() => goBackOrFallback('/profile')}
         >
           <ArrowLeft className="size-5" />
-        </Link>
+        </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">{t('about.title')}</h1>
       </header>
 

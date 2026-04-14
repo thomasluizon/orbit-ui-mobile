@@ -72,6 +72,10 @@ vi.mock('@/components/ui/app-overlay', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 // ---------------------------------------------------------------------------
 // Import component after mocks
 // ---------------------------------------------------------------------------
@@ -105,11 +109,10 @@ describe('StreakPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back link', () => {
+  it('renders the page header with title and back button', () => {
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.detail.title')).toBeInTheDocument()
-    const backLink = screen.getAllByRole('link').find((a) => a.getAttribute('href') === '/profile')
-    expect(backLink).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
   // ---- Loading state ----

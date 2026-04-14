@@ -6,19 +6,21 @@ import {
   ScrollView,
 } from 'react-native'
 import { useMemo } from 'react'
-import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createColors } from '@/lib/theme'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useAuthStore } from '@/stores/auth-store'
 
 type AppColors = ReturnType<typeof createColors>
 
 export default function PrivacyScreen() {
-  const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const styles = useMemo(() => createStyles(colors), [colors])
   const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences'] as const
   const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
@@ -34,7 +36,7 @@ export default function PrivacyScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />

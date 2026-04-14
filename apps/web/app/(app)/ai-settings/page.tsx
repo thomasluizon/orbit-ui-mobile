@@ -24,6 +24,7 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import type { UserFact } from '@orbit/shared/types/user-fact'
 
 async function fetchUserFacts(): Promise<UserFact[]> {
@@ -189,6 +190,7 @@ function FactItem({
 
 export default function AiSettingsPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
 
@@ -295,13 +297,14 @@ export default function AiSettingsPage() {
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link
-          href="/profile"
+        <button
+          type="button"
           aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
+          onClick={() => goBackOrFallback('/profile')}
         >
           <ArrowLeft className="size-5" />
-        </Link>
+        </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
           {t('aiSettings.title')}
         </h1>

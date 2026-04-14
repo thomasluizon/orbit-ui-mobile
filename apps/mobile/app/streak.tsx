@@ -21,6 +21,7 @@ import { useStreakFreeze, useActivateStreakFreeze } from '@/hooks/use-gamificati
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { plural } from '@/lib/plural'
 import { StreakFreezeSection, StreakTimelineCard } from './streak-sections'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 // ---------------------------------------------------------------------------
 // Streak Screen
@@ -30,6 +31,7 @@ export default function StreakScreen() {
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
   const dateFnsLocale = useMemo(() => (i18n.language === 'pt-BR' ? ptBR : enUS), [i18n.language])
@@ -148,7 +150,7 @@ export default function StreakScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />

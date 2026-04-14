@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   Sparkles,
@@ -18,6 +17,7 @@ import {
 } from '@orbit/shared/chat'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
@@ -44,6 +44,7 @@ const GOAL_ACTION_TYPES = new Set([
 
 export default function ChatPage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const {
     chatContainerRef,
     textareaRef,
@@ -111,6 +112,30 @@ export default function ChatPage() {
     if (!open) setSelectedGoalId(null)
   }, [])
 
+  useEffect(() => {
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+
+      const target = event.target
+      if (target instanceof HTMLTextAreaElement && target.value.trim().length > 0) {
+        return
+      }
+
+      if (target instanceof HTMLInputElement && target.value.trim().length > 0) {
+        return
+      }
+
+      if (target instanceof HTMLElement && target.isContentEditable && target.textContent?.trim()) {
+        return
+      }
+
+      goBackOrFallback('/')
+    }
+
+    document.addEventListener('keydown', handleKeydown)
+    return () => document.removeEventListener('keydown', handleKeydown)
+  }, [goBackOrFallback])
+
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
@@ -119,13 +144,14 @@ export default function ChatPage() {
     <div className="flex flex-col h-full">
       {/* Top bar */}
       <header className="shrink-0 chat-glass flex items-center pt-3 pb-3 z-10">
-        <Link
-          href="/"
+        <button
+          type="button"
           aria-label={t('common.goBack')}
           className="size-9 rounded-full hover:bg-surface-elevated flex items-center justify-center transition-colors"
+          onClick={() => goBackOrFallback('/')}
         >
           <ArrowLeft className="size-4 text-text-primary" />
-        </Link>
+        </button>
         <h1 className="flex-1 text-center text-[length:var(--text-fluid-lg)] font-bold text-text-primary pr-10">
           {t('chat.title')}
         </h1>

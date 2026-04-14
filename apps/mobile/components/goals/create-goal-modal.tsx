@@ -12,8 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import {
@@ -94,6 +96,19 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 
   const isSubmitting = createGoal.isPending
   const isStreak = isStreakGoal(goalType)
+  const isDirty =
+    goalType !== 'Standard' ||
+    description.trim().length > 0 ||
+    targetValue.trim().length > 0 ||
+    unit.trim().length > 0 ||
+    deadline.length > 0
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () => {
+      resetForm()
+      onClose()
+    },
+  })
 
   // Per-field inline errors (shown after first submit attempt)
   const fieldErrors = useMemo(() => {
@@ -174,23 +189,21 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createGoal, deadline, description, goalType, onClose, showError, targetValue, translate, unit])
 
-  const handleClose = useCallback(() => {
-    resetForm()
-    onClose()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose])
-
   const isStandardSelected = goalType === 'Standard'
   const isStreakSelected = goalType === 'Streak'
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={handleClose}
-      title={t('goals.create')}
-      snapPoints={['80%', '95%']}
-      formMode
-    >
+    <>
+      <BottomSheetModal
+        open={open}
+        onClose={onClose}
+        title={t('goals.create')}
+        snapPoints={['80%', '95%']}
+        formMode
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
       <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}
         contentContainerStyle={styles.form}
@@ -289,6 +302,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
               keyboardType="decimal-pad"
               placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
               placeholderTextColor={colors.textMuted}
+              accessibilityLabel={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
             />
             {fieldErrors.targetValue && (
               <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.targetValue}</Text>
@@ -304,6 +318,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                 placeholder={t('goals.form.unitPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 maxLength={50}
+                accessibilityLabel={t('goals.form.unit')}
               />
               {fieldErrors.unit && (
                 <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.unit}</Text>
@@ -327,6 +342,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
             maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
+            accessibilityLabel={t('goals.form.description')}
           />
           {fieldErrors.description && (
             <Text style={styles.fieldError} accessibilityRole="alert">{fieldErrors.description}</Text>
@@ -398,6 +414,20 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         </TouchableOpacity>
       </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   )
 }
 

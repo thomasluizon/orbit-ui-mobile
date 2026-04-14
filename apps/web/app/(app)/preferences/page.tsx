@@ -25,6 +25,7 @@ import {
   getPushStatusTone,
   usePushNotificationPreferences,
 } from '@/hooks/use-push-notification-preferences'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
@@ -36,6 +37,7 @@ import {
 export default function PreferencesPage() {
   const t = useTranslations()
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
@@ -166,13 +168,14 @@ export default function PreferencesPage() {
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link
-          href="/profile"
+        <button
+          type="button"
           aria-label={t('common.backToProfile')}
           className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
+          onClick={() => goBackOrFallback('/profile')}
         >
           <ArrowLeft className="size-5" />
-        </Link>
+        </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
           {t('preferences.title')}
         </h1>

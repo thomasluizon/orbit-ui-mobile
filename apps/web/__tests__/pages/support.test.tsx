@@ -11,6 +11,10 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 let mockProfile: Record<string, unknown> | null = null
 let mockIsOnline = false
 

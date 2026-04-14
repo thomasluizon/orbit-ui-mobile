@@ -4,9 +4,11 @@ import { useState, useCallback, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { useAssignTags } from '@/hooks/use-tags'
@@ -53,8 +55,20 @@ export function EditHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [originalEndDate, setOriginalEndDate] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const [initialTagIds, setInitialTagIds] = useState('[]')
+  const [initialGoalIds, setInitialGoalIds] = useState('[]')
+  const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
 
   const atGoalLimit = selectedGoalIds.length >= 10
+  const isDirty =
+    formHelpers.form.formState.isDirty ||
+    JSON.stringify([...tags.selectedTagIds].sort()) !== initialTagIds ||
+    JSON.stringify([...selectedGoalIds].sort()) !== initialGoalIds ||
+    JSON.stringify(reminderTimes) !== initialReminderTimes
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () => onOpenChange(false),
+  })
 
   // Fetch detail to get dueDate, dueTime, endDate etc.
   const { data: habitDetail, error: detailError } = useHabitDetail(open && habit ? habit.id : null)
@@ -83,6 +97,9 @@ export function EditHabitModal({
     setReminderTimes(prefill.reminderTimes)
     tags.resetTags(prefill.selectedTagIds)
     setSelectedGoalIds(prefill.selectedGoalIds)
+    setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort()))
+    setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort()))
+    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
     applyHabitFormMode(prefill.mode, formHelpers)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, habit?.id, habitDetail?.id])
@@ -117,13 +134,17 @@ export function EditHabitModal({
   )
 
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
-      title={t('habits.editHabit')}
-      description={t('habits.form.editDescription')}
-    >
-      <form className="space-y-5" onSubmit={handleSubmit}>
+    <>
+      <AppOverlay
+        open={open}
+        onOpenChange={onOpenChange}
+        title={t('habits.editHabit')}
+        description={t('habits.form.editDescription')}
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
+      >
+        <form className="space-y-5" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
@@ -141,7 +162,7 @@ export function EditHabitModal({
             type="button"
             className="flex-1 py-3.5 rounded-xl border border-border text-text-secondary font-semibold text-sm hover:bg-surface-elevated/80 transition-all duration-150"
             disabled={updateHabit.isPending}
-            onClick={() => onOpenChange(false)}
+            onClick={dismissGuard.requestDismiss}
           >
             {t('common.cancel')}
           </button>
@@ -156,7 +177,21 @@ export function EditHabitModal({
             {t('habits.saveChanges')}
           </button>
         </div>
-      </form>
-    </AppOverlay>
+        </form>
+      </AppOverlay>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss()
+        }}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   )
 }

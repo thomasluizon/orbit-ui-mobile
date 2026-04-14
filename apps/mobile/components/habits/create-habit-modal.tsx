@@ -12,9 +12,11 @@ import { Trash2, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { KeyboardAwareBottomSheetScrollView } from "@/components/ui/keyboard-aware-scroll-view";
 import { HabitFormFields } from "./habit-form-fields";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { useDismissGuard } from "@/hooks/use-dismiss-guard";
 import { useHabitForm } from "@/hooks/use-habit-form";
 import { useTagSelection } from "@/hooks/use-tag-selection";
 import { useCreateHabit, useCreateSubHabit } from "@/hooks/use-habits";
@@ -99,6 +101,10 @@ export function CreateHabitModal({
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
   const reminderWasManuallyToggledRef = useRef(false);
   const flushBufferedInputsRef = useRef<() => void>(() => {});
+  const initialTagIdsRef = useRef("[]");
+  const initialGoalIdsRef = useRef("[]");
+  const initialSubHabitsRef = useRef("[]");
+  const initialReminderTimesRef = useRef("[0,15]");
 
   const watchedDueTime = useWatch({
     control: formHelpers.form.control,
@@ -114,6 +120,16 @@ export function CreateHabitModal({
   }) ?? [];
 
   const atGoalLimit = selectedGoalIds.length >= 10;
+  const isDirty =
+    formHelpers.form.formState.isDirty ||
+    JSON.stringify([...tags.selectedTagIds].sort()) !== initialTagIdsRef.current ||
+    JSON.stringify([...selectedGoalIds].sort()) !== initialGoalIdsRef.current ||
+    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSubHabitsRef.current ||
+    JSON.stringify(reminderTimes) !== initialReminderTimesRef.current;
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: onClose,
+  });
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId));
@@ -132,8 +148,10 @@ export function CreateHabitModal({
     setSubHabits([]);
     setReminderTimes([0, 15]);
 
+    let prefill: ReturnType<typeof buildParentHabitFormState> | null = null;
+
     if (parentHabit) {
-      const prefill = buildParentHabitFormState(parentHabit, fallbackDate);
+      prefill = buildParentHabitFormState(parentHabit, fallbackDate);
       formHelpers.form.reset(prefill.formValues);
       applyHabitFormMode(prefill.mode, formHelpers);
       tags.resetTags(prefill.selectedTagIds);
@@ -142,6 +160,11 @@ export function CreateHabitModal({
     } else if (activeView === "general") {
       formHelpers.setGeneral();
     }
+
+    initialTagIdsRef.current = JSON.stringify([...(prefill?.selectedTagIds ?? [])].sort());
+    initialGoalIdsRef.current = JSON.stringify([...(prefill?.selectedGoalIds ?? [])].sort());
+    initialSubHabitsRef.current = JSON.stringify([]);
+    initialReminderTimesRef.current = JSON.stringify(prefill?.reminderTimes ?? [0, 15]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -256,21 +279,25 @@ export function CreateHabitModal({
   }, []);
 
   return (
-    <BottomSheetModal
-      open={open}
-      onClose={onClose}
-      title={
-        isSubHabitMode ? t("habits.createSubHabit") : t("habits.createHabit")
-      }
-      snapPoints={["80%", "95%"]}
-      formMode
-    >
-      <KeyboardAwareBottomSheetScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="always"
+    <>
+      <BottomSheetModal
+        open={open}
+        onClose={onClose}
+        title={
+          isSubHabitMode ? t("habits.createSubHabit") : t("habits.createHabit")
+        }
+        snapPoints={["80%", "95%"]}
+        formMode
+        canDismiss={dismissGuard.canDismiss}
+        isDirty={isDirty}
+        onAttemptDismiss={dismissGuard.requestDismiss}
       >
+        <KeyboardAwareBottomSheetScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+        >
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
@@ -333,7 +360,7 @@ export function CreateHabitModal({
           <TouchableOpacity
             style={styles.cancelButton}
             disabled={isPending}
-            onPress={onClose}
+            onPress={dismissGuard.requestDismiss}
             activeOpacity={0.7}
           >
             <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
@@ -356,6 +383,20 @@ export function CreateHabitModal({
         </View>
       </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
+      <ConfirmDialog
+        open={dismissGuard.showDiscardDialog}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) dismissGuard.cancelDismiss();
+        }}
+        title={t("common.discardChangesTitle")}
+        description={t("common.discardChangesDescription")}
+        confirmLabel={t("common.discard")}
+        cancelLabel={t("common.keepEditing")}
+        onConfirm={dismissGuard.confirmDismiss}
+        onCancel={dismissGuard.cancelDismiss}
+        variant="warning"
+      />
+    </>
   );
 }
 

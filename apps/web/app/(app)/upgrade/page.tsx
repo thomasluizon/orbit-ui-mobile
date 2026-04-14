@@ -25,6 +25,7 @@ import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/us
 import { useBilling } from '@/hooks/use-billing'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const upgradeIconMap = {
   flame: Flame,
@@ -734,6 +735,7 @@ function PricingSection({
 
 export default function UpgradePage() {
   const t = useTranslations()
+  const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
@@ -802,9 +804,14 @@ export default function UpgradePage() {
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <Link href="/profile" className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors">
-          <ArrowLeft className="size-5 text-text-primary" />
-        </Link>
+            <button
+              type="button"
+              aria-label={t('common.backToProfile')}
+              className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
+              onClick={() => goBackOrFallback('/profile')}
+            >
+              <ArrowLeft className="size-5 text-text-primary" />
+            </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
           {t('upgrade.title')}
         </h1>

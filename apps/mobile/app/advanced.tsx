@@ -44,6 +44,7 @@ import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
@@ -72,6 +73,7 @@ interface ApiKeyCreateResponse {
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const queryClient = useQueryClient()
   const { colors } = useAppTheme()
@@ -198,7 +200,7 @@ export default function AdvancedScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textMuted} />

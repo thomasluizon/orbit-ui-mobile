@@ -1,17 +1,23 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useAuthStore } from '@/stores/auth-store'
 
 export default function PrivacyPage() {
   const t = useTranslations()
-  const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
   return (
     <div className="pb-8">
       <header className="pt-8 pb-6 flex items-center gap-3">
-        <button className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors" onClick={() => router.back()}>
+        <button
+          type="button"
+          className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
+          onClick={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
+        >
           <ArrowLeft className="size-5 text-text-primary" />
         </button>
         <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">{t('privacy.title')}</h1>

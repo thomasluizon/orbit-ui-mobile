@@ -1,5 +1,6 @@
 import { memo, useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -16,7 +17,6 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -44,6 +44,7 @@ import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { useHabitDetail } from "@/hooks/use-habits";
+import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 import { apiClient } from "@/lib/api-client";
 import { MessageBubble } from "@/components/message-bubble";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
@@ -94,6 +95,8 @@ const GOAL_ACTION_TYPES = new Set([
   "UpdateGoalStatus",
   "LinkHabitsToGoal",
 ]);
+
+const CHAT_DRAFT_STORAGE_KEY = "orbit-chat-draft";
 
 function AnimatedSparkle({
   primaryColor,
@@ -247,6 +250,21 @@ const ChatComposerInput = memo(function ChatComposerInput({
   const prevIsRecording = useRef(false);
 
   useEffect(() => {
+    let isMounted = true;
+
+    void AsyncStorage.getItem(CHAT_DRAFT_STORAGE_KEY)
+      .then((storedDraft) => {
+        if (!isMounted || !storedDraft) return;
+        setDraft(storedDraft);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (prevIsRecording.current && !isRecording && transcript.trim()) {
       setDraft((current) =>
         current ? `${current} ${transcript.trim()}` : transcript.trim(),
@@ -257,7 +275,17 @@ const ChatComposerInput = memo(function ChatComposerInput({
 
   useEffect(() => {
     setDraft("");
+    void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
   }, [resetSignal]);
+
+  useEffect(() => {
+    if (!draft.trim()) {
+      void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
+      return;
+    }
+
+    void AsyncStorage.setItem(CHAT_DRAFT_STORAGE_KEY, draft);
+  }, [draft]);
 
   const canSend =
     (draft.trim().length > 0 || selectedImagePresent) &&
@@ -312,7 +340,7 @@ export default function ChatScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isOnline } = useOffline();
-  const router = useRouter();
+  const goBackOrFallback = useGoBackOrFallback();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
@@ -715,7 +743,7 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel={t("common.goBack")}
             activeOpacity={0.7}
-            onPress={() => router.push("/" as Href)}
+            onPress={() => goBackOrFallback("/")}
             style={styles.headerButton}
           >
             <ArrowLeft size={18} color={colors.textPrimary} />

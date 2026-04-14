@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -15,6 +16,11 @@ vi.mock('@/lib/plural', () => ({
 let mockNotifications: Array<{ id: string; title: string; body: string; isRead: boolean; createdAtUtc: string; url: string | null; habitId: string | null }> = []
 let mockUnreadCount = 0
 let mockIsLoading = false
+const markAsReadMutate = vi.fn()
+const markAllAsReadMutate = vi.fn()
+const deleteNotificationMutate = vi.fn()
+const deleteAllMutate = vi.fn()
+const showQueued = vi.fn()
 
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({
@@ -22,10 +28,10 @@ vi.mock('@/hooks/use-notifications', () => ({
     unreadCount: mockUnreadCount,
     isLoading: mockIsLoading,
   }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
-  useMarkAllNotificationsRead: () => ({ mutate: vi.fn() }),
-  useDeleteNotification: () => ({ mutate: vi.fn() }),
-  useDeleteAllNotifications: () => ({ mutate: vi.fn() }),
+  useMarkNotificationRead: () => ({ mutate: markAsReadMutate }),
+  useMarkAllNotificationsRead: () => ({ mutate: markAllAsReadMutate }),
+  useDeleteNotification: () => ({ mutate: deleteNotificationMutate }),
+  useDeleteAllNotifications: () => ({ mutate: deleteAllMutate }),
 }))
 
 vi.mock('./notification-detail-modal', () => ({
@@ -36,25 +42,59 @@ vi.mock('@/components/navigation/notification-detail-modal', () => ({
   NotificationDetailModal: () => null,
 }))
 
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showQueued,
+  }),
+}))
+
 import { NotificationBell } from '@/components/navigation/notification-bell'
 
 describe('NotificationBell', () => {
-  it('renders the bell button', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    resetPendingNotificationDeletesForTests()
+    mockNotifications = []
     mockUnreadCount = 0
+    mockIsLoading = false
+    markAsReadMutate.mockReset()
+    markAllAsReadMutate.mockReset()
+    deleteNotificationMutate.mockReset()
+    deleteAllMutate.mockReset()
+    showQueued.mockReset()
+  })
+
+  it('renders the bell button', () => {
     render(<NotificationBell />)
     expect(screen.getByLabelText('notifications.bell')).toBeInTheDocument()
   })
 
   it('shows unread count badge when there are unread notifications', () => {
-    mockUnreadCount = 3
+    mockNotifications = Array.from({ length: 3 }, (_, index) => ({
+      id: `${index + 1}`,
+      title: `Notification ${index + 1}`,
+      body: 'Body',
+      isRead: false,
+      createdAtUtc: new Date().toISOString(),
+      url: null,
+      habitId: null,
+    }))
     render(<NotificationBell />)
-    expect(document.body.textContent).toContain('3')
+    expect(screen.getByText('3')).toBeInTheDocument()
   })
 
   it('shows 9+ for more than 9 unread', () => {
-    mockUnreadCount = 15
+    mockNotifications = Array.from({ length: 15 }, (_, index) => ({
+      id: `${index + 1}`,
+      title: `Notification ${index + 1}`,
+      body: 'Body',
+      isRead: false,
+      createdAtUtc: new Date().toISOString(),
+      url: null,
+      habitId: null,
+    }))
     render(<NotificationBell />)
-    expect(document.body.textContent).toContain('9+')
+    expect(screen.getByText('9+')).toBeInTheDocument()
   })
 
   it('does not show badge when unread count is 0', () => {
@@ -137,5 +177,94 @@ describe('NotificationBell', () => {
     expect(btn).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(btn)
     expect(btn).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('queues single deletes with undo instead of deleting immediately', () => {
+    let undoAction: (() => void) | undefined
+    mockNotifications = [
+      {
+        id: '1',
+        title: 'Test notification',
+        body: 'Test body',
+        isRead: false,
+        createdAtUtc: new Date().toISOString(),
+        url: null,
+        habitId: null,
+      },
+    ]
+    mockUnreadCount = 1
+    showQueued.mockImplementation((_message, _label, onAction) => {
+      undoAction = onAction
+    })
+
+    render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
+    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
+
+    expect(showQueued).toHaveBeenCalled()
+    expect(screen.queryByText('Test notification')).not.toBeInTheDocument()
+    expect(deleteNotificationMutate).not.toHaveBeenCalled()
+
+    act(() => {
+      undoAction?.()
+    })
+
+    expect(screen.getByText('Test notification')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
+    vi.advanceTimersByTime(5000)
+
+    expect(deleteNotificationMutate).toHaveBeenCalledWith('1')
+  })
+
+  it('opens a confirmation dialog before deleting all notifications', () => {
+    mockNotifications = [
+      {
+        id: '1',
+        title: 'Test notification',
+        body: 'Test body',
+        isRead: false,
+        createdAtUtc: new Date().toISOString(),
+        url: null,
+        habitId: null,
+      },
+    ]
+
+    render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
+    fireEvent.click(screen.getByLabelText('notifications.deleteAll'))
+
+    expect(screen.getByText('notifications.deleteAllConfirmTitle')).toBeInTheDocument()
+    expect(deleteAllMutate).not.toHaveBeenCalled()
+  })
+
+  it('preserves queued notification deletes across unmounts', () => {
+    mockNotifications = [
+      {
+        id: '1',
+        title: 'Test notification',
+        body: 'Test body',
+        isRead: false,
+        createdAtUtc: new Date().toISOString(),
+        url: null,
+        habitId: null,
+      },
+    ]
+    mockUnreadCount = 1
+
+    const firstRender = render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
+    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
+    firstRender.unmount()
+
+    render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText('notifications.bell'))
+    expect(screen.queryByText('Test notification')).not.toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(deleteNotificationMutate).toHaveBeenCalledWith('1')
   })
 })

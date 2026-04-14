@@ -12,8 +12,6 @@ import {
   User,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate } from '@orbit/shared/utils'
-import { useUIStore } from '@/stores/ui-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { shadows } from '@/lib/theme'
 
@@ -34,8 +32,6 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const insets = useSafeAreaInsets()
   const { colors, nav, currentTheme } = useAppTheme()
   const isLight = currentTheme === 'light'
-  const setSelectedDate = useUIStore((s) => s.setSelectedDate)
-  const setActiveView = useUIStore((s) => s.setActiveView)
   const fabRef = useRef<View>(null)
   useTourTarget('tour-fab-button', fabRef)
 
@@ -56,13 +52,12 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
 
   const handleNavPress = useCallback(
     (item: NavItem) => {
-      if (item.path === '/') {
-        setSelectedDate(formatAPIDate(new Date()))
-        setActiveView('today')
+      if (isActive(item.path)) {
+        return
       }
-      router.push(item.path)
+      router.replace(item.path)
     },
-    [router, setActiveView, setSelectedDate],
+    [isActive, router],
   )
 
   return (

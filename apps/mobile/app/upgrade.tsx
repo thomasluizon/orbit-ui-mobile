@@ -25,6 +25,7 @@ import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type IconType = ComponentType<{ size?: number; color?: string }>
 
@@ -262,6 +263,7 @@ function FeatureComparisonTable({
 
 export default function UpgradeScreen() {
   const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const { t, i18n } = useTranslation()
   const { colors } = useAppTheme()
   const { isOnline } = useOffline()
@@ -414,7 +416,7 @@ export default function UpgradeScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.back}
-            onPress={() => router.push('/profile')}
+            onPress={() => goBackOrFallback('/profile')}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={t('common.goBack')}

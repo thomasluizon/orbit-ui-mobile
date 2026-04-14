@@ -5,6 +5,7 @@ import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import './globals.css'
 
 const manrope = Manrope({
@@ -54,6 +55,7 @@ export default async function RootLayout({
       </head>
       <body className="bg-background text-text-primary font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <NavigationHistoryTracker />
           {children}
           <Toaster
             theme="dark"
