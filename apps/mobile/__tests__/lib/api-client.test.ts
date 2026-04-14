@@ -37,10 +37,11 @@ describe('mobile apiClient', () => {
       expect.objectContaining({
         method: 'POST',
         body: '{"a":1}',
-        headers: {
+        headers: expect.objectContaining({
           Authorization: 'Bearer token-123',
           'Content-Type': 'application/json',
-        },
+          'X-Orbit-Time-Zone': expect.any(String),
+        }),
       }),
     )
   })
@@ -61,7 +62,9 @@ describe('mobile apiClient', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.useorbit.org/upload',
       expect.objectContaining({
-        headers: {},
+        headers: expect.objectContaining({
+          'X-Orbit-Time-Zone': expect.any(String),
+        }),
       }),
     )
   })
