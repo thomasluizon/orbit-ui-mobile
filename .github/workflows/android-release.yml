@@ -146,8 +146,8 @@ jobs:
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
-          EAS_BUILD_PROFILE: ${{ inputs.track == 'production' && 'production' || 'preview' }}
-          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ inputs.track == 'production' && 'false' || 'true' }}
+          EAS_BUILD_PROFILE: ${{ contains(fromJSON('["closed","open","production"]'), inputs.track) && 'production' || 'preview' }}
+          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ contains(fromJSON('["closed","open","production"]'), inputs.track) && 'false' || 'true' }}
           EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
           EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID: ${{ env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID }}
           EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID: ${{ env.PROD_ADMOB_ANDROID_REWARDED_ID }}
