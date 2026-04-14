@@ -101,6 +101,59 @@ function buildCreateGoalRequest(
   }
 }
 
+interface GoalDeadlineFieldProps {
+  deadline: string
+  onDeadlineChange: (deadline: string) => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function GoalDeadlineField({ deadline, onDeadlineChange, t }: Readonly<GoalDeadlineFieldProps>) {
+  if (!deadline) {
+    return (
+      <div>
+        <span className="form-label">
+          {t('goals.form.deadline')}
+          <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
+        </span>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-1.5"
+          onClick={() => onDeadlineChange(formatAPIDate(new Date()))}
+        >
+          <Plus className="size-3.5" />
+          {t('goals.form.addDeadline')}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <span className="form-label">
+        {t('goals.form.deadline')}
+        <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
+      </span>
+      <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <AppDatePicker value={deadline} onChange={onDeadlineChange} />
+        </div>
+        <button
+          type="button"
+          className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
+          onClick={() => onDeadlineChange('')}
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      {isGoalDeadlinePast(deadline) && (
+        <p className="text-xs text-amber-400 font-medium">
+          {t('goals.form.deadlineInPast')}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -385,52 +438,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             )}
           </div>
 
-          {/* Deadline */}
-          <div className="space-y-1.5">
-            {deadline ? (
-              <div className="space-y-1.5">
-                <span className="form-label">
-                  {t('goals.form.deadline')}
-                  <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <AppDatePicker
-                      value={deadline}
-                      onChange={setDeadline}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
-                    onClick={() => setDeadline('')}
-                  >
-                    <X className="size-4" />
-                  </button>
-                </div>
-                {deadline && isGoalDeadlinePast(deadline) && (
-                  <p className="text-xs text-amber-400 font-medium">
-                    {t('goals.form.deadlineInPast')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <span className="form-label">
-                  {t('goals.form.deadline')}
-                  <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-                </span>
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-1.5"
-                  onClick={() => setDeadline(formatAPIDate(new Date()))}
-                >
-                  <Plus className="size-3.5" />
-                  {t('goals.form.addDeadline')}
-                </button>
-              </div>
-            )}
-          </div>
+          <GoalDeadlineField deadline={deadline} onDeadlineChange={setDeadline} t={t} />
         </div>
 
         {/* Submit */}

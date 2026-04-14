@@ -13,11 +13,8 @@ function resolveThemeMode(themePreference: string | null | undefined): ThemeMode
     return themePreference
   }
 
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-color-scheme: light)').matches
-  ) {
+  const matchMedia = globalThis.window?.matchMedia
+  if (matchMedia?.('(prefers-color-scheme: light)').matches) {
     return 'light'
   }
 

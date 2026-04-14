@@ -10,7 +10,6 @@ import {
   applyThemeTokensToDOM,
   normalizeColorScheme,
   normalizeThemeMode,
-  VALID_COLOR_SCHEMES,
 } from '@/lib/theme-dom'
 
 function getCookie(name: string): string | null {

@@ -62,8 +62,8 @@ export function EditHabitModal({
   const atGoalLimit = selectedGoalIds.length >= 10
   const isDirty =
     formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort()) !== initialTagIds ||
-    JSON.stringify([...selectedGoalIds].sort()) !== initialGoalIds ||
+    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds ||
+    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds ||
     JSON.stringify(reminderTimes) !== initialReminderTimes
   const dismissGuard = useDismissGuard({
     isDirty,
@@ -97,8 +97,12 @@ export function EditHabitModal({
     setReminderTimes(prefill.reminderTimes)
     tags.resetTags(prefill.selectedTagIds)
     setSelectedGoalIds(prefill.selectedGoalIds)
-    setInitialTagIds(JSON.stringify([...prefill.selectedTagIds].sort()))
-    setInitialGoalIds(JSON.stringify([...prefill.selectedGoalIds].sort()))
+    setInitialTagIds(
+      JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
+    )
+    setInitialGoalIds(
+      JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
+    )
     setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
     applyHabitFormMode(prefill.mode, formHelpers)
     // eslint-disable-next-line react-hooks/exhaustive-deps

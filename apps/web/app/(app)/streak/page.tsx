@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'

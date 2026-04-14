@@ -62,6 +62,42 @@ function parseTimeInput(value: TimeInput): Date | null {
   return new Date(2000, 0, 1, hours, minutes, seconds)
 }
 
+const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}
+
+const DEFAULT_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: 'numeric',
+  minute: '2-digit',
+}
+
+const DEFAULT_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  hour: 'numeric',
+  minute: '2-digit',
+}
+
+function formatIntlDateValue(
+  value: Date | null,
+  fallback: string,
+  locale?: string | null,
+  options?: Intl.DateTimeFormatOptions,
+  defaultOptions?: Intl.DateTimeFormatOptions,
+): string {
+  if (!value) {
+    return fallback
+  }
+
+  return new Intl.DateTimeFormat(
+    getIntlLocale(locale),
+    options ?? defaultOptions,
+  ).format(value)
+}
+
 export function resolveSupportedLocale(locale?: string | null): SupportedLocale {
   return normalizeLocale(locale)
 }
@@ -84,51 +120,44 @@ export function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
 export function formatLocaleDate(
   value: DateInput,
   locale?: string | null,
-  options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  },
+  options?: Intl.DateTimeFormatOptions,
 ): string {
   const date = parseDateInput(value)
-  if (!date) {
-    return typeof value === 'string' ? value : ''
-  }
-
-  return new Intl.DateTimeFormat(getIntlLocale(locale), options).format(date)
+  return formatIntlDateValue(
+    date,
+    typeof value === 'string' ? value : '',
+    locale,
+    options,
+    DEFAULT_DATE_OPTIONS,
+  )
 }
 
 export function formatLocaleDateTime(
   value: DateInput,
   locale?: string | null,
-  options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: 'numeric',
-    minute: '2-digit',
-  },
+  options?: Intl.DateTimeFormatOptions,
 ): string {
   const date = parseDateInput(value)
-  if (!date) {
-    return typeof value === 'string' ? value : ''
-  }
-
-  return new Intl.DateTimeFormat(getIntlLocale(locale), options).format(date)
+  return formatIntlDateValue(
+    date,
+    typeof value === 'string' ? value : '',
+    locale,
+    options,
+    DEFAULT_DATE_TIME_OPTIONS,
+  )
 }
 
 export function formatLocaleTime(
   value: TimeInput,
   locale?: string | null,
-  options: Intl.DateTimeFormatOptions = {
-    hour: 'numeric',
-    minute: '2-digit',
-  },
+  options?: Intl.DateTimeFormatOptions,
 ): string {
   const date = parseTimeInput(value)
-  if (!date) {
-    return value ?? ''
-  }
-
-  return new Intl.DateTimeFormat(getIntlLocale(locale), options).format(date)
+  return formatIntlDateValue(
+    date,
+    value ?? '',
+    locale,
+    options,
+    DEFAULT_TIME_OPTIONS,
+  )
 }

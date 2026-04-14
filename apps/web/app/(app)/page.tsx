@@ -293,7 +293,6 @@ export default function TodayPage() {
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? new Map()
   const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
-  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? []
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched

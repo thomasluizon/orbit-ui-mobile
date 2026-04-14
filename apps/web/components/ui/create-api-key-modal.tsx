@@ -22,9 +22,8 @@ interface CreateApiKeyModalProps {
 }
 
 function parseUtcDateTimeLocal(value: string): Date | null {
-  const match = value
-    .trim()
-    .match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/)
+  const dateTimePattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
+  const match = dateTimePattern.exec(value.trim())
 
   if (!match) {
     return null
@@ -251,7 +250,9 @@ export function CreateApiKeyModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="form-label mb-0">{t('orbitMcp.apiKeys')}</label>
+              <p id="api-key-scopes-label" className="form-label mb-0">
+                {t('orbitMcp.apiKeys')}
+              </p>
               <div className="flex items-center gap-2 text-[11px]">
                 <button
                   type="button"
@@ -269,7 +270,11 @@ export function CreateApiKeyModal({
                 </button>
               </div>
             </div>
-            <div className="max-h-48 overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-background p-2 space-y-2">
+            <div
+              role="group"
+              aria-labelledby="api-key-scopes-label"
+              className="max-h-48 overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-background p-2 space-y-2"
+            >
               {availableScopes.map((scope) => (
                 <label
                   key={scope.scope}

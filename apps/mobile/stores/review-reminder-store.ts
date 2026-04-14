@@ -42,7 +42,9 @@ function createReviewReminderSnapshot(
 }
 
 function normalizeActiveDays(activeDays: string[], day: string): string[] {
-  const nextDays = Array.from(new Set([...activeDays, day])).sort()
+  const nextDays = Array.from(new Set([...activeDays, day])).sort((left, right) =>
+    left.localeCompare(right),
+  )
   if (nextDays.length <= MAX_DISTINCT_ACTIVE_DAYS) {
     return nextDays
   }

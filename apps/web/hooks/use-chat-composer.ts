@@ -85,6 +85,9 @@ type PreparedStepUpExecution =
     }
   | { ok: false; error: string }
 
+type SendChatMessageResult = Awaited<ReturnType<typeof sendChatMessage>>
+type FailedSendChatMessageResult = Extract<SendChatMessageResult, { ok: false }>
+
 function buildAgentExecutionMessage(response: AgentExecuteOperationResponse): string {
   return (
     response.operation.summary ??
@@ -195,6 +198,63 @@ export function useChatComposer() {
     }
   }, [addMessage, queryClient, scrollToBottom])
 
+  const handleFailedSend = useCallback((result: FailedSendChatMessageResult) => {
+    setIsTyping(false)
+
+    if (result.status === 408) {
+      setSendError(t('chat.timeoutError'))
+    } else if (result.status === 403) {
+      setSendError(t('chat.limitReachedError'))
+    } else {
+      setSendError(getErrorMessage(result.error, t('chat.sendError')))
+    }
+
+    addMessage({
+      id: crypto.randomUUID(),
+      role: 'ai',
+      content: t('chat.aiError'),
+      timestamp: new Date(),
+    })
+    scrollToBottom()
+  }, [addMessage, scrollToBottom, setIsTyping, t])
+
+  const handleSuccessfulSend = useCallback(async (result: SendChatMessageResult & { ok: true }) => {
+    setIsTyping(false)
+
+    addMessage({
+      id: crypto.randomUUID(),
+      role: 'ai',
+      content: result.data.aiMessage || '',
+      actions: result.data.actions,
+      operations: result.data.operations,
+      pendingOperations: result.data.pendingOperations,
+      policyDenials: result.data.policyDenials,
+      timestamp: new Date(),
+    })
+
+    scrollToBottom()
+
+    if (!hasProAccess) {
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+        old ? { ...old, aiMessagesUsed: (old.aiMessagesUsed ?? 0) + 1 } : old,
+      )
+    }
+
+    const hasSuccessfulActions = result.data.actions?.some((action) => action.status === 'Success')
+    if (hasSuccessfulActions) {
+      if (result.data.actions.some((action) => HABIT_ACTION_TYPES.has(action.type))) {
+        queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      }
+      if (result.data.actions.some((action) => GOAL_ACTION_TYPES.has(action.type))) {
+        queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      }
+    }
+
+    if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {
+      await invalidateAgentQueries(queryClient)
+    }
+  }, [addMessage, hasProAccess, queryClient, scrollToBottom, setIsTyping])
+
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -203,7 +263,7 @@ export function useChatComposer() {
   }, [input])
 
   useEffect(() => {
-    if (typeof globalThis.localStorage === 'undefined') return
+    if (globalThis.localStorage === undefined) return
     const storedDraft = globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)
     if (storedDraft) {
       setInput(storedDraft)
@@ -211,7 +271,7 @@ export function useChatComposer() {
   }, [])
 
   useEffect(() => {
-    if (typeof globalThis.localStorage === 'undefined') return
+    if (globalThis.localStorage === undefined) return
     const trimmedDraft = input.trim()
     if (!trimmedDraft) {
       globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
@@ -353,61 +413,12 @@ export function useChatComposer() {
         }))
 
         const result = await sendChatMessage(formData)
-
         if (!result.ok) {
-          setIsTyping(false)
-
-          if (result.status === 408) {
-            setSendError(t('chat.timeoutError'))
-          } else if (result.status === 403) {
-            setSendError(t('chat.limitReachedError'))
-          } else {
-            setSendError(getErrorMessage(result.error, t('chat.sendError')))
-          }
-
-          addMessage({
-            id: crypto.randomUUID(),
-            role: 'ai',
-            content: t('chat.aiError'),
-            timestamp: new Date(),
-          })
-          scrollToBottom()
+          handleFailedSend(result)
           return
         }
 
-        setIsTyping(false)
-
-        addMessage({
-          id: crypto.randomUUID(),
-          role: 'ai',
-          content: result.data.aiMessage || '',
-          actions: result.data.actions,
-          operations: result.data.operations,
-          pendingOperations: result.data.pendingOperations,
-          policyDenials: result.data.policyDenials,
-          timestamp: new Date(),
-        })
-
-        scrollToBottom()
-
-        if (!hasProAccess) {
-          queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-            old ? { ...old, aiMessagesUsed: (old.aiMessagesUsed ?? 0) + 1 } : old,
-          )
-        }
-
-        if (result.data.actions?.some((action) => action.status === 'Success')) {
-          if (result.data.actions.some((action) => HABIT_ACTION_TYPES.has(action.type))) {
-            queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-          }
-          if (result.data.actions.some((action) => GOAL_ACTION_TYPES.has(action.type))) {
-            queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-          }
-        }
-
-        if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {
-          await invalidateAgentQueries(queryClient)
-        }
+        await handleSuccessfulSend(result)
       } catch (error: unknown) {
         setIsTyping(false)
         setSendError(getErrorMessage(error, t('chat.sendError')))
@@ -426,8 +437,9 @@ export function useChatComposer() {
       hasProAccess,
       imagePreview,
       input,
+      handleFailedSend,
+      handleSuccessfulSend,
       isTyping,
-      queryClient,
       locale,
       scrollToBottom,
       selectedImage,

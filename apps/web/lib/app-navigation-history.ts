@@ -16,7 +16,7 @@ function createEmptyState(): AppNavigationHistoryState {
 }
 
 function canUseSessionStorage(): boolean {
-  return typeof globalThis !== 'undefined' && typeof globalThis.sessionStorage !== 'undefined'
+  return globalThis.sessionStorage !== undefined
 }
 
 function normalizeState(state: AppNavigationHistoryState): AppNavigationHistoryState {
