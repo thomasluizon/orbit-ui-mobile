@@ -124,7 +124,11 @@ describe('useCalendarAutoSyncState', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data).toEqual(sampleState)
-    expect(mockFetch).toHaveBeenCalledWith('/api/calendar/auto-sync/state', undefined)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/calendar/auto-sync/state')
+    expect(options.headers).toBeInstanceOf(Headers)
+    expect((options.headers as Headers).get('X-Orbit-Time-Zone')).toEqual(expect.any(String))
   })
 
   it('exposes loading state while the request is pending', () => {

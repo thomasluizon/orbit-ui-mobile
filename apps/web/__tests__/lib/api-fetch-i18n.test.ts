@@ -19,6 +19,9 @@ vi.mock('@/stores/auth-store', () => ({
 
 // Mock extractBackendError
 vi.mock('@orbit/shared/utils', () => ({
+  buildClientTimeZoneHeaders: vi.fn(() => ({
+    'X-Orbit-Time-Zone': 'America/Sao_Paulo',
+  })),
   extractBackendError: vi.fn(() => undefined),
 }))
 

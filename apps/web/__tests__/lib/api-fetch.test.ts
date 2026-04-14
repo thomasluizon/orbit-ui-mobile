@@ -19,6 +19,9 @@ vi.mock('@/stores/auth-store', () => ({
 
 // Mock extractBackendError
 vi.mock('@orbit/shared/utils', () => ({
+  buildClientTimeZoneHeaders: vi.fn(() => ({
+    'X-Orbit-Time-Zone': 'America/Sao_Paulo',
+  })),
   extractBackendError: vi.fn((err: { data?: { error?: string } }) => err?.data?.error ?? undefined),
 }))
 
@@ -71,11 +74,15 @@ describe('apiFetch', () => {
       body: JSON.stringify({ data: true }),
     })
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{"data":true}',
-    })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/test')
+    expect(options.method).toBe('POST')
+    expect(options.body).toBe('{"data":true}')
+    expect(options.headers).toBeInstanceOf(Headers)
+    const headers = options.headers as Headers
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(headers.get('X-Orbit-Time-Zone')).toBe('America/Sao_Paulo')
   })
 
   it('calls logout on 401 without toast', async () => {
@@ -269,7 +276,11 @@ describe('fetchJson', () => {
 
     const result = await fetchJson<{ items: number[] }>('/api/items')
     expect(result).toEqual({ items: [1, 2, 3] })
-    expect(mockFetch).toHaveBeenCalledWith('/api/items', undefined)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/items')
+    expect(options.headers).toBeInstanceOf(Headers)
+    expect((options.headers as Headers).get('X-Orbit-Time-Zone')).toBe('America/Sao_Paulo')
   })
 })
 
