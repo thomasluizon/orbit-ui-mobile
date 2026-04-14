@@ -4,10 +4,12 @@ import type {
   UpdateHabitRequest,
   ScheduledReminderTime,
 } from '../types/habit'
+import { normalizeHabitIcon } from '../validation/habit-form'
 
 export interface HabitFormData {
   title: string
   description: string
+  icon?: string | null
   isGeneral: boolean
   isFlexible: boolean
   frequencyUnit: 'Day' | 'Week' | 'Month' | 'Year' | null
@@ -66,6 +68,8 @@ export function buildSubHabitRequest(
 ): CreateSubHabitRequest {
   const req = { title: data.title } as Record<string, unknown>
   if (data.description) req.description = data.description
+  const normalizedIcon = normalizeHabitIcon(data.icon)
+  if (normalizedIcon !== null) req.icon = normalizedIcon
   if (!data.isGeneral) {
     applyScheduleFields(req, data)
     applyReminderFields(req, data, reminderTimes)
@@ -91,6 +95,8 @@ export function buildCreateHabitRequest(
     isBadHabit: data.isBadHabit,
   }
   if (data.description) req.description = data.description
+  const normalizedIcon = normalizeHabitIcon(data.icon)
+  if (normalizedIcon !== null) req.icon = normalizedIcon
   if (data.isGeneral) {
     req.isGeneral = true
   } else {
@@ -163,6 +169,9 @@ export function buildUpdateHabitRequest(
     isFlexible: data.isFlexible,
   }
   if (data.description) request.description = data.description
+  if (data.icon !== undefined) {
+    request.icon = normalizeHabitIcon(data.icon)
+  }
 
   if (!data.isGeneral) {
     applyUpdateScheduleFields(request, data, isOneTime, originalEndDate)

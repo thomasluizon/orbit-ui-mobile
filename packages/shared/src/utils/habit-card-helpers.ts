@@ -2,6 +2,28 @@ import type { NormalizedHabit } from '../types/habit'
 import { formatAPIDate } from './dates'
 import { hasHabitScheduleOnDate } from './habits'
 
+/**
+ * Returns the first grapheme of a habit title for the avatar fallback.
+ * Uses Intl.Segmenter when available to handle emoji, accented characters,
+ * and combining marks correctly; falls back to the first UTF-16 code unit.
+ */
+export function getHabitInitial(title: string | null | undefined): string {
+  if (!title) return ''
+  const trimmed = title.trim()
+  if (!trimmed) return ''
+  const Segmenter: typeof Intl.Segmenter | undefined =
+    typeof Intl !== 'undefined' && 'Segmenter' in Intl ? Intl.Segmenter : undefined
+  if (Segmenter) {
+    const segmenter = new Segmenter(undefined, { granularity: 'grapheme' })
+    const iterator = segmenter.segment(trimmed)[Symbol.iterator]()
+    const first = iterator.next()
+    if (!first.done) {
+      return (first.value.segment ?? '').toUpperCase()
+    }
+  }
+  return trimmed.slice(0, 1).toUpperCase()
+}
+
 export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today'
 
 export type HabitCardTranslationAdapter = (

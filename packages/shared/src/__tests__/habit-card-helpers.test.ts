@@ -7,6 +7,7 @@ import {
   computeHabitFrequencyLabel,
   computeHabitMatchBadges,
   computeHabitStatusBadge,
+  getHabitInitial,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -262,5 +263,38 @@ describe('habit card helpers', () => {
     expect(
       computeHabitMatchBadges('', createMockHabit({ searchMatches: null }), translator),
     ).toEqual([])
+  })
+})
+
+describe('getHabitInitial', () => {
+  it('returns empty for null/undefined/empty', () => {
+    expect(getHabitInitial(null)).toBe('')
+    expect(getHabitInitial(undefined)).toBe('')
+    expect(getHabitInitial('')).toBe('')
+    expect(getHabitInitial('   ')).toBe('')
+  })
+
+  it('returns first letter uppercased for ASCII titles', () => {
+    expect(getHabitInitial('Morning run')).toBe('M')
+    expect(getHabitInitial('read')).toBe('R')
+  })
+
+  it('handles accented first letter', () => {
+    expect(getHabitInitial('Ácido')).toBe('\u00C1')
+  })
+
+  it('returns the first grapheme for emoji-only titles', () => {
+    const result = getHabitInitial('\u{1F3C3} Morning run')
+    expect(result).toBe('\u{1F3C3}')
+  })
+
+  it('handles a ZWJ-joined grapheme as a single unit', () => {
+    // woman astronaut = woman + ZWJ + rocket
+    const title = '\u{1F469}\u200D\u{1F680} Dream'
+    expect(getHabitInitial(title)).toBe('\u{1F469}\u200D\u{1F680}')
+  })
+
+  it('trims whitespace before extracting the first grapheme', () => {
+    expect(getHabitInitial('  Hello')).toBe('H')
   })
 })

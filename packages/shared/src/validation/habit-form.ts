@@ -5,6 +5,7 @@ import {
   MAX_CHECKLIST_ITEMS,
   MAX_GOALS_PER_HABIT,
   MAX_HABIT_DESCRIPTION_LENGTH,
+  MAX_HABIT_ICON_LENGTH,
   MAX_HABIT_TITLE_LENGTH,
   MAX_SCHEDULED_REMINDERS,
   MAX_SUB_HABITS,
@@ -24,6 +25,7 @@ export const habitFormSchema = z.object({
     .max(MAX_HABIT_DESCRIPTION_LENGTH, 'habits.form.descriptionTooLong')
     .optional()
     .default(''),
+  icon: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
   frequencyQuantity: z.number().int().min(1).nullable().optional(),
   days: z.array(z.string()).default([]),
@@ -108,6 +110,34 @@ export function validateDescription(description: string | undefined): string | n
     return 'habits.form.descriptionTooLong'
   }
   return null
+}
+
+/**
+ * Validate a habit icon (emoji string). Returns i18n key or null.
+ * null/undefined/empty after trim is valid (represents "no icon").
+ */
+export function validateHabitIcon(icon: string | null | undefined): string | null {
+  if (icon === null || icon === undefined) return null
+  const trimmed = icon.trim()
+  if (trimmed.length === 0) return null
+  if (trimmed.length > MAX_HABIT_ICON_LENGTH) {
+    return 'habits.form.iconTooLong'
+  }
+  // Reject control characters (0x00-0x1F and 0x7F)
+  if (/[\u0000-\u001f\u007f]/.test(trimmed)) {
+    return 'habits.form.iconInvalid'
+  }
+  return null
+}
+
+/**
+ * Normalize a raw icon string for persistence. Trims whitespace and
+ * collapses empty strings to null so the server never receives empty.
+ */
+export function normalizeHabitIcon(icon: string | null | undefined): string | null {
+  if (icon === null || icon === undefined) return null
+  const trimmed = icon.trim()
+  return trimmed.length === 0 ? null : trimmed
 }
 
 export function validateChecklistItems(
@@ -229,6 +259,9 @@ export function validateHabitForm(data: HabitFormData): string | null {
 
   const descriptionErr = validateDescription(data.description)
   if (descriptionErr) return descriptionErr
+
+  const iconErr = validateHabitIcon(data.icon)
+  if (iconErr) return iconErr
 
   const checklistErr = validateChecklistItems(data.checklistItems)
   if (checklistErr) return checklistErr

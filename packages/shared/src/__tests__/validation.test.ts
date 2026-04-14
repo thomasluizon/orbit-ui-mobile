@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
   habitFormSchema,
+  normalizeHabitIcon,
   validateEndDate,
   validateEndTime,
-  validateTime,
   validateFrequency,
-  validateScheduledReminders,
   validateHabitForm,
+  validateHabitIcon,
+  validateScheduledReminders,
+  validateTime,
 } from '../validation/habit-form'
 import { goalFormSchema } from '../validation/goal-form'
 import { validateHabitLogNote } from '../validation/habit-log'
@@ -505,5 +507,81 @@ describe('validateHabitForm', () => {
     data.isGeneral = true
     data.isBadHabit = true
     expect(validateHabitForm(data)).toBe('habits.form.generalBadHabit')
+  })
+
+  it('catches invalid icon values', () => {
+    const data = habitFormSchema.parse({ title: 'Test' })
+    data.icon = 'a'.repeat(33)
+    expect(validateHabitForm(data)).toBe('habits.form.iconTooLong')
+  })
+
+  it('accepts a valid emoji icon', () => {
+    const data = habitFormSchema.parse({ title: 'Test' })
+    data.icon = '\u{1F3C3}'
+    expect(validateHabitForm(data)).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateHabitIcon / normalizeHabitIcon
+// ---------------------------------------------------------------------------
+
+describe('validateHabitIcon', () => {
+  it('returns null for null/undefined/empty', () => {
+    expect(validateHabitIcon(null)).toBeNull()
+    expect(validateHabitIcon(undefined)).toBeNull()
+    expect(validateHabitIcon('')).toBeNull()
+    expect(validateHabitIcon('   ')).toBeNull()
+  })
+
+  it('returns null for single emoji', () => {
+    expect(validateHabitIcon('\u{1F3C3}')).toBeNull()
+  })
+
+  it('returns null for ZWJ sequence', () => {
+    // woman astronaut
+    expect(validateHabitIcon('\u{1F469}\u200D\u{1F680}')).toBeNull()
+  })
+
+  it('returns null for flag emoji (regional indicator pair)', () => {
+    // Brazil flag
+    expect(validateHabitIcon('\u{1F1E7}\u{1F1F7}')).toBeNull()
+  })
+
+  it('returns null for a short plain string (users can pick any)', () => {
+    expect(validateHabitIcon('M')).toBeNull()
+  })
+
+  it('rejects a string longer than 32 characters', () => {
+    expect(validateHabitIcon('a'.repeat(33))).toBe('habits.form.iconTooLong')
+  })
+
+  it('accepts exactly 32 characters', () => {
+    expect(validateHabitIcon('a'.repeat(32))).toBeNull()
+  })
+
+  it('rejects control characters', () => {
+    expect(validateHabitIcon('\u0001')).toBe('habits.form.iconInvalid')
+    expect(validateHabitIcon('\u007f')).toBe('habits.form.iconInvalid')
+  })
+})
+
+describe('normalizeHabitIcon', () => {
+  it('returns null for null/undefined', () => {
+    expect(normalizeHabitIcon(null)).toBeNull()
+    expect(normalizeHabitIcon(undefined)).toBeNull()
+  })
+
+  it('returns null for empty or whitespace', () => {
+    expect(normalizeHabitIcon('')).toBeNull()
+    expect(normalizeHabitIcon('   ')).toBeNull()
+  })
+
+  it('trims surrounding whitespace', () => {
+    expect(normalizeHabitIcon('  \u{1F3C3}  ')).toBe('\u{1F3C3}')
+  })
+
+  it('preserves valid emojis', () => {
+    expect(normalizeHabitIcon('\u{1F3C3}')).toBe('\u{1F3C3}')
   })
 })

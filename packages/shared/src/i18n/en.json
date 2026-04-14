@@ -340,6 +340,13 @@
       "titlePlaceholder": "e.g. Morning run",
       "description": "Description",
       "descriptionPlaceholder": "Optional description",
+      "icon": "Icon",
+      "iconHint": "Pick an emoji to represent this habit",
+      "iconNone": "No icon",
+      "iconPick": "Pick emoji",
+      "iconChange": "Change emoji",
+      "iconTooLong": "Icon is too long",
+      "iconInvalid": "Icon is invalid",
       "frequency": "Frequency",
       "oneTimeTask": "One-time task",
       "recurring": "Recurring",
@@ -460,6 +467,28 @@
       "goals": "Goals",
       "noGoals": "No active goals",
       "goalLimit": "Goal limit reached"
+    },
+    "emojiPicker": {
+      "title": "Choose an emoji",
+      "searchPlaceholder": "Search emojis...",
+      "recents": "Recent",
+      "noResults": "No emojis match your search",
+      "skinTone": "Skin tone",
+      "clear": "Clear",
+      "useDefault": "Use default: {initial}",
+      "done": "Done",
+      "close": "Close",
+      "categories": {
+        "smileys": "Smileys & Emotion",
+        "people": "People & Body",
+        "nature": "Animals & Nature",
+        "food": "Food & Drink",
+        "activities": "Activities",
+        "travel": "Travel & Places",
+        "objects": "Objects",
+        "symbols": "Symbols",
+        "flags": "Flags"
+      }
     },
     "log": {
       "title": "Log Habit",

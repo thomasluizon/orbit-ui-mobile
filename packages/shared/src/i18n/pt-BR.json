@@ -340,6 +340,13 @@
       "titlePlaceholder": "ex. Corrida matinal",
       "description": "Descrição",
       "descriptionPlaceholder": "Descrição opcional",
+      "icon": "Ícone",
+      "iconHint": "Escolha um emoji para representar este hábito",
+      "iconNone": "Sem ícone",
+      "iconPick": "Escolher emoji",
+      "iconChange": "Alterar emoji",
+      "iconTooLong": "O ícone é muito longo",
+      "iconInvalid": "O ícone é inválido",
       "frequency": "Frequência",
       "oneTimeTask": "Tarefa única",
       "recurring": "Recorrente",
@@ -460,6 +467,28 @@
       "goals": "Metas",
       "noGoals": "Nenhuma meta ativa",
       "goalLimit": "Limite de metas atingido"
+    },
+    "emojiPicker": {
+      "title": "Escolher um emoji",
+      "searchPlaceholder": "Buscar emojis...",
+      "recents": "Recentes",
+      "noResults": "Nenhum emoji encontrado",
+      "skinTone": "Tom de pele",
+      "clear": "Limpar",
+      "useDefault": "Usar padrão: {initial}",
+      "done": "Pronto",
+      "close": "Fechar",
+      "categories": {
+        "smileys": "Sorrisos e emoções",
+        "people": "Pessoas e corpo",
+        "nature": "Animais e natureza",
+        "food": "Comida e bebida",
+        "activities": "Atividades",
+        "travel": "Viagens e lugares",
+        "objects": "Objetos",
+        "symbols": "Símbolos",
+        "flags": "Bandeiras"
+      }
     },
     "log": {
       "title": "Registrar Hábito",

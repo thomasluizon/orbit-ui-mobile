@@ -72,6 +72,7 @@ const baseHabitFieldsSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
+  icon: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.nullable(),
   frequencyQuantity: z.number().nullable(),
   isBadHabit: z.boolean(),
@@ -93,6 +94,7 @@ export const habitScheduleChildSchema: z.ZodType<{
   id: string
   title: string
   description: string | null
+  icon?: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
   isBadHabit: boolean
@@ -169,6 +171,7 @@ export const habitDetailChildSchema: z.ZodType<{
   id: string
   title: string
   description: string | null
+  icon?: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
   isBadHabit: boolean
@@ -228,6 +231,7 @@ export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>
 export const createHabitRequestSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
+  icon: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
   days: z.array(z.string()).optional(),
@@ -253,6 +257,7 @@ export type CreateHabitRequest = z.infer<typeof createHabitRequestSchema>
 export const updateHabitRequestSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
+  icon: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
   days: z.array(z.string()).optional(),
@@ -332,6 +337,7 @@ export type HabitMetrics = z.infer<typeof habitMetricsSchema>
 export const bulkHabitItemSchema: z.ZodType<{
   title: string
   description?: string | null
+  icon?: string | null
   frequencyUnit?: FrequencyUnit | null
   frequencyQuantity?: number | null
   days?: string[] | null
@@ -351,6 +357,7 @@ export const bulkHabitItemSchema: z.ZodType<{
 }> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
   frequencyQuantity: z.number().nullable().optional(),
   days: z.array(z.string()).nullable().optional(),
@@ -456,6 +463,7 @@ export type MoveHabitParentRequest = z.infer<typeof moveHabitParentRequestSchema
 export const createSubHabitRequestSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
+  icon: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
   days: z.array(z.string()).optional(),
