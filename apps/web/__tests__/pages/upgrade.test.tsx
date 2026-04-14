@@ -80,6 +80,7 @@ vi.mock('@orbit/shared/api', () => ({
 
 vi.mock('@orbit/shared/utils', () => ({
   getErrorMessage: (err: unknown, fallback: string) => fallback,
+  formatLocaleDate: (isoDate: string) => isoDate,
 }))
 
 // ---------------------------------------------------------------------------

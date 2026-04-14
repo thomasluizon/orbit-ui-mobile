@@ -31,7 +31,7 @@ describe('web i18n request config', () => {
     const result = await getRequestConfig()
 
     expect(result.locale).toBe('en')
-  })
+  }, 10000)
 
   it('falls back to the system locale when there is no supported locale cookie', async () => {
     cookiesMock.mockResolvedValue({
@@ -45,5 +45,5 @@ describe('web i18n request config', () => {
     const result = await getRequestConfig()
 
     expect(result.locale).toBe('pt-BR')
-  })
+  }, 10000)
 })

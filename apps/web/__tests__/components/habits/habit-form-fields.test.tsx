@@ -350,13 +350,11 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.dueTime')).toBeDefined()
   })
 
-  it('formats dueTime input as hh:mm on change', () => {
+  it('writes dueTime directly from the time picker on change', () => {
     const setValue = vi.fn()
-    const formatTimeInput = vi.fn((value: string) => (value === '1558' ? '15:58' : value))
     const formHelpers = createMockFormHelpers({
       isGeneral: false,
       isOneTime: false,
-      formatTimeInput,
     })
     formHelpers.form.setValue = setValue
     const tags = createMockTags()
@@ -374,19 +372,16 @@ describe('HabitFormFields', () => {
     )
 
     fireEvent.change(screen.getByLabelText('habits.form.dueTime'), {
-      target: { value: '1558' },
+      target: { value: '15:58' },
     })
 
-    expect(formatTimeInput).toHaveBeenCalledWith('1558')
     expect(setValue).toHaveBeenCalledWith('dueTime', '15:58', { shouldDirty: true })
   })
 
-  it('formats dueEndTime input as hh:mm on change', () => {
+  it('writes dueEndTime directly from the time picker on change', () => {
     const setValue = vi.fn()
-    const formatEndTimeInput = vi.fn((value: string) => (value === '2215' ? '22:15' : value))
     const formHelpers = createMockFormHelpers({
       isGeneral: false,
-      formatEndTimeInput,
     })
     formHelpers.form.setValue = setValue
     formHelpers.form.watch = vi.fn((field: string) => {
@@ -421,10 +416,9 @@ describe('HabitFormFields', () => {
     )
 
     fireEvent.change(screen.getByLabelText('habits.form.dueEndTime'), {
-      target: { value: '2215' },
+      target: { value: '22:15' },
     })
 
-    expect(formatEndTimeInput).toHaveBeenCalledWith('2215')
     expect(setValue).toHaveBeenCalledWith('dueEndTime', '22:15', { shouldDirty: true })
   })
 
@@ -705,10 +699,9 @@ describe('HabitFormFields', () => {
   // Due time input
   // -------------------------------------------------------------------------
 
-  it('calls formatTimeInput and setValue on due time change', () => {
-    const formatTimeInput = vi.fn((v: string) => v)
+  it('calls setValue on due time change', () => {
     const setValue = vi.fn()
-    const formHelpers = createMockFormHelpers({ isGeneral: false, isOneTime: false, formatTimeInput })
+    const formHelpers = createMockFormHelpers({ isGeneral: false, isOneTime: false })
     formHelpers.form.setValue = setValue
     const tags = createMockTags()
     renderWithProviders(
@@ -724,8 +717,7 @@ describe('HabitFormFields', () => {
     )
     const dueTimeInput = screen.getByLabelText('habits.form.dueTime')
     fireEvent.change(dueTimeInput, { target: { value: '14:30' } })
-    expect(formatTimeInput).toHaveBeenCalled()
-    expect(setValue).toHaveBeenCalled()
+    expect(setValue).toHaveBeenCalledWith('dueTime', '14:30', { shouldDirty: true })
   })
 
   // -------------------------------------------------------------------------
