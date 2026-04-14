@@ -12,6 +12,30 @@ describe('formatChatMessage', () => {
     expect(formatChatMessage('A & B')).toBe('A &amp; B')
   })
 
+  it('escapes single quotes and backticks (prompt-injection surface)', () => {
+    const result = formatChatMessage(`a ' b \` c`)
+    expect(result).not.toContain("'")
+    expect(result).not.toContain('`')
+  })
+
+  it('escapes dangerous HTML so it renders as text, not markup', () => {
+    // Tags must be escaped into text — the only live HTML tags allowed are
+    // <strong> / <em> generated from the Markdown pass above.
+    const result = formatChatMessage('hello<img src=x onerror=alert(1)>world')
+    // The raw `<img` tag must NOT survive as live HTML. It is allowed to remain
+    // in the output as escaped text (&lt;img...&gt;), which is exactly what we want.
+    expect(result).not.toMatch(/<img/i)
+    expect(result).toContain('&lt;img')
+  })
+
+  it('does not auto-rewrite plain-text URLs into live links', () => {
+    // The formatter should never produce <a href=...> from plain text; any
+    // "javascript:" payload must remain inert text.
+    const result = formatChatMessage('click [here](javascript:alert(1))')
+    expect(result).not.toMatch(/<a /i)
+    expect(result).not.toMatch(/href=/i)
+  })
+
   it('converts **bold** to <strong>', () => {
     expect(formatChatMessage('This is **bold** text')).toBe(
       'This is <strong>bold</strong> text',
