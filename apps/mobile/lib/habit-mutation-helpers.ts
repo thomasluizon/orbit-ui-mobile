@@ -643,6 +643,7 @@ export function invalidateHabitMutationQueries(
   if (options?.habitId) {
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) }),
+      queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(options.habitId) }),
     )
   }
 

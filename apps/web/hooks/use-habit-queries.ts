@@ -124,7 +124,7 @@ export function useHabitLogs(id: string | null) {
 
 export function useHabitFullDetail(id: string | null) {
   return useQuery({
-    queryKey: habitKeys.detail(id ?? ''),
+    queryKey: habitKeys.fullDetail(id ?? ''),
     queryFn: () => fetchJson<HabitFullDetail>(API.habits.detail(id ?? '')),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,

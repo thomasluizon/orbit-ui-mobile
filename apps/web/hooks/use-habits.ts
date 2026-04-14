@@ -223,6 +223,7 @@ export function useUpdateHabit() {
     onSettled: (_data, _err, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
+      queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
