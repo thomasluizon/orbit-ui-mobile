@@ -65,14 +65,7 @@ function renderLogButtonContent({
       </span>
     )
   }
-  // Simple incomplete habit: subtle centered dot hints "tap to log".
-  return (
-    <span
-      className="inline-block rounded-full bg-current opacity-70"
-      style={{ width: 6, height: 6 }}
-      aria-hidden="true"
-    />
-  )
+  return null
 }
 
 /**

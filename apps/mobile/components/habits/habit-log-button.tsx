@@ -280,20 +280,7 @@ function renderContent({
       </Text>
     )
   }
-  // Subtle centered dot hints "tap to log" on simple incomplete habits.
-  return (
-    <View
-      pointerEvents="none"
-      accessible={false}
-      style={{
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: color,
-        opacity: 0.7,
-      }}
-    />
-  )
+  return null
 }
 
 const styles = StyleSheet.create({

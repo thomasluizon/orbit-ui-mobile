@@ -395,8 +395,6 @@ export function HabitCard({
                     icon={habit.icon}
                     title={habit.title}
                     size={isChild ? 'sm' : 'md'}
-                    isCompleted={isCompletedForRange}
-                    isBadHabit={!!habit.isBadHabit}
                   />
                 ) : null}
               </View>

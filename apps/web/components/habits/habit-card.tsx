@@ -486,8 +486,6 @@ export const HabitCard = React.memo(function HabitCard({
                 icon={habit.icon}
                 title={habit.title}
                 size={tileSize}
-                isCompleted={isCompletedForRange}
-                isBadHabit={!!habit.isBadHabit}
               />
             ) : null}
           </div>
