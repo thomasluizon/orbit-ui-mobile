@@ -44,6 +44,13 @@ import { createColors, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
+/**
+ * Warm coral for overdue state (not hot alarm red). Mirrors
+ * `--habit-status-coral` on web. Kept local because the mobile theme
+ * does not yet export a dedicated coral token.
+ */
+const STATUS_CORAL = 'rgb(248, 113, 113)'
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -198,10 +205,11 @@ export function HabitCard({
     transform: [{ scale: pressScale.value }],
   }))
   const handlePressIn = useCallback(() => {
-    pressScale.value = withTiming(0.98, { duration: 100, easing: Easing.out(Easing.ease) })
+    // Restrained press-in — 0.985 reads as a confident touch, not a bounce.
+    pressScale.value = withTiming(0.985, { duration: 100, easing: Easing.out(Easing.ease) })
   }, [pressScale])
   const handlePressOut = useCallback(() => {
-    pressScale.value = withSpring(1, { stiffness: 220, damping: 18 })
+    pressScale.value = withSpring(1, { stiffness: 240, damping: 20 })
   }, [pressScale])
 
   // Pulse / glow flags for the avatar tile
@@ -407,6 +415,7 @@ export function HabitCard({
                 frequencyLabel={frequencyLabel}
                 flexibleProgressLabel={flexibleProgressLabel}
                 statusBadge={statusBadge}
+                status={status}
                 checkedCount={checkedCount}
                 matchBadges={matchBadges}
                 displayTime={displayTime}
@@ -431,6 +440,9 @@ export function HabitCard({
             ) : null}
           </View>
 
+          {/* 1px top-edge highlight for depth */}
+          <View style={styles.topHighlight} pointerEvents="none" />
+
           {/* Checklist progress strip */}
           {habit.checklistItems && habit.checklistItems.length > 0 ? (
             <ChecklistProgressStrip
@@ -441,12 +453,13 @@ export function HabitCard({
             />
           ) : null}
 
-          {/* Left status bar for due-today / overdue */}
+          {/* Left status bar for due-today / overdue. Warm coral for overdue
+              (urgent but not alarming). */}
           {!isChild && status === 'due-today' ? (
             <View style={[styles.leftBar, { backgroundColor: colors.primary }]} pointerEvents="none" />
           ) : null}
           {!isChild && status === 'overdue' ? (
-            <View style={[styles.leftBar, { backgroundColor: colors.danger }]} pointerEvents="none" />
+            <View style={[styles.leftBar, { backgroundColor: STATUS_CORAL }]} pointerEvents="none" />
           ) : null}
         </TouchableOpacity>
       </Animated.View>
@@ -621,10 +634,10 @@ function createStyles(
 ) {
   const isLight = theme === 'light'
   const borderColor = isLight ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.06)'
-  const borderHover = isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'
+  const borderHover = isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.14)'
   const shadow = isLight
-    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 }
-    : { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 8 }
+    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }
+    : { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 12 }
 
   return StyleSheet.create({
     cardParent: {
@@ -637,7 +650,7 @@ function createStyles(
       position: 'relative',
       overflow: 'hidden',
       ...shadow,
-      elevation: isLight ? 1 : 4,
+      elevation: isLight ? 1 : 5,
     },
     cardChild: {
       backgroundColor: isLight
@@ -651,6 +664,17 @@ function createStyles(
       position: 'relative',
       overflow: 'hidden',
       elevation: isLight ? 0 : 2,
+    },
+    /** 1px top-edge highlight for glass/depth feel. Absolute overlay. */
+    topHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.06)',
+      opacity: 0.55,
+      pointerEvents: 'none',
     },
 
     statusDue: {

@@ -88,20 +88,21 @@ export function HabitAvatarTile({
       return {
         backgroundColor: colors.primary,
         textColor: colors.textInverse,
-        ringColor: colors.primary,
+        ringColor: colors.primary_30,
       }
     }
     if (isBadHabit) {
       return {
         backgroundColor: colors.red500_10,
         textColor: colors.danger,
-        ringColor: isOverdue ? colors.red500_30 : colors.borderMuted,
+        ringColor: isOverdue ? colors.red500_30 : colors.red500_10,
       }
     }
     return {
       backgroundColor: colors.primary_15,
       textColor: colors.primary,
-      ringColor: isOverdue ? colors.red500_30 : colors.borderMuted,
+      // Subtle gradient-feel border via a primary-tinted ring (was borderMuted).
+      ringColor: isOverdue ? colors.red500_30 : colors.primary_20,
     }
   }, [isCompleted, isBadHabit, isOverdue, colors])
 
@@ -158,6 +159,8 @@ export function HabitAvatarTile({
           fontWeight: '600',
           textAlign: 'center',
           includeFontPadding: false,
+          // Slightly desaturate the emoji/initial when completed (matches web).
+          opacity: isCompleted ? 0.92 : 1,
         }}
       >
         {innerLabel}

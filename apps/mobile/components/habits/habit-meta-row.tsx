@@ -3,7 +3,13 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 import { Clock, Flame, ClipboardCheck } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitCardStatus } from '@orbit/shared/utils'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+/** Warm coral for overdue status text + dot. */
+const STATUS_CORAL = 'rgb(248, 113, 113)'
+/** Success green for completed status text + dot. */
+const STATUS_GREEN = 'rgb(34, 197, 94)'
 
 type Tone = 'neutral' | 'primary' | 'destructive' | 'amber' | 'tag'
 
@@ -22,6 +28,8 @@ interface HabitMetaRowProps {
   frequencyLabel: string
   flexibleProgressLabel: string | null
   statusBadge: { text: string } | null
+  /** Full status so we can render Today / Overdue / Completed as a colored label. */
+  status?: HabitCardStatus
   checkedCount: number
   matchBadges: ReadonlyArray<{ label: string }>
   displayTime: (time: string | null | undefined) => string
@@ -41,6 +49,7 @@ export function HabitMetaRow({
   frequencyLabel,
   flexibleProgressLabel,
   statusBadge,
+  status,
   checkedCount,
   matchBadges,
   displayTime,
@@ -54,7 +63,9 @@ export function HabitMetaRow({
       buildChips({
         habit,
         flexibleProgressLabel,
-        statusBadge,
+        // When `status` is provided we render a richer dot+label pair instead
+        // of a destructive chip.
+        statusBadge: status ? null : statusBadge,
         checkedCount,
         matchBadges,
         displayTime,
@@ -64,6 +75,7 @@ export function HabitMetaRow({
       habit,
       flexibleProgressLabel,
       statusBadge,
+      status,
       checkedCount,
       matchBadges,
       displayTime,
@@ -75,6 +87,7 @@ export function HabitMetaRow({
   const overflow = chips.length - visible.length
 
   const styles = createStyles(colors)
+  const statusLabel = resolveStatusLabel(status, t, isCompleted, colors.primary)
 
   return (
     <View style={[styles.row, isCompleted && styles.dimmed]}>
@@ -84,6 +97,22 @@ export function HabitMetaRow({
       >
         {frequencyLabel}
       </Text>
+      {statusLabel ? (
+        <View style={styles.statusLabelRow}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: statusLabel.color },
+            ]}
+          />
+          <Text
+            style={[styles.statusLabelText, { color: statusLabel.color }]}
+            numberOfLines={1}
+          >
+            {statusLabel.text}
+          </Text>
+        </View>
+      ) : null}
       <View ref={tagsRef} style={styles.chipArea}>
         {visible.map((chip) => (
           <Chip key={chip.key} chip={chip} />
@@ -96,6 +125,29 @@ export function HabitMetaRow({
       </View>
     </View>
   )
+}
+
+interface StatusLabel {
+  text: string
+  color: string
+}
+
+function resolveStatusLabel(
+  status: HabitCardStatus | undefined,
+  t: (key: string) => string,
+  isCompleted: boolean,
+  primaryColor: string,
+): StatusLabel | null {
+  if (status === 'completed' || isCompleted) {
+    return { text: t('habits.instance.completed'), color: STATUS_GREEN }
+  }
+  if (status === 'overdue') {
+    return { text: t('habits.overdue'), color: STATUS_CORAL }
+  }
+  if (status === 'due-today') {
+    return { text: t('habits.dueToday'), color: primaryColor }
+  }
+  return null
 }
 
 function Chip({ chip }: Readonly<{ chip: HabitMetaChip }>) {
@@ -227,8 +279,27 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       fontWeight: '600',
       letterSpacing: 1.2,
       textTransform: 'uppercase',
+      // Slightly de-emphasized so the title holds focus (matches web
+      // `.habit-type-chip`).
       color: colors.textMuted,
+      opacity: 0.9,
       flexShrink: 0,
+    },
+    statusLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 0,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    statusLabelText: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.2,
     },
     chipArea: {
       flexDirection: 'row',
