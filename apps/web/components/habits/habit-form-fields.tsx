@@ -919,7 +919,7 @@ export function HabitFormFields({
 
         {/* Quantity + unit (recurring / flexible) */}
         {!isOneTime && !isGeneral && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-start">
             <div className="space-y-2">
               <label htmlFor="habit-form-frequency-qty" className="form-label">
                 {isFlexible
@@ -935,10 +935,10 @@ export function HabitFormFields({
                 {...register('frequencyQuantity', { valueAsNumber: true })}
               />
             </div>
-            <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-              <legend id="habit-form-unit-label" className="form-label">
+            <div className="min-w-0 space-y-2">
+              <label htmlFor="habit-form-frequency-unit" className="form-label">
                 {t('habits.form.unit')}
-              </legend>
+              </label>
               <AppSelect
                 value={watchedFrequencyUnit ?? ''}
                 options={frequencyUnits.map((u) => ({
@@ -952,7 +952,7 @@ export function HabitFormFields({
                   })
                 }
               />
-            </fieldset>
+            </div>
           </div>
         )}
 
@@ -983,16 +983,20 @@ export function HabitFormFields({
           this section. Previously there was no visible gap when the
           flexible hint's -mt-1 pulled the next block upward. */}
       {!isGeneral && (
-        <div className="grid grid-cols-2 gap-3">
-          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-            <legend id="habit-form-due-date-label" className="form-label">
+        <div className="grid grid-cols-2 gap-3 items-start">
+          <div className="min-w-0 space-y-2">
+            <label
+              id="habit-form-due-date-label"
+              htmlFor="habit-form-due-date"
+              className="form-label"
+            >
               {t('habits.form.dueDate')}
-            </legend>
+            </label>
             <AppDatePicker
               value={watchedDueDate}
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
-          </fieldset>
+          </div>
           <div className="space-y-2">
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}

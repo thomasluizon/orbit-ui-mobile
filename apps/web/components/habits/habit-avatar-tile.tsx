@@ -197,7 +197,7 @@ export function HabitAvatarTile({
         disabled={isDisabled}
         aria-label={accessibleLabel}
         aria-pressed={isCompleted}
-        className={`${wrapperClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-[16px] disabled:cursor-default`}
+        className={`${wrapperClass} cursor-pointer bg-transparent border-0 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-[14px] disabled:cursor-default`}
         style={{ width: tokens.outer, height: tokens.outer }}
       >
         {arc}
