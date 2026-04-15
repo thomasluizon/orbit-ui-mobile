@@ -180,6 +180,12 @@ export function HabitAvatarTile({
     pulse ? 'animate-habit-tile-pop' : ''
   } ${glow ? 'animate-habit-tile-glow' : ''} ${className}`
 
+  // Only reserve the 56 px outer bounds when the arc actually renders. If no
+  // arc, the wrapper matches the 52 px inner tile exactly so nothing — no
+  // native button rendering, no residual background — can leak into a visible
+  // 4 px halo around the tile.
+  const wrapperSize = shouldRenderArcFill ? tokens.outer : tokens.inner
+
   if (isInteractive) {
     return (
       <button
@@ -193,8 +199,8 @@ export function HabitAvatarTile({
         disabled={isDisabled}
         aria-label={accessibleLabel}
         aria-pressed={isCompleted}
-        className={`${wrapperClass} cursor-pointer bg-transparent border-0 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-[14px] disabled:cursor-default`}
-        style={{ width: tokens.outer, height: tokens.outer }}
+        className={`${wrapperClass} cursor-pointer appearance-none bg-transparent border-0 p-0 m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-[14px] disabled:cursor-default`}
+        style={{ width: wrapperSize, height: wrapperSize, background: 'none' }}
       >
         {arc}
         {tile}
@@ -206,7 +212,7 @@ export function HabitAvatarTile({
   return (
     <span
       className={wrapperClass}
-      style={{ width: tokens.outer, height: tokens.outer }}
+      style={{ width: wrapperSize, height: wrapperSize }}
     >
       {arc}
       {tile}
