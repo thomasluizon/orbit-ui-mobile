@@ -1093,11 +1093,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-top-right-radius: calc(var(--habit-card-radius) - 0.25rem);
 }
 
-.habit-card-parent:hover,
-.habit-card-child:hover {
-  border-color: var(--habit-card-border-hover);
-  box-shadow: var(--habit-card-shadow-hover);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .habit-card-parent:hover,
+  .habit-card-child:hover {
+    border-color: var(--habit-card-border-hover);
+    box-shadow: var(--habit-card-shadow-hover);
+    transform: translateY(-1px);
+  }
 }
 .habit-card-parent:active,
 .habit-card-child:active {
@@ -1156,12 +1158,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     inset 0 -1px 0 rgba(0, 0, 0, 0.04);
 }
 
-/* Avatar accent-tinted shadow on hover only (calm default, premium lift). */
-.habit-card-parent:hover .habit-avatar-hover-shadow,
-.habit-card-child:hover .habit-avatar-hover-shadow {
-  box-shadow:
-    0 4px 14px -2px rgba(var(--primary-shadow), 0.28),
-    0 0 0 1px rgba(var(--primary-shadow), 0.10);
+/* Avatar accent-tinted shadow on hover only (calm default, premium lift).
+   Scoped to real hover-capable devices so touch taps do not leave a sticky
+   hover state that renders a visible outline ring around the tile. */
+@media (hover: hover) and (pointer: fine) {
+  .habit-card-parent:hover .habit-avatar-hover-shadow,
+  .habit-card-child:hover .habit-avatar-hover-shadow {
+    box-shadow: 0 4px 14px -2px rgba(var(--primary-shadow), 0.28);
+  }
 }
 .habit-avatar-hover-shadow {
   transition: box-shadow 220ms var(--ease-out);
