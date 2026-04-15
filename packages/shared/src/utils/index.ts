@@ -104,6 +104,12 @@ export {
   getHabitInitial,
 } from './habit-card-helpers'
 export {
+  HABIT_PROGRESS_RING_CIRCUMFERENCE,
+  getHabitProgressRatio,
+  getHabitProgressStrokeDasharray,
+  shouldShowHabitProgressArc,
+} from './habit-progress'
+export {
   DEFAULT_EMOJI_RECENTS_LIMIT,
   EMOJI_RECENTS_STORAGE_KEY,
   EMOJI_SKIN_TONE_STORAGE_KEY,

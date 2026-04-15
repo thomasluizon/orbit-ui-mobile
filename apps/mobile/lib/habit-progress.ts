@@ -1,13 +1,9 @@
-export const HABIT_PROGRESS_RING_CIRCUMFERENCE = 94.25
-
-export function getHabitProgressStrokeDasharray(
-  progressPercent: number,
-  isDoneForRange: boolean,
-): string {
-  const clampedPercent = Math.max(0, Math.min(100, progressPercent))
-  const filledLength = isDoneForRange
-    ? HABIT_PROGRESS_RING_CIRCUMFERENCE
-    : (clampedPercent / 100) * HABIT_PROGRESS_RING_CIRCUMFERENCE
-
-  return `${filledLength.toFixed(2)} ${HABIT_PROGRESS_RING_CIRCUMFERENCE}`
-}
+// Mobile re-export for the shared habit-progress utilities. New consumers
+// should import from `@orbit/shared/utils` directly; this barrel exists so
+// older imports + the local test file keep working.
+export {
+  HABIT_PROGRESS_RING_CIRCUMFERENCE,
+  getHabitProgressRatio,
+  getHabitProgressStrokeDasharray,
+  shouldShowHabitProgressArc,
+} from '@orbit/shared/utils'
