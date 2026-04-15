@@ -38,8 +38,8 @@ import type {
   AgentCapability,
   ApiKey,
   ApiKeyCreateRequest,
-  ApiKeyCreateResponse,
 } from '@orbit/shared/types'
+import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetch(API.apiKeys.list)
@@ -55,20 +55,8 @@ async function fetchCapabilities(): Promise<AgentCapability[]> {
   return res.json()
 }
 
-async function createApiKey(request: ApiKeyCreateRequest): Promise<ApiKeyCreateResponse> {
-  const res = await fetch(API.apiKeys.create, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  })
-  if (!res.ok) throw new Error('Failed to create API key')
-  return res.json()
-}
-
-async function revokeApiKey(id: string): Promise<void> {
-  const res = await fetch(`/api/api-keys/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to revoke API key')
-}
+// createApiKey and revokeApiKey live in app/actions/api-keys.ts so mutations go through
+// the Server Action layer (per CLAUDE.md BFF rule) rather than raw client-side fetches.
 
 // ---------------------------------------------------------------------------
 // Standalone helpers (S7721: moved to module scope)

@@ -24,6 +24,19 @@ vi.mock('@/lib/api-fetch', () => ({
   ),
 }))
 
+// Mock the gamification Server Action so activateStreakFreeze doesn't hit Next.js cookies()
+// in the test environment. Delegates to mockFetch so test payloads still flow through.
+vi.mock('@/app/actions/gamification', () => ({
+  activateStreakFreeze: vi.fn(async () => {
+    const res = await fetch('/api/gamification/streak/freeze', { method: 'POST' })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw new Error(body?.error ?? `Request failed with status ${res.status}`)
+    }
+    return res.json()
+  }),
+}))
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {

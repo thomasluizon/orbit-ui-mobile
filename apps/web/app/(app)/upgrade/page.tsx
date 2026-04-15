@@ -22,13 +22,12 @@ import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
 import { useSubscriptionPlans, formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
-import { API } from '@orbit/shared/api'
 import {
-  buildClientTimeZoneHeaders,
   formatLocaleDate,
   getClientTimeZone,
   getErrorMessage,
 } from '@orbit/shared/utils'
+import { createCheckoutSession, openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const upgradeIconMap = {
@@ -773,23 +772,7 @@ export default function UpgradePage() {
     setCheckoutError('')
     try {
       const timeZone = getClientTimeZone()
-      const checkoutUrl = timeZone
-        ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
-        : API.subscription.checkout
-
-      const res = await fetch(checkoutUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...buildClientTimeZoneHeaders(),
-        },
-      body: JSON.stringify({ interval }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.error ?? `Failed with status ${res.status}`)
-      }
-      const data = await res.json()
+      const data = await createCheckoutSession(interval, timeZone)
       if (data?.url) {
         globalThis.location.href = data.url
       }
@@ -803,12 +786,7 @@ export default function UpgradePage() {
   const handleOpenPortal = useCallback(async () => {
     setPortalError('')
     try {
-      const res = await fetch(API.subscription.portal, { method: 'POST' })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.error ?? `Failed with status ${res.status}`)
-      }
-      const data = await res.json()
+      const data = await openCustomerPortal()
       if (data?.url) {
         globalThis.location.href = data.url
       }

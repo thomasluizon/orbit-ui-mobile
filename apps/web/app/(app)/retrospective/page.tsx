@@ -10,8 +10,8 @@ import { RETROSPECTIVE_PERIODS } from '@orbit/shared/utils/retrospective'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
-import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
+import { openCustomerPortal } from '@/app/actions/subscription'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
@@ -82,12 +82,7 @@ export default function RetrospectivePage() {
 
     setPortalError('')
     try {
-      const res = await fetch(API.subscription.portal, { method: 'POST' })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.error ?? `Failed with status ${res.status}`)
-      }
-      const data = await res.json()
+      const data = await openCustomerPortal()
       if (data?.url) {
         globalThis.location.href = data.url
       }

@@ -19,6 +19,7 @@ import {
   deriveStreakFreezeState,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
+import { activateStreakFreeze as activateStreakFreezeAction } from '@/app/actions/gamification'
 
 // ---------------------------------------------------------------------------
 // Gamification profile query
@@ -106,17 +107,7 @@ export function useActivateStreakFreeze() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (): Promise<StreakFreezeResponse> => {
-      const res = await fetch(API.gamification.streakFreeze, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
-      }
-      return res.json()
-    },
+    mutationFn: (): Promise<StreakFreezeResponse> => activateStreakFreezeAction(),
 
     onSuccess: (data) => {
       queryClient.setQueryData<StreakInfo>(gamificationKeys.streak(), (old) => {

@@ -110,7 +110,7 @@ describe('CreateApiKeyModal', () => {
 
     render(<CreateApiKeyModal {...defaultProps} />)
     fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'My Key' } })
-    fireEvent.change(screen.getByLabelText('Expires At (UTC, optional)'), {
+    fireEvent.change(screen.getByLabelText('orbitMcp.expiresAtLabel'), {
       target: { value: '2026-04-20T18:45' },
     })
 
