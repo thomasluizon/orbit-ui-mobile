@@ -23,9 +23,13 @@ vi.mock('@/hooks/use-time-format', () => ({
   }),
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  parseAPIDate: (d: string) => new Date(d),
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    parseAPIDate: (d: string) => new Date(d),
+  }
+})
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => (

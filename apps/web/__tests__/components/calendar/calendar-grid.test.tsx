@@ -6,9 +6,13 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  formatAPIDate: (d: Date) => d.toISOString().split('T')[0],
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    formatAPIDate: (d: Date) => d.toISOString().split('T')[0],
+  }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 1 } }),

@@ -49,6 +49,13 @@ vi.mock('@/hooks/use-gamification', () => ({
     isFrozenToday: mockIsFrozenToday,
     hasCompletedToday: mockHasCompletedToday,
     canFreeze: mockCanFreeze,
+    streakFreezesAccumulated: 0,
+    maxStreakFreezesAccumulated: 3,
+    daysUntilNextFreeze: 7,
+    freezesUsedThisMonth: 0,
+    maxFreezesPerMonth: 2,
+    canEarnMore: true,
+    hasReachedMonthlyLimit: false,
   }),
   useActivateStreakFreeze: () => ({
     mutateAsync: vi.fn().mockResolvedValue({}),
@@ -197,7 +204,7 @@ describe('StreakPage', () => {
   it('renders freeze title and availability', () => {
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.freeze.title')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('streakDisplay.freeze.available')
+    expect(document.body.textContent).toContain('streakDisplay.freeze.accumulatedShort')
   })
 
   it('renders activate button when canFreeze is true', () => {
