@@ -78,7 +78,10 @@ describe('HabitCard', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} />)
     const article = screen.getByLabelText('Exercise')
-    expect(article.tagName).toBe('BUTTON')
+    // The card container is a div with role="button" so the click surface
+    // covers the title + meta + avatar, while inner buttons (avatar, kebab)
+    // remain semantically independent.
+    expect(article.getAttribute('role')).toBe('button')
   })
 
   it('calls onDetail when card is clicked', () => {
@@ -102,6 +105,47 @@ describe('HabitCard', () => {
     )
     fireEvent.click(screen.getByLabelText('Exercise'))
     expect(onToggleSelection).toHaveBeenCalledOnce()
+    expect(onDetail).not.toHaveBeenCalled()
+  })
+
+  it('tapping the title/body area opens the detail modal outside select mode', () => {
+    // Regression guard: during the Avatar+Arc redesign a background <button>
+    // was layered behind the title/meta at z-0, which meant clicks on the
+    // actual text never reached the click handler. The card-level onClick
+    // now lives on the container, so tapping the title must trigger onDetail.
+    const onDetail = vi.fn()
+    const habit = createMockHabit({ title: 'Morning Run' })
+    render(<HabitCard habit={habit} actions={{ onDetail }} />)
+    fireEvent.click(screen.getByText('Morning Run'))
+    expect(onDetail).toHaveBeenCalledOnce()
+  })
+
+  it('tapping the title/body area toggles selection in select mode', () => {
+    // Regression guard: before the fix, only the avatar/log-button toggled
+    // selection because the card-level click target sat behind z-10 content.
+    const onDetail = vi.fn()
+    const onToggleSelection = vi.fn()
+    const habit = createMockHabit({ title: 'Morning Run' })
+    render(
+      <HabitCard
+        habit={habit}
+        isSelectMode={true}
+        actions={{ onDetail, onToggleSelection }}
+      />,
+    )
+    fireEvent.click(screen.getByText('Morning Run'))
+    expect(onToggleSelection).toHaveBeenCalledOnce()
+    expect(onDetail).not.toHaveBeenCalled()
+  })
+
+  it('avatar tile stopsPropagation outside select mode so detail does not open', () => {
+    // The log button must NOT double-fire the card-level onDetail.
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    const habit = createMockHabit({ isCompleted: false })
+    render(<HabitCard habit={habit} actions={{ onDetail, onLog }} />)
+    fireEvent.click(screen.getByLabelText('habits.logHabit'))
+    expect(onLog).toHaveBeenCalledOnce()
     expect(onDetail).not.toHaveBeenCalled()
   })
 
@@ -202,16 +246,16 @@ describe('HabitCard', () => {
   it('renders select checkbox in select mode', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} isSelectMode={true} isSelected={false} />)
-    const checkbox = screen.getByRole('checkbox') as HTMLInputElement
+    const checkbox = screen.getByRole('checkbox')
     expect(checkbox).toBeDefined()
-    expect(checkbox.checked).toBe(false)
+    expect(checkbox.getAttribute('aria-checked')).toBe('false')
   })
 
   it('renders selected checkbox in select mode when selected', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} isSelectMode={true} isSelected={true} />)
-    const checkbox = screen.getByRole('checkbox') as HTMLInputElement
-    expect(checkbox.checked).toBe(true)
+    const checkbox = screen.getByRole('checkbox')
+    expect(checkbox.getAttribute('aria-checked')).toBe('true')
   })
 
   it('does not show the actions menu trigger in select mode', () => {
@@ -363,7 +407,10 @@ describe('HabitCard', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} actions={{ onDetail }} />)
     const card = screen.getByLabelText('Exercise')
-    expect(card.tagName).toBe('BUTTON')
+    // Root uses role="button" + tabIndex so it can host a click handler over
+    // the entire surface without nesting a <button> around the avatar/menu.
+    expect(card.getAttribute('role')).toBe('button')
+    expect(card.getAttribute('tabindex')).toBe('0')
     fireEvent.click(card)
     expect(onDetail).toHaveBeenCalledOnce()
   })

@@ -241,6 +241,10 @@ export const HabitCard = React.memo(function HabitCard({
   // Tile log handler (also covers parent w/ children: "force log parent")
   // ---------------------------------------------------------------------------
 
+  // The avatar tile is replaced by SelectionCircle while the list is in
+  // select mode, so this handler only runs outside select mode. We still
+  // branch on `isSelectMode` as a belt-and-braces safeguard in case a parent
+  // ever starts rendering the tile in both modes.
   const handleTileTap = useCallback(() => {
     if (isSelectMode) {
       onToggleSelection?.()
@@ -269,15 +273,42 @@ export const HabitCard = React.memo(function HabitCard({
 
   // ---------------------------------------------------------------------------
   // Card click → detail (or selection toggle)
+  //
+  // The click handler lives on the card container itself so that taps on the
+  // title, description, meta row, or any empty space inside the card all work.
+  // Interactive children (avatar tile, expand toggle, kebab menu, checklist
+  // progress bar) live above this surface and must `stopPropagation` on their
+  // own click handlers so the card-level handler does not double-fire.
   // ---------------------------------------------------------------------------
 
-  const handleCardClick = useCallback(() => {
-    if (isSelectMode) {
-      onToggleSelection?.()
-    } else {
-      onDetail?.()
-    }
-  }, [isSelectMode, onToggleSelection, onDetail])
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Guard against clicks originating from interactive children. They set
+      // `data-card-click-ignore` (or stopPropagation) to opt out of the
+      // card-level action. This is belt-and-braces protection in case a
+      // descendant forgets to stopPropagation (e.g. nested portals).
+      const target = e.target as HTMLElement | null
+      if (target?.closest('[data-card-click-ignore]')) return
+      if (isSelectMode) {
+        onToggleSelection?.()
+      } else {
+        onDetail?.()
+      }
+    },
+    [isSelectMode, onToggleSelection, onDetail],
+  )
+
+  const handleCardKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        if (isSelectMode) onToggleSelection?.()
+        else onDetail?.()
+      }
+    },
+    [isSelectMode, onToggleSelection, onDetail],
+  )
 
   // ---------------------------------------------------------------------------
   // Menu items
@@ -384,19 +415,17 @@ export const HabitCard = React.memo(function HabitCard({
     <div style={isChild ? indentStyle : undefined}>
       <div
         data-tour="tour-habit-card"
-        className={`${cardClasses} relative w-full text-left flex items-center gap-3 sm:gap-3.5 ${isChild ? 'p-3' : 'p-3 sm:p-3.5'}`}
+        role="button"
+        tabIndex={0}
+        aria-label={habit.title}
+        aria-pressed={isSelectMode ? isSelected : undefined}
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
+        className={`${cardClasses} relative w-full text-left flex items-center gap-3 sm:gap-3.5 ${isChild ? 'p-3' : 'p-3 sm:p-3.5'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
       >
-        {/* Card-wide click button (background, behind interactive children) */}
-        <button
-          type="button"
-          aria-label={habit.title}
-          onClick={handleCardClick}
-          className={`${cardClasses} absolute inset-0 z-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
-        />
-
         {/* ExpandToggle (children only) */}
         {hasChildren ? (
-          <div className="relative z-10 shrink-0">
+          <div className="relative z-10 shrink-0" data-card-click-ignore>
             <button
               type="button"
               data-no-drag
@@ -415,14 +444,20 @@ export const HabitCard = React.memo(function HabitCard({
           </div>
         ) : null}
 
-        {/* Avatar tile (or selection checkbox in select mode) */}
-        <div className="relative z-10 shrink-0">
+        {/* Avatar tile (or selection checkbox in select mode).
+            In select mode the whole card toggles selection, so we let the
+            tap bubble up to the card-level handler. Outside select mode
+            the avatar tile logs the habit and must NOT also trigger the
+            detail modal — hence `data-card-click-ignore` + stopPropagation. */}
+        <div
+          className="relative z-10 shrink-0"
+          data-card-click-ignore={isSelectMode ? undefined : ''}
+        >
           {isSelectMode ? (
             <SelectionCircle
               isSelected={isSelected}
               habitTitle={habit.title}
               size={tileSize === 'md' ? 56 : 44}
-              onToggle={onToggleSelection}
             />
           ) : (
             <HabitAvatarTile
@@ -486,7 +521,7 @@ export const HabitCard = React.memo(function HabitCard({
 
         {/* Actions menu */}
         {!isSelectMode ? (
-          <div className="relative z-10">
+          <div className="relative z-10" data-card-click-ignore>
             <HabitCardMenu items={menuItems} isSelectMode={isSelectMode} />
           </div>
         ) : null}
@@ -508,43 +543,38 @@ export const HabitCard = React.memo(function HabitCard({
 // Internal: selection checkbox in tile slot
 // ---------------------------------------------------------------------------
 
+/**
+ * Presentational selection indicator rendered in the avatar tile slot while
+ * the list is in select mode. Clicks bubble up to the card's click handler,
+ * which owns the selection toggle — keeping a single source of truth.
+ */
 function SelectionCircle({
   isSelected,
   habitTitle,
   size,
-  onToggle,
 }: Readonly<{
   isSelected: boolean
   habitTitle: string
   size: number
-  onToggle: (() => void) | undefined
 }>) {
   const t = useTranslations()
   return (
-    <label
+    <span
       data-no-drag
-      className={`shrink-0 inline-flex items-center justify-center rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
+      role="checkbox"
+      aria-checked={isSelected}
+      aria-label={`${t('common.select')}: ${habitTitle}`}
+      className={`pointer-events-none shrink-0 inline-flex items-center justify-center rounded-2xl border-2 transition-all duration-200 ${
         isSelected
           ? 'border-transparent bg-primary text-white'
-          : 'border-border-emphasis hover:border-primary/50 hover:bg-primary/5 text-transparent'
+          : 'border-border-emphasis text-transparent'
       }`}
       style={{ width: size, height: size }}
     >
-      <input
-        type="checkbox"
-        checked={isSelected}
-        aria-label={`${t('common.select')}: ${habitTitle}`}
-        className="sr-only"
-        onChange={(e) => {
-          e.stopPropagation()
-          onToggle?.()
-        }}
-        onClick={(e) => e.stopPropagation()}
-      />
       <svg viewBox="0 0 24 24" width={size * 0.42} height={size * 0.42} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <polyline points="20 6 9 17 4 12" />
       </svg>
-    </label>
+    </span>
   )
 }
 
