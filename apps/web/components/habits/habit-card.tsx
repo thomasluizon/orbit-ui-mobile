@@ -475,6 +475,7 @@ export const HabitCard = React.memo(function HabitCard({
               frequencyLabel={frequencyLabel}
               flexibleProgressLabel={flexibleProgressLabel}
               statusBadge={statusBadge}
+              status={status}
               checkedCount={checkedCount}
               matchBadges={matchBadges}
               displayTime={displayTime}

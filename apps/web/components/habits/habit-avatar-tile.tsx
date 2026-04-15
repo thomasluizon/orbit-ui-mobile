@@ -101,9 +101,17 @@ export function HabitAvatarTile({
     textClass = 'text-primary'
   }
 
-  let ringClass = 'ring-1 ring-border-muted'
+  // Subtle 1px gradient border: primary → primary/60 in the active state;
+  // muted neutral ring otherwise. Uses `ring-*` so the tile's radius
+  // is respected without extra math.
+  let ringClass = 'ring-1 ring-primary/25'
+  if (isCompleted) {
+    ringClass = 'ring-1 ring-primary/40'
+  } else if (isBadHabit) {
+    ringClass = 'ring-1 ring-[rgb(var(--color-destructive-rgb)/0.25)]'
+  }
   if (isOverdue && !isCompleted) {
-    ringClass = 'ring-1 ring-[rgb(var(--color-destructive-rgb)/0.35)]'
+    ringClass = 'ring-1 ring-[rgb(var(--color-destructive-rgb)/0.45)]'
   }
 
   const accessibleLabel =
@@ -117,7 +125,7 @@ export function HabitAvatarTile({
       role={isInteractive ? undefined : 'img'}
       aria-label={isInteractive ? undefined : accessibleLabel}
       aria-hidden={isInteractive ? true : undefined}
-      className={`relative inline-flex items-center justify-center ${tokens.radiusClass} ${surfaceClass} ${ringClass} habit-avatar-inner-highlight font-semibold leading-none select-none transition-all duration-200`}
+      className={`habit-avatar-hover-shadow relative inline-flex items-center justify-center ${tokens.radiusClass} ${surfaceClass} ${ringClass} habit-avatar-inner-highlight font-semibold leading-none select-none transition-all duration-200`}
       style={{
         width: tokens.inner,
         height: tokens.inner,
@@ -199,7 +207,7 @@ export function HabitAvatarTile({
         disabled={isDisabled}
         aria-label={accessibleLabel}
         aria-pressed={isCompleted}
-        className={`${wrapperClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-[16px] disabled:cursor-default`}
+        className={`${wrapperClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-[16px] disabled:cursor-default`}
         style={{ width: tokens.outer, height: tokens.outer }}
       >
         {arc}

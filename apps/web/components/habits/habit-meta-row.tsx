@@ -3,6 +3,7 @@
 import { Flame, ClipboardCheck, Clock, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitCardStatus } from '@orbit/shared/utils'
 
 type MetaTone = 'neutral' | 'primary' | 'destructive' | 'amber' | 'tag'
 
@@ -22,6 +23,8 @@ interface HabitMetaRowProps {
   frequencyLabel: string
   flexibleProgressLabel: string | null
   statusBadge: { text: string } | null
+  /** Full status context (so the row can render Today / Overdue / Completed). */
+  status?: HabitCardStatus
   checkedCount: number
   matchBadges: ReadonlyArray<{ label: string }>
   displayTime: (time: string) => string
@@ -40,9 +43,10 @@ const TONE_CLASS: Record<MetaTone, string> = {
 }
 
 /**
- * Compact, single-line meta row. Frequency label leads, followed by chips
- * for time, status, tags, streak, checklist, etc. Overflow collapses to a
- * `+N` chip so a 15-card Today view stays calm.
+ * Compact, single-line meta row. Frequency type chip leads (small-caps,
+ * tight tracking), followed by a colored status label (Today / Overdue /
+ * Completed) with a 6px dot, then chips for time, tags, streak, checklist.
+ * Overflow collapses to a `+N` chip so a 15-card Today view stays calm.
  */
 export function HabitMetaRow({
   habit,
@@ -51,6 +55,7 @@ export function HabitMetaRow({
   frequencyLabel,
   flexibleProgressLabel,
   statusBadge,
+  status,
   checkedCount,
   matchBadges,
   displayTime,
@@ -61,7 +66,9 @@ export function HabitMetaRow({
   const chips = buildChips({
     habit,
     flexibleProgressLabel,
-    statusBadge,
+    // statusBadge only becomes a chip when we don't have a richer status.
+    // When `status` is provided we render the dot+label variant instead.
+    statusBadge: status ? null : statusBadge,
     checkedCount,
     matchBadges,
     displayTime,
@@ -73,13 +80,22 @@ export function HabitMetaRow({
   const fontScale = isChild ? 'text-[10px]' : 'text-[11px]'
   const dimClass = isCompleted ? 'opacity-80' : ''
 
+  const statusLabel = resolveStatusLabel(status, t, isCompleted)
+
   return (
     <div
       className={`flex items-center gap-1.5 ${fontScale} text-text-secondary min-w-0 ${dimClass}`}
     >
-      <span className="shrink-0 font-semibold uppercase tracking-wide text-text-muted whitespace-nowrap">
-        {frequencyLabel}
-      </span>
+      <span className="habit-type-chip">{frequencyLabel}</span>
+      {statusLabel ? (
+        <span
+          className={`habit-status-label habit-status-label--${statusLabel.kind}`}
+          aria-label={statusLabel.text}
+        >
+          <span className="habit-status-dot" aria-hidden="true" />
+          {statusLabel.text}
+        </span>
+      ) : null}
       <span
         ref={tagsAnchorRef}
         data-tour="tour-habit-tags"
@@ -89,13 +105,33 @@ export function HabitMetaRow({
           <Chip key={chip.key} chip={chip} />
         ))}
         {overflowCount > 0 ? (
-          <span className="shrink-0 px-1.5 py-0.5 rounded-full font-semibold text-text-muted bg-surface-elevated/70">
-            +{overflowCount}
-          </span>
+          <span className="habit-meta-overflow shrink-0">+{overflowCount}</span>
         ) : null}
       </span>
     </div>
   )
+}
+
+interface StatusLabel {
+  kind: 'today' | 'overdue' | 'completed'
+  text: string
+}
+
+function resolveStatusLabel(
+  status: HabitCardStatus | undefined,
+  t: ReturnType<typeof useTranslations>,
+  isCompleted: boolean,
+): StatusLabel | null {
+  if (status === 'completed' || isCompleted) {
+    return { kind: 'completed', text: t('habits.instance.completed') }
+  }
+  if (status === 'overdue') {
+    return { kind: 'overdue', text: t('habits.overdue') }
+  }
+  if (status === 'due-today') {
+    return { kind: 'today', text: t('habits.dueToday') }
+  }
+  return null
 }
 
 function Chip({ chip }: Readonly<{ chip: HabitMetaChip }>) {
