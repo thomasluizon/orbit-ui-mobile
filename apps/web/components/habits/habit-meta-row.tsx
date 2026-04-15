@@ -113,7 +113,7 @@ export function HabitMetaRow({
 }
 
 interface StatusLabel {
-  kind: 'today' | 'overdue' | 'completed'
+  kind: 'overdue' | 'completed'
   text: string
 }
 
@@ -127,9 +127,6 @@ function resolveStatusLabel(
   }
   if (status === 'overdue') {
     return { kind: 'overdue', text: t('habits.overdue') }
-  }
-  if (status === 'due-today') {
-    return { kind: 'today', text: t('habits.dueToday') }
   }
   return null
 }

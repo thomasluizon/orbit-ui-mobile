@@ -87,7 +87,7 @@ export function HabitMetaRow({
   const overflow = chips.length - visible.length
 
   const styles = createStyles(colors)
-  const statusLabel = resolveStatusLabel(status, t, isCompleted, colors.primary)
+  const statusLabel = resolveStatusLabel(status, t, isCompleted)
 
   return (
     <View style={[styles.row, isCompleted && styles.dimmed]}>
@@ -136,16 +136,12 @@ function resolveStatusLabel(
   status: HabitCardStatus | undefined,
   t: (key: string) => string,
   isCompleted: boolean,
-  primaryColor: string,
 ): StatusLabel | null {
   if (status === 'completed' || isCompleted) {
     return { text: t('habits.instance.completed'), color: STATUS_GREEN }
   }
   if (status === 'overdue') {
     return { text: t('habits.overdue'), color: STATUS_CORAL }
-  }
-  if (status === 'due-today') {
-    return { text: t('habits.dueToday'), color: primaryColor }
   }
   return null
 }
