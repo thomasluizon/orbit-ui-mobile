@@ -92,6 +92,8 @@ export function HabitIconField({ value, onChange, title, errorKey }: HabitIconFi
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={handleSelect}
+        currentIcon={value}
+        onClear={handleClear}
       />
     </View>
   )
