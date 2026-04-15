@@ -1131,135 +1131,144 @@ export function HabitFormFields({
         )}
       </View>
 
-      {/* Frequency type cards (2x2 grid) */}
-      <View style={styles.fieldGroup}>
-        <Text style={styles.label}>{t("habits.form.frequency")}</Text>
-        <View style={styles.frequencyCardGrid}>
-          {FREQUENCY_TYPE_CARDS.map((card) => {
-            const isActive = activeFrequencyKey === card.key;
-            const CardIcon = card.icon;
-            return (
-              <TouchableOpacity
-                key={card.key}
-                style={[
-                  styles.frequencyCard,
-                  isActive
-                    ? styles.frequencyCardActive
-                    : styles.frequencyCardInactive,
-                ]}
-                onPress={frequencyHandlers[card.key]}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.frequencyCardIcon,
-                    isActive
-                      ? styles.frequencyCardIconActive
-                      : styles.frequencyCardIconInactive,
-                  ]}
-                >
-                  <CardIcon
-                    size={18}
-                    color={isActive ? colors.primary : colors.textMuted}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.frequencyCardTitle,
-                    isActive
-                      ? styles.frequencyCardTitleActive
-                      : styles.frequencyCardTitleInactive,
-                  ]}
-                >
-                  {t(card.titleKey)}
-                </Text>
-                <Text style={styles.frequencyCardDesc}>
-                  {t(card.descKey)}
-                </Text>
-                <Text style={styles.frequencyCardExample}>
-                  {t(card.exampleKey)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Flexible description */}
-      {isFlexible && (
-        <Text style={styles.flexibleHint}>
-          {t("habits.form.flexibleDescription", {
-            n: watchedFrequencyQuantity ?? 3,
-            unit: watchedFrequencyUnit
-              ? t(
-                  `habits.form.unit${watchedFrequencyUnit}` as "habits.form.unitDay",
-                )
-              : "",
-          })}
-        </Text>
-      )}
-
-      {/* Frequency qty + unit picker */}
-      {!isOneTime && !isGeneral && (
-        <View style={styles.frequencyRow}>
-          <View style={styles.frequencyField}>
-            <Text style={styles.label}>
-              {isFlexible
-                ? t("habits.form.timesPerUnit")
-                : t("habits.form.every")}
-            </Text>
-            <BottomSheetAppTextInput
-              value={String(watchedFrequencyQuantity ?? "")}
-              keyboardType="number-pad"
-              style={styles.input}
-              onChangeText={(val: string) => {
-                const num = Number(val);
-                if (!val) {
-                  setValue("frequencyQuantity", null, { shouldDirty: true });
-                } else if (!Number.isNaN(num)) {
-                  setValue("frequencyQuantity", num, { shouldDirty: true });
-                }
-              }}
-            />
-          </View>
-          <View style={styles.frequencyField}>
-            <Text style={styles.label}>{t("habits.form.unit")}</Text>
-            <AppSelect
-              value={watchedFrequencyUnit ?? null}
-              options={frequencyUnits.map((unit) => ({
-                value: unit.value,
-                label: unit.label,
-              }))}
-              label={t("habits.form.unit")}
-              onChange={(value) =>
-                setValue("frequencyUnit", value as FrequencyUnit, {
-                  shouldDirty: true,
-                })
-              }
-            />
-          </View>
-        </View>
-      )}
-
-      {/* Day picker */}
-      {showDayPicker && !isGeneral && (
+      {/* Frequency group — cards + type-adaptive sub-fields (flexible hint,
+          quantity + unit, active days) live inside one wrapper so the outer
+          container's `gap: 24` rhythm applies cleanly between this whole
+          group and the next top-level section (Dates & Times). Without this
+          grouping, each sub-field was a sibling of the parent container and
+          the 24 px gap lived BETWEEN frequency pieces too, which made the
+          dates row read as glued to whichever frequency block was visible
+          (and the flexible hint's negative margin ate the seam entirely). */}
+      <View style={styles.frequencyGroup}>
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("habits.form.activeDays")}</Text>
-          <ChoiceButtonRow
-            containerStyle={styles.daysRow}
-            buttonStyle={styles.dayButton}
-            activeButtonStyle={styles.dayButtonActive}
-            textStyle={styles.dayButtonText}
-            activeTextStyle={styles.dayButtonTextActive}
-            options={daysList.map((day) => ({
-              key: day.value,
-              label: day.label,
-              active: watchedDays?.includes(day.value) ?? false,
-              onPress: () => toggleDay(day.value),
-            }))}
-          />
+          <Text style={styles.label}>{t("habits.form.frequency")}</Text>
+          <View style={styles.frequencyCardGrid}>
+            {FREQUENCY_TYPE_CARDS.map((card) => {
+              const isActive = activeFrequencyKey === card.key;
+              const CardIcon = card.icon;
+              return (
+                <TouchableOpacity
+                  key={card.key}
+                  style={[
+                    styles.frequencyCard,
+                    isActive
+                      ? styles.frequencyCardActive
+                      : styles.frequencyCardInactive,
+                  ]}
+                  onPress={frequencyHandlers[card.key]}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.frequencyCardIcon,
+                      isActive
+                        ? styles.frequencyCardIconActive
+                        : styles.frequencyCardIconInactive,
+                    ]}
+                  >
+                    <CardIcon
+                      size={18}
+                      color={isActive ? colors.primary : colors.textMuted}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.frequencyCardTitle,
+                      isActive
+                        ? styles.frequencyCardTitleActive
+                        : styles.frequencyCardTitleInactive,
+                    ]}
+                  >
+                    {t(card.titleKey)}
+                  </Text>
+                  <Text style={styles.frequencyCardDesc}>
+                    {t(card.descKey)}
+                  </Text>
+                  <Text style={styles.frequencyCardExample}>
+                    {t(card.exampleKey)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      )}
+
+        {/* Flexible description */}
+        {isFlexible && (
+          <Text style={styles.flexibleHint}>
+            {t("habits.form.flexibleDescription", {
+              n: watchedFrequencyQuantity ?? 3,
+              unit: watchedFrequencyUnit
+                ? t(
+                    `habits.form.unit${watchedFrequencyUnit}` as "habits.form.unitDay",
+                  )
+                : "",
+            })}
+          </Text>
+        )}
+
+        {/* Frequency qty + unit picker */}
+        {!isOneTime && !isGeneral && (
+          <View style={styles.frequencyRow}>
+            <View style={styles.frequencyField}>
+              <Text style={styles.label}>
+                {isFlexible
+                  ? t("habits.form.timesPerUnit")
+                  : t("habits.form.every")}
+              </Text>
+              <BottomSheetAppTextInput
+                value={String(watchedFrequencyQuantity ?? "")}
+                keyboardType="number-pad"
+                style={styles.input}
+                onChangeText={(val: string) => {
+                  const num = Number(val);
+                  if (!val) {
+                    setValue("frequencyQuantity", null, { shouldDirty: true });
+                  } else if (!Number.isNaN(num)) {
+                    setValue("frequencyQuantity", num, { shouldDirty: true });
+                  }
+                }}
+              />
+            </View>
+            <View style={styles.frequencyField}>
+              <Text style={styles.label}>{t("habits.form.unit")}</Text>
+              <AppSelect
+                value={watchedFrequencyUnit ?? null}
+                options={frequencyUnits.map((unit) => ({
+                  value: unit.value,
+                  label: unit.label,
+                }))}
+                label={t("habits.form.unit")}
+                onChange={(value) =>
+                  setValue("frequencyUnit", value as FrequencyUnit, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Day picker */}
+        {showDayPicker && !isGeneral && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>{t("habits.form.activeDays")}</Text>
+            <ChoiceButtonRow
+              containerStyle={styles.daysRow}
+              buttonStyle={styles.dayButton}
+              activeButtonStyle={styles.dayButtonActive}
+              textStyle={styles.dayButtonText}
+              activeTextStyle={styles.dayButtonTextActive}
+              options={daysList.map((day) => ({
+                key: day.value,
+                label: day.label,
+                active: watchedDays?.includes(day.value) ?? false,
+                onPress: () => toggleDay(day.value),
+              }))}
+            />
+          </View>
+        )}
+      </View>
 
       {/* Due date + Due time in a row */}
       {!isGeneral && (
@@ -1921,7 +1930,12 @@ function createStyles(colors: ThemeColors) {
     flexibleHint: {
       fontSize: 12,
       color: colors.textMuted,
-      marginTop: -12,
+    },
+    // Wraps the Frequency cards + all of their type-adaptive sub-fields so
+    // they share a tighter 12 px rhythm. The outer form container's 24 px
+    // gap then separates this whole group from the next top-level section.
+    frequencyGroup: {
+      gap: 12,
     },
     // Frequency card grid
     frequencyCardGrid: {

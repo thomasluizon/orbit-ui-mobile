@@ -855,122 +855,133 @@ export function HabitFormFields({
         )}
       </div>
 
-      {/* Frequency type cards (2x2 grid) */}
-      <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-        <legend id="habit-form-frequency-label" className="form-label">
-          {t('habits.form.frequency')}
-        </legend>
-        <div className="grid grid-cols-2 gap-3">
-          {FREQUENCY_TYPE_CARDS.map((card) => {
-            const isActive = activeFrequencyKey === card.key
-            const CardIcon = card.icon
-            return (
-              <button
-                key={card.key}
-                type="button"
-                onClick={frequencyHandlers[card.key]}
-                className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
-                  isActive
-                    ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
-                    : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
-                }`}
-              >
-                <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
-                  isActive
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-surface-elevated text-text-muted'
-                }`}>
-                  <CardIcon className="size-[18px]" />
-                </div>
-                <p className={`text-sm font-bold mb-0.5 ${
-                  isActive ? 'text-text-primary' : 'text-text-secondary'
-                }`}>
-                  {t(card.titleKey as Parameters<typeof t>[0])}
-                </p>
-                <p className="text-[11px] text-text-muted leading-snug">
-                  {t(card.descKey as Parameters<typeof t>[0])}
-                </p>
-                <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
-                  {t(card.exampleKey as Parameters<typeof t>[0])}
-                </p>
-              </button>
-            )
-          })}
-        </div>
-      </fieldset>
-
-      {/* Type-adaptive frequency sub-fields */}
-      {isFlexible && (
-        <p className="text-xs text-text-muted -mt-1">
-          {t('habits.form.flexibleDescription', {
-            n: watchedFrequencyQuantity ?? 3,
-            unit: watchedFrequencyUnit
-              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
-              : '',
-          })}
-        </p>
-      )}
-
-      {!isOneTime && !isGeneral && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <label htmlFor="habit-form-frequency-qty" className="form-label">
-              {isFlexible
-                ? t('habits.form.timesPerUnit')
-                : t('habits.form.every')}
-            </label>
-            <input
-              id="habit-form-frequency-qty"
-              type="number"
-              min={1}
-              required
-              className="form-input"
-              {...register('frequencyQuantity', { valueAsNumber: true })}
-            />
+      {/* Frequency group — the cards and their type-adaptive sub-fields
+          (flexible hint, quantity + unit, active days) live inside a single
+          block so the outer space-y-6 rhythm applies cleanly between this
+          whole group and the next top-level section (Dates & Times).
+          Without this grouping, the flexible hint (-mt-1) was eating part
+          of the gap and the dates row read as glued to the cards. */}
+      <div className="space-y-3">
+        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
+          <legend id="habit-form-frequency-label" className="form-label">
+            {t('habits.form.frequency')}
+          </legend>
+          <div className="grid grid-cols-2 gap-3">
+            {FREQUENCY_TYPE_CARDS.map((card) => {
+              const isActive = activeFrequencyKey === card.key
+              const CardIcon = card.icon
+              return (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={frequencyHandlers[card.key]}
+                  className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
+                    isActive
+                      ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
+                      : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
+                  }`}
+                >
+                  <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
+                    isActive
+                      ? 'bg-primary/15 text-primary'
+                      : 'bg-surface-elevated text-text-muted'
+                  }`}>
+                    <CardIcon className="size-[18px]" />
+                  </div>
+                  <p className={`text-sm font-bold mb-0.5 ${
+                    isActive ? 'text-text-primary' : 'text-text-secondary'
+                  }`}>
+                    {t(card.titleKey as Parameters<typeof t>[0])}
+                  </p>
+                  <p className="text-[11px] text-text-muted leading-snug">
+                    {t(card.descKey as Parameters<typeof t>[0])}
+                  </p>
+                  <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
+                    {t(card.exampleKey as Parameters<typeof t>[0])}
+                  </p>
+                </button>
+              )
+            })}
           </div>
+        </fieldset>
+
+        {/* Flexible-frequency hint (only when Flexible is selected) */}
+        {isFlexible && (
+          <p className="text-xs text-text-muted">
+            {t('habits.form.flexibleDescription', {
+              n: watchedFrequencyQuantity ?? 3,
+              unit: watchedFrequencyUnit
+                ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
+                : '',
+            })}
+          </p>
+        )}
+
+        {/* Quantity + unit (recurring / flexible) */}
+        {!isOneTime && !isGeneral && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label htmlFor="habit-form-frequency-qty" className="form-label">
+                {isFlexible
+                  ? t('habits.form.timesPerUnit')
+                  : t('habits.form.every')}
+              </label>
+              <input
+                id="habit-form-frequency-qty"
+                type="number"
+                min={1}
+                required
+                className="form-input"
+                {...register('frequencyQuantity', { valueAsNumber: true })}
+              />
+            </div>
+            <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
+              <legend id="habit-form-unit-label" className="form-label">
+                {t('habits.form.unit')}
+              </legend>
+              <AppSelect
+                value={watchedFrequencyUnit ?? ''}
+                options={frequencyUnits.map((u) => ({
+                  value: u.value,
+                  label: u.label,
+                }))}
+                label={t('habits.form.unit')}
+                onChange={(val) =>
+                  setValue('frequencyUnit', val as FrequencyUnit, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+            </fieldset>
+          </div>
+        )}
+
+        {/* Day picker (recurring with Day unit) */}
+        {showDayPicker && !isGeneral && (
           <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-            <legend id="habit-form-unit-label" className="form-label">
-              {t('habits.form.unit')}
+            <legend id="habit-form-active-days-label" className="form-label">
+              {t('habits.form.activeDays')}
             </legend>
-            <AppSelect
-              value={watchedFrequencyUnit ?? ''}
-              options={frequencyUnits.map((u) => ({
-                value: u.value,
-                label: u.label,
+            <PillToggleRow
+              containerClassName="flex flex-wrap gap-2"
+              buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+              activeClassName="bg-primary text-white"
+              inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
+              options={daysList.map((day) => ({
+                key: day.value,
+                label: day.label,
+                active: watchedDays?.includes(day.value) ?? false,
+                onClick: () => toggleDay(day.value),
               }))}
-              label={t('habits.form.unit')}
-              onChange={(val) =>
-                setValue('frequencyUnit', val as FrequencyUnit, {
-                  shouldDirty: true,
-                })
-              }
             />
           </fieldset>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Day picker */}
-      {showDayPicker && !isGeneral && (
-        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-          <legend id="habit-form-active-days-label" className="form-label">
-            {t('habits.form.activeDays')}
-          </legend>
-          <PillToggleRow
-            containerClassName="flex flex-wrap gap-2"
-            buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-            activeClassName="bg-primary text-white"
-            inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
-            options={daysList.map((day) => ({
-              key: day.value,
-              label: day.label,
-              active: watchedDays?.includes(day.value) ?? false,
-              onClick: () => toggleDay(day.value),
-            }))}
-          />
-        </fieldset>
-      )}
-
-      {/* Due date + Due time (combined row) */}
+      {/* Dates & Times — own top-level block so the outer space-y-6
+          rhythm puts a full 24 px between the Frequency group above and
+          this section. Previously there was no visible gap when the
+          flexible hint's -mt-1 pulled the next block upward. */}
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
           <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
