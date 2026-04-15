@@ -176,16 +176,16 @@ export function CreateApiKeyModal({
 
               <View style={styles.metaBox}>
                 <Text style={styles.metaText}>
-                  <Text style={styles.metaTextStrong}>Scopes: </Text>
-                  {createdKey?.scopes.length ? createdKey.scopes.join(', ') : 'None'}
+                  <Text style={styles.metaTextStrong}>{t('orbitMcp.scopesLabel')} </Text>
+                  {createdKey?.scopes.length ? createdKey.scopes.join(', ') : t('orbitMcp.noScopes')}
                 </Text>
                 <Text style={styles.metaText}>
-                  <Text style={styles.metaTextStrong}>Read-only: </Text>
+                  <Text style={styles.metaTextStrong}>{t('orbitMcp.readOnlyLabel')} </Text>
                   {createdKey?.isReadOnly ? t('common.yes') : t('common.no')}
                 </Text>
                 {createdKey?.expiresAtUtc ? (
                   <Text style={styles.metaText}>
-                    <Text style={styles.metaTextStrong}>Expires: </Text>
+                    <Text style={styles.metaTextStrong}>{t('orbitMcp.expiresLabel')} </Text>
                     {createdKey.expiresAtUtc}
                   </Text>
                 ) : null}
@@ -212,7 +212,7 @@ export function CreateApiKeyModal({
               />
 
               <View style={styles.scopeHeaderRow}>
-                <Text style={styles.label}>Scopes</Text>
+                <Text style={styles.label}>{t('orbitMcp.apiKeys')}</Text>
                 <View style={styles.scopeActions}>
                   <TouchableOpacity onPress={() => setSelectedScopes(availableScopes.map((scope) => scope.scope))}>
                     <Text style={styles.scopeActionText}>{t('common.selectAll')}</Text>
@@ -250,11 +250,11 @@ export function CreateApiKeyModal({
                 activeOpacity={0.8}
               >
                 <Text style={[styles.readOnlyToggleText, isReadOnly && styles.readOnlyToggleTextSelected]}>
-                  Read-only key
+                  {t('orbitMcp.readOnlyKeyLabel')}
                 </Text>
               </TouchableOpacity>
 
-              <Text style={styles.label}>Expires At (UTC, optional)</Text>
+              <Text style={styles.label}>{t('orbitMcp.expiresAtLabel')}</Text>
               <AppTextInput
                 style={styles.input}
                 value={expiresAt}

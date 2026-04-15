@@ -173,8 +173,9 @@ export default function AdvancedPage() {
       const result = await createApiKey(request)
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch (err: unknown) {
-      setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
+    } catch {
+      // Errors thrown by createApiKey are developer-facing identifiers; translate for display.
+      setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }
   }
@@ -301,7 +302,7 @@ export default function AdvancedPage() {
                             <p className="text-sm font-medium text-text-primary truncate">{key.name}</p>
                             <p className="text-xs font-mono text-text-muted mt-0.5">{key.keyPrefix}...</p>
                             <p className="text-[10px] text-text-muted mt-1">
-                              {scopes.length > 0 ? scopes.join(', ') : 'No scopes'}
+                              {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
@@ -311,11 +312,11 @@ export default function AdvancedPage() {
                               {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </p>
                             <p className="text-[10px] text-text-muted">
-                              {isReadOnly ? 'Read-only' : 'Read/write'}
+                              {isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
                             </p>
                             {expiresAtUtc && (
                               <p className="text-[10px] text-text-muted">
-                                Expires {formatKeyDate(expiresAtUtc)}
+                                {t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}
                               </p>
                             )}
                           </div>

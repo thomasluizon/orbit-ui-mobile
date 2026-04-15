@@ -1804,7 +1804,20 @@
     "replaceKey": "Substitua YOUR_API_KEY pela chave que você criou acima",
     "maxKeysReached": "Máximo de 5 chaves de API atingido",
     "copyConfig": "Copiar configuração",
-    "apiKeysError": "Falha ao carregar chaves de API"
+    "apiKeysError": "Falha ao carregar chaves de API",
+    "createKeyError": "Falha ao criar chave de API",
+    "revokeKeyError": "Falha ao revogar chave de API",
+    "deleteFactError": "Falha ao excluir fato",
+    "deleteFactsError": "Falha ao excluir fatos",
+    "scopesLabel": "Escopos:",
+    "readOnlyLabel": "Somente leitura:",
+    "expiresLabel": "Expira:",
+    "noScopes": "Sem escopos",
+    "permReadOnly": "Somente leitura",
+    "permReadWrite": "Leitura e escrita",
+    "expiresOn": "Expira {date}",
+    "readOnlyKeyLabel": "Chave somente leitura",
+    "expiresAtLabel": "Expira em (UTC, opcional)"
   },
   "preferences": {
     "title": "Preferências",

@@ -1804,7 +1804,20 @@
     "replaceKey": "Replace YOUR_API_KEY with the key you created above",
     "maxKeysReached": "Maximum of 5 API keys reached",
     "copyConfig": "Copy config",
-    "apiKeysError": "Failed to load API keys"
+    "apiKeysError": "Failed to load API keys",
+    "createKeyError": "Failed to create API key",
+    "revokeKeyError": "Failed to revoke API key",
+    "deleteFactError": "Failed to delete fact",
+    "deleteFactsError": "Failed to delete facts",
+    "scopesLabel": "Scopes:",
+    "readOnlyLabel": "Read-only:",
+    "expiresLabel": "Expires:",
+    "noScopes": "No scopes",
+    "permReadOnly": "Read-only",
+    "permReadWrite": "Read/write",
+    "expiresOn": "Expires {date}",
+    "readOnlyKeyLabel": "Read-only key",
+    "expiresAtLabel": "Expires At (UTC, optional)"
   },
   "preferences": {
     "title": "Preferences",
