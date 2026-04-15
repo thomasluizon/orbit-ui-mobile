@@ -216,4 +216,57 @@ describe('HabitCard', () => {
     const [outerCard] = findOuterCardTouchables(tree.root)
     expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
   })
+
+  // ---------------------------------------------------------------------------
+  // Avatar + Arc redesign
+  // ---------------------------------------------------------------------------
+
+  it('renders the emoji inside the avatar tile', () => {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard habit={createMockHabit({ title: 'Run', icon: '🏃' })} />,
+      )
+    })
+    const texts = tree.root.findAll((n: any) => n.type === 'Text')
+    const hasEmoji = texts.some((n: any) => String(n.props.children).includes('🏃'))
+    expect(hasEmoji).toBe(true)
+  })
+
+  it('falls back to the title initial when no icon', () => {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard habit={createMockHabit({ title: 'Morning run', icon: null })} />,
+      )
+    })
+    const texts = tree.root.findAll((n: any) => n.type === 'Text')
+    const hasInitial = texts.some((n: any) => n.props.children === 'M')
+    expect(hasInitial).toBe(true)
+  })
+
+  it('tapping the avatar tile calls onLog when not completed', () => {
+    const onLog = vi.fn()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({ isCompleted: false, title: 'Run' })}
+          actions={{ onLog }}
+        />,
+      )
+    })
+    const tileBtn = tree.root.findAll(
+      (n: any) =>
+        n.type === 'TouchableOpacity' &&
+        n.props.accessibilityRole === 'button' &&
+        typeof n.props.accessibilityLabel === 'string' &&
+        n.props.accessibilityLabel === 'habits.log.title',
+    )[0]
+    expect(tileBtn).toBeDefined()
+    TestRenderer.act(() => {
+      tileBtn?.props.onPress?.()
+    })
+    expect(onLog).toHaveBeenCalledTimes(1)
+  })
 })

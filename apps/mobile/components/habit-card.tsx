@@ -1,69 +1,51 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import type { ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  View,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Platform,
-  type StyleProp,
+  View,
   type ViewStyle,
 } from 'react-native'
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  withSequence,
-  withDelay,
-  withRepeat,
   Easing,
-  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
-import { useTourTarget } from '@/hooks/use-tour-target'
 import {
-  ChevronRight,
-  Check,
-  MoreVertical,
-  Plus,
   ArrowRight,
-  FastForward,
-  Copy,
-  Pencil,
   CheckCircle2,
+  ChevronRight,
+  Copy,
+  FastForward,
+  MoreVertical,
+  Pencil,
+  Plus,
   Trash2,
-  ClipboardCheck,
-  Flame,
 } from 'lucide-react-native'
-import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import {
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
+  computeHabitMatchBadges,
   computeHabitStatusBadge,
+  getHabitProgressRatio,
+  shouldShowHabitProgressArc,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
-import { HabitEmoji } from '@/components/habits/habit-emoji'
-import { useTimeFormat } from '@/hooks/use-time-format'
+import { HabitAvatarTile } from '@/components/habits/habit-avatar-tile'
+import { HabitMetaRow } from '@/components/habits/habit-meta-row'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
-import { getHabitProgressStrokeDasharray } from '@/lib/habit-progress'
-import {
-  createColors,
-  radius,
-  shadows,
-  gradients,
-  easings,
-  durations,
-  primaryRgba,
-  lightenHex,
-} from '@/lib/theme'
+import { createColors, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useTimeFormat } from '@/hooks/use-time-format'
 
 // ---------------------------------------------------------------------------
-// Props
+// Types
 // ---------------------------------------------------------------------------
 
 export interface HabitCardActions {
@@ -103,272 +85,6 @@ interface HabitCardProps {
   tourTargetId?: string
 }
 
-function withAlpha(color: string, opacity: number, fallback: string): string {
-  const normalized = color.replace('#', '')
-
-  if (normalized.length === 3) {
-    const [r, g, b] = normalized.split('')
-    const expanded = `${r}${r}${g}${g}${b}${b}`
-    const red = parseInt(expanded.slice(0, 2), 16)
-    const green = parseInt(expanded.slice(2, 4), 16)
-    const blue = parseInt(expanded.slice(4, 6), 16)
-    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
-  }
-
-  if (normalized.length === 6) {
-    const red = parseInt(normalized.slice(0, 2), 16)
-    const green = parseInt(normalized.slice(2, 4), 16)
-    const blue = parseInt(normalized.slice(4, 6), 16)
-    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
-  }
-
-  return fallback
-}
-
-function HabitCardSurface({
-  isChild,
-  status,
-  colors,
-}: Readonly<{
-  isChild: boolean
-  status?: string
-  colors: ReturnType<typeof createColors>
-}>) {
-  return (
-    <>
-      {/* Diagonal sheen gradient — mirrors the 165deg CSS overlay */}
-      <LinearGradient
-        pointerEvents="none"
-        colors={isChild ? gradients.surfaceSheenChild : gradients.surfaceSheen}
-        locations={gradients.surfaceSheenLocations}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.25, y: 1 }}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      />
-
-      {/* Status side-glow for due-today / overdue (parent only) */}
-      {!isChild && status === 'due-today' && (
-        <LinearGradient
-          pointerEvents="none"
-          colors={gradients.statusDue}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 24,
-          }}
-        />
-      )}
-      {!isChild && status === 'overdue' && (
-        <LinearGradient
-          pointerEvents="none"
-          colors={gradients.statusOverdue}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 24,
-          }}
-        />
-      )}
-
-      {/* 1px top-edge inset highlight */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 1,
-          backgroundColor: withAlpha(
-            colors.white,
-            isChild ? 0.03 : 0.05,
-            isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
-          ),
-        }}
-      />
-    </>
-  )
-}
-
-function HabitBadge({
-  children,
-  style,
-}: Readonly<{
-  children: ReactNode
-  style: StyleProp<ViewStyle>
-}>) {
-  return <View style={style}>{children}</View>
-}
-
-function HabitBadgesRow({
-  isChild,
-  habit,
-  frequencyLabel,
-  flexibleProgressLabel,
-  statusBadge,
-  checkedCount,
-  colors,
-  t,
-  styles,
-  displayTime,
-  tagsRef,
-}: Readonly<{
-  isChild: boolean
-  habit: NormalizedHabit
-  frequencyLabel: string
-  flexibleProgressLabel: string | null
-  statusBadge: { text: string } | null
-  checkedCount: number
-  colors: ReturnType<typeof createColors>
-  t: ReturnType<typeof useTranslation>['t']
-  styles: ReturnType<typeof createStyles>
-  displayTime: (value: string | null | undefined) => string
-  tagsRef?: React.RefObject<View | null>
-}>) {
-  if (!isChild) {
-    return (
-      <View ref={tagsRef} style={styles.badgesRow}>
-        <Text style={styles.frequencyLabel}>{frequencyLabel}</Text>
-
-        {flexibleProgressLabel ? (
-          <HabitBadge style={styles.badgePrimaryPill}>
-            <Text style={styles.badgePrimaryText}>{flexibleProgressLabel}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.dueTime ? (
-          <Text style={styles.dueTimeText}>
-            {displayTime(habit.dueTime)}
-            {habit.dueEndTime ? ` - ${displayTime(habit.dueEndTime)}` : ''}
-          </Text>
-        ) : null}
-
-        {statusBadge ? (
-          <HabitBadge style={styles.badgeOverdue}>
-            <Text style={styles.badgeOverdueText}>{statusBadge.text}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.isBadHabit ? (
-          <HabitBadge style={styles.badgeBadHabit}>
-            <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.tags?.map((tag) => (
-          <HabitBadge
-            key={tag.id}
-            style={[styles.badgeTag, { backgroundColor: tag.color }]}
-          >
-            <Text style={styles.badgeTagText}>{tag.name}</Text>
-          </HabitBadge>
-        ))}
-
-        {(habit.linkedGoals ?? []).map((goal) => (
-          <HabitBadge key={goal.id} style={styles.badgePrimaryPill}>
-            <Text style={styles.badgePrimaryText}>{goal.title}</Text>
-          </HabitBadge>
-        ))}
-
-        {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-          <HabitBadge style={styles.badgeStreak}>
-            <Flame size={12} color={colors.amber400} />
-            <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-          </HabitBadge>
-        ) : null}
-
-        {habit.checklistItems && habit.checklistItems.length > 0 ? (
-          <HabitBadge style={styles.badgeChecklist}>
-            <ClipboardCheck size={12} color={colors.textSecondary} />
-            <Text style={styles.badgeChecklistText}>
-              {checkedCount}/{habit.checklistItems.length}
-            </Text>
-          </HabitBadge>
-        ) : null}
-      </View>
-    )
-  }
-
-  if (habit.isBadHabit) {
-    return (
-      <View style={styles.badgesRowChild}>
-        <HabitBadge style={styles.badgeBadHabitNoBorder}>
-          <Text style={styles.badgeBadHabitText}>{t('habits.badHabit')}</Text>
-        </HabitBadge>
-        {habit.tags?.map((tag) => (
-          <HabitBadge
-            key={tag.id}
-            style={[styles.badgeTag, { backgroundColor: tag.color }]}
-          >
-            <Text style={styles.badgeTagText}>{tag.name}</Text>
-          </HabitBadge>
-        ))}
-        {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-          <HabitBadge style={styles.badgeStreakNoBorder}>
-            <Flame size={12} color={colors.amber400} />
-            <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-          </HabitBadge>
-        ) : null}
-        {habit.checklistItems && habit.checklistItems.length > 0 ? (
-          <HabitBadge style={styles.badgeChecklistNoBorder}>
-            <ClipboardCheck size={12} color={colors.textSecondary} />
-            <Text style={styles.badgeChecklistText}>
-              {checkedCount}/{habit.checklistItems.length}
-            </Text>
-          </HabitBadge>
-        ) : null}
-      </View>
-    )
-  }
-
-  return (
-    <View style={styles.badgesRowChild}>
-      <Text style={styles.frequencyLabelChild}>{frequencyLabel}</Text>
-      {statusBadge ? (
-        <HabitBadge style={styles.badgeOverdue}>
-          <Text style={styles.badgeOverdueText}>{statusBadge.text}</Text>
-        </HabitBadge>
-      ) : null}
-      {habit.tags?.map((tag) => (
-        <HabitBadge
-          key={tag.id}
-          style={[styles.badgeTag, { backgroundColor: tag.color }]}
-        >
-          <Text style={styles.badgeTagText}>{tag.name}</Text>
-        </HabitBadge>
-      ))}
-      {habit.currentStreak != null && habit.currentStreak >= 2 ? (
-        <HabitBadge style={styles.badgeStreakNoBorder}>
-          <Flame size={12} color={colors.amber400} />
-          <Text style={styles.badgeStreakText}>{habit.currentStreak}</Text>
-        </HabitBadge>
-      ) : null}
-      {habit.checklistItems && habit.checklistItems.length > 0 ? (
-        <HabitBadge style={styles.badgeChecklistNoBorder}>
-          <ClipboardCheck size={12} color={colors.textSecondary} />
-          <Text style={styles.badgeChecklistText}>
-            {checkedCount}/{habit.checklistItems.length}
-          </Text>
-        </HabitBadge>
-      ) : null}
-    </View>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -384,10 +100,8 @@ export function HabitCard({
   hasChildren = false,
   hasSubHabits = false,
   isExpanded = true,
-  isLastChild = false,
   childrenDone = 0,
   childrenTotal = 0,
-  searchQuery = '',
   actions = {},
   tourTargetId,
 }: HabitCardProps) {
@@ -416,16 +130,12 @@ export function HabitCard({
   const cardTourRef = useRef<View>(null)
   const tagsTourRef = useRef<View>(null)
   useTourTarget(tourTargetId ?? '__noop__', cardTourRef)
-  // When this card is the tour target, also register it as tour-habit-card
   useTourTarget(tourTargetId ? 'tour-habit-card' : '__noop__', cardTourRef)
   useTourTarget(tourTargetId ? 'tour-habit-tags' : '__noop__', tagsTourRef)
 
   const isChild = depth > 0
-  const checkedCount =
-    habit.checklistItems?.filter((i) => i.isChecked).length ?? 0
-
-  // Computed values
-  const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
+  const isCompletedForRange = habit.isCompleted || habit.isLoggedInRange
+  const checkedCount = habit.checklistItems?.filter((i) => i.isChecked).length ?? 0
 
   const status = useMemo(
     () => computeHabitCardStatus(habit, selectedDate),
@@ -436,199 +146,122 @@ export function HabitCard({
     !habit.isGeneral &&
     !habit.isCompleted &&
     (status === 'due-today' || status === 'overdue')
-
   const isPostpone = !habit.frequencyUnit
 
-  const statusBadge = useMemo(
-    () => computeHabitStatusBadge(status, t),
-    [status, t],
-  )
+  const statusBadge = useMemo(() => computeHabitStatusBadge(status, t), [status, t])
 
   const isNotDueToday = useMemo(() => {
     if (!selectedDate) return false
     if (habit.isGeneral) return false
-    if (status !== 'pending') return false
-    return true
+    return status === 'pending'
   }, [habit.isGeneral, selectedDate, status])
 
   const isParentWithChildren = hasChildren && childrenTotal > 0
-  const progressPercent =
-    childrenTotal === 0
-      ? 0
-      : Math.round((childrenDone / childrenTotal) * 100)
+  const childRatio = childrenTotal === 0 ? 0 : childrenDone / childrenTotal
+  const progressRatio = useMemo(
+    () =>
+      getHabitProgressRatio(habit, {
+        hasChildren: isParentWithChildren,
+        childrenDone,
+        childrenTotal,
+      }),
+    [habit, isParentWithChildren, childrenDone, childrenTotal],
+  )
+  const showArc = useMemo(
+    () =>
+      shouldShowHabitProgressArc(habit, {
+        hasChildren: isParentWithChildren,
+        childrenTotal,
+      }),
+    [habit, isParentWithChildren, childrenTotal],
+  )
 
-  // Frequency label
   const frequencyLabel = useMemo(
     () => computeHabitFrequencyLabel(habit, t),
     [habit, t],
   )
-
-  // Flexible progress label
   const flexibleProgressLabel = useMemo(
     () => computeHabitFlexibleProgressLabel(habit, t),
     [habit, t],
   )
+  const matchBadges = useMemo(
+    () => computeHabitMatchBadges('', habit, t),
+    [habit, t],
+  )
 
   // ---------------------------------------------------------------------------
-  // Step 8: Press spring animation
+  // Press-in scale animation (outer card body)
   // ---------------------------------------------------------------------------
+
   const pressScale = useSharedValue(1)
-  const pressY = useSharedValue(0)
-  const pressAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: pressY.value }, { scale: pressScale.value }],
+  const pressAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
   }))
-
   const handlePressIn = useCallback(() => {
-    pressScale.value = withTiming(0.985, { duration: 100 })
-    pressY.value = withTiming(-1, { duration: 100 })
-  }, [pressScale, pressY])
-
+    pressScale.value = withTiming(0.98, { duration: 100, easing: Easing.out(Easing.ease) })
+  }, [pressScale])
   const handlePressOut = useCallback(() => {
     pressScale.value = withSpring(1, { stiffness: 220, damping: 18 })
-    pressY.value = withSpring(0, { stiffness: 220, damping: 18 })
-  }, [pressScale, pressY])
+  }, [pressScale])
 
-  // ---------------------------------------------------------------------------
-  // Step 9: Completion pop / glow / sparks
-  // ---------------------------------------------------------------------------
-  const prevDoneRef = useRef(isDoneForRange)
-  const completePop = useSharedValue(1)
-  const completeGlow = useSharedValue(0)
-  const spark0 = useSharedValue(0)
-  const spark1 = useSharedValue(0)
-  const spark2 = useSharedValue(0)
-  const spark3 = useSharedValue(0)
-
-  const completePopStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: completePop.value }],
-  }))
-  const completeGlowStyle = useAnimatedStyle(() => ({
-    opacity: completeGlow.value,
-    transform: [{ scale: interpolate(completeGlow.value, [0, 1], [1, 1.4]) }],
-  }))
-  const spark0Style = useAnimatedStyle(() => ({
-    opacity: 1 - spark0.value,
-    transform: [
-      { translateX: 12 * spark0.value },
-      { translateY: -12 * spark0.value },
-      { scale: 1 - spark0.value * 0.7 },
-    ],
-  }))
-  const spark1Style = useAnimatedStyle(() => ({
-    opacity: 1 - spark1.value,
-    transform: [
-      { translateX: -12 * spark1.value },
-      { translateY: 8 * spark1.value },
-      { scale: 1 - spark1.value * 0.7 },
-    ],
-  }))
-  const spark2Style = useAnimatedStyle(() => ({
-    opacity: 1 - spark2.value,
-    transform: [
-      { translateX: 8 * spark2.value },
-      { translateY: 12 * spark2.value },
-      { scale: 1 - spark2.value * 0.7 },
-    ],
-  }))
-  const spark3Style = useAnimatedStyle(() => ({
-    opacity: 1 - spark3.value,
-    transform: [
-      { translateX: -8 * spark3.value },
-      { translateY: -8 * spark3.value },
-      { scale: 1 - spark3.value * 0.7 },
-    ],
-  }))
+  // Pulse / glow flags for the avatar tile
+  const [tilePulse, setTilePulse] = useState(false)
+  const [tileGlow, setTileGlow] = useState(false)
+  const prevDoneRef = useRef(isCompletedForRange)
+  const pulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const glowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const wasNotDone = !prevDoneRef.current
-    prevDoneRef.current = isDoneForRange
-    if (!wasNotDone || !isDoneForRange) return
-
-    // Pop
-    completePop.value = withSequence(
-      withTiming(1.3, { duration: 200, easing: Easing.bezier(...easings.spring) }),
-      withTiming(0.96, { duration: 150 }),
-      withTiming(1, { duration: 150 }),
-    )
-
-    // Glow
-    completeGlow.value = withSequence(
-      withTiming(1, { duration: 200 }),
-      withTiming(0, { duration: 600 }),
-    )
-
-    // Sparks
-    const fireAndReset = (sv: typeof spark0, delay: number) => {
-      sv.value = withDelay(delay, withTiming(1, { duration: durations.completeSpark, easing: Easing.out(Easing.ease) }))
-      // Reset after animation
-      setTimeout(() => { sv.value = 0 }, delay + durations.completeSpark + 50)
+    if (isCompletedForRange && !prevDoneRef.current) {
+      setTilePulse(true)
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current)
+      pulseTimerRef.current = setTimeout(() => setTilePulse(false), 500)
     }
-    fireAndReset(spark0, 0)
-    fireAndReset(spark1, 50)
-    fireAndReset(spark2, 100)
-    fireAndReset(spark3, 150)
-  }, [isDoneForRange, completePop, completeGlow, spark0, spark1, spark2, spark3])
-
-  // ---------------------------------------------------------------------------
-  // Step 10: Creation glow — breathing rim
-  // ---------------------------------------------------------------------------
-  const creationGlow = useSharedValue(0)
-  const creationGlowStyle = useAnimatedStyle(() => ({
-    opacity: creationGlow.value,
-    transform: [{ scale: interpolate(creationGlow.value, [0, 0.5, 1], [1, 1.02, 1]) }],
-  }))
+    prevDoneRef.current = isCompletedForRange
+    return () => {
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current)
+    }
+  }, [isCompletedForRange])
 
   useEffect(() => {
     if (!isJustCreated) return
-    creationGlow.value = withRepeat(
-      withSequence(
-        withTiming(0.4, { duration: 600, easing: Easing.bezier(...easings.out) }),
-        withTiming(0, { duration: 600 }),
-      ),
-      2,
-      false,
-    )
-  }, [isJustCreated, creationGlow])
+    setTileGlow(true)
+    if (glowTimerRef.current) clearTimeout(glowTimerRef.current)
+    glowTimerRef.current = setTimeout(() => setTileGlow(false), 1500)
+    return () => {
+      if (glowTimerRef.current) clearTimeout(glowTimerRef.current)
+    }
+  }, [isJustCreated])
 
   // ---------------------------------------------------------------------------
-  // Actions menu
+  // Handlers
   // ---------------------------------------------------------------------------
-  const [showActionsMenu, setShowActionsMenu] = useState(false)
-  const [actionsMenuAnchorRect, setActionsMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null)
-  const actionsButtonRef = useRef<View>(null)
 
-  const closeActionsMenu = useCallback(() => {
-    setShowActionsMenu(false)
-  }, [])
-
-  const openActionsMenu = useCallback(() => {
-    actionsButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setActionsMenuAnchorRect({ x, y, width, height })
-      setShowActionsMenu(true)
-    })
-  }, [])
-
-  const toggleActionsMenu = useCallback(() => {
-    if (showActionsMenu) {
-      closeActionsMenu()
+  const handleTilePress = useCallback(() => {
+    if (isSelectMode) {
+      onToggleSelection?.()
       return
     }
-
-    openActionsMenu()
-  }, [closeActionsMenu, openActionsMenu, showActionsMenu])
-
-  // Close menu on select mode
-  useEffect(() => {
-    if (isSelectMode) setShowActionsMenu(false)
-  }, [isSelectMode])
-
-  const handleEnterSelectModeFromMenu = useCallback(() => {
-    closeActionsMenu()
-    setTimeout(() => {
-      onEnterSelectMode?.()
-    }, 0)
-  }, [closeActionsMenu, onEnterSelectMode])
+    if (isCompletedForRange) {
+      onUnlog?.()
+      return
+    }
+    if (isParentWithChildren && childrenDone < childrenTotal) {
+      onForceLogParent?.()
+      return
+    }
+    onLog?.()
+  }, [
+    isSelectMode,
+    isCompletedForRange,
+    isParentWithChildren,
+    childrenDone,
+    childrenTotal,
+    onToggleSelection,
+    onUnlog,
+    onForceLogParent,
+    onLog,
+  ])
 
   const handleCardPress = useCallback(() => {
     if (isSelectMode) {
@@ -638,440 +271,240 @@ export function HabitCard({
     }
   }, [isSelectMode, onToggleSelection, onDetail])
 
-  // Dynamic card styles
-  const cardStyle: ViewStyle[] = [
+  // ---------------------------------------------------------------------------
+  // Menu state
+  // ---------------------------------------------------------------------------
+
+  const [showMenu, setShowMenu] = useState(false)
+  const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null)
+  const menuBtnRef = useRef<View>(null)
+  const closeMenu = useCallback(() => setShowMenu(false), [])
+  const openMenu = useCallback(() => {
+    menuBtnRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchorRect({ x, y, width, height })
+      setShowMenu(true)
+    })
+  }, [])
+  const toggleMenu = useCallback(() => {
+    if (showMenu) closeMenu()
+    else openMenu()
+  }, [showMenu, openMenu, closeMenu])
+
+  useEffect(() => {
+    if (isSelectMode) setShowMenu(false)
+  }, [isSelectMode])
+
+  // ---------------------------------------------------------------------------
+  // Card container style
+  // ---------------------------------------------------------------------------
+
+  const containerStyle: ViewStyle[] = [
     isChild ? styles.cardChild : styles.cardParent,
   ]
-  // Status border for due-today / overdue (parent only)
-  if (!isChild && status === 'due-today') {
-    cardStyle.push(styles.cardDueToday)
-  }
-  if (!isChild && status === 'overdue') {
-    cardStyle.push(styles.cardOverdue)
-  }
+  if (!isChild && status === 'due-today') containerStyle.push(styles.statusDue)
+  if (!isChild && status === 'overdue') containerStyle.push(styles.statusOverdue)
+  if (isCompletedForRange) containerStyle.push(styles.completed)
+  else if (isNotDueToday) containerStyle.push(styles.dimmed)
+  if (isSelected) containerStyle.push(styles.selected)
 
-  // Dimming for completed / not-due
-  if (isDoneForRange || isNotDueToday) {
-    cardStyle.push(styles.cardDimmed)
-  }
-
-  // Selected ring
-  if (isSelected) {
-    cardStyle.push(styles.cardSelected)
-  } else if (isJustCreated) {
-    cardStyle.push(styles.cardJustCreated)
-  }
-
-  // Indent for children
   const indentMargin = depth > 0 ? { marginLeft: depth * 24 } : undefined
-
-  const logBtnSize = isChild ? 32 : 44
-  const logBtnRadius = isChild ? 16 : 22
+  const tileCenter =
+    isParentWithChildren && !isCompletedForRange
+      ? `${childrenDone}/${childrenTotal}`
+      : null
 
   return (
     <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
-      {/* Step 10: creation glow rim — absolutely behind the card */}
-      {isJustCreated && (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: 'absolute',
-              top: -1,
-              left: -1,
-              right: -1,
-              bottom: -1,
-              borderRadius: isChild ? radius.md + 2 : radius.lg + 2,
-              borderWidth: 1,
-              borderColor: primaryRgba(0.25),
-            },
-            creationGlowStyle,
-          ]}
-        />
-      )}
-
-      {/* Step 8: wrap TouchableOpacity in Animated.View for press spring */}
-      <Animated.View style={pressAnimStyle}>
+      <Animated.View style={pressAnim}>
         <TouchableOpacity
-          style={cardStyle}
+          activeOpacity={0.9}
           onPress={handleCardPress}
           onLongPress={!isSelectMode ? onLongPressCard : undefined}
           delayLongPress={300}
-          activeOpacity={0.85}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
+          style={containerStyle}
         >
-          <HabitCardSurface isChild={isChild} status={status} colors={colors} />
-          <View
-            style={[
-              styles.cardRow,
-              { gap: isChild ? 12 : 14 },
-            ]}
-          >
-            {/* Habit avatar tile (parent habits only) */}
-            {!isChild && !isSelectMode && !isParentWithChildren ? (
-              <HabitEmoji
-                icon={habit.icon}
-                title={habit.title}
-                size="sm"
-                filled={isDoneForRange}
-                badHabit={habit.isBadHabit}
-                overdue={status === 'overdue'}
-              />
-            ) : null}
-
-            {/* Expand/collapse toggle */}
-            {hasChildren && (
+          <View style={styles.row}>
+            {/* Expand/collapse toggle — only when there are children */}
+            {hasChildren ? (
               <TouchableOpacity
                 onPress={onToggleExpand}
                 style={[
-                  styles.expandButton,
-                  {
-                    width: isChild ? 24 : 28,
-                    height: isChild ? 24 : 28,
-                    borderRadius: 8,
-                  },
-                  isExpanded && styles.expandButtonRotated,
+                  styles.expandBtn,
+                  isExpanded ? styles.expandBtnOpen : null,
                 ]}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <ChevronRight
-                  size={isChild ? 14 : 16}
-                  color={colors.textMuted}
-                />
+                <ChevronRight size={16} color={colors.textMuted} />
               </TouchableOpacity>
-            )}
+            ) : null}
 
-            {/* Selection checkbox */}
+            {/* Avatar tile or selection checkbox */}
             {isSelectMode ? (
               <TouchableOpacity
                 onPress={onToggleSelection}
                 style={[
-                  styles.selectionCircle,
-                  {
-                    width: isChild ? 32 : 44,
-                    height: isChild ? 32 : 44,
-                    borderRadius: isChild ? 16 : 22,
-                  },
-                  isSelected
-                    ? styles.selectionCircleSelected
-                    : styles.selectionCircleDefault,
+                  styles.selectionBox,
+                  isSelected ? styles.selectionBoxFilled : styles.selectionBoxEmpty,
                 ]}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: isSelected }}
                 accessibilityLabel={t('common.select')}
               >
-                {isSelected && (
-                  <Check size={isChild ? 16 : 20} color={colors.white} />
-                )}
-              </TouchableOpacity>
-            ) : isParentWithChildren ? (
-              /* Progress ring for parent habits */
-              <TouchableOpacity
-                onPress={() => {
-                  if (isNotDueToday) return
-                  if (isDoneForRange) {
-                    onUnlog?.()
-                  } else if (childrenDone >= childrenTotal) {
-                    onLog?.()
-                  } else {
-                    onForceLogParent?.()
-                  }
-                }}
-                style={[
-                  styles.progressRingContainer,
-                  {
-                    width: isChild ? 32 : 44,
-                    height: isChild ? 32 : 44,
-                  },
-                ]}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-              >
-                <Svg
-                  style={[
-                    styles.progressRingSvg,
-                    {
-                      width: isChild ? 32 : 44,
-                      height: isChild ? 32 : 44,
-                    },
-                  ]}
-                  viewBox="0 0 36 36"
-                >
-                  <Circle
-                    cx="18"
-                    cy="18"
-                    r="15"
-                    fill="none"
-                    stroke={colors.borderMuted}
-                    strokeWidth="2"
-                  />
-                  <Circle
-                    cx="18"
-                    cy="18"
-                    r="15"
-                    fill="none"
-                    stroke={
-                      isDoneForRange || progressPercent === 100
-                        ? colors.primary
-                        : withAlpha(
-                            colors.primary,
-                            0.6,
-                            'rgba(59, 130, 246, 0.6)',
-                          )
-                    }
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeDasharray={getHabitProgressStrokeDasharray(
-                      progressPercent,
-                      isDoneForRange,
-                    )}
-                  />
-                </Svg>
-                {/* Center content */}
-                {isDoneForRange ? (
-                  <Check size={16} color={colors.primary} />
-                ) : (
-                  <Text style={styles.progressText}>
-                    {childrenDone}/{childrenTotal}
-                  </Text>
-                )}
+                {isSelected ? (
+                  <CheckCircle2 size={24} color={colors.textInverse} />
+                ) : null}
               </TouchableOpacity>
             ) : (
-              /* Step 7 + 9: Log button with gradient, glow, sparks */
-              <View style={{ position: 'relative', width: logBtnSize, height: logBtnSize, alignItems: 'center', justifyContent: 'center' }}>
-                {/* Step 9: Android glow backing — shown on Android when done */}
-                {isDoneForRange && Platform.OS === 'android' && (
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      top: -4,
-                      left: -4,
-                      right: -4,
-                      bottom: -4,
-                      borderRadius: radius.full,
-                      backgroundColor: primaryRgba(0.10),
-                    }}
-                  />
-                )}
-
-                {/* Step 9: Glow halo for completion animation */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    {
-                      position: 'absolute',
-                      top: -12,
-                      left: -12,
-                      right: -12,
-                      bottom: -12,
-                      borderRadius: radius.full,
-                      backgroundColor: primaryRgba(0.35),
-                    },
-                    completeGlowStyle,
-                  ]}
-                />
-
-                {/* Step 9: 4 sparks — only rendered when done to avoid idle purple dot */}
-                {isDoneForRange && [spark0Style, spark1Style, spark2Style, spark3Style].map((sparkStyle, i) => (
-                  <Animated.View
-                    key={i}
-                    pointerEvents="none"
-                    style={[
-                      {
-                        position: 'absolute',
-                        width: 6,
-                        height: 6,
-                        borderRadius: 3,
-                        backgroundColor: colors.primary,
-                      },
-                      sparkStyle,
-                    ]}
-                  />
-                ))}
-
-                {/* The actual log button */}
-                <TouchableOpacity
-                  onPress={() => {
-                    if (isDoneForRange) {
-                      onUnlog?.()
-                    } else {
-                      onLog?.()
-                    }
-                  }}
-                  style={[
-                    styles.logButton,
-                    {
-                      width: logBtnSize,
-                      height: logBtnSize,
-                      borderRadius: logBtnRadius,
-                    },
-                    isDoneForRange
-                      ? [
-                          styles.logButtonDone,
-                          Platform.OS === 'ios' ? shadows.glow(colors.primary) : undefined,
-                        ]
-                      : status === 'overdue'
-                        ? styles.logButtonOverdue
-                        : styles.logButtonDefault,
-                  ]}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.log.title')}
-                  hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
-                >
-                  {/* Step 7: gradient + animated pop wrapper */}
-                  <View style={{ width: logBtnSize, height: logBtnSize, borderRadius: logBtnRadius, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-                    {isDoneForRange && (
-                      <LinearGradient
-                        colors={gradients.logButtonDone(colors.primary, lightenHex(colors.primary, 0.3))}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                      />
-                    )}
-                    {/* Step 9: pop scale wrapper */}
-                    <Animated.View style={completePopStyle}>
-                      {isDoneForRange && (
-                        <Check
-                          size={isChild ? 14 : 16}
-                          color={colors.white}
-                        />
-                      )}
-                    </Animated.View>
-                  </View>
-                </TouchableOpacity>
-              </View>
+              <HabitAvatarTile
+                icon={habit.icon}
+                title={habit.title}
+                size={isChild ? 'sm' : 'md'}
+                isCompleted={isCompletedForRange}
+                isOverdue={status === 'overdue'}
+                isBadHabit={!!habit.isBadHabit}
+                showArc={showArc && !isChild}
+                progressRatio={isParentWithChildren ? childRatio : progressRatio}
+                centerLabel={tileCenter}
+                showCheckBadge={isCompletedForRange}
+                isDisabled={isNotDueToday && !isCompletedForRange}
+                pulse={tilePulse}
+                glow={tileGlow}
+                onPress={handleTilePress}
+                accessibilityLabel={
+                  isCompletedForRange
+                    ? t('habits.actions.unlog', { title: habit.title })
+                    : t('habits.log.title')
+                }
+              />
             )}
 
-            {/* Content */}
-            <View style={styles.content}>
-                <Text
-                  style={[
-                    isChild ? styles.titleChild : styles.titleParent,
-                    isDoneForRange && styles.titleDone,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {habit.title}
+            {/* Body */}
+            <View style={styles.body}>
+              <Text
+                style={[
+                  styles.title,
+                  isCompletedForRange ? styles.titleDone : null,
+                ]}
+                numberOfLines={1}
+              >
+                {habit.title}
+              </Text>
+              {habit.description ? (
+                <Text style={styles.description} numberOfLines={1}>
+                  {habit.description}
                 </Text>
+              ) : null}
+              <HabitMetaRow
+                habit={habit}
+                isChild={isChild}
+                isCompleted={isCompletedForRange}
+                frequencyLabel={frequencyLabel}
+                flexibleProgressLabel={flexibleProgressLabel}
+                statusBadge={statusBadge}
+                checkedCount={checkedCount}
+                matchBadges={matchBadges}
+                displayTime={displayTime}
+                tagsRef={tourTargetId ? tagsTourRef : undefined}
+              />
+            </View>
 
-                {habit.description ? (
-                  <Text
-                    style={[
-                      isChild ? styles.descriptionChild : styles.descriptionParent,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {habit.description}
-                  </Text>
-                ) : null}
-
-                <HabitBadgesRow
-                  isChild={isChild}
-                  habit={habit}
-                  frequencyLabel={frequencyLabel}
-                  flexibleProgressLabel={flexibleProgressLabel}
-                  statusBadge={statusBadge}
-                  checkedCount={checkedCount}
-                  colors={colors}
-                  t={t}
-                  styles={styles}
-                  displayTime={displayTime}
-                  tagsRef={tourTargetId ? tagsTourRef : undefined}
-                />
-              </View>
-
-            {/* Actions menu trigger */}
-            {!isSelectMode && (
-              <View ref={actionsButtonRef} collapsable={false}>
+            {/* Kebab */}
+            {!isSelectMode ? (
+              <View ref={menuBtnRef} collapsable={false}>
                 <TouchableOpacity
-                  onPress={toggleActionsMenu}
-                  style={[
-                    styles.moreButton,
-                    { padding: isChild ? 6 : 8 },
-                  ]}
+                  onPress={toggleMenu}
+                  style={styles.menuBtn}
                   activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityLabel={t('common.moreActions')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <MoreVertical
-                    size={isChild ? 14 : 16}
-                    color={colors.textMuted}
-                  />
+                  <MoreVertical size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-            )}
+            ) : null}
           </View>
+
+          {/* Checklist progress strip */}
+          {habit.checklistItems && habit.checklistItems.length > 0 ? (
+            <ChecklistProgressStrip
+              done={checkedCount}
+              total={habit.checklistItems.length}
+              isCompleted={isCompletedForRange}
+              colors={colors}
+            />
+          ) : null}
+
+          {/* Left status bar for due-today / overdue */}
+          {!isChild && status === 'due-today' ? (
+            <View style={[styles.leftBar, { backgroundColor: colors.primary }]} pointerEvents="none" />
+          ) : null}
+          {!isChild && status === 'overdue' ? (
+            <View style={[styles.leftBar, { backgroundColor: colors.danger }]} pointerEvents="none" />
+          ) : null}
         </TouchableOpacity>
       </Animated.View>
 
       <AnchoredMenu
-        visible={showActionsMenu}
-        anchorRect={actionsMenuAnchorRect}
-        onClose={closeActionsMenu}
+        visible={showMenu}
+        anchorRect={anchorRect}
+        onClose={closeMenu}
         width={208}
         estimatedHeight={hasSubHabits ? 320 : 276}
       >
-        {showAddSubHabit && (
+        {showAddSubHabit ? (
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               onAddSubHabit?.()
-              closeActionsMenu()
+              closeMenu()
             }}
             activeOpacity={0.7}
           >
             <Plus size={16} color={colors.textMuted} />
-            <Text style={styles.menuItemText}>
-              {t('habits.form.addSubHabit')}
-            </Text>
+            <Text style={styles.menuItemText}>{t('habits.form.addSubHabit')}</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
 
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => {
             onMoveParent?.()
-            closeActionsMenu()
+            closeMenu()
           }}
           activeOpacity={0.7}
         >
           <ArrowRight size={16} color={colors.textMuted} />
-          <Text style={styles.menuItemText}>
-            {t('habits.moveParent.button')}
-          </Text>
+          <Text style={styles.menuItemText}>{t('habits.moveParent.button')}</Text>
         </TouchableOpacity>
 
-        {canSkip && (
+        {canSkip ? (
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               onSkip?.()
-              closeActionsMenu()
+              closeMenu()
             }}
             activeOpacity={0.7}
           >
             <FastForward size={16} color={colors.amber400} />
             <Text style={styles.menuItemTextAmber}>
-              {isPostpone
-                ? t('habits.actions.postpone')
-                : t('habits.actions.skip')}
+              {isPostpone ? t('habits.actions.postpone') : t('habits.actions.skip')}
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
 
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => {
             onEdit?.()
-            closeActionsMenu()
+            closeMenu()
           }}
           activeOpacity={0.7}
         >
@@ -1083,47 +516,32 @@ export function HabitCard({
           style={styles.menuItem}
           onPress={() => {
             onDuplicate?.()
-            closeActionsMenu()
+            closeMenu()
           }}
           activeOpacity={0.7}
         >
           <Copy size={16} color={colors.textMuted} />
-          <Text style={styles.menuItemText}>
-            {t('habits.actions.duplicate')}
-          </Text>
+          <Text style={styles.menuItemText}>{t('habits.actions.duplicate')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={handleEnterSelectModeFromMenu}
+          onPress={() => {
+            closeMenu()
+            setTimeout(() => onEnterSelectMode?.(), 0)
+          }}
           activeOpacity={0.7}
         >
           <CheckCircle2 size={16} color={colors.textMuted} />
           <Text style={styles.menuItemText}>{t('common.select')}</Text>
         </TouchableOpacity>
 
-        <View style={styles.menuDivider} />
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            onDelete?.()
-            closeActionsMenu()
-          }}
-          activeOpacity={0.7}
-        >
-          <Trash2 size={16} color={colors.red400} />
-          <Text style={styles.menuItemTextDanger}>
-            {t('common.delete')}
-          </Text>
-        </TouchableOpacity>
-
-        {hasSubHabits && (
+        {hasSubHabits ? (
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               onDrillInto?.()
-              closeActionsMenu()
+              closeMenu()
             }}
             activeOpacity={0.7}
           >
@@ -1132,393 +550,220 @@ export function HabitCard({
               {t('habits.actions.openSubHabits')}
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
+
+        <View style={styles.menuDivider} />
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            onDelete?.()
+            closeMenu()
+          }}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={16} color={colors.red400} />
+          <Text style={styles.menuItemTextDanger}>{t('common.delete')}</Text>
+        </TouchableOpacity>
       </AnchoredMenu>
     </View>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Styles
+// Small helpers
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light' | 'dark' = 'dark') {
-  const isLight = themeMode === 'light'
-  const parentShadow = isLight
-    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 }
-    : shadows.cardParent
-  const childShadow = isLight
-    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 }
-    : shadows.cardChild
-  const cardBorder = isLight
-    ? 'rgba(0, 0, 0, 0.06)'
-    : withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)')
-  const cardBorderFaint = isLight
-    ? 'rgba(0, 0, 0, 0.04)'
-    : withAlpha(colors.white, 0.04, 'rgba(255, 255, 255, 0.04)')
-  return StyleSheet.create({
-  cardParent: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: cardBorder,
-    padding: 16,
-    marginBottom: 10,
-    position: 'relative',
-    overflow: 'hidden',
-    ...parentShadow,
-    elevation: isLight ? 1 : 5,
-  },
+function ChecklistProgressStrip({
+  done,
+  total,
+  isCompleted,
+  colors,
+}: Readonly<{
+  done: number
+  total: number
+  isCompleted: boolean
+  colors: ReturnType<typeof createColors>
+}>) {
+  if (total === 0) return null
+  const ratio = isCompleted ? 1 : Math.max(0, Math.min(1, done / total))
+  const widthPct: import('react-native').DimensionValue = `${(ratio * 100).toFixed(2)}%` as `${number}%`
+  return (
+    <View style={[styles.strip, { backgroundColor: colors.borderMuted }]} pointerEvents="none">
+      <View
+        style={{
+          height: '100%',
+          width: widthPct,
+          backgroundColor: colors.primary,
+        }}
+      />
+    </View>
+  )
+}
 
-  cardChild: {
-    backgroundColor: isLight
-      ? colors.surface
-      : withAlpha(colors.surfaceGround, 0.6, colors.surfaceGround),
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: cardBorderFaint,
-    borderLeftWidth: 2,
-    borderLeftColor: withAlpha(colors.primary, 0.25, 'rgba(59, 130, 246, 0.25)'),
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
-    position: 'relative',
-    overflow: 'hidden',
-    ...childShadow,
-    elevation: isLight ? 0 : 3,
-  },
-
-  cardDueToday: {
-    borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.amber500, 0.7, 'rgba(245, 158, 11, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
-  },
-
-  cardOverdue: {
-    borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.red500, 0.7, 'rgba(239, 68, 68, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
-  },
-
-  cardDimmed: {
-    opacity: 0.4,
-  },
-
-  cardSelected: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  cardJustCreated: {
-    shadowColor: colors.primary,
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-
-  // Expand/collapse button
-  expandButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  expandButtonRotated: {
-    transform: [{ rotate: '90deg' }],
-  },
-
-  // Selection checkbox (circular)
-  selectionCircle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  selectionCircleDefault: {
-    borderColor: colors.borderEmphasis,
-  },
-  selectionCircleSelected: {
-    backgroundColor: colors.primary,
-    borderColor: 'transparent',
-  },
-
-  // Progress ring container
-  progressRingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  progressRingSvg: {
+const styles = StyleSheet.create({
+  strip: {
     position: 'absolute',
-    transform: [{ rotate: '-90deg' }],
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
   },
-  progressText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    fontVariant: ['tabular-nums'],
-  },
+})
 
-  // Log button
-  logButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logButtonDefault: {
-    borderWidth: 2,
-    borderColor: colors.borderEmphasis,
-  },
-  logButtonDone: {
-    // Background provided by LinearGradient overlay inside the button
-    elevation: 8,
-  },
-  logButtonOverdue: {
-    borderWidth: 2,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-  },
+// ---------------------------------------------------------------------------
+// Styles (dynamic, theme-aware)
+// ---------------------------------------------------------------------------
 
-  // Content area
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
+function createStyles(
+  colors: ReturnType<typeof createColors>,
+  theme: 'light' | 'dark',
+) {
+  const isLight = theme === 'light'
+  const borderColor = isLight ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.06)'
+  const borderHover = isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'
+  const shadow = isLight
+    ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 }
+    : { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 8 }
 
-  // Title - parent
-  titleParent: {
-    fontSize: 14, // text-sm sm:text-base (mobile = sm)
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+  return StyleSheet.create({
+    cardParent: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor,
+      padding: 14,
+      marginBottom: 10,
+      position: 'relative',
+      overflow: 'hidden',
+      ...shadow,
+      elevation: isLight ? 1 : 4,
+    },
+    cardChild: {
+      backgroundColor: isLight
+        ? colors.surface
+        : 'rgba(13, 11, 22, 0.6)',
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
+      padding: 12,
+      marginBottom: 8,
+      position: 'relative',
+      overflow: 'hidden',
+      elevation: isLight ? 0 : 2,
+    },
 
-  // Title - child
-  titleChild: {
-    fontSize: 14, // text-sm
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    statusDue: {
+      borderColor: borderHover,
+    },
+    statusOverdue: {
+      borderColor: borderHover,
+    },
 
-  // Title - completed
-  titleDone: {
-    textDecorationLine: 'line-through',
-    textDecorationColor: withAlpha(colors.textMuted, 0.4, 'rgba(122, 116, 144, 0.4)'),
-  },
+    dimmed: { opacity: 0.4 },
+    completed: { opacity: 0.55 },
 
-  // Description - parent
-  descriptionParent: {
-    fontSize: 11, // text-[11px]
-    color: colors.textMuted,
-    marginTop: 2,
-  },
+    selected: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
 
-  // Description - child
-  descriptionChild: {
-    fontSize: 10, // text-[10px]
-    color: colors.textMuted,
-    marginTop: 2,
-  },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
 
-  // Badges row - parent
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6, // gap-1.5
-    marginTop: 6, // mt-1.5
-    flexWrap: 'wrap',
-  },
+    expandBtn: {
+      width: 26,
+      height: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+    },
+    expandBtnOpen: {
+      transform: [{ rotate: '90deg' }],
+    },
 
-  // Badges row - child
-  badgesRowChild: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2, // mt-0.5
-    flexWrap: 'wrap',
-  },
+    selectionBox: {
+      width: 56,
+      height: 56,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 14,
+      borderWidth: 2,
+    },
+    selectionBoxEmpty: {
+      borderColor: colors.borderEmphasis,
+      backgroundColor: 'transparent',
+    },
+    selectionBoxFilled: {
+      borderColor: 'transparent',
+      backgroundColor: colors.primary,
+    },
 
-  // Frequency label - parent
-  frequencyLabel: {
-    fontSize: 10, // text-[10px]
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1.6, // tracking-widest
-    color: withAlpha(colors.textMuted, 0.7, 'rgba(122, 116, 144, 0.7)'),
-  },
+    body: {
+      flex: 1,
+      minWidth: 0,
+    },
 
-  // Frequency label - child
-  frequencyLabelChild: {
-    fontSize: 9, // text-[9px]
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1.6,
-    color: withAlpha(colors.textMuted, 0.6, 'rgba(122, 116, 144, 0.6)'),
-  },
+    title: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      letterSpacing: -0.1,
+    },
+    titleDone: {
+      textDecorationLine: 'line-through',
+      textDecorationColor: colors.textMuted,
+    },
+    description: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
 
-  // Due time text
-  dueTimeText: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
+    menuBtn: {
+      padding: 6,
+      borderRadius: 9999,
+    },
 
-  // Badge: primary pill (flexible progress, linked goals, match badges)
-  badgePrimaryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8, // px-2
-    paddingVertical: 2, // py-0.5
-    borderRadius: 9999,
-    backgroundColor: colors.primary_10,
-    borderWidth: 1,
-    borderColor: colors.primary_20,
-  },
-  badgePrimaryText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primary,
-  },
+    leftBar: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      width: 3,
+    },
 
-  // Badge: overdue
-  badgeOverdue: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: colors.red500_10,
-  },
-  badgeOverdueText: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: colors.red400, // text-red-500
-  },
-
-  // Badge: bad habit
-  badgeBadHabit: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: colors.red500_10,
-    borderWidth: 1,
-    borderColor: colors.red500_30,
-  },
-  badgeBadHabitNoBorder: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: colors.red500_10,
-  },
-  badgeBadHabitText: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: colors.red400,
-  },
-
-  // Badge: tag
-  badgeTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-  },
-  badgeTagText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.95)', // text-white/95
-  },
-
-  // Badge: streak
-  badgeStreak: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.amber400, 0.1, 'rgba(251, 191, 36, 0.1)'),
-    borderWidth: 1,
-    borderColor: withAlpha(colors.amber400, 0.2, 'rgba(251, 191, 36, 0.2)'),
-  },
-  badgeStreakNoBorder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.amber400, 0.1, 'rgba(251, 191, 36, 0.1)'),
-  },
-  badgeStreakText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.amber400,
-  },
-
-  // Badge: checklist
-  badgeChecklist: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.surfaceElevated, 0.88, colors.surfaceElevated),
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  badgeChecklistNoBorder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: withAlpha(colors.surfaceElevated, 0.88, colors.surfaceElevated),
-  },
-  badgeChecklistText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-
-  // More button (three dots)
-  moreButton: {
-    borderRadius: 9999,
-  },
-
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12, // gap-3
-    paddingHorizontal: 12, // px-3
-    paddingVertical: 10, // py-2.5
-    borderRadius: 12, // rounded-xl
-  },
-  menuItemText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  menuItemTextAmber: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.amber400,
-  },
-  menuItemTextDanger: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.red400,
-  },
-  menuDivider: {
-    height: 1,
-    marginVertical: 4, // my-1
-    marginHorizontal: 8, // mx-2
-    backgroundColor: colors.borderMuted,
-  },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    menuItemText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    menuItemTextAmber: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.amber400,
+    },
+    menuItemTextDanger: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.red400,
+    },
+    menuDivider: {
+      height: 1,
+      marginVertical: 4,
+      marginHorizontal: 8,
+      backgroundColor: colors.borderMuted,
+    },
   })
 }
