@@ -261,7 +261,7 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         initialFocusRef={titleInputRef}
       >
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           titleInputRef={titleInputRef}

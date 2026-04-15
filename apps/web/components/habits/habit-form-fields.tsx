@@ -1118,12 +1118,12 @@ export function HabitFormFields({
          ADVANCED FIELDS -- Behind "More options"
          ═══════════════════════════════════════════════════ */}
 
-      <div className="border-t border-border-muted pt-2">
+      <div className="mt-2 border-t border-border-muted pt-3">
         <button
           type="button"
           aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-3"
+          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-2"
         >
           <ChevronDown className={`size-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
           {t('habits.form.moreOptions' as Parameters<typeof t>[0])}
@@ -1139,7 +1139,7 @@ export function HabitFormFields({
           showAdvanced ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="space-y-6 pt-2">
+        <div className="space-y-6 pt-4">
           {/* Description */}
           <div className="space-y-2">
             <label htmlFor="habit-form-description" className="form-label">
@@ -1165,7 +1165,7 @@ export function HabitFormFields({
               editable
               onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
-            <div className="mt-3">
+            <div className="mt-4">
               <ChecklistTemplates
                 items={watchedChecklistItems ?? []}
                 onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}

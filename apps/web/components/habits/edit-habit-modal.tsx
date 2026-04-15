@@ -148,7 +148,7 @@ export function EditHabitModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
