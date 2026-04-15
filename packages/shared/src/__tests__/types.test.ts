@@ -1049,13 +1049,20 @@ describe('sync schemas', () => {
 
   describe('syncBatchRequestSchema', () => {
     it('parses valid batch request', () => {
+      // Matches Orbit.Api SyncController.SyncBatchRequest:
+      //   { Mutations: [{ Entity: string, Action: string, Id?: Guid, Data?: dict }] }
       const result = syncBatchRequestSchema.safeParse({
         mutations: [
           {
-            id: 'mut-1',
-            timestamp: '2025-01-01T00:00:00Z',
-            type: 'createHabit',
-            payload: { title: 'Test' },
+            entity: 'habit',
+            action: 'delete',
+            id: 'h-1',
+          },
+          {
+            entity: 'notification',
+            action: 'read',
+            id: 'n-1',
+            data: {},
           },
         ],
       })
@@ -1075,31 +1082,27 @@ describe('sync schemas', () => {
 
   describe('syncMutationResultSchema', () => {
     it('parses success result', () => {
+      // Matches Orbit.Api SyncController.SyncMutationResult:
+      //   { Index: int, Status: string, Error?: string }
       const result = syncMutationResultSchema.safeParse({
-        mutationId: 'mut-1',
+        index: 0,
         status: 'success',
       })
       expect(result.success).toBe(true)
     })
 
-    it('parses conflict result with error', () => {
+    it('parses failed result with error', () => {
       const result = syncMutationResultSchema.safeParse({
-        mutationId: 'mut-1',
-        status: 'conflict',
-        error: 'Version mismatch',
+        index: 1,
+        status: 'failed',
+        error: 'Habit not found',
       })
       expect(result.success).toBe(true)
     })
 
-    it('parses all valid statuses', () => {
-      for (const s of ['success', 'conflict', 'gone', 'error']) {
-        expect(syncMutationResultSchema.safeParse({ mutationId: 'x', status: s }).success).toBe(true)
-      }
-    })
-
     it('rejects invalid status', () => {
       const result = syncMutationResultSchema.safeParse({
-        mutationId: 'mut-1',
+        index: 0,
         status: 'pending',
       })
       expect(result.success).toBe(false)
@@ -1108,60 +1111,61 @@ describe('sync schemas', () => {
 
   describe('syncBatchResponseSchema', () => {
     it('parses valid batch response', () => {
+      // Matches Orbit.Api SyncController.SyncBatchResponse:
+      //   { Processed: int, Failed: int, Results: SyncMutationResult[] }
       const result = syncBatchResponseSchema.safeParse({
-        results: [{ mutationId: 'mut-1', status: 'success' }],
-        errors: [],
+        processed: 1,
+        failed: 0,
+        results: [{ index: 0, status: 'success' }],
       })
       expect(result.success).toBe(true)
     })
 
-    it('parses response with errors', () => {
+    it('parses response with failures', () => {
       const result = syncBatchResponseSchema.safeParse({
-        results: [],
-        errors: [{ mutationId: 'mut-2', status: 'error', error: 'Server error' }],
+        processed: 1,
+        failed: 1,
+        results: [
+          { index: 0, status: 'success' },
+          { index: 1, status: 'failed', error: 'Server error' },
+        ],
       })
       expect(result.success).toBe(true)
     })
 
     it('rejects missing results field', () => {
-      const result = syncBatchResponseSchema.safeParse({ errors: [] })
+      const result = syncBatchResponseSchema.safeParse({ processed: 0, failed: 0 })
       expect(result.success).toBe(false)
     })
   })
 
   describe('syncChangesResponseSchema', () => {
     it('parses valid sync changes response', () => {
+      // Matches Orbit.Api SyncController.SyncChangesResponse: per-entity { updated, deleted } sets
+      // plus serverTimestamp.
       const result = syncChangesResponseSchema.safeParse({
-        serverTime: '2025-01-15T10:00:00Z',
-        changes: {
-          habits: [],
-          goals: [],
-          tags: [],
-          notifications: [],
-          deletedIds: {
-            habits: [],
-            goals: [],
-            tags: [],
-          },
-        },
+        habits: { updated: [], deleted: [] },
+        habitLogs: { updated: [], deleted: [] },
+        goals: { updated: [], deleted: [] },
+        goalProgressLogs: { updated: [], deleted: [] },
+        tags: { updated: [], deleted: [] },
+        notifications: { updated: [], deleted: [] },
+        checklistTemplates: { updated: [], deleted: [] },
+        serverTimestamp: '2025-01-15T10:00:00Z',
       })
       expect(result.success).toBe(true)
     })
 
     it('parses response with populated arrays', () => {
       const result = syncChangesResponseSchema.safeParse({
-        serverTime: '2025-01-15T10:00:00Z',
-        changes: {
-          habits: [{ id: 'h-1', title: 'Exercise' }],
-          goals: [{ id: 'g-1', title: 'Read' }],
-          tags: [{ id: 't-1', name: 'Health' }],
-          notifications: [{ id: 'n-1' }],
-          deletedIds: {
-            habits: ['h-2'],
-            goals: ['g-2'],
-            tags: ['t-2'],
-          },
-        },
+        habits: { updated: [{ id: 'h-1', title: 'Exercise' }], deleted: ['h-2'] },
+        habitLogs: { updated: [], deleted: [] },
+        goals: { updated: [{ id: 'g-1', title: 'Read' }], deleted: ['g-2'] },
+        goalProgressLogs: { updated: [], deleted: [] },
+        tags: { updated: [{ id: 't-1', name: 'Health' }], deleted: ['t-2'] },
+        notifications: { updated: [{ id: 'n-1' }], deleted: [] },
+        checklistTemplates: { updated: [], deleted: [] },
+        serverTimestamp: '2025-01-15T10:00:00Z',
       })
       expect(result.success).toBe(true)
     })

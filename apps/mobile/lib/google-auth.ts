@@ -150,7 +150,7 @@ export async function startMobileGoogleAuth({
       type: 'success',
       url: result.url,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     clearPendingGoogleAuthSession()
     throw error
   }

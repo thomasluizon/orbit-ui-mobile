@@ -369,7 +369,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
 
   try {
     return await execute(resolvedMutation)
-  } catch (error) {
+  } catch (error: unknown) {
     if (!isTransientNetworkError(error)) {
       throw error
     }
@@ -530,7 +530,7 @@ async function processQueuedMutationFlush(
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, shouldBreak: false, succeededDelta: 1 }
-  } catch (error) {
+  } catch (error: unknown) {
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
     return {
       failedDelta: failure.incrementFailed ? 1 : 0,

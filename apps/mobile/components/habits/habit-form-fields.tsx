@@ -1298,7 +1298,7 @@ export function HabitFormFields({
                   tags.deleteTag(tag.id, async (id) => {
                     try {
                       await deleteTag.mutateAsync(id);
-                    } catch (error) {
+                    } catch (error: unknown) {
                       showError(
                         getFriendlyErrorMessage(
                           error,
@@ -1358,7 +1358,7 @@ export function HabitFormFields({
                 void tags.saveEditTag(async (id, name, color) => {
                   try {
                     await updateTag.mutateAsync({ tagId: id, name, color });
-                  } catch (error) {
+                  } catch (error: unknown) {
                     showError(
                       getFriendlyErrorMessage(
                         error,
@@ -1410,7 +1410,7 @@ export function HabitFormFields({
                   try {
                     const result = await createTag.mutateAsync({ name, color });
                     return result.id;
-                  } catch (error) {
+                  } catch (error: unknown) {
                     showError(
                       getFriendlyErrorMessage(
                         error,

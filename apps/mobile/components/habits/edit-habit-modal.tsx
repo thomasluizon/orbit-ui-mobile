@@ -170,7 +170,7 @@ export function EditHabitModal({
         tagIds: tags.selectedTagIds,
       });
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
           error,

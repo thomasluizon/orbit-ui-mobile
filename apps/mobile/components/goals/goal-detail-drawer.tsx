@@ -199,7 +199,7 @@ export function GoalDetailDrawer({
       setShowProgressForm(false)
       await refetchDetail()
       void showInterstitialIfDue()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.progress', 'goalProgress'))
     }
   }, [
@@ -222,7 +222,7 @@ export function GoalDetailDrawer({
         goalName: goal?.title,
       })
       refetchDetail()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
   }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
@@ -236,7 +236,7 @@ export function GoalDetailDrawer({
         goalName: goal?.title,
       })
       refetchDetail()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
   }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
@@ -250,7 +250,7 @@ export function GoalDetailDrawer({
         goalName: goal?.title,
       })
       refetchDetail()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
   }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
@@ -263,7 +263,7 @@ export function GoalDetailDrawer({
     try {
       await deleteGoalMut.mutateAsync(goalId)
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
     }
   }, [deleteGoalMut, goalId, onClose, showError, translate])

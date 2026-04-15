@@ -161,7 +161,7 @@ export function useTagSelection(
       try {
         await deleteTagFn(tagId)
         setTagValidationErrorKey(null)
-      } catch (error) {
+      } catch (error: unknown) {
         setSelectedTagIds(previousSelectedTagIds)
         if (previousEditingState) {
           setEditingTagId(previousEditingState.id)

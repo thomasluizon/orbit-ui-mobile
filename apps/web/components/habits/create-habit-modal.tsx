@@ -221,7 +221,7 @@ export function CreateHabitModal({
           await createHabit.mutateAsync(request)
         }
         onOpenChange(false)
-      } catch (error) {
+      } catch (error: unknown) {
         showError(
           getFriendlyErrorMessage(
             error,

@@ -277,7 +277,7 @@ export function CreateHabitModal({
         await createHabit.mutateAsync(request);
       }
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
           error,
