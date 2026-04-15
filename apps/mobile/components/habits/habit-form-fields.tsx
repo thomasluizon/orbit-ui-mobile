@@ -1883,10 +1883,10 @@ function createSectionStyles(colors: ThemeColors) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
-      gap: 22,
+      gap: 24,
     },
     fieldGroup: {
-      gap: 8,
+      gap: 10,
     },
     label: {
       fontSize: 12,
@@ -2121,13 +2121,14 @@ function createStyles(colors: ThemeColors) {
     moreOptionsDivider: {
       borderTopWidth: 1,
       borderTopColor: colors.borderMuted,
-      paddingTop: 8,
+      paddingTop: 14,
+      marginTop: 4,
     },
     moreOptionsButton: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingVertical: 8,
+      paddingVertical: 6,
     },
     moreOptionsLabel: {
       fontSize: 14,
@@ -2144,13 +2145,14 @@ function createStyles(colors: ThemeColors) {
     },
     // Advanced section
     advancedSection: {
-      gap: 24,
+      gap: 28,
+      paddingTop: 12,
     },
     checkboxRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingVertical: 4,
+      paddingVertical: 6,
     },
     customCheckbox: {
       width: 20,
