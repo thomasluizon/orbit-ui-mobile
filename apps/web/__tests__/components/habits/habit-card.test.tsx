@@ -450,17 +450,32 @@ describe('HabitCard', () => {
   // Avatar + Arc redesign
   // ---------------------------------------------------------------------------
 
-  it('renders the emoji when the habit has an icon', () => {
+  it('renders the emoji tile when the habit has an icon', () => {
     const habit = createMockHabit({ title: 'Run', icon: '🏃' })
     render(<HabitCard habit={habit} />)
     expect(screen.getByText('🏃')).toBeDefined()
   })
 
-  it('falls back to the title initial when icon is missing', () => {
+  it('omits the decorative emoji tile when the habit has no icon', () => {
     const habit = createMockHabit({ title: 'Morning run', icon: null })
     render(<HabitCard habit={habit} />)
-    // The initial is uppercased by getHabitInitial
-    expect(screen.getByText('M')).toBeDefined()
+    // The emoji tile is identified by the "{title} - {No icon}" aria-label.
+    // When the habit has no icon at all, the card does not render the tile
+    // so horizontal space is reserved for the title + meta.
+    expect(screen.queryByLabelText(/habits\.form\.iconNone/)).toBeNull()
+  })
+
+  it('decorative emoji tile is not interactive', () => {
+    // The emoji tile used to be the log button; after the split it is purely
+    // decorative so tapping it must not fire onLog or open detail (click
+    // bubbles to the card-level handler which opens detail).
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    const habit = createMockHabit({ title: 'Run', icon: '🏃' })
+    render(<HabitCard habit={habit} actions={{ onDetail, onLog }} />)
+    fireEvent.click(screen.getByText('🏃'))
+    expect(onLog).not.toHaveBeenCalled()
+    expect(onDetail).toHaveBeenCalledOnce()
   })
 
   it('tapping the avatar tile logs an incomplete habit', () => {

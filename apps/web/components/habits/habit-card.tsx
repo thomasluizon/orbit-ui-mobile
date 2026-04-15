@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { HighlightText } from '@/components/ui/highlight-text'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { HabitAvatarTile } from './habit-avatar-tile'
+import { HabitLogButton } from './habit-log-button'
 import { HabitMetaRow } from './habit-meta-row'
 import { HabitCardMenu, type HabitCardMenuItem } from './habit-card-menu'
 import {
@@ -444,45 +445,53 @@ export const HabitCard = React.memo(function HabitCard({
           </div>
         ) : null}
 
-        {/* Avatar tile (or selection checkbox in select mode).
-            In select mode the whole card toggles selection, so we let the
-            tap bubble up to the card-level handler. Outside select mode
-            the avatar tile logs the habit and must NOT also trigger the
-            detail modal — hence `data-card-click-ignore` + stopPropagation. */}
-        <div
-          className="relative z-10 shrink-0"
-          data-card-click-ignore={isSelectMode ? undefined : ''}
-        >
-          {isSelectMode ? (
+        {/* Log/finalize button + decorative emoji tile (or selection checkbox
+            in select mode). The log button is an interactive target that must
+            NOT bubble to the card-level detail handler (hence its own
+            `data-card-click-ignore` + stopPropagation). The emoji tile is
+            purely decorative — clicks on it fall through to the card handler
+            so there is no dead zone on the card surface. */}
+        {isSelectMode ? (
+          <div className="relative z-10 shrink-0">
             <SelectionCircle
               isSelected={isSelected}
               habitTitle={habit.title}
-              size={tileSize === 'md' ? 56 : 44}
+              size={tileSize === 'md' ? 52 : 40}
             />
-          ) : (
-            <HabitAvatarTile
-              icon={habit.icon}
-              title={habit.title}
-              size={tileSize}
-              isCompleted={isCompletedForRange}
-              isOverdue={status === 'overdue'}
-              isBadHabit={!!habit.isBadHabit}
-              showArc={showArc && !isChild}
-              progressRatio={isParentWithChildren ? childRatio : progressRatio}
-              centerLabel={tileCenterLabel}
-              isDisabled={isNotDueToday && !isCompletedForRange}
-              showCheckBadge={isCompletedForRange}
-              pulse={pulseTile}
-              glow={glowTile}
-              onClick={handleTileTap}
-              ariaLabel={
-                isCompletedForRange
-                  ? t('habits.actions.unlog', { title: habit.title })
-                  : t('habits.logHabit')
-              }
-            />
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="relative z-10 shrink-0 flex items-center gap-2">
+            <div data-card-click-ignore>
+              <HabitLogButton
+                size={tileSize}
+                isCompleted={isCompletedForRange}
+                isOverdue={status === 'overdue'}
+                isBadHabit={!!habit.isBadHabit}
+                showArc={showArc && !isChild}
+                progressRatio={isParentWithChildren ? childRatio : progressRatio}
+                centerLabel={tileCenterLabel}
+                isDisabled={isNotDueToday && !isCompletedForRange}
+                pulse={pulseTile}
+                glow={glowTile}
+                onClick={handleTileTap}
+                ariaLabel={
+                  isCompletedForRange
+                    ? t('habits.actions.unlog', { title: habit.title })
+                    : t('habits.logHabit')
+                }
+              />
+            </div>
+            {habit.icon && habit.icon.trim().length > 0 ? (
+              <HabitAvatarTile
+                icon={habit.icon}
+                title={habit.title}
+                size={tileSize}
+                isCompleted={isCompletedForRange}
+                isBadHabit={!!habit.isBadHabit}
+              />
+            ) : null}
+          </div>
+        )}
 
         {/* Title + meta */}
         <div className="relative z-10 flex-1 min-w-0">
