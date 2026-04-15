@@ -1,13 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
-
-const mockReplayQueue = vi.fn().mockResolvedValue({ synced: 5 })
-const mockGetQueueSize = vi.fn().mockResolvedValue(0)
-
-vi.mock('@/lib/offline-queue', () => ({
-  replayQueue: () => mockReplayQueue(),
-  getQueueSize: () => mockGetQueueSize(),
-}))
+import { renderHook, act } from '@testing-library/react'
 
 import { useOffline } from '@/hooks/use-offline'
 
@@ -18,8 +10,6 @@ describe('useOffline', () => {
   beforeEach(() => {
     onlineHandlers = []
     offlineHandlers = []
-    mockReplayQueue.mockClear()
-    mockGetQueueSize.mockClear().mockResolvedValue(0)
 
     Object.defineProperty(navigator, 'onLine', { value: true, writable: true, configurable: true })
 
@@ -49,34 +39,12 @@ describe('useOffline', () => {
     expect(result.current.isOnline).toBe(false)
   })
 
-  it('checks queue size on mount', async () => {
-    mockGetQueueSize.mockResolvedValue(3)
+  it('updates to online on online event after being offline', () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     const { result } = renderHook(() => useOffline())
-    await waitFor(() => expect(result.current.queueSize).toBe(3))
-  })
-
-  it('sync replays queue and updates queue size', async () => {
-    mockReplayQueue.mockResolvedValue({ synced: 2 })
-    mockGetQueueSize.mockResolvedValue(0)
-
-    const { result } = renderHook(() => useOffline())
-
-    await act(async () => {
-      await result.current.sync()
+    act(() => {
+      onlineHandlers.forEach((h) => h())
     })
-
-    expect(mockReplayQueue).toHaveBeenCalled()
-    expect(result.current.queueSize).toBe(0)
-  })
-
-  it('refreshQueueSize updates count', async () => {
-    mockGetQueueSize.mockResolvedValueOnce(0).mockResolvedValueOnce(5)
-    const { result } = renderHook(() => useOffline())
-
-    await act(async () => {
-      await result.current.refreshQueueSize()
-    })
-
-    expect(result.current.queueSize).toBe(5)
+    expect(result.current.isOnline).toBe(true)
   })
 })
