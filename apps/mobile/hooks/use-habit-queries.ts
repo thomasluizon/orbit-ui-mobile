@@ -1,20 +1,16 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { endOfMonth, startOfMonth } from 'date-fns'
 import { habitKeys, QUERY_STALE_TIMES, HABITS_REFETCH_INTERVAL } from '@orbit/shared/query'
 import { isAppActive, isOnline } from '@/lib/query-client'
 import { API } from '@orbit/shared/api'
 import {
-  buildCalendarDayMap,
   buildHabitQueryString,
   buildUrlWithQuery,
   fetchAllPaginatedItems,
-  formatAPIDate,
   normalizeHabitQueryData,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
-  CalendarMonthResponse,
   HabitDetail,
   HabitFullDetail,
   HabitMetrics,
@@ -35,17 +31,20 @@ export interface NormalizedHabitsData {
   currentPage: number
 }
 
-interface SummaryResponse {
-  summary: string
-  fromCache: boolean
-}
+// Module-level stable reference so TanStack Query's select doesn't produce a fresh
+// data object every render. Without this, every consumer of useHabits re-renders on
+// every state change, defeating React.memo on HabitCard.
+const selectNormalizedHabits = (items: HabitScheduleItem[]): NormalizedHabitsData =>
+  normalizeHabitQueryData(items)
 
-interface UseSummaryOptions {
-  date: string
-  locale: string
-  hasProAccess: boolean
-  aiSummaryEnabled: boolean
-}
+// Stable empty fallbacks for components that destructure useHabits data before it
+// loads. Using `?? new Map()` inline creates a fresh reference each render which
+// also defeats React.memo downstream. Types match the non-readonly NormalizedHabitsData
+// shape so consumers don't need to fight the type system -- treat these as read-only
+// by convention.
+export const EMPTY_HABITS_BY_ID: Map<string, NormalizedHabit> = new Map()
+export const EMPTY_CHILDREN_BY_PARENT: Map<string, string[]> = new Map()
+export const EMPTY_NORMALIZED_HABITS: NormalizedHabit[] = []
 
 export function useHabits(filters: HabitsFilter) {
   const query = useQuery({
@@ -69,7 +68,7 @@ export function useHabits(filters: HabitsFilter) {
       )
     },
     staleTime: QUERY_STALE_TIMES.habits,
-    select: (items): NormalizedHabitsData => normalizeHabitQueryData(items),
+    select: selectNormalizedHabits,
     // Auto-refresh Today-style single-day queries every ~30s so the list stays
     // fresh across midnight rollovers and other-device logs. Calendar/month
     // range queries stay event-driven only. Polling pauses when the app is
@@ -147,68 +146,8 @@ export function useHabitFullDetail(id: string | null) {
   })
 }
 
-export function useCalendarData(currentMonth: Date) {
-  const monthStart = formatAPIDate(startOfMonth(currentMonth))
-  const monthEnd = formatAPIDate(endOfMonth(currentMonth))
-
-  const query = useQuery({
-    queryKey: habitKeys.calendar(monthStart, monthEnd),
-    queryFn: () =>
-      apiClient<CalendarMonthResponse>(
-        `${API.habits.calendarMonth}?dateFrom=${monthStart}&dateTo=${monthEnd}`,
-      ),
-    staleTime: QUERY_STALE_TIMES.habits,
-  })
-
-  const dayMap = useMemo(() => {
-    if (!query.data) return new Map()
-    return buildCalendarDayMap(query.data)
-  }, [query.data])
-
-  return {
-    dayMap,
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    error: query.error?.message ?? null,
-    refresh: () => query.refetch(),
-  }
-}
-
-export function useSummary({
-  date,
-  locale,
-  hasProAccess,
-  aiSummaryEnabled,
-}: UseSummaryOptions) {
-  const enabled = hasProAccess && aiSummaryEnabled && !!date
-
-  const query = useQuery({
-    queryKey: habitKeys.summary(date, date, locale),
-    queryFn: async (): Promise<string> => {
-      const params = new URLSearchParams({
-        dateFrom: date,
-        dateTo: date,
-        includeOverdue: 'true',
-        language: locale,
-      })
-
-      const data = await apiClient<SummaryResponse>(
-        `${API.habits.summary}?${params.toString()}`,
-      )
-      return data.summary
-    },
-    enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes -- summary is expensive, no need for frequent refresh
-    refetchOnWindowFocus: false,
-  })
-
-  return {
-    summary: query.data ?? null,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
-  }
-}
+// useCalendarData lives in ./use-calendar-data for parity with apps/web/hooks.
+// useSummary lives in ./use-summary for parity with apps/web/hooks.
 
 export function useTotalHabitCount(): number {
   const query = useQuery({

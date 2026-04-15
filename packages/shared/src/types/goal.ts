@@ -75,7 +75,9 @@ export const goalSchema = z.object({
   createdAtUtc: z.string(),
   completedAtUtc: z.string().nullable(),
   progressPercentage: z.number(),
-  trackingStatus: z.string().optional(),
+  // Backend sends `null` for goals in non-trackable states (e.g., Abandoned). z.string()
+  // alone would reject null and crash Zod parse on the list endpoint, so allow both.
+  trackingStatus: z.string().nullable().optional(),
   linkedHabits: z.array(linkedHabitInfoSchema).optional(),
 })
 

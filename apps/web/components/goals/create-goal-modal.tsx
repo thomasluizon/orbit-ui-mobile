@@ -260,7 +260,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         await createGoal.mutateAsync(request)
         onOpenChange(false)
         resetForm()
-      } catch (error) {
+      } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },

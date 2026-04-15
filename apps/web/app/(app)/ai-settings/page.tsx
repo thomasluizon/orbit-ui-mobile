@@ -24,6 +24,7 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
+import { bulkDeleteUserFacts, deleteUserFact } from '@/app/actions/user-facts'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import type { UserFact } from '@orbit/shared/types/user-fact'
 
@@ -33,19 +34,8 @@ async function fetchUserFacts(): Promise<UserFact[]> {
   return res.json()
 }
 
-async function deleteUserFact(id: string): Promise<void> {
-  const res = await fetch(`/api/user-facts/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to delete fact')
-}
-
-async function bulkDeleteUserFacts(ids: string[]): Promise<void> {
-  const res = await fetch(API.userFacts.bulk, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids }),
-  })
-  if (!res.ok) throw new Error('Failed to delete facts')
-}
+// deleteUserFact and bulkDeleteUserFacts live in app/actions/user-facts.ts so mutations
+// go through the Server Action layer (per CLAUDE.md BFF rule).
 
 // ---------------------------------------------------------------------------
 // Helpers (pure functions -- outer scope per SonarQube S7721)

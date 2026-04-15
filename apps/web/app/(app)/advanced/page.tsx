@@ -38,8 +38,8 @@ import type {
   AgentCapability,
   ApiKey,
   ApiKeyCreateRequest,
-  ApiKeyCreateResponse,
 } from '@orbit/shared/types'
+import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetch(API.apiKeys.list)
@@ -55,20 +55,8 @@ async function fetchCapabilities(): Promise<AgentCapability[]> {
   return res.json()
 }
 
-async function createApiKey(request: ApiKeyCreateRequest): Promise<ApiKeyCreateResponse> {
-  const res = await fetch(API.apiKeys.create, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  })
-  if (!res.ok) throw new Error('Failed to create API key')
-  return res.json()
-}
-
-async function revokeApiKey(id: string): Promise<void> {
-  const res = await fetch(`/api/api-keys/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to revoke API key')
-}
+// createApiKey and revokeApiKey live in app/actions/api-keys.ts so mutations go through
+// the Server Action layer (per CLAUDE.md BFF rule) rather than raw client-side fetches.
 
 // ---------------------------------------------------------------------------
 // Standalone helpers (S7721: moved to module scope)
@@ -173,8 +161,9 @@ export default function AdvancedPage() {
       const result = await createApiKey(request)
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch (err: unknown) {
-      setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
+    } catch {
+      // Errors thrown by createApiKey are developer-facing identifiers; translate for display.
+      setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }
   }
@@ -301,7 +290,7 @@ export default function AdvancedPage() {
                             <p className="text-sm font-medium text-text-primary truncate">{key.name}</p>
                             <p className="text-xs font-mono text-text-muted mt-0.5">{key.keyPrefix}...</p>
                             <p className="text-[10px] text-text-muted mt-1">
-                              {scopes.length > 0 ? scopes.join(', ') : 'No scopes'}
+                              {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
@@ -311,11 +300,11 @@ export default function AdvancedPage() {
                               {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </p>
                             <p className="text-[10px] text-text-muted">
-                              {isReadOnly ? 'Read-only' : 'Read/write'}
+                              {isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
                             </p>
                             {expiresAtUtc && (
                               <p className="text-[10px] text-text-muted">
-                                Expires {formatKeyDate(expiresAtUtc)}
+                                {t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}
                               </p>
                             )}
                           </div>

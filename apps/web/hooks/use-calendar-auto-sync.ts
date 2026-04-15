@@ -16,6 +16,11 @@ import type {
 import { z } from 'zod'
 import { extractBackendError } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
+import {
+  dismissCalendarSuggestion as dismissCalendarSuggestionAction,
+  runCalendarSyncNow as runCalendarSyncNowAction,
+  setCalendarAutoSync as setCalendarAutoSyncAction,
+} from '@/app/actions/calendar'
 
 interface CalendarQueryOptions {
   enabled?: boolean
@@ -110,7 +115,7 @@ export function useSetCalendarAutoSync() {
 
   return useMutation<void, Error, { enabled: boolean }, { previous: CalendarAutoSyncState | undefined }>({
     mutationFn: async ({ enabled }) => {
-      await sendJsonRequest(API.calendar.autoSync, 'PUT', { enabled })
+      await setCalendarAutoSyncAction(enabled)
     },
 
     onMutate: async ({ enabled }) => {
@@ -151,7 +156,7 @@ export function useRunCalendarSyncNow() {
 
   return useMutation<CalendarAutoSyncResult, Error, void>({
     mutationFn: async () => {
-      const raw = await sendWriteRequest(API.calendar.autoSyncRun, 'POST')
+      const raw = await runCalendarSyncNowAction()
       return calendarAutoSyncResultSchema.parse(raw)
     },
 
@@ -171,7 +176,7 @@ export function useDismissCalendarSuggestion() {
 
   return useMutation<void, Error, { id: string }, { previous: CalendarSyncSuggestion[] | undefined }>({
     mutationFn: async ({ id }) => {
-      await sendWriteRequest(API.calendar.autoSyncDismissSuggestion(id), 'PUT')
+      await dismissCalendarSuggestionAction(id)
     },
 
     onMutate: async ({ id }) => {

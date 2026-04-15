@@ -43,6 +43,9 @@ import { plural } from '@/lib/plural'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { useProfile } from '@/hooks/use-profile'
 import {
+  EMPTY_CHILDREN_BY_PARENT,
+  EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   useHabits,
   useDeleteHabit,
 } from '@/hooks/use-habits'
@@ -365,8 +368,8 @@ export default function TodayScreen() {
   }, [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   const habitsQuery = useHabits(filters)
-  const habitsById = habitsQuery.data?.habitsById ?? new Map()
-  const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
+  const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
 
   // Sync detailHabit from live query data so checklist changes are reflected in the drawer
   useEffect(() => {
@@ -401,7 +404,7 @@ export default function TodayScreen() {
   })
 
   const visibleTopLevelHabits = useMemo(() => {
-    const habits = habitsQuery.data?.topLevelHabits ?? []
+    const habits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
     if (currentActiveView === 'today') {
       if (showCompleted) return habits
       return habits.filter((habit) => visibility.hasVisibleContent(habit))

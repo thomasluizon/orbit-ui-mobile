@@ -130,7 +130,7 @@ export function EditHabitModal({
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
         await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
         onOpenChange(false)
-      } catch (error) {
+      } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },

@@ -44,6 +44,9 @@ import {
 import { useUIStore } from '@/stores/ui-store'
 
 export {
+  EMPTY_CHILDREN_BY_PARENT,
+  EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   normalizeHabits,
   sortByPosition,
   type NormalizedHabitsData,

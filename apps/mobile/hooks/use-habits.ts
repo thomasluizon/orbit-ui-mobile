@@ -76,18 +76,21 @@ type HabitListSnapshots = ReadonlyArray<
   readonly [readonly unknown[], HabitScheduleItem[] | undefined]
 >
 export {
+  EMPTY_CHILDREN_BY_PARENT,
+  EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   normalizeHabits,
   sortByPosition,
   type NormalizedHabitsData,
-  useCalendarData,
   useHabitDetail,
   useHabitFullDetail,
   useHabitLogs,
   useHabitMetrics,
   useHabits,
-  useSummary,
   useTotalHabitCount,
 } from './use-habit-queries'
+export { useCalendarData } from './use-calendar-data'
+export { useSummary } from './use-summary'
 
 // ---------------------------------------------------------------------------
 // Mutations

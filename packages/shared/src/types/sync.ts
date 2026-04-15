@@ -62,47 +62,59 @@ export const queuedMutationSchema = z.object({
 })
 export type QueuedMutation = z.infer<typeof queuedMutationSchema>
 
-// Batch sync request
+// Batch sync request -- matches Orbit.Api SyncController.SyncBatchRequest:
+//   { Mutations: [{ Entity: string, Action: string, Id?: Guid, Data?: dict }] }
+// The backend handler dispatches on (Entity, Action). Supported pairs as of writing:
+//   habit/delete, goal/delete, tag/delete, notification/read.
+export const syncBatchMutationSchema = z.object({
+  entity: z.string(),
+  action: z.string(),
+  id: z.string().nullable().optional(),
+  data: z.record(z.string(), z.unknown()).nullable().optional(),
+})
+export type SyncBatchMutation = z.infer<typeof syncBatchMutationSchema>
+
 export const syncBatchRequestSchema = z.object({
-  mutations: z.array(z.object({
-    id: z.string(),
-    timestamp: z.string(),
-    type: mutationTypeSchema,
-    payload: z.unknown(),
-  })),
+  mutations: z.array(syncBatchMutationSchema),
 })
 export type SyncBatchRequest = z.infer<typeof syncBatchRequestSchema>
 
-// Single mutation result
+// Single mutation result -- matches Orbit.Api SyncController.SyncMutationResult:
+//   { Index: int, Status: string, Error?: string }
 export const syncMutationResultSchema = z.object({
-  mutationId: z.string(),
-  status: z.enum(['success', 'conflict', 'gone', 'error']),
-  data: z.unknown().optional(),
-  error: z.string().optional(),
+  index: z.number(),
+  status: z.enum(['success', 'failed']),
+  error: z.string().nullable().optional(),
 })
 export type SyncMutationResult = z.infer<typeof syncMutationResultSchema>
 
-// Batch sync response
+// Batch sync response -- matches Orbit.Api SyncController.SyncBatchResponse:
+//   { Processed: int, Failed: int, Results: SyncMutationResult[] }
 export const syncBatchResponseSchema = z.object({
+  processed: z.number(),
+  failed: z.number(),
   results: z.array(syncMutationResultSchema),
-  errors: z.array(syncMutationResultSchema),
 })
 export type SyncBatchResponse = z.infer<typeof syncBatchResponseSchema>
 
-// Delta sync response from GET /api/sync/changes
+// Per-entity-set delta -- legacy V1 shape returns raw EF entities in `updated` (callers must
+// use `unknown` since the V1 endpoint exposes the full entity, not a typed DTO). Prefer V2.
+const syncEntitySetSchema = z.object({
+  updated: z.array(z.unknown()),
+  deleted: z.array(z.string()), // soft-deleted entity IDs
+})
+
+// Delta sync response from GET /api/sync/changes -- legacy V1.
+// Matches Orbit.Api SyncController.SyncChangesResponse.
 export const syncChangesResponseSchema = z.object({
-  serverTime: z.string(),
-  changes: z.object({
-    habits: z.array(z.unknown()),
-    goals: z.array(z.unknown()),
-    tags: z.array(z.unknown()),
-    notifications: z.array(z.unknown()),
-    deletedIds: z.object({
-      habits: z.array(z.string()),
-      goals: z.array(z.string()),
-      tags: z.array(z.string()),
-    }),
-  }),
+  habits: syncEntitySetSchema,
+  habitLogs: syncEntitySetSchema,
+  goals: syncEntitySetSchema,
+  goalProgressLogs: syncEntitySetSchema,
+  tags: syncEntitySetSchema,
+  notifications: syncEntitySetSchema,
+  checklistTemplates: syncEntitySetSchema,
+  serverTimestamp: z.string(),
 })
 export type SyncChangesResponse = z.infer<typeof syncChangesResponseSchema>
 

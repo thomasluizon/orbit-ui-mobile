@@ -204,16 +204,16 @@ export function CreateApiKeyModal({
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-background px-4 py-3 text-xs text-text-secondary space-y-1">
             <p>
-              <span className="font-semibold text-text-primary">Scopes:</span>{' '}
-              {createdKey?.scopes.length ? createdKey.scopes.join(', ') : 'None'}
+              <span className="font-semibold text-text-primary">{t('orbitMcp.scopesLabel')}</span>{' '}
+              {createdKey?.scopes.length ? createdKey.scopes.join(', ') : t('orbitMcp.noScopes')}
             </p>
             <p>
-              <span className="font-semibold text-text-primary">Read-only:</span>{' '}
+              <span className="font-semibold text-text-primary">{t('orbitMcp.readOnlyLabel')}</span>{' '}
               {createdKey?.isReadOnly ? t('common.yes') : t('common.no')}
             </p>
             {createdKey?.expiresAtUtc && (
               <p>
-                <span className="font-semibold text-text-primary">Expires:</span>{' '}
+                <span className="font-semibold text-text-primary">{t('orbitMcp.expiresLabel')}</span>{' '}
                 {createdKey.expiresAtUtc}
               </p>
             )}
@@ -306,12 +306,12 @@ export function CreateApiKeyModal({
               onChange={(event) => setIsReadOnly(event.target.checked)}
               className="accent-primary"
             />
-            <span className="text-xs text-text-primary">Read-only key</span>
+            <span className="text-xs text-text-primary">{t('orbitMcp.readOnlyKeyLabel')}</span>
           </label>
 
           <div>
             <label htmlFor="api-key-expiry" className="form-label">
-              Expires At (UTC, optional)
+              {t('orbitMcp.expiresAtLabel')}
             </label>
             <input
               id="api-key-expiry"

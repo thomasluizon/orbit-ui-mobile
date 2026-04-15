@@ -169,7 +169,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
 
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

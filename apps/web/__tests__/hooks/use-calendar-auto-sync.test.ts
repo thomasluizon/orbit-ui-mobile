@@ -20,6 +20,33 @@ import type {
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+// Mock the calendar Server Actions so they don't hit Next.js cookies() in the test
+// environment. Each delegates to mockFetch so assertions on fetch calls still work.
+vi.mock('@/app/actions/calendar', () => ({
+  setCalendarAutoSync: vi.fn(async (enabled: boolean) => {
+    const res = await fetch('/api/calendar/auto-sync', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw new Error(body?.error ?? `Request failed with status ${res.status}`)
+    }
+    return res.status === 204 ? null : res.json()
+  }),
+  runCalendarSyncNow: vi.fn(async () => {
+    const res = await fetch('/api/calendar/auto-sync/run', { method: 'POST' })
+    if (!res.ok) throw new Error(`Request failed with status ${res.status}`)
+    return res.json()
+  }),
+  dismissCalendarSuggestion: vi.fn(async (id: string) => {
+    const res = await fetch(`/api/calendar/auto-sync/suggestions/${id}/dismiss`, { method: 'PUT' })
+    if (!res.ok) throw new Error(`Request failed with status ${res.status}`)
+  }),
+  dismissCalendarImport: vi.fn(),
+}))
+
 function createWrapper(queryClient?: QueryClient) {
   const client =
     queryClient ??

@@ -183,7 +183,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
       await createGoal.mutateAsync(request)
       onClose()
       resetForm()
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

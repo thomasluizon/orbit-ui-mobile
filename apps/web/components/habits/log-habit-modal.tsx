@@ -76,7 +76,7 @@ export function LogHabitModal({
       onLogged?.(habit.id)
       onOpenChange(false)
       setNote('')
-    } catch (error) {
+    } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'errors.logHabit', 'habitLog'))
     }
   }, [habit, logHabit, note, onLogged, onOpenChange, showError, translate])

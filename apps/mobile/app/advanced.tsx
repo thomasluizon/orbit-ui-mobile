@@ -318,7 +318,7 @@ export default function AdvancedScreen() {
                             <Text style={styles.apiKeyName}>{key.name}</Text>
                             <Text style={styles.apiKeyPrefix}>{key.keyPrefix}...</Text>
                             <Text style={styles.apiKeyMeta}>
-                              {key.scopes.length > 0 ? key.scopes.join(', ') : 'No scopes'}
+                              {key.scopes.length > 0 ? key.scopes.join(', ') : t('orbitMcp.noScopes')}
                             </Text>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
@@ -327,11 +327,11 @@ export default function AdvancedScreen() {
                               {t('orbitMcp.lastUsed')} {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </Text>
                             <Text style={styles.apiKeyDate}>
-                              {key.isReadOnly ? 'Read-only' : 'Read/write'}
+                              {key.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
                             </Text>
                             {key.expiresAtUtc && (
                               <Text style={styles.apiKeyDate}>
-                                Expires {formatKeyDate(key.expiresAtUtc)}
+                                {t('orbitMcp.expiresOn', { date: formatKeyDate(key.expiresAtUtc) })}
                               </Text>
                             )}
                           </View>

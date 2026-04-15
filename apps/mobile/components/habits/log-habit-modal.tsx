@@ -92,7 +92,7 @@ export function LogHabitModal({
       onLogged?.(habit.id);
       onClose();
       setNote("");
-    } catch (error) {
+    } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
           error,

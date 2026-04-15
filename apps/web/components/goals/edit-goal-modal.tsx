@@ -149,7 +149,7 @@ export function EditGoalModal({
 
         await updateGoal.mutateAsync({ goalId: goal.id, data: request })
         onOpenChange(false)
-      } catch (error) {
+      } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
