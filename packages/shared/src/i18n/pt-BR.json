@@ -477,6 +477,8 @@
       "searchPlaceholder": "Buscar emojis...",
       "recents": "Recentes",
       "noResults": "Nenhum emoji encontrado",
+      "noResultsHint": "Tente uma palavra diferente ou navegue pelas categorias.",
+      "hoverHint": "Passe o cursor ou foque em um emoji para ver o nome",
       "skinTone": "Tom de pele",
       "clear": "Limpar",
       "useDefault": "Usar padrão: {initial}",

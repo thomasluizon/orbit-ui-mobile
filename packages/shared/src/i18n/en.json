@@ -477,6 +477,8 @@
       "searchPlaceholder": "Search emojis...",
       "recents": "Recent",
       "noResults": "No emojis match your search",
+      "noResultsHint": "Try a different word or browse the categories.",
+      "hoverHint": "Hover or focus an emoji to see its name",
       "skinTone": "Skin tone",
       "clear": "Clear",
       "useDefault": "Use default: {initial}",
