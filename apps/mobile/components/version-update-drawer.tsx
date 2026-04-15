@@ -71,14 +71,17 @@ export function VersionUpdateDrawer() {
   }, [updateAvailable, forceUpdate, snoozeLoaded, snoozedUntil, dismissedForSession])
 
   // iOS path: custom sheet with a link to the App Store. Apple provides no
-  // in-app update API, so this is the standard approach.
+  // in-app update API, so this is the standard approach. Suppress the prompt
+  // when we have no store URL to send the user to -- otherwise the primary CTA
+  // would be a no-op.
   const shouldShowIosSheet = useMemo(() => {
     if (Platform.OS !== 'ios') return false
     if (!updateAvailable) return false
+    if (!iosStoreUrl) return false
     if (!snoozeLoaded) return false
     const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
     return !isSnoozed && !dismissedForSession
-  }, [updateAvailable, snoozeLoaded, snoozedUntil, dismissedForSession])
+  }, [updateAvailable, iosStoreUrl, snoozeLoaded, snoozedUntil, dismissedForSession])
 
   const handleIosUpdate = useCallback(() => {
     if (!iosStoreUrl) return

@@ -18,6 +18,7 @@ import Svg, {
 } from 'react-native-svg'
 import { Info, Shield, Snowflake, Sparkles, X } from 'lucide-react-native'
 import { formatLocaleDate } from '@orbit/shared/utils'
+import { plural } from '@/lib/plural'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -179,10 +180,13 @@ export function FreezeProgressCard(props: FreezeProgressCardProps) {
     }
     if (streak <= 0) return t('streakDisplay.freeze.noFreezesAvailable')
     if (daysUntilNextFreeze === 0) return t('streakDisplay.freeze.progressReady')
-    return t('streakDisplay.freeze.progressSubtitle', {
-      days: daysUntilNextFreeze,
-      count: daysUntilNextFreeze,
-    })
+    return plural(
+      t('streakDisplay.freeze.progressSubtitle', {
+        days: daysUntilNextFreeze,
+        count: daysUntilNextFreeze,
+      }),
+      daysUntilNextFreeze,
+    )
   })()
 
   return (
