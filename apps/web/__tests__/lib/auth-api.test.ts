@@ -23,6 +23,7 @@ import {
   setSessionCookies,
   clearSessionCookies,
   tryRefreshSession,
+  __resetRefreshInflightForTests,
 } from '@/lib/auth-api'
 
 describe('getAuthHeaders', () => {
@@ -174,6 +175,7 @@ describe('tryRefreshSession', () => {
     mockCookieStore.get.mockReset()
     mockCookieStore.set.mockReset()
     mockFetch.mockReset()
+    __resetRefreshInflightForTests()
   })
 
   it('returns null and clears cookies when no refresh token', async () => {
@@ -233,5 +235,67 @@ describe('tryRefreshSession', () => {
 
     const result = await tryRefreshSession()
     expect(result).toBeNull()
+  })
+
+  it('dedupes 5 concurrent refreshes into a single network call (single-flight mutex)', async () => {
+    mockCookieStore.get.mockImplementation((name: string) => {
+      if (name === 'refresh_token') return { value: 'shared-refresh' }
+      return undefined
+    })
+
+    // Pin the fetch resolution behind a deferred so we can prove all 5
+    // callers are awaiting the same promise before any of them resolve.
+    let resolveFetch!: (val: unknown) => void
+    const fetchPromise = new Promise((resolve) => { resolveFetch = resolve })
+    mockFetch.mockReturnValue(fetchPromise)
+
+    const callers = Array.from({ length: 5 }, () => tryRefreshSession())
+
+    // tryRefreshSession awaits getRefreshToken (cookie read) before it
+    // issues the underlying fetch. Let the microtask queue drain so all
+    // 5 callers reach the single-flight check before we assert.
+    await new Promise((r) => setTimeout(r, 0))
+
+    // All 5 callers in flight; only one network call should have happened.
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    // Resolve the single underlying refresh.
+    resolveFetch({
+      ok: true,
+      json: () => Promise.resolve({ token: 'new-jwt', refreshToken: 'new-refresh' }),
+    })
+
+    const results = await Promise.all(callers)
+    expect(results).toEqual(['new-jwt', 'new-jwt', 'new-jwt', 'new-jwt', 'new-jwt'])
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts a fresh flight after the previous one resolved', async () => {
+    mockCookieStore.get.mockImplementation((name: string) => {
+      if (name === 'refresh_token') return { value: 'shared-refresh' }
+      return undefined
+    })
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ token: 'jwt-1', refreshToken: 'refresh-2' }),
+    })
+
+    await tryRefreshSession()
+
+    // After the first flight settled, a second call should issue a new
+    // network refresh — not silently re-use the resolved promise.
+    mockCookieStore.get.mockImplementation((name: string) => {
+      if (name === 'refresh_token') return { value: 'refresh-2' }
+      return undefined
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ token: 'jwt-2', refreshToken: 'refresh-3' }),
+    })
+
+    const result = await tryRefreshSession()
+    expect(result).toBe('jwt-2')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })

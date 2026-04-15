@@ -206,6 +206,7 @@
       "invalidEmail": "Esse e-mail não parece válido. Verifique e tente de novo.",
       "emailNotFound": "Não encontramos uma conta com esse e-mail.",
       "invalidCode": "Esse código não confere. Verifique o e-mail e tente de novo.",
+      "codeMustBeDigits": "Os códigos de verificação têm 6 dígitos. Letras e símbolos não são permitidos.",
       "codeExpired": "Esse código expirou. Toque em reenviar para receber um novo.",
       "tooManyAttempts": "Muitas tentativas. Toque em reenviar para receber um novo código.",
       "rateLimited": "Você está indo rápido demais. Aguarde um instante e tente de novo.",

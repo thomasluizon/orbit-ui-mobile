@@ -81,32 +81,36 @@ export async function clearSessionCookies(): Promise<void> {
 }
 
 /**
- * Attempts to refresh the session using the refresh_token cookie.
- * On success, updates both cookies and returns the new access token.
- * On failure, clears both cookies and returns null.
+ * Module-scoped single-flight map keyed by the refresh-token value.
+ * When two concurrent 401 retries enter `tryRefreshSession` with the same
+ * refresh token, the second caller awaits the first caller's in-flight
+ * promise instead of issuing a parallel /auth/refresh request.
  *
- * TODO(task3-p1): Wrap this in a per-session single-flight mutex keyed by the
- * current refresh token value so two near-simultaneous 401 retries cannot
- * invalidate each other when the backend rotates refresh tokens on every call.
- * See PLAN.md Area A #6 / security P1 "tryRefreshSession retries exactly
- * once per 401". Safer implementation needs a shared in-memory map at module
- * scope + AbortSignal-safe deduping; deferred because it interacts with
- * Next.js server-action request lifecycle and deserves its own focused PR.
+ * Why keyed by the token value (not by a cookie name): cookies persist
+ * across many overlapping route handlers, but the in-flight `Promise` here
+ * lives only as long as a single `/auth/refresh` round trip. Tying the key
+ * to the token value means a fresh refresh after the previous one resolved
+ * starts a brand-new flight (correct), while two overlapping retries that
+ * read the same cookie value share one (also correct).
+ *
+ * The map is cleaned up on settle so memory does not leak across long-lived
+ * server processes. Caller AbortSignals do NOT propagate into the inner
+ * fetch — aborting one waiter must not break the others. The fetch has its
+ * own `AbortSignal.timeout(10000)` to bound the network round trip.
+ *
+ * Implements PLAN.md Area A #6.
  */
-export async function tryRefreshSession(): Promise<string | null> {
-  const refreshToken = await getRefreshToken()
-  if (!refreshToken) {
-    await clearSessionCookies()
-    return null
-  }
+const refreshInflight = new Map<string, Promise<string | null>>()
 
+async function performRefresh(refreshToken: string): Promise<string | null> {
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
-
   try {
     const response = await fetch(`${apiBase}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
+      // 10s ceiling on the network call itself — independent of any caller
+      // signal so one aborted caller never breaks the in-flight refresh.
       signal: AbortSignal.timeout(10000),
     })
 
@@ -122,4 +126,51 @@ export async function tryRefreshSession(): Promise<string | null> {
     await clearSessionCookies()
     return null
   }
+}
+
+/**
+ * Attempts to refresh the session using the refresh_token cookie.
+ *
+ * Concurrency: this function is single-flight per refresh-token value.
+ * If five concurrent 401s call into here with the same token, only ONE
+ * `/auth/refresh` request goes out and all five receive the same result.
+ * That eliminates the race where the backend rotates the refresh token
+ * on every call and two parallel refreshes invalidate each other.
+ *
+ * On success, updates both cookies and returns the new access token.
+ * On failure, clears both cookies and returns null.
+ */
+export async function tryRefreshSession(): Promise<string | null> {
+  const refreshToken = await getRefreshToken()
+  if (!refreshToken) {
+    await clearSessionCookies()
+    return null
+  }
+
+  // Re-use any in-flight refresh keyed by the same refresh token value.
+  // Caller's own AbortSignal is intentionally not threaded through —
+  // aborting waiter #2 must not reject waiter #1.
+  const existing = refreshInflight.get(refreshToken)
+  if (existing) return existing
+
+  const flight = performRefresh(refreshToken).finally(() => {
+    // Drop the entry only if it still references THIS flight. A new
+    // refresh issued after this one resolved must not be removed by
+    // accident.
+    if (refreshInflight.get(refreshToken) === flight) {
+      refreshInflight.delete(refreshToken)
+    }
+  })
+
+  refreshInflight.set(refreshToken, flight)
+  return flight
+}
+
+/**
+ * Test-only helper: clears the in-flight refresh map. Tests should call
+ * this in `beforeEach` so a previous test's partial flight does not leak
+ * into the next.
+ */
+export function __resetRefreshInflightForTests(): void {
+  refreshInflight.clear()
 }

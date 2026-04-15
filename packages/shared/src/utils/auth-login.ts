@@ -117,6 +117,22 @@ export function normalizeVerificationCodeInput(value: string): string {
   return value.replaceAll(/\D/g, '')
 }
 
+/**
+ * Returns true when the user-supplied verification-code paste contained at
+ * least one non-digit character. Used by the login UI to surface an inline
+ * error when, e.g., the user pastes "abc123" or "12-34-56".
+ *
+ * Whitespace-only pastes are not considered errors so users can paste
+ * codes with surrounding whitespace from email clients.
+ */
+export function hasInvalidVerificationCodeChars(rawValue: string): boolean {
+  if (!rawValue) return false
+  // Strip whitespace first — pasting "  123456  " is fine.
+  const trimmed = rawValue.trim()
+  if (!trimmed) return false
+  return /\D/.test(trimmed)
+}
+
 export function createVerificationCodeDigits(length = VERIFICATION_CODE_LENGTH): string[] {
   return Array.from({ length }, () => '')
 }

@@ -206,6 +206,7 @@
       "invalidEmail": "That email doesn't look right. Check for typos and try again.",
       "emailNotFound": "We couldn't find an account for that email.",
       "invalidCode": "That code doesn't match. Double-check the email and try again.",
+      "codeMustBeDigits": "Verification codes are 6 digits. Letters and symbols aren't allowed.",
       "codeExpired": "This code has expired. Tap resend to get a new one.",
       "tooManyAttempts": "Too many tries. Tap resend to get a fresh code.",
       "rateLimited": "You're going a bit fast. Please wait a moment and try again.",

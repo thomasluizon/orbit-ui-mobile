@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   createVerificationCodeDigits,
   fillVerificationCodeDigits,
+  hasInvalidVerificationCodeChars,
   isVerificationCodeComplete,
   normalizeVerificationCodeInput,
   VERIFICATION_CODE_LENGTH,
@@ -13,6 +14,9 @@ interface UseLoginCodeEntryResult {
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
   canResend: boolean
   resendCountdown: number
+  /** i18n key for an inline paste/typing error, or null when input was clean. */
+  pasteErrorKey: string | null
+  clearPasteError: () => void
   startResendCountdown: () => void
   resetCodeDigits: () => void
   onCodeInput: (index: number, value: string) => void
@@ -24,8 +28,11 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   const [codeDigits, setCodeDigits] = useState(() => createVerificationCodeDigits())
   const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
+  const [pasteErrorKey, setPasteErrorKey] = useState<string | null>(null)
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
+
+  const clearPasteError = useCallback(() => setPasteErrorKey(null), [])
 
   const clearResendTimer = useCallback(() => {
     if (resendTimerRef.current === null) return
@@ -59,6 +66,14 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
     (index: number, value: string) => {
       const cleanValue = normalizeVerificationCodeInput(value)
 
+      // If the user typed/pasted via input event a string containing
+      // non-digits, surface an inline error instead of silently stripping.
+      if (hasInvalidVerificationCodeChars(value)) {
+        setPasteErrorKey('auth.errors.codeMustBeDigits')
+      } else if (cleanValue) {
+        setPasteErrorKey(null)
+      }
+
       if (cleanValue.length > 1) {
         const { digits, nextFocusIndex } = fillVerificationCodeDigits(
           index,
@@ -90,7 +105,17 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   const onCodePaste = useCallback(
     (event: React.ClipboardEvent<HTMLInputElement>) => {
       event.preventDefault()
-      const pasted = normalizeVerificationCodeInput(event.clipboardData.getData('text'))
+      const rawPasted = event.clipboardData.getData('text')
+      const pasted = normalizeVerificationCodeInput(rawPasted)
+
+      // Surface inline error when the clipboard contained non-digits, even
+      // if some digits were extracted. Stops the silent-strip behaviour.
+      if (hasInvalidVerificationCodeChars(rawPasted)) {
+        setPasteErrorKey('auth.errors.codeMustBeDigits')
+      } else {
+        setPasteErrorKey(null)
+      }
+
       if (!pasted) return
 
       const { digits, nextFocusIndex } = fillVerificationCodeDigits(
@@ -123,6 +148,8 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
     codeInputRefs,
     canResend,
     resendCountdown,
+    pasteErrorKey,
+    clearPasteError,
     startResendCountdown,
     resetCodeDigits,
     onCodeInput,

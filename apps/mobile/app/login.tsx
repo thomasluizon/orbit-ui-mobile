@@ -81,6 +81,8 @@ export default function LoginScreen() {
     codeInputRefs,
     canResend,
     resendCountdown,
+    pasteErrorKey,
+    clearPasteError,
     startResendCountdown,
     resetCodeDigits,
     onCodeInput,
@@ -254,6 +256,7 @@ export default function LoginScreen() {
     setStep('email')
     setSuccessMessage(null)
     resetCodeDigits()
+    clearPasteError()
   }
 
   async function signInWithGoogle() {
@@ -467,6 +470,16 @@ export default function LoginScreen() {
                     />
                   ))}
                 </View>
+
+                {pasteErrorKey ? (
+                  <Text
+                    style={styles.errorText}
+                    accessibilityRole="alert"
+                    testID="code-paste-error"
+                  >
+                    {t(pasteErrorKey)}
+                  </Text>
+                ) : null}
 
                 <TouchableOpacity
                   style={[
@@ -724,6 +737,11 @@ function createStyles(colors: AppColors) {
     fontSize: 20,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  errorText: {
+    color: colors.red400,
+    fontSize: 13,
+    textAlign: 'center',
   },
   codeActionsRow: {
     flexDirection: 'row',

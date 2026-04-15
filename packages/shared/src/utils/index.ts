@@ -7,6 +7,7 @@ export {
   extractAuthBackendMessage,
   fillVerificationCodeDigits,
   getAuthLoginErrorKey,
+  hasInvalidVerificationCodeChars,
   isValidVerificationCode,
   isVerificationCodeComplete,
   normalizeVerificationCodeInput,

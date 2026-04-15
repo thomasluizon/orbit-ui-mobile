@@ -3,6 +3,7 @@ import type { NativeSyntheticEvent, TextInputKeyPressEventData, TextInput } from
 import {
   createVerificationCodeDigits,
   fillVerificationCodeDigits,
+  hasInvalidVerificationCodeChars,
   normalizeVerificationCodeInput,
   VERIFICATION_CODE_LENGTH,
 } from '@orbit/shared/utils'
@@ -13,6 +14,9 @@ interface UseLoginCodeEntryResult {
   codeInputRefs: React.RefObject<(TextInput | null)[]>
   canResend: boolean
   resendCountdown: number
+  /** i18n key for an inline paste/typing error, or null when input was clean. */
+  pasteErrorKey: string | null
+  clearPasteError: () => void
   startResendCountdown: () => void
   resetCodeDigits: () => void
   onCodeInput: (index: number, value: string) => void
@@ -23,8 +27,11 @@ export function useLoginCodeEntry(): UseLoginCodeEntryResult {
   const [codeDigits, setCodeDigits] = useState(() => createVerificationCodeDigits())
   const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
+  const [pasteErrorKey, setPasteErrorKey] = useState<string | null>(null)
   const codeInputRefs = useRef<(TextInput | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
+
+  const clearPasteError = useCallback(() => setPasteErrorKey(null), [])
 
   const clearResendTimer = useCallback(() => {
     if (resendTimerRef.current === null) return
@@ -56,6 +63,14 @@ export function useLoginCodeEntry(): UseLoginCodeEntryResult {
 
   const onCodeInput = useCallback((index: number, value: string) => {
     const cleanValue = normalizeVerificationCodeInput(value)
+
+    // Mirror web parity (PLAN.md frontend P2): surface an inline error
+    // when the user pastes/types non-digits instead of silently stripping.
+    if (hasInvalidVerificationCodeChars(value)) {
+      setPasteErrorKey('auth.errors.codeMustBeDigits')
+    } else if (cleanValue) {
+      setPasteErrorKey(null)
+    }
 
     if (cleanValue.length > 1) {
       const { digits, nextFocusIndex } = fillVerificationCodeDigits(
@@ -94,6 +109,8 @@ export function useLoginCodeEntry(): UseLoginCodeEntryResult {
     codeInputRefs,
     canResend,
     resendCountdown,
+    pasteErrorKey,
+    clearPasteError,
     startResendCountdown,
     resetCodeDigits,
     onCodeInput,

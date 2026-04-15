@@ -137,6 +137,7 @@ interface CodeStepProps {
   isSubmitting: boolean
   canResend: boolean
   resendCountdown: number
+  pasteErrorKey: string | null
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
   onVerifyCode: () => void
   onCodeInput: (index: number, value: string) => void
@@ -148,7 +149,7 @@ interface CodeStepProps {
 }
 
 function CodeStep({
-  email, codeDigits, isSubmitting, canResend, resendCountdown,
+  email, codeDigits, isSubmitting, canResend, resendCountdown, pasteErrorKey,
   codeInputRefs, onVerifyCode, onCodeInput, onCodeKeydown, onCodePaste,
   onBackToEmail, onResendCode, t,
 }: Readonly<CodeStepProps>) {
@@ -182,6 +183,16 @@ function CodeStep({
             />
           ))}
         </fieldset>
+
+        {pasteErrorKey ? (
+          <p
+            role="alert"
+            data-testid="code-paste-error"
+            className="text-center text-sm text-text-error"
+          >
+            {t(pasteErrorKey)}
+          </p>
+        ) : null}
 
         <button
           type="submit"
@@ -280,6 +291,8 @@ export default function LoginPage() {
     codeInputRefs,
     canResend,
     resendCountdown,
+    pasteErrorKey,
+    clearPasteError,
     startResendCountdown,
     resetCodeDigits,
     onCodeInput,
@@ -403,6 +416,7 @@ export default function LoginPage() {
     setStep('email')
     setSuccessMessage(null)
     resetCodeDigits()
+    clearPasteError()
   }
 
   async function signInWithGoogle() {
@@ -482,6 +496,7 @@ export default function LoginPage() {
             isSubmitting={isSubmitting}
             canResend={canResend}
             resendCountdown={resendCountdown}
+            pasteErrorKey={pasteErrorKey}
             codeInputRefs={codeInputRefs}
             onVerifyCode={verifyCode}
             onCodeInput={onCodeInput}
