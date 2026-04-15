@@ -118,6 +118,14 @@ export const chatResponseSchema = z.object({
   operations: z.array(agentOperationResultSchema).optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).optional(),
+  /**
+   * Server-managed conversation id. Populated on every response: a new id
+   * for the first turn of a conversation, the same id thereafter. Clients
+   * persist this in their local chat store and echo it on subsequent
+   * `POST /api/chat` requests so the server can load history from DB
+   * instead of trusting client-supplied transcripts.
+   */
+  conversationId: z.string().nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

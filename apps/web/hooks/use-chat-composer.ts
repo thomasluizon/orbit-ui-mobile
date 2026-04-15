@@ -254,6 +254,13 @@ export function useChatComposer() {
   const handleSuccessfulSend = useCallback(async (result: SendChatMessageResult & { ok: true }) => {
     setIsTyping(false)
 
+    // Capture the server-issued conversationId on every reply. Backend
+    // returns the same id on subsequent turns; storing it lets us send
+    // it back so the server treats this conversation as authoritative.
+    if (result.data.conversationId) {
+      useChatStore.getState().setConversationId(result.data.conversationId)
+    }
+
     addMessage({
       id: crypto.randomUUID(),
       role: 'ai',
@@ -445,6 +452,14 @@ export function useChatComposer() {
         const formData = new FormData()
         if (messageContent) formData.append('message', messageContent)
         if (attachedImage) formData.append('image', attachedImage)
+
+        // Server-authoritative chat history: when we already own a
+        // conversationId from a previous reply, send it and let the
+        // backend load the transcript from the DB. The legacy `history`
+        // field is still sent for backwards compat (the backend ignores
+        // it whenever conversationId is present).
+        const conversationId = useChatStore.getState().conversationId
+        if (conversationId) formData.append('conversationId', conversationId)
 
         const currentMessages = useChatStore.getState().messages
         const recentHistory = buildRecentChatHistory(currentMessages)

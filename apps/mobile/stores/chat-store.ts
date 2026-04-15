@@ -18,5 +18,8 @@ export const useChatStore = create<MobileChatStoreState>((set) => ({
       messages: [],
       isTyping: false,
       isStreaming: false,
+      // Resetting the local pointer effectively starts a brand-new
+      // server-side conversation on the next message.
+      conversationId: null,
     }),
 }))

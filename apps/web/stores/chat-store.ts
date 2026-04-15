@@ -12,5 +12,8 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
     set({
       messages: [],
       isTyping: false,
+      // Resetting the local pointer effectively starts a brand-new
+      // server-side conversation on the next message.
+      conversationId: null,
     }),
 }))

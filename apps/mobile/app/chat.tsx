@@ -676,6 +676,13 @@ export default function ChatScreen() {
         const currentMessages = useChatStore.getState().messages;
         const recentHistory = buildRecentChatHistory(currentMessages);
 
+        // Server-authoritative chat history: send conversationId when we
+        // have one so the backend loads the transcript from DB. Legacy
+        // `history` field is still sent for BC; backend ignores it when
+        // conversationId is present.
+        const conversationId = useChatStore.getState().conversationId;
+        if (conversationId) formData.append("conversationId", conversationId);
+
         formData.append("history", JSON.stringify(recentHistory));
         formData.append(
           "clientContext",
@@ -693,6 +700,11 @@ export default function ChatScreen() {
         });
 
         setIsTyping(false);
+
+        // Capture the conversationId for subsequent turns.
+        if (response.conversationId) {
+          useChatStore.getState().setConversationId(response.conversationId);
+        }
 
         const aiMessage: ChatMessage = {
           id: `msg-${Date.now()}-ai`,
