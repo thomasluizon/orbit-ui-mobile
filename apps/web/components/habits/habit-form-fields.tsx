@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
@@ -335,7 +336,7 @@ function ReminderSection({
         </button>
       </div>
       {reminderEnabled && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Selected reminder chips */}
           <div className="flex flex-wrap gap-2">
             {reminderTimes.map((time) => (
@@ -441,7 +442,7 @@ function ScheduledReminderSection({
   scheduledReminderLabelId, reminderEnabled, scheduledReminders,
   onToggleReminder, onSetScheduledReminders, onValidationError, t,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const locale = useLocale()
+  const locale = useDeviceLocale()
   const MAX_SCHEDULED_REMINDERS = 5
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
@@ -501,7 +502,7 @@ function ScheduledReminderSection({
         </button>
       </div>
       {reminderEnabled && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {(scheduledReminders?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-2">
               {(scheduledReminders ?? []).map((sr, idx) => (
@@ -535,7 +536,7 @@ function ScheduledReminderSection({
             )}
 
             {showForm && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -845,10 +846,10 @@ export function HabitFormFields({
       </div>
 
       {/* Frequency type cards (2x2 grid) */}
-      <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-        <legend id="habit-form-frequency-label" className="form-label">
+      <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
+        <span id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
-        </legend>
+        </span>
         <div className="grid grid-cols-2 gap-3">
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
@@ -886,11 +887,11 @@ export function HabitFormFields({
             )
           })}
         </div>
-      </fieldset>
+      </div>
 
       {/* Type-adaptive frequency sub-fields */}
       {isFlexible && (
-        <p className="text-xs text-text-muted -mt-1">
+        <p className="text-xs text-text-muted">
           {t('habits.form.flexibleDescription', {
             n: watchedFrequencyQuantity ?? 3,
             unit: watchedFrequencyUnit
@@ -917,10 +918,10 @@ export function HabitFormFields({
               {...register('frequencyQuantity', { valueAsNumber: true })}
             />
           </div>
-          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-            <legend id="habit-form-unit-label" className="form-label">
+          <div className="space-y-2">
+            <span id="habit-form-unit-label" className="form-label">
               {t('habits.form.unit')}
-            </legend>
+            </span>
             <AppSelect
               value={watchedFrequencyUnit ?? ''}
               options={frequencyUnits.map((u) => ({
@@ -934,16 +935,16 @@ export function HabitFormFields({
                 })
               }
             />
-          </fieldset>
+          </div>
         </div>
       )}
 
       {/* Day picker */}
       {showDayPicker && !isGeneral && (
-        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-          <legend id="habit-form-active-days-label" className="form-label">
+        <div className="space-y-2" role="group" aria-labelledby="habit-form-active-days-label">
+          <span id="habit-form-active-days-label" className="form-label">
             {t('habits.form.activeDays')}
-          </legend>
+          </span>
           <PillToggleRow
             containerClassName="flex flex-wrap gap-2"
             buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
@@ -956,21 +957,21 @@ export function HabitFormFields({
               onClick: () => toggleDay(day.value),
             }))}
           />
-        </fieldset>
+        </div>
       )}
 
       {/* Due date + Due time (combined row) */}
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-            <legend id="habit-form-due-date-label" className="form-label">
+          <div className="space-y-2">
+            <span id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
-            </legend>
+            </span>
             <AppDatePicker
               value={watchedDueDate}
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
-          </fieldset>
+          </div>
           <div className="space-y-2">
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}
@@ -987,10 +988,10 @@ export function HabitFormFields({
       )}
 
       {/* Tags */}
-      <fieldset className="m-0 min-w-0 space-y-2.5 border-0 p-0">
-        <legend id="habit-form-tags-label" className="form-label">
+      <div className="space-y-2" role="group" aria-labelledby="habit-form-tags-label">
+        <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
-        </legend>
+        </span>
         <div className="flex flex-wrap gap-2">
           {availableTags.map((tag) => (
             <HabitTagChip
@@ -1031,7 +1032,7 @@ export function HabitFormFields({
         </div>
         {/* Inline tag edit */}
         {tags.editingTagId && (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <ColorSwatches
               colors={tags.tagColors}
               activeColor={tags.editTagColor}
@@ -1066,7 +1067,7 @@ export function HabitFormFields({
         )}
         {/* Inline new tag creation */}
         {tags.showNewTag && (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <ColorSwatches
               colors={tags.tagColors}
               activeColor={tags.newTagColor}
@@ -1101,13 +1102,13 @@ export function HabitFormFields({
             />
           </div>
         )}
-      </fieldset>
+      </div>
 
       {/* ═══════════════════════════════════════════════════
          ADVANCED FIELDS -- Behind "More options"
          ═══════════════════════════════════════════════════ */}
 
-      <div className="border-t border-border-muted pt-2">
+      <div className="border-t border-border-muted pt-4 mt-2">
         <button
           type="button"
           aria-expanded={showAdvanced}
@@ -1145,22 +1146,22 @@ export function HabitFormFields({
           </div>
 
           {/* Checklist */}
-          <fieldset className="m-0 min-w-0 space-y-2.5 border-0 p-0">
-            <legend id="habit-form-checklist-label" className="form-label">
+          <div className="space-y-2" role="group" aria-labelledby="habit-form-checklist-label">
+            <span id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
-            </legend>
+            </span>
             <HabitChecklist
               items={watchedChecklistItems ?? []}
               editable
               onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
-            <div className="mt-3">
+            <div className="mt-4">
               <ChecklistTemplates
                 items={watchedChecklistItems ?? []}
                 onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
               />
             </div>
-          </fieldset>
+          </div>
 
           {/* End time */}
           {watchedDueTime && !isGeneral && (
@@ -1182,10 +1183,10 @@ export function HabitFormFields({
           {showEndDate && (
             <div className="space-y-1.5">
               {watchedEndDate ? (
-                <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-                  <legend id="habit-form-end-date-label" className="form-label">
+                <div className="space-y-2">
+                  <span id="habit-form-end-date-label" className="form-label">
                     {t('habits.form.endDate')}
-                  </legend>
+                  </span>
                   <div className="flex items-center gap-2">
                     <AppDatePicker
                       value={watchedEndDate}
@@ -1203,7 +1204,7 @@ export function HabitFormFields({
                     </button>
                   </div>
                   <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
-                </fieldset>
+                </div>
               ) : (
                 <button
                   type="button"

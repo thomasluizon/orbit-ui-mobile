@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { parseISO, format } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
+import { parseISO } from 'date-fns'
 import { CheckCircle2, Sparkles, BadgeCheck } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { radius, shadows } from '@/lib/theme'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -28,8 +28,8 @@ export function OnboardingComplete({
   createdGoal,
   onFinish,
 }: Readonly<OnboardingCompleteProps>) {
-  const { t, i18n } = useTranslation()
-  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
+  const { t } = useTranslation()
+  const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const { colors } = useAppTheme()
@@ -37,10 +37,8 @@ export function OnboardingComplete({
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
-    return format(parseISO(profile.trialEndsAt), 'PPP', {
-      locale: dateFnsLocale,
-    })
-  }, [profile?.trialEndsAt, dateFnsLocale])
+    return displayDate(parseISO(profile.trialEndsAt))
+  }, [profile?.trialEndsAt, displayDate])
 
   const recapItems = useMemo(() => {
     const items = [

@@ -15,8 +15,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
+import { parseISO } from 'date-fns'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import {
@@ -43,6 +42,7 @@ import {
 } from 'lucide-react-native'
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
@@ -152,7 +152,7 @@ function ProfileStreakCard() {
 // ---------------------------------------------------------------------------
 
 export default function ProfileScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { colors } = useAppTheme()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -163,7 +163,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout)
   const { profile: gamificationProfile } = useGamificationProfile(profile?.hasProAccess ?? false)
   const { isOnline } = useOffline()
-  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
+  const { displayDate } = useDateFormat()
   const styles = useMemo(() => createStyles(colors), [colors])
   const subscriptionRef = useRef<View>(null)
   const preferencesRef = useRef<View>(null)
@@ -696,7 +696,7 @@ export default function ProfileScreen() {
                     {profile?.hasProAccess
                       ? t('profile.deleteAccount.warningPro', {
                           date: profile.planExpiresAt
-                            ? format(parseISO(profile.planExpiresAt), 'PPP', { locale: dateFnsLocale })
+                            ? displayDate(parseISO(profile.planExpiresAt))
                             : '',
                         })
                       : t('profile.deleteAccount.warningFree')}
@@ -763,7 +763,7 @@ export default function ProfileScreen() {
                   <Text style={styles.deactivatedDetail}>
                     {t('profile.deleteAccount.deactivated', {
                       date: scheduledDeletionDate
-                        ? format(parseISO(scheduledDeletionDate), 'PPP', { locale: dateFnsLocale })
+                        ? displayDate(parseISO(scheduledDeletionDate))
                         : '',
                     })}
                   </Text>

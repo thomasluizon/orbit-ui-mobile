@@ -350,6 +350,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Form utility classes */
 .form-label {
   @apply text-[length:var(--text-fluid-xs)] font-bold uppercase tracking-wider text-text-muted;
+  display: block;
+  padding: 0;
+  margin: 0 0 0.375rem 0; /* 6px bottom — subtle gap between label and input */
 }
 
 .form-input {

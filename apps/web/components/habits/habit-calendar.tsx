@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { addMonths, subMonths, format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
+import { addMonths, subMonths, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import {
   buildHabitCalendarDayCells,
   buildHabitCalendarWeekdayKeys,
@@ -12,6 +11,8 @@ import {
 } from '@orbit/shared/utils'
 import { useHabitLogs } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useDateFormat } from '@/hooks/use-date-format'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 
 interface HabitCalendarProps {
@@ -21,8 +22,8 @@ interface HabitCalendarProps {
 
 export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCalendarProps>) {
   const t = useTranslations()
-  const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const { displayMonthYear, displayDate } = useDateFormat()
+  const { displayTime } = useTimeFormat()
 
   const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId)
   const logs = externalLogs ?? fetchedLogs ?? []
@@ -35,11 +36,8 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   const logDates = useMemo(() => buildHabitLogDateSet(logs), [logs])
 
   const monthLabel = useMemo(
-    () =>
-      format(currentMonth, locale === 'pt-BR' ? "MMMM 'de' yyyy" : 'MMMM yyyy', {
-        locale: dateFnsLocale,
-      }),
-    [currentMonth, dateFnsLocale, locale],
+    () => displayMonthYear(currentMonth),
+    [currentMonth, displayMonthYear],
   )
 
   const weekdays = useMemo(
@@ -86,7 +84,10 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   }, [])
 
   function formatLogTime(createdAtUtc: string): string {
-    return format(parseISO(createdAtUtc), 'HH:mm')
+    const date = parseISO(createdAtUtc)
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mm = String(date.getMinutes()).padStart(2, '0')
+    return displayTime(`${hh}:${mm}`)
   }
 
   return (
@@ -161,9 +162,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         <div className="mt-3 bg-surface-ground border border-border-muted rounded-lg p-3 overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-text-primary">
-              {format(parseISO(selectedDate), 'PPP', {
-                locale: dateFnsLocale,
-              })}
+              {displayDate(parseISO(selectedDate))}
             </span>
             <button
               className="p-0.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"

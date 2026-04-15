@@ -76,6 +76,11 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
     maxFreezesPerMonth: 3,
     isFrozenToday: false,
     recentFreezeDates: ['2025-01-05'],
+    streakFreezesAccumulated: 2,
+    maxStreakFreezesAccumulated: 3,
+    daysUntilNextFreeze: 0,
+    freezesAvailableToUse: 2,
+    canEarnMore: true,
     ...overrides,
   }
 }
@@ -144,24 +149,28 @@ describe('gamification-selectors', () => {
   })
 
   it('derives streak freeze state from streak info', () => {
-    expect(deriveStreakFreezeState(makeStreakInfo(), null, '2025-01-16')).toEqual({
+    expect(deriveStreakFreezeState(makeStreakInfo(), null, '2025-01-16')).toMatchObject({
       freezesAvailable: 2,
       isFrozenToday: false,
       hasCompletedToday: false,
       currentStreak: 7,
       canFreeze: true,
+      streakFreezesAccumulated: 2,
+      maxStreakFreezesAccumulated: 3,
+      canEarnMore: true,
     })
   })
 
   it('falls back to profile values when streak info is missing', () => {
     expect(
       deriveStreakFreezeState(null, { streakFreezesAvailable: 1, currentStreak: 4 }, '2025-01-16'),
-    ).toEqual({
+    ).toMatchObject({
       freezesAvailable: 1,
       isFrozenToday: false,
       hasCompletedToday: false,
       currentStreak: 4,
       canFreeze: true,
+      streakFreezesAccumulated: 1,
     })
   })
 
@@ -169,5 +178,33 @@ describe('gamification-selectors', () => {
     expect(
       deriveStreakFreezeState(makeStreakInfo({ lastActiveDate: '2025-01-16' }), null, '2025-01-16').canFreeze,
     ).toBe(false)
+  })
+
+  it('caps freezesAvailable by monthly usage limit', () => {
+    const state = deriveStreakFreezeState(
+      makeStreakInfo({
+        streakFreezesAccumulated: 3,
+        freezesUsedThisMonth: 3,
+        freezesAvailableToUse: 0,
+      }),
+      null,
+      '2025-01-16',
+    )
+    expect(state.freezesAvailable).toBe(0)
+    expect(state.hasReachedMonthlyLimit).toBe(true)
+    expect(state.canFreeze).toBe(false)
+  })
+
+  it('reports canEarnMore=false when accumulated equals max', () => {
+    const state = deriveStreakFreezeState(
+      makeStreakInfo({
+        streakFreezesAccumulated: 3,
+        maxStreakFreezesAccumulated: 3,
+        canEarnMore: false,
+      }),
+      null,
+      '2025-01-16',
+    )
+    expect(state.canEarnMore).toBe(false)
   })
 })

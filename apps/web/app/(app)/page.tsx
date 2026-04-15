@@ -8,7 +8,8 @@ import {
   isYesterday,
   isTomorrow,
 } from 'date-fns'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { habitKeys } from '@orbit/shared/query'
@@ -71,7 +72,7 @@ function getTodayTabLabel(
 
 export default function TodayPage() {
   const t = useTranslations()
-  const locale = useLocale()
+  const locale = useDeviceLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()

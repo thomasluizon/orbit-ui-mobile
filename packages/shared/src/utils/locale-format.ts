@@ -12,8 +12,27 @@ function normalizeLocale(locale?: string | null): SupportedLocale {
   return locale === 'pt-BR' ? 'pt-BR' : 'en'
 }
 
+function isValidBcp47(locale: string): boolean {
+  return /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/.test(locale)
+}
+
 function getIntlLocale(locale?: string | null): string {
-  return normalizeLocale(locale) === 'pt-BR' ? 'pt-BR' : 'en-US'
+  if (locale && isValidBcp47(locale)) {
+    return locale
+  }
+  return getSystemLocale()
+}
+
+export function getSystemLocale(): string {
+  try {
+    const resolved = new Intl.DateTimeFormat().resolvedOptions().locale
+    if (resolved && isValidBcp47(resolved)) {
+      return resolved
+    }
+  } catch {
+    // fall through
+  }
+  return 'en-US'
 }
 
 function parseDateInput(value: DateInput): Date | null {
@@ -160,4 +179,25 @@ export function formatLocaleTime(
     options,
     DEFAULT_TIME_OPTIONS,
   )
+}
+
+export function formatDeviceDate(
+  value: DateInput,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  return formatLocaleDate(value, getSystemLocale(), options)
+}
+
+export function formatDeviceDateTime(
+  value: DateInput,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  return formatLocaleDateTime(value, getSystemLocale(), options)
+}
+
+export function formatDeviceTime(
+  value: TimeInput,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  return formatLocaleTime(value, getSystemLocale(), options)
 }

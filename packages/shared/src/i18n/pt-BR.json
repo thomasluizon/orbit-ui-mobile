@@ -1739,7 +1739,20 @@
       "recentLabel": "Usados recentemente",
       "completedToday": "Você já completou um hábito hoje. Não precisa congelar!",
       "celebrationTitle": "Sequência salva!",
-      "celebrationSubtitle": "Seu congelamento protegeu sua sequência."
+      "celebrationSubtitle": "Seu congelamento protegeu sua sequência.",
+      "progressTitle": "Ganhe seu próximo congelamento",
+      "progressSubtitle": "Mais 1 dia de atividade libera seu próximo congelamento | Mais {days} dias de atividade liberam seu próximo congelamento",
+      "progressReady": "Seu próximo congelamento está pronto!",
+      "maxAccumulated": "Você atingiu o máximo de {max} congelamentos. Use um antes de ganhar mais.",
+      "monthlyUsage": "{used} de {max} usados este mês",
+      "monthlyLimit": "Você já usou os {max} congelamentos deste mês",
+      "accumulatedLabel": "Congelamentos guardados",
+      "accumulatedShort": "{count}/{max}",
+      "howItWorksTitle": "Como funciona o congelamento",
+      "howItWorksBody": "Fique ativo por 7 dias seguidos e você ganha um congelamento automaticamente. Guarde até {maxAccumulated} de cada vez e use até {maxMonthly} por mês para proteger sua sequência em dias que não conseguir manter o ritmo.",
+      "learnMore": "Como funciona",
+      "noFreezesAvailable": "Continue firme para ganhar seu primeiro congelamento",
+      "dayStreak": "Sequência de {count} dia | Sequência de {count} dias"
     },
     "detail": {
       "title": "Detalhes da Sequência",
@@ -1843,7 +1856,7 @@
   },
   "versionUpdate": {
     "title": "Atualização disponível",
-    "description": "Uma nova versão do Orbit está disponível na Google Play. Atualize agora para receber as últimas correções e novidades.",
+    "description": "Uma nova versão do Orbit está disponível. Atualize agora para receber as últimas correções e novidades.",
     "currentLabel": "Sua versão: {version}",
     "latestLabel": "Mais recente: {version}",
     "updateCta": "Atualizar agora",

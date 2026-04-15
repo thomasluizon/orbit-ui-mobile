@@ -69,6 +69,11 @@ export const streakInfoSchema = z.object({
   maxFreezesPerMonth: z.number(),
   isFrozenToday: z.boolean(),
   recentFreezeDates: z.array(z.string()),
+  streakFreezesAccumulated: z.number().default(0),
+  maxStreakFreezesAccumulated: z.number().default(3),
+  daysUntilNextFreeze: z.number().default(7),
+  freezesAvailableToUse: z.number().default(0),
+  canEarnMore: z.boolean().default(true),
 })
 
 export type StreakInfo = z.infer<typeof streakInfoSchema>
@@ -77,6 +82,7 @@ export const streakFreezeResponseSchema = z.object({
   freezesRemainingThisMonth: z.number(),
   frozenDate: z.string(),
   currentStreak: z.number(),
+  streakFreezesAccumulated: z.number().default(0),
 })
 
 export type StreakFreezeResponse = z.infer<typeof streakFreezeResponseSchema>

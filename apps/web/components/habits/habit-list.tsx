@@ -11,7 +11,8 @@ import {
   Home,
   Plus,
 } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useRouter } from 'next/navigation'
 import {
   computeHabitReorderPositions,
@@ -276,7 +277,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
-  const locale = useLocale()
+  const locale = useDeviceLocale()
 
   // Queries & mutations
   const habitsQuery = useHabits(filters)

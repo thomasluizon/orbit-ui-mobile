@@ -78,10 +78,14 @@ vi.mock('@orbit/shared/api', () => ({
   },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  getErrorMessage: (err: unknown, fallback: string) => fallback,
-  formatLocaleDate: (isoDate: string) => isoDate,
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    getErrorMessage: (err: unknown, fallback: string) => fallback,
+    formatLocaleDate: (isoDate: string) => isoDate,
+  }
+})
 
 // ---------------------------------------------------------------------------
 // Import component after mocks

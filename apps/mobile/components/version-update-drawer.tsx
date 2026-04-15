@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import Constants from 'expo-constants'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { useVersionCheck } from '@/hooks/use-version-check'
+import { startAndroidUpdate, useVersionCheck } from '@/hooks/use-version-check'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -15,26 +14,19 @@ function formatTemplate(template: string, version: string): string {
   return template.replace('{version}', version)
 }
 
-async function openPlayStore(packageName: string): Promise<void> {
-  const marketUrl = `market://details?id=${packageName}`
-  const httpsUrl = `https://play.google.com/store/apps/details?id=${packageName}`
-  try {
-    const canOpenMarket = await Linking.canOpenURL(marketUrl)
-    await Linking.openURL(canOpenMarket ? marketUrl : httpsUrl)
-  } catch {
-    try {
-      await Linking.openURL(httpsUrl)
-    } catch {
-      // Swallow -- user can dismiss and try again.
-    }
-  }
-}
-
 export function VersionUpdateDrawer() {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const { updateAvailable, latestVersion, currentVersion } = useVersionCheck()
+  const {
+    updateAvailable,
+    forceUpdate,
+    latestVersion,
+    currentVersion,
+    iosStoreUrl,
+  } = useVersionCheck()
+
+  const androidFlowStartedRef = useRef(false)
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
@@ -57,35 +49,61 @@ export function VersionUpdateDrawer() {
     }
   }, [])
 
-  const packageName = Constants.expoConfig?.android?.package ?? null
-  const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
-  const shouldShow =
-    Platform.OS === 'android' &&
-    updateAvailable &&
-    snoozeLoaded &&
-    !isSnoozed &&
-    !dismissedForSession &&
-    !!packageName
+  // Android: hand off to the native Play Core flow as soon as we detect an update.
+  // For force updates (priority >= 4) we trigger IMMEDIATE, which is a full-screen,
+  // non-dismissible Google-provided UI. Otherwise FLEXIBLE, which lets the user keep
+  // using the app while the update downloads.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return
+    if (!updateAvailable) return
+    if (androidFlowStartedRef.current) return
+    if (!forceUpdate) {
+      const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
+      if (!snoozeLoaded || isSnoozed || dismissedForSession) return
+    }
+    androidFlowStartedRef.current = true
+    void startAndroidUpdate({ immediate: forceUpdate })
+    if (!forceUpdate) {
+      const until = Date.now() + SNOOZE_DURATION_MS
+      setSnoozedUntil(until)
+      AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
+    }
+  }, [updateAvailable, forceUpdate, snoozeLoaded, snoozedUntil, dismissedForSession])
 
-  const handleUpdate = useCallback(() => {
-    if (!packageName) return
-    void openPlayStore(packageName)
+  // iOS path: custom sheet with a link to the App Store. Apple provides no
+  // in-app update API, so this is the standard approach. Suppress the prompt
+  // when we have no store URL to send the user to -- otherwise the primary CTA
+  // would be a no-op.
+  const shouldShowIosSheet = useMemo(() => {
+    if (Platform.OS !== 'ios') return false
+    if (!updateAvailable) return false
+    if (!iosStoreUrl) return false
+    if (!snoozeLoaded) return false
+    const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
+    return !isSnoozed && !dismissedForSession
+  }, [updateAvailable, iosStoreUrl, snoozeLoaded, snoozedUntil, dismissedForSession])
+
+  const handleIosUpdate = useCallback(() => {
+    if (!iosStoreUrl) return
+    void Linking.openURL(iosStoreUrl).catch(() => {})
     setDismissedForSession(true)
-  }, [packageName])
+  }, [iosStoreUrl])
 
-  const handleLater = useCallback(() => {
+  const handleIosLater = useCallback(() => {
     const until = Date.now() + SNOOZE_DURATION_MS
     setSnoozedUntil(until)
     setDismissedForSession(true)
     AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
   }, [])
 
+  if (Platform.OS !== 'ios') return null
+
   return (
     <BottomSheetModal
-      open={shouldShow}
-      onClose={handleLater}
+      open={shouldShowIosSheet}
+      onClose={handleIosLater}
       title={t('versionUpdate.title')}
-      snapPoints={['40%']}
+      snapPoints={['45%']}
     >
       <View style={styles.container}>
         <Text style={styles.description}>{t('versionUpdate.description')}</Text>
@@ -103,7 +121,7 @@ export function VersionUpdateDrawer() {
 
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={handleUpdate}
+          onPress={handleIosUpdate}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonLabel}>{t('versionUpdate.updateCta')}</Text>
@@ -111,7 +129,7 @@ export function VersionUpdateDrawer() {
 
         <TouchableOpacity
           style={styles.secondaryButton}
-          onPress={handleLater}
+          onPress={handleIosLater}
           activeOpacity={0.7}
         >
           <Text style={styles.secondaryButtonLabel}>{t('versionUpdate.laterCta')}</Text>

@@ -1739,7 +1739,20 @@
       "recentLabel": "Recently used",
       "completedToday": "You already completed a habit today. No freeze needed!",
       "celebrationTitle": "Streak saved!",
-      "celebrationSubtitle": "Your freeze protected your streak."
+      "celebrationSubtitle": "Your freeze protected your streak.",
+      "progressTitle": "Earn your next freeze",
+      "progressSubtitle": "1 more day of activity unlocks your next freeze | {days} more days of activity unlock your next freeze",
+      "progressReady": "Your next freeze is ready!",
+      "maxAccumulated": "You've hit the maximum of {max} freezes. Use one before earning more.",
+      "monthlyUsage": "{used} of {max} used this month",
+      "monthlyLimit": "You've used all {max} freezes this month",
+      "accumulatedLabel": "Freezes banked",
+      "accumulatedShort": "{count}/{max}",
+      "howItWorksTitle": "How streak freezes work",
+      "howItWorksBody": "Stay active for 7 days in a row and you'll earn a streak freeze automatically. Bank up to {maxAccumulated} at a time, and use up to {maxMonthly} per month to protect your streak on days you can't make it.",
+      "learnMore": "How it works",
+      "noFreezesAvailable": "Keep going to earn your first freeze",
+      "dayStreak": "{count}-day streak | {count}-day streak"
     },
     "detail": {
       "title": "Streak Details",
@@ -1843,7 +1856,7 @@
   },
   "versionUpdate": {
     "title": "Update available",
-    "description": "A newer version of Orbit is available on Google Play. Update now to get the latest fixes and features.",
+    "description": "A newer version of Orbit is available. Update now to get the latest fixes and features.",
     "currentLabel": "Your version: {version}",
     "latestLabel": "Latest: {version}",
     "updateCta": "Update now",

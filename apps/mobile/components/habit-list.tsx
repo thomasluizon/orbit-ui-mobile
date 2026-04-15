@@ -61,6 +61,7 @@ import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
@@ -191,7 +192,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   },
   ref,
 ) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const deviceLocale = useDeviceLocale()
   const router = useRouter()
   const { profile } = useProfile()
   const { colors } = useAppTheme()
@@ -382,14 +384,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     for (const [key, habits] of sortedGroups) {
       result.push({
         key,
-        label: formatDateGroupLabel(key, i18n.language, t),
+        label: formatDateGroupLabel(key, deviceLocale, t),
         isOverdue: false,
         habits,
       })
     }
 
     return result
-  }, [i18n.language, t, view, visibleHabits])
+  }, [deviceLocale, t, view, visibleHabits])
 
   const allLoadedIds = useMemo(() => {
     return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)

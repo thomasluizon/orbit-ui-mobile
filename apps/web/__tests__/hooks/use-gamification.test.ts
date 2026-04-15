@@ -102,6 +102,11 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
     maxFreezesPerMonth: 3,
     isFrozenToday: false,
     recentFreezeDates: ['2025-01-05'],
+    streakFreezesAccumulated: 2,
+    maxStreakFreezesAccumulated: 3,
+    daysUntilNextFreeze: 0,
+    freezesAvailableToUse: 2,
+    canEarnMore: true,
     ...overrides,
   }
 }

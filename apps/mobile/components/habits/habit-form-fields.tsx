@@ -64,6 +64,7 @@ import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-i
 import { ProBadge } from "@/components/ui/pro-badge";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { useDeviceLocale } from "@/hooks/use-device-locale";
 
 type ThemeColors = ReturnType<typeof useAppTheme>["colors"];
 
@@ -641,7 +642,8 @@ function ScheduledReminderSection({
   onSetScheduledReminders,
   onValidationError,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const deviceLocale = useDeviceLocale();
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
   const MAX_SCHEDULED_REMINDERS = 5;
   const [showForm, setShowForm] = useState(false);
@@ -681,7 +683,7 @@ function ScheduledReminderSection({
     when: ScheduledReminderWhen;
     time: string;
   }): string {
-    const timeDisplay = formatLocaleTime(sr.time, i18n.language);
+    const timeDisplay = formatLocaleTime(sr.time, deviceLocale);
     if (sr.when === "day_before") {
       return t("habits.form.scheduledReminderDayBeforeAt", {
         time: timeDisplay,
@@ -1480,14 +1482,8 @@ export function HabitFormFields({
           </View>
 
           {/* Checklist */}
-          <View style={[styles.fieldGroup, { marginBottom: 12 }]}>
+          <View style={[styles.fieldGroup, { gap: 12 }]}>
             <Text style={styles.label}>{t("habits.form.checklist")}</Text>
-            <ChecklistTemplates
-              items={watchedChecklistItems ?? []}
-              onLoad={(items) =>
-                setValue("checklistItems", items, { shouldDirty: true })
-              }
-            />
             <HabitChecklist
               items={watchedChecklistItems ?? []}
               editable
@@ -1495,6 +1491,14 @@ export function HabitFormFields({
                 setValue("checklistItems", items, { shouldDirty: true })
               }
             />
+            <View style={{ marginTop: 4 }}>
+              <ChecklistTemplates
+                items={watchedChecklistItems ?? []}
+                onLoad={(items) =>
+                  setValue("checklistItems", items, { shouldDirty: true })
+                }
+              />
+            </View>
           </View>
 
           {/* End time */}
@@ -1869,7 +1873,7 @@ function createSectionStyles(colors: ThemeColors) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
-      gap: 22,
+      gap: 32,
     },
     fieldGroup: {
       gap: 8,
@@ -1907,7 +1911,6 @@ function createStyles(colors: ThemeColors) {
     flexibleHint: {
       fontSize: 12,
       color: colors.textMuted,
-      marginTop: -12,
     },
     // Frequency card grid
     frequencyCardGrid: {
@@ -2068,7 +2071,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
     },
     tagEditSection: {
-      gap: 8,
+      gap: 12,
     },
     colorPicker: {
       flexDirection: "row",
@@ -2107,13 +2110,14 @@ function createStyles(colors: ThemeColors) {
     moreOptionsDivider: {
       borderTopWidth: 1,
       borderTopColor: colors.borderMuted,
-      paddingTop: 8,
+      paddingTop: 12,
+      marginTop: 4,
     },
     moreOptionsButton: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingVertical: 8,
+      paddingVertical: 12,
     },
     moreOptionsLabel: {
       fontSize: 14,

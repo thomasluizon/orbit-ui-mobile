@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo } from 'react'
-import { parseISO, format } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
+import { parseISO } from 'date-fns'
 import { CheckCircle2, Sparkles, BadgeCheck } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { useDateFormat } from '@/hooks/use-date-format'
 
 interface OnboardingCompleteProps {
   createdHabit: string
@@ -15,15 +15,14 @@ interface OnboardingCompleteProps {
 
 export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: Readonly<OnboardingCompleteProps>) {
   const t = useTranslations()
-  const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
-    return format(parseISO(profile.trialEndsAt), 'PPP', { locale: dateFnsLocale })
-  }, [profile?.trialEndsAt, dateFnsLocale])
+    return displayDate(parseISO(profile.trialEndsAt))
+  }, [profile?.trialEndsAt, displayDate])
 
   const recapItems = useMemo(() => {
     const items = [

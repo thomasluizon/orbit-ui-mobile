@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
-import { parseISO, format } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
+import { useTranslations } from 'next-intl'
+import { parseISO } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { useAuthStore } from '@/stores/auth-store'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { requestDeletion, confirmDeletion } from '@/app/actions/auth'
 
 interface DeleteAccountModalProps {
@@ -19,8 +19,7 @@ interface DeleteAccountModalProps {
 
 export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
-  const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const { displayDate } = useDateFormat()
   const logout = useAuthStore((s) => s.logout)
 
   const [step, setStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
@@ -102,16 +101,16 @@ export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<Del
   const warningMessage = useMemo(() => {
     if (profile?.hasProAccess && profile?.planExpiresAt) {
       return t('profile.deleteAccount.warningPro', {
-        date: format(parseISO(profile.planExpiresAt), 'PPP', { locale: dateFnsLocale }),
+        date: displayDate(parseISO(profile.planExpiresAt)),
       })
     }
     return t('profile.deleteAccount.warningFree')
-  }, [profile?.hasProAccess, profile?.planExpiresAt, dateFnsLocale, t])
+  }, [profile?.hasProAccess, profile?.planExpiresAt, displayDate, t])
 
   const formattedDeletionDate = useMemo(() => {
     if (!scheduledDeletionDate) return ''
-    return format(parseISO(scheduledDeletionDate), 'PPP', { locale: dateFnsLocale })
-  }, [scheduledDeletionDate, dateFnsLocale])
+    return displayDate(parseISO(scheduledDeletionDate))
+  }, [scheduledDeletionDate, displayDate])
 
   function renderStep() {
     if (step === 'confirm') {

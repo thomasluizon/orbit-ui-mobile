@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  extractVersionFromHtml,
-  getPlayStoreVersion,
-  isVersionOutdated,
-} from '@/lib/version-check'
+import { getAppStoreLookup, isVersionOutdated } from '@/lib/version-check'
 
 describe('isVersionOutdated', () => {
   it('returns true when current is strictly older than latest', () => {
@@ -40,23 +36,7 @@ describe('isVersionOutdated', () => {
   })
 })
 
-describe('extractVersionFromHtml', () => {
-  it('parses softwareVersion JSON field', () => {
-    const html = '<html>{"softwareVersion":"2.3.4"}</html>'
-    expect(extractVersionFromHtml(html)).toBe('2.3.4')
-  })
-
-  it('falls back to Current Version label', () => {
-    const html = '<div>Current Version</div><div>1.5.2</div>'
-    expect(extractVersionFromHtml(html)).toBe('1.5.2')
-  })
-
-  it('returns null when no version can be parsed', () => {
-    expect(extractVersionFromHtml('<html>nothing here</html>')).toBeNull()
-  })
-})
-
-describe('getPlayStoreVersion', () => {
+describe('getAppStoreLookup', () => {
   const fetchMock = vi.fn()
   const originalFetch = globalThis.fetch
 
@@ -65,27 +45,55 @@ describe('getPlayStoreVersion', () => {
     fetchMock.mockReset()
   })
 
-  it('returns the parsed version when the fetch succeeds', async () => {
+  it('returns version and trackViewUrl from the iTunes response', async () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('{"softwareVersion":"1.2.3"}'),
+      json: () =>
+        Promise.resolve({
+          resultCount: 1,
+          results: [{ version: '1.1.9', trackViewUrl: 'https://apps.apple.com/app/id12345' }],
+        }),
     })
 
-    const result = await getPlayStoreVersion('org.useorbit.app')
-    expect(result).toBe('1.2.3')
+    const result = await getAppStoreLookup('org.useorbit.app')
+    expect(result).toEqual({
+      version: '1.1.9',
+      storeUrl: 'https://apps.apple.com/app/id12345',
+    })
     expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('returns null when no results are returned', async () => {
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ resultCount: 0, results: [] }),
+    })
+    expect(await getAppStoreLookup('org.useorbit.app')).toBeNull()
   })
 
   it('returns null when the response is not ok', async () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch
-    fetchMock.mockResolvedValue({ ok: false, text: () => Promise.resolve('') })
-    expect(await getPlayStoreVersion('org.useorbit.app')).toBeNull()
+    fetchMock.mockResolvedValue({ ok: false, json: () => Promise.resolve(null) })
+    expect(await getAppStoreLookup('org.useorbit.app')).toBeNull()
   })
 
   it('returns null when fetch rejects', async () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch
     fetchMock.mockRejectedValue(new Error('offline'))
-    expect(await getPlayStoreVersion('org.useorbit.app')).toBeNull()
+    expect(await getAppStoreLookup('org.useorbit.app')).toBeNull()
+  })
+
+  it('tolerates a missing trackViewUrl by returning null storeUrl', async () => {
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ resultCount: 1, results: [{ version: '1.0.0' }] }),
+    })
+    expect(await getAppStoreLookup('org.useorbit.app')).toEqual({
+      version: '1.0.0',
+      storeUrl: null,
+    })
   })
 })
