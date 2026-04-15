@@ -76,6 +76,9 @@ type HabitListSnapshots = ReadonlyArray<
   readonly [readonly unknown[], HabitScheduleItem[] | undefined]
 >
 export {
+  EMPTY_CHILDREN_BY_PARENT,
+  EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   normalizeHabits,
   sortByPosition,
   type NormalizedHabitsData,

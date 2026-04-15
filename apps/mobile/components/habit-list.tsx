@@ -46,6 +46,8 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import {
+  EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   useHabits,
   useLogHabit,
   useSkipHabit,
@@ -230,14 +232,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const { config: appConfig } = useConfig()
   const maxHabitDepth = appConfig.limits.maxHabitDepth
   const habitsQuery = useHabits(filters)
-  const habitsById = useMemo(
-    () => habitsQuery.data?.habitsById ?? new Map<string, NormalizedHabit>(),
-    [habitsQuery.data?.habitsById],
-  )
-  const topLevelHabits = useMemo(
-    () => habitsQuery.data?.topLevelHabits ?? [],
-    [habitsQuery.data?.topLevelHabits],
-  )
+  const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
   const totalCount = habitsQuery.data?.totalCount ?? 0
   const isLoading = habitsQuery.isLoading
   const isFetching = habitsQuery.isFetching

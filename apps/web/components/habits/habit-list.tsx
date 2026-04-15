@@ -35,6 +35,9 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import {
+  EMPTY_CHILDREN_BY_PARENT,
+  EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   useHabits,
   useLogHabit,
   useSkipHabit,
@@ -293,9 +296,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const maxHabitDepth = appConfig.limits.maxHabitDepth
 
   const data = habitsQuery.data
-  const habitsById = data?.habitsById ?? new Map()
-  const childrenByParent = data?.childrenByParent ?? new Map()
-  const topLevelHabits = data?.topLevelHabits ?? []
+  const habitsById = data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
+  const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
   // Get children helper
   const getChildren = habitsQuery.getChildren

@@ -32,7 +32,11 @@ import { TodayFilters } from '@/components/habits/today-filters'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
-import { useHabits } from '@/hooks/use-habits'
+import {
+  EMPTY_CHILDREN_BY_PARENT,
+  EMPTY_HABITS_BY_ID,
+  useHabits,
+} from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import {
@@ -308,8 +312,8 @@ export default function TodayPage() {
 
   // Query habits for selection cascade helpers and count
   const habitsQuery = useHabits(filters)
-  const habitsById = habitsQuery.data?.habitsById ?? new Map()
-  const childrenByParent = habitsQuery.data?.childrenByParent ?? new Map()
+  const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
