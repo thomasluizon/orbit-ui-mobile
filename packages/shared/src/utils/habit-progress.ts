@@ -75,14 +75,16 @@ export function getHabitProgressRatio(
 }
 
 /**
- * True when the avatar should render a progress arc around it. Parents with
- * children and flexible habits both need an arc; simple habits don't.
+ * True when the avatar should render a progress arc around it. The arc is
+ * reserved for habits where "progress" is a meaningful number: parents with
+ * children (X of Y done) and flexible habits (X of Y this period). Simple
+ * daily/weekly habits are binary — the tile's solid-primary completed state
+ * already communicates done-ness, so no arc.
  */
 export function shouldShowHabitProgressArc(
   habit: ProgressInput,
   context: ProgressContext = {},
 ): boolean {
-  if (habit.isCompleted || habit.isLoggedInRange) return true
   const { hasChildren, childrenTotal = 0 } = context
   if (hasChildren && childrenTotal > 0) return true
   if (habit.isFlexible && (habit.flexibleTarget ?? habit.frequencyQuantity ?? 0) > 0) {

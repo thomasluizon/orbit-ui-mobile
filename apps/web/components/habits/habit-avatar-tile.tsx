@@ -146,25 +146,15 @@ export function HabitAvatarTile({
     </span>
   )
 
-  const arc = showArc ? (
+  const shouldRenderArcFill = showArc && (isCompleted || progressRatio > 0)
+  const arc = shouldRenderArcFill ? (
     <svg
-      className={`pointer-events-none absolute inset-0 -rotate-90 ${
-        isCompleted || progressRatio > 0 ? 'habit-arc-glow' : ''
-      }`}
+      className="pointer-events-none absolute inset-0 -rotate-90 habit-arc-glow"
       viewBox="0 0 36 36"
       width={tokens.outer}
       height={tokens.outer}
       aria-hidden="true"
     >
-      <circle
-        cx="18"
-        cy="18"
-        r="15"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="text-border-muted"
-      />
       <circle
         cx="18"
         cy="18"

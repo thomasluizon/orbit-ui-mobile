@@ -86,9 +86,9 @@ describe('getHabitProgressRatio', () => {
 })
 
 describe('shouldShowHabitProgressArc', () => {
-  it('shows for completed habits', () => {
+  it('hides for simple completed habits (tile state communicates completion)', () => {
     const habit = createMockHabit({ isCompleted: true })
-    expect(shouldShowHabitProgressArc(habit)).toBe(true)
+    expect(shouldShowHabitProgressArc(habit)).toBe(false)
   })
 
   it('shows for parents with children', () => {

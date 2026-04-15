@@ -189,7 +189,8 @@ export function HabitAvatarTile({
     </View>
   )
 
-  const arc = showArc ? (
+  const shouldRenderArcFill = showArc && (isCompleted || progressRatio > 0)
+  const arc = shouldRenderArcFill ? (
     <Svg
       width={tokens.outer}
       height={tokens.outer}
@@ -202,14 +203,6 @@ export function HabitAvatarTile({
       }}
       pointerEvents="none"
     >
-      <Circle
-        cx="18"
-        cy="18"
-        r="15"
-        fill="none"
-        stroke={colors.borderMuted}
-        strokeWidth="2"
-      />
       <Circle
         cx="18"
         cy="18"
