@@ -8,7 +8,8 @@ import {
   RotateCw,
   Trash2,
 } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EditGoalModal } from './edit-goal-modal'
@@ -62,7 +63,7 @@ export function GoalDetailDrawer({
       t(key, values),
     [t],
   )
-  const locale = useLocale()
+  const locale = useDeviceLocale()
   const { showError } = useAppToast()
 
   // Queries

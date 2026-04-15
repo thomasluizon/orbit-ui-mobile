@@ -9,7 +9,8 @@ import {
   AlertTriangle, Download, CheckCircle2, Clock, Check, X as XIcon,
   Megaphone, Tag, Info,
 } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -743,8 +744,8 @@ function PricingSection({
 export default function UpgradePage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const locale = useDeviceLocale()
+  const dateFnsLocale = locale.startsWith('pt') ? ptBR : enUS
 
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()

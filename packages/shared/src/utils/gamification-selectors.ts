@@ -21,6 +21,13 @@ export interface StreakFreezeDerivedState {
   hasCompletedToday: boolean
   currentStreak: number
   canFreeze: boolean
+  streakFreezesAccumulated: number
+  maxStreakFreezesAccumulated: number
+  daysUntilNextFreeze: number
+  freezesUsedThisMonth: number
+  maxFreezesPerMonth: number
+  canEarnMore: boolean
+  hasReachedMonthlyLimit: boolean
 }
 
 export interface GamificationProfileDerivedState {
@@ -86,15 +93,39 @@ export function getAchievementsByCategory(
 }
 
 export function deriveStreakFreezeState(
-  streakInfo: Pick<StreakInfo, 'currentStreak' | 'lastActiveDate' | 'freezesAvailable' | 'isFrozenToday'> | null | undefined,
+  streakInfo: Partial<Pick<
+    StreakInfo,
+    | 'currentStreak'
+    | 'lastActiveDate'
+    | 'freezesAvailable'
+    | 'isFrozenToday'
+    | 'streakFreezesAccumulated'
+    | 'maxStreakFreezesAccumulated'
+    | 'daysUntilNextFreeze'
+    | 'freezesUsedThisMonth'
+    | 'freezesAvailableToUse'
+    | 'maxFreezesPerMonth'
+    | 'canEarnMore'
+  >> | null | undefined,
   fallbackProfile?: StreakFreezeFallback | null,
   today = formatAPIDate(new Date()),
 ): StreakFreezeDerivedState {
-  const freezesAvailable = streakInfo?.freezesAvailable ?? fallbackProfile?.streakFreezesAvailable ?? 0
+  const streakFreezesAccumulated = streakInfo?.streakFreezesAccumulated
+    ?? fallbackProfile?.streakFreezesAvailable
+    ?? 0
+  const maxStreakFreezesAccumulated = streakInfo?.maxStreakFreezesAccumulated ?? 3
+  const freezesUsedThisMonth = streakInfo?.freezesUsedThisMonth ?? 0
+  const maxFreezesPerMonth = streakInfo?.maxFreezesPerMonth ?? 3
+  const remainingMonthlyQuota = Math.max(0, maxFreezesPerMonth - freezesUsedThisMonth)
+  const freezesAvailable = streakInfo?.freezesAvailableToUse
+    ?? Math.min(streakFreezesAccumulated, remainingMonthlyQuota)
   const isFrozenToday = streakInfo?.isFrozenToday ?? false
   const hasCompletedToday = streakInfo?.lastActiveDate === today
   const currentStreak = streakInfo?.currentStreak ?? fallbackProfile?.currentStreak ?? 0
+  const daysUntilNextFreeze = streakInfo?.daysUntilNextFreeze ?? 7
+  const canEarnMore = streakInfo?.canEarnMore ?? streakFreezesAccumulated < maxStreakFreezesAccumulated
   const canFreeze = freezesAvailable > 0 && !isFrozenToday && !hasCompletedToday && currentStreak > 0
+  const hasReachedMonthlyLimit = remainingMonthlyQuota <= 0
 
   return {
     freezesAvailable,
@@ -102,6 +133,13 @@ export function deriveStreakFreezeState(
     hasCompletedToday,
     currentStreak,
     canFreeze,
+    streakFreezesAccumulated,
+    maxStreakFreezesAccumulated,
+    daysUntilNextFreeze,
+    freezesUsedThisMonth,
+    maxFreezesPerMonth,
+    canEarnMore,
+    hasReachedMonthlyLimit,
   }
 }
 

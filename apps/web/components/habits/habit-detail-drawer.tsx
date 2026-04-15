@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { Clock, Bell, CalendarDays } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
@@ -40,7 +41,7 @@ export function HabitDetailDrawer({
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
-  const locale = useLocale()
+  const locale = useDeviceLocale()
   const { displayTime } = useTimeFormat()
   const habitId = habit?.id ?? ''
 

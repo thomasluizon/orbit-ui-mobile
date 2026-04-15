@@ -3,26 +3,41 @@
 import { useState, useMemo, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { getErrorMessage } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppOverlay } from '@/components/ui/app-overlay'
-import { StreakFreezeSection, StreakTimelineCard } from './_components/streak-sections'
+import { FreezeProgressCard, StreakTimelineCard } from './_components/streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import './streak.css'
 
 export default function StreakPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const locale = useDeviceLocale()
+  const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
-  const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze(profile)
+  const {
+    streakQuery,
+    streakInfo,
+    freezesAvailable,
+    isFrozenToday,
+    hasCompletedToday,
+    canFreeze,
+    streakFreezesAccumulated,
+    maxStreakFreezesAccumulated,
+    daysUntilNextFreeze,
+    freezesUsedThisMonth,
+    maxFreezesPerMonth,
+    canEarnMore,
+    hasReachedMonthlyLimit,
+  } = useStreakFreeze(profile)
   const activateFreezeMutation = useActivateStreakFreeze()
 
   const [showConfirm, setShowConfirm] = useState(false)
@@ -46,7 +61,6 @@ export default function StreakPage() {
     return 'normal'
   }, [streak])
 
-  // Build 7-day timeline (today + 6 previous days)
   const weekDays = useMemo(() => {
     const today = new Date()
     const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
@@ -57,8 +71,8 @@ export default function StreakPage() {
     return Array.from({ length: 7 }, (_, i) => {
       const date = subDays(today, 6 - i)
       const dateStr = format(date, 'yyyy-MM-dd')
-      const dayLabel = format(date, 'EEE', { locale: dateFnsLocale }).slice(0, 3)
-      const dayNum = format(date, 'd')
+      const dayLabel = displayDate(date, { weekday: 'short' }).slice(0, 3)
+      const dayNum = String(date.getDate())
       const isTodayDate = isToday(date)
 
       let status: 'active' | 'frozen' | 'missed' | 'today' | 'future' = 'missed'
@@ -78,7 +92,7 @@ export default function StreakPage() {
 
       return { date, dateStr, dayLabel, dayNum, status, isTodayDate }
     })
-  }, [streakInfo, streak, isFrozenToday, dateFnsLocale])
+  }, [streakInfo, streak, isFrozenToday, displayDate])
 
   async function handleFreeze() {
     setShowConfirm(false)
@@ -94,7 +108,6 @@ export default function StreakPage() {
 
   return (
     <div className="pb-8">
-      {/* Header */}
       <header className="pt-8 pb-6 flex items-center gap-3">
           <button
             type="button"
@@ -109,20 +122,17 @@ export default function StreakPage() {
         </h1>
       </header>
 
-      {/* Loading */}
       {streakQuery.isLoading && !streakInfo ? (
         <div className="space-y-6">
           <div className="h-32 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
           <div className="h-20 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
-          <div className="h-24 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
+          <div className="h-40 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Streak hero */}
           <div className={`streak-hero streak-hero--${tier}`}>
             {streak > 0 && <div className="streak-hero__glow" />}
             <div className="relative flex flex-col items-center text-center py-4">
-              {/* Flame */}
               {streak > 0 ? (
                 <div className="streak-hero__flame mb-3">
                   <svg viewBox="0 0 40 50" fill="none" className="size-16">
@@ -150,7 +160,6 @@ export default function StreakPage() {
                 </div>
               )}
 
-              {/* Count */}
               <p className="text-4xl font-extrabold tracking-tight streak-hero__count">
                 {streak}
               </p>
@@ -165,10 +174,8 @@ export default function StreakPage() {
             </div>
           </div>
 
-          {/* Weekly timeline */}
           <StreakTimelineCard t={t} weekDays={weekDays} />
 
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-4 text-center">
               <p className="text-2xl font-extrabold text-amber-400">{streak}</p>
@@ -184,16 +191,21 @@ export default function StreakPage() {
             </div>
           </div>
 
-          {/* Freeze section */}
-          <StreakFreezeSection
+          <FreezeProgressCard
             t={t}
             locale={locale}
-            dateFnsLocale={dateFnsLocale}
             streak={streak}
+            streakFreezesAccumulated={streakFreezesAccumulated}
+            maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
+            daysUntilNextFreeze={daysUntilNextFreeze}
             freezesAvailable={freezesAvailable}
+            freezesUsedThisMonth={freezesUsedThisMonth}
+            maxFreezesPerMonth={maxFreezesPerMonth}
             isFrozenToday={isFrozenToday}
             hasCompletedToday={hasCompletedToday}
             canFreeze={canFreeze}
+            canEarnMore={canEarnMore}
+            hasReachedMonthlyLimit={hasReachedMonthlyLimit}
             freezeSuccess={freezeSuccess}
             errorMessage={activateFreezeMutation.error ? getErrorMessage(activateFreezeMutation.error, t('toast.errors.activateFreeze')) : undefined}
             streakInfo={streakInfo}
@@ -202,7 +214,6 @@ export default function StreakPage() {
         </div>
       )}
 
-      {/* Freeze confirmation overlay */}
       <AppOverlay
         open={showConfirm}
         onOpenChange={setShowConfirm}
@@ -230,7 +241,6 @@ export default function StreakPage() {
         </div>
       </AppOverlay>
 
-      {/* Streak freeze celebration overlay */}
       <StreakFreezeCelebration ref={freezeCelebrationRef} />
     </div>
   )

@@ -21,6 +21,7 @@ import { useHasProAccess, useProfile, useTrialDaysLeft, useTrialExpired, useTria
 import { plural } from '@/lib/plural'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -270,10 +271,10 @@ function FeatureComparisonTable({
 export default function UpgradeScreen() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { colors } = useAppTheme()
   const { isOnline } = useOffline()
-  const locale = i18n.language
+  const locale = useDeviceLocale()
   const styles = useMemo(() => createStyles(colors), [colors])
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()

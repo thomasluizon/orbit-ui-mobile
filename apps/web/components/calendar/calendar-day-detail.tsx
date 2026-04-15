@@ -2,12 +2,11 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { format } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { ArrowRight, Check } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -56,17 +55,15 @@ export function CalendarDayDetail({
   entries,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
-  const locale = useLocale()
   const { displayTime } = useTimeFormat()
+  const { displayWeekdayDate } = useDateFormat()
   const [showRecurring, setShowRecurring] = useState(true)
-
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
     const date = parseAPIDate(dateStr)
-    return format(date, 'EEEE, MMM d', { locale: dateFnsLocale })
-  }, [dateStr, dateFnsLocale])
+    return displayWeekdayDate(date)
+  }, [dateStr, displayWeekdayDate])
 
   const filteredEntries = useMemo(() => {
     if (showRecurring) return entries

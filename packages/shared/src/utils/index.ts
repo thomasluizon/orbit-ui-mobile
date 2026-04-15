@@ -114,6 +114,10 @@ export {
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
+  formatDeviceDate,
+  formatDeviceDateTime,
+  formatDeviceTime,
+  getSystemLocale,
   resolveSupportedLocale,
   resolveSystemLocale,
 } from './locale-format'

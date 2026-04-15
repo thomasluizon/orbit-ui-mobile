@@ -7,20 +7,20 @@ import {
   ScrollView,
   Modal,
 } from 'react-native'
-import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, X } from 'lucide-react-native'
 import { subDays, isToday, format, parseISO } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakFreeze, useActivateStreakFreeze } from '@/hooks/use-gamification'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { plural } from '@/lib/plural'
-import { StreakFreezeSection, StreakTimelineCard } from './streak-sections'
+import { FreezeProgressCard, StreakTimelineCard } from './streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 // ---------------------------------------------------------------------------
@@ -28,15 +28,29 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 // ---------------------------------------------------------------------------
 
 export default function StreakScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { colors } = useAppTheme()
-  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
-  const dateFnsLocale = useMemo(() => (i18n.language === 'pt-BR' ? ptBR : enUS), [i18n.language])
+  const locale = useDeviceLocale()
+  const { displayDate } = useDateFormat()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const { streakQuery, streakInfo, freezesAvailable, isFrozenToday, hasCompletedToday, canFreeze } = useStreakFreeze()
+  const {
+    streakQuery,
+    streakInfo,
+    freezesAvailable,
+    isFrozenToday,
+    hasCompletedToday,
+    canFreeze,
+    streakFreezesAccumulated,
+    maxStreakFreezesAccumulated,
+    daysUntilNextFreeze,
+    freezesUsedThisMonth,
+    maxFreezesPerMonth,
+    canEarnMore,
+    hasReachedMonthlyLimit,
+  } = useStreakFreeze(profile)
   const activateFreezeMutation = useActivateStreakFreeze()
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
 
@@ -71,8 +85,8 @@ export default function StreakScreen() {
     return Array.from({ length: 7 }, (_, i) => {
       const date = subDays(today, 6 - i)
       const dateStr = format(date, 'yyyy-MM-dd')
-      const dayLabel = format(date, 'EEE', { locale: dateFnsLocale }).slice(0, 3)
-      const dayNum = format(date, 'd')
+      const dayLabel = displayDate(date, { weekday: 'short' }).slice(0, 3)
+      const dayNum = String(date.getDate())
       const isTodayDate = isToday(date)
 
       let status: 'active' | 'frozen' | 'missed' | 'today' | 'future' = 'missed'
@@ -92,7 +106,7 @@ export default function StreakScreen() {
 
       return { date, dateStr, dayLabel, dayNum, status, isTodayDate }
     })
-  }, [streakInfo, streak, isFrozenToday, dateFnsLocale])
+  }, [streakInfo, streak, isFrozenToday, displayDate])
 
   async function handleFreeze() {
     setShowConfirm(false)
@@ -231,19 +245,24 @@ export default function StreakScreen() {
             </View>
 
             {/* Freeze section */}
-            <StreakFreezeSection
+            <FreezeProgressCard
               t={t}
-              locale={i18n.language}
-              dateFnsLocale={dateFnsLocale}
+              locale={locale}
               streak={streak}
+              streakFreezesAccumulated={streakFreezesAccumulated}
+              maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
+              daysUntilNextFreeze={daysUntilNextFreeze}
               freezesAvailable={freezesAvailable}
+              freezesUsedThisMonth={freezesUsedThisMonth}
+              maxFreezesPerMonth={maxFreezesPerMonth}
               isFrozenToday={isFrozenToday}
               hasCompletedToday={hasCompletedToday}
               canFreeze={canFreeze}
+              canEarnMore={canEarnMore}
+              hasReachedMonthlyLimit={hasReachedMonthlyLimit}
               freezeSuccess={freezeSuccess}
               errorMessage={activateFreezeMutation.error?.message}
               streakInfo={streakInfo}
-              styles={styles}
               onActivateFreeze={() => setShowConfirm(true)}
             />
           </View>

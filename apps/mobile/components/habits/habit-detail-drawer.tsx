@@ -23,6 +23,7 @@ import {
   HabitDetailStatsGrid,
 } from "./habit-detail-sections";
 import { useTimeFormat } from "@/hooks/use-time-format";
+import { useDeviceLocale } from "@/hooks/use-device-locale";
 import {
   useHabitFullDetail,
   useUpdateChecklist,
@@ -73,8 +74,8 @@ export function HabitDetailDrawer({
   habit,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language;
+  const { t } = useTranslation();
+  const locale = useDeviceLocale();
   const { displayTime } = useTimeFormat();
   const { colors, shadows } = useAppTheme();
   const styles = useMemo(

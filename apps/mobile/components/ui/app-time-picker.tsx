@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
 import { radius, type AppColors, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 
 interface AppTimePickerProps {
   value: string
@@ -53,8 +54,8 @@ export function AppTimePicker({
   disabled = false,
   containerStyle,
 }: Readonly<AppTimePickerProps>) {
-  const { t, i18n } = useTranslation()
-  const locale = i18n.language
+  const { t } = useTranslation()
+  const locale = useDeviceLocale()
   const { colors, shadows, currentTheme } = useAppTheme()
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const [isOpen, setIsOpen] = useState(false)

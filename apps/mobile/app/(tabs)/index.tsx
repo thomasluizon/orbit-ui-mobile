@@ -68,6 +68,7 @@ import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useReviewReminder } from '@/hooks/use-review-reminder'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import {
@@ -158,10 +159,10 @@ const TodaySearchBar = memo(function TodaySearchBar({
 // ---------------------------------------------------------------------------
 
 export default function TodayScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { colors } = useAppTheme()
   const router = useRouter()
-  const locale = i18n.language
+  const locale = useDeviceLocale()
   const insets = useSafeAreaInsets()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
   const styles = useMemo(() => createStyles(colors), [colors])

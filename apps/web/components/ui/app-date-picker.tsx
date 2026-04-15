@@ -14,11 +14,11 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 
 interface AppDatePickerProps {
   value: string
@@ -32,7 +32,7 @@ export function AppDatePicker({
   placeholder,
 }: Readonly<AppDatePickerProps>) {
   const t = useTranslations()
-  const locale = useLocale()
+  const locale = useDeviceLocale()
   const { profile } = useProfile()
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const [isOpen, setIsOpen] = useState(false)
@@ -46,8 +46,10 @@ export function AppDatePicker({
     if (value) setViewDate(parseISO(value))
   }, [value])
 
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
-  const monthLabel = format(viewDate, 'MMMM yyyy', { locale: dateFnsLocale })
+  const monthLabel = formatLocaleDate(viewDate, locale, {
+    month: 'long',
+    year: 'numeric',
+  })
 
   const weekDays = useMemo(() => {
     const sundayFirst = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']

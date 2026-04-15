@@ -1,11 +1,11 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
-import { useLocale } from 'next-intl'
 import { formatLocaleTime } from '@orbit/shared/utils'
+import { useDeviceLocale } from './use-device-locale'
 
 export function useTimeFormat() {
-  const locale = useLocale()
+  const locale = useDeviceLocale()
 
   const displayTime = useCallback(
     (time: string | null | undefined): string => {
@@ -15,5 +15,5 @@ export function useTimeFormat() {
     [locale],
   )
 
-  return useMemo(() => ({ displayTime }), [displayTime])
+  return useMemo(() => ({ displayTime, locale }), [displayTime, locale])
 }

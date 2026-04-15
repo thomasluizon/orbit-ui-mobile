@@ -10,11 +10,10 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { format } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import { gradients, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useDateFormat } from '@/hooks/use-date-format'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,9 +56,9 @@ export function AchievementCard({
   earned,
   earnedDate,
 }: Readonly<AchievementCardProps>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { colors } = useAppTheme()
-  const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
+  const { displayDate } = useDateFormat()
   const styles = useMemo(() => createStyles(colors, earned), [colors, earned])
   const rarity = rarityColors(achievement.rarity, colors)
 
@@ -148,9 +147,7 @@ export function AchievementCard({
       {earned && earnedDate ? (
         <Text style={styles.earnedDate}>
           {t('gamification.page.earnedOn', {
-            date: format(new Date(earnedDate), 'PPP', {
-              locale: dateFnsLocale,
-            }),
+            date: displayDate(new Date(earnedDate)),
           })}
         </Text>
       ) : null}

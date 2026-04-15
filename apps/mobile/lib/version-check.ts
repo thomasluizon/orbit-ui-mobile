@@ -1,53 +1,42 @@
+export interface AppStoreLookup {
+  version: string
+  storeUrl: string | null
+}
+
 /**
- * Fetches and parses the latest published version of an app from the
- * Google Play Store. Uses a resilient HTML scrape because there is no
- * official public API. All failures are swallowed and return `null`,
- * so callers never surface an error to the user.
+ * Fetches the latest published version from the Apple App Store via the
+ * public iTunes Search API. No auth, no scraping -- this is the official
+ * standard for iOS update detection.
+ *
+ * Android does not need this: we use Google Play In-App Updates via
+ * sp-react-native-in-app-updates, which talks to Play Services directly.
  */
-export async function getPlayStoreVersion(packageName: string): Promise<string | null> {
+export async function getAppStoreLookup(bundleId: string): Promise<AppStoreLookup | null> {
   try {
-    const url = `https://play.google.com/store/apps/details?id=${encodeURIComponent(packageName)}&hl=en&gl=US`
+    // Cache-bust because iTunes caches aggressively at the CDN layer.
+    const url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(bundleId)}&_=${Date.now()}`
     const response = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-      },
+      headers: { Accept: 'application/json' },
     })
-
     if (!response.ok) return null
-
-    const html = await response.text()
-    return extractVersionFromHtml(html)
+    const data = (await response.json()) as {
+      resultCount?: number
+      results?: Array<{ version?: string; trackViewUrl?: string }>
+    } | null
+    const entry = data?.results?.[0]
+    const version = entry?.version
+    if (typeof version !== 'string' || version.length === 0) return null
+    const storeUrl = typeof entry?.trackViewUrl === 'string' ? entry.trackViewUrl : null
+    return { version, storeUrl }
   } catch {
     return null
   }
 }
 
 /**
- * Parses the Play Store HTML for the current published version.
- * Tries multiple markers so that small layout tweaks from Google do
- * not immediately break the check.
- */
-export function extractVersionFromHtml(html: string): string | null {
-  // JSON-LD / embedded JSON: "softwareVersion":"1.2.3"
-  const jsonLd = /"softwareVersion"\s*:\s*"([^"]+)"/i.exec(html)
-  if (jsonLd?.[1]) return jsonLd[1].trim()
-
-  // Legacy label: `Current Version</div><...>1.2.3`
-  const currentVersion = /Current Version\D*(\d[\da-z.\-+]*)/i.exec(html)
-  if (currentVersion?.[1]) return currentVersion[1].trim()
-
-  // Fallback: `>Version<...>1.2.3<`
-  const versionLabel = /Version<\/div>[\s\S]*?>(\d[\da-z.\-+]*)</i.exec(html)
-  if (versionLabel?.[1]) return versionLabel[1].trim()
-
-  return null
-}
-
-/**
  * Compares two semver-ish version strings. Non-numeric segments (e.g.
  * `-beta`, `-rc1`) are ignored -- only the numeric `major.minor.patch`
- * portion is compared. Shorter versions are padded with zeros.
+ * portion is compared.
  *
  * Returns `true` iff `current` is strictly older than `latest`.
  */
@@ -67,7 +56,6 @@ export function isVersionOutdated(current: string, latest: string): boolean {
 
 function normalizeVersion(version: string): number[] {
   if (!version) return [0]
-  // Strip any `-beta`, `+build`, etc. before splitting.
   const numeric = version.split(/[^0-9.]/)[0] ?? ''
   return numeric
     .split('.')

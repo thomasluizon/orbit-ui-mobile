@@ -206,6 +206,11 @@ describe('mobile useStreakInfo and streak freeze', () => {
       maxFreezesPerMonth: 3,
       isFrozenToday: false,
       recentFreezeDates: ['2025-01-05'],
+      streakFreezesAccumulated: 2,
+      maxStreakFreezesAccumulated: 3,
+      daysUntilNextFreeze: 0,
+      freezesAvailableToUse: 2,
+      canEarnMore: true,
     }
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.setQueryData.mockClear()

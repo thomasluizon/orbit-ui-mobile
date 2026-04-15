@@ -50,9 +50,14 @@ export function useTourMockData() {
         lastActiveDate: today,
         freezesUsedThisMonth: 0,
         freezesAvailable: 2,
-        maxFreezesPerMonth: 2,
+        maxFreezesPerMonth: 3,
         isFrozenToday: false,
         recentFreezeDates: [],
+        streakFreezesAccumulated: 0,
+        maxStreakFreezesAccumulated: 3,
+        daysUntilNextFreeze: 7,
+        freezesAvailableToUse: 0,
+        canEarnMore: true,
       } satisfies StreakInfo
     })
   }, [queryClient, t])

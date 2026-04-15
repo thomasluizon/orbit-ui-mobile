@@ -110,16 +110,20 @@ export function useActivateStreakFreeze() {
       }),
 
     onSuccess: (data) => {
-      // Update streak info cache optimistically
       queryClient.setQueryData<StreakInfo>(gamificationKeys.streak(), (old) => {
         if (!old) return old
+        const nextAccumulated = Math.max(0, data.streakFreezesAccumulated ?? Math.max(0, old.streakFreezesAccumulated - 1))
+        const nextUsedThisMonth = old.maxFreezesPerMonth - data.freezesRemainingThisMonth
         return {
           ...old,
           isFrozenToday: true,
           freezesAvailable: data.freezesRemainingThisMonth,
-          freezesUsedThisMonth: old.maxFreezesPerMonth - data.freezesRemainingThisMonth,
+          freezesUsedThisMonth: nextUsedThisMonth,
           currentStreak: data.currentStreak,
           recentFreezeDates: [...old.recentFreezeDates, data.frozenDate],
+          streakFreezesAccumulated: nextAccumulated,
+          freezesAvailableToUse: Math.min(nextAccumulated, Math.max(0, old.maxFreezesPerMonth - nextUsedThisMonth)),
+          canEarnMore: nextAccumulated < old.maxStreakFreezesAccumulated,
         }
       })
     },
@@ -139,7 +143,7 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   const streakQuery = useStreakInfo()
   const streakInfo = streakQuery.data ?? null
 
-  const { freezesAvailable, isFrozenToday, hasCompletedToday, currentStreak, canFreeze } = useMemo(
+  const state = useMemo(
     () => deriveStreakFreezeState(streakInfo, profile),
     [streakInfo, profile],
   )
@@ -147,10 +151,6 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   return {
     streakQuery,
     streakInfo,
-    freezesAvailable,
-    isFrozenToday,
-    hasCompletedToday,
-    currentStreak,
-    canFreeze,
+    ...state,
   }
 }

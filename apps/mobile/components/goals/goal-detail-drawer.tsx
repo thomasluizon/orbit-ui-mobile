@@ -46,6 +46,7 @@ import { useAdMob } from '@/hooks/use-ad-mob'
 import { radius } from '@/lib/theme'
 import type { ThemeContextValue } from '@/lib/theme-provider'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useDeviceLocale } from '@/hooks/use-device-locale'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -69,7 +70,7 @@ export function GoalDetailDrawer({
   onClose,
   goalId,
 }: GoalDetailDrawerProps) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -78,7 +79,7 @@ export function GoalDetailDrawer({
   const { colors } = useAppTheme()
   const { showInterstitialIfDue } = useAdMob()
   const insets = useSafeAreaInsets()
-  const locale = i18n.language
+  const locale = useDeviceLocale()
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
 
   // Queries
