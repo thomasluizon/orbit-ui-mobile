@@ -125,16 +125,18 @@ describe('HabitCard', () => {
     expect(onUnlog).toHaveBeenCalledOnce()
   })
 
-  it('applies opacity-40 when habit is completed', () => {
+  it('applies the completed state class when habit is completed', () => {
     const habit = createMockHabit({ isCompleted: true })
     render(<HabitCard habit={habit} />)
-    expect(screen.getByLabelText('Exercise').className).toContain('opacity-40')
+    expect(screen.getByLabelText('Exercise').className).toContain('habit-state-completed')
   })
 
-  it('does not apply opacity-40 to general habits on today view', () => {
+  it('does not dim general habits on today view', () => {
     const habit = createMockHabit({ isGeneral: true, isCompleted: false })
     render(<HabitCard habit={habit} selectedDate={new Date('2025-01-02')} />)
-    expect(screen.getByLabelText('Exercise').className).not.toContain('opacity-40')
+    const el = screen.getByLabelText('Exercise')
+    expect(el.className).not.toContain('opacity-40')
+    expect(el.className).not.toContain('habit-state-completed')
   })
 
   it('applies line-through to title when completed', () => {
@@ -395,5 +397,88 @@ describe('HabitCard', () => {
     const habit = createMockHabit({ currentStreak: 5 } as Record<string, unknown>)
     render(<HabitCard habit={habit} />)
     expect(screen.getByText('5')).toBeDefined()
+  })
+
+  // ---------------------------------------------------------------------------
+  // Avatar + Arc redesign
+  // ---------------------------------------------------------------------------
+
+  it('renders the emoji when the habit has an icon', () => {
+    const habit = createMockHabit({ title: 'Run', icon: '🏃' })
+    render(<HabitCard habit={habit} />)
+    expect(screen.getByText('🏃')).toBeDefined()
+  })
+
+  it('falls back to the title initial when icon is missing', () => {
+    const habit = createMockHabit({ title: 'Morning run', icon: null })
+    render(<HabitCard habit={habit} />)
+    // The initial is uppercased by getHabitInitial
+    expect(screen.getByText('M')).toBeDefined()
+  })
+
+  it('tapping the avatar tile logs an incomplete habit', () => {
+    const onLog = vi.fn()
+    const habit = createMockHabit({ isCompleted: false })
+    render(<HabitCard habit={habit} actions={{ onLog }} />)
+    fireEvent.click(screen.getByLabelText('habits.logHabit'))
+    expect(onLog).toHaveBeenCalledOnce()
+  })
+
+  it('tapping the avatar tile unlogs a completed habit', () => {
+    const onUnlog = vi.fn()
+    const habit = createMockHabit({ isCompleted: true })
+    render(<HabitCard habit={habit} actions={{ onUnlog }} />)
+    fireEvent.click(
+      screen.getByLabelText(/habits\.actions\.unlog/),
+    )
+    expect(onUnlog).toHaveBeenCalledOnce()
+  })
+
+  it('shows a progress arc for a flexible habit', () => {
+    const habit = createMockHabit({
+      isFlexible: true,
+      flexibleTarget: 3,
+      flexibleCompleted: 1,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+    })
+    const { container } = render(<HabitCard habit={habit} />)
+    // The avatar-tile component renders an SVG when the arc is present
+    const svgs = container.querySelectorAll('svg')
+    expect(svgs.length).toBeGreaterThan(0)
+  })
+
+  it('renders the avatar tile with center label for parents with children', () => {
+    const habit = createMockHabit()
+    render(
+      <HabitCard
+        habit={habit}
+        hasChildren={true}
+        childrenDone={2}
+        childrenTotal={3}
+      />,
+    )
+    expect(screen.getByText('2/3')).toBeDefined()
+  })
+
+  it('stops card click propagation when tile is tapped', () => {
+    const onLog = vi.fn()
+    const onDetail = vi.fn()
+    const habit = createMockHabit({ isCompleted: false })
+    render(<HabitCard habit={habit} actions={{ onLog, onDetail }} />)
+    fireEvent.click(screen.getByLabelText('habits.logHabit'))
+    expect(onLog).toHaveBeenCalledOnce()
+    expect(onDetail).not.toHaveBeenCalled()
+  })
+
+  it('applies the left-status-bar class for overdue parents', () => {
+    const habit = createMockHabit({
+      isOverdue: true,
+      isCompleted: false,
+      isGeneral: false,
+      frequencyUnit: null,
+    })
+    render(<HabitCard habit={habit} selectedDate={new Date('2025-01-02')} />)
+    expect(screen.getByLabelText('Exercise').className).toContain('habit-status-overdue')
   })
 })

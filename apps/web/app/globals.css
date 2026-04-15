@@ -998,131 +998,137 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ═══════════════════════════════════════════════════════
-   HABIT CARDS v3 -- Premium Dark Glass
-   Layered shadows, gradient surfaces, inner highlights, glow states
+   HABIT CARDS v4 -- Avatar + Arc
+   Calm neutral surface, single accent inside the avatar tile, slim
+   left status bar, hover lift on web, press-in scale on mobile.
    ═══════════════════════════════════════════════════════ */
 
-/* Parent card -- glass surface with depth */
-.habit-card-parent {
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.035) 0%, transparent 40%),
-    var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: transform 280ms var(--ease-out),
-              box-shadow 280ms var(--ease-out),
-              border-color 280ms ease;
-}
-.habit-card-parent:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    0 0 30px rgba(var(--primary-shadow), 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-.habit-card-parent:active {
-  transform: translateY(-1px) scale(0.985);
-  transition-duration: 100ms;
+:root {
+  --habit-card-radius: 1rem;
+  --habit-card-bg: var(--color-surface);
+  --habit-card-border: rgb(255 255 255 / 0.06);
+  --habit-card-border-hover: rgb(255 255 255 / 0.12);
+  --habit-card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 4px 14px rgba(0, 0, 0, 0.18);
+  --habit-card-shadow-hover:
+    0 2px 4px rgba(0, 0, 0, 0.22),
+    0 12px 28px rgba(0, 0, 0, 0.22),
+    0 0 20px rgba(var(--primary-shadow), 0.06);
+  --habit-status-bar-due: var(--color-primary);
+  --habit-status-bar-overdue: rgb(239 68 68);
 }
 
-/* Due-today -- amber inner glow */
-.habit-card-parent.habit-status-due {
-  border-left: 3px solid rgba(245, 158, 11, 0.7);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 6px 0 20px -8px rgba(245, 158, 11, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.habit-card-parent.habit-status-due:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    inset 6px 0 24px -8px rgba(245, 158, 11, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+:root:not(.dark) {
+  --habit-card-bg: var(--color-surface);
+  --habit-card-border: rgb(0 0 0 / 0.07);
+  --habit-card-border-hover: rgb(0 0 0 / 0.12);
+  --habit-card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.05);
+  --habit-card-shadow-hover:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 10px 24px rgba(0, 0, 0, 0.07),
+    0 0 20px rgba(var(--primary-shadow), 0.05);
 }
 
-/* Overdue -- red inner glow */
-.habit-card-parent.habit-status-overdue {
-  border-left: 3px solid rgba(239, 68, 68, 0.7);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 6px 0 20px -8px rgba(239, 68, 68, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.habit-card-parent.habit-status-overdue:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    inset 6px 0 24px -8px rgba(239, 68, 68, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-
-/* Child card -- glass nested surface with accent line */
+/* Base card surface (parent + child share the same neutral surface; only the
+   status bar / opacity / nesting change). */
+.habit-card-parent,
 .habit-card-child {
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.02) 0%, transparent 40%),
-    rgba(13, 11, 22, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-left: 2px solid rgba(var(--primary-shadow), 0.25);
-  box-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.3),
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  transition: transform 250ms var(--ease-out),
-              box-shadow 250ms var(--ease-out),
-              border-color 250ms ease,
-              background 250ms ease;
+  position: relative;
+  border-radius: var(--habit-card-radius);
+  background: var(--habit-card-bg);
+  border: 1px solid var(--habit-card-border);
+  box-shadow: var(--habit-card-shadow);
+  transition: transform 220ms var(--ease-out),
+              box-shadow 220ms var(--ease-out),
+              border-color 220ms ease;
+  overflow: hidden;
+  isolation: isolate;
 }
+.habit-card-child {
+  border-radius: calc(var(--habit-card-radius) - 0.25rem);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.habit-card-parent:hover,
 .habit-card-child:hover {
-  transform: translateY(-2px);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%),
-    rgba(19, 17, 31, 0.8);
-  border-color: rgba(255, 255, 255, 0.07);
-  border-left-color: rgba(var(--primary-shadow), 0.5);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    0 0 16px rgba(var(--primary-shadow), 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-color: var(--habit-card-border-hover);
+  box-shadow: var(--habit-card-shadow-hover);
+  transform: translateY(-1px);
 }
+.habit-card-parent:active,
 .habit-card-child:active {
-  transform: translateY(-1px) scale(0.99);
-  transition-duration: 80ms;
+  transform: translateY(0);
+  transition-duration: 90ms;
 }
 
-/* Log button -- glow ring on hover, gradient when done */
-.log-btn {
-  border-radius: 9999px;
-  transition: all 250ms var(--ease-out);
+/* Slim 3px left status bar - only when due-today / overdue, parent only */
+.habit-card-parent.habit-status-due::before,
+.habit-card-parent.habit-status-overdue::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: var(--habit-card-radius) 0 0 var(--habit-card-radius);
+  z-index: 1;
+  pointer-events: none;
 }
-.log-btn:not(.log-btn-done):hover {
-  box-shadow: 0 0 0 3px rgba(var(--primary-shadow), 0.12),
-              0 0 20px rgba(var(--primary-shadow), 0.1);
+.habit-card-parent.habit-status-due::before {
+  background: var(--habit-status-bar-due);
 }
-.log-btn-done {
-  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, white)) !important;
-  box-shadow: 0 0 16px rgba(var(--primary-shadow), 0.4),
-              0 0 40px rgba(var(--primary-shadow), 0.15);
-}
-
-/* Progress ring -- glow on fill stroke */
-.progress-ring-glow {
-  filter: drop-shadow(0 0 4px rgba(var(--primary-shadow), 0.35));
+.habit-card-parent.habit-status-overdue::before {
+  background: var(--habit-status-bar-overdue);
 }
 
-/* Actions menu -- frosted glass panel */
+/* Completed: slightly muted but still legible */
+.habit-card-parent.habit-state-completed,
+.habit-card-child.habit-state-completed {
+  border-style: dashed;
+}
+
+/* Selected state: stronger ring (handled by JSX as ring-2 for clarity) */
+
+/* Avatar tile inner highlight - top-left soft sheen */
+.habit-avatar-inner-highlight {
+  background-image: radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.18) 0%, transparent 55%);
+  background-blend-mode: screen;
+}
+:root:not(.dark) .habit-avatar-inner-highlight {
+  background-image: radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.55) 0%, transparent 55%);
+  background-blend-mode: normal;
+}
+
+/* Arc subtle glow when the ratio is non-zero (drop-shadow on the SVG) */
+.habit-arc-glow {
+  filter: drop-shadow(0 0 3px rgba(var(--primary-shadow), 0.30));
+}
+
+/* Tile completion pop (420ms): scale 1 -> 1.08 -> 1 */
+@keyframes habit-tile-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.animate-habit-tile-pop {
+  animation: habit-tile-pop 420ms var(--ease-out);
+}
+
+/* Tile creation glow (1.4s breathing) */
+@keyframes habit-tile-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0); }
+  35%      { box-shadow: 0 0 0 6px rgba(var(--primary-shadow), 0.18); }
+  60%      { box-shadow: 0 0 0 8px rgba(var(--primary-shadow), 0.08); }
+}
+.animate-habit-tile-glow {
+  animation: habit-tile-glow 1.4s var(--ease-out);
+  border-radius: 16px;
+}
+
+/* Actions menu -- frosted panel, unchanged behavior */
 .habit-actions-menu {
   background: color-mix(in srgb, var(--color-surface-overlay) 92%, transparent);
   backdrop-filter: blur(16px);
@@ -1133,101 +1139,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     0 4px 12px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
-
-/* ═══════════════════════════════════════════════════════
-   HABIT CARDS -- Light Theme Overrides
-   ═══════════════════════════════════════════════════════ */
-
-:root:not(.dark) .habit-card-parent {
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.6) 0%, transparent 40%),
-    var(--color-surface);
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-:root:not(.dark) .habit-card-parent:hover {
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.06),
-    0 0 24px rgba(var(--primary-shadow), 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-:root:not(.dark) .habit-card-parent.habit-status-due {
-  border-left: 3px solid rgba(245, 158, 11, 0.5);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 6px 0 20px -8px rgba(245, 158, 11, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-:root:not(.dark) .habit-card-parent.habit-status-due:hover {
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.06),
-    inset 6px 0 24px -8px rgba(245, 158, 11, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-:root:not(.dark) .habit-card-parent.habit-status-overdue {
-  border-left: 3px solid rgba(239, 68, 68, 0.5);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 6px 0 20px -8px rgba(239, 68, 68, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-:root:not(.dark) .habit-card-parent.habit-status-overdue:hover {
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.06),
-    inset 6px 0 24px -8px rgba(239, 68, 68, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-:root:not(.dark) .habit-card-child {
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
-    var(--color-surface-ground);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-left: 2px solid rgba(var(--primary-shadow), 0.2);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 2px 8px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-:root:not(.dark) .habit-card-child:hover {
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.5) 0%, transparent 40%),
-    var(--color-surface);
-  border-color: rgba(0, 0, 0, 0.08);
-  border-left-color: rgba(var(--primary-shadow), 0.4);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    0 8px 20px rgba(0, 0, 0, 0.04),
-    0 0 12px rgba(var(--primary-shadow), 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-:root:not(.dark) .log-btn:not(.log-btn-done):hover {
-  box-shadow: 0 0 0 3px rgba(var(--primary-shadow), 0.08),
-              0 0 16px rgba(var(--primary-shadow), 0.06);
-}
-:root:not(.dark) .log-btn-done {
-  box-shadow: 0 0 12px rgba(var(--primary-shadow), 0.2),
-              0 0 28px rgba(var(--primary-shadow), 0.08);
-}
-
-:root:not(.dark) .progress-ring-glow {
-  filter: drop-shadow(0 0 3px rgba(var(--primary-shadow), 0.2));
-}
-
 :root:not(.dark) .habit-actions-menu {
   background: color-mix(in srgb, var(--color-surface-overlay) 95%, transparent);
   border: 1px solid rgba(0, 0, 0, 0.08);
