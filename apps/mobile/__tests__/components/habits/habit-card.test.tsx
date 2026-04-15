@@ -221,7 +221,7 @@ describe('HabitCard', () => {
   // Avatar + Arc redesign
   // ---------------------------------------------------------------------------
 
-  it('renders the emoji inside the avatar tile', () => {
+  it('renders the decorative emoji tile when the habit has an icon', () => {
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -233,7 +233,11 @@ describe('HabitCard', () => {
     expect(hasEmoji).toBe(true)
   })
 
-  it('falls back to the title initial when no icon', () => {
+  it('omits the decorative emoji tile when the habit has no icon', () => {
+    // After the split, the decorative emoji tile is only rendered when the
+    // habit has an icon. The initial-letter fallback lives in the shared
+    // `HabitAvatarTile` API but the card chooses not to render it to save
+    // horizontal space when no emoji has been picked.
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -242,7 +246,7 @@ describe('HabitCard', () => {
     })
     const texts = tree.root.findAll((n: any) => n.type === 'Text')
     const hasInitial = texts.some((n: any) => n.props.children === 'M')
-    expect(hasInitial).toBe(true)
+    expect(hasInitial).toBe(false)
   })
 
   it('tapping the avatar tile calls onLog when not completed', () => {

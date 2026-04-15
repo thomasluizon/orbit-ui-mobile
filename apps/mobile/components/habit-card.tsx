@@ -38,6 +38,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import { HabitAvatarTile } from '@/components/habits/habit-avatar-tile'
+import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { HabitMetaRow } from '@/components/habits/habit-meta-row'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { createColors, radius } from '@/lib/theme'
@@ -351,7 +352,8 @@ export function HabitCard({
               </TouchableOpacity>
             ) : null}
 
-            {/* Avatar tile or selection checkbox */}
+            {/* Log/finalize button + decorative emoji tile (or selection box
+                in select mode). The emoji tile is purely presentational. */}
             {isSelectMode ? (
               <TouchableOpacity
                 onPress={onToggleSelection}
@@ -369,27 +371,35 @@ export function HabitCard({
                 ) : null}
               </TouchableOpacity>
             ) : (
-              <HabitAvatarTile
-                icon={habit.icon}
-                title={habit.title}
-                size={isChild ? 'sm' : 'md'}
-                isCompleted={isCompletedForRange}
-                isOverdue={status === 'overdue'}
-                isBadHabit={!!habit.isBadHabit}
-                showArc={showArc && !isChild}
-                progressRatio={isParentWithChildren ? childRatio : progressRatio}
-                centerLabel={tileCenter}
-                showCheckBadge={isCompletedForRange}
-                isDisabled={isNotDueToday && !isCompletedForRange}
-                pulse={tilePulse}
-                glow={tileGlow}
-                onPress={handleTilePress}
-                accessibilityLabel={
-                  isCompletedForRange
-                    ? t('habits.actions.unlog', { title: habit.title })
-                    : t('habits.log.title')
-                }
-              />
+              <View style={styles.tilePair}>
+                <HabitLogButton
+                  size={isChild ? 'sm' : 'md'}
+                  isCompleted={isCompletedForRange}
+                  isOverdue={status === 'overdue'}
+                  isBadHabit={!!habit.isBadHabit}
+                  showArc={showArc && !isChild}
+                  progressRatio={isParentWithChildren ? childRatio : progressRatio}
+                  centerLabel={tileCenter}
+                  isDisabled={isNotDueToday && !isCompletedForRange}
+                  pulse={tilePulse}
+                  glow={tileGlow}
+                  onPress={handleTilePress}
+                  accessibilityLabel={
+                    isCompletedForRange
+                      ? t('habits.actions.unlog', { title: habit.title })
+                      : t('habits.log.title')
+                  }
+                />
+                {habit.icon && habit.icon.trim().length > 0 ? (
+                  <HabitAvatarTile
+                    icon={habit.icon}
+                    title={habit.title}
+                    size={isChild ? 'sm' : 'md'}
+                    isCompleted={isCompletedForRange}
+                    isBadHabit={!!habit.isBadHabit}
+                  />
+                ) : null}
+              </View>
             )}
 
             {/* Body */}
@@ -696,6 +706,12 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
+    },
+
+    tilePair: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
 
     expandBtn: {
