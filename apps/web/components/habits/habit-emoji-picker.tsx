@@ -86,7 +86,14 @@ export function HabitEmojiPicker({
           onEmojiSelect={({ emoji }) => handleSelect(emoji)}
           className="flex h-full w-full flex-col gap-3 text-[15px] text-text-primary"
         >
-          {/* Search with leading icon + soft focus ring */}
+          {/* Search with leading icon + soft focus ring.
+              The wrapper is `relative` and the icon is absolutely positioned
+              inside it (vertically centered via top-1/2 + -translate-y-1/2).
+              We intentionally do NOT use the `form-input` utility here because
+              its `px-4` was colliding with the pl-10 override in some CSS
+              orderings, making the magnifier sit on top of the placeholder.
+              Padding-left is explicit: `pl-10` (2.5rem) = 12px (icon left)
+              + 16px (icon width) + 8px gap. */}
           <div className="relative">
             <span
               aria-hidden="true"
@@ -96,7 +103,7 @@ export function HabitEmojiPicker({
             </span>
             <EmojiPicker.Search
               placeholder={t('habits.emojiPicker.searchPlaceholder')}
-              className="form-input h-10 w-full pl-9 pr-3 text-sm placeholder:text-text-muted focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
+              className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface py-3 pl-10 pr-3 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
 
