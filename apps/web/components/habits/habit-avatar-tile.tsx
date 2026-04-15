@@ -101,12 +101,13 @@ export function HabitAvatarTile({
     textClass = 'text-primary'
   }
 
-  // Ring is only rendered on OVERDUE (warn) or COMPLETED (accent). Otherwise
-  // the tile is flat to avoid a visible 1px frame around the emoji.
-  let ringClass = ''
+  let ringClass = 'ring-1 ring-primary/25'
   if (isCompleted) {
     ringClass = 'ring-1 ring-primary/40'
-  } else if (isOverdue) {
+  } else if (isBadHabit) {
+    ringClass = 'ring-1 ring-[rgb(var(--color-destructive-rgb)/0.25)]'
+  }
+  if (isOverdue && !isCompleted) {
     ringClass = 'ring-1 ring-[rgb(var(--color-destructive-rgb)/0.45)]'
   }
 
@@ -121,7 +122,7 @@ export function HabitAvatarTile({
       role={isInteractive ? undefined : 'img'}
       aria-label={isInteractive ? undefined : accessibleLabel}
       aria-hidden={isInteractive ? true : undefined}
-      className={`relative inline-flex items-center justify-center ${tokens.radiusClass} ${surfaceClass} ${ringClass} font-semibold leading-none select-none transition-colors duration-200`}
+      className={`habit-avatar-hover-shadow relative inline-flex items-center justify-center overflow-hidden ${tokens.radiusClass} ${surfaceClass} ${ringClass} habit-avatar-inner-highlight font-semibold leading-none select-none transition-all duration-200`}
       style={{
         width: tokens.inner,
         height: tokens.inner,
@@ -145,7 +146,7 @@ export function HabitAvatarTile({
   const shouldRenderArcFill = showArc && (isCompleted || progressRatio > 0)
   const arc = shouldRenderArcFill ? (
     <svg
-      className="pointer-events-none absolute inset-0 -rotate-90"
+      className="pointer-events-none absolute inset-0 -rotate-90 habit-arc-glow"
       viewBox="0 0 36 36"
       width={tokens.outer}
       height={tokens.outer}
