@@ -276,6 +276,34 @@ describe('HabitList', () => {
     expect(postponeDialog?.props.confirmLabel).toBe('habits.postponeConfirmButton')
   })
 
+  it('logs a habit immediately from the card action', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    seedHabits([habit])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    await TestRenderer.act(async () => {
+      await habitCard?.props.actions.onLog()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
+  })
+
   it('uses plain draggable list for today view outside select mode', () => {
     let tree: any
 
@@ -513,7 +541,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -599,7 +627,7 @@ describe('HabitList', () => {
       hasSubHabits: true,
       dueDate: TOMORROW,
       scheduledDates: [TOMORROW],
-      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -640,14 +668,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',

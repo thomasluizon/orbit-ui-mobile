@@ -302,7 +302,7 @@ describe('mobile habit hooks', () => {
     expect(optimisticHabit).toMatchObject({
       dueDate: '2025-01-01',
       scheduledDates: ['2025-01-01'],
-      instances: [{ date: '2025-01-01', status: 'Pending', logId: null, note: null }],
+      instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
     expect(count).toBe(3)
     expect(mocks.setLastCreatedHabitId).toHaveBeenCalledWith('offline-habit-1')
@@ -343,7 +343,7 @@ describe('mobile habit hooks', () => {
       expect(optimisticHabit).toMatchObject({
         dueDate: '2025-02-14',
         scheduledDates: ['2025-02-14'],
-        instances: [{ date: '2025-02-14', status: 'Pending', logId: null, note: null }],
+        instances: [{ date: '2025-02-14', status: 'Pending', logId: null }],
       })
     } finally {
       vi.useRealTimers()
@@ -387,7 +387,7 @@ describe('mobile habit hooks', () => {
     expect(parent?.children[0]?.id).toBe('offline-habit-child-1')
     expect(parent?.children[0]).toMatchObject({
       dueDate: '2025-01-01',
-      instances: [{ date: '2025-01-01', status: 'Pending', logId: null, note: null }],
+      instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
       mutation: expect.objectContaining({

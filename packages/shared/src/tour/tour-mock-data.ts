@@ -54,7 +54,7 @@ export function createTourMockHabits(today: string, t: T): HabitScheduleItem[] {
       flexibleTarget: null,
       flexibleCompleted: null,
       linkedGoals: [],
-      instances: [{ date: today, status: 'Completed', logId: 'tour-log-1', note: null }],
+      instances: [{ date: today, status: 'Completed', logId: 'tour-log-1' }],
     },
     {
       id: 'tour-habit-2',
@@ -107,7 +107,7 @@ export function createTourMockHabits(today: string, t: T): HabitScheduleItem[] {
           children: [],
           hasSubHabits: false,
           isLoggedInRange: false,
-          instances: [{ date: today, status: 'Pending', logId: null, note: null }],
+          instances: [{ date: today, status: 'Pending', logId: null }],
         },
         {
           id: 'tour-habit-2b',
@@ -130,14 +130,14 @@ export function createTourMockHabits(today: string, t: T): HabitScheduleItem[] {
           children: [],
           hasSubHabits: false,
           isLoggedInRange: false,
-          instances: [{ date: today, status: 'Pending', logId: null, note: null }],
+          instances: [{ date: today, status: 'Pending', logId: null }],
         },
       ],
       hasSubHabits: true,
       flexibleTarget: null,
       flexibleCompleted: null,
       linkedGoals: [{ id: 'tour-goal-1', title: t('tour.mockData.goals.marathon.title') }],
-      instances: [{ date: today, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: today, status: 'Pending', logId: null }],
     },
     {
       id: 'tour-habit-3',
@@ -169,7 +169,7 @@ export function createTourMockHabits(today: string, t: T): HabitScheduleItem[] {
       flexibleTarget: null,
       flexibleCompleted: null,
       linkedGoals: [],
-      instances: [{ date: today, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: today, status: 'Pending', logId: null }],
     },
     {
       id: 'tour-habit-4',
@@ -201,7 +201,7 @@ export function createTourMockHabits(today: string, t: T): HabitScheduleItem[] {
       flexibleTarget: 5,
       flexibleCompleted: 3,
       linkedGoals: [{ id: 'tour-goal-2', title: t('tour.mockData.goals.readGoal.title') }],
-      instances: [{ date: today, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: today, status: 'Pending', logId: null }],
     },
     {
       id: 'tour-habit-5',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { Clock, Bell, CalendarDays } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
@@ -9,7 +9,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
-  HabitDetailRecentNotes,
   HabitDetailStatsGrid,
   type TranslationFn,
 } from './habit-detail-sections'
@@ -56,23 +55,6 @@ export function HabitDetailDrawer({
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
-
-  const recentNotes = useMemo(
-    () =>
-      (logs ?? [])
-        .filter((log) => log.note)
-        .slice(0, 5)
-        .map((log) => ({
-          id: log.id,
-          note: log.note ?? '',
-          dateLabel: formatLocaleDate(log.date, locale, {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          }),
-        })),
-    [locale, logs],
-  )
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -198,8 +180,6 @@ export function HabitDetailDrawer({
               </h3>
               <HabitCalendar habitId={habit.id} logs={logs} />
             </div>
-
-            <HabitDetailRecentNotes notes={recentNotes} t={t as TranslationFn} />
           </div>
         )}
       </AppOverlay>

@@ -462,14 +462,6 @@
       "noGoals": "No active goals",
       "goalLimit": "Goal limit reached"
     },
-    "log": {
-      "title": "Log Habit",
-      "description": "Record a habit completion",
-      "habitLabel": "Habit",
-      "noteLabel": "Note (optional)",
-      "notePlaceholder": "How did it go?",
-      "noteTooLong": "Note must be 500 characters or fewer"
-    },
     "errors": {
       "alreadyLogged": "This habit was already logged for that date",
       "maxDepthReached": "This habit cannot be nested any deeper",
@@ -477,7 +469,6 @@
     },
     "detail": {
       "performance": "Performance",
-      "recentNotes": "Recent Notes",
       "completed": "Completed",
       "loggedAt": "Logged at {time}",
       "day": "day",
@@ -490,9 +481,7 @@
       "activity": "Activity",
       "streakDays": "{n}d",
       "stats": "Stats",
-      "noDataYet": "No data yet",
-      "showMoreNotes": "Show more",
-      "showLessNotes": "Show less"
+      "noDataYet": "No data yet"
     },
     "filter": {
       "daily": "Daily",
@@ -1098,8 +1087,6 @@
         "flexibleDesc": "Complete X times per week or month at your own pace -- no specific days required. Flexible habits track how many times you complete them within a window, giving you freedom to choose when.",
         "generalTitle": "General Habits",
         "generalDesc": "Habits without a schedule -- always visible, no due dates. Perfect for ongoing habits like journaling or reading that you want to track without being tied to specific days. Enable 'Show general on Today' in Settings.",
-        "logNotesTitle": "Log Notes",
-        "logNotesDesc": "Add a note when logging a habit to capture context or how you felt. Notes appear in your habit history and help the AI give more personalized insights.",
         "skipTitle": "Skip vs Log",
         "skipDesc": "Skip marks a habit as intentionally skipped for the day without breaking your streak. Use it when you consciously chose not to do a habit (rest day, travel, etc.) rather than simply forgetting."
       },

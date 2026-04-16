@@ -69,13 +69,11 @@ export function useLogHabit() {
   return useMutation({
     mutationFn: ({
       habitId,
-      note,
       date,
     }: {
       habitId: string
-      note?: string
       date?: string
-    }) => logHabitAction(habitId, note || date ? { note, date } : undefined),
+    }) => logHabitAction(habitId, date ? { date } : undefined),
 
     onMutate: async ({ habitId, date }) => {
       // Cancel outgoing refetches
@@ -108,9 +106,14 @@ export function useLogHabit() {
       }
     },
 
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
+      const loggedHabit = queryClient
+        .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+        .flatMap(([, items]) => items ?? [])
+        .find((item) => item.id === variables.habitId)
+
       // Streak celebration + update profile streak immediately so StreakBadge reflects it
-      if (response?.isFirstCompletionToday && response.currentStreak > 0) {
+      if (!loggedHabit?.isBadHabit && response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,

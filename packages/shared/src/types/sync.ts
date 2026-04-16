@@ -169,7 +169,6 @@ const syncHabitLogDtoSchema = z.object({
   habitId: z.string(),
   date: z.string(),
   value: z.number(),
-  note: z.string().nullable(),
   createdAtUtc: z.string(),
   updatedAtUtc: z.string(),
 })

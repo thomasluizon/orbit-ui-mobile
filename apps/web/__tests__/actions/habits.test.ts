@@ -142,20 +142,6 @@ describe('habit server actions', () => {
       expect(result.logId).toBe('log-1')
     })
 
-    it('sends note in body when provided', async () => {
-      mockApiResponse({
-        logId: 'log-2',
-        isFirstCompletionToday: false,
-        currentStreak: 1,
-      })
-
-      await logHabit('h-1', { note: 'Great session!' })
-
-      const [, init] = mockFetch.mock.calls[0]!
-      const body = JSON.parse(init.body)
-      expect(body.note).toBe('Great session!')
-    })
-
     it('sends date in body when provided', async () => {
       mockApiResponse({
         logId: 'log-3',

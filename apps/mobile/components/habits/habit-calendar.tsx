@@ -208,15 +208,10 @@ export function HabitCalendar({
           <View style={styles.selectedLogsList}>
             {selectedDayLogs.map((log) => (
               <View key={log.id} style={styles.logEntry}>
-                {log.note ? (
-                  <Text style={styles.logNote}>{log.note}</Text>
-                ) : null}
                 <Text style={styles.logMeta}>
-                  {log.note
-                    ? t("habits.detail.loggedAt", {
-                        time: formatLogTime(log.createdAtUtc),
-                      })
-                    : t("habits.detail.completed")}
+                  {t("habits.detail.loggedAt", {
+                    time: formatLogTime(log.createdAtUtc),
+                  })}
                 </Text>
               </View>
             ))}
@@ -378,11 +373,6 @@ function createStyles(
     },
     logEntry: {
       gap: 2,
-    },
-    logNote: {
-      fontSize: 13,
-      lineHeight: 18,
-      color: colors.textPrimary,
     },
     logMeta: {
       fontSize: 11,

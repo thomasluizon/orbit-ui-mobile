@@ -26,7 +26,6 @@ import { HabitCard } from './habit-card'
 import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
-import { LogHabitModal } from './log-habit-modal'
 import {
   HabitListDateGroupSection,
   HabitListEmptyState,
@@ -693,8 +692,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [habitToEdit, setHabitToEdit] = useState<NormalizedHabit | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useState(false)
   const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
-  const [showLogModal, setShowLogModal] = useState(false)
-  const [habitToLog, setHabitToLog] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
@@ -903,11 +900,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setShowDetailDrawer(true)
   }
 
-  function promptLog(habit: NormalizedHabit) {
-    setHabitToLog(habit)
-    setShowLogModal(true)
-  }
-
   function promptDelete(habitId: string) {
     setHabitToDelete(habitId)
     setShowDeleteConfirm(true)
@@ -981,6 +973,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   function handleLogged(habitId: string) {
     markRecentlyCompleted(habitId)
     checkAndPromptParentLog(habitId)
+  }
+
+  async function handleDirectLog(habitId: string) {
+    try {
+      await logHabit.mutateAsync({ habitId })
+      handleLogged(habitId)
+    } catch {
+      // Error handled by mutation
+    }
   }
 
   async function confirmForceLog() {
@@ -1057,7 +1058,7 @@ const isPostponeAction = useMemo(() => {
         maxHabitDepth={maxHabitDepth}
         showAddSubHabit
         actions={{
-          onLog: () => promptLog(habit),
+          onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
           onForceLogParent: () => {
             setForceLogHabitId(habit.id)
@@ -1312,13 +1313,6 @@ const isPostponeAction = useMemo(() => {
           parentHabit={subHabitParent}
         />
       )}
-
-      <LogHabitModal
-        open={showLogModal}
-        onOpenChange={setShowLogModal}
-        habit={habitToLog}
-        onLogged={handleLogged}
-      />
 
       <ConfirmDialog
         open={showDeleteConfirm}

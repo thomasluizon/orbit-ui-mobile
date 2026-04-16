@@ -118,7 +118,7 @@ describe('buildCalendarDayMap', () => {
         },
       ],
       logs: {
-        'habit-1': [{ id: 'log-1', date: '2026-04-05', value: 1, note: null, createdAtUtc: '2026-04-05T08:00:00Z' }],
+        'habit-1': [{ id: 'log-1', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' }],
       },
     }
 

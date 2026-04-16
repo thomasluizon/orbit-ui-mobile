@@ -64,7 +64,7 @@ describe('useCalendarData', () => {
             },
           ],
           logs: {
-            'h-1': [{ id: 'log-1', date: '2025-01-15', value: 1, note: null, createdAtUtc: '2025-01-15T10:00:00Z' }],
+            'h-1': [{ id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' }],
           },
         }),
     })

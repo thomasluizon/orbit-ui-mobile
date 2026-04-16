@@ -9,7 +9,6 @@ vi.mock('lucide-react-native', () => ({
 }))
 
 import {
-  HabitDetailRecentNotes,
   HabitDetailStatsGrid,
 } from '@/components/habits/habit-detail-sections'
 
@@ -65,38 +64,5 @@ describe('habit detail sections', () => {
     expect(findTextNodes(tree!, 'habits.detail.currentStreak').length).toBeGreaterThanOrEqual(1)
     expect(findTextNodes(tree!, 'habits.detail.streakDays({"n":5})').length).toBeGreaterThanOrEqual(1)
     expect(findTextNodes(tree!, 'habits.detail.monthlyRate').length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('renders recent notes', () => {
-    let tree: ReturnType<typeof TestRenderer.create> | null = null
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <HabitDetailRecentNotes
-          notes={[
-            {
-              id: 'note-1',
-              dateLabel: 'Jan 15, 2025',
-              note: 'Felt great today',
-            },
-          ]}
-          t={(key) => key}
-          colors={{ primary: '#2563eb' }}
-          styles={{
-            notesSection: { gap: 8 },
-            sectionTitle: { fontSize: 14 },
-            notesList: { gap: 8 },
-            noteCard: { padding: 12 },
-            noteDate: { fontSize: 10 },
-            noteText: { fontSize: 14 },
-            showMoreButton: { fontSize: 12 },
-          }}
-        />,
-      )
-    })
-
-    expect(tree).not.toBeNull()
-    expect(findTextNodes(tree!, 'habits.detail.recentNotes').length).toBeGreaterThanOrEqual(1)
-    expect(findTextNodes(tree!, 'Jan 15, 2025').length).toBeGreaterThanOrEqual(1)
-    expect(findTextNodes(tree!, 'Felt great today').length).toBeGreaterThanOrEqual(1)
   })
 })

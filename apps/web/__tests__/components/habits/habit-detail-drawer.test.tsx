@@ -41,8 +41,8 @@ vi.mock('@/hooks/use-habits', () => ({
         monthlyCompletionRate: 85.5,
       },
       logs: [
-        { id: 'log-1', date: '2025-01-15', note: 'Felt great today' },
-        { id: 'log-2', date: '2025-01-14', note: null },
+        { id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T00:00:00Z' },
+        { id: 'log-2', date: '2025-01-14', value: 1, createdAtUtc: '2025-01-14T00:00:00Z' },
       ],
     },
     isLoading: false,
@@ -255,18 +255,6 @@ describe('HabitDetailDrawer', () => {
       />,
     )
     expect(screen.getByTestId('habit-calendar')).toBeDefined()
-  })
-
-  it('shows recent notes when logs have notes', () => {
-    render(
-      <HabitDetailDrawer
-        open={true}
-        onOpenChange={vi.fn()}
-        habit={defaultHabit}
-      />,
-    )
-    expect(screen.getByText('habits.detail.recentNotes')).toBeDefined()
-    expect(screen.getByText('Felt great today')).toBeDefined()
   })
 
   it('renders checklist when habit has checklist items', () => {

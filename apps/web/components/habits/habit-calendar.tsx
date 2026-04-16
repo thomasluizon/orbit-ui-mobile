@@ -174,17 +174,10 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           <div className="space-y-2">
             {selectedDayLogs.map((log) => (
               <div key={log.id} className="flex flex-col gap-0.5">
-                {log.note && (
-                  <span className="text-xs text-text-primary leading-relaxed">
-                    {log.note}
-                  </span>
-                )}
                 <span className="text-[10px] text-text-muted">
-                  {log.note
-                    ? t('habits.detail.loggedAt', {
-                        time: formatLogTime(log.createdAtUtc),
-                      })
-                    : t('habits.detail.completed')}
+                  {t('habits.detail.loggedAt', {
+                    time: formatLogTime(log.createdAtUtc),
+                  })}
                 </span>
               </div>
             ))}

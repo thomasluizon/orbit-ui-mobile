@@ -19,7 +19,6 @@ import { HabitChecklist } from "./habit-checklist";
 import { DescriptionViewer } from "./description-viewer";
 import { HabitCalendar } from "./habit-calendar";
 import {
-  HabitDetailRecentNotes,
   HabitDetailStatsGrid,
 } from "./habit-detail-sections";
 import { useTimeFormat } from "@/hooks/use-time-format";
@@ -95,23 +94,6 @@ export function HabitDetailDrawer({
 
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false);
   const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] = useState(false);
-
-  const recentNotes = useMemo(
-    () =>
-      (logs ?? [])
-        .filter((log) => log.note)
-        .slice(0, 5)
-        .map((log) => ({
-          id: log.id,
-          note: log.note ?? "",
-          dateLabel: formatLocaleDate(log.date, locale, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-        })),
-    [locale, logs],
-  );
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -288,22 +270,6 @@ export function HabitDetailDrawer({
               </Text>
               <HabitCalendar habitId={habit.id} logs={logs} />
             </View>
-
-            <HabitDetailRecentNotes
-              notes={recentNotes}
-              t={t}
-              colors={{ primary: colors.primary }}
-              styles={{
-                notesSection: styles.notesSection,
-                sectionTitle: styles.sectionTitle,
-                notesList: styles.notesList,
-                noteCard: styles.noteCard,
-                noteDate: styles.noteDate,
-                noteText: styles.noteText,
-                showMoreButton: styles.showMoreButton,
-              }}
-            />
-
           </BottomSheetScrollView>
         )}
       </BottomSheetModal>

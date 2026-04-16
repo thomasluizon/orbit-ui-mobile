@@ -42,7 +42,6 @@ const calendarMonth = {
         id: 'log-1',
         date: '2026-04-01',
         value: 1,
-        note: null,
         createdAtUtc: '2026-04-01T09:00:00Z',
       },
     ],

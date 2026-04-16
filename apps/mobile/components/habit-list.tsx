@@ -91,7 +91,6 @@ interface HabitListProps {
   listHeader?: ReactElement | null
   onCreatePress: () => void
   onSeeUpcoming?: () => void
-  onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
   onEditHabit?: (habit: NormalizedHabit) => void
   onScrollBeginDrag?: () => void
@@ -187,7 +186,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     listHeader = null,
     onCreatePress,
     onSeeUpcoming,
-    onLogHabit,
     onDetailHabit,
     onEditHabit,
     onScrollBeginDrag,
@@ -1073,13 +1071,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           isSelectMode={isSelectMode}
           isSelected={selectedIds.has(habit.id)}
           actions={{
-            onLog: () => {
-              if (onLogHabit) {
-                onLogHabit(habit)
-                return
-              }
-              void handleDirectLog(habit.id)
-            },
+            onLog: () => { void handleDirectLog(habit.id) },
             onUnlog: () => logMutation.mutate({ habitId: habit.id }),
             onSkip: () => {
               promptSkip(habit.id)
@@ -1124,10 +1116,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       selectedDate,
       collapsedIds,
       getChildrenProgress,
+      handleDirectLog,
       searchQuery,
       isSelectMode,
       selectedIds,
-      onLogHabit,
       logMutation,
       promptSkip,
       toggleExpand,

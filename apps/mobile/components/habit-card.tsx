@@ -910,7 +910,7 @@ export function HabitCard({
                   ]}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.log.title')}
+                  accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')}
                   hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
                 >
                   {/* Step 7: gradient + animated pop wrapper */}
