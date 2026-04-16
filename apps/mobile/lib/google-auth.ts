@@ -19,6 +19,31 @@ export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
   | { type: WebBrowser.WebBrowserResultType }
 
+function mergeRequestIdIntoPayload(payload: unknown, requestId: string | null): unknown {
+  const trimmedRequestId = requestId?.trim()
+  if (!trimmedRequestId) {
+    return payload
+  }
+
+  if (payload === null) {
+    return { requestId: trimmedRequestId }
+  }
+
+  if (typeof payload !== 'object') {
+    return payload
+  }
+
+  const payloadRecord = payload as Record<string, unknown>
+  if (typeof payloadRecord.requestId === 'string') {
+    return payload
+  }
+
+  return {
+    ...payloadRecord,
+    requestId: trimmedRequestId,
+  }
+}
+
 async function exchangeGoogleSession(
   session: Session,
   language: string,
@@ -38,7 +63,10 @@ async function exchangeGoogleSession(
     }),
   })
 
-  const data = await response.json().catch(() => null) as unknown
+  const data = mergeRequestIdIntoPayload(
+    await response.json().catch(() => null) as unknown,
+    response.headers.get('x-orbit-request-id'),
+  )
 
   if (!response.ok) {
     throw createApiClientError(

@@ -39,6 +39,27 @@ function isAuthFetchError(err: unknown): err is AuthFetchError {
   )
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object'
+}
+
+function mergeRequestIdIntoBody(body: unknown, requestId: string | null): unknown {
+  const trimmedRequestId = requestId?.trim()
+  if (!trimmedRequestId) return body
+  if (isRecord(body) && typeof body.requestId !== 'string') {
+    return {
+      ...body,
+      requestId: trimmedRequestId,
+    }
+  }
+
+  if (body === null) {
+    return { requestId: trimmedRequestId }
+  }
+
+  return body
+}
+
 function resolveAuthCallbackError(
   err: unknown,
   t: ReturnType<typeof useTranslations>,
@@ -126,7 +147,10 @@ export default function AuthCallbackPage() {
         })
 
         if (!response.ok) {
-          const errorBody = await response.json().catch(() => null)
+          const errorBody = mergeRequestIdIntoBody(
+            await response.json().catch(() => null),
+            response.headers.get('x-orbit-request-id'),
+          )
           const nextErrorState = resolveAuthCallbackError(
             {
               status: response.status,
