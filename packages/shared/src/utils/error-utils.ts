@@ -226,7 +226,6 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['sub-habit title', '200'], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['linked goals'], key: 'habits.form.goalLimit', contexts: HABIT_CONTEXTS },
   { includes: ['at most 5 tags'], key: 'habits.form.tagLimit', contexts: HABIT_CONTEXTS },
-  { includes: ['note must not exceed 500'], key: 'habits.log.noteTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['already logged'], key: 'habits.errors.alreadyLogged', contexts: HABIT_CONTEXTS },
   { includes: [['max depth'], ['depth reached']], key: 'habits.errors.maxDepthReached', contexts: HABIT_CONTEXTS },
   { includes: ['circular'], key: 'habits.errors.circularReference', contexts: HABIT_CONTEXTS },

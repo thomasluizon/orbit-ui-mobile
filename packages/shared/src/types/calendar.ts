@@ -4,7 +4,6 @@ export const habitLogSchema = z.object({
   id: z.string(),
   date: z.string(),
   value: z.number(),
-  note: z.string().nullable(),
   createdAtUtc: z.string(),
 })
 

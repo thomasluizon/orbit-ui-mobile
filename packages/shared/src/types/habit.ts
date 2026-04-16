@@ -25,7 +25,6 @@ export const habitInstanceSchema = z.object({
   date: z.string(),
   status: instanceStatusSchema,
   logId: z.string().nullable(),
-  note: z.string().nullable(),
 })
 
 export type HabitInstance = z.infer<typeof habitInstanceSchema>
@@ -275,7 +274,6 @@ export const updateHabitRequestSchema = z.object({
 export type UpdateHabitRequest = z.infer<typeof updateHabitRequestSchema>
 
 export const logHabitRequestSchema = z.object({
-  note: z.string().optional(),
   date: z.string().optional(),
 })
 

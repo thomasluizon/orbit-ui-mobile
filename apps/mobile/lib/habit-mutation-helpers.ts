@@ -461,7 +461,7 @@ export function buildOptimisticHabit(
     flexibleCompleted: null,
     linkedGoals: findCachedGoals(queryClient, data.goalIds),
     instances: hasScheduleInstance
-      ? [{ date: dueDate, status: 'Pending', logId: null, note: null }]
+      ? [{ date: dueDate, status: 'Pending', logId: null }]
       : [],
     searchMatches: null,
   }
@@ -501,7 +501,7 @@ export function buildOptimisticSubHabit(
     children: [],
     hasSubHabits: false,
     isLoggedInRange: false,
-    instances: [{ date: dueDate, status: 'Pending', logId: null, note: null }],
+    instances: [{ date: dueDate, status: 'Pending', logId: null }],
     searchMatches: null,
   }
 }

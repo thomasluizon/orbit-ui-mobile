@@ -54,7 +54,6 @@ import { useStreakInfo } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { LogHabitModal } from '@/components/habits/log-habit-modal'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
@@ -217,7 +216,6 @@ export default function TodayScreen() {
   const dateLabelAnim = useRef(new Animated.Value(0)).current
 
   // Modal state
-  const [logHabit, setLogHabit] = useState<NormalizedHabit | null>(null)
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [habitPendingDelete, setHabitPendingDelete] =
@@ -890,7 +888,6 @@ export default function TodayScreen() {
           listHeader={habitsHeader}
           onCreatePress={() => setShowCreateModal(true)}
           onSeeUpcoming={goToNextDay}
-          onLogHabit={setLogHabit}
           onDetailHabit={setDetailHabit}
           onEditHabit={setEditHabit}
           onScrollBeginDrag={handleListScrollBeginDrag}
@@ -971,13 +968,6 @@ export default function TodayScreen() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         initialDate={currentActiveView === 'today' ? formatAPIDate(selectedDate) : null}
-      />
-
-      <LogHabitModal
-        open={!!logHabit}
-        onClose={() => setLogHabit(null)}
-        habit={logHabit}
-        onLogged={handleHabitLogged}
       />
 
       <HabitDetailDrawer

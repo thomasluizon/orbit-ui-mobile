@@ -35,7 +35,7 @@ function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
     flexibleCompleted: 0,
     isLoggedInRange: false,
     linkedGoals: [],
-    instances: [{ date: '2025-01-15', status: 'Pending' as const, logId: null, note: null }],
+    instances: [{ date: '2025-01-15', status: 'Pending' as const, logId: null }],
     searchMatches: null,
     ...overrides,
   } as NormalizedHabit
@@ -45,7 +45,7 @@ describe('useHabitVisibility', () => {
   const selectedDate = '2025-01-15'
 
   it('isDueOnSelectedDate returns true when habit has instance on selected date', () => {
-    const habit = makeHabit({ instances: [{ date: '2025-01-15', status: 'Pending' as const, logId: null, note: null }] })
+    const habit = makeHabit({ instances: [{ date: '2025-01-15', status: 'Pending' as const, logId: null }] })
     const habitsById = new Map([['h1', habit]])
 
     const { result } = renderHook(() =>
@@ -63,7 +63,7 @@ describe('useHabitVisibility', () => {
   })
 
   it('isDueOnSelectedDate returns false when habit has no instance on selected date', () => {
-    const habit = makeHabit({ instances: [{ date: '2025-01-16', status: 'Pending' as const, logId: null, note: null }] })
+    const habit = makeHabit({ instances: [{ date: '2025-01-16', status: 'Pending' as const, logId: null }] })
     const habitsById = new Map([['h1', habit]])
 
     const { result } = renderHook(() =>

@@ -148,10 +148,6 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: () => null,
 }))
 
-vi.mock('@/components/habits/log-habit-modal', () => ({
-  LogHabitModal: () => null,
-}))
-
 vi.mock('@/components/habits/habit-detail-drawer', () => ({
   HabitDetailDrawer: () => null,
 }))
@@ -297,6 +293,7 @@ describe('TodayScreen', () => {
 
     const habitList = tree.root.findByType('HabitList')
     expect(habitList.props.listHeader).toBeTruthy()
+    expect(habitList.props.onLogHabit).toBeUndefined()
   })
 
   it('dedupes descendant successes before prompting parent logs for bulk actions', async () => {

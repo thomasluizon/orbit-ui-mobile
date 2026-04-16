@@ -52,7 +52,7 @@ describe('habit-visibility', () => {
     const child = createMockHabit({
       id: 'child',
       parentId: 'parent',
-      instances: [{ date: today, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: today, status: 'Pending', logId: null }],
       isCompleted: false,
       searchMatches: [{ field: 'title', value: 'child' }],
     })
@@ -158,7 +158,7 @@ describe('habit-visibility', () => {
       id: 'open',
       parentId: 'parent',
       isCompleted: false,
-      instances: [{ date: '2025-01-01', status: 'Pending', logId: null, note: null }],
+      instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
 
     const habitsById = buildHabitMap([createMockHabit({ id: 'parent' }), completed, open])

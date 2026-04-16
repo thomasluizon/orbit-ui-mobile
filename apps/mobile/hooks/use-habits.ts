@@ -103,16 +103,16 @@ export function useLogHabit() {
   return useMutation<
     LogHabitResponse | QueuedMarker,
     Error,
-    { habitId: string; note?: string; date?: string },
+    { habitId: string; date?: string },
     { previousLists: HabitListSnapshots }
   >({
-    mutationFn: ({ habitId, note, date }) =>
+    mutationFn: ({ habitId, date }) =>
       performQueuedApiMutation<LogHabitResponse>({
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
         method: 'POST',
-        payload: note || date ? { note, date } : undefined,
+        payload: date ? { date } : undefined,
         entityType: 'habit',
         targetEntityId: habitId,
       }),
@@ -149,11 +149,16 @@ export function useLogHabit() {
         return
       }
 
+      const loggedHabit = queryClient
+        .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+        .flatMap(([, items]) => items ?? [])
+        .find((item) => item.id === variables.habitId)
+
       useReviewReminderStore
         .getState()
         .trackCompletion(variables.date ?? formatAPIDate(new Date()))
 
-      if (response?.isFirstCompletionToday && response.currentStreak > 0) {
+      if (!loggedHabit?.isBadHabit && response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,

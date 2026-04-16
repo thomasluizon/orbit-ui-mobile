@@ -256,7 +256,7 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('passes note and date to logHabit action', async () => {
+  it('passes date to logHabit action', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
@@ -271,13 +271,11 @@ describe('useLogHabit', () => {
     await act(async () => {
       await result.current.mutateAsync({
         habitId: 'h-1',
-        note: 'Great run!',
         date: '2025-01-15',
       })
     })
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', {
-      note: 'Great run!',
       date: '2025-01-15',
     })
   })

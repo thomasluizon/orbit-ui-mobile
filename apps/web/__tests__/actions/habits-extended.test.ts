@@ -70,7 +70,7 @@ describe('habit server actions (extended)', () => {
       })
 
       const items = [
-        { habitId: 'h-1', note: 'Done' },
+        { habitId: 'h-1' },
         { habitId: 'h-2', date: '2025-01-15' },
       ]
       const result = await bulkLogHabits(items)

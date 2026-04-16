@@ -370,17 +370,6 @@ describe('translateErrorKey', () => {
 // ---------------------------------------------------------------------------
 
 describe('getFriendlyErrorKey', () => {
-  it('maps habit log note length errors', () => {
-    const err = createApiClientError(
-      400,
-      { error: 'Note must not exceed 500 characters' },
-      'fallback',
-    )
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'habitLog')).toBe(
-      'habits.log.noteTooLong',
-    )
-  })
-
   it('maps tag color validation errors', () => {
     const err = createApiClientError(
       400,

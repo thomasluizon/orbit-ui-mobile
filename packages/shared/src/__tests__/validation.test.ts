@@ -9,7 +9,6 @@ import {
   validateHabitForm,
 } from '../validation/habit-form'
 import { goalFormSchema } from '../validation/goal-form'
-import { validateHabitLogNote } from '../validation/habit-log'
 import { validateTagForm } from '../validation/tag-form'
 
 // ---------------------------------------------------------------------------
@@ -367,24 +366,6 @@ describe('validateScheduledReminders', () => {
         { when: 'day_before', time: '09:00' },
       ]),
     ).toBeNull()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// validateHabitLogNote
-// ---------------------------------------------------------------------------
-
-describe('validateHabitLogNote', () => {
-  it('returns null for empty note', () => {
-    expect(validateHabitLogNote('')).toBeNull()
-  })
-
-  it('returns null for note at the limit', () => {
-    expect(validateHabitLogNote('n'.repeat(500))).toBeNull()
-  })
-
-  it('returns error for note above the limit', () => {
-    expect(validateHabitLogNote('n'.repeat(501))).toBe('habits.log.noteTooLong')
   })
 })
 

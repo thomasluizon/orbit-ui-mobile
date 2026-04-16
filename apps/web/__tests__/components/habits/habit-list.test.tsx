@@ -127,11 +127,14 @@ vi.mock('@/components/habits/habit-card', () => ({
     habit: NormalizedHabit
     childrenDone?: number
     childrenTotal?: number
-    actions?: { onForceLogParent?: () => void }
+    actions?: { onForceLogParent?: () => void; onLog?: () => void }
   }) => (
     <div data-testid={`habit-card-${habit.id}`}>
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
+      <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
+        log
+      </button>
       <button data-testid={`force-log-${habit.id}`} onClick={actions?.onForceLogParent}>
         force
       </button>
@@ -149,10 +152,6 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
 
 vi.mock('@/components/habits/edit-habit-modal', () => ({
   EditHabitModal: () => null,
-}))
-
-vi.mock('@/components/habits/log-habit-modal', () => ({
-  LogHabitModal: () => null,
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
@@ -364,6 +363,18 @@ describe('HabitList', () => {
     expect(screen.getByText('General Habit')).toBeDefined()
   })
 
+  it('logs a habit immediately from the card action', async () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+    mockHabitsData.habitsById.set('h-1', habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('log-h-1'))
+
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1' })
+  })
+
   it('opens a force-log confirmation before logging an incomplete parent', () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -397,7 +408,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -461,7 +472,7 @@ describe('HabitList', () => {
       hasSubHabits: true,
       dueDate: TOMORROW,
       scheduledDates: [TOMORROW],
-      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -491,14 +502,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',

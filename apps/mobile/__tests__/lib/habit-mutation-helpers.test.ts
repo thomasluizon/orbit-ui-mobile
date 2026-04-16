@@ -228,7 +228,7 @@ describe('habit mutation helper builders', () => {
     ])
     expect(result.linkedGoals).toEqual([{ id: 'goal-1', title: 'Read 12 books' }])
     expect(result.instances).toEqual([
-      { date: formatAPIDate(new Date()), status: 'Pending', logId: null, note: null },
+      { date: formatAPIDate(new Date()), status: 'Pending', logId: null },
     ])
   })
 
@@ -256,7 +256,7 @@ describe('habit mutation helper builders', () => {
       { id: 'tag-1', name: 'Health', color: '#22c55e' },
     ])
     expect(result.instances).toEqual([
-      { date: '2025-03-01', status: 'Pending', logId: null, note: null },
+      { date: '2025-03-01', status: 'Pending', logId: null },
     ])
   })
 

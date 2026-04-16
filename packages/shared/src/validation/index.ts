@@ -40,6 +40,4 @@ export {
   validateGoalProgressValue,
 } from './goal-form'
 
-export { validateHabitLogNote } from './habit-log'
-
 export { validateTagForm } from './tag-form'

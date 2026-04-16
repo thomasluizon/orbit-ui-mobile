@@ -162,7 +162,7 @@ describe('habit schemas', () => {
 
     it('validates instances sub-schema', () => {
       const habit = createMockHabit({
-        instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1', note: null }],
+        instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
       })
       const result = normalizedHabitSchema.safeParse(habit)
       expect(result.success).toBe(true)
@@ -170,7 +170,7 @@ describe('habit schemas', () => {
 
     it('rejects invalid instance status', () => {
       const habit = createMockHabit({
-        instances: [{ date: '2025-01-01', status: 'Invalid', logId: null, note: null }] as any,
+        instances: [{ date: '2025-01-01', status: 'Invalid', logId: null }] as any,
       })
       const result = normalizedHabitSchema.safeParse(habit)
       expect(result.success).toBe(false)

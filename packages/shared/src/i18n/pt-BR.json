@@ -462,14 +462,6 @@
       "noGoals": "Nenhuma meta ativa",
       "goalLimit": "Limite de metas atingido"
     },
-    "log": {
-      "title": "Registrar Hábito",
-      "description": "Registrar uma conclusão de hábito",
-      "habitLabel": "Hábito",
-      "noteLabel": "Nota (opcional)",
-      "notePlaceholder": "Como foi?",
-      "noteTooLong": "A nota deve ter no máximo 500 caracteres"
-    },
     "errors": {
       "alreadyLogged": "Este hábito já foi registrado nessa data",
       "maxDepthReached": "Este hábito não pode ser aninhado mais profundamente",
@@ -477,7 +469,6 @@
     },
     "detail": {
       "performance": "Desempenho",
-      "recentNotes": "Notas Recentes",
       "completed": "Concluído",
       "loggedAt": "Registrado às {time}",
       "day": "dia",
@@ -490,9 +481,7 @@
       "activity": "Atividade",
       "streakDays": "{n}d",
       "stats": "Estatísticas",
-      "noDataYet": "Nenhum dado ainda",
-      "showMoreNotes": "Ver mais",
-      "showLessNotes": "Ver menos"
+      "noDataYet": "Nenhum dado ainda"
     },
     "filter": {
       "daily": "Diário",
@@ -1098,8 +1087,6 @@
         "flexibleDesc": "Complete X vezes por semana ou mês no seu próprio ritmo -- sem dias específicos obrigatórios. Hábitos flexíveis rastreiam quantas vezes você os conclui dentro de uma janela, dando liberdade para escolher quando.",
         "generalTitle": "Hábitos Gerais",
         "generalDesc": "Hábitos sem agendamento -- sempre visíveis, sem datas de vencimento. Perfeito para hábitos contínuos como escrever ou ler que você quer rastrear sem estar preso a dias específicos. Ative 'Mostrar gerais no Hoje' nas Configurações.",
-        "logNotesTitle": "Notas ao Registrar",
-        "logNotesDesc": "Adicione uma nota ao registrar um hábito para capturar contexto ou como você se sentiu. As notas aparecem no histórico do hábito e ajudam a IA a fornecer insights mais personalizados.",
         "skipTitle": "Pular vs Registrar",
         "skipDesc": "Pular marca um hábito como intencionalmente ignorado no dia sem quebrar sua sequência. Use quando você conscientemente escolheu não fazer um hábito (dia de descanso, viagem, etc.) em vez de simplesmente esquecer."
       },
