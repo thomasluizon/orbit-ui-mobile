@@ -14,6 +14,18 @@ interface ApiErrorPayload {
   requestId?: string
 }
 
+function getResponseHeader(
+  response: Response,
+  headerName: string,
+): string | null {
+  const headers = response.headers
+  if (!headers || typeof headers.get !== 'function') {
+    return null
+  }
+
+  return headers.get(headerName)
+}
+
 function attachRequestIdToPayload(
   payload: ApiErrorPayload | null,
   requestId: string | null,
@@ -59,7 +71,7 @@ export async function apiClient<T = unknown>(
       401,
       attachRequestIdToPayload(
         { error: 'Unauthorized' },
-        res.headers.get('x-orbit-request-id'),
+        getResponseHeader(res, 'x-orbit-request-id'),
       ),
       'Unauthorized',
     )
@@ -68,7 +80,7 @@ export async function apiClient<T = unknown>(
   if (!res.ok) {
     const error = attachRequestIdToPayload(
       (await res.json().catch(() => null)) as ApiErrorPayload | null,
-      res.headers.get('x-orbit-request-id'),
+      getResponseHeader(res, 'x-orbit-request-id'),
     )
     throw createApiClientError(
       res.status,
