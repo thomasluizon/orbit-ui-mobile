@@ -195,6 +195,7 @@
     "googleError": "Falha ao entrar com Google. Tente novamente.",
     "signingIn": "Entrando...",
     "callbackError": "Algo deu errado durante o login. Tente novamente.",
+    "errorReference": "Código de referência: {requestId}",
     "backToLogin": "Voltar ao login",
     "sessionExpiring": "Sua sessão expira em {minutes} minutos. Salve seu trabalho.",
     "sessionExpired": "Sua sessão expirou. Faça login novamente.",

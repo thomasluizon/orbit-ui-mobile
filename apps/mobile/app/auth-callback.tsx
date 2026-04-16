@@ -4,6 +4,12 @@ import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
+  ApiClientError,
+  extractAuthBackendMessage,
+  extractBackendRequestId,
+  resolveAuthLoginErrorKey,
+} from '@orbit/shared/utils'
+import {
   clearStoredReferralCode,
   consumeStoredAuthReturnUrl,
   getSafeReturnUrl,
@@ -23,6 +29,11 @@ import { createColors } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppColors = ReturnType<typeof createColors>
+
+interface AuthCallbackErrorState {
+  message: string
+  requestId?: string
+}
 
 export default function AuthCallbackScreen() {
   const { t, i18n } = useTranslation()
@@ -47,7 +58,38 @@ export default function AuthCallbackScreen() {
     isPending: isPendingGoogleAuthSession,
   } = usePendingGoogleAuthSession()
   const processedRef = useRef(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
+
+  function resolveCallbackError(err: unknown): AuthCallbackErrorState {
+    const status = err instanceof ApiClientError ? err.status : undefined
+    const payload = err instanceof ApiClientError ? err.data : err
+    const backendMessage = extractAuthBackendMessage(payload)
+    const requestId = extractBackendRequestId(payload)
+    const hasStructuredContext =
+      status !== undefined ||
+      backendMessage !== undefined ||
+      requestId !== undefined ||
+      err instanceof TypeError
+
+    if (!hasStructuredContext) {
+      return {
+        message: t('auth.callbackError'),
+        requestId,
+      }
+    }
+
+    const key = resolveAuthLoginErrorKey({
+      status,
+      backendMessage,
+      raw: err,
+      source: 'google',
+    })
+
+    return {
+      message: t(key),
+      requestId,
+    }
+  }
 
   const callbackUrl = useMemo(
     () =>
@@ -96,18 +138,20 @@ export default function AuthCallbackScreen() {
 
         const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
         router.replace(returnUrl as Href)
-      } catch {
-        setErrorMessage(t('auth.callbackError'))
+      } catch (error: unknown) {
+        const nextErrorState = resolveCallbackError(error)
+        setErrorState(nextErrorState)
       }
     }
 
-    handleCallback().catch(() => {
-      setErrorMessage(t('auth.callbackError'))
+    handleCallback().catch((error: unknown) => {
+      const nextErrorState = resolveCallbackError(error)
+      setErrorState(nextErrorState)
     })
   }, [callbackUrl, i18n.language, login, router, t])
 
   useEffect(() => {
-    if (processedRef.current || errorMessage || callbackUrl || isPendingGoogleAuthSession) return
+    if (processedRef.current || errorState || callbackUrl || isPendingGoogleAuthSession) return
 
     const timeout = setTimeout(() => {
       router.replace('/login' as Href)
@@ -116,14 +160,19 @@ export default function AuthCallbackScreen() {
     return () => {
       clearTimeout(timeout)
     }
-  }, [callbackUrl, errorMessage, isPendingGoogleAuthSession, router])
+  }, [callbackUrl, errorState, isPendingGoogleAuthSession, router])
 
   return (
     <View style={styles.container}>
-      {errorMessage ? (
+      {errorState ? (
         <>
           <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Text style={styles.errorText}>{errorState.message}</Text>
+            {errorState.requestId ? (
+              <Text style={styles.errorReferenceText}>
+                {t('auth.errorReference', { requestId: errorState.requestId })}
+              </Text>
+            ) : null}
           </View>
           <TouchableOpacity
             style={styles.backButton}
@@ -172,6 +221,14 @@ function createStyles(colors: AppColors) {
       fontSize: 14,
       textAlign: 'center',
       lineHeight: 20,
+    },
+    errorReferenceText: {
+      color: colors.red400,
+      fontSize: 12,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginTop: 8,
+      opacity: 0.9,
     },
     backButton: {
       paddingVertical: 8,

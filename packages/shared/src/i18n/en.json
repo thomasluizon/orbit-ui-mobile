@@ -195,6 +195,7 @@
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
+    "errorReference": "Reference code: {requestId}",
     "backToLogin": "Back to login",
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
     "sessionExpired": "Your session has expired. Please log in again.",

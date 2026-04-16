@@ -2,7 +2,7 @@ import * as WebBrowser from 'expo-web-browser'
 import type { Session } from '@supabase/supabase-js'
 import { API } from '@orbit/shared/api'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
+import { buildGoogleCalendarOAuthOptions, createApiClientError } from '@orbit/shared/utils'
 import { isSafeReturnUrl, storeAuthReturnUrl } from './auth-flow'
 import {
   AUTH_CALLBACK_URL,
@@ -41,8 +41,11 @@ async function exchangeGoogleSession(
   const data = await response.json().catch(() => null) as unknown
 
   if (!response.ok) {
-    const errorPayload = data as { error?: string; message?: string } | null
-    throw new Error(errorPayload?.error ?? errorPayload?.message ?? 'Authentication failed')
+    throw createApiClientError(
+      response.status,
+      data,
+      `Request failed: ${response.status}`,
+    )
   }
 
   return data as BackendLoginResponse

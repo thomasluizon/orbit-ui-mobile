@@ -4,6 +4,11 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  extractAuthBackendMessage,
+  extractBackendRequestId,
+  resolveAuthLoginErrorKey,
+} from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
@@ -16,13 +21,65 @@ function getCookieValue(name: string): string | undefined {
   return value === undefined ? undefined : decodeURIComponent(value)
 }
 
+interface AuthFetchError {
+  status: number
+  body: unknown
+}
+
+interface AuthCallbackErrorState {
+  message: string
+  requestId?: string
+}
+
+function isAuthFetchError(err: unknown): err is AuthFetchError {
+  return (
+    !!err &&
+    typeof err === 'object' &&
+    typeof (err as { status?: unknown }).status === 'number'
+  )
+}
+
+function resolveAuthCallbackError(
+  err: unknown,
+  t: ReturnType<typeof useTranslations>,
+): AuthCallbackErrorState {
+  const status = isAuthFetchError(err) ? err.status : undefined
+  const body = isAuthFetchError(err) ? err.body : err
+  const backendMessage = extractAuthBackendMessage(body)
+  const requestId = extractBackendRequestId(body)
+  const hasStructuredContext =
+    status !== undefined ||
+    backendMessage !== undefined ||
+    requestId !== undefined ||
+    err instanceof TypeError
+
+  if (!hasStructuredContext) {
+    return {
+      message: t('auth.callbackError'),
+      requestId,
+    }
+  }
+
+  const key = resolveAuthLoginErrorKey({
+    status,
+    backendMessage,
+    raw: err,
+    source: 'google',
+  })
+
+  return {
+    message: t(key),
+    requestId,
+  }
+}
+
 export default function AuthCallbackPage() {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setAuth } = useAuthStore()
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
   const processedRef = useRef(false)
   const isAuthenticatedRef = useRef(false)
   const errorMessageRef = useRef<string | null>(null)
@@ -69,8 +126,21 @@ export default function AuthCallbackPage() {
         })
 
         if (!response.ok) {
-          setErrorMessage(t('auth.callbackError'))
-          errorMessageRef.current = t('auth.callbackError')
+          const errorBody = await response.json().catch(() => null)
+          const nextErrorState = resolveAuthCallbackError(
+            {
+              status: response.status,
+              body: errorBody,
+            },
+            t,
+          )
+          console.error('[auth-callback] google exchange failed', {
+            status: response.status,
+            requestId: nextErrorState.requestId,
+            error: extractAuthBackendMessage(errorBody),
+          })
+          setErrorState(nextErrorState)
+          errorMessageRef.current = nextErrorState.message
           return
         }
 
@@ -94,9 +164,14 @@ export default function AuthCallbackPage() {
             ? returnUrl
             : '/'
         router.push(safeUrl)
-      } catch {
-        setErrorMessage(t('auth.callbackError'))
-        errorMessageRef.current = t('auth.callbackError')
+      } catch (error: unknown) {
+        const nextErrorState = resolveAuthCallbackError(error, t)
+        console.error('[auth-callback] unexpected callback error', {
+          requestId: nextErrorState.requestId,
+          error,
+        })
+        setErrorState(nextErrorState)
+        errorMessageRef.current = nextErrorState.message
       }
     })
 
@@ -104,7 +179,11 @@ export default function AuthCallbackPage() {
     const timeoutId = setTimeout(() => {
       subscription.unsubscribe()
       if (!isAuthenticatedRef.current && !errorMessageRef.current) {
-        setErrorMessage(t('auth.callbackError'))
+        const nextErrorState = {
+          message: t('auth.callbackError'),
+        }
+        setErrorState(nextErrorState)
+        errorMessageRef.current = nextErrorState.message
       }
     }, 15000)
 
@@ -115,10 +194,15 @@ export default function AuthCallbackPage() {
   return (
     <div className="w-full max-w-sm">
       <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 space-y-6 border border-border text-center">
-        {errorMessage ? (
+        {errorState ? (
           <>
             <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 text-sm text-red-400">
-              {errorMessage}
+              <p>{errorState.message}</p>
+              {errorState.requestId ? (
+                <p className="mt-2 text-xs text-red-300">
+                  {t('auth.errorReference', { requestId: errorState.requestId })}
+                </p>
+              ) : null}
             </div>
             <Link
               href="/login"

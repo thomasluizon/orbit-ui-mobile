@@ -5,6 +5,7 @@ import {
   extractBackendError,
   extractBackendErrorCode,
   extractBackendFieldErrors,
+  extractBackendRequestId,
   extractBackendStatus,
   getErrorMessage,
   getFriendlyErrorKey,
@@ -150,6 +151,30 @@ describe('extractBackendStatus', () => {
   it('returns undefined for non-objects', () => {
     expect(extractBackendStatus(null)).toBeUndefined()
     expect(extractBackendStatus(42)).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// extractBackendRequestId
+// ---------------------------------------------------------------------------
+
+describe('extractBackendRequestId', () => {
+  it('extracts requestId from nested data.data', () => {
+    const err = { data: { data: { requestId: 'req_nested' } } }
+    expect(extractBackendRequestId(err)).toBe('req_nested')
+  })
+
+  it('extracts requestId from direct data', () => {
+    const err = { data: { requestId: 'req_direct' } }
+    expect(extractBackendRequestId(err)).toBe('req_direct')
+  })
+
+  it('returns undefined for blank requestId values', () => {
+    expect(extractBackendRequestId({ data: { requestId: '   ' } })).toBeUndefined()
+  })
+
+  it('returns undefined when requestId is missing', () => {
+    expect(extractBackendRequestId({ data: { error: 'No request id' } })).toBeUndefined()
   })
 })
 

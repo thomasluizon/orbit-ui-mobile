@@ -3,6 +3,7 @@ interface BackendErrorData {
   message?: string
   code?: string
   errorCode?: string
+  requestId?: string
   type?: string
   status?: number
   data?: BackendErrorData
@@ -137,6 +138,16 @@ export function extractBackendStatus(err: unknown): number | undefined {
   }
 
   return undefined
+}
+
+export function extractBackendRequestId(err: unknown): string | undefined {
+  const data = extractNestedData(err)
+  const requestId = data?.data?.requestId ?? data?.requestId
+  if (typeof requestId !== 'string' || requestId.trim().length === 0) {
+    return undefined
+  }
+
+  return requestId
 }
 
 export function createApiClientError(

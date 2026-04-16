@@ -20,6 +20,7 @@ export {
   extractBackendError,
   extractBackendErrorCode,
   extractBackendFieldErrors,
+  extractBackendRequestId,
   extractBackendStatus,
   getErrorMessage,
   getFriendlyErrorKey,
