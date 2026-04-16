@@ -324,6 +324,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }, 1400)
   }, [])
 
+  const clearRecentlyCompleted = useCallback((habitId: string) => {
+    recentlyCompletedPromptIdsRef.current.delete(habitId)
+    setRecentlyCompletedIds((prev) => {
+      if (!prev.has(habitId)) return prev
+      const next = new Set(prev)
+      next.delete(habitId)
+      return next
+    })
+  }, [])
+
   // Visibility helpers
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
   const visibility = useHabitVisibility({
@@ -748,6 +758,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       // After logging parent, check if grandparent also needs logging
       checkAndPromptParentLog(parentId)
     } catch {
+      clearRecentlyCompleted(parentId)
       // Error handled by mutation
     }
   }
@@ -970,26 +981,31 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  function handleLogged(habitId: string) {
-    markRecentlyCompleted(habitId)
+  function handleLogged(habitId: string, markAsRecentlyCompleted = true) {
+    if (markAsRecentlyCompleted) {
+      markRecentlyCompleted(habitId)
+    }
+
     checkAndPromptParentLog(habitId)
   }
 
   async function handleDirectLog(habitId: string) {
+    markRecentlyCompleted(habitId)
     try {
       await logHabit.mutateAsync({ habitId })
-      handleLogged(habitId)
+      handleLogged(habitId, false)
     } catch {
+      clearRecentlyCompleted(habitId)
       // Error handled by mutation
     }
   }
-
   async function confirmForceLog() {
     if (!forceLogHabitId) return
     markRecentlyCompleted(forceLogHabitId)
     try {
       await logHabit.mutateAsync({ habitId: forceLogHabitId })
     } catch {
+      clearRecentlyCompleted(forceLogHabitId)
       // Error handled by mutation
     } finally {
       setForceLogHabitId(null)

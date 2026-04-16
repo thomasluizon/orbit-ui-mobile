@@ -154,6 +154,10 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
   EditHabitModal: () => null,
 }))
 
+vi.mock('@/components/habits/log-habit-modal', () => ({
+  LogHabitModal: () => null,
+}))
+
 vi.mock('@/components/ui/confirm-dialog', () => ({
   ConfirmDialog: ({
     open,
@@ -227,9 +231,18 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
   )
+
+  return {
+    ...result,
+    rerenderWithProviders(nextUi: React.ReactElement) {
+      result.rerender(
+        <QueryClientProvider client={queryClient}>{nextUi}</QueryClientProvider>,
+      )
+    },
+  }
 }
 
 const defaultFilters = {
@@ -375,6 +388,49 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1' })
   })
 
+  it('keeps a general habit visible while direct logging is pending', async () => {
+    const habit = createMockHabit({
+      id: 'h-1',
+      title: 'Exercise',
+      isGeneral: true,
+      isCompleted: false,
+    })
+    mockHabitsData.habitsById.set('h-1', habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    let resolveLog: (() => void) | undefined
+    const pendingLog = new Promise<void>((resolve) => {
+      resolveLog = resolve
+    })
+
+    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
+      const nextHabit = mockHabitsData.habitsById.get(habitId)
+      if (nextHabit) {
+        const completedHabit = { ...nextHabit, isCompleted: true }
+        mockHabitsData.habitsById.set(habitId, completedHabit)
+        mockHabitsData.topLevelHabits = mockHabitsData.topLevelHabits.map((item) =>
+          item.id === habitId ? completedHabit : item,
+        )
+      }
+
+      return pendingLog
+    })
+
+    const { rerenderWithProviders } = renderWithProviders(
+      <HabitList filters={defaultFilters} view="general" />,
+    )
+
+    fireEvent.click(screen.getByTestId('log-h-1'))
+
+    rerenderWithProviders(<HabitList filters={defaultFilters} view="general" />)
+
+    expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
+
+    await act(async () => {
+      resolveLog?.()
+      await pendingLog
+    })
+  })
   it('opens a force-log confirmation before logging an incomplete parent', () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -408,7 +464,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -472,7 +528,7 @@ describe('HabitList', () => {
       hasSubHabits: true,
       dueDate: TOMORROW,
       scheduledDates: [TOMORROW],
-      instances: [{ date: TOMORROW, status: 'Pending', logId: null }],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -502,14 +558,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
     })
     const child = createMockHabit({
       id: 'child',

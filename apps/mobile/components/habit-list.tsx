@@ -91,6 +91,7 @@ interface HabitListProps {
   listHeader?: ReactElement | null
   onCreatePress: () => void
   onSeeUpcoming?: () => void
+  onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
   onEditHabit?: (habit: NormalizedHabit) => void
   onScrollBeginDrag?: () => void
@@ -186,6 +187,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     listHeader = null,
     onCreatePress,
     onSeeUpcoming,
+    onLogHabit,
     onDetailHabit,
     onEditHabit,
     onScrollBeginDrag,
@@ -318,6 +320,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         return next
       })
     }, 1400)
+  }, [])
+
+  const clearRecentlyCompleted = useCallback((habitId: string) => {
+    recentlyCompletedPromptIdsRef.current.delete(habitId)
+    setRecentlyCompletedIds((previous) => {
+      if (!previous.has(habitId)) return previous
+      const next = new Set(previous)
+      next.delete(habitId)
+      return next
+    })
   }, [])
 
   const getVisibleChildren = useCallback(
@@ -657,13 +669,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [checkAndPromptParentLog, markRecentlyCompleted, showInterstitialIfDue])
 
   const handleDirectLog = useCallback(async (habitId: string) => {
+    markRecentlyCompleted(habitId)
+
     try {
       await logMutation.mutateAsync({ habitId })
-      handleLogged(habitId)
+      handleLogged(habitId, false)
     } catch {
+      clearRecentlyCompleted(habitId)
       // Error handled by mutation
     }
-  }, [handleLogged, logMutation])
+  }, [clearRecentlyCompleted, handleLogged, logMutation, markRecentlyCompleted])
 
   const confirmAutoLogParent = useCallback(async () => {
     const parentId = autoLogParentId
@@ -677,9 +692,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       await logMutation.mutateAsync({ habitId: parentId })
       handleLogged(parentId, false)
     } catch {
+      clearRecentlyCompleted(parentId)
       // Error handled by mutation
     }
-  }, [autoLogParentId, handleLogged, logMutation, markRecentlyCompleted])
+  }, [autoLogParentId, clearRecentlyCompleted, handleLogged, logMutation, markRecentlyCompleted])
 
   const promptForceLogParent = useCallback((habitId: string) => {
     setForceLogHabitId(habitId)
@@ -695,12 +711,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       await logMutation.mutateAsync({ habitId: forceLogHabitId })
       handleLogged(forceLogHabitId, false)
     } catch {
+      clearRecentlyCompleted(forceLogHabitId)
       // Error handled by mutation
     } finally {
       setForceLogHabitId(null)
       setShowForceLogConfirm(false)
     }
-  }, [forceLogHabitId, handleLogged, logMutation, markRecentlyCompleted])
+  }, [forceLogHabitId, clearRecentlyCompleted, handleLogged, logMutation, markRecentlyCompleted])
 
   const promptSkip = useCallback((habitId: string) => {
     setHabitToSkip(habitId)
@@ -1071,7 +1088,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           isSelectMode={isSelectMode}
           isSelected={selectedIds.has(habit.id)}
           actions={{
-            onLog: () => { void handleDirectLog(habit.id) },
+            onLog: () => {
+              if (onLogHabit) {
+                onLogHabit(habit)
+                return
+              }
+              void handleDirectLog(habit.id)
+            },
             onUnlog: () => logMutation.mutate({ habitId: habit.id }),
             onSkip: () => {
               promptSkip(habit.id)
@@ -1116,10 +1139,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       selectedDate,
       collapsedIds,
       getChildrenProgress,
-      handleDirectLog,
       searchQuery,
       isSelectMode,
       selectedIds,
+      onLogHabit,
       logMutation,
       promptSkip,
       toggleExpand,

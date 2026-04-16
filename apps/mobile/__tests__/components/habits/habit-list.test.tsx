@@ -304,6 +304,75 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
   })
 
+  it('keeps a logged habit visible while the direct log request is pending', async () => {
+    const habit = createMockHabit({
+      id: 'habit-1',
+      title: 'Exercise',
+      isGeneral: true,
+      isCompleted: false,
+    })
+    seedHabits([habit])
+
+    let resolveLog: (() => void) | undefined
+    const pendingLog = new Promise<void>((resolve) => {
+      resolveLog = resolve
+    })
+
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
+      const nextHabit = mockHabitsData.habitsById.get(habitId)
+      if (nextHabit) {
+        const completedHabit = { ...nextHabit, isCompleted: true }
+        mockHabitsData.habitsById.set(habitId, completedHabit)
+        mockHabitsData.topLevelHabits = mockHabitsData.topLevelHabits.map((item) =>
+          item.id === habitId ? completedHabit : item,
+        )
+      }
+
+      return pendingLog
+    })
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="general"
+          filters={{}}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const initialHabitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    await TestRenderer.act(async () => {
+      void initialHabitCard?.props.actions.onLog()
+      await Promise.resolve()
+    })
+
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          view="general"
+          filters={{}}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const loggedHabitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    expect(loggedHabitCard).toBeTruthy()
+
+    await TestRenderer.act(async () => {
+      resolveLog?.()
+      await pendingLog
+    })
+  })
   it('uses plain draggable list for today view outside select mode', () => {
     let tree: any
 
@@ -541,7 +610,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -627,7 +696,7 @@ describe('HabitList', () => {
       hasSubHabits: true,
       dueDate: TOMORROW,
       scheduledDates: [TOMORROW],
-      instances: [{ date: TOMORROW, status: 'Pending', logId: null }],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -668,14 +737,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
     })
     const child = createMockHabit({
       id: 'child',
