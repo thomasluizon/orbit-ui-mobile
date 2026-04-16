@@ -1116,6 +1116,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       selectedDate,
       collapsedIds,
       getChildrenProgress,
+      handleDirectLog,
       searchQuery,
       isSelectMode,
       selectedIds,
