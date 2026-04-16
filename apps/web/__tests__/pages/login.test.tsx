@@ -48,6 +48,13 @@ describe('LoginPage', () => {
     mockPush.mockClear()
   })
 
+  it('keeps the login card at a wider minimum size on larger small screens', () => {
+    const { container } = render(<LoginPage />)
+
+    expect(container.firstChild).toHaveClass('max-w-[26rem]')
+    expect(container.firstChild).toHaveClass('min-[480px]:min-w-[22rem]')
+  })
+
   it('groups the verification code inputs and exposes one-time-code autocomplete', async () => {
     render(<LoginPage />)
 
