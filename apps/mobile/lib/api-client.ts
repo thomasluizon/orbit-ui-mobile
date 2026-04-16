@@ -11,6 +11,27 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
 interface ApiErrorPayload {
   error?: string
   message?: string
+  requestId?: string
+}
+
+function attachRequestIdToPayload(
+  payload: ApiErrorPayload | null,
+  requestId: string | null,
+): ApiErrorPayload | null {
+  const trimmedRequestId = requestId?.trim()
+  if (!trimmedRequestId) return payload
+  if (payload) {
+    return payload.requestId
+      ? payload
+      : {
+          ...payload,
+          requestId: trimmedRequestId,
+        }
+  }
+
+  return {
+    requestId: trimmedRequestId,
+  }
 }
 
 export async function apiClient<T = unknown>(
@@ -34,11 +55,21 @@ export async function apiClient<T = unknown>(
   if (res.status === 401) {
     await clearAllTokens()
     // Navigation to login handled by auth store listener
-    throw createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized')
+    throw createApiClientError(
+      401,
+      attachRequestIdToPayload(
+        { error: 'Unauthorized' },
+        res.headers.get('x-orbit-request-id'),
+      ),
+      'Unauthorized',
+    )
   }
 
   if (!res.ok) {
-    const error = (await res.json().catch(() => null)) as ApiErrorPayload | null
+    const error = attachRequestIdToPayload(
+      (await res.json().catch(() => null)) as ApiErrorPayload | null,
+      res.headers.get('x-orbit-request-id'),
+    )
     throw createApiClientError(
       res.status,
       error,

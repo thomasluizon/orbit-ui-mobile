@@ -1,34 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { setSessionCookies } from '@/lib/auth-api'
+import {
+  buildAuthErrorPayload,
+  buildRequestIdResponseHeaders,
+  extractErrorMessage,
+  isRecord,
+  ORBIT_REQUEST_ID_HEADER,
+  resolveRequestId,
+  resolveResponseRequestId,
+} from '@/lib/auth-proxy'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object'
-}
-
-function extractErrorMessage(data: unknown): string | undefined {
-  if (!isRecord(data)) return undefined
-  if (typeof data.error === 'string' && data.error.trim().length > 0) return data.error
-  if (typeof data.message === 'string' && data.message.trim().length > 0) return data.message
-  return undefined
-}
-
-function buildErrorPayload(data: unknown, requestId: string): Record<string, unknown> {
-  const fallbackError = extractErrorMessage(data) ?? 'Authentication failed'
-
-  if (isRecord(data)) {
-    return {
-      ...data,
-      error: fallbackError,
-      requestId,
-    }
-  }
-
-  return {
-    error: fallbackError,
-    requestId,
-  }
-}
 
 /**
  * BFF: POST /api/auth/google
@@ -37,10 +18,8 @@ function buildErrorPayload(data: unknown, requestId: string): Record<string, unk
  */
 export async function POST(request: NextRequest) {
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
-  const requestId = request.headers.get('x-orbit-request-id')?.trim() || crypto.randomUUID()
-  const responseHeaders = new Headers({
-    'X-Orbit-Request-Id': requestId,
-  })
+  const requestId = resolveRequestId(request.headers.get(ORBIT_REQUEST_ID_HEADER))
+  const responseHeaders = buildRequestIdResponseHeaders(requestId)
 
   try {
     const body = await request.json() as unknown
@@ -50,17 +29,19 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Orbit-Request-Id': requestId,
+        [ORBIT_REQUEST_ID_HEADER]: requestId,
       },
       body: JSON.stringify(body),
     })
 
     const data = await response.json().catch(() => null)
+    const backendRequestId = resolveResponseRequestId(response, requestId)
+    responseHeaders.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
 
     if (!response.ok) {
-      const errorPayload = buildErrorPayload(data, requestId)
+      const errorPayload = buildAuthErrorPayload(data, backendRequestId)
       console.error('[auth/google] backend exchange failed', {
-        requestId,
+        requestId: backendRequestId,
         status: response.status,
         error: extractErrorMessage(data) ?? 'Authentication failed',
         language: typeof bodyRecord.language === 'string' ? bodyRecord.language : undefined,
@@ -83,7 +64,9 @@ export async function POST(request: NextRequest) {
 
     // Strip tokens from response
     const { token: _token, refreshToken: _refreshToken, ...safeResponse } = loginResponse
-    return NextResponse.json(safeResponse)
+    return NextResponse.json(safeResponse, {
+      headers: responseHeaders,
+    })
   } catch (error: unknown) {
     console.error('[auth/google] unexpected error', {
       requestId,

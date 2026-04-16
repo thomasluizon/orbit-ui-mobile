@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import {
   buildGoogleCalendarOAuthOptions,
   extractAuthBackendMessage,
+  extractBackendRequestId,
   isValidEmail,
   isValidVerificationCode,
   resolveAuthLoginErrorKey,
@@ -30,6 +31,11 @@ interface AuthFetchError {
   body: unknown
 }
 
+interface AuthErrorState {
+  message: string
+  requestId?: string
+}
+
 function isAuthFetchError(err: unknown): err is AuthFetchError {
   return (
     !!err &&
@@ -38,16 +44,52 @@ function isAuthFetchError(err: unknown): err is AuthFetchError {
   )
 }
 
-function resolveLoginErrorMessage(
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object'
+}
+
+function mergeRequestIdIntoBody(body: unknown, requestId: string | null): unknown {
+  const trimmedRequestId = requestId?.trim()
+  if (!trimmedRequestId) return body
+  if (isRecord(body) && typeof body.requestId !== 'string') {
+    return {
+      ...body,
+      requestId: trimmedRequestId,
+    }
+  }
+
+  if (body === null) {
+    return { requestId: trimmedRequestId }
+  }
+
+  return body
+}
+
+function appendAuthReference(
+  message: string,
+  requestId: string | undefined,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (!requestId) return message
+  return `${message} ${t('auth.errorReference', { requestId })}`
+}
+
+function resolveLoginErrorState(
   err: unknown,
   t: ReturnType<typeof useTranslations>,
   source: 'google' | 'magic-code' = 'magic-code',
-): string {
+): AuthErrorState {
   const status = isAuthFetchError(err) ? err.status : undefined
   const body = isAuthFetchError(err) ? err.body : err
   const backendMessage = extractAuthBackendMessage(body)
+  const requestId = extractBackendRequestId(body)
   const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
-  return t(key)
+  const message = t(key)
+
+  return {
+    message: appendAuthReference(message, requestId, t),
+    requestId,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +268,10 @@ async function fetchAuthEndpoint(
   })
   if (!response.ok) {
     const data = await response.json().catch(() => null)
-    const err: AuthFetchError = { status: response.status, body: data }
+    const err: AuthFetchError = {
+      status: response.status,
+      body: mergeRequestIdIntoBody(data, response.headers.get('x-orbit-request-id')),
+    }
     throw err
   }
   return response.json()
@@ -337,7 +382,7 @@ export default function LoginPage() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err, t))
+      showError(resolveLoginErrorState(err, t).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -370,7 +415,7 @@ export default function LoginPage() {
         getReturnUrl,
       )
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err, t))
+      showError(resolveLoginErrorState(err, t).message)
       resetCodeDigits()
       codeInputRefs.current[0]?.focus()
     } finally {
@@ -392,7 +437,7 @@ export default function LoginPage() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err, t))
+      showError(resolveLoginErrorState(err, t).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -425,7 +470,7 @@ export default function LoginPage() {
         setIsGoogleLoading(false)
       }
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err, t, 'google'))
+      showError(resolveLoginErrorState(err, t, 'google').message)
       setIsGoogleLoading(false)
     }
   }

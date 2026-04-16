@@ -18,6 +18,7 @@ import { API } from '@orbit/shared/api'
 import {
   ApiClientError,
   extractAuthBackendMessage,
+  extractBackendRequestId,
   isValidEmail,
   isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
@@ -48,6 +49,11 @@ import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 
 type AppColors = ReturnType<typeof createColors>
+
+interface AuthErrorState {
+  message: string
+  requestId?: string
+}
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()
@@ -144,14 +150,22 @@ export default function LoginScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeDigits, step, isSubmitting])
 
-  function resolveLoginErrorMessage(
+  function resolveLoginErrorState(
     err: unknown,
     source: 'google' | 'magic-code' = 'magic-code',
-  ): string {
+  ): AuthErrorState {
     const status = err instanceof ApiClientError ? err.status : undefined
     const backendMessage = extractAuthBackendMessage(err)
+    const requestId = extractBackendRequestId(err)
     const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
-    return t(key)
+    const message = requestId
+      ? `${t(key)} ${t('auth.errorReference', { requestId })}`
+      : t(key)
+
+    return {
+      message,
+      requestId,
+    }
   }
 
   async function sendCode() {
@@ -177,7 +191,7 @@ export default function LoginScreen() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err))
+      showError(resolveLoginErrorState(err).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -218,7 +232,7 @@ export default function LoginScreen() {
       const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
       router.replace(returnUrl as Href)
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err))
+      showError(resolveLoginErrorState(err).message)
       resetCodeDigits()
       codeInputRefs.current[0]?.focus()
     } finally {
@@ -244,7 +258,7 @@ export default function LoginScreen() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err))
+      showError(resolveLoginErrorState(err).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -274,7 +288,7 @@ export default function LoginScreen() {
 
       router.replace('/auth-callback')
     } catch (err: unknown) {
-      showError(resolveLoginErrorMessage(err, 'google'))
+      showError(resolveLoginErrorState(err, 'google').message)
     } finally {
       setIsGoogleLoading(false)
     }
