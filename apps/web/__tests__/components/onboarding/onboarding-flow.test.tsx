@@ -123,4 +123,11 @@ describe('OnboardingFlow', () => {
     const progress = document.querySelector('progress')
     expect(progress).toBeInTheDocument()
   })
+
+  it('renders the onboarding as a fullscreen portal dialog container', () => {
+    render(<OnboardingFlow />)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.tagName).toBe('DIV')
+    expect(dialog).toHaveClass('fixed', 'inset-0', 'w-screen', 'h-dvh')
+  })
 })
