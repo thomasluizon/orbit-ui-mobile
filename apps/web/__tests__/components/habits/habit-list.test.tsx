@@ -122,16 +122,19 @@ vi.mock('@/components/habits/habit-card', () => ({
     habit,
     childrenDone,
     childrenTotal,
+    isRecentlyCompleted,
     actions,
   }: {
     habit: NormalizedHabit
     childrenDone?: number
     childrenTotal?: number
+    isRecentlyCompleted?: boolean
     actions?: { onForceLogParent?: () => void; onLog?: () => void }
   }) => (
     <div data-testid={`habit-card-${habit.id}`}>
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
+      <span data-testid={`recent-${habit.id}`}>{isRecentlyCompleted ? 'yes' : 'no'}</span>
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
       </button>
@@ -386,6 +389,30 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByTestId('log-h-1'))
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1' })
+  })
+
+  it('passes an immediate completion trigger to the card while logging is pending', async () => {
+    const habit = createMockHabit({ id: 'h-1', title: 'Exercise', isCompleted: false })
+    mockHabitsData.habitsById.set('h-1', habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    let resolveLog: (() => void) | undefined
+    const pendingLog = new Promise<void>((resolve) => {
+      resolveLog = resolve
+    })
+
+    logHabitMutateAsync.mockImplementation(() => pendingLog)
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('log-h-1'))
+
+    expect(screen.getByTestId('recent-h-1').textContent).toBe('yes')
+
+    resolveLog?.()
+    await act(async () => {
+      await pendingLog
+    })
   })
 
   it('keeps a general habit visible while direct logging is pending', async () => {

@@ -304,6 +304,51 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
   })
 
+  it('passes an immediate completion trigger to the card while logging is pending', async () => {
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise', isCompleted: false })
+    seedHabits([habit])
+
+    let resolveLog: (() => void) | undefined
+    const pendingLog = new Promise<void>((resolve) => {
+      resolveLog = resolve
+    })
+
+    logMutateAsync.mockImplementation(() => pendingLog)
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const initialHabitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    await TestRenderer.act(async () => {
+      void initialHabitCard?.props.actions.onLog()
+      await Promise.resolve()
+    })
+
+    const pendingHabitCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'habit-1')
+
+    expect(pendingHabitCard?.props.isRecentlyCompleted).toBe(true)
+
+    resolveLog?.()
+    await TestRenderer.act(async () => {
+      await pendingLog
+    })
+  })
+
   it('keeps a logged habit visible while the direct log request is pending', async () => {
     const habit = createMockHabit({
       id: 'habit-1',

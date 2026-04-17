@@ -68,6 +68,7 @@ interface HabitCardProps {
   isSelectMode?: boolean
   isSelected?: boolean
   isJustCreated?: boolean
+  isRecentlyCompleted?: boolean
   showAddSubHabit?: boolean
   hasChildren?: boolean
   hasSubHabits?: boolean
@@ -903,6 +904,7 @@ export const HabitCard = React.memo(function HabitCard({
   isSelectMode = false,
   isSelected = false,
   isJustCreated = false,
+  isRecentlyCompleted = false,
   showAddSubHabit = false,
   hasChildren = false,
   hasSubHabits = false,
@@ -981,18 +983,19 @@ export const HabitCard = React.memo(function HabitCard({
     childrenTotal === 0 ? 0 : Math.round((childrenDone / childrenTotal) * 100)
 
   // Trigger completion animation
-  const prevDoneRef = useRef(isDoneForRange)
+  const completionTrigger = isDoneForRange || isRecentlyCompleted
+  const prevCompletionTriggerRef = useRef(completionTrigger)
   useEffect(() => {
-    if (isDoneForRange && !prevDoneRef.current) {
+    if (completionTrigger && !prevCompletionTriggerRef.current) {
       setJustCompleted(true)
       if (completionTimer.current) clearTimeout(completionTimer.current)
       completionTimer.current = setTimeout(() => setJustCompleted(false), 1200)
     }
-    prevDoneRef.current = isDoneForRange
+    prevCompletionTriggerRef.current = completionTrigger
     return () => {
       if (completionTimer.current) clearTimeout(completionTimer.current)
     }
-  }, [isDoneForRange])
+  }, [completionTrigger])
 
   // Ring pulse
   const [ringPulse, setRingPulse] = useState(false)

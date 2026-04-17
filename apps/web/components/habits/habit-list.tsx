@@ -1055,15 +1055,16 @@ const isPostponeAction = useMemo(() => {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
 
     return (
-      <HabitCard
-        key={habit.id}
-        habit={habit}
-        selectedDate={cardSelectedDate}
-        searchQuery={searchQuery}
-        isJustCreated={lastCreatedHabitId === habit.id}
-        depth={depth}
-        hasChildren={hasChildren}
-        hasSubHabits={hasSubHabits}
+        <HabitCard
+          key={habit.id}
+          habit={habit}
+          selectedDate={cardSelectedDate}
+          searchQuery={searchQuery}
+          isJustCreated={lastCreatedHabitId === habit.id}
+          isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
+          depth={depth}
+          hasChildren={hasChildren}
+          hasSubHabits={hasSubHabits}
         isExpanded={!collapsedIds.has(habit.id)}
         isLastChild={options?.isLastChild}
         isDraggingList={options?.isDraggingList}
