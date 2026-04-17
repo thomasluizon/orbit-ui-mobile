@@ -141,7 +141,7 @@ export function OnboardingFlow() {
   })()
 
   // Focus trap
-  const overlayRef = useRef<HTMLDialogElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!mounted) return
     const el = overlayRef.current
@@ -177,10 +177,10 @@ export function OnboardingFlow() {
   if (!mounted) return null
 
   const overlay = (
-    <dialog
-      open
+    <div
       ref={overlayRef}
-      className="fixed inset-0 z-[60] bg-background"
+      role="dialog"
+      className="fixed inset-0 z-[60] m-0 h-dvh w-screen overflow-y-auto bg-background"
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
@@ -252,7 +252,7 @@ export function OnboardingFlow() {
           </div>
         )}
       </div>
-    </dialog>
+    </div>
   )
 
   return createPortal(overlay, document.body)

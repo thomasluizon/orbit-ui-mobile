@@ -42,6 +42,18 @@ const mockDrillState = {
   getDrillChildren: vi.fn(() => [] as NormalizedHabit[]),
 }
 
+const mockHabitVisibility = {
+  hasVisibleContent: () => true,
+  getVisibleChildren: (habitId: string) => {
+    const childIds = mockHabitsData.childrenByParent.get(habitId) ?? []
+    return childIds
+      .map((id) => mockHabitsData.habitsById.get(id))
+      .filter(Boolean) as NormalizedHabit[]
+  },
+  isRelevantToday: () => true,
+  isDueOnSelectedDate: () => true,
+}
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
@@ -104,17 +116,7 @@ vi.mock('@/hooks/use-config', () => ({
 }))
 
 vi.mock('@/hooks/use-habit-visibility', () => ({
-  useHabitVisibility: () => ({
-    hasVisibleContent: () => true,
-    getVisibleChildren: (habitId: string) => {
-      const childIds = mockHabitsData.childrenByParent.get(habitId) ?? []
-      return childIds
-        .map((id) => mockHabitsData.habitsById.get(id))
-        .filter(Boolean) as NormalizedHabit[]
-    },
-    isRelevantToday: () => true,
-    isDueOnSelectedDate: () => true,
-  }),
+  useHabitVisibility: () => mockHabitVisibility,
 }))
 
 vi.mock('@/stores/ui-store', () => ({
