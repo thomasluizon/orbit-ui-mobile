@@ -117,9 +117,9 @@ export function useLogHabit() {
         targetEntityId: habitId,
       }),
 
-    onMutate: async ({ habitId, date }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+    onMutate: ({ habitId, date }) => {
+      // Start cancelling refetches, but don't delay the optimistic completion state on it.
+      void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       // Snapshot all list queries for rollback
       const previousLists = snapshotHabitLists(queryClient)
