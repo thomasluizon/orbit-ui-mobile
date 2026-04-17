@@ -147,6 +147,7 @@ vi.mock('@/stores/ui-store', () => ({
     getState: () => ({
       activeFilters: {},
       checkAllDoneCelebration: vi.fn(),
+      setStreakCelebration: vi.fn(),
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
     }),
   },
@@ -166,6 +167,7 @@ vi.mock('@/lib/habit-mutation-helpers', async () => {
 import {
   useCreateHabit,
   useCreateSubHabit,
+  useLogHabit,
   useMoveHabitParent,
   useUpdateChecklist,
 } from '@/hooks/use-habits'
@@ -238,7 +240,8 @@ describe('mobile habit hooks', () => {
   beforeEach(() => {
     seedHabitState([makeHabit()], 1)
     mocks.state.tempIds = []
-    mocks.queryClient.cancelQueries.mockClear()
+    mocks.queryClient.cancelQueries.mockReset()
+    mocks.queryClient.cancelQueries.mockImplementation(async () => {})
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.getQueriesData.mockClear()
     mocks.queryClient.setQueriesData.mockClear()
@@ -257,6 +260,28 @@ describe('mobile habit hooks', () => {
     mocks.refreshWidget.mockClear()
     mocks.setLastCreatedHabitId.mockClear()
     mocks.invalidateHabitMutationQueries.mockClear()
+  })
+
+  it('optimistically completes before query cancellation resolves', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+
+    let resolveCancel: (() => void) | undefined
+    const cancelPromise = new Promise<void>((resolve) => {
+      resolveCancel = resolve
+    })
+    mocks.queryClient.cancelQueries.mockImplementation(() => cancelPromise)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+    >
+
+    void mutation.onMutate?.({ habitId: 'habit-1' })
+
+    expect(getHabitList()[0]?.isCompleted).toBe(true)
+
+    resolveCancel?.()
   })
 
   it('queues an optimistic habit create offline and skips invalidation', async () => {

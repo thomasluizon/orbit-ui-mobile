@@ -1076,6 +1076,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           key={habit.id}
           habit={habit}
           selectedDate={selectedDate}
+          isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
           depth={depth}
           hasChildren={hasChildren}
           hasSubHabits={hasSubHabits}

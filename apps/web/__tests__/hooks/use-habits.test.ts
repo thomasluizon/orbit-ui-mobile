@@ -93,13 +93,16 @@ function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<Ha
   }
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({
+function createQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
+}
+
+function createWrapper(queryClient = createQueryClient()) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(
       QueryClientProvider,
@@ -278,6 +281,43 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', {
       date: '2025-01-15',
     })
+  })
+
+  it('optimistically completes before query cancellation resolves', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    const mockedLogHabit = vi.mocked(logHabit)
+    mockedLogHabit.mockResolvedValue({
+      logId: 'log-3',
+      isFirstCompletionToday: false,
+      currentStreak: 1,
+    })
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(
+      habitKeys.list({}),
+      [makeScheduleItem({ id: 'h-1', isCompleted: false })],
+    )
+
+    let resolveCancel: (() => void) | undefined
+    const cancelPromise = new Promise<void>((resolve) => {
+      resolveCancel = resolve
+    })
+    vi.spyOn(queryClient, 'cancelQueries').mockImplementation(() => cancelPromise)
+
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.mutate({ habitId: 'h-1' })
+    })
+
+    expect(
+      queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.isCompleted,
+    ).toBe(true)
+
+    resolveCancel?.()
+    await waitFor(() => expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined))
   })
 })
 
