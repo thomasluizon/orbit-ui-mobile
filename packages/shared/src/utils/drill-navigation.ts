@@ -9,6 +9,16 @@ export interface NormalizedDrillDetail {
   childrenByParent: Map<string, NormalizedHabit[]>
 }
 
+function fallbackChildOverdue(
+  child: Pick<HabitDetailChild, 'isCompleted' | 'frequencyUnit' | 'dueDate'>,
+  today: string,
+): boolean {
+  return !child.isCompleted &&
+    !child.frequencyUnit &&
+    !!child.dueDate &&
+    child.dueDate < today
+}
+
 export function normalizeDrillDetailChild(
   child: HabitDetailChild,
   parentId: string | null,
@@ -34,11 +44,7 @@ export function normalizeDrillDetailChild(
     createdAtUtc: '',
     parentId,
     scheduledDates: [],
-    isOverdue:
-      !child.isCompleted &&
-      !child.frequencyUnit &&
-      !!child.dueDate &&
-      child.dueDate < today,
+    isOverdue: child.isOverdue ?? fallbackChildOverdue(child, today),
     reminderEnabled: false,
     reminderTimes: [],
     scheduledReminders: [],

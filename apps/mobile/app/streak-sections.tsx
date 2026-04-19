@@ -441,18 +441,23 @@ function createFreezeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     headerRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 8,
     },
     headerLeft: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      flexShrink: 1,
+      minWidth: 0,
     },
     title: {
       fontSize: 14,
       fontWeight: '700',
       color: colors.textPrimary,
+      flexShrink: 1,
     },
     infoButton: {
       flexDirection: 'row',
@@ -460,15 +465,18 @@ function createFreezeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       gap: 4,
       paddingHorizontal: 8,
       paddingVertical: 4,
+      alignSelf: 'flex-start',
+      maxWidth: '100%',
     },
     infoButtonText: {
       fontSize: 12,
       fontWeight: '600',
       color: colors.textSecondary,
+      flexShrink: 1,
     },
     hero: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: 'column',
+      alignItems: 'stretch',
       gap: 16,
     },
     ringWrap: {
@@ -476,6 +484,7 @@ function createFreezeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       height: RING_SIZE,
       alignItems: 'center',
       justifyContent: 'center',
+      alignSelf: 'center',
     },
     ringContent: {
       position: 'absolute',
@@ -519,7 +528,7 @@ function createFreezeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       marginTop: 2,
     },
     heroCopy: {
-      flex: 1,
+      width: '100%',
       gap: 10,
     },
     heroTitle: {
@@ -536,6 +545,7 @@ function createFreezeStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      flexWrap: 'wrap',
     },
     shield: {
       width: 34,

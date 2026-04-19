@@ -40,6 +40,7 @@ interface EditHabitModalProps {
   open: boolean;
   onClose: () => void;
   habit: NormalizedHabit | null;
+  onSaved?: () => void | Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ export function EditHabitModal({
   open,
   onClose,
   habit,
+  onSaved,
 }: Readonly<EditHabitModalProps>) {
   const { t } = useTranslation();
   const translate = useCallback(
@@ -170,6 +172,7 @@ export function EditHabitModal({
         tagIds: tags.selectedTagIds,
       });
       onClose();
+      await onSaved?.();
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
@@ -190,6 +193,7 @@ export function EditHabitModal({
     updateHabit,
     assignTags,
     onClose,
+    onSaved,
     showError,
     translate,
   ]);

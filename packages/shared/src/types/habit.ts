@@ -103,6 +103,8 @@ export const habitScheduleChildSchema: z.ZodType<{
   dueTime: string | null
   dueEndTime: string | null
   endDate: string | null
+  scheduledDates?: string[]
+  isOverdue?: boolean
   position: number | null
   checklistItems: ChecklistItem[]
   tags: HabitTag[]
@@ -112,6 +114,8 @@ export const habitScheduleChildSchema: z.ZodType<{
   instances: HabitInstance[]
   searchMatches?: SearchMatchField[] | null
 }> = baseHabitFieldsSchema.extend({
+  scheduledDates: z.array(z.string()).optional(),
+  isOverdue: z.boolean().optional(),
   tags: z.array(habitTagSchema),
   children: z.lazy(() => z.array(habitScheduleChildSchema)),
   hasSubHabits: z.boolean(),
@@ -179,10 +183,12 @@ export const habitDetailChildSchema: z.ZodType<{
   dueTime: string | null
   dueEndTime: string | null
   endDate: string | null
+  isOverdue?: boolean
   position: number | null
   checklistItems: ChecklistItem[]
   children: HabitDetailChild[]
 }> = baseHabitFieldsSchema.extend({
+  isOverdue: z.boolean().optional(),
   children: z.lazy(() => z.array(habitDetailChildSchema)),
 })
 

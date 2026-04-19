@@ -700,6 +700,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [habitToEdit, setHabitToEdit] = useState<NormalizedHabit | null>(null)
+  const [editModalOnSaved, setEditModalOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useState(false)
   const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -911,6 +912,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setShowDetailDrawer(true)
   }
 
+  const handleEditModalOpenChange = useCallback((open: boolean) => {
+    setShowEditModal(open)
+    if (!open) {
+      setHabitToEdit(null)
+      setEditModalOnSaved(null)
+    }
+  }, [])
+
   function promptDelete(habitId: string) {
     setHabitToDelete(habitId)
     setShowDeleteConfirm(true)
@@ -1050,7 +1059,11 @@ const isPostponeAction = useMemo(() => {
     depth: number,
     hasChildren: boolean,
     hasSubHabits: boolean,
-    options?: { isLastChild?: boolean; isDraggingList?: boolean },
+    options?: {
+      isDrillCard?: boolean
+      isLastChild?: boolean
+      isDraggingList?: boolean
+    },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
 
@@ -1059,6 +1072,7 @@ const isPostponeAction = useMemo(() => {
           key={habit.id}
           habit={habit}
           selectedDate={cardSelectedDate}
+          isDrillCard={options?.isDrillCard ?? false}
           searchQuery={searchQuery}
           isJustCreated={lastCreatedHabitId === habit.id}
           isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
@@ -1085,6 +1099,9 @@ const isPostponeAction = useMemo(() => {
           onDuplicate: () => promptDuplicate(habit.id),
           onEdit: () => {
             setHabitToEdit(habit)
+            setEditModalOnSaved(() => (
+              options?.isDrillCard ? () => drill.refreshCurrent() : null
+            ))
             setShowEditModal(true)
           },
           onMoveParent: () => openMoveParentPicker(habit.id),
@@ -1139,6 +1156,7 @@ const isPostponeAction = useMemo(() => {
               0,
               drill.getDrillChildren(child.id).length > 0,
               child.hasSubHabits || drill.getDrillChildren(child.id).length > 0,
+              { isDrillCard: true },
             ),
           )}
           <button
@@ -1319,8 +1337,9 @@ const isPostponeAction = useMemo(() => {
 
       <EditHabitModal
         open={showEditModal}
-        onOpenChange={setShowEditModal}
+        onOpenChange={handleEditModalOpenChange}
         habit={habitToEdit}
+        onSaved={editModalOnSaved ?? undefined}
       />
 
       {showSubHabitModal && (

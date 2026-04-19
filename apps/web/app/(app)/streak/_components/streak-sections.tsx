@@ -177,18 +177,18 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
       />
 
       {/* Header */}
-      <div className="relative flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex size-7 items-center justify-center rounded-full bg-blue-500/15 ring-1 ring-blue-500/30">
             <Snowflake className="size-3.5 text-blue-300" />
           </div>
-          <h2 className="text-sm font-bold text-text-primary tracking-tight">
+          <h2 className="min-w-0 text-sm font-bold text-text-primary tracking-tight">
             {t('streakDisplay.freeze.title')}
           </h2>
         </div>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-text-secondary hover:bg-white/5 hover:text-text-primary transition-colors"
+          className="flex w-fit items-center gap-1 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold text-text-secondary hover:bg-white/5 hover:text-text-primary transition-colors"
           onClick={() => setInfoOpen(true)}
         >
           <Info className="size-3" />

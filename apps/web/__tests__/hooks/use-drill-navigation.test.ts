@@ -194,4 +194,25 @@ describe('useDrillNavigation', () => {
 
     expect(result.current.drillError).toBeTruthy()
   })
+
+  it('refreshes the current drill parent on demand', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => {
+      await result.current.drillInto('parent1')
+    })
+
+    await act(async () => {
+      await result.current.refreshCurrent()
+    })
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    })
+  })
 })

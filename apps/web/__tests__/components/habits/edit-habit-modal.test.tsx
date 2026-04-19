@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -267,5 +267,24 @@ describe('EditHabitModal', () => {
     )
     // The overlay still renders but form reset won't fire with data
     expect(screen.getByTestId('app-overlay')).toBeDefined()
+  })
+
+  it('calls onSaved after a successful save', async () => {
+    const onSaved = vi.fn()
+    renderWithProviders(
+      <EditHabitModal
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={defaultHabit}
+        onSaved={onSaved}
+      />,
+    )
+
+    const form = screen.getByTestId('app-overlay').querySelector('form')
+    fireEvent.submit(form!)
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledOnce()
+    })
   })
 })

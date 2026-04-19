@@ -9,7 +9,11 @@ import {
   applyLinkedGoalUpdates,
   normalizeHabits,
 } from '@orbit/shared/utils'
-import { optimisticToggleCompletion, optimisticUpdateChecklist } from '@/lib/habit-optimistic-helpers'
+import {
+  optimisticPatchHabit,
+  optimisticToggleCompletion,
+  optimisticUpdateChecklist,
+} from '@/lib/habit-optimistic-helpers'
 import type {
   HabitScheduleItem,
   CreateHabitRequest,
@@ -57,6 +61,102 @@ export {
   useHabits,
   useTotalHabitCount,
 } from './use-habit-queries'
+
+type HabitListSnapshots = ReadonlyArray<
+  readonly [readonly unknown[], HabitScheduleItem[] | undefined]
+>
+
+function snapshotHabitLists(queryClient: ReturnType<typeof useQueryClient>): HabitListSnapshots {
+  return queryClient.getQueriesData<HabitScheduleItem[]>({
+    queryKey: habitKeys.lists(),
+  })
+}
+
+function restoreHabitLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  snapshots: HabitListSnapshots,
+): void {
+  for (const [key, data] of snapshots) {
+    if (data) {
+      queryClient.setQueryData(key, data)
+    }
+  }
+}
+
+function updateHabitLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
+): void {
+  queryClient.setQueriesData<HabitScheduleItem[]>(
+    { queryKey: habitKeys.lists() },
+    (old) => (old ? updater(old) : old),
+  )
+}
+
+function findCachedGoals(
+  queryClient: ReturnType<typeof useQueryClient>,
+  goalIds: string[] | undefined,
+): Array<{ id: string; title: string }> {
+  if (!goalIds?.length) return []
+
+  const goals = queryClient
+    .getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
+    .flatMap(([, data]) => data ?? [])
+
+  const goalMap = new Map(goals.map((goal) => [goal.id, goal]))
+
+  return goalIds
+    .map((goalId) => {
+      const goal = goalMap.get(goalId)
+      return goal ? { id: goal.id, title: goal.title } : null
+    })
+    .filter((goal): goal is { id: string; title: string } => goal !== null)
+}
+
+function buildOptimisticHabitPatch(
+  queryClient: ReturnType<typeof useQueryClient>,
+  data: UpdateHabitRequest,
+): Partial<HabitScheduleItem> {
+  const patch: Partial<HabitScheduleItem> = {
+    title: data.title,
+    isBadHabit: data.isBadHabit,
+  }
+
+  if ('description' in data) patch.description = data.description ?? null
+  if ('isGeneral' in data) patch.isGeneral = data.isGeneral ?? false
+  if ('isFlexible' in data) patch.isFlexible = data.isFlexible ?? false
+  if ('frequencyUnit' in data) patch.frequencyUnit = data.frequencyUnit ?? null
+  if ('frequencyQuantity' in data) patch.frequencyQuantity = data.frequencyQuantity ?? null
+  if ('days' in data) patch.days = data.days ?? []
+  if ('dueDate' in data) patch.dueDate = data.dueDate ?? ''
+  if ('dueTime' in data) patch.dueTime = data.dueTime ?? null
+  if ('dueEndTime' in data) patch.dueEndTime = data.dueEndTime ?? null
+  if ('reminderEnabled' in data) patch.reminderEnabled = data.reminderEnabled ?? false
+  if ('reminderTimes' in data) patch.reminderTimes = data.reminderTimes ?? []
+  if ('scheduledReminders' in data) patch.scheduledReminders = data.scheduledReminders ?? []
+  if ('slipAlertEnabled' in data) patch.slipAlertEnabled = data.slipAlertEnabled ?? false
+  if ('checklistItems' in data) patch.checklistItems = data.checklistItems ?? []
+  if ('goalIds' in data) patch.linkedGoals = findCachedGoals(queryClient, data.goalIds)
+  if ('endDate' in data) patch.endDate = data.endDate ?? null
+
+  if (data.clearEndDate) {
+    patch.endDate = null
+  }
+
+  if (data.isGeneral) {
+    patch.frequencyUnit = null
+    patch.frequencyQuantity = null
+    patch.days = []
+    patch.reminderEnabled = false
+    patch.reminderTimes = []
+    patch.scheduledReminders = []
+    patch.dueTime = null
+    patch.dueEndTime = null
+    patch.endDate = null
+  }
+
+  return patch
+}
 
 // ---------------------------------------------------------------------------
 // Mutations
@@ -225,6 +325,24 @@ export function useUpdateHabit() {
   return useMutation({
     mutationFn: ({ habitId, data }: { habitId: string; data: UpdateHabitRequest }) =>
       updateHabitAction(habitId, data),
+
+    onMutate: async ({ habitId, data }) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+
+      const previousLists = snapshotHabitLists(queryClient)
+      const patch = buildOptimisticHabitPatch(queryClient, data)
+      updateHabitLists(queryClient, (items) =>
+        optimisticPatchHabit(items, habitId, patch),
+      )
+
+      return { previousLists }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousLists) {
+        restoreHabitLists(queryClient, context.previousLists)
+      }
+    },
 
     onSettled: (_data, _err, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

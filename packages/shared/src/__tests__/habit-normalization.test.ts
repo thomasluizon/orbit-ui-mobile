@@ -81,6 +81,8 @@ describe('habit normalization utils', () => {
             dueTime: null,
             dueEndTime: null,
             endDate: null,
+            scheduledDates: ['2025-01-01'],
+            isOverdue: true,
             position: null,
             checklistItems: [],
             tags: [],
@@ -94,6 +96,10 @@ describe('habit normalization utils', () => {
     ])
 
     expect(data.habitsById.has('child-1')).toBe(true)
+    expect(data.habitsById.get('child-1')).toMatchObject({
+      scheduledDates: ['2025-01-01'],
+      isOverdue: true,
+    })
     expect(data.topLevelHabits.map((habit) => habit.id)).toEqual(['parent'])
     expect(data.childrenByParent.get('parent')).toEqual(['child-1'])
   })

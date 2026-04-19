@@ -21,6 +21,7 @@ function makeDetailChild(overrides: Partial<HabitDetailChild> = {}): HabitDetail
     dueTime: overrides.dueTime ?? null,
     dueEndTime: overrides.dueEndTime ?? null,
     endDate: overrides.endDate ?? null,
+    isOverdue: overrides.isOverdue,
     position: overrides.position ?? null,
     checklistItems: overrides.checklistItems ?? [],
     children: overrides.children ?? [],
@@ -73,6 +74,17 @@ describe('drill navigation utils', () => {
     expect(normalized.position).toBe(0)
     expect(normalized.isOverdue).toBe(true)
     expect(normalized.hasSubHabits).toBe(true)
+  })
+
+  it('prefers API child overdue state when present', () => {
+    const child = makeDetailChild({
+      dueDate: '2025-01-10',
+      isOverdue: true,
+    })
+
+    const normalized = normalizeDrillDetailChild(child, 'parent-1', '2025-01-02')
+
+    expect(normalized.isOverdue).toBe(true)
   })
 
   it('builds parent and child maps for drill navigation', () => {
