@@ -1099,7 +1099,9 @@ const isPostponeAction = useMemo(() => {
           onDuplicate: () => promptDuplicate(habit.id),
           onEdit: () => {
             setHabitToEdit(habit)
-            setEditModalOnSaved(options?.isDrillCard ? () => drill.refreshCurrent() : null)
+            setEditModalOnSaved(() => (
+              options?.isDrillCard ? () => drill.refreshCurrent() : null
+            ))
             setShowEditModal(true)
           },
           onMoveParent: () => openMoveParentPicker(habit.id),
