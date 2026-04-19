@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  optimisticPatchHabit,
   optimisticToggleCompletion,
   optimisticUpdateChecklist,
 } from '@/lib/habit-optimistic-helpers'
@@ -123,5 +124,32 @@ describe('optimisticUpdateChecklist', () => {
     ]
     const result = optimisticUpdateChecklist(items, 'h1', [{ text: 'Updated', isChecked: true }])
     expect(result[1]!.checklistItems[0]!.text).toBe('B')
+  })
+})
+
+describe('optimisticPatchHabit', () => {
+  it('patches nested child habits recursively', () => {
+    const grandchild = makeHabit({ id: 'grandchild-1', title: 'Old title' })
+    const child = makeHabit({
+      id: 'child-1',
+      children: [grandchild] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+    const parent = makeHabit({
+      id: 'parent-1',
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+
+    const result = optimisticPatchHabit([parent], 'grandchild-1', {
+      title: 'New title',
+      isOverdue: true,
+    })
+
+    expect(result[0]?.children[0]?.children[0]).toMatchObject({
+      id: 'grandchild-1',
+      title: 'New title',
+      isOverdue: true,
+    })
   })
 })

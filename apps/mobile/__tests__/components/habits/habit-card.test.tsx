@@ -216,4 +216,26 @@ describe('HabitCard', () => {
     const [outerCard] = findOuterCardTouchables(tree.root)
     expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
   })
+
+  it('does not dim pending drill cards', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({
+            dueDate: '2025-01-10',
+            frequencyUnit: null,
+            isCompleted: false,
+            isGeneral: false,
+          })}
+          selectedDate={new Date('2025-01-02')}
+          isDrillCard
+        />,
+      )
+    })
+
+    const [outerCard] = findOuterCardTouchables(tree.root)
+    expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
+  })
 })

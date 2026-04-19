@@ -218,6 +218,7 @@ export default function TodayScreen() {
   // Modal state
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
+  const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [habitPendingDelete, setHabitPendingDelete] =
     useState<NormalizedHabit | null>(null)
 
@@ -571,6 +572,19 @@ export default function TodayScreen() {
     void showInterstitialIfDue()
   }, [showInterstitialIfDue])
 
+  const handleEditHabit = useCallback(
+    (habit: NormalizedHabit, onSaved?: () => void | Promise<void>) => {
+      setEditHabit(habit)
+      setEditHabitOnSaved(() => onSaved ?? null)
+    },
+    [],
+  )
+
+  const handleEditHabitClose = useCallback(() => {
+    setEditHabit(null)
+    setEditHabitOnSaved(null)
+  }, [])
+
   const handleListScrollBeginDrag = useCallback(() => {
     setShowControlsMenu(false)
   }, [])
@@ -889,7 +903,7 @@ export default function TodayScreen() {
           onCreatePress={() => setShowCreateModal(true)}
           onSeeUpcoming={goToNextDay}
           onDetailHabit={setDetailHabit}
-          onEditHabit={setEditHabit}
+          onEditHabit={handleEditHabit}
           onScrollBeginDrag={handleListScrollBeginDrag}
         />
       )}
@@ -979,8 +993,9 @@ export default function TodayScreen() {
 
       <EditHabitModal
         open={!!editHabit}
-        onClose={() => setEditHabit(null)}
+        onClose={handleEditHabitClose}
         habit={editHabit}
+        onSaved={editHabitOnSaved ?? undefined}
       />
 
       <ConfirmDialog

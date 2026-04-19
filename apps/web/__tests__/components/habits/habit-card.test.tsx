@@ -137,6 +137,23 @@ describe('HabitCard', () => {
     expect(screen.getByLabelText('Exercise').className).not.toContain('opacity-40')
   })
 
+  it('does not dim pending drill cards', () => {
+    const habit = createMockHabit({
+      dueDate: '2025-01-10',
+      frequencyUnit: null,
+      isCompleted: false,
+      isGeneral: false,
+    })
+    render(
+      <HabitCard
+        habit={habit}
+        selectedDate={new Date('2025-01-02')}
+        isDrillCard={true}
+      />,
+    )
+    expect(screen.getByLabelText('Exercise').className).not.toContain('opacity-40')
+  })
+
   it('applies line-through to title when completed', () => {
     const habit = createMockHabit({ isCompleted: true })
     render(<HabitCard habit={habit} />)

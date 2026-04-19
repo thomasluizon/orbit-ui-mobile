@@ -30,6 +30,7 @@ export interface DrillNavigationState {
   drillInto: (habitId: string) => Promise<void>
   drillBack: () => void
   drillReset: () => void
+  refreshCurrent: () => Promise<void>
   getDrillChildren: (parentId: string) => NormalizedHabit[]
 }
 
@@ -110,6 +111,11 @@ export function useDrillNavigation(
     setDrillParentInfo(null)
   }, [])
 
+  const refreshCurrent = useCallback(async () => {
+    if (!currentParentId) return
+    await fetchDrillChildren(currentParentId, true)
+  }, [currentParentId, fetchDrillChildren])
+
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
       return drillChildrenMap.get(parentId) ?? []
@@ -149,6 +155,7 @@ export function useDrillNavigation(
     drillInto,
     drillBack,
     drillReset,
+    refreshCurrent,
     getDrillChildren,
   }
 }
