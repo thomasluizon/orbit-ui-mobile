@@ -248,7 +248,11 @@ vi.mock('lucide-react-native', () => {
 })
 
 import TodayScreen from '@/app/(tabs)/index'
-import { resolveTodayView, shouldRedirectGoalsTab } from '@/app/(tabs)/index'
+import {
+  resolveBulkActionBarEnterShift,
+  resolveTodayView,
+  shouldRedirectGoalsTab,
+} from '@/app/(tabs)/index'
 
 async function renderTodayScreen(): Promise<RenderedTree> {
   let tree: unknown = null
@@ -305,6 +309,21 @@ describe('TodayScreen', () => {
     expect(tree.root.findAll((node) => node.props.testID === 'today-filters-shell').length).toBeGreaterThanOrEqual(1)
     expect(tree.root.findAll((node) => node.props.testID === 'today-list-shell').length).toBeGreaterThanOrEqual(1)
     expect(tree.root.findAll((node) => node.props.testID === 'bulk-action-bar').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('drops bulk action bar movement when reduced motion is enabled', () => {
+    expect(
+      resolveBulkActionBarEnterShift({
+        shift: 0,
+        reducedMotionEnabled: true,
+      }),
+    ).toBe(0)
+    expect(
+      resolveBulkActionBarEnterShift({
+        shift: 6,
+        reducedMotionEnabled: false,
+      }),
+    ).toBe(12)
   })
 
   it('dedupes descendant successes before prompting parent logs for bulk actions', async () => {

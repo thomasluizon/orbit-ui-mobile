@@ -96,6 +96,15 @@ export function shouldRedirectGoalsTab(nextView: TodayView, hasProAccess: boolea
   return nextView === 'goals' && !hasProAccess
 }
 
+export function resolveBulkActionBarEnterShift(selectionMotion: {
+  shift: number
+  reducedMotionEnabled: boolean
+}): number {
+  return selectionMotion.reducedMotionEnabled
+    ? selectionMotion.shift
+    : Math.max(12, selectionMotion.shift)
+}
+
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
 
 interface TodaySearchBarProps {
@@ -663,7 +672,7 @@ export default function TodayScreen() {
         {
           translateY: bulkBarAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [Math.max(12, selectionMotion.shift), 0],
+            outputRange: [resolveBulkActionBarEnterShift(selectionMotion), 0],
           }),
         },
         {

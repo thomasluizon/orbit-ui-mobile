@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import {
   buildGoogleCalendarOAuthOptions,
@@ -317,6 +317,7 @@ export default function LoginPage() {
   const locale = useLocale()
   const { setAuth } = useAuthStore()
   const { showError } = useAppToast()
+  const prefersReducedMotion = useReducedMotion()
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
@@ -337,8 +338,8 @@ export default function LoginPage() {
   } = useLoginCodeEntry((code) => {
     void verifyCode(code)
   })
-  const authStepMotion = resolveMotionPreset('route-replace')
-  const feedbackMotion = resolveMotionPreset('success-feedback')
+  const authStepMotion = resolveMotionPreset('route-replace', Boolean(prefersReducedMotion))
+  const feedbackMotion = resolveMotionPreset('success-feedback', Boolean(prefersReducedMotion))
 
   // Referral code from cookie
   const referralCode = getCookieValue('referral_code')
