@@ -29,6 +29,7 @@ interface EditHabitModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
+  onSaved?: () => void | Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ export function EditHabitModal({
   open,
   onOpenChange,
   habit,
+  onSaved,
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
   const translate = useCallback(
@@ -130,11 +132,12 @@ export function EditHabitModal({
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
         await assignTags.mutateAsync({ habitId: habit.id, tagIds: tags.selectedTagIds })
         onOpenChange(false)
+        await onSaved?.()
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [assignTags, formHelpers, habit, onOpenChange, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
+    [assignTags, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   return (

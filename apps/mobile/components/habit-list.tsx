@@ -93,7 +93,7 @@ interface HabitListProps {
   onSeeUpcoming?: () => void
   onLogHabit?: (habit: NormalizedHabit) => void
   onDetailHabit?: (habit: NormalizedHabit) => void
-  onEditHabit?: (habit: NormalizedHabit) => void
+  onEditHabit?: (habit: NormalizedHabit, onSaved?: () => void | Promise<void>) => void
   onScrollBeginDrag?: () => void
 }
 
@@ -1063,6 +1063,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       hasChildren: boolean,
       hasSubHabits: boolean,
       options?: {
+        isDrillCard?: boolean
         onLongPressCard?: () => void
         tourTargetId?: string
       },
@@ -1076,6 +1077,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
           key={habit.id}
           habit={habit}
           selectedDate={selectedDate}
+          isDrillCard={options?.isDrillCard ?? false}
           isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
           depth={depth}
           hasChildren={hasChildren}
@@ -1105,7 +1107,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
               promptDelete(habit.id)
             },
             onDuplicate: () => promptDuplicate(habit.id),
-            onEdit: () => onEditHabit?.(habit),
+            onEdit: () => onEditHabit?.(
+              habit,
+              options?.isDrillCard ? () => drill.refreshCurrent() : undefined,
+            ),
             onMoveParent: () => {
               openMoveParentDialog(habit.id)
             },
@@ -1265,12 +1270,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       const grandChildren = drill.getDrillChildren(child.id)
       return (
         <View style={styles.sectionInset}>
-          {renderHabitCard(
-            child,
-            0,
-            grandChildren.length > 0,
-            child.hasSubHabits || grandChildren.length > 0,
-          )}
+            {renderHabitCard(
+              child,
+              0,
+              grandChildren.length > 0,
+              child.hasSubHabits || grandChildren.length > 0,
+              { isDrillCard: true },
+            )}
         </View>
       )
     },

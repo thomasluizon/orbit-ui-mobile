@@ -29,6 +29,16 @@ export function sortNormalizedHabits(a: NormalizedHabit, b: NormalizedHabit): nu
   return a.createdAtUtc.localeCompare(b.createdAtUtc)
 }
 
+function fallbackChildOverdue(
+  child: Pick<NormalizedHabit, 'isCompleted' | 'frequencyUnit' | 'dueDate'>,
+  todayStr: string,
+): boolean {
+  return !child.isCompleted &&
+    !child.frequencyUnit &&
+    !!child.dueDate &&
+    child.dueDate < todayStr
+}
+
 function normalizeChildren(
   children: HabitScheduleChild[],
   parentId: string,
@@ -44,12 +54,8 @@ function normalizeChildren(
       createdAtUtc: rootItem.createdAtUtc,
       parentId,
       position: child.position ?? null,
-      scheduledDates: [],
-      isOverdue:
-        !child.isCompleted &&
-        !child.frequencyUnit &&
-        !!child.dueDate &&
-        child.dueDate < todayStr,
+      scheduledDates: child.scheduledDates ?? [],
+      isOverdue: child.isOverdue ?? fallbackChildOverdue(child, todayStr),
       reminderEnabled: false,
       reminderTimes: [],
       scheduledReminders: [],

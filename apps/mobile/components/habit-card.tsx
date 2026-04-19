@@ -87,6 +87,7 @@ export interface HabitCardActions {
 interface HabitCardProps {
   habit: NormalizedHabit
   selectedDate?: Date
+  isDrillCard?: boolean
   depth?: number
   isSelectMode?: boolean
   isSelected?: boolean
@@ -377,6 +378,7 @@ function HabitBadgesRow({
 export function HabitCard({
   habit,
   selectedDate,
+  isDrillCard = false,
   depth = 0,
   isSelectMode = false,
   isSelected = false,
@@ -451,9 +453,10 @@ export function HabitCard({
   const isNotDueToday = useMemo(() => {
     if (!selectedDate) return false
     if (habit.isGeneral) return false
+    if (isDrillCard) return false
     if (status !== 'pending') return false
     return true
-  }, [habit.isGeneral, selectedDate, status])
+  }, [habit.isGeneral, isDrillCard, selectedDate, status])
 
   const isParentWithChildren = hasChildren && childrenTotal > 0
   const progressPercent =

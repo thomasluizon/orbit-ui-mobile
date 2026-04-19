@@ -341,7 +341,11 @@ describe('habit mutation helper builders', () => {
 
 describe('optimisticMoveHabitParent', () => {
   it('moves a child habit to the top level and reindexes the list', () => {
-    const movingChild = makeChild({ id: 'child-1' })
+    const movingChild = makeChild({
+      id: 'child-1',
+      scheduledDates: ['2025-02-10'],
+      isOverdue: true,
+    })
     const parent = makeHabit({
       id: 'parent-1',
       children: [movingChild],
@@ -357,6 +361,8 @@ describe('optimisticMoveHabitParent', () => {
       id: 'child-1',
       position: 2,
       createdAtUtc: '2025-01-01T00:00:00Z',
+      scheduledDates: ['2025-02-10'],
+      isOverdue: true,
     })
   })
 

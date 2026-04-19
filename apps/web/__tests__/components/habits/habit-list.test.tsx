@@ -19,6 +19,22 @@ const mockHabitsData = {
   topLevelHabits: [] as NormalizedHabit[],
 }
 const logHabitMutateAsync = vi.fn()
+const drillRefreshCurrent = vi.fn()
+const drillInto = vi.fn()
+const getDrillChildrenMock = vi.fn(() => [])
+const mockDrillState = {
+  drillStack: [] as string[],
+  currentParentId: null as string | null,
+  currentParent: null as NormalizedHabit | null,
+  drillChildren: [] as NormalizedHabit[],
+  drillInto,
+  drillBack: vi.fn(),
+  drillReset: vi.fn(),
+  drillLoading: false,
+  drillError: null as unknown,
+  refreshCurrent: drillRefreshCurrent,
+  getDrillChildren: getDrillChildrenMock,
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -75,16 +91,7 @@ vi.mock('@/hooks/use-habit-visibility', () => ({
 }))
 
 vi.mock('@/hooks/use-drill-navigation', () => ({
-  useDrillNavigation: () => ({
-    isDrilled: false,
-    drilledHabit: null,
-    drillStack: [],
-    drilledChildren: [],
-    drillInto: vi.fn(),
-    goBack: vi.fn(),
-    goHome: vi.fn(),
-    isLoading: false,
-  }),
+  useDrillNavigation: () => mockDrillState,
 }))
 
 vi.mock('@/hooks/use-config', () => ({
@@ -123,23 +130,29 @@ vi.mock('@/components/habits/habit-card', () => ({
     childrenDone,
     childrenTotal,
     isRecentlyCompleted,
+    isDrillCard,
     actions,
   }: {
     habit: NormalizedHabit
     childrenDone?: number
     childrenTotal?: number
     isRecentlyCompleted?: boolean
-    actions?: { onForceLogParent?: () => void; onLog?: () => void }
+    isDrillCard?: boolean
+    actions?: { onForceLogParent?: () => void; onLog?: () => void; onEdit?: () => void }
   }) => (
     <div data-testid={`habit-card-${habit.id}`}>
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
       <span data-testid={`recent-${habit.id}`}>{isRecentlyCompleted ? 'yes' : 'no'}</span>
+      <span data-testid={`drill-${habit.id}`}>{isDrillCard ? 'yes' : 'no'}</span>
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
       </button>
       <button data-testid={`force-log-${habit.id}`} onClick={actions?.onForceLogParent}>
         force
+      </button>
+      <button data-testid={`edit-${habit.id}`} onClick={actions?.onEdit}>
+        edit
       </button>
     </div>
   ),
@@ -154,7 +167,13 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
 }))
 
 vi.mock('@/components/habits/edit-habit-modal', () => ({
-  EditHabitModal: () => null,
+  EditHabitModal: ({
+    open,
+    onSaved,
+  }: {
+    open: boolean
+    onSaved?: () => void | Promise<void>
+  }) => (open ? <button data-testid="edit-habit-modal-save" onClick={() => void onSaved?.()}>save</button> : null),
 }))
 
 vi.mock('@/components/habits/log-habit-modal', () => ({
@@ -261,6 +280,16 @@ const defaultFilters = {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    drillRefreshCurrent.mockReset()
+    drillInto.mockReset()
+    getDrillChildrenMock.mockReset()
+    getDrillChildrenMock.mockReturnValue([])
+    mockDrillState.drillStack = []
+    mockDrillState.currentParentId = null
+    mockDrillState.currentParent = null
+    mockDrillState.drillChildren = []
+    mockDrillState.drillLoading = false
+    mockDrillState.drillError = null
     logHabitMutateAsync.mockReset()
     logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
@@ -624,5 +653,36 @@ describe('HabitList', () => {
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
     expect(screen.getByText('habits.autoLogParentMessage({"name":"Grandparent"})')).toBeDefined()
+  })
+
+  it('stores drill edit onSaved callback without invoking refresh eagerly', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      hasSubHabits: false,
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.topLevelHabits = [parent]
+
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillChildren = [child]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('edit-child'))
+    expect(drillRefreshCurrent).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('edit-habit-modal-save'))
+    expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
   })
 })
