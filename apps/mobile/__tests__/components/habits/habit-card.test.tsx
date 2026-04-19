@@ -216,4 +216,24 @@ describe('HabitCard', () => {
     const [outerCard] = findOuterCardTouchables(tree.root)
     expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
   })
+
+  it('renders completion feedback on mobile when a habit was just completed', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({ isCompleted: false })}
+          isRecentlyCompleted
+        />,
+      )
+    })
+
+    expect(
+      tree.root.findAll((node: any) => node.props.testID === 'habit-completion-flash').length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(
+      tree.root.findAll((node: any) => node.props.testID === 'habit-completion-spark-0').length,
+    ).toBeGreaterThanOrEqual(1)
+  })
 })

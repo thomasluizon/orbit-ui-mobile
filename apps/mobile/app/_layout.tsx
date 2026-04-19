@@ -160,14 +160,15 @@ function RootLayoutNav() {
           <Stack
             screenOptions={{
               headerShown: false,
-              animation: 'fade',
+              animation: 'slide_from_right',
+              animationTypeForReplace: 'push',
               contentStyle: { backgroundColor: colors.background },
             }}
           >
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="auth-callback" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="login" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="auth-callback" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="preferences" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="ai-settings" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="advanced" options={{ animation: 'slide_from_right' }} />
@@ -178,7 +179,7 @@ function RootLayoutNav() {
             <Stack.Screen name="upgrade" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="retrospective" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="calendar-sync" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="privacy" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
           </Stack>
         </View>
 

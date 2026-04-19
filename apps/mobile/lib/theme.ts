@@ -1,4 +1,9 @@
-import { schemes, type ColorScheme } from '@orbit/shared/theme'
+import {
+  schemes,
+  motionDurations,
+  motionEasings,
+  type ColorScheme,
+} from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 
 type ThemeRuntime = {
@@ -335,20 +340,20 @@ export const radius: AppRadius = {
 
 /** Raw bezier control points for use with Easing.bezier(...) */
 export const easings = {
-  spring: [0.34, 1.56, 0.64, 1] as [number, number, number, number],
-  out: [0.16, 1, 0.3, 1] as [number, number, number, number],
-  smooth: [0.4, 0, 0.2, 1] as [number, number, number, number],
+  spring: motionEasings.emphasize,
+  out: motionEasings.enter,
+  smooth: motionEasings.standard,
 }
 
 export const durations = {
-  fast: 100,
-  base: 280,
-  slow: 500,
-  shimmer: 3000,
-  creationGlow: 1200,
-  completePop: 500,
-  completeGlow: 800,
-  completeSpark: 600,
+  fast: motionDurations.fast,
+  base: motionDurations.route,
+  slow: motionDurations.slow,
+  shimmer: motionDurations.shimmer,
+  creationGlow: motionDurations.creationGlow,
+  completePop: motionDurations.completePop,
+  completeGlow: motionDurations.completeGlow,
+  completeSpark: motionDurations.completeSpark,
 }
 
 // ---------------------------------------------------------------------------

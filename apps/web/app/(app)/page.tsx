@@ -8,7 +8,9 @@ import {
   isYesterday,
   isTomorrow,
 } from 'date-fns'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -77,12 +79,18 @@ function getTodayTabLabel(
 export default function TodayPage() {
   const t = useTranslations()
   const locale = useDeviceLocale()
+  const prefersReducedMotion = useReducedMotion()
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo()
   const { tags } = useTags()
+  const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
+  const listTransition = {
+    duration: listMotionPreset.enterDuration / 1000,
+    ease: listMotionPreset.enterEasing,
+  } as const
 
   // Show general on today preference (local storage, read-only)
   const showGeneralOnToday = useMemo(() => {
@@ -476,20 +484,22 @@ export default function TodayPage() {
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
         >
-          <TodayFilters
-            activeView={currentActiveView}
-            localSearchQuery={localSearchQuery}
-            selectedFrequency={selectedFrequency}
-            selectedTagIds={selectedTagIds}
-            tags={tags}
-            frequencyOptions={frequencyOptions}
-            controlsMenuRef={controlsMenuRef}
-            onSearchChange={setLocalSearchQuery}
-            onSearchClear={() => setLocalSearchQuery('')}
-            onFrequencyChange={setSelectedFrequency}
-            onTagToggle={toggleTagFilter}
-            onOpenControlsMenu={toggleControlsMenu}
-          />
+          <motion.div layout transition={listTransition}>
+            <TodayFilters
+              activeView={currentActiveView}
+              localSearchQuery={localSearchQuery}
+              selectedFrequency={selectedFrequency}
+              selectedTagIds={selectedTagIds}
+              tags={tags}
+              frequencyOptions={frequencyOptions}
+              controlsMenuRef={controlsMenuRef}
+              onSearchChange={setLocalSearchQuery}
+              onSearchClear={() => setLocalSearchQuery('')}
+              onFrequencyChange={setSelectedFrequency}
+              onTagToggle={toggleTagFilter}
+              onOpenControlsMenu={toggleControlsMenu}
+            />
+          </motion.div>
 
           {/* Controls dropdown menu (portal) */}
           {showControlsMenu && typeof document !== 'undefined' && (
@@ -533,58 +543,86 @@ export default function TodayPage() {
           )}
 
           {/* Refetch loading bar */}
-          {isRefetching && (
-            <div className="loading-bar w-full" />
-          )}
+          <AnimatePresence initial={false}>
+            {isRefetching ? (
+              <motion.div
+                key="today-refetch-indicator"
+                className="overflow-hidden pt-1"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 8 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={listTransition}
+              >
+                <motion.div
+                  data-testid="today-refetch-indicator"
+                  className="loading-bar h-1 w-full rounded-full origin-center"
+                  initial={{ opacity: 0.7, scaleX: 0.92 }}
+                  animate={{ opacity: 1, scaleX: 1 }}
+                  exit={{ opacity: 0, scaleX: 0.96 }}
+                  transition={listTransition}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
 
           {/* Habit list */}
           {hasFetched && (
-          <div
-            className={`overflow-x-hidden overflow-y-visible pt-2 transition-opacity duration-200 ${
-              isSelectMode ? 'pb-20' : ''
-            } ${isRefetching ? 'opacity-75' : ''}`}
-          >
-            <HabitList
-              ref={habitListRef}
-              view={
-                currentActiveView === 'today' ||
-                currentActiveView === 'all' ||
-                currentActiveView === 'general'
-                  ? currentActiveView
-                  : 'today'
-              }
-              selectedDate={selectedDate}
-              showCompleted={showCompleted}
-              isSelectMode={isSelectMode}
-              selectedHabitIds={selectedHabitIds}
-              searchQuery={searchQueryStore}
-              filters={filters}
-              onToggleSelection={handleToggleSelection}
-              onEnterSelectMode={(habitId) => {
-                if (!isSelectMode) toggleSelectMode()
-                handleToggleSelection(habitId)
+            <motion.div
+              layout
+              data-testid="today-list-shell"
+              className={`overflow-x-hidden overflow-y-visible pt-2 ${
+                isSelectMode ? 'pb-20' : ''
+              }`}
+              animate={{
+                opacity: isRefetching ? 0.78 : 1,
+                y: isRefetching ? Math.round(listMotionPreset.shift / 2) : 0,
+                scale: isRefetching ? 0.995 : 1,
               }}
-              onCreate={() => setShowCreateModal(true)}
-              onSeeUpcoming={goToNextDay}
-            />
-          </div>
+              transition={listTransition}
+            >
+              <HabitList
+                ref={habitListRef}
+                view={
+                  currentActiveView === 'today' ||
+                  currentActiveView === 'all' ||
+                  currentActiveView === 'general'
+                    ? currentActiveView
+                    : 'today'
+                }
+                selectedDate={selectedDate}
+                showCompleted={showCompleted}
+                isSelectMode={isSelectMode}
+                selectedHabitIds={selectedHabitIds}
+                searchQuery={searchQueryStore}
+                filters={filters}
+                onToggleSelection={handleToggleSelection}
+                onEnterSelectMode={(habitId) => {
+                  if (!isSelectMode) toggleSelectMode()
+                  handleToggleSelection(habitId)
+                }}
+                onCreate={() => setShowCreateModal(true)}
+                onSeeUpcoming={goToNextDay}
+              />
+            </motion.div>
           )}
         </div>
       )}
 
       {/* Floating bulk action bar */}
-      {isSelectMode && typeof document !== 'undefined' && (
-        <BulkActionBar
-          selectedCount={selectedHabitIds.size}
-          allSelected={allSelected}
-          onSelectAll={selectAll}
-          onDeselectAll={deselectAll}
-          onBulkLog={() => setShowBulkLogConfirm(true)}
-          onBulkSkip={() => setShowBulkSkipConfirm(true)}
-          onBulkDelete={() => setShowBulkDeleteConfirm(true)}
-          onCancel={toggleSelectMode}
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {isSelectMode && typeof document !== 'undefined' ? (
+          <BulkActionBar
+            selectedCount={selectedHabitIds.size}
+            allSelected={allSelected}
+            onSelectAll={selectAll}
+            onDeselectAll={deselectAll}
+            onBulkLog={() => setShowBulkLogConfirm(true)}
+            onBulkSkip={() => setShowBulkSkipConfirm(true)}
+            onBulkDelete={() => setShowBulkDeleteConfirm(true)}
+            onCancel={toggleSelectMode}
+          />
+        ) : null}
+      </AnimatePresence>
 
       {/* Bulk delete confirmation */}
       <ConfirmDialog

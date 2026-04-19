@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { canGoBackInAppHistory } from '@/lib/app-navigation-history'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 interface UseGoBackOrFallbackOptions {
@@ -36,15 +37,18 @@ export function useGoBackOrFallback() {
         canGoBackInAppHistory() ||
         (globalThis.history.length > 1 && hasSameOriginReferrer)
       ) {
+        setRouteTransitionIntent('back')
         router.back()
         return
       }
 
       if (replace) {
+        setRouteTransitionIntent('replace')
         router.replace(fallbackRoute)
         return
       }
 
+      setRouteTransitionIntent('forward')
       router.push(fallbackRoute)
     },
     [router],

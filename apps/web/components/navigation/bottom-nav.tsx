@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Home, MessageCircle, CalendarDays, User, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { LucideIcon } from 'lucide-react'
 
@@ -39,6 +40,10 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   }
 
   function handleNavClick(item: NavItem, event: React.MouseEvent) {
+    if (!isActive(item.path)) {
+      setRouteTransitionIntent('tab')
+    }
+
     if (item.path === '/') {
       // Reset date to today and view to 'today' when clicking Home
       setSelectedDate(formatAPIDate(new Date()))

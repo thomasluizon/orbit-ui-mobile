@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 
 export default function ChatLayout({
   children,
@@ -25,7 +26,9 @@ export default function ChatLayout({
           id="main-content"
           className="flex-1 min-h-0 mx-auto w-full max-w-[var(--app-max-w)] px-[var(--app-px)]"
         >
-          {children}
+          <RouteTransitionShell className="h-full">
+            {children}
+          </RouteTransitionShell>
         </div>
         <TourProvider />
         <TourOverlay />

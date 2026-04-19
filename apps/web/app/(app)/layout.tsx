@@ -29,7 +29,9 @@ import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/profile'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
 
 export default function AppLayout({
@@ -99,6 +101,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleCreate = useCallback(() => {
     if (activeView === 'goals') {
       if (!hasProAccess) {
+        setRouteTransitionIntent('forward')
         router.push('/upgrade')
         return
       }
@@ -106,6 +109,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       return
     }
     if (!hasProAccess && totalHabitCount >= 10) {
+      setRouteTransitionIntent('forward')
       router.push('/upgrade')
       return
     }
@@ -125,6 +129,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     dismissCalendarImport().catch(() => {})
 
     if (profile?.hasGoogleConnection) {
+      setRouteTransitionIntent('forward')
       router.push('/calendar-sync')
       return
     }
@@ -165,7 +170,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
       >
         <TrialBanner />
-        <div>{children}</div>
+        <RouteTransitionShell>
+          <div>{children}</div>
+        </RouteTransitionShell>
       </main>
 
       {/* Bottom navigation */}

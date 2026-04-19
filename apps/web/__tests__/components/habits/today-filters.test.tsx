@@ -38,6 +38,12 @@ function renderTodayFilters(overrides: Partial<TodayFiltersProps> = {}) {
 }
 
 describe('TodayFilters', () => {
+  it('renders the animated filter shell', () => {
+    renderTodayFilters()
+
+    expect(screen.getByTestId('today-filters-shell')).toBeInTheDocument()
+  })
+
   it('renders search input', () => {
     renderTodayFilters()
     expect(screen.getByPlaceholderText('habits.searchPlaceholder')).toBeInTheDocument()

@@ -10,6 +10,7 @@ type RenderedNode = {
 
 type RenderedTree = {
   root: {
+    findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
     findAllByType: (type: string) => RenderedNode[]
     findByType: (type: string) => RenderedNode
   }
@@ -140,7 +141,7 @@ vi.mock('@/components/habit-list', () => ({
     ref: React.ForwardedRef<unknown>,
   ) {
     React.useImperativeHandle(ref, () => habitListHandle)
-    return React.createElement('HabitList', props)
+    return React.createElement('HabitList', props, props.listHeader as React.ReactNode)
   }),
 }))
 
@@ -294,6 +295,16 @@ describe('TodayScreen', () => {
     const habitList = tree.root.findByType('HabitList')
     expect(habitList.props.listHeader).toBeTruthy()
     expect(habitList.props.onLogHabit).toBeUndefined()
+  })
+
+  it('renders the animated filter shell, list shell, and bulk action bar', async () => {
+    uiState.isSelectMode = true
+
+    const tree = await renderTodayScreen()
+
+    expect(tree.root.findAll((node) => node.props.testID === 'today-filters-shell').length).toBeGreaterThanOrEqual(1)
+    expect(tree.root.findAll((node) => node.props.testID === 'today-list-shell').length).toBeGreaterThanOrEqual(1)
+    expect(tree.root.findAll((node) => node.props.testID === 'bulk-action-bar').length).toBeGreaterThanOrEqual(1)
   })
 
   it('dedupes descendant successes before prompting parent logs for bulk actions', async () => {

@@ -1,8 +1,17 @@
-import { useMemo } from 'react'
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Animated,
+  Easing,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { radius } from '@/lib/theme'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type Variant = 'danger' | 'warning' | 'success'
@@ -32,6 +41,10 @@ export function ConfirmDialog({
 }: Readonly<ConfirmDialogProps>) {
   const { t } = useTranslation()
   const { colors, shadows } = useAppTheme()
+  const dialogMotion = useResolvedMotionPreset('dialog')
+  const progress = useRef(new Animated.Value(0)).current
+  const [visible, setVisible] = useState(open)
+
   const config = useMemo(() => {
     switch (variant) {
       case 'warning':
@@ -60,6 +73,30 @@ export function ConfirmDialog({
   const Icon = config.icon
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
+  useEffect(() => {
+    if (open) {
+      setVisible(true)
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: dialogMotion.enterDuration,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start()
+      return
+    }
+
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: dialogMotion.exitDuration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setVisible(false)
+      }
+    })
+  }, [dialogMotion.enterDuration, dialogMotion.exitDuration, open, progress])
+
   function handleConfirm() {
     onConfirm()
     onOpenChange(false)
@@ -70,20 +107,49 @@ export function ConfirmDialog({
     onOpenChange(false)
   }
 
+  if (!visible) {
+    return null
+  }
+
+  const backdropOpacity = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  })
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.shift, 0],
+  })
+  const scale = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
+  })
+
   return (
     <Modal
-      visible={open}
+      visible
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={() => onOpenChange(false)}
     >
       <TouchableOpacity
-        style={styles.backdrop}
+        style={styles.root}
         activeOpacity={1}
         onPress={() => onOpenChange(false)}
       >
-        <View style={styles.dialog} onStartShouldSetResponder={() => true}>
-          {/* Header */}
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+        />
+        <Animated.View
+          style={[
+            styles.dialog,
+            {
+              opacity: progress,
+              transform: [{ translateY }, { scale }],
+            },
+          ]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.header}>
             <View style={[styles.iconCircle, { backgroundColor: config.iconBg }]}>
               <Icon size={20} color={config.iconColor} />
@@ -91,10 +157,8 @@ export function ConfirmDialog({
             <Text style={styles.title}>{title}</Text>
           </View>
 
-          {/* Description */}
           <Text style={styles.description}>{description}</Text>
 
-          {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -126,7 +190,7 @@ export function ConfirmDialog({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </TouchableOpacity>
     </Modal>
   )
@@ -137,12 +201,15 @@ function createStyles(
   shadows: ReturnType<typeof useAppTheme>['shadows'],
 ) {
   return StyleSheet.create({
-    backdrop: {
+    root: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.50)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.50)',
     },
     dialog: {
       width: '100%',

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { AnimatePresence, motion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import {
   buildGoogleCalendarOAuthOptions,
@@ -12,8 +13,10 @@ import {
   isValidVerificationCode,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useAuthStore } from '@/stores/auth-store'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { getSupabaseClient } from '@/lib/supabase'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
@@ -295,6 +298,7 @@ async function handleVerifySuccess(
   if (loginResponse.wasReactivated) {
     setSuccessMessage(t('profile.deleteAccount.reactivated'))
   }
+  setRouteTransitionIntent('replace')
   router.push(getReturnUrl())
 }
 
@@ -333,6 +337,8 @@ export default function LoginPage() {
   } = useLoginCodeEntry((code) => {
     void verifyCode(code)
   })
+  const authStepMotion = resolveMotionPreset('route-replace')
+  const feedbackMotion = resolveMotionPreset('success-feedback')
 
   // Referral code from cookie
   const referralCode = getCookieValue('referral_code')
@@ -484,58 +490,115 @@ export default function LoginPage() {
 
         {/* Referral banner */}
         {referralCode && (
-          <div
+          <motion.div
             role="status"
             aria-live="polite"
             aria-atomic="true"
             className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400 flex items-center gap-2"
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              transition: {
+                duration: feedbackMotion.enterDuration / 1000,
+                ease: feedbackMotion.enterEasing,
+              },
+            }}
           >
             <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
             </svg>
             {t('referral.loginBanner')}
-          </div>
+          </motion.div>
         )}
 
         {/* Success alert */}
-        {successMessage && (
-          <div
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400"
-          >
-            {successMessage}
-          </div>
-        )}
+        <AnimatePresence initial={false} mode="popLayout">
+          {successMessage ? (
+            <motion.div
+              key={successMessage}
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400"
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                transition: {
+                  duration: feedbackMotion.enterDuration / 1000,
+                  ease: feedbackMotion.enterEasing,
+                },
+              }}
+              exit={{
+                opacity: 0,
+                y: -4,
+                scale: 0.99,
+                transition: {
+                  duration: feedbackMotion.exitDuration / 1000,
+                  ease: feedbackMotion.exitEasing,
+                },
+              }}
+            >
+              {successMessage}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-        {step === 'email' ? (
-          <EmailStep
-            email={email}
-            onEmailChange={setEmail}
-            isSubmitting={isSubmitting}
-            isGoogleLoading={isGoogleLoading}
-            onSendCode={sendCode}
-            onSignInWithGoogle={signInWithGoogle}
-            t={t}
-          />
-        ) : (
-          <CodeStep
-            email={email}
-            codeDigits={codeDigits}
-            isSubmitting={isSubmitting}
-            canResend={canResend}
-            resendCountdown={resendCountdown}
-            codeInputRefs={codeInputRefs}
-            onVerifyCode={verifyCode}
-            onCodeInput={onCodeInput}
-            onCodeKeydown={onCodeKeydown}
-            onCodePaste={onCodePaste}
-            onBackToEmail={backToEmail}
-            onResendCode={resendCode}
-            t={t}
-          />
-        )}
+        <AnimatePresence initial={false} mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: step === 'email' ? -authStepMotion.shift : authStepMotion.shift, scale: authStepMotion.scaleFrom }}
+            animate={{
+              opacity: 1,
+              x: 0,
+              scale: authStepMotion.scaleTo,
+              transition: {
+                duration: authStepMotion.enterDuration / 1000,
+                ease: authStepMotion.enterEasing,
+              },
+            }}
+            exit={{
+              opacity: 0,
+              x: step === 'email' ? authStepMotion.shift * 0.4 : -authStepMotion.shift * 0.4,
+              scale: 0.99,
+              transition: {
+                duration: authStepMotion.exitDuration / 1000,
+                ease: authStepMotion.exitEasing,
+              },
+            }}
+          >
+            {step === 'email' ? (
+              <EmailStep
+                email={email}
+                onEmailChange={setEmail}
+                isSubmitting={isSubmitting}
+                isGoogleLoading={isGoogleLoading}
+                onSendCode={sendCode}
+                onSignInWithGoogle={signInWithGoogle}
+                t={t}
+              />
+            ) : (
+              <CodeStep
+                email={email}
+                codeDigits={codeDigits}
+                isSubmitting={isSubmitting}
+                canResend={canResend}
+                resendCountdown={resendCountdown}
+                codeInputRefs={codeInputRefs}
+                onVerifyCode={verifyCode}
+                onCodeInput={onCodeInput}
+                onCodeKeydown={onCodeKeydown}
+                onCodePaste={onCodePaste}
+                onBackToEmail={backToEmail}
+                onResendCode={resendCode}
+                t={t}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
 
         {/* Privacy & Terms */}
         <p className="text-[10px] text-text-muted text-center pt-2">
