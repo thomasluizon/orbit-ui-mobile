@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
+  Animated,
   Dimensions,
+  Easing,
   Modal,
   StyleSheet,
   TouchableOpacity,
@@ -13,6 +15,7 @@ import {
   type MenuAnchorRect,
 } from '@/lib/anchored-menu'
 import { radius } from '@/lib/theme'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface AnchoredMenuProps {
@@ -35,8 +38,11 @@ export function AnchoredMenu({
   panelStyle,
 }: Readonly<AnchoredMenuProps>) {
   const { colors, shadows } = useAppTheme()
+  const menuMotion = useResolvedMotionPreset('menu')
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const [menuHeight, setMenuHeight] = useState(estimatedHeight)
+  const [shouldRender, setShouldRender] = useState(visible)
+  const progress = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     if (visible) {
@@ -53,6 +59,30 @@ export function AnchoredMenu({
     }
   }, [onClose, visible])
 
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true)
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: menuMotion.enterDuration,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start()
+      return
+    }
+
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: menuMotion.exitDuration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setShouldRender(false)
+      }
+    })
+  }, [menuMotion.enterDuration, menuMotion.exitDuration, progress, visible])
+
   const position = useMemo(() => {
     if (!anchorRect) return null
 
@@ -66,25 +96,42 @@ export function AnchoredMenu({
     })
   }, [anchorRect, menuHeight, width])
 
-  if (!visible || !anchorRect || !position) {
+  if (!shouldRender || !anchorRect || !position) {
     return null
   }
 
+  const backdropOpacity = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  })
+  const scale = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [menuMotion.scaleFrom, menuMotion.scaleTo],
+  })
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [position.opensUp ? menuMotion.shift * 0.4 : -menuMotion.shift * 0.4, 0],
+  })
+
   return (
     <Modal
-      visible={visible}
+      visible
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+        />
         <TouchableOpacity
-          style={styles.backdrop}
+          style={styles.backdropPressTarget}
           activeOpacity={1}
           onPress={onClose}
         />
-        <View
+        <Animated.View
           style={[
             styles.panel,
             panelStyle,
@@ -92,6 +139,8 @@ export function AnchoredMenu({
               width,
               left: position.left,
               top: position.top,
+              opacity: progress,
+              transform: [{ translateY }, { scale }],
             },
           ]}
           onLayout={(event) => {
@@ -102,7 +151,7 @@ export function AnchoredMenu({
           }}
         >
           {children}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   )
@@ -118,7 +167,10 @@ function createStyles(
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    },
+    backdropPressTarget: {
+      ...StyleSheet.absoluteFillObject,
     },
     panel: {
       position: 'absolute',

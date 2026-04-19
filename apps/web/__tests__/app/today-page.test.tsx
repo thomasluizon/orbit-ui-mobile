@@ -217,6 +217,13 @@ describe('TodayPage bulk parent prompts', () => {
     })
   })
 
+  it('renders the animated list shell and bulk action bar in select mode', () => {
+    render(<TodayPage />)
+
+    expect(screen.getByTestId('today-list-shell')).toBeInTheDocument()
+    expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument()
+  })
+
   it('routes free users to upgrade when they click goals', async () => {
     render(<TodayPage />)
 

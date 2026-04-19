@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 
 /**
  * Auth layout: centered layout with branding for login and auth-callback pages.
@@ -36,9 +37,11 @@ export default function AuthLayout({
         </div>
         <p className="text-text-muted text-sm">{t('auth.tagline')}</p>
       </div>
-      <div id="main-content">
-        {children}
-      </div>
+      <RouteTransitionShell className="w-full flex justify-center">
+        <div id="main-content">
+          {children}
+        </div>
+      </RouteTransitionShell>
     </div>
   )
 }

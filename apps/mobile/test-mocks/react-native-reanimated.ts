@@ -82,6 +82,12 @@ export const Easing = {
   inOut: (easing: (t: number) => number) => easing,
 }
 
+export const ReduceMotion = {
+  System: 'system',
+  Always: 'always',
+  Never: 'never',
+}
+
 export function runOnJS<Args extends unknown[], Return>(
   callback: (...args: Args) => Return,
 ) {

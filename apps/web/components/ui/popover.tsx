@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { usePopoverMenu, type UsePopoverMenuOptions } from '@/hooks/use-popover-menu'
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 
@@ -45,6 +47,8 @@ export function Popover({
   margin,
 }: Readonly<PopoverProps>) {
   const isControlled = controlledOpen !== undefined
+  const prefersReducedMotion = useReducedMotion()
+  const motionPreset = resolveMotionPreset('menu', Boolean(prefersReducedMotion))
 
   const hook = usePopoverMenu({ placement, offset, margin })
   const wasOpenRef = useRef(false)
@@ -184,32 +188,57 @@ export function Popover({
         {trigger}
       </div>
 
-      {/* Panel portal -- only rendered when open and client is mounted */}
-      {mounted && isOpen &&
+      {mounted &&
         createPortal(
-          <div
-            ref={hook.panelRef}
-            role="dialog"
-            aria-modal="false"
-            className={[
-              'habit-actions-menu',
-              'fixed',
-              'rounded-[var(--radius-xl)]',
-              'z-50',
-              'animate-scale-in',
-              className,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={{
-              top: `${hook.position.top}px`,
-              left: `${hook.position.left}px`,
-            }}
-            tabIndex={-1}
-            onKeyDown={handlePanelKeyDown}
-          >
-            {resolvedPanel}
-          </div>,
+          <AnimatePresence>
+            {isOpen ? (
+              <motion.div
+                ref={hook.panelRef}
+                role="dialog"
+                aria-modal="false"
+                className={[
+                  'habit-actions-menu',
+                  'fixed',
+                  'rounded-[var(--radius-xl)]',
+                  'z-50',
+                  className,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                style={{
+                  top: `${hook.position.top}px`,
+                  left: `${hook.position.left}px`,
+                }}
+                tabIndex={-1}
+                onKeyDown={handlePanelKeyDown}
+                initial={{
+                  opacity: 0,
+                  y: -Math.round(motionPreset.shift * 0.4),
+                  scale: motionPreset.scaleFrom,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  scale: motionPreset.scaleTo,
+                  transition: {
+                    duration: motionPreset.enterDuration / 1000,
+                    ease: motionPreset.enterEasing,
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  y: -Math.round(motionPreset.shift * 0.25),
+                  scale: 0.985,
+                  transition: {
+                    duration: motionPreset.exitDuration / 1000,
+                    ease: motionPreset.exitEasing,
+                  },
+                }}
+              >
+                {resolvedPanel}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>,
           document.body,
         )}
     </>

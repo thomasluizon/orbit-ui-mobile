@@ -1,24 +1,11 @@
-import { AccessibilityInfo, Platform, Vibration } from 'react-native'
+import { Platform, Vibration } from 'react-native'
+import { getPrefersReducedMotion } from '@/lib/motion'
 
 type HapticFeedbackType = 'selection' | 'success' | 'warning'
 
-let prefersReducedMotion = false
-let hasLoadedAccessibilityPreference = false
-
 async function shouldSkipHaptics(): Promise<boolean> {
   if (Platform.OS === 'web') return true
-
-  if (!hasLoadedAccessibilityPreference) {
-    try {
-      prefersReducedMotion = await AccessibilityInfo.isReduceMotionEnabled()
-    } catch {
-      prefersReducedMotion = false
-    } finally {
-      hasLoadedAccessibilityPreference = true
-    }
-  }
-
-  return prefersReducedMotion
+  return getPrefersReducedMotion()
 }
 
 function getDuration(type: HapticFeedbackType): number {

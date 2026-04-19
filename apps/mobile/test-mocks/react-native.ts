@@ -81,6 +81,17 @@ export const AppState = {
   }),
 }
 
+export const AccessibilityInfo = {
+  isReduceMotionEnabled: async () => false,
+  addEventListener: (_event: string, _listener: (enabled: boolean) => void) => ({
+    remove: () => {},
+  }),
+}
+
+export const Vibration = {
+  vibrate: (_duration: number) => {},
+}
+
 export const Platform = {
   OS: 'android',
   select: <T,>(values: { android?: T; default?: T }) => values.android ?? values.default,
@@ -117,6 +128,7 @@ export default {
   ActivityIndicator,
   Animated,
   AppState,
+  AccessibilityInfo,
   Easing,
   FlatList,
   Image,
@@ -131,5 +143,6 @@ export default {
   Text,
   TextInput,
   TouchableOpacity,
+  Vibration,
   View,
 }

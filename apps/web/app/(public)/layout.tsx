@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 
 /**
  * Public layout: minimal shell with no bottom nav or app chrome.
@@ -25,7 +26,9 @@ export default function PublicLayout({
         id="main-content"
         className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
       >
-        {children}
+        <RouteTransitionShell>
+          {children}
+        </RouteTransitionShell>
       </main>
     </div>
   )

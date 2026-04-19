@@ -6,9 +6,11 @@ import {
   type BottomSheetBackdropProps,
   type BottomSheetBackgroundProps,
 } from '@gorhom/bottom-sheet'
+import { ReduceMotion } from 'react-native-reanimated'
 import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ThemeContextValue } from '@/lib/theme-provider'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
@@ -47,6 +49,7 @@ export function BottomSheetModal({
   children,
 }: BottomSheetModalProps) {
   const { colors } = useAppTheme()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const insets = useSafeAreaInsets()
   const styles = useMemo(() => createStyles(colors), [colors])
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
@@ -156,6 +159,8 @@ export function BottomSheetModal({
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"
       bottomInset={insets.bottom}
+      animateOnMount={!prefersReducedMotion}
+      overrideReduceMotion={prefersReducedMotion ? ReduceMotion.Always : ReduceMotion.Never}
       handleIndicatorStyle={styles.handleIndicator}
     >
       {title ? (

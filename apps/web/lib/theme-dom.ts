@@ -1,4 +1,10 @@
-import { schemes, type ColorScheme, type ColorSchemeDefinition, type ThemeMode } from '@orbit/shared'
+import {
+  schemes,
+  motionDurations,
+  type ColorScheme,
+  type ColorSchemeDefinition,
+  type ThemeMode,
+} from '@orbit/shared'
 
 export const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
   'purple',
@@ -34,7 +40,7 @@ export function applyThemeTokensToDOM(
     root.classList.add('theme-transitioning')
     setTimeout(() => {
       root.classList.remove('theme-transitioning')
-    }, 500)
+    }, motionDurations.theme)
   }
 
   if (theme === 'dark') {

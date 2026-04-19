@@ -68,6 +68,7 @@ import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { shouldResetSelectionForViewChange } from '@/lib/habit-selection-state'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { createColors, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
@@ -93,6 +94,15 @@ export function resolveTodayView(activeView: TodayView, hasProAccess: boolean): 
 
 export function shouldRedirectGoalsTab(nextView: TodayView, hasProAccess: boolean): boolean {
   return nextView === 'goals' && !hasProAccess
+}
+
+export function resolveBulkActionBarEnterShift(selectionMotion: {
+  shift: number
+  reducedMotionEnabled: boolean
+}): number {
+  return selectionMotion.reducedMotionEnabled
+    ? selectionMotion.shift
+    : Math.max(12, selectionMotion.shift)
 }
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
@@ -156,6 +166,42 @@ const TodaySearchBar = memo(function TodaySearchBar({
   )
 })
 
+function createAnimatedEasing(
+  easing: readonly [number, number, number, number],
+): (value: number) => number {
+  const easingWithBezier = Easing as typeof Easing & {
+    bezier?: (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+    ) => (value: number) => number
+  }
+
+  if (typeof easingWithBezier.bezier === 'function') {
+    return easingWithBezier.bezier(
+      easing[0],
+      easing[1],
+      easing[2],
+      easing[3],
+    )
+  }
+
+  return Easing.out(Easing.cubic)
+}
+
+function createAnimatedTimingConfig(
+  duration: number,
+  easing: readonly [number, number, number, number],
+) {
+  return {
+    toValue: 1,
+    duration,
+    easing: createAnimatedEasing(easing),
+    useNativeDriver: true,
+  } as const
+}
+
 // ---------------------------------------------------------------------------
 // Today Screen
 // ---------------------------------------------------------------------------
@@ -163,6 +209,8 @@ const TodaySearchBar = memo(function TodaySearchBar({
 export default function TodayScreen() {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const listMotion = useResolvedMotionPreset('list-enter')
+  const selectionMotion = useResolvedMotionPreset('selection')
   const router = useRouter()
   const locale = useDeviceLocale()
   const insets = useSafeAreaInsets()
@@ -214,6 +262,12 @@ export default function TodayScreen() {
   const controlsButtonRef = useRef<View>(null)
   const previousActiveViewRef = useRef(activeView)
   const dateLabelAnim = useRef(new Animated.Value(0)).current
+  const filtersTransitionAnim = useRef(new Animated.Value(1)).current
+  const listTransitionAnim = useRef(new Animated.Value(1)).current
+  const refetchTransitionAnim = useRef(new Animated.Value(0)).current
+  const bulkBarAnim = useRef(new Animated.Value(isSelectMode ? 1 : 0)).current
+  const hasAnimatedFiltersRef = useRef(false)
+  const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode)
 
   // Modal state
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null)
@@ -225,6 +279,23 @@ export default function TodayScreen() {
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
     [selectedDateStr],
+  )
+  const filterMotionKey = useMemo(
+    () =>
+      [
+        currentActiveView,
+        selectedDateStr,
+        searchQueryStore,
+        selectedFrequency ?? '',
+        selectedTagIds.join(','),
+      ].join('|'),
+    [
+      currentActiveView,
+      searchQueryStore,
+      selectedDateStr,
+      selectedFrequency,
+      selectedTagIds,
+    ],
   )
 
   useEffect(() => {
@@ -326,6 +397,36 @@ export default function TodayScreen() {
     }).start()
   }, [dateLabelAnim, selectedDateStr, slideDirection])
 
+  useEffect(() => {
+    if (!hasAnimatedFiltersRef.current) {
+      hasAnimatedFiltersRef.current = true
+      return
+    }
+
+    const startValue = listMotion.reducedMotionEnabled ? 1 : 0
+    const timingConfig = createAnimatedTimingConfig(
+      listMotion.enterDuration,
+      listMotion.enterEasing,
+    )
+
+    filtersTransitionAnim.stopAnimation?.()
+    listTransitionAnim.stopAnimation?.()
+    filtersTransitionAnim.setValue(startValue)
+    listTransitionAnim.setValue(startValue)
+
+    Animated.parallel([
+      Animated.timing(filtersTransitionAnim, timingConfig),
+      Animated.timing(listTransitionAnim, timingConfig),
+    ]).start()
+  }, [
+    filterMotionKey,
+    filtersTransitionAnim,
+    listMotion.enterDuration,
+    listMotion.enterEasing,
+    listMotion.reducedMotionEnabled,
+    listTransitionAnim,
+  ])
+
   // Tag filter toggle
   const toggleTagFilter = useCallback((tagId: string) => {
     const idx = selectedTagIds.indexOf(tagId)
@@ -367,6 +468,8 @@ export default function TodayScreen() {
   }, [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   const habitsQuery = useHabits(filters)
+  const hasFetchedHabits = habitsQuery.data !== undefined
+  const isRefetching = habitsQuery.isFetching && hasFetchedHabits
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
 
@@ -429,6 +532,60 @@ export default function TodayScreen() {
     return ids
   }, [habitsQuery, visibleTopLevelHabits])
 
+  useEffect(() => {
+    Animated.timing(refetchTransitionAnim, {
+      toValue: isRefetching ? 1 : 0,
+      duration: isRefetching ? listMotion.enterDuration : listMotion.exitDuration,
+      easing: createAnimatedEasing(
+        isRefetching ? listMotion.enterEasing : listMotion.exitEasing,
+      ),
+      useNativeDriver: true,
+    }).start()
+  }, [
+    isRefetching,
+    listMotion.enterDuration,
+    listMotion.enterEasing,
+    listMotion.exitDuration,
+    listMotion.exitEasing,
+    refetchTransitionAnim,
+  ])
+
+  useEffect(() => {
+    if (isSelectMode) {
+      setRenderBulkActionBar(true)
+      bulkBarAnim.stopAnimation?.()
+      bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0)
+      Animated.timing(
+        bulkBarAnim,
+        createAnimatedTimingConfig(
+          selectionMotion.enterDuration,
+          selectionMotion.enterEasing,
+        ),
+      ).start()
+      return
+    }
+
+    bulkBarAnim.stopAnimation?.()
+    Animated.timing(bulkBarAnim, {
+      toValue: 0,
+      duration: selectionMotion.exitDuration,
+      easing: createAnimatedEasing(selectionMotion.exitEasing),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setRenderBulkActionBar(false)
+      }
+    })
+  }, [
+    bulkBarAnim,
+    isSelectMode,
+    selectionMotion.enterDuration,
+    selectionMotion.enterEasing,
+    selectionMotion.exitDuration,
+    selectionMotion.exitEasing,
+    selectionMotion.reducedMotionEnabled,
+  ])
+
   const allLoadedIds = habitListRef.current?.allLoadedIds ?? visibleHabitIds
 
   const allSelected =
@@ -452,6 +609,82 @@ export default function TodayScreen() {
     isToday(selectedDate) &&
     profile?.hasProAccess &&
     profile?.aiSummaryEnabled
+
+  const filtersAnimatedStyle = useMemo(
+    () => ({
+      opacity: filtersTransitionAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.86, 1],
+      }),
+      transform: [
+        {
+          translateY: filtersTransitionAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
+          }),
+        },
+      ],
+    }),
+    [filtersTransitionAnim, listMotion.shift],
+  )
+
+  const listAnimatedStyle = useMemo(
+    () => ({
+      opacity: listTransitionAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.9, 1],
+      }),
+      transform: [
+        {
+          translateY: listTransitionAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
+          }),
+        },
+      ],
+    }),
+    [listMotion.shift, listTransitionAnim],
+  )
+
+  const refetchAnimatedStyle = useMemo(
+    () => ({
+      flex: 1,
+      opacity: refetchTransitionAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.8],
+      }),
+      transform: [
+        {
+          translateY: refetchTransitionAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 4],
+          }),
+        },
+      ],
+    }),
+    [refetchTransitionAnim],
+  )
+
+  const bulkBarAnimatedStyle = useMemo(
+    () => ({
+      opacity: bulkBarAnim,
+      transform: [
+        {
+          translateY: bulkBarAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [resolveBulkActionBarEnterShift(selectionMotion), 0],
+          }),
+        },
+        {
+          scale: bulkBarAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [selectionMotion.scaleFrom, 1],
+          }),
+        },
+      ],
+    }),
+    [bulkBarAnim, selectionMotion.scaleFrom, selectionMotion.shift],
+  )
 
   useEffect(() => {
     if (!hasProAccess && activeView === 'goals') {
@@ -626,7 +859,6 @@ export default function TodayScreen() {
       reviewReminder.dismiss,
       reviewReminder.requestReview,
       reviewReminder.shouldShow,
-      setActiveView,
       styles,
       tabItems,
       t,
@@ -658,7 +890,10 @@ export default function TodayScreen() {
           <HabitSummaryCard date={dateStr} />
         ) : null}
 
-        <View style={styles.habitsSection}>
+        <Animated.View
+          testID="today-filters-shell"
+          style={[styles.habitsSection, filtersAnimatedStyle]}
+        >
           <TodaySearchBar
             initialValue={searchQueryStore}
             onChange={setSearchQueryStore}
@@ -832,7 +1067,7 @@ export default function TodayScreen() {
               </Text>
             </TouchableOpacity>
           </AnchoredMenu>
-        </View>
+        </Animated.View>
       </>
     ),
     [
@@ -844,6 +1079,7 @@ export default function TodayScreen() {
       dateLabel,
       dateLabelAnim,
       dateStr,
+      filtersAnimatedStyle,
       frequencyOptions,
       goToNextDay,
       goToPreviousDay,
@@ -858,6 +1094,7 @@ export default function TodayScreen() {
       selectedDate,
       selectedFrequency,
       selectedTagIds,
+      setSearchQueryStore,
       sharedHeader,
       showCompleted,
       showControlsMenu,
@@ -890,29 +1127,38 @@ export default function TodayScreen() {
           <GoalsView />
         </ScrollView>
       ) : (
-        <HabitList
-          ref={habitListRef}
-          view={currentActiveView}
-          filters={filters}
-          selectedDate={currentActiveView === 'today' ? selectedDate : undefined}
-          showCompleted={showCompleted}
-          searchQuery={searchQueryStore}
-          isSelectMode={isSelectMode}
-          selectedHabitIds={selectedHabitIds}
-          listHeader={habitsHeader}
-          onCreatePress={() => setShowCreateModal(true)}
-          onSeeUpcoming={goToNextDay}
-          onDetailHabit={setDetailHabit}
-          onEditHabit={handleEditHabit}
-          onScrollBeginDrag={handleListScrollBeginDrag}
-        />
+        <Animated.View
+          testID="today-list-shell"
+          style={[styles.listShell, listAnimatedStyle]}
+        >
+          <Animated.View style={refetchAnimatedStyle}>
+            <HabitList
+              ref={habitListRef}
+              view={currentActiveView}
+              filters={filters}
+              selectedDate={currentActiveView === 'today' ? selectedDate : undefined}
+              showCompleted={showCompleted}
+              searchQuery={searchQueryStore}
+              isSelectMode={isSelectMode}
+              selectedHabitIds={selectedHabitIds}
+              listHeader={habitsHeader}
+              onCreatePress={() => setShowCreateModal(true)}
+              onSeeUpcoming={goToNextDay}
+              onDetailHabit={setDetailHabit}
+              onEditHabit={handleEditHabit}
+              onScrollBeginDrag={handleListScrollBeginDrag}
+            />
+          </Animated.View>
+        </Animated.View>
       )}
 
-      {isSelectMode && (
-        <View
+      {renderBulkActionBar && (
+        <Animated.View
+          testID="bulk-action-bar"
           style={[
             styles.bulkActionBar,
             { bottom: 20 + insets.bottom },
+            bulkBarAnimatedStyle,
           ]}
         >
           <Text style={styles.bulkSelectionText}>
@@ -972,7 +1218,7 @@ export default function TodayScreen() {
               <X size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       )}
 
       {/* ============================================================
@@ -1078,6 +1324,9 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   },
   scrollContentWithBulkBar: {
     paddingBottom: 220,
+  },
+  listShell: {
+    flex: 1,
   },
 
   // Header: pt-8 pb-2 = 32px/8px

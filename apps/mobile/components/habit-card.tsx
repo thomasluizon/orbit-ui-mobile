@@ -59,6 +59,7 @@ import {
   primaryRgba,
   lightenHex,
 } from '@/lib/theme'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -415,6 +416,8 @@ export function HabitCard({
   const { colors, currentTheme } = useAppTheme()
   const { displayTime } = useTimeFormat()
   const styles = useMemo(() => createStyles(colors, currentTheme), [colors, currentTheme])
+  const successMotion = useResolvedMotionPreset('success-feedback')
+  const shouldRenderCompletionSparks = !successMotion.reducedMotionEnabled
 
   const cardTourRef = useRef<View>(null)
   const tagsTourRef = useRef<View>(null)
@@ -499,6 +502,7 @@ export function HabitCard({
   const prevCompletionTriggerRef = useRef(completionTrigger)
   const completePop = useSharedValue(1)
   const completeGlow = useSharedValue(0)
+  const completionFlash = useSharedValue(0)
   const spark0 = useSharedValue(0)
   const spark1 = useSharedValue(0)
   const spark2 = useSharedValue(0)
@@ -510,6 +514,10 @@ export function HabitCard({
   const completeGlowStyle = useAnimatedStyle(() => ({
     opacity: completeGlow.value,
     transform: [{ scale: interpolate(completeGlow.value, [0, 1], [1, 1.4]) }],
+  }))
+  const completionFlashStyle = useAnimatedStyle(() => ({
+    opacity: completionFlash.value,
+    transform: [{ scale: interpolate(completionFlash.value, [0, 1], [0.985, 1.015]) }],
   }))
   const spark0Style = useAnimatedStyle(() => ({
     opacity: 1 - spark0.value,
@@ -549,30 +557,80 @@ export function HabitCard({
     prevCompletionTriggerRef.current = completionTrigger
     if (!wasInactive || !completionTrigger) return
 
-    // Pop
+    const enterDuration = Math.max(100, successMotion.enterDuration)
+    const exitDuration = Math.max(80, successMotion.exitDuration)
+    const peakScale = successMotion.reducedMotionEnabled ? 1.04 : 1.12
+
+    // Pop the whole control so the optimistic completion state is visible.
     completePop.value = withSequence(
-      withTiming(1.3, { duration: 200, easing: Easing.bezier(...easings.spring) }),
-      withTiming(0.96, { duration: 150 }),
-      withTiming(1, { duration: 150 }),
+      withTiming(peakScale, {
+        duration: Math.round(enterDuration * 0.45),
+        easing: Easing.bezier(...successMotion.enterEasing),
+      }),
+      withTiming(successMotion.reducedMotionEnabled ? 1 : 0.985, {
+        duration: Math.round(enterDuration * 0.2),
+        easing: Easing.bezier(...easings.smooth),
+      }),
+      withTiming(1, {
+        duration: Math.round(enterDuration * 0.35),
+        easing: Easing.bezier(...successMotion.exitEasing),
+      }),
     )
 
-    // Glow
+    // Glow and card flash make completion legible before the optimistic icon swap finishes.
     completeGlow.value = withSequence(
-      withTiming(1, { duration: 200 }),
-      withTiming(0, { duration: 600 }),
+      withTiming(successMotion.reducedMotionEnabled ? 0.18 : 1, {
+        duration: Math.round(enterDuration * 0.5),
+        easing: Easing.bezier(...successMotion.enterEasing),
+      }),
+      withTiming(0, { duration: durations.completeGlow }),
+    )
+    completionFlash.value = withSequence(
+      withTiming(successMotion.reducedMotionEnabled ? 0.12 : 0.24, {
+        duration: Math.round(enterDuration * 0.45),
+        easing: Easing.bezier(...successMotion.enterEasing),
+      }),
+      withTiming(0, {
+        duration: Math.max(exitDuration, durations.fast),
+        easing: Easing.bezier(...successMotion.exitEasing),
+      }),
     )
 
     // Sparks
     const fireAndReset = (sv: typeof spark0, delay: number) => {
-      sv.value = withDelay(delay, withTiming(1, { duration: durations.completeSpark, easing: Easing.out(Easing.ease) }))
-      // Reset after animation
-      setTimeout(() => { sv.value = 0 }, delay + durations.completeSpark + 50)
+      sv.value = withDelay(
+        delay,
+        withTiming(1, {
+          duration: durations.completeSpark,
+          easing: Easing.out(Easing.ease),
+        }),
+      )
+      setTimeout(() => {
+        sv.value = 0
+      }, delay + durations.completeSpark + 50)
     }
-    fireAndReset(spark0, 0)
-    fireAndReset(spark1, 50)
-    fireAndReset(spark2, 100)
-    fireAndReset(spark3, 150)
-  }, [completionTrigger, completePop, completeGlow, spark0, spark1, spark2, spark3])
+    if (shouldRenderCompletionSparks) {
+      fireAndReset(spark0, 0)
+      fireAndReset(spark1, 50)
+      fireAndReset(spark2, 100)
+      fireAndReset(spark3, 150)
+    }
+  }, [
+    completionFlash,
+    completionTrigger,
+    completeGlow,
+    completePop,
+    shouldRenderCompletionSparks,
+    spark0,
+    spark1,
+    spark2,
+    spark3,
+    successMotion.enterDuration,
+    successMotion.enterEasing,
+    successMotion.exitDuration,
+    successMotion.exitEasing,
+    successMotion.reducedMotionEnabled,
+  ])
 
   // ---------------------------------------------------------------------------
   // Step 10: Creation glow — breathing rim
@@ -675,6 +733,26 @@ export function HabitCard({
 
   return (
     <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
+      <Animated.View
+        testID="habit-completion-flash"
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: -1,
+            left: -1,
+            right: -1,
+            bottom: -1,
+            borderRadius: isChild ? radius.md + 2 : radius.lg + 2,
+            backgroundColor: withAlpha(
+              colors.primary,
+              0.12,
+              'rgba(139, 92, 246, 0.12)',
+            ),
+          },
+          completionFlashStyle,
+        ]}
+      />
       {/* Step 10: creation glow rim — absolutely behind the card */}
       {isJustCreated && (
         <Animated.View
@@ -783,14 +861,19 @@ export function HabitCard({
                       right: -12,
                       bottom: -12,
                       borderRadius: radius.full,
-                      backgroundColor: primaryRgba(0.35),
+                      backgroundColor: withAlpha(
+                        colors.primary,
+                        0.28,
+                        'rgba(139, 92, 246, 0.28)',
+                      ),
                     },
                     completeGlowStyle,
                   ]}
                 />
-                {completionTrigger && [spark0Style, spark1Style, spark2Style, spark3Style].map((sparkStyle, i) => (
+                {completionTrigger && shouldRenderCompletionSparks && [spark0Style, spark1Style, spark2Style, spark3Style].map((sparkStyle, i) => (
                   <Animated.View
                     key={i}
+                    testID={`habit-completion-spark-${i}`}
                     pointerEvents="none"
                     style={[
                       {
@@ -804,69 +887,69 @@ export function HabitCard({
                     ]}
                   />
                 ))}
-                <TouchableOpacity
-                  onPress={() => {
-                    if (isNotDueToday) return
-                    if (isDoneForRange) {
-                      onUnlog?.()
-                    } else if (childrenDone >= childrenTotal) {
-                      onLog?.()
-                    } else {
-                      onForceLogParent?.()
-                    }
-                  }}
-                  style={[
-                    styles.progressRingContainer,
-                    {
-                      width: isChild ? 32 : 44,
-                      height: isChild ? 32 : 44,
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-                >
-                  <Svg
+                <Animated.View style={completePopStyle}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (isNotDueToday) return
+                      if (isDoneForRange) {
+                        onUnlog?.()
+                      } else if (childrenDone >= childrenTotal) {
+                        onLog?.()
+                      } else {
+                        onForceLogParent?.()
+                      }
+                    }}
                     style={[
-                      styles.progressRingSvg,
+                      styles.progressRingContainer,
                       {
                         width: isChild ? 32 : 44,
                         height: isChild ? 32 : 44,
                       },
                     ]}
-                    viewBox="0 0 36 36"
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
                   >
-                    <Circle
-                      cx="18"
-                      cy="18"
-                      r="15"
-                      fill="none"
-                      stroke={colors.borderMuted}
-                      strokeWidth="2"
-                    />
-                    <Circle
-                      cx="18"
-                      cy="18"
-                      r="15"
-                      fill="none"
-                      stroke={
-                        isDoneForRange || progressPercent === 100
-                          ? colors.primary
-                          : withAlpha(
-                              colors.primary,
-                              0.6,
-                              'rgba(59, 130, 246, 0.6)',
-                            )
-                      }
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeDasharray={getHabitProgressStrokeDasharray(
-                        progressPercent,
-                        isDoneForRange,
-                      )}
-                    />
-                  </Svg>
-                  <Animated.View style={completePopStyle}>
+                    <Svg
+                      style={[
+                        styles.progressRingSvg,
+                        {
+                          width: isChild ? 32 : 44,
+                          height: isChild ? 32 : 44,
+                        },
+                      ]}
+                      viewBox="0 0 36 36"
+                    >
+                      <Circle
+                        cx="18"
+                        cy="18"
+                        r="15"
+                        fill="none"
+                        stroke={colors.borderMuted}
+                        strokeWidth="2"
+                      />
+                      <Circle
+                        cx="18"
+                        cy="18"
+                        r="15"
+                        fill="none"
+                        stroke={
+                          isDoneForRange || progressPercent === 100
+                            ? colors.primary
+                            : withAlpha(
+                                colors.primary,
+                                0.6,
+                                'rgba(59, 130, 246, 0.6)',
+                              )
+                        }
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeDasharray={getHabitProgressStrokeDasharray(
+                          progressPercent,
+                          isDoneForRange,
+                        )}
+                      />
+                    </Svg>
                     {isDoneForRange ? (
                       <Check size={16} color={colors.primary} />
                     ) : (
@@ -874,8 +957,8 @@ export function HabitCard({
                         {childrenDone}/{childrenTotal}
                       </Text>
                     )}
-                  </Animated.View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
             ) : (
               /* Step 7 + 9: Log button with gradient, glow, sparks */
@@ -891,7 +974,11 @@ export function HabitCard({
                       right: -4,
                       bottom: -4,
                       borderRadius: radius.full,
-                      backgroundColor: primaryRgba(0.10),
+                      backgroundColor: withAlpha(
+                        colors.primary,
+                        0.1,
+                        'rgba(139, 92, 246, 0.1)',
+                      ),
                     }}
                   />
                 )}
@@ -907,16 +994,21 @@ export function HabitCard({
                       right: -12,
                       bottom: -12,
                       borderRadius: radius.full,
-                      backgroundColor: primaryRgba(0.35),
+                      backgroundColor: withAlpha(
+                        colors.primary,
+                        0.28,
+                        'rgba(139, 92, 246, 0.28)',
+                      ),
                     },
                     completeGlowStyle,
                   ]}
                 />
 
                 {/* Step 9: 4 sparks — only rendered when done to avoid idle purple dot */}
-                {completionTrigger && [spark0Style, spark1Style, spark2Style, spark3Style].map((sparkStyle, i) => (
+                {completionTrigger && shouldRenderCompletionSparks && [spark0Style, spark1Style, spark2Style, spark3Style].map((sparkStyle, i) => (
                   <Animated.View
                     key={i}
+                    testID={`habit-completion-spark-${i}`}
                     pointerEvents="none"
                     style={[
                       {
@@ -932,56 +1024,54 @@ export function HabitCard({
                 ))}
 
                 {/* The actual log button */}
-                <TouchableOpacity
-                  onPress={() => {
-                    if (isDoneForRange) {
-                      onUnlog?.()
-                    } else {
-                      onLog?.()
-                    }
-                  }}
-                  style={[
-                    styles.logButton,
-                    {
-                      width: logBtnSize,
-                      height: logBtnSize,
-                      borderRadius: logBtnRadius,
-                    },
-                    isDoneForRange
-                      ? [
-                          styles.logButtonDone,
-                          Platform.OS === 'ios' ? shadows.glow(colors.primary) : undefined,
-                        ]
-                      : status === 'overdue'
-                        ? styles.logButtonOverdue
-                        : styles.logButtonDefault,
-                  ]}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')}
-                  hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
-                >
-                  {/* Step 7: gradient + animated pop wrapper */}
-                  <View style={{ width: logBtnSize, height: logBtnSize, borderRadius: logBtnRadius, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-                    {isDoneForRange && (
-                      <LinearGradient
-                        colors={gradients.logButtonDone(colors.primary, lightenHex(colors.primary, 0.3))}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                      />
-                    )}
-                    {/* Step 9: pop scale wrapper */}
-                    <Animated.View style={completePopStyle}>
+                <Animated.View style={completePopStyle}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (isDoneForRange) {
+                        onUnlog?.()
+                      } else {
+                        onLog?.()
+                      }
+                    }}
+                    style={[
+                      styles.logButton,
+                      {
+                        width: logBtnSize,
+                        height: logBtnSize,
+                        borderRadius: logBtnRadius,
+                      },
+                      isDoneForRange
+                        ? [
+                            styles.logButtonDone,
+                            Platform.OS === 'ios' ? shadows.glow(colors.primary) : undefined,
+                          ]
+                        : status === 'overdue'
+                          ? styles.logButtonOverdue
+                          : styles.logButtonDefault,
+                    ]}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')}
+                    hitSlop={isChild ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
+                  >
+                    <View style={{ width: logBtnSize, height: logBtnSize, borderRadius: logBtnRadius, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
                       {isDoneForRange && (
+                        <LinearGradient
+                          colors={gradients.logButtonDone(colors.primary, lightenHex(colors.primary, 0.3))}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                        />
+                      )}
+                      {isDoneForRange ? (
                         <Check
                           size={isChild ? 14 : 16}
                           color={colors.white}
                         />
-                      )}
-                    </Animated.View>
-                  </View>
-                </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
             )}
 

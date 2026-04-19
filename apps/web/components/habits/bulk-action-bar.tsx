@@ -9,7 +9,9 @@ import {
   Forward,
   Trash2,
 } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { plural } from '@/lib/plural'
 
 export interface BulkActionBarProps {
@@ -34,9 +36,33 @@ export function BulkActionBar({
   onCancel,
 }: BulkActionBarProps) {
   const t = useTranslations()
+  const prefersReducedMotion = useReducedMotion()
+  const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
 
   return createPortal(
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] bg-surface-overlay border border-border-muted rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] backdrop-blur-xl px-4 py-3">
+    <motion.div
+      data-testid="bulk-action-bar"
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] bg-surface-overlay border border-border-muted rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] backdrop-blur-xl px-4 py-3"
+      initial={{
+        opacity: 0,
+        y: motionPreset.shift,
+        scale: motionPreset.scaleFrom,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: motionPreset.scaleTo,
+      }}
+      exit={{
+        opacity: 0,
+        y: motionPreset.shift,
+        scale: motionPreset.scaleFrom,
+      }}
+      transition={{
+        duration: motionPreset.enterDuration / 1000,
+        ease: motionPreset.enterEasing,
+      }}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium shrink-0">
           {plural(t('common.selected', { n: selectedCount }), selectedCount)}
@@ -90,7 +116,7 @@ export function BulkActionBar({
           </button>
         </div>
       </div>
-    </div>,
+    </motion.div>,
     document.body,
   )
 }
