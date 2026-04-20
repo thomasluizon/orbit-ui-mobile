@@ -24,11 +24,12 @@ import {
   LANGUAGE_OPTIONS,
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { createColors } from '@/lib/theme'
+import { createColors, spacing } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -44,7 +45,8 @@ export default function PreferencesScreen() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
-  const { colors, applyScheme, applyTheme, currentTheme, currentScheme } = useAppTheme()
+  const { colors, applyScheme, applyTheme, currentTheme, currentScheme } =
+    useAppTheme()
   const {
     isEnabled: pushEnabled,
     isRegistered: pushRegistered,
@@ -112,14 +114,17 @@ export default function PreferencesScreen() {
   // --- Color Scheme ---
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
-      router.push('/upgrade')
+      router.push(buildUpgradeHref('/preferences'))
       return
     }
     applyScheme(scheme)
   }
 
   // --- Theme Mode (Dark / Light) ---
-  const themeModeOptions: ReadonlyArray<{ value: ThemeMode; labelKey: string }> = [
+  const themeModeOptions: ReadonlyArray<{
+    value: ThemeMode
+    labelKey: string
+  }> = [
     { value: 'light', labelKey: 'preferences.themeModeLight' },
     { value: 'dark', labelKey: 'preferences.themeModeDark' },
   ]
@@ -160,7 +165,10 @@ export default function PreferencesScreen() {
   async function handleShowGeneralToggle(nextValue: boolean) {
     setShowGeneralOnToday(nextValue)
     try {
-      await AsyncStorage.setItem('orbit_show_general_on_today', String(nextValue))
+      await AsyncStorage.setItem(
+        'orbit_show_general_on_today',
+        String(nextValue),
+      )
     } catch {
       // Best-effort local preference persistence
     }
@@ -248,7 +256,9 @@ export default function PreferencesScreen() {
         {/* Color Scheme */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>{t('profile.colorScheme.title')}</Text>
+            <Text style={styles.cardLabel}>
+              {t('profile.colorScheme.title')}
+            </Text>
             <ProBadge alwaysVisible />
           </View>
           <Text style={styles.cardDescription}>
@@ -311,7 +321,9 @@ export default function PreferencesScreen() {
 
         {/* Week Start Day */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('settings.weekStartDay.title')}</Text>
+          <Text style={styles.cardLabel}>
+            {t('settings.weekStartDay.title')}
+          </Text>
           <Text style={styles.cardDescription}>
             {t('settings.weekStartDay.description')}
           </Text>
@@ -321,7 +333,8 @@ export default function PreferencesScreen() {
                 key={opt.value}
                 style={[
                   styles.optionButton,
-                  profile?.weekStartDay === opt.value && styles.optionButtonActive,
+                  profile?.weekStartDay === opt.value &&
+                    styles.optionButtonActive,
                 ]}
                 onPress={() => weekStartMutation.mutate(opt.value)}
                 activeOpacity={0.7}
@@ -329,7 +342,8 @@ export default function PreferencesScreen() {
                 <Text
                   style={[
                     styles.optionText,
-                    profile?.weekStartDay === opt.value && styles.optionTextActive,
+                    profile?.weekStartDay === opt.value &&
+                      styles.optionTextActive,
                   ]}
                 >
                   {opt.label}
@@ -343,7 +357,9 @@ export default function PreferencesScreen() {
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardLabel}>{t('settings.homeScreen.title')}</Text>
+              <Text style={styles.cardLabel}>
+                {t('settings.homeScreen.title')}
+              </Text>
               <Text style={[styles.cardHint, { marginTop: 4 }]}>
                 {t('settings.homeScreen.showGeneralDesc')}
               </Text>
@@ -351,7 +367,10 @@ export default function PreferencesScreen() {
             <Switch
               value={showGeneralOnToday}
               onValueChange={handleShowGeneralToggle}
-              trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+              trackColor={{
+                false: colors.surfaceElevated,
+                true: colors.primary,
+              }}
               thumbColor="#fff"
             />
           </View>
@@ -362,7 +381,9 @@ export default function PreferencesScreen() {
           <View style={styles.card}>
             <View style={styles.toggleRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.cardLabel}>{t('settings.notifications.title')}</Text>
+                <Text style={styles.cardLabel}>
+                  {t('settings.notifications.title')}
+                </Text>
                 <Text style={[styles.cardDescription, { marginTop: 4 }]}>
                   {t('settings.notifications.description')}
                 </Text>
@@ -371,7 +392,10 @@ export default function PreferencesScreen() {
                 value={pushToggleValue}
                 onValueChange={handlePushToggle}
                 disabled={pushLoading}
-                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                trackColor={{
+                  false: colors.surfaceElevated,
+                  true: colors.primary,
+                }}
                 thumbColor="#fff"
               />
             </View>
@@ -402,7 +426,9 @@ export default function PreferencesScreen() {
         )}
         {!pushSupported && (
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>{t('settings.notifications.title')}</Text>
+            <Text style={styles.cardLabel}>
+              {t('settings.notifications.title')}
+            </Text>
             <Text style={styles.statusText}>
               {t('settings.notifications.unsupportedNative')}
             </Text>
@@ -421,14 +447,17 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
 
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingTop: 32,
-      paddingBottom: 24,
+      gap: spacing.cardGap,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: {
@@ -443,9 +472,9 @@ function createStyles(colors: AppColors) {
       borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.borderMuted,
-      padding: 20,
-      marginBottom: 12,
-      gap: 10,
+      padding: spacing.cardPadding,
+      marginBottom: spacing.cardGap,
+      gap: spacing.cardGap,
     },
     cardHeaderRow: {
       flexDirection: 'row',

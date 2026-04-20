@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
-import { createColors } from '@/lib/theme'
+import { createColors, spacing } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { AppTextInput } from '@/components/ui/app-text-input'
@@ -51,7 +51,9 @@ export default function SupportScreen() {
         if (!isMounted || !storedDraft) return
 
         try {
-          const draft = JSON.parse(storedDraft) as Partial<Record<'name' | 'email' | 'subject' | 'message', string>>
+          const draft = JSON.parse(storedDraft) as Partial<
+            Record<'name' | 'email' | 'subject' | 'message', string>
+          >
           setName(draft.name ?? '')
           setEmail(draft.email ?? '')
           setSubject(draft.subject ?? '')
@@ -76,7 +78,9 @@ export default function SupportScreen() {
 
   useEffect(() => {
     const draft = { name, email, subject, message }
-    const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
+    const hasDraft = Object.values(draft).some(
+      (value) => value.trim().length > 0,
+    )
 
     if (!hasDraft) {
       void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
@@ -182,7 +186,9 @@ export default function SupportScreen() {
 
           {success && (
             <View style={styles.successBanner}>
-              <Text style={styles.successBannerText}>{t('profile.support.success')}</Text>
+              <Text style={styles.successBannerText}>
+                {t('profile.support.success')}
+              </Text>
             </View>
           )}
 
@@ -213,7 +219,9 @@ export default function SupportScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              {emailError && <Text style={styles.inlineError}>{emailError}</Text>}
+              {emailError && (
+                <Text style={styles.inlineError}>{emailError}</Text>
+              )}
             </View>
           </View>
 
@@ -245,7 +253,9 @@ export default function SupportScreen() {
                 styles.sendButtonDisabled,
             ]}
             onPress={handleSend}
-            disabled={!subject.trim() || !message.trim() || sending || !isOnline}
+            disabled={
+              !subject.trim() || !message.trim() || sending || !isOnline
+            }
             activeOpacity={0.8}
           >
             {sending ? (
@@ -253,7 +263,9 @@ export default function SupportScreen() {
             ) : (
               <>
                 <Send size={16} color="#fff" />
-                <Text style={styles.sendButtonText}>{t('profile.support.send')}</Text>
+                <Text style={styles.sendButtonText}>
+                  {t('profile.support.send')}
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -267,13 +279,16 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingTop: 32,
-      paddingBottom: 24,
+      gap: spacing.cardGap,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: {
@@ -287,8 +302,8 @@ function createStyles(colors: AppColors) {
       borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.borderMuted,
-      padding: 20,
-      gap: 12,
+      padding: spacing.cardPadding,
+      gap: spacing.cardGap,
     },
     cardDescription: {
       fontSize: 14,
@@ -321,7 +336,7 @@ function createStyles(colors: AppColors) {
     },
     row: {
       flexDirection: 'row',
-      gap: 12,
+      gap: spacing.cardGap,
     },
     halfField: {
       flex: 1,

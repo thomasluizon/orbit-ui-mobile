@@ -34,6 +34,7 @@ import {
 } from '@orbit/shared/utils'
 import { getErrorMessage } from '@orbit/shared/utils/error-utils'
 import { useQueryClient } from '@tanstack/react-query'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import {
@@ -52,7 +53,14 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
-type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected' | 'offline'
+type Step =
+  | 'loading'
+  | 'select'
+  | 'importing'
+  | 'done'
+  | 'error'
+  | 'not-connected'
+  | 'offline'
 
 type CalendarEvent = CalendarSyncEvent
 
@@ -67,7 +75,10 @@ async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
     return Array.isArray(data) ? data : []
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : ''
-    if (message === 'Unauthorized' || isCalendarSyncNotConnectedMessage(message)) {
+    if (
+      message === 'Unauthorized' ||
+      isCalendarSyncNotConnectedMessage(message)
+    ) {
       throw new Error('__NOT_CONNECTED__')
     }
 
@@ -89,7 +100,9 @@ export default function CalendarSyncScreen() {
   const queryClient = useQueryClient()
   const { showError } = useAppToast()
 
-  const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: profile?.hasProAccess ?? false })
+  const autoSyncStateQuery = useCalendarAutoSyncState({
+    enabled: profile?.hasProAccess ?? false,
+  })
   const suggestionsQuery = useCalendarSyncSuggestions({
     enabled: (profile?.hasProAccess ?? false) && isReviewMode,
   })
@@ -149,7 +162,7 @@ export default function CalendarSyncScreen() {
       if (!profile) return
 
       if (!profile.hasProAccess) {
-        router.replace('/upgrade')
+        router.push(buildUpgradeHref('/calendar-sync'))
         return
       }
       if (!isOnline) {
@@ -157,9 +170,13 @@ export default function CalendarSyncScreen() {
         return
       }
 
-      void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
+      void queryClient.invalidateQueries({
+        queryKey: calendarKeys.autoSyncState(),
+      })
       if (isReviewMode) {
-        void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+        void queryClient.invalidateQueries({
+          queryKey: calendarKeys.syncSuggestions(),
+        })
         return
       }
 
@@ -190,7 +207,9 @@ export default function CalendarSyncScreen() {
       return
     }
 
-    const nextEvents: CalendarEvent[] = suggestions.map((suggestion) => suggestion.event)
+    const nextEvents: CalendarEvent[] = suggestions.map(
+      (suggestion) => suggestion.event,
+    )
     setEvents(nextEvents)
     setSelectedIds((prev) => {
       if (prev.size === 0) {
@@ -252,7 +271,9 @@ export default function CalendarSyncScreen() {
 
     try {
       const result = await startMobileGoogleAuth({
-        returnUrl: isReviewMode ? '/calendar-sync?mode=review' : '/calendar-sync',
+        returnUrl: isReviewMode
+          ? '/calendar-sync?mode=review'
+          : '/calendar-sync',
         forceConsent: true,
       })
 
@@ -273,11 +294,14 @@ export default function CalendarSyncScreen() {
         return
       }
 
-      setAutoSyncMutation.mutate({ enabled }, {
-        onError: (err: unknown) => {
-          showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+      setAutoSyncMutation.mutate(
+        { enabled },
+        {
+          onError: (err: unknown) => {
+            showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+          },
         },
-      })
+      )
     },
     [isOnline, setAutoSyncMutation, showError, t],
   )
@@ -309,18 +333,27 @@ export default function CalendarSyncScreen() {
     try {
       const request = isReviewMode
         ? buildCalendarAutoSyncImportRequest(
-            suggestions.filter((suggestion) => selectedIds.has(suggestion.event.id)),
+            suggestions.filter((suggestion) =>
+              selectedIds.has(suggestion.event.id),
+            ),
           )
         : buildCalendarSyncImportRequest(selectedEvents)
       const result = await bulkCreateHabits.mutateAsync(request)
 
-      const successCount = result.results.filter((item) => item.status === 'Success').length
-      const failedItems = result.results.filter((item) => item.status !== 'Success')
+      const successCount = result.results.filter(
+        (item) => item.status === 'Success',
+      ).length
+      const failedItems = result.results.filter(
+        (item) => item.status !== 'Success',
+      )
 
       if (failedItems.length > 0 && successCount === 0) {
         setErrorMessage(
           failedItems
-            .map((item) => `${item.title ?? t('common.unknown')}: ${item.error ?? t('common.failed')}`)
+            .map(
+              (item) =>
+                `${item.title ?? t('common.unknown')}: ${item.error ?? t('common.failed')}`,
+            )
             .join(', '),
         )
         setStep('error')
@@ -330,13 +363,20 @@ export default function CalendarSyncScreen() {
       setImportResult({
         imported: successCount,
         habits: result.results
-          .filter((item) => item.status === 'Success' && item.habitId && item.title)
-          .map((item) => ({ id: item.habitId as string, title: item.title as string })),
+          .filter(
+            (item) => item.status === 'Success' && item.habitId && item.title,
+          )
+          .map((item) => ({
+            id: item.habitId as string,
+            title: item.title as string,
+          })),
       })
       setStep('done')
 
       if (isReviewMode) {
-        void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+        void queryClient.invalidateQueries({
+          queryKey: calendarKeys.syncSuggestions(),
+        })
       }
     } catch (err: unknown) {
       setErrorMessage(getErrorMessage(err, t('calendar.importError')))
@@ -363,7 +403,9 @@ export default function CalendarSyncScreen() {
     if (isReviewMode) {
       setStep('loading')
       setErrorMessage('')
-      void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+      void queryClient.invalidateQueries({
+        queryKey: calendarKeys.syncSuggestions(),
+      })
       return
     }
 
@@ -372,10 +414,13 @@ export default function CalendarSyncScreen() {
 
   const renderEventCard = (event: CalendarEvent) => {
     const selected = selectedIds.has(event.id)
-    const recurrenceLabel = formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
-      translate: (key, values) => t(key, values),
-      pluralize: plural,
-    })
+    const recurrenceLabel = formatCalendarSyncRecurrenceLabel(
+      event.recurrenceRule,
+      {
+        translate: (key, values) => t(key, values),
+        pluralize: plural,
+      },
+    )
     const dateLabel = event.startDate ?? ''
     const timeLabel = event.startTime
       ? `${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}`
@@ -394,7 +439,12 @@ export default function CalendarSyncScreen() {
         accessibilityState={{ selected }}
       >
         <View style={styles.eventRow}>
-          <View style={[styles.checkbox, selected ? styles.checkboxSelected : styles.checkboxUnselected]}>
+          <View
+            style={[
+              styles.checkbox,
+              selected ? styles.checkboxSelected : styles.checkboxUnselected,
+            ]}
+          >
             {selected && <Check size={12} color={colors.white} />}
           </View>
 
@@ -413,12 +463,18 @@ export default function CalendarSyncScreen() {
             </View>
 
             <View style={styles.metaRow}>
-              {dateLabel ? <Text style={styles.metaText}>{dateLabel}</Text> : null}
-              {timeLabel ? <Text style={styles.metaTextMuted}>{timeLabel}</Text> : null}
+              {dateLabel ? (
+                <Text style={styles.metaText}>{dateLabel}</Text>
+              ) : null}
+              {timeLabel ? (
+                <Text style={styles.metaTextMuted}>{timeLabel}</Text>
+              ) : null}
               {event.reminders.length > 0 ? (
                 <View style={styles.reminderCount}>
                   <Bell size={11} color={colors.textMuted} />
-                  <Text style={styles.reminderCountText}>{event.reminders.length}</Text>
+                  <Text style={styles.reminderCountText}>
+                    {event.reminders.length}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -452,7 +508,9 @@ export default function CalendarSyncScreen() {
             <ArrowLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
+            {isReviewMode
+              ? t('calendar.autoSync.reviewModeTitle')
+              : t('calendar.title')}
           </Text>
         </View>
 
@@ -470,7 +528,10 @@ export default function CalendarSyncScreen() {
               <Switch
                 value={autoSyncState?.enabled ?? false}
                 onValueChange={handleToggleAutoSync}
-                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                trackColor={{
+                  false: colors.surfaceElevated,
+                  true: colors.primary,
+                }}
                 thumbColor={colors.white}
                 disabled={
                   !autoSyncState?.hasGoogleConnection ||
@@ -502,7 +563,8 @@ export default function CalendarSyncScreen() {
                 <TouchableOpacity
                   style={[
                     styles.syncNowButton,
-                    (runSyncNowMutation.isPending || !isOnline) && styles.buttonDisabled,
+                    (runSyncNowMutation.isPending || !isOnline) &&
+                      styles.buttonDisabled,
                   ]}
                   onPress={handleSyncNow}
                   disabled={runSyncNowMutation.isPending || !isOnline}
@@ -524,7 +586,9 @@ export default function CalendarSyncScreen() {
               </View>
             )}
 
-            {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) && (
+            {isCalendarAutoSyncStatusReconnectRequired(
+              autoSyncState?.status,
+            ) && (
               <View style={styles.reconnectBanner}>
                 <AlertTriangle size={16} color={colors.amber} />
                 <View style={styles.reconnectBannerBody}>
@@ -553,37 +617,58 @@ export default function CalendarSyncScreen() {
         )}
 
         {(isProfileLoading || step === 'loading') && (
-          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.fetchingEvents')}>
+          <View
+            style={styles.centerState}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendar.fetchingEvents')}
+          >
             <View style={styles.stateIcon}>
               <Loader2 size={26} color={colors.primary400} />
             </View>
-            <Text style={styles.stateTitle}>{t('calendar.fetchingEvents')}</Text>
+            <Text style={styles.stateTitle}>
+              {t('calendar.fetchingEvents')}
+            </Text>
           </View>
         )}
 
         {step === 'not-connected' && !isProfileLoading && (
-          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.notConnectedTitle')}>
+          <View
+            style={styles.centerState}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendar.notConnectedTitle')}
+          >
             <View style={[styles.stateIcon, styles.stateIconPrimary]}>
               <Link size={26} color={colors.primary400} />
             </View>
-            <Text style={styles.stateTitle}>{t('calendar.notConnectedTitle')}</Text>
-            <Text style={styles.stateDescription}>{t('calendar.notConnectedDesc')}</Text>
+            <Text style={styles.stateTitle}>
+              {t('calendar.notConnectedTitle')}
+            </Text>
+            <Text style={styles.stateDescription}>
+              {t('calendar.notConnectedDesc')}
+            </Text>
             <TouchableOpacity
-              style={[styles.primaryButton, isConnecting && styles.buttonDisabled]}
+              style={[
+                styles.primaryButton,
+                isConnecting && styles.buttonDisabled,
+              ]}
               onPress={handleConnect}
               disabled={isConnecting}
               activeOpacity={0.85}
             >
-              {isConnecting ? (
-                <ActivityIndicator color={colors.white} />
-              ) : null}
-              <Text style={styles.primaryButtonText}>{t('auth.signInWithGoogle')}</Text>
+              {isConnecting ? <ActivityIndicator color={colors.white} /> : null}
+              <Text style={styles.primaryButtonText}>
+                {t('auth.signInWithGoogle')}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
 
         {step === 'offline' && !isProfileLoading && (
-          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendarSync.notConnected')}>
+          <View
+            style={styles.centerState}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendarSync.notConnected')}
+          >
             <OfflineUnavailableState
               title={t('calendarSync.notConnected')}
               description={`${t('calendarSync.connect')} / ${t('calendar.importButton', { count: 1 })}`}
@@ -591,8 +676,14 @@ export default function CalendarSyncScreen() {
               onAction={handleRetry}
               disabled={!isOnline}
             />
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleBack} activeOpacity={0.8}>
-              <Text style={styles.secondaryButtonText}>{t('common.goBack')}</Text>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleBack}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {t('common.goBack')}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -611,7 +702,9 @@ export default function CalendarSyncScreen() {
                 style={styles.centerState}
                 accessibilityLiveRegion="polite"
                 accessibilityLabel={
-                  isReviewMode ? t('calendar.autoSync.reviewModeEmpty') : t('calendar.noEvents')
+                  isReviewMode
+                    ? t('calendar.autoSync.reviewModeEmpty')
+                    : t('calendar.noEvents')
                 }
               >
                 <View style={styles.stateIcon}>
@@ -622,19 +715,35 @@ export default function CalendarSyncScreen() {
                     ? t('calendar.autoSync.reviewModeEmpty')
                     : t('calendar.noEvents')}
                 </Text>
-                <TouchableOpacity style={styles.secondaryButton} onPress={handleBack} activeOpacity={0.8}>
-                  <Text style={styles.secondaryButtonText}>{t('common.goBack')}</Text>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleBack}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    {t('common.goBack')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <>
                 <View style={styles.selectionBar}>
                   <Text style={styles.selectionCount}>
-                    {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
+                    {plural(
+                      t('calendar.eventsFound', { count: events.length }),
+                      events.length,
+                    )}
                   </Text>
-                  <TouchableOpacity onPress={toggleAll} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: allSelected }}>
+                  <TouchableOpacity
+                    onPress={toggleAll}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: allSelected }}
+                  >
                     <Text style={styles.selectAllText}>
-                      {allSelected ? t('calendar.deselectAll') : t('calendar.selectAll')}
+                      {allSelected
+                        ? t('calendar.deselectAll')
+                        : t('calendar.selectAll')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -653,7 +762,10 @@ export default function CalendarSyncScreen() {
                   activeOpacity={0.85}
                 >
                   <Text style={styles.primaryButtonText}>
-                    {plural(t('calendar.importButton', { count: selectedCount }), selectedCount)}
+                    {plural(
+                      t('calendar.importButton', { count: selectedCount }),
+                      selectedCount,
+                    )}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -662,7 +774,11 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'importing' && (
-          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.importing')}>
+          <View
+            style={styles.centerState}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendar.importing')}
+          >
             <View style={styles.stateIcon}>
               <ActivityIndicator color={colors.primary400} />
             </View>
@@ -671,37 +787,64 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'done' && (
-          <View style={styles.centerState} accessibilityLiveRegion="polite" accessibilityLabel={t('calendar.importDone')}>
+          <View
+            style={styles.centerState}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendar.importDone')}
+          >
             <View style={[styles.stateIcon, styles.stateIconSuccess]}>
               <Check size={26} color={colors.green400} />
             </View>
             <Text style={styles.stateTitle}>{t('calendar.importDone')}</Text>
             <Text style={styles.stateDescription}>
-              {plural(t('calendar.importedCount', { count: importResult?.imported ?? 0 }), importResult?.imported ?? 0)}
+              {plural(
+                t('calendar.importedCount', {
+                  count: importResult?.imported ?? 0,
+                }),
+                importResult?.imported ?? 0,
+              )}
             </Text>
             <TouchableOpacity
               style={styles.primaryButton}
               onPress={() => router.replace('/')}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryButtonText}>{t('calendar.goToHabits')}</Text>
+              <Text style={styles.primaryButtonText}>
+                {t('calendar.goToHabits')}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
 
         {step === 'error' && (
-          <View style={styles.centerState} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+          <View
+            style={styles.centerState}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+          >
             <View style={[styles.stateIcon, styles.stateIconError]}>
               <AlertTriangle size={26} color={colors.red400} />
             </View>
             <Text style={styles.stateTitle}>{t('calendar.errorTitle')}</Text>
             <Text style={styles.stateDescription}>{errorMessage}</Text>
             <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.primaryButton} onPress={handleRetry} activeOpacity={0.85}>
-                <Text style={styles.primaryButtonText}>{t('calendar.retry')}</Text>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleRetry}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {t('calendar.retry')}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={handleBack} activeOpacity={0.8}>
-                <Text style={styles.secondaryButtonText}>{t('common.goBack')}</Text>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={handleBack}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {t('common.goBack')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -713,348 +856,348 @@ export default function CalendarSyncScreen() {
 
 function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   return StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 36,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    ...shadows.sm,
-    elevation: 2,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -0.6,
-  },
-  centerState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    gap: 14,
-  },
-  stateIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    ...shadows.sm,
-    elevation: 2,
-  },
-  stateIconPrimary: {
-    backgroundColor: colors.primary_10,
-    borderColor: colors.primary_20,
-  },
-  stateIconSuccess: {
-    backgroundColor: 'rgba(52, 211, 153, 0.10)',
-    borderColor: 'rgba(52, 211, 153, 0.20)',
-  },
-  stateIconError: {
-    backgroundColor: colors.redBg,
-    borderColor: colors.redBorder,
-  },
-  stateTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  stateDescription: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    maxWidth: 360,
-  },
-  contentStack: {
-    gap: 14,
-  },
-  selectionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  selectionCount: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  selectAllText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary400,
-  },
-  eventList: {
-    gap: 10,
-  },
-  eventCard: {
-    borderRadius: radius.xl,
-    padding: 16,
-    borderWidth: 1,
-  },
-  eventCardSelected: {
-    backgroundColor: colors.primary_10,
-    borderColor: colors.primary_30,
-  },
-  eventCardUnselected: {
-    backgroundColor: colors.surface,
-    borderColor: colors.borderMuted,
-  },
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  checkboxSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkboxUnselected: {
-    backgroundColor: 'transparent',
-    borderColor: colors.borderEmphasis,
-  },
-  eventContent: {
-    flex: 1,
-    minWidth: 0,
-    gap: 6,
-  },
-  eventTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  eventTitle: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  pill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: colors.primary_15,
-  },
-  pillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    color: colors.primary400,
-    textTransform: 'uppercase',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metaText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  metaTextMuted: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  reminderCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  reminderCountText: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  description: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: colors.textSecondary,
-  },
-  primaryButton: {
-    minHeight: 48,
-    borderRadius: radius.xl,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: colors.primary,
-    ...shadows.lg,
-    shadowColor: colors.primary,
-    elevation: 5,
-  },
-  primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.white,
-  },
-  secondaryButton: {
-    minHeight: 48,
-    borderRadius: radius.xl,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderEmphasis,
-    backgroundColor: colors.surface,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonRow: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  autoSyncCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 18,
-    marginBottom: 16,
-    gap: 12,
-    ...shadows.sm,
-    elevation: 2,
-  },
-  toggleHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  autoSyncLabelGroup: {
-    flex: 1,
-    minWidth: 0,
-    gap: 4,
-  },
-  autoSyncTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  autoSyncDescription: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: colors.textSecondary,
-  },
-  autoSyncHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 17,
-  },
-  autoSyncMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  autoSyncMetaText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  syncNowButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.primary_10,
-    borderWidth: 1,
-    borderColor: colors.primary_20,
-  },
-  syncNowButtonText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary400,
-  },
-  reconnectBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    padding: 12,
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(251, 191, 36, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.30)',
-  },
-  reconnectBannerBody: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  reconnectBannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  reconnectBannerText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 16,
-  },
-  reconnectButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.amber,
-  },
-  reconnectButtonText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.white,
-  },
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingBottom: 36,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingTop: 20,
+      paddingBottom: 20,
+    },
+    backButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      ...shadows.sm,
+      elevation: 2,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 28,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      letterSpacing: -0.6,
+    },
+    centerState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+      gap: 14,
+    },
+    stateIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      ...shadows.sm,
+      elevation: 2,
+    },
+    stateIconPrimary: {
+      backgroundColor: colors.primary_10,
+      borderColor: colors.primary_20,
+    },
+    stateIconSuccess: {
+      backgroundColor: 'rgba(52, 211, 153, 0.10)',
+      borderColor: 'rgba(52, 211, 153, 0.20)',
+    },
+    stateIconError: {
+      backgroundColor: colors.redBg,
+      borderColor: colors.redBorder,
+    },
+    stateTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    stateDescription: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      maxWidth: 360,
+    },
+    contentStack: {
+      gap: 14,
+    },
+    selectionBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 2,
+    },
+    selectionCount: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    selectAllText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary400,
+    },
+    eventList: {
+      gap: 10,
+    },
+    eventCard: {
+      borderRadius: radius.xl,
+      padding: 16,
+      borderWidth: 1,
+    },
+    eventCardSelected: {
+      backgroundColor: colors.primary_10,
+      borderColor: colors.primary_30,
+    },
+    eventCardUnselected: {
+      backgroundColor: colors.surface,
+      borderColor: colors.borderMuted,
+    },
+    eventRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 7,
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 2,
+    },
+    checkboxSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    checkboxUnselected: {
+      backgroundColor: 'transparent',
+      borderColor: colors.borderEmphasis,
+    },
+    eventContent: {
+      flex: 1,
+      minWidth: 0,
+      gap: 6,
+    },
+    eventTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    eventTitle: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    pill: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: colors.primary_15,
+    },
+    pillText: {
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+      color: colors.primary400,
+      textTransform: 'uppercase',
+    },
+    metaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 8,
+    },
+    metaText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    metaTextMuted: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    reminderCount: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    reminderCountText: {
+      fontSize: 10,
+      color: colors.textMuted,
+    },
+    description: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: colors.textSecondary,
+    },
+    primaryButton: {
+      minHeight: 48,
+      borderRadius: radius.xl,
+      paddingHorizontal: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 8,
+      backgroundColor: colors.primary,
+      ...shadows.lg,
+      shadowColor: colors.primary,
+      elevation: 5,
+    },
+    primaryButtonText: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.white,
+    },
+    secondaryButton: {
+      minHeight: 48,
+      borderRadius: radius.xl,
+      paddingHorizontal: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.borderEmphasis,
+      backgroundColor: colors.surface,
+    },
+    secondaryButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonRow: {
+      width: '100%',
+      flexDirection: 'row',
+      gap: 10,
+      justifyContent: 'center',
+      flexWrap: 'wrap',
+    },
+    autoSyncCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: 18,
+      marginBottom: 16,
+      gap: 12,
+      ...shadows.sm,
+      elevation: 2,
+    },
+    toggleHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    autoSyncLabelGroup: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+    autoSyncTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    autoSyncDescription: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: colors.textSecondary,
+    },
+    autoSyncHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+    },
+    autoSyncMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      flexWrap: 'wrap',
+    },
+    autoSyncMetaText: {
+      flex: 1,
+      fontSize: 12,
+      color: colors.textMuted,
+      fontWeight: '500',
+    },
+    syncNowButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+    },
+    syncNowButtonText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary400,
+    },
+    reconnectBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: 12,
+      borderRadius: radius.lg,
+      backgroundColor: 'rgba(251, 191, 36, 0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(251, 191, 36, 0.30)',
+    },
+    reconnectBannerBody: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    reconnectBannerTitle: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    reconnectBannerText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
+    reconnectButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.amber,
+    },
+    reconnectButtonText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: colors.white,
+    },
   })
 }

@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react-native'
-import { createColors } from '@/lib/theme'
+import { createColors, spacing } from '@/lib/theme'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -91,37 +91,45 @@ export default function AboutScreen() {
           <Text style={styles.headerTitle}>{t('about.title')}</Text>
         </View>
 
-        {/* Feature Guide */}
-        <NavRow
-          icon={<BookOpen size={20} color={colors.primary} />}
-          title={t('onboarding.featureGuide.openButton')}
-          hint={t('profile.featureGuideHint')}
-          onPress={() => setShowGuide(true)}
-        />
+        <View style={styles.stack}>
+          {/* Feature Guide */}
+          <NavRow
+            icon={<BookOpen size={20} color={colors.primary} />}
+            title={t('onboarding.featureGuide.openButton')}
+            hint={t('profile.featureGuideHint')}
+            onPress={() => setShowGuide(true)}
+          />
 
-        {/* Referral */}
-        <ReferralCard onOpen={() => setShowReferral(true)} />
+          {/* Referral */}
+          <ReferralCard onOpen={() => setShowReferral(true)} />
 
-        {/* Support */}
-        <NavRow
-          icon={<MessageSquare size={20} color={colors.primary} />}
-          title={t('profile.support.title')}
-          hint={t('profile.support.hint')}
-          onPress={() => router.push('/support')}
-        />
+          {/* Support */}
+          <NavRow
+            icon={<MessageSquare size={20} color={colors.primary} />}
+            title={t('profile.support.title')}
+            hint={t('profile.support.hint')}
+            onPress={() => router.push('/support')}
+          />
 
-        {/* Privacy Policy */}
-        <NavRow
-          icon={<ShieldCheck size={20} color={colors.primary} />}
-          title={t('privacy.title')}
-          hint={t('privacy.hint')}
-          onPress={() => router.push('/privacy')}
-        />
+          {/* Privacy Policy */}
+          <NavRow
+            icon={<ShieldCheck size={20} color={colors.primary} />}
+            title={t('privacy.title')}
+            hint={t('privacy.hint')}
+            onPress={() => router.push('/privacy')}
+          />
+        </View>
       </ScrollView>
 
       {/* Drawers */}
-      <FeatureGuideDrawer open={showGuide} onClose={() => setShowGuide(false)} />
-      <ReferralDrawer open={showReferral} onClose={() => setShowReferral(false)} />
+      <FeatureGuideDrawer
+        open={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
+      <ReferralDrawer
+        open={showReferral}
+        onClose={() => setShowReferral(false)}
+      />
     </SafeAreaView>
   )
 }
@@ -134,14 +142,17 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
 
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingTop: 32,
-      paddingBottom: 24,
+      gap: spacing.cardGap,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: {
@@ -149,6 +160,9 @@ function createStyles(colors: AppColors) {
       fontWeight: '700',
       color: colors.textPrimary,
       letterSpacing: -0.5,
+    },
+    stack: {
+      gap: spacing.cardGap,
     },
 
     navCard: {
@@ -158,9 +172,8 @@ function createStyles(colors: AppColors) {
       borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.borderMuted,
-      padding: 20,
-      marginBottom: 8,
-      gap: 16,
+      padding: spacing.cardPadding,
+      gap: spacing.sectionGap,
     },
     navCardIcon: {
       width: 44,

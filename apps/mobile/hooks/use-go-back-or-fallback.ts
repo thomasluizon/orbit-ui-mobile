@@ -12,7 +12,7 @@ export function useGoBackOrFallback() {
 
   return useCallback(
     (fallbackRoute: Href, options: UseGoBackOrFallbackOptions = {}) => {
-      const { dismissFirst = true, replace = false } = options
+      const { dismissFirst = true, replace = true } = options
 
       if (dismissFirst && dismissTopOverlay('navigation')) {
         return

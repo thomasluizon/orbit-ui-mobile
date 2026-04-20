@@ -28,6 +28,7 @@ import {
   X,
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { API } from '@orbit/shared/api'
 import {
@@ -51,6 +52,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { spacing } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
@@ -148,17 +150,23 @@ export default function AdvancedScreen() {
 
   // --- Connection Instructions ---
   const [instructionsOpen, setInstructionsOpen] = useState(false)
-  const [activeConfigTab, setActiveConfigTab] = useState<(typeof MCP_CONFIG_TABS)[number]>('web')
+  const [activeConfigTab, setActiveConfigTab] =
+    useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
   const [endpointCopied, setEndpointCopied] = useState(false)
 
   const mcpConfigJson = buildMcpConfigJson()
 
   function formatKeyDate(dateStr: string): string {
-    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
+    return formatDistanceToNow(parseISO(dateStr), {
+      addSuffix: true,
+      locale: dateFnsLocale,
+    })
   }
 
-  async function handleCreateKey(request: ApiKeyCreateRequest): Promise<ApiKeyCreateResponse | null> {
+  async function handleCreateKey(
+    request: ApiKeyCreateRequest,
+  ): Promise<ApiKeyCreateResponse | null> {
     setCreateKeyError(null)
     if (!isOnline) {
       setCreateKeyError(t('calendarSync.notConnected'))
@@ -172,7 +180,9 @@ export default function AdvancedScreen() {
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
     } catch (err: unknown) {
-      setCreateKeyError(err instanceof Error ? err.message : t('apiKeys.errors.create'))
+      setCreateKeyError(
+        err instanceof Error ? err.message : t('apiKeys.errors.create'),
+      )
       return null
     }
   }
@@ -248,7 +258,7 @@ export default function AdvancedScreen() {
             </View>
             {!profile?.hasProAccess && (
               <TouchableOpacity
-                onPress={() => router.push('/upgrade')}
+                onPress={() => router.push(buildUpgradeHref('/advanced'))}
                 style={styles.lockRow}
               >
                 <Lock size={14} color={colors.primary} />
@@ -273,7 +283,9 @@ export default function AdvancedScreen() {
                       onPress={() => setCreateKeyModalOpen(true)}
                     >
                       <Plus size={14} color={colors.primary} />
-                      <Text style={styles.createKeyText}>{t('orbitMcp.createKey')}</Text>
+                      <Text style={styles.createKeyText}>
+                        {t('orbitMcp.createKey')}
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -298,15 +310,21 @@ export default function AdvancedScreen() {
 
                 {/* Error */}
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
-                  <Text style={styles.errorText}>{t('orbitMcp.apiKeysError')}</Text>
+                  <Text style={styles.errorText}>
+                    {t('orbitMcp.apiKeysError')}
+                  </Text>
                 )}
 
                 {/* Empty */}
-                {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
-                  <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                    <Text style={styles.emptyText}>{t('orbitMcp.noKeys')}</Text>
-                  </View>
-                )}
+                {!apiKeysQuery.isLoading &&
+                  !apiKeysQuery.error &&
+                  apiKeys.length === 0 && (
+                    <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                      <Text style={styles.emptyText}>
+                        {t('orbitMcp.noKeys')}
+                      </Text>
+                    </View>
+                  )}
 
                 {/* Key list */}
                 {apiKeys.length > 0 && (
@@ -316,22 +334,36 @@ export default function AdvancedScreen() {
                         <View style={styles.apiKeyRow}>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.apiKeyName}>{key.name}</Text>
-                            <Text style={styles.apiKeyPrefix}>{key.keyPrefix}...</Text>
+                            <Text style={styles.apiKeyPrefix}>
+                              {key.keyPrefix}...
+                            </Text>
                             <Text style={styles.apiKeyMeta}>
-                              {key.scopes.length > 0 ? key.scopes.join(', ') : t('orbitMcp.noScopes')}
+                              {key.scopes.length > 0
+                                ? key.scopes.join(', ')
+                                : t('orbitMcp.noScopes')}
                             </Text>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={styles.apiKeyDate}>{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</Text>
                             <Text style={styles.apiKeyDate}>
-                              {t('orbitMcp.lastUsed')} {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
+                              {t('orbitMcp.created')}{' '}
+                              {formatKeyDate(key.createdAtUtc)}
                             </Text>
                             <Text style={styles.apiKeyDate}>
-                              {key.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
+                              {t('orbitMcp.lastUsed')}{' '}
+                              {key.lastUsedAtUtc
+                                ? formatKeyDate(key.lastUsedAtUtc)
+                                : t('orbitMcp.never')}
+                            </Text>
+                            <Text style={styles.apiKeyDate}>
+                              {key.isReadOnly
+                                ? t('orbitMcp.permReadOnly')
+                                : t('orbitMcp.permReadWrite')}
                             </Text>
                             {key.expiresAtUtc && (
                               <Text style={styles.apiKeyDate}>
-                                {t('orbitMcp.expiresOn', { date: formatKeyDate(key.expiresAtUtc) })}
+                                {t('orbitMcp.expiresOn', {
+                                  date: formatKeyDate(key.expiresAtUtc),
+                                })}
                               </Text>
                             )}
                           </View>
@@ -339,19 +371,33 @@ export default function AdvancedScreen() {
 
                         {revokingKeyId !== key.id ? (
                           <View style={{ alignItems: 'flex-end' }}>
-                            <TouchableOpacity onPress={() => setRevokingKeyId(key.id)}>
-                              <Text style={styles.revokeText}>{t('orbitMcp.revoke')}</Text>
+                            <TouchableOpacity
+                              onPress={() => setRevokingKeyId(key.id)}
+                            >
+                              <Text style={styles.revokeText}>
+                                {t('orbitMcp.revoke')}
+                              </Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
                           <View style={styles.revokeConfirmBar}>
-                            <Text style={styles.revokeConfirmText}>{t('orbitMcp.revokeConfirm')}</Text>
+                            <Text style={styles.revokeConfirmText}>
+                              {t('orbitMcp.revokeConfirm')}
+                            </Text>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                              <TouchableOpacity onPress={() => setRevokingKeyId(null)}>
-                                <Text style={styles.revokeCancelText}>{t('orbitMcp.cancel')}</Text>
+                              <TouchableOpacity
+                                onPress={() => setRevokingKeyId(null)}
+                              >
+                                <Text style={styles.revokeCancelText}>
+                                  {t('orbitMcp.cancel')}
+                                </Text>
                               </TouchableOpacity>
-                              <TouchableOpacity onPress={() => revokeKeyMutation.mutate(key.id)}>
-                                <Text style={styles.revokeConfirmAction}>{t('orbitMcp.confirm')}</Text>
+                              <TouchableOpacity
+                                onPress={() => revokeKeyMutation.mutate(key.id)}
+                              >
+                                <Text style={styles.revokeConfirmAction}>
+                                  {t('orbitMcp.confirm')}
+                                </Text>
                               </TouchableOpacity>
                             </View>
                           </View>
@@ -370,11 +416,17 @@ export default function AdvancedScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ expanded: instructionsOpen }}
                 >
-                  <Text style={styles.subLabel}>{t('orbitMcp.connectionInstructions')}</Text>
+                  <Text style={styles.subLabel}>
+                    {t('orbitMcp.connectionInstructions')}
+                  </Text>
                   <ChevronDown
                     size={16}
                     color={colors.textMuted}
-                    style={instructionsOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
+                    style={
+                      instructionsOpen
+                        ? { transform: [{ rotate: '180deg' }] }
+                        : undefined
+                    }
                   />
                 </TouchableOpacity>
 
@@ -394,10 +446,15 @@ export default function AdvancedScreen() {
                           <Text
                             style={[
                               styles.tabButtonText,
-                              activeConfigTab === tab && styles.tabButtonTextActive,
+                              activeConfigTab === tab &&
+                                styles.tabButtonTextActive,
                             ]}
                           >
-                            {tab === 'web' ? t('orbitMcp.claudeWeb') : tab === 'desktop' ? t('orbitMcp.claudeDesktop') : t('orbitMcp.claudeCode')}
+                            {tab === 'web'
+                              ? t('orbitMcp.claudeWeb')
+                              : tab === 'desktop'
+                                ? t('orbitMcp.claudeDesktop')
+                                : t('orbitMcp.claudeCode')}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -409,7 +466,9 @@ export default function AdvancedScreen() {
                           {t('orbitMcp.webInstructions')}
                         </Text>
                         <View style={styles.codeBlock}>
-                          <Text style={styles.codeText}>{MCP_ENDPOINT_URL}</Text>
+                          <Text style={styles.codeText}>
+                            {MCP_ENDPOINT_URL}
+                          </Text>
                           <TouchableOpacity
                             style={styles.codeCopyButton}
                             onPress={copyEndpoint}
@@ -418,11 +477,16 @@ export default function AdvancedScreen() {
                             {endpointCopied ? (
                               <Check size={16} color={colors.emerald400} />
                             ) : (
-                              <ClipboardIcon size={16} color={colors.textSecondary} />
+                              <ClipboardIcon
+                                size={16}
+                                color={colors.textSecondary}
+                              />
                             )}
                           </TouchableOpacity>
                         </View>
-                        <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
+                        <Text
+                          style={[styles.hintText, { fontStyle: 'italic' }]}
+                        >
                           {t('orbitMcp.webNoApiKey')}
                         </Text>
                       </View>
@@ -441,11 +505,16 @@ export default function AdvancedScreen() {
                             {configCopied ? (
                               <Check size={16} color={colors.emerald400} />
                             ) : (
-                              <ClipboardIcon size={16} color={colors.textSecondary} />
+                              <ClipboardIcon
+                                size={16}
+                                color={colors.textSecondary}
+                              />
                             )}
                           </TouchableOpacity>
                         </View>
-                        <Text style={[styles.hintText, { fontStyle: 'italic' }]}>
+                        <Text
+                          style={[styles.hintText, { fontStyle: 'italic' }]}
+                        >
                           {t('orbitMcp.replaceKey')}
                         </Text>
                       </View>
@@ -476,7 +545,9 @@ export default function AdvancedScreen() {
 
             <View style={{ gap: 20 }}>
               <View style={{ gap: 8 }}>
-                <Text style={styles.widgetSectionTitle}>{t('profile.widgetHow.title')}</Text>
+                <Text style={styles.widgetSectionTitle}>
+                  {t('profile.widgetHow.title')}
+                </Text>
                 {WIDGET_STEP_KEYS.map((stepKey, index) => (
                   <View key={stepKey} style={styles.widgetStep}>
                     <Text style={styles.widgetStepNumber}>{index + 1}</Text>
@@ -486,11 +557,15 @@ export default function AdvancedScreen() {
               </View>
 
               <View style={{ gap: 8 }}>
-                <Text style={styles.widgetSectionTitle}>{t('profile.widgetHow.featuresTitle')}</Text>
+                <Text style={styles.widgetSectionTitle}>
+                  {t('profile.widgetHow.featuresTitle')}
+                </Text>
                 {WIDGET_FEATURES.map((feature) => (
                   <View key={feature.textKey} style={styles.widgetFeatureRow}>
                     {widgetFeatureIconMap[feature.iconKey]}
-                    <Text style={styles.widgetFeatureText}>{t(feature.textKey)}</Text>
+                    <Text style={styles.widgetFeatureText}>
+                      {t(feature.textKey)}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -515,223 +590,256 @@ export default function AdvancedScreen() {
 
 function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: 32,
-    paddingBottom: 24,
-  },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.cardGap,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
+    },
+    backButton: { padding: 8, marginLeft: -8 },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      letterSpacing: -0.5,
+    },
 
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-    marginBottom: 12,
-    gap: 10,
-  },
-  cardLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  hintText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  subLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: spacing.cardPadding,
+      marginBottom: spacing.cardGap,
+      gap: spacing.cardGap,
+    },
+    cardLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.textMuted,
+    },
+    cardDescription: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    hintText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+    subLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.textMuted,
+    },
 
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  lockText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-  developerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    lockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    lockText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+    developerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
 
-  // Nav card (widget)
-  navCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-    marginBottom: 12,
-    gap: 16,
-  },
-  navCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(139,92,246,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navCardTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  navCardHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    // Nav card (widget)
+    navCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: spacing.cardPadding,
+      marginBottom: spacing.cardGap,
+      gap: 16,
+    },
+    navCardIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      backgroundColor: 'rgba(139,92,246,0.10)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    navCardTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    navCardHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
-  // API Keys
-  apiKeysHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  createKeyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  createKeyText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  warningText: { fontSize: 12, fontWeight: '500', color: colors.amber },
-  errorText: { fontSize: 12, color: colors.red },
-  emptyText: { fontSize: 14, color: colors.textMuted },
-  skeletonBar: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 16,
-    width: '100%',
-  },
+    // API Keys
+    apiKeysHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    createKeyButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    createKeyText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+    warningText: { fontSize: 12, fontWeight: '500', color: colors.amber },
+    errorText: { fontSize: 12, color: colors.red },
+    emptyText: { fontSize: 14, color: colors.textMuted },
+    skeletonBar: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 16,
+      width: '100%',
+    },
 
-  apiKeyCard: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 12,
-    gap: 8,
-  },
-  apiKeyRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  apiKeyName: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
-  apiKeyPrefix: { fontSize: 12, color: colors.textMuted, fontFamily: 'monospace', marginTop: 2 },
-  apiKeyMeta: { fontSize: 10, color: colors.textMuted, marginTop: 4 },
-  apiKeyDate: { fontSize: 10, color: colors.textMuted },
-  revokeText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  revokeConfirmBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(239,68,68,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.20)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  revokeConfirmText: { fontSize: 12, color: colors.red },
-  revokeCancelText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  revokeConfirmAction: { fontSize: 12, fontWeight: '600', color: colors.red },
+    apiKeyCard: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      padding: 12,
+      gap: 8,
+    },
+    apiKeyRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    apiKeyName: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+    apiKeyPrefix: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontFamily: 'monospace',
+      marginTop: 2,
+    },
+    apiKeyMeta: { fontSize: 10, color: colors.textMuted, marginTop: 4 },
+    apiKeyDate: { fontSize: 10, color: colors.textMuted },
+    revokeText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    revokeConfirmBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: 'rgba(239,68,68,0.05)',
+      borderWidth: 1,
+      borderColor: 'rgba(239,68,68,0.20)',
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    revokeConfirmText: { fontSize: 12, color: colors.red },
+    revokeCancelText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    revokeConfirmAction: { fontSize: 12, fontWeight: '600', color: colors.red },
 
-  // Instructions
-  instructionsDivider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 16,
-    marginTop: 4,
-  },
-  instructionsToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tabButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tabButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  tabButtonText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  tabButtonTextActive: { color: '#fff' },
-  codeBlock: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 16,
-    paddingRight: 48,
-  },
-  codeText: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  codeCopyButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
-  },
+    // Instructions
+    instructionsDivider: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 16,
+      marginTop: 4,
+    },
+    instructionsToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    tabRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    tabButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    tabButtonActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    tabButtonText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    tabButtonTextActive: { color: '#fff' },
+    codeBlock: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      padding: 16,
+      paddingRight: 48,
+    },
+    codeText: {
+      fontSize: 12,
+      fontFamily: 'monospace',
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    codeCopyButton: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      padding: 8,
+      borderRadius: 12,
+      backgroundColor: colors.surfaceElevated,
+    },
 
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
 
-  // Widget info modal
-  widgetSectionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
-  widgetStep: { flexDirection: 'row', gap: 8 },
-  widgetStepNumber: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  widgetStepText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
-  widgetFeatureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  widgetFeatureText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+    // Widget info modal
+    widgetSectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    widgetStep: { flexDirection: 'row', gap: 8 },
+    widgetStepNumber: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    widgetStepText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+    widgetFeatureRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    widgetFeatureText: { fontSize: 14, color: colors.textSecondary, flex: 1 },
   })
 }

@@ -10,10 +10,14 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Lock } from 'lucide-react-native'
-import { createColors } from '@/lib/theme'
+import { createColors, spacing } from '@/lib/theme'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { AchievementCategorySection, createAchievementsScreenStyles } from './achievements-sections'
+import {
+  AchievementCategorySection,
+  createAchievementsScreenStyles,
+} from './achievements-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -26,19 +30,18 @@ export default function AchievementsScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const categoryStyles = useMemo(() => createAchievementsScreenStyles(colors), [colors])
+  const categoryStyles = useMemo(
+    () => createAchievementsScreenStyles(colors),
+    [colors],
+  )
   const { profile: accountProfile, isLoading: profileLoading } = useProfile()
   const hasProAccess = useHasProAccess()
-  const {
-    profile,
-    isLoading,
-    xpProgress,
-    achievementsByCategory,
-  } = useGamificationProfile(hasProAccess)
+  const { profile, isLoading, xpProgress, achievementsByCategory } =
+    useGamificationProfile(hasProAccess)
 
   useEffect(() => {
     if (accountProfile && !hasProAccess) {
-      router.replace('/upgrade')
+      router.push(buildUpgradeHref('/achievements'))
     }
   }, [accountProfile, hasProAccess, router])
 
@@ -68,25 +71,38 @@ export default function AchievementsScreen() {
             <View style={styles.lockedIconCircle}>
               <Lock size={32} color={colors.primary} />
             </View>
-            <Text style={styles.lockedTitle}>{t('gamification.page.lockedTitle')}</Text>
+            <Text style={styles.lockedTitle}>
+              {t('gamification.page.lockedTitle')}
+            </Text>
             <Text style={styles.lockedDescription}>
               {t('gamification.page.lockedDescription')}
             </Text>
             <TouchableOpacity
               style={styles.upgradeButton}
-              onPress={() => router.push('/upgrade')}
+              onPress={() => router.push(buildUpgradeHref('/achievements'))}
               activeOpacity={0.8}
             >
-              <Text style={styles.upgradeButtonText}>{t('gamification.page.upgradeButton')}</Text>
+              <Text style={styles.upgradeButtonText}>
+                {t('gamification.page.upgradeButton')}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             {isLoading && !profile ? (
               <View style={styles.loadingCard}>
-                <View style={[styles.skeletonBar, { width: 128, height: 32 }]} />
-                <View style={[styles.skeletonBar, { width: 192, height: 16 }]} />
-                <View style={[styles.skeletonBar, { width: '100%', height: 10, borderRadius: 999 }]} />
+                <View
+                  style={[styles.skeletonBar, { width: 128, height: 32 }]}
+                />
+                <View
+                  style={[styles.skeletonBar, { width: 192, height: 16 }]}
+                />
+                <View
+                  style={[
+                    styles.skeletonBar,
+                    { width: '100%', height: 10, borderRadius: 999 },
+                  ]}
+                />
               </View>
             ) : null}
 
@@ -98,16 +114,22 @@ export default function AchievementsScreen() {
                       <Text style={styles.levelNumber}>{profile.level}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.levelTitle}>{profile.levelTitle}</Text>
+                      <Text style={styles.levelTitle}>
+                        {profile.levelTitle}
+                      </Text>
                       <Text style={styles.levelSubtitle}>
-                        {t('gamification.profileCard.level', { level: profile.level })}
+                        {t('gamification.profileCard.level', {
+                          level: profile.level,
+                        })}
                       </Text>
                     </View>
                   </View>
 
                   <View style={{ gap: 6 }}>
                     <View style={styles.xpBarTrack}>
-                      <View style={[styles.xpBarFill, { width: `${xpProgress}%` }]} />
+                      <View
+                        style={[styles.xpBarFill, { width: `${xpProgress}%` }]}
+                      />
                     </View>
                     <View style={styles.xpTextRow}>
                       <Text style={styles.xpText}>
@@ -153,13 +175,16 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingTop: 32,
-      paddingBottom: 24,
+      gap: spacing.cardGap,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8, borderRadius: 999 },
     headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -172,9 +197,9 @@ function createStyles(colors: AppColors) {
     lockedCard: {
       backgroundColor: colors.surface,
       borderRadius: 20,
-      padding: 24,
+      padding: spacing.cardPadding + 4,
       alignItems: 'center',
-      gap: 16,
+      gap: spacing.sectionGap,
     },
     lockedIconCircle: {
       width: 64,

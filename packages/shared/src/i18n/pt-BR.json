@@ -1215,11 +1215,23 @@
         "pro": "Ilimitados",
         "tooltip": "Divida hábitos complexos em etapas menores. Sub-hábitos se aninham sob um hábito pai para melhor organização."
       },
+      "goals": {
+        "label": "Metas",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Crie metas de longo prazo e conecte hábitos para acompanhar progresso mensurável ao longo do tempo."
+      },
       "colors": {
         "label": "Temas",
         "free": "1 tema",
         "pro": "Todos 6 temas",
         "tooltip": "Personalize o Orbit com 6 esquemas de cores: roxo, azul, verde, rosa, laranja e ciano. Usuários gratuitos usam o tema roxo padrão."
+      },
+      "premiumColors": {
+        "label": "Cores Premium",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Desbloqueie todos os temas premium e personalize o Orbit além do esquema padrão gratuito."
       },
       "aiMemory": {
         "label": "Memória IA",
@@ -1232,6 +1244,12 @@
         "free": "Não",
         "pro": "Incluso",
         "tooltip": "Receba um resumo diário gerado por IA sobre seus hábitos, sequências e o que precisa de atenção hoje."
+      },
+      "apiKeys": {
+        "label": "Chaves de API",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Crie chaves de API para conectar o Orbit com ferramentas de desenvolvedor e integrações MCP externas."
       },
       "retrospective": {
         "label": "Retrospectiva",
@@ -1866,17 +1884,38 @@
   "tour": {
     "mockData": {
       "habits": {
-        "meditation": { "title": "Meditação Matinal", "description": "10 minutos de atenção plena para começar o dia" },
-        "exercise": { "title": "Exercício", "description": "Mantenha-se ativo com treinos regulares" },
+        "meditation": {
+          "title": "Meditação Matinal",
+          "description": "10 minutos de atenção plena para começar o dia"
+        },
+        "exercise": {
+          "title": "Exercício",
+          "description": "Mantenha-se ativo com treinos regulares"
+        },
         "pushups": { "title": "Flexões" },
         "stretching": { "title": "Alongamento" },
-        "screenTime": { "title": "Reduzir Tempo de Tela", "description": "Manter o tempo de tela abaixo de 2 horas por dia" },
-        "readBooks": { "title": "Ler Livros", "description": "Ler pelo menos 5 vezes por semana" },
-        "drinkWater": { "title": "Beber Mais Água", "description": "Mantenha-se hidratado ao longo do dia" }
+        "screenTime": {
+          "title": "Reduzir Tempo de Tela",
+          "description": "Manter o tempo de tela abaixo de 2 horas por dia"
+        },
+        "readBooks": {
+          "title": "Ler Livros",
+          "description": "Ler pelo menos 5 vezes por semana"
+        },
+        "drinkWater": {
+          "title": "Beber Mais Água",
+          "description": "Mantenha-se hidratado ao longo do dia"
+        }
       },
       "goals": {
-        "marathon": { "title": "Correr uma Maratona", "description": "Treinar e completar uma maratona" },
-        "readGoal": { "title": "Ler 24 Livros", "description": "Ler 2 livros por mês este ano" }
+        "marathon": {
+          "title": "Correr uma Maratona",
+          "description": "Treinar e completar uma maratona"
+        },
+        "readGoal": {
+          "title": "Ler 24 Livros",
+          "description": "Ler 2 livros por mês este ano"
+        }
       },
       "tags": {
         "mindfulness": "Atenção Plena",

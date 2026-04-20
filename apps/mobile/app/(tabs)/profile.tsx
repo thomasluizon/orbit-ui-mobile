@@ -41,13 +41,22 @@ import {
   Compass,
 } from 'lucide-react-native'
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
-import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
+import {
+  useProfile,
+  useTrialDaysLeft,
+  useTrialExpired,
+} from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
-import { buildQueuedMutation, createQueuedAck, isQueuedResult, queueOrExecute } from '@/lib/offline-mutations'
+import {
+  buildQueuedMutation,
+  createQueuedAck,
+  isQueuedResult,
+  queueOrExecute,
+} from '@/lib/offline-mutations'
 import * as offlineQueue from '@/lib/offline-queue'
 import { clearPersistedQueryCache } from '@/lib/query-client'
 import { useOffline } from '@/hooks/use-offline'
@@ -56,7 +65,8 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createColors } from '@/lib/theme'
+import { createColors, spacing } from '@/lib/theme'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { plural } from '@/lib/plural'
 import { ProfileNavCard } from './profile/_components/profile-nav-card'
@@ -101,7 +111,14 @@ function ProfileStreakCard() {
           {streak > 0 ? (
             <Svg viewBox="0 0 40 50" width={44} height={44}>
               <Defs>
-                <LinearGradient id="profileFlameGrad" x1="20" y1="0" x2="20" y2="50" gradientUnits="userSpaceOnUse">
+                <LinearGradient
+                  id="profileFlameGrad"
+                  x1="20"
+                  y1="0"
+                  x2="20"
+                  y2="50"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <Stop offset="0" stopColor="#fbbf24" />
                   <Stop offset="0.5" stopColor="#f97316" />
                   <Stop offset="1" stopColor="#ef4444" />
@@ -127,13 +144,20 @@ function ProfileStreakCard() {
 
         {/* Streak info */}
         <View style={{ flex: 1 }}>
-          <Text style={styles.streakLabel}>{t('streakDisplay.profile.title').toUpperCase()}</Text>
+          <Text style={styles.streakLabel}>
+            {t('streakDisplay.profile.title').toUpperCase()}
+          </Text>
           {streak > 0 ? (
             <Text style={styles.streakCount}>
-              {plural(t('streakDisplay.profile.currentStreak', { count: streak }), streak)}
+              {plural(
+                t('streakDisplay.profile.currentStreak', { count: streak }),
+                streak,
+              )}
             </Text>
           ) : (
-            <Text style={styles.streakEmpty}>{t('streakDisplay.profile.noStreak')}</Text>
+            <Text style={styles.streakEmpty}>
+              {t('streakDisplay.profile.noStreak')}
+            </Text>
           )}
           {encouragement && streak > 0 ? (
             <Text style={styles.streakEncouragement}>{encouragement}</Text>
@@ -156,12 +180,16 @@ export default function ProfileScreen() {
   const { colors } = useAppTheme()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { subscription } = useLocalSearchParams<{ subscription?: string | string[] }>()
+  const { subscription } = useLocalSearchParams<{
+    subscription?: string | string[]
+  }>()
   const { profile, isLoading, error } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
-  const { profile: gamificationProfile } = useGamificationProfile(profile?.hasProAccess ?? false)
+  const { profile: gamificationProfile } = useGamificationProfile(
+    profile?.hasProAccess ?? false,
+  )
   const { isOnline } = useOffline()
   const { displayDate } = useDateFormat()
   const styles = useMemo(() => createStyles(colors), [colors])
@@ -177,9 +205,16 @@ export default function ProfileScreen() {
   const profileScrollTo = useCallback((y: number) => {
     profileScrollRef.current?.scrollTo({ y, animated: true })
   }, [])
-  const { onTourScroll: onProfileTourScroll } = useTourScrollContainer('/profile', profileScrollTo)
-  const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
-  const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
+  const { onTourScroll: onProfileTourScroll } = useTourScrollContainer(
+    '/profile',
+    profileScrollTo,
+  )
+  const accountNavItems = PROFILE_NAV_ITEMS.filter(
+    (item) => item.section === 'account',
+  )
+  const featureNavItems = PROFILE_NAV_ITEMS.filter(
+    (item) => item.section === 'features',
+  )
 
   const getNavHint = (item: ProfileNavItem): string => {
     if (
@@ -228,7 +263,10 @@ export default function ProfileScreen() {
         dedupeKey: 'profile-reset',
       })
 
-      const result = await queueOrExecute<ResetMutationResult, ResetMutationResult>({
+      const result = await queueOrExecute<
+        ResetMutationResult,
+        ResetMutationResult
+      >({
         mutation: queuedResetMutation,
         execute: async (mutation) => {
           await apiClient(mutation.endpoint, { method: mutation.method })
@@ -263,11 +301,22 @@ export default function ProfileScreen() {
   // --- Delete Account ---
   const [showTourReplay, setShowTourReplay] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
-  const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
+  const [deleteStep, setDeleteStep] = useState<
+    'confirm' | 'code' | 'deactivated'
+  >('confirm')
+  const [deleteCodeDigits, setDeleteCodeDigits] = useState([
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ])
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
+  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<
+    string | null
+  >(null)
   const deleteCodeRefs = useRef<Array<TextInput | null>>([])
 
   function openDeleteModal() {
@@ -307,10 +356,13 @@ export default function ProfileScreen() {
     setDeleteLoading(true)
     setDeleteError('')
     try {
-      const response = await apiClient<{ scheduledDeletionAt?: string | null }>(API.auth.confirmDeletion, {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-      })
+      const response = await apiClient<{ scheduledDeletionAt?: string | null }>(
+        API.auth.confirmDeletion,
+        {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        },
+      )
       setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setDeleteStep('deactivated')
     } catch (err: unknown) {
@@ -376,14 +428,17 @@ export default function ProfileScreen() {
     }
   }, [queryClient, subscription])
 
-  const handleNavPress = useCallback((item: ProfileNavItem) => {
-    if (shouldRedirectProfileNavItem(item, profile)) {
-      router.push('/upgrade')
-      return
-    }
+  const handleNavPress = useCallback(
+    (item: ProfileNavItem) => {
+      if (shouldRedirectProfileNavItem(item, profile)) {
+        router.push(buildUpgradeHref('/profile'))
+        return
+      }
 
-    router.push(item.route as Href)
-  }, [profile, router])
+      router.push(item.route as Href)
+    },
+    [profile, router],
+  )
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -412,156 +467,189 @@ export default function ProfileScreen() {
         <Text style={styles.sectionLabel}>{t('profile.sections.account')}</Text>
 
         <View style={styles.cardStack}>
-        {/* User info card */}
-        <View style={styles.card}>
-          {isLoading ? (
-            <View style={{ gap: 8 }}>
-              <View style={[styles.skeleton, { width: 192, height: 24 }]} />
-              <View style={[styles.skeleton, { width: 256, height: 16 }]} />
-            </View>
-          ) : (
-            <View>
-              <Text style={styles.userName}>{profile?.name}</Text>
-              <Text style={styles.userEmail}>{profile?.email}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Streak display */}
-        <ProfileStreakCard />
-
-        {/* Subscription */}
-        <TouchableOpacity
-          ref={subscriptionRef}
-          style={[
-            styles.subscriptionCard,
-            isActiveSubscription
-              ? styles.subscriptionActive
-              : styles.subscriptionInactive,
-          ]}
-          onPress={() => router.push('/upgrade')}
-          activeOpacity={0.7}
-        >
-          <View
-            style={[
-              styles.subscriptionIcon,
-              isActiveSubscription
-                ? styles.subscriptionIconActive
-                : styles.subscriptionIconInactive,
-            ]}
-          >
-            {profile?.isTrialActive ? (
-              <Clock size={20} color={isActiveSubscription ? colors.primary : colors.amber} />
-            ) : profile?.hasProAccess ? (
-              <BadgeCheck size={20} color={isActiveSubscription ? colors.primary : colors.amber} />
+          {/* User info card */}
+          <View style={styles.card}>
+            {isLoading ? (
+              <View style={{ gap: 8 }}>
+                <View style={[styles.skeleton, { width: 192, height: 24 }]} />
+                <View style={[styles.skeleton, { width: 256, height: 16 }]} />
+              </View>
             ) : (
-              <SparklesIcon size={20} color={isActiveSubscription ? colors.primary : colors.amber} />
+              <View>
+                <Text style={styles.userName}>{profile?.name}</Text>
+                <Text style={styles.userEmail}>{profile?.email}</Text>
+              </View>
             )}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.subscriptionTitle}>
-              {profile?.isTrialActive
-                ? t('profile.subscription.trial')
-                : profile?.hasProAccess
-                  ? t('profile.subscription.pro')
-                  : trialExpired
-                    ? t('profile.subscription.trialEnded')
-                    : t('profile.subscription.free')}
-            </Text>
-            <Text style={styles.subscriptionHint}>
-              {profile?.isTrialActive
-                ? plural(t('profile.subscription.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
-                : profile?.hasProAccess
-                  ? t('profile.subscription.proHint')
-                  : trialExpired
-                    ? t('profile.subscription.trialEndedHint')
-                    : t('profile.subscription.freeHint')}
-            </Text>
-          </View>
-          <ChevronRight size={16} color={colors.textMuted} />
-        </TouchableOpacity>
 
-        {/* ==================== NAVIGATION CARDS ==================== */}
+          {/* Streak display */}
+          <ProfileStreakCard />
 
-        {accountNavItems.map((item) => (
-          <View key={item.id} ref={item.id === 'preferences' ? preferencesRef : undefined}>
-            <ProfileNavCard
-              colors={colors}
-              onPress={() => handleNavPress(item)}
-              icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
-              title={t(item.titleKey)}
-              hint={getNavHint(item)}
-              proBadgeLabel={t('common.proBadge')}
-            />
-          </View>
-        ))}
+          {/* Subscription */}
+          <TouchableOpacity
+            ref={subscriptionRef}
+            style={[
+              styles.subscriptionCard,
+              isActiveSubscription
+                ? styles.subscriptionActive
+                : styles.subscriptionInactive,
+            ]}
+            onPress={() => router.push(buildUpgradeHref('/profile'))}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[
+                styles.subscriptionIcon,
+                isActiveSubscription
+                  ? styles.subscriptionIconActive
+                  : styles.subscriptionIconInactive,
+              ]}
+            >
+              {profile?.isTrialActive ? (
+                <Clock
+                  size={20}
+                  color={isActiveSubscription ? colors.primary : colors.amber}
+                />
+              ) : profile?.hasProAccess ? (
+                <BadgeCheck
+                  size={20}
+                  color={isActiveSubscription ? colors.primary : colors.amber}
+                />
+              ) : (
+                <SparklesIcon
+                  size={20}
+                  color={isActiveSubscription ? colors.primary : colors.amber}
+                />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.subscriptionTitle}>
+                {profile?.isTrialActive
+                  ? t('profile.subscription.trial')
+                  : profile?.hasProAccess
+                    ? t('profile.subscription.pro')
+                    : trialExpired
+                      ? t('profile.subscription.trialEnded')
+                      : t('profile.subscription.free')}
+              </Text>
+              <Text style={styles.subscriptionHint}>
+                {profile?.isTrialActive
+                  ? plural(
+                      t('profile.subscription.trialDaysLeft', {
+                        days: trialDaysLeft ?? 0,
+                      }),
+                      trialDaysLeft ?? 0,
+                    )
+                  : profile?.hasProAccess
+                    ? t('profile.subscription.proHint')
+                    : trialExpired
+                      ? t('profile.subscription.trialEndedHint')
+                      : t('profile.subscription.freeHint')}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* ==================== NAVIGATION CARDS ==================== */}
+
+          {accountNavItems.map((item) => (
+            <View
+              key={item.id}
+              ref={item.id === 'preferences' ? preferencesRef : undefined}
+            >
+              <ProfileNavCard
+                colors={colors}
+                onPress={() => handleNavPress(item)}
+                icon={
+                  <ProfileNavIcon
+                    iconKey={item.iconKey}
+                    color={colors.primary}
+                  />
+                }
+                title={t(item.titleKey)}
+                hint={getNavHint(item)}
+                proBadgeLabel={t('common.proBadge')}
+              />
+            </View>
+          ))}
         </View>
 
         {/* ==================== FEATURES ==================== */}
-        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.features')}</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>
+          {t('profile.sections.features')}
+        </Text>
 
         <View style={styles.cardStack}>
-        <ProfileNavCard
-          colors={colors}
-          onPress={() => setShowTourReplay(true)}
-          icon={<Compass size={20} color={colors.primary} />}
-          title={t('tour.replay.title')}
-          hint={t('tour.replay.hint')}
-        />
-        {featureNavItems.map((item) => (
-          <View
-            key={item.id}
-            ref={
-              item.id === 'retrospective' ? retroRef
-              : item.id === 'achievements' ? achievementsRef
-              : undefined
-            }
-          >
-            <ProfileNavCard
-              colors={colors}
-              onPress={() => handleNavPress(item)}
-              icon={<ProfileNavIcon iconKey={item.iconKey} color={colors.primary} />}
-              title={t(item.titleKey)}
-              hint={getNavHint(item)}
-              variant={item.variant}
-            proBadge={item.proBadge}
-            proBadgeLabel={t('common.proBadge')}
+          <ProfileNavCard
+            colors={colors}
+            onPress={() => setShowTourReplay(true)}
+            icon={<Compass size={20} color={colors.primary} />}
+            title={t('tour.replay.title')}
+            hint={t('tour.replay.hint')}
           />
-          </View>
-        ))}
+          {featureNavItems.map((item) => (
+            <View
+              key={item.id}
+              ref={
+                item.id === 'retrospective'
+                  ? retroRef
+                  : item.id === 'achievements'
+                    ? achievementsRef
+                    : undefined
+              }
+            >
+              <ProfileNavCard
+                colors={colors}
+                onPress={() => handleNavPress(item)}
+                icon={
+                  <ProfileNavIcon
+                    iconKey={item.iconKey}
+                    color={colors.primary}
+                  />
+                }
+                title={t(item.titleKey)}
+                hint={getNavHint(item)}
+                variant={item.variant}
+                proBadge={item.proBadge}
+                proBadgeLabel={t('common.proBadge')}
+              />
+            </View>
+          ))}
         </View>
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>{t('profile.sections.accountActions')}</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>
+          {t('profile.sections.accountActions')}
+        </Text>
 
         <View style={styles.cardStack}>
-        {/* Logout */}
-        <ProfileActionButton
-          colors={colors}
-          onPress={() => logout()}
-          icon={<LogOut size={16} color={colors.red} />}
-          label={t('profile.logout')}
-          tone="danger"
-        />
+          {/* Logout */}
+          <ProfileActionButton
+            colors={colors}
+            onPress={() => logout()}
+            icon={<LogOut size={16} color={colors.red} />}
+            label={t('profile.logout')}
+            tone="danger"
+          />
 
-        {/* Fresh Start */}
-        <ProfileActionButton
-          colors={colors}
-          onPress={openResetModal}
-          icon={<RotateCcw size={16} color={colors.primary} />}
-          label={t('profile.freshStart.button')}
-          tone="primary"
-        />
+          {/* Fresh Start */}
+          <ProfileActionButton
+            colors={colors}
+            onPress={openResetModal}
+            icon={<RotateCcw size={16} color={colors.primary} />}
+            label={t('profile.freshStart.button')}
+            tone="primary"
+          />
 
-        {/* Delete Account */}
-        <ProfileActionButton
-          colors={colors}
-          onPress={openDeleteModal}
-          icon={<Trash2 size={14} color="rgba(239,68,68,0.6)" />}
-          label={t('profile.deleteAccount.button')}
-          tone="danger"
-          compact
-        />
+          {/* Delete Account */}
+          <ProfileActionButton
+            colors={colors}
+            onPress={openDeleteModal}
+            icon={<Trash2 size={14} color="rgba(239,68,68,0.6)" />}
+            label={t('profile.deleteAccount.button')}
+            tone="danger"
+            compact
+          />
         </View>
       </ScrollView>
 
@@ -580,7 +668,9 @@ export default function ProfileScreen() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('profile.freshStart.title')}</Text>
+              <Text style={styles.modalTitle}>
+                {t('profile.freshStart.title')}
+              </Text>
               <TouchableOpacity onPress={() => setShowResetModal(false)}>
                 <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -593,7 +683,9 @@ export default function ProfileScreen() {
                 </Text>
 
                 <View style={styles.freshStartDeletedBox}>
-                  <Text style={styles.freshStartBoxLabel}>{t('profile.freshStart.whatDeleted')}</Text>
+                  <Text style={styles.freshStartBoxLabel}>
+                    {t('profile.freshStart.whatDeleted')}
+                  </Text>
                   {deletedItems.map((item) => (
                     <View key={item} style={styles.freshStartItem}>
                       <X size={14} color={colors.red} />
@@ -603,7 +695,9 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={styles.freshStartPreservedBox}>
-                  <Text style={styles.freshStartPreservedLabel}>{t('profile.freshStart.whatPreserved')}</Text>
+                  <Text style={styles.freshStartPreservedLabel}>
+                    {t('profile.freshStart.whatPreserved')}
+                  </Text>
                   {preservedItems.map((item) => (
                     <View key={item} style={styles.freshStartItem}>
                       <Check size={14} color={colors.success} />
@@ -617,12 +711,16 @@ export default function ProfileScreen() {
                   onPress={() => setResetStep('confirm')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
+                  <Text style={styles.primaryButtonText}>
+                    {t('common.continue')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={{ gap: 16 }}>
-                <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
+                <Text
+                  style={[styles.modalDescription, { textAlign: 'center' }]}
+                >
                   {t('profile.freshStart.confirmInstruction')}
                 </Text>
                 <AppTextInput
@@ -639,13 +737,19 @@ export default function ProfileScreen() {
                   <Text style={styles.errorTextSmall}>{resetError}</Text>
                 ) : null}
                 <TouchableOpacity
-                  style={[styles.primaryButton, (!isResetConfirmed || resetLoading) && styles.buttonDisabled]}
+                  style={[
+                    styles.primaryButton,
+                    (!isResetConfirmed || resetLoading) &&
+                      styles.buttonDisabled,
+                  ]}
                   onPress={handleResetAccount}
                   disabled={!isResetConfirmed || resetLoading}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.primaryButtonText}>
-                    {resetLoading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
+                    {resetLoading
+                      ? t('profile.freshStart.processing')
+                      : t('profile.freshStart.confirmButton')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -655,7 +759,10 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Tour Replay Modal */}
-      <TourReplayModal visible={showTourReplay} onClose={() => setShowTourReplay(false)} />
+      <TourReplayModal
+        visible={showTourReplay}
+        onClose={() => setShowTourReplay(false)}
+      />
 
       {/* Fresh Start Animation */}
       {showFreshStartAnim && (
@@ -677,7 +784,9 @@ export default function ProfileScreen() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('profile.deleteAccount.title')}</Text>
+              <Text style={styles.modalTitle}>
+                {t('profile.deleteAccount.title')}
+              </Text>
               <TouchableOpacity onPress={() => setShowDeleteModal(false)}>
                 <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -705,21 +814,30 @@ export default function ProfileScreen() {
                     {t('profile.deleteAccount.warningDetail')}
                   </Text>
                 </View>
-                {deleteError ? <Text style={styles.errorTextSmall}>{deleteError}</Text> : null}
+                {deleteError ? (
+                  <Text style={styles.errorTextSmall}>{deleteError}</Text>
+                ) : null}
                 <TouchableOpacity
-                  style={[styles.dangerButton, deleteLoading && styles.buttonDisabled]}
+                  style={[
+                    styles.dangerButton,
+                    deleteLoading && styles.buttonDisabled,
+                  ]}
                   onPress={handleRequestDeletion}
                   disabled={deleteLoading}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.dangerButtonText}>
-                    {deleteLoading ? t('profile.deleteAccount.sending') : t('profile.deleteAccount.sendCode')}
+                    {deleteLoading
+                      ? t('profile.deleteAccount.sending')
+                      : t('profile.deleteAccount.sendCode')}
                   </Text>
                 </TouchableOpacity>
               </View>
             ) : deleteStep === 'code' ? (
               <View style={{ gap: 16 }}>
-                <Text style={[styles.modalDescription, { textAlign: 'center' }]}>
+                <Text
+                  style={[styles.modalDescription, { textAlign: 'center' }]}
+                >
                   {t('profile.deleteAccount.codeInstructions')}
                 </Text>
                 <View style={styles.deleteCodeRow}>
@@ -732,7 +850,9 @@ export default function ProfileScreen() {
                       style={styles.deleteCodeInput}
                       value={digit}
                       onChangeText={(text) => setDeleteCodeValue(index, text)}
-                      onKeyPress={({ nativeEvent }) => handleDeleteCodeKeyPress(index, nativeEvent.key)}
+                      onKeyPress={({ nativeEvent }) =>
+                        handleDeleteCodeKeyPress(index, nativeEvent.key)
+                      }
                       keyboardType="number-pad"
                       textContentType="oneTimeCode"
                       autoComplete="one-time-code"
@@ -743,15 +863,25 @@ export default function ProfileScreen() {
                     />
                   ))}
                 </View>
-                {deleteError ? <Text style={styles.errorTextSmall}>{deleteError}</Text> : null}
+                {deleteError ? (
+                  <Text style={styles.errorTextSmall}>{deleteError}</Text>
+                ) : null}
                 <TouchableOpacity
-                  style={[styles.dangerButton, (deleteLoading || deleteCodeDigits.join('').length !== 6) && styles.buttonDisabled]}
+                  style={[
+                    styles.dangerButton,
+                    (deleteLoading || deleteCodeDigits.join('').length !== 6) &&
+                      styles.buttonDisabled,
+                  ]}
                   onPress={handleConfirmDeletion}
-                  disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
+                  disabled={
+                    deleteLoading || deleteCodeDigits.join('').length !== 6
+                  }
                   activeOpacity={0.8}
                 >
                   <Text style={styles.dangerButtonText}>
-                    {deleteLoading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}
+                    {deleteLoading
+                      ? t('profile.deleteAccount.deleting')
+                      : t('profile.deleteAccount.confirmDelete')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -759,7 +889,9 @@ export default function ProfileScreen() {
               <View style={{ gap: 16 }}>
                 <View style={styles.deactivatedBox}>
                   <Clock size={20} color={colors.amber} />
-                  <Text style={styles.deactivatedTitle}>{t('profile.deleteAccount.title')}</Text>
+                  <Text style={styles.deactivatedTitle}>
+                    {t('profile.deleteAccount.title')}
+                  </Text>
                   <Text style={styles.deactivatedDetail}>
                     {t('profile.deleteAccount.deactivated', {
                       date: scheduledDeletionDate
@@ -773,7 +905,9 @@ export default function ProfileScreen() {
                   onPress={() => logout()}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.secondaryButtonText}>{t('profile.logout')}</Text>
+                  <Text style={styles.secondaryButtonText}>
+                    {t('profile.logout')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -790,223 +924,302 @@ export default function ProfileScreen() {
 
 function createStyles(colors: ReturnType<typeof createColors>) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
 
-  // Header
-  header: { paddingTop: 32, paddingBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5 },
+    // Header
+    header: {
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      letterSpacing: -0.5,
+    },
 
-  // Error
-  errorText: { fontSize: 13, color: colors.red, textAlign: 'center', marginBottom: 16 },
+    // Error
+    errorText: {
+      fontSize: 13,
+      color: colors.red,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
 
-  // Section labels
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.textMuted,
-    marginTop: 8,
-    marginBottom: 12,
-  },
+    // Section labels
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      color: colors.textMuted,
+      marginTop: 8,
+      marginBottom: spacing.cardGap,
+    },
 
-  // Card (user info, etc.)
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-  },
-  skeleton: { backgroundColor: colors.surfaceElevated, borderRadius: 8 },
-  userName: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  userEmail: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+    // Card (user info, etc.)
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: spacing.cardPadding,
+    },
+    skeleton: { backgroundColor: colors.surfaceElevated, borderRadius: 8 },
+    userName: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+    userEmail: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
 
-  // Streak card
-  streakCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 20,
-  },
-  streakCardInner: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  streakFlameContainer: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  streakFlameEmpty: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: colors.textMuted, marginBottom: 2 },
-  streakCount: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  streakEmpty: { fontSize: 14, fontWeight: '500', color: colors.textSecondary },
-  streakEncouragement: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    // Streak card
+    streakCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      padding: spacing.cardPadding,
+    },
+    streakCardInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sectionGap,
+    },
+    streakFlameContainer: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    streakFlameEmpty: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    streakLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1,
+      color: colors.textMuted,
+      marginBottom: 2,
+    },
+    streakCount: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+    streakEmpty: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    streakEncouragement: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
 
-  // Subscription
-  subscriptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 20,
-    padding: 20,
-    gap: 16,
-  },
-  cardStack: {
-    gap: 12,
-  },
-  subscriptionActive: {
-    backgroundColor: colors.primary_10,
-    borderWidth: 1,
-    borderColor: colors.primary_20,
-  },
-  subscriptionInactive: {
-    backgroundColor: 'rgba(245,158,11,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.20)',
-  },
-  subscriptionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subscriptionIconActive: { backgroundColor: colors.primary_20 },
-  subscriptionIconInactive: { backgroundColor: 'rgba(245,158,11,0.20)' },
-  subscriptionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  subscriptionHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    // Subscription
+    subscriptionCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 20,
+      padding: spacing.cardPadding,
+      gap: spacing.sectionGap,
+    },
+    cardStack: {
+      gap: spacing.cardGap,
+    },
+    subscriptionActive: {
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+    },
+    subscriptionInactive: {
+      backgroundColor: 'rgba(245,158,11,0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(245,158,11,0.20)',
+    },
+    subscriptionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    subscriptionIconActive: { backgroundColor: colors.primary_20 },
+    subscriptionIconInactive: { backgroundColor: 'rgba(245,158,11,0.20)' },
+    subscriptionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    subscriptionHint: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
 
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    paddingTop: 24,
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    maxHeight: '88%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  modalDescription: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    modalScrollContent: {
+      flexGrow: 1,
+      justifyContent: 'flex-end',
+      paddingTop: 24,
+    },
+    modalContent: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: spacing.pageBottom,
+      maxHeight: '88%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+    modalDescription: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
 
-  // Fresh Start boxes
-  freshStartDeletedBox: {
-    borderWidth: 1,
-    borderColor: colors.primary_20,
-    borderRadius: 16,
-    padding: 16,
-    gap: 6,
-  },
-  freshStartBoxLabel: { fontSize: 11, fontWeight: '700', color: colors.primary, letterSpacing: 1, marginBottom: 4 },
-  freshStartPreservedBox: {
-    backgroundColor: 'rgba(52,211,153,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(52,211,153,0.20)',
-    borderRadius: 16,
-    padding: 16,
-    gap: 6,
-  },
-  freshStartPreservedLabel: { fontSize: 11, fontWeight: '700', color: colors.success, letterSpacing: 1, marginBottom: 4 },
-  freshStartItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  freshStartItemText: { fontSize: 12, color: colors.textSecondary, flex: 1 },
+    // Fresh Start boxes
+    freshStartDeletedBox: {
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+      borderRadius: 16,
+      padding: 16,
+      gap: 6,
+    },
+    freshStartBoxLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primary,
+      letterSpacing: 1,
+      marginBottom: 4,
+    },
+    freshStartPreservedBox: {
+      backgroundColor: 'rgba(52,211,153,0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(52,211,153,0.20)',
+      borderRadius: 16,
+      padding: 16,
+      gap: 6,
+    },
+    freshStartPreservedLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.success,
+      letterSpacing: 1,
+      marginBottom: 4,
+    },
+    freshStartItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+    freshStartItemText: { fontSize: 12, color: colors.textSecondary, flex: 1 },
 
-  // Delete warning
-  deleteWarningBox: {
-    backgroundColor: 'rgba(239,68,68,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.20)',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-  },
-  deleteWarningTitle: { fontSize: 14, fontWeight: '700', color: colors.red },
-  deleteWarningDetail: { fontSize: 12, color: colors.textSecondary, lineHeight: 18 },
+    // Delete warning
+    deleteWarningBox: {
+      backgroundColor: 'rgba(239,68,68,0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(239,68,68,0.20)',
+      borderRadius: 16,
+      padding: 16,
+      gap: 8,
+    },
+    deleteWarningTitle: { fontSize: 14, fontWeight: '700', color: colors.red },
+    deleteWarningDetail: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
 
-  // Deactivated
-  deactivatedBox: {
-    backgroundColor: 'rgba(245,158,11,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.20)',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-    alignItems: 'center',
-  },
-  deactivatedTitle: { fontSize: 14, fontWeight: '700', color: colors.amber },
-  deactivatedDetail: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, textAlign: 'center' },
+    // Deactivated
+    deactivatedBox: {
+      backgroundColor: 'rgba(245,158,11,0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(245,158,11,0.20)',
+      borderRadius: 16,
+      padding: 16,
+      gap: 8,
+      alignItems: 'center',
+    },
+    deactivatedTitle: { fontSize: 14, fontWeight: '700', color: colors.amber },
+    deactivatedDetail: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+      textAlign: 'center',
+    },
 
-  // Buttons
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  dangerButton: {
-    backgroundColor: '#dc2626',
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  dangerButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  secondaryButton: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  secondaryButtonText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  buttonDisabled: { opacity: 0.5 },
+    // Buttons
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    primaryButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+    dangerButton: {
+      backgroundColor: '#dc2626',
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    dangerButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+    secondaryButton: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    secondaryButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    buttonDisabled: { opacity: 0.5 },
 
-  // Confirm input
-  confirmInput: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  deleteCodeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  deleteCodeInput: {
-    width: 44,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  errorTextSmall: { fontSize: 12, color: colors.red, textAlign: 'center' },
+    // Confirm input
+    confirmInput: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    deleteCodeRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    deleteCodeInput: {
+      width: 44,
+      height: 52,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      color: colors.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    errorTextSmall: { fontSize: 12, color: colors.red, textAlign: 'center' },
   })
 }

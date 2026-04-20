@@ -45,33 +45,45 @@ describe('upgrade utils', () => {
       'themes',
       'adFree',
     ])
-    expect(UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => feature.key)).toEqual([
-      'retrospective',
-    ])
+    expect(UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => feature.key)).toEqual(
+      ['retrospective'],
+    )
   })
 
   it('has locale entries for every upgrade and trial-expired feature key', () => {
     const localeBundles = [en, ptBR]
+    const matrixFeatureKeys = UPGRADE_FEATURE_CATEGORIES.flatMap((category) =>
+      category.features.flatMap((feature) => [
+        `upgrade.features.${feature.key}.label`,
+        `upgrade.features.${feature.key}.tooltip`,
+        `upgrade.features.${feature.key}.free`,
+        `upgrade.features.${feature.key}.pro`,
+      ]),
+    )
     const messageKeys = [
       ...TRIAL_EXPIRED_FEATURE_KEYS,
-      ...UPGRADE_PRO_FEATURES.map((feature) => `upgrade.plans.proFeatures.${feature.key}`),
-      ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => `upgrade.plans.proFeatures.${feature.key}`),
+      ...UPGRADE_PRO_FEATURES.map(
+        (feature) => `upgrade.plans.proFeatures.${feature.key}`,
+      ),
+      ...UPGRADE_YEARLY_EXTRA_FEATURES.map(
+        (feature) => `upgrade.plans.proFeatures.${feature.key}`,
+      ),
+      ...matrixFeatureKeys,
     ]
 
     for (const locale of localeBundles) {
       for (const key of messageKeys) {
-        expect(getMessageValue(locale as Record<string, unknown>, key)).toEqual(expect.any(String))
+        expect(getMessageValue(locale as Record<string, unknown>, key)).toEqual(
+          expect.any(String),
+        )
       }
     }
   })
 
   it('defines all upgrade comparison categories', () => {
-    expect(UPGRADE_FEATURE_CATEGORIES.map((category) => category.category)).toEqual([
-      'habits',
-      'ai',
-      'insights',
-      'personalization',
-    ])
+    expect(
+      UPGRADE_FEATURE_CATEGORIES.map((category) => category.category),
+    ).toEqual(['habits', 'ai', 'insights', 'personalization'])
     expect(
       UPGRADE_FEATURE_CATEGORIES.flatMap((category) =>
         category.features.map((feature) => feature.key),
@@ -91,32 +103,50 @@ describe('upgrade utils', () => {
     expect(canAccessEntitlement(null, null)).toBe(true)
     expect(
       canAccessEntitlement(
-        { hasProAccess: false, subscriptionInterval: null, isLifetimePro: false },
+        {
+          hasProAccess: false,
+          subscriptionInterval: null,
+          isLifetimePro: false,
+        },
         'pro',
       ),
     ).toBe(false)
     expect(
       canAccessEntitlement(
-        { hasProAccess: true, subscriptionInterval: 'monthly', isLifetimePro: false },
+        {
+          hasProAccess: true,
+          subscriptionInterval: 'monthly',
+          isLifetimePro: false,
+        },
         'pro',
       ),
     ).toBe(true)
     expect(
       canAccessEntitlement(
-        { hasProAccess: true, subscriptionInterval: 'monthly', isLifetimePro: false },
+        {
+          hasProAccess: true,
+          subscriptionInterval: 'monthly',
+          isLifetimePro: false,
+        },
         'yearlyPro',
       ),
     ).toBe(false)
     expect(
       canAccessEntitlement(
-        { hasProAccess: true, subscriptionInterval: 'yearly', isLifetimePro: false },
+        {
+          hasProAccess: true,
+          subscriptionInterval: 'yearly',
+          isLifetimePro: false,
+        },
         'yearlyPro',
       ),
     ).toBe(true)
   })
 
   it('falls back to the default free color scheme', () => {
-    expect(resolveAccessibleColorScheme('blue', false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+    expect(resolveAccessibleColorScheme('blue', false)).toBe(
+      DEFAULT_FREE_COLOR_SCHEME,
+    )
     expect(resolveAccessibleColorScheme('purple', false)).toBe('purple')
     expect(resolveAccessibleColorScheme('blue', true)).toBe('blue')
   })

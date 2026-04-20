@@ -11,7 +11,11 @@ import {
 } from '@orbit/shared/utils/profile-navigation'
 import { LogOut, RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useProfile, useTrialDaysLeft, useTrialExpired } from '@/hooks/use-profile'
+import {
+  useProfile,
+  useTrialDaysLeft,
+  useTrialExpired,
+} from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { ProfileStreakCard } from '@/components/gamification/profile-streak-card'
@@ -33,9 +37,15 @@ export default function ProfilePage() {
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
-  const { profile: gamificationProfile } = useGamificationProfile(profile?.hasProAccess ?? false)
-  const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
-  const featureNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
+  const { profile: gamificationProfile } = useGamificationProfile(
+    profile?.hasProAccess ?? false,
+  )
+  const accountNavItems = PROFILE_NAV_ITEMS.filter(
+    (item) => item.section === 'account',
+  )
+  const featureNavItems = PROFILE_NAV_ITEMS.filter(
+    (item) => item.section === 'features',
+  )
 
   const navTourMap: Record<string, string> = {
     preferences: 'tour-profile-preferences',
@@ -92,9 +102,12 @@ export default function ProfilePage() {
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* ==================== ACCOUNT ==================== */}
-        <section className="space-y-3" aria-labelledby="profile-account-heading">
+        <section
+          className="space-y-4"
+          aria-labelledby="profile-account-heading"
+        >
           <h2 id="profile-account-heading" className="form-label pt-2">
             {t('profile.sections.account')}
           </h2>
@@ -125,8 +138,12 @@ export default function ProfilePage() {
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-lg font-bold text-text-primary truncate">{profile?.name}</p>
-                  <p className="text-sm text-text-secondary truncate">{profile?.email}</p>
+                  <p className="text-lg font-bold text-text-primary truncate">
+                    {profile?.name}
+                  </p>
+                  <p className="text-sm text-text-secondary truncate">
+                    {profile?.email}
+                  </p>
                   {profile?.hasProAccess && (
                     <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                       Pro
@@ -153,34 +170,37 @@ export default function ProfilePage() {
 
           {/* ==================== NAVIGATION CARDS ==================== */}
           <nav aria-label={t('profile.sections.account')}>
-            <div className="space-y-3 stagger-enter">
+            <div className="space-y-4 stagger-enter">
               {accountNavItems.map((item) => (
-              <ProfileNavCard
-                key={item.id}
-                href={item.route}
-                onNavigate={(event) => {
-                  if (!shouldRedirectProfileNavItem(item, profile)) return
-                  event.preventDefault()
-                  handleNavClick(item)
-                }}
-                icon={<ProfileNavIcon iconKey={item.iconKey} />}
-                title={t(item.titleKey)}
-                hint={getNavHint(item)}
-                proBadgeLabel={t('common.proBadge')}
-                dataTour={navTourMap[item.id]}
-              />
+                <ProfileNavCard
+                  key={item.id}
+                  href={item.route}
+                  onNavigate={(event) => {
+                    if (!shouldRedirectProfileNavItem(item, profile)) return
+                    event.preventDefault()
+                    handleNavClick(item)
+                  }}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
+                  title={t(item.titleKey)}
+                  hint={getNavHint(item)}
+                  proBadgeLabel={t('common.proBadge')}
+                  dataTour={navTourMap[item.id]}
+                />
               ))}
             </div>
           </nav>
         </section>
 
         {/* ==================== FEATURES ==================== */}
-        <section className="space-y-3" aria-labelledby="profile-features-heading">
+        <section
+          className="space-y-4"
+          aria-labelledby="profile-features-heading"
+        >
           <h2 id="profile-features-heading" className="form-label pt-2">
             {t('profile.sections.features')}
           </h2>
 
-          <div className="space-y-3 stagger-enter">
+          <div className="space-y-4 stagger-enter">
             <TourReplayCard />
             {featureNavItems.map((item) => (
               <ProfileNavCard
@@ -204,7 +224,10 @@ export default function ProfilePage() {
         </section>
 
         {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <section className="space-y-3" aria-labelledby="profile-actions-heading">
+        <section
+          className="space-y-4"
+          aria-labelledby="profile-actions-heading"
+        >
           <h2 id="profile-actions-heading" className="form-label pt-2">
             {t('profile.sections.accountActions')}
           </h2>
@@ -240,7 +263,11 @@ export default function ProfilePage() {
       <FreshStartModal open={showResetModal} onOpenChange={setShowResetModal} />
 
       {/* Delete Account Modal */}
-      <DeleteAccountModal open={showDeleteModal} onOpenChange={setShowDeleteModal} profile={profile} />
+      <DeleteAccountModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        profile={profile}
+      />
     </div>
   )
 }

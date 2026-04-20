@@ -100,6 +100,15 @@ export interface AppRadius {
   full: number
 }
 
+export interface AppSpacing {
+  pageX: number
+  pageBottom: number
+  sectionGap: number
+  cardPadding: number
+  cardGap: number
+  itemGap: number
+}
+
 export interface ShadowValue extends Record<string, unknown> {
   shadowColor: string
   shadowOffset: { width: number; height: number }
@@ -163,7 +172,9 @@ function blendRgbOverHex(
   backgroundHex: string,
   fallback: string,
 ): string {
-  const channels = rgb.split(',').map((value) => Number.parseInt(value.trim(), 10))
+  const channels = rgb
+    .split(',')
+    .map((value) => Number.parseInt(value.trim(), 10))
   const normalized = backgroundHex.replace('#', '')
 
   if (channels.length !== 3 || channels.some((value) => Number.isNaN(value))) {
@@ -178,7 +189,11 @@ function blendRgbOverHex(
   const backgroundGreen = Number.parseInt(normalized.slice(2, 4), 16)
   const backgroundBlue = Number.parseInt(normalized.slice(4, 6), 16)
 
-  const [foregroundRed, foregroundGreen, foregroundBlue] = channels as [number, number, number]
+  const [foregroundRed, foregroundGreen, foregroundBlue] = channels as [
+    number,
+    number,
+    number,
+  ]
   const blendChannel = (foreground: number, background: number) =>
     Math.round(foreground * opacity + background * (1 - opacity))
 
@@ -197,7 +212,8 @@ export function createColors(
   const theme = definition[themeMode]
   const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
   const isLight = themeMode === 'light'
-  const primary = themeMode === 'light' ? definition.primaryLight : definition.primary
+  const primary =
+    themeMode === 'light' ? definition.primaryLight : definition.primary
   const flattenedTint = (opacity: number, fallback: string) =>
     blendRgbOverHex(definition.shadowRgb, opacity, theme.background, fallback)
 
@@ -219,9 +235,15 @@ export function createColors(
     // Android renders semi-transparent elevated cards inconsistently in light
     // mode, so flatten the tint over the page background while keeping the
     // same visual result as the web overlay tokens.
-    primaryTintBg: isLight ? flattenedTint(0.3, 'rgb(215, 200, 252)') : alpha(0.1),
-    primaryTintBorder: isLight ? flattenedTint(0.5, 'rgb(194, 169, 251)') : alpha(0.2),
-    primaryTintIconBg: isLight ? flattenedTint(0.42, 'rgb(202, 181, 251)') : alpha(0.2),
+    primaryTintBg: isLight
+      ? flattenedTint(0.3, 'rgb(215, 200, 252)')
+      : alpha(0.1),
+    primaryTintBorder: isLight
+      ? flattenedTint(0.5, 'rgb(194, 169, 251)')
+      : alpha(0.2),
+    primaryTintIconBg: isLight
+      ? flattenedTint(0.42, 'rgb(202, 181, 251)')
+      : alpha(0.2),
     primaryRing: alpha(0.3),
     textPrimary: theme.textPrimary,
     textSecondary: theme.textSecondary,
@@ -304,7 +326,8 @@ export function createNav(
 ): AppNav {
   const definition = schemes[colorScheme]
   const theme = definition[themeMode]
-  const primary = themeMode === 'light' ? definition.primaryLight : definition.primary
+  const primary =
+    themeMode === 'light' ? definition.primaryLight : definition.primary
   return {
     activeColor: primary,
     inactiveColor: theme.textMuted,
@@ -332,6 +355,15 @@ export const radius: AppRadius = {
   xl: 20,
   '2xl': 24,
   full: 9999,
+} as const
+
+export const spacing: AppSpacing = {
+  pageX: 20,
+  pageBottom: 40,
+  sectionGap: 16,
+  cardPadding: 20,
+  cardGap: 12,
+  itemGap: 8,
 } as const
 
 // ---------------------------------------------------------------------------
@@ -470,6 +502,7 @@ export function lightenHex(hex: string, amount: number): string {
     return hex
   }
 
-  const blend = (channel: number) => Math.round(channel + (255 - channel) * amount)
+  const blend = (channel: number) =>
+    Math.round(channel + (255 - channel) * amount)
   return `rgb(${blend(r)},${blend(g)},${blend(b)})`
 }

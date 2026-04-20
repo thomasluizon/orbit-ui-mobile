@@ -2,8 +2,16 @@ import type { HabitsFilter } from '../types/habit'
 import { formatAPIDate } from '../utils/dates'
 
 type UIStoreSet = {
-  (partial: Partial<UIStoreState> | ((state: UIStoreState) => Partial<UIStoreState>), replace?: false): void
-  (state: UIStoreState | ((state: UIStoreState) => UIStoreState), replace: true): void
+  (
+    partial:
+      | Partial<UIStoreState>
+      | ((state: UIStoreState) => Partial<UIStoreState>),
+    replace?: false,
+  ): void
+  (
+    state: UIStoreState | ((state: UIStoreState) => UIStoreState),
+    replace: true,
+  ): void
 }
 
 type UIStoreGet = () => UIStoreState
@@ -78,7 +86,9 @@ function getCelebrationPriority(kind: CelebrationKind): number {
   }
 }
 
-function sortCelebrationQueue(queue: CelebrationQueueItem[]): CelebrationQueueItem[] {
+function sortCelebrationQueue(
+  queue: CelebrationQueueItem[],
+): CelebrationQueueItem[] {
   return [...queue].sort((left, right) => {
     if (left.priority !== right.priority) {
       return left.priority - right.priority
@@ -100,13 +110,26 @@ function isDuplicateCelebration(
 
       switch (item.kind) {
         case 'streak':
-          return item.payload.streak === (candidate.payload as CelebrationPayloadMap['streak']).streak
+          return (
+            item.payload.streak ===
+            (candidate.payload as CelebrationPayloadMap['streak']).streak
+          )
         case 'achievement':
-          return item.payload.achievementId === (candidate.payload as CelebrationPayloadMap['achievement']).achievementId
+          return (
+            item.payload.achievementId ===
+            (candidate.payload as CelebrationPayloadMap['achievement'])
+              .achievementId
+          )
         case 'goal-completed':
-          return item.payload.name === (candidate.payload as CelebrationPayloadMap['goal-completed']).name
+          return (
+            item.payload.name ===
+            (candidate.payload as CelebrationPayloadMap['goal-completed']).name
+          )
         case 'level-up':
-          return item.payload.level === (candidate.payload as CelebrationPayloadMap['level-up']).level
+          return (
+            item.payload.level ===
+            (candidate.payload as CelebrationPayloadMap['level-up']).level
+          )
         case 'all-done':
           return true
         default:
@@ -131,15 +154,15 @@ function createCelebrationItem<TKind extends CelebrationKind>(
   } as Extract<CelebrationQueueItem, { kind: TKind }>
 }
 
-function deriveLegacyCelebrationState(activeCelebration: CelebrationQueueItem | null): Pick<
+function deriveLegacyCelebrationState(
+  activeCelebration: CelebrationQueueItem | null,
+): Pick<
   UIStoreState,
   'streakCelebration' | 'allDoneCelebration' | 'goalCompletedCelebration'
 > {
   return {
     streakCelebration:
-      activeCelebration?.kind === 'streak'
-        ? activeCelebration.payload
-        : null,
+      activeCelebration?.kind === 'streak' ? activeCelebration.payload : null,
     allDoneCelebration: activeCelebration?.kind === 'all-done',
     goalCompletedCelebration:
       activeCelebration?.kind === 'goal-completed'
@@ -150,10 +173,16 @@ function deriveLegacyCelebrationState(activeCelebration: CelebrationQueueItem | 
 
 type ActiveCelebrationState = Pick<
   UIStoreState,
-  'activeCelebration' | 'queuedCelebrations' | 'streakCelebration' | 'allDoneCelebration' | 'goalCompletedCelebration'
+  | 'activeCelebration'
+  | 'queuedCelebrations'
+  | 'streakCelebration'
+  | 'allDoneCelebration'
+  | 'goalCompletedCelebration'
 >
 
-function activateNextCelebration(queue: CelebrationQueueItem[]): ActiveCelebrationState {
+function activateNextCelebration(
+  queue: CelebrationQueueItem[],
+): ActiveCelebrationState {
   const sortedQueue = sortCelebrationQueue(queue)
   const [nextCelebration, ...remainingCelebrations] = sortedQueue
 
@@ -239,13 +268,25 @@ export interface UIStoreState {
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
-    activeFilters: state.activeFilters,
+    activeFilters: { ...state.activeFilters },
     selectedDate: state.selectedDate,
     activeView: state.activeView,
     searchQuery: state.searchQuery,
     selectedFrequency: state.selectedFrequency,
-    selectedTagIds: state.selectedTagIds,
+    selectedTagIds: [...state.selectedTagIds],
     showCompleted: state.showCompleted,
+  }
+}
+
+export function createTourUIState(selectedDate: string): PersistedUIState {
+  return {
+    activeFilters: {},
+    selectedDate,
+    activeView: 'today',
+    searchQuery: '',
+    selectedFrequency: null,
+    selectedTagIds: [],
+    showCompleted: true,
   }
 }
 
@@ -278,10 +319,20 @@ export function createUIStoreState(
 
     enqueueCelebration: (kind, payload) =>
       set((state) => {
-        const nextItem = createCelebrationItem(kind, payload, celebrationSequence)
+        const nextItem = createCelebrationItem(
+          kind,
+          payload,
+          celebrationSequence,
+        )
         celebrationSequence += 1
 
-        if (isDuplicateCelebration(state.queuedCelebrations, state.activeCelebration, nextItem)) {
+        if (
+          isDuplicateCelebration(
+            state.queuedCelebrations,
+            state.activeCelebration,
+            nextItem,
+          )
+        ) {
           return {}
         }
 
@@ -302,16 +353,28 @@ export function createUIStoreState(
 
     hasCelebrationInFlight: () => {
       const state = get()
-      return state.activeCelebration !== null || state.queuedCelebrations.length > 0
+      return (
+        state.activeCelebration !== null || state.queuedCelebrations.length > 0
+      )
     },
 
     setStreakCelebration: (data) =>
       set((state) => {
         if (data) {
-          const nextItem = createCelebrationItem('streak', data, celebrationSequence)
+          const nextItem = createCelebrationItem(
+            'streak',
+            data,
+            celebrationSequence,
+          )
           celebrationSequence += 1
 
-          if (isDuplicateCelebration(state.queuedCelebrations, state.activeCelebration, nextItem)) {
+          if (
+            isDuplicateCelebration(
+              state.queuedCelebrations,
+              state.activeCelebration,
+              nextItem,
+            )
+          ) {
             return {}
           }
 
@@ -323,7 +386,9 @@ export function createUIStoreState(
           return activateNextCelebration(nextQueue)
         }
 
-        const remainingQueued = state.queuedCelebrations.filter((item) => item.kind !== 'streak')
+        const remainingQueued = state.queuedCelebrations.filter(
+          (item) => item.kind !== 'streak',
+        )
         if (state.activeCelebration?.kind === 'streak') {
           return activateNextCelebration(remainingQueued)
         }
@@ -337,10 +402,20 @@ export function createUIStoreState(
     setAllDoneCelebration: (value) =>
       set((state) => {
         if (value) {
-          const nextItem = createCelebrationItem('all-done', {}, celebrationSequence)
+          const nextItem = createCelebrationItem(
+            'all-done',
+            {},
+            celebrationSequence,
+          )
           celebrationSequence += 1
 
-          if (isDuplicateCelebration(state.queuedCelebrations, state.activeCelebration, nextItem)) {
+          if (
+            isDuplicateCelebration(
+              state.queuedCelebrations,
+              state.activeCelebration,
+              nextItem,
+            )
+          ) {
             return {}
           }
 
@@ -352,7 +427,9 @@ export function createUIStoreState(
           return activateNextCelebration(nextQueue)
         }
 
-        const remainingQueued = state.queuedCelebrations.filter((item) => item.kind !== 'all-done')
+        const remainingQueued = state.queuedCelebrations.filter(
+          (item) => item.kind !== 'all-done',
+        )
         if (state.activeCelebration?.kind === 'all-done') {
           return activateNextCelebration(remainingQueued)
         }
@@ -366,10 +443,20 @@ export function createUIStoreState(
     setGoalCompletedCelebration: (data) =>
       set((state) => {
         if (data) {
-          const nextItem = createCelebrationItem('goal-completed', data, celebrationSequence)
+          const nextItem = createCelebrationItem(
+            'goal-completed',
+            data,
+            celebrationSequence,
+          )
           celebrationSequence += 1
 
-          if (isDuplicateCelebration(state.queuedCelebrations, state.activeCelebration, nextItem)) {
+          if (
+            isDuplicateCelebration(
+              state.queuedCelebrations,
+              state.activeCelebration,
+              nextItem,
+            )
+          ) {
             return {}
           }
 
@@ -381,7 +468,9 @@ export function createUIStoreState(
           return activateNextCelebration(nextQueue)
         }
 
-        const remainingQueued = state.queuedCelebrations.filter((item) => item.kind !== 'goal-completed')
+        const remainingQueued = state.queuedCelebrations.filter(
+          (item) => item.kind !== 'goal-completed',
+        )
         if (state.activeCelebration?.kind === 'goal-completed') {
           return activateNextCelebration(remainingQueued)
         }
@@ -396,11 +485,14 @@ export function createUIStoreState(
       const { activeFilters, allDoneCelebratedDate, enqueueCelebration } = get()
       const today = formatAPIDate(new Date())
 
-      if (activeFilters.dateFrom !== today || activeFilters.dateTo !== today) return
+      if (activeFilters.dateFrom !== today || activeFilters.dateTo !== today)
+        return
       if (allDoneCelebratedDate === today) return
       if (habitsById.size === 0) return
 
-      const topLevel = Array.from(habitsById.values()).filter((h) => h.parentId === null)
+      const topLevel = Array.from(habitsById.values()).filter(
+        (h) => h.parentId === null,
+      )
       const allDone = topLevel.every((h) => h.isCompleted)
       const hasCompletion = topLevel.some((h) => h.isCompleted)
 
@@ -418,8 +510,12 @@ export function createUIStoreState(
     toggleSelectMode: () =>
       set((state) => ({
         isSelectMode: !state.isSelectMode,
-        selectedHabitIds: state.isSelectMode ? new Set<string>() : state.selectedHabitIds,
-        manuallySelectedIds: state.isSelectMode ? new Set<string>() : state.manuallySelectedIds,
+        selectedHabitIds: state.isSelectMode
+          ? new Set<string>()
+          : state.selectedHabitIds,
+        manuallySelectedIds: state.isSelectMode
+          ? new Set<string>()
+          : state.manuallySelectedIds,
       })),
 
     toggleHabitSelection: (id) =>
@@ -473,7 +569,10 @@ export function createUIStoreState(
       if (createdHabitTimer) clearTimeout(createdHabitTimer)
       set({ lastCreatedHabitId: id })
       if (id) {
-        createdHabitTimer = setTimeout(() => set({ lastCreatedHabitId: null }), 1500)
+        createdHabitTimer = setTimeout(
+          () => set({ lastCreatedHabitId: null }),
+          1500,
+        )
       }
     },
 

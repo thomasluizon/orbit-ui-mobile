@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createUIStoreState, type UIStoreState } from '../stores/ui-store'
+import {
+  createTourUIState,
+  createUIStoreState,
+  getPersistedUIState,
+  type UIStoreState,
+} from '../stores/ui-store'
 
 function createStoreHarness() {
   let state = {} as UIStoreState
 
   const set = (
-    partial: Partial<UIStoreState> | ((current: UIStoreState) => Partial<UIStoreState>),
+    partial:
+      | Partial<UIStoreState>
+      | ((current: UIStoreState) => Partial<UIStoreState>),
   ) => {
     const next = typeof partial === 'function' ? partial(state) : partial
     state = { ...state, ...next }
@@ -53,13 +60,21 @@ describe('shared ui store', () => {
     const { toggleSelectMode, toggleSelectionCascade } = store.getState()
 
     toggleSelectMode()
-    toggleSelectionCascade('parent', () => ['child-1', 'child-2'], () => false)
+    toggleSelectionCascade(
+      'parent',
+      () => ['child-1', 'child-2'],
+      () => false,
+    )
 
     expect(store.getState().selectedHabitIds).toEqual(
       new Set(['parent', 'child-1', 'child-2']),
     )
 
-    toggleSelectionCascade('parent', () => ['child-1', 'child-2'], () => false)
+    toggleSelectionCascade(
+      'parent',
+      () => ['child-1', 'child-2'],
+      () => false,
+    )
 
     expect(store.getState().selectedHabitIds.size).toBe(0)
   })
@@ -100,7 +115,10 @@ describe('shared ui store', () => {
       hasCelebrationInFlight,
     } = store.getState()
 
-    enqueueCelebration('achievement', { achievementId: 'achv-1', xpReward: 10 })
+    enqueueCelebration('achievement', {
+      achievementId: 'achv-1',
+      xpReward: 10,
+    })
     enqueueCelebration('level-up', { level: 2 })
     enqueueCelebration('level-up', { level: 2 })
 
@@ -124,12 +142,49 @@ describe('shared ui store', () => {
     store.getState().setStreakCelebration({ streak: 5 })
     store.getState().setGoalCompletedCelebration({ name: 'Ship Orbit' })
 
-    expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['goal-completed'])
+    expect(
+      store.getState().queuedCelebrations.map((item) => item.kind),
+    ).toEqual(['goal-completed'])
 
     store.getState().setGoalCompletedCelebration(null)
 
     expect(store.getState().queuedCelebrations).toEqual([])
     expect(store.getState().goalCompletedCelebration).toBeNull()
     expect(store.getState().streakCelebration).toEqual({ streak: 5 })
+  })
+
+  it('creates a canonical tour ui state with today selected and no filters', () => {
+    expect(createTourUIState('2026-04-06')).toEqual({
+      activeFilters: {},
+      selectedDate: '2026-04-06',
+      activeView: 'today',
+      searchQuery: '',
+      selectedFrequency: null,
+      selectedTagIds: [],
+      showCompleted: true,
+    })
+  })
+
+  it('returns cloned persisted ui state snapshots', () => {
+    const store = createStoreHarness()
+
+    store.getState().setFilters({ dateFrom: '2026-04-06' })
+    store.setState({
+      activeFilters: { dateFrom: '2026-04-06', includeOverdue: true },
+      selectedTagIds: ['focus'],
+    })
+
+    const snapshot = getPersistedUIState(store.getState())
+
+    store.setState({
+      activeFilters: { dateFrom: '2026-04-07' },
+      selectedTagIds: ['health'],
+    })
+
+    expect(snapshot.activeFilters).toEqual({
+      dateFrom: '2026-04-06',
+      includeOverdue: true,
+    })
+    expect(snapshot.selectedTagIds).toEqual(['focus'])
   })
 })
