@@ -1,7 +1,13 @@
 import { useEffect, lazy, Suspense, useMemo, useRef } from 'react'
-import { View } from 'react-native'
+import { BackHandler, Platform, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Stack, usePathname, useRouter, useSegments } from 'expo-router'
+import {
+  Stack,
+  useGlobalSearchParams,
+  usePathname,
+  useRouter,
+  useSegments,
+} from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
@@ -14,6 +20,11 @@ import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
+import {
+  dismissOrFallback,
+  getAndroidBackFallbackRoute,
+} from '@/lib/back-navigation'
+import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourStore } from '@/stores/tour-store'
@@ -96,6 +107,7 @@ function AuthGuard() {
 function RootLayoutNav() {
   const router = useRouter()
   const pathname = usePathname()
+  const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
@@ -118,6 +130,14 @@ function RootLayoutNav() {
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
   const showSharedCelebrations = pathname !== '/'
+  const androidBackFallbackRoute = useMemo(
+    () =>
+      getAndroidBackFallbackRoute(pathname, {
+        isAuthenticated,
+        upgradeFrom: from,
+      }),
+    [from, isAuthenticated, pathname],
+  )
 
   const handleCreate = useMemo(
     () => () => {
@@ -156,6 +176,25 @@ function RootLayoutNav() {
   useEffect(() => {
     void initializeAdMob()
   }, [initializeAdMob])
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return
+    if (!androidBackFallbackRoute) return
+
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (dismissTopOverlay('system-back')) {
+          return true
+        }
+
+        dismissOrFallback(router, androidBackFallbackRoute)
+        return true
+      },
+    )
+
+    return () => subscription.remove()
+  }, [androidBackFallbackRoute, router])
 
   return (
     <>

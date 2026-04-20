@@ -81,6 +81,20 @@ export const AppState = {
   }),
 }
 
+const backHandlerListeners = new Set<() => boolean>()
+
+export const BackHandler = {
+  addEventListener: (_event: string, listener: () => boolean) => {
+    backHandlerListeners.add(listener)
+    return {
+      remove: () => {
+        backHandlerListeners.delete(listener)
+      },
+    }
+  },
+  exitApp: () => {},
+}
+
 export const AccessibilityInfo = {
   isReduceMotionEnabled: async () => false,
   addEventListener: (_event: string, _listener: (enabled: boolean) => void) => ({
@@ -129,6 +143,7 @@ export default {
   Animated,
   AppState,
   AccessibilityInfo,
+  BackHandler,
   Easing,
   FlatList,
   Image,

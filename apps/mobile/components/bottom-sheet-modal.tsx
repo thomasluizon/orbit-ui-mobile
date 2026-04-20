@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native'
 import {
   BottomSheetBackdrop,
@@ -10,6 +10,12 @@ import { ReduceMotion } from 'react-native-reanimated'
 import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ThemeContextValue } from '@/lib/theme-provider'
+import {
+  createBottomSheetOverlayState,
+  requestBottomSheetClose,
+  syncBottomSheetOverlayRegistration,
+  teardownBottomSheetOverlay,
+} from '@/lib/bottom-sheet-overlay-controller'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
@@ -54,7 +60,9 @@ export function BottomSheetModal({
   const styles = useMemo(() => createStyles(colors), [colors])
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
+  const overlayStateRef = useRef(createBottomSheetOverlayState())
   const overlayIdRef = useRef(`sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  const [isPresented, setIsPresented] = useState(false)
 
   const snapPointsKey = (snapPointsProp ?? ['50%', '80%']).join('|')
   const snapPoints = useMemo(
@@ -65,13 +73,15 @@ export function BottomSheetModal({
 
   const requestClose = useCallback(
     (reason: 'backdrop' | 'close-button' | 'navigation' | 'system-back') => {
-      if (!canDismiss || isDirty) {
-        onAttemptDismiss?.(reason)
-        return true
-      }
-
-      bottomSheetRef.current?.dismiss()
-      return true
+      return requestBottomSheetClose(overlayStateRef.current, {
+        canDismiss,
+        dismissSheet: () => {
+          bottomSheetRef.current?.dismiss()
+        },
+        isDirty,
+        onAttemptDismiss,
+        reason,
+      })
     },
     [canDismiss, isDirty, onAttemptDismiss],
   )
@@ -113,21 +123,18 @@ export function BottomSheetModal({
     }
   }, [open, contentKey])
 
-  useEffect(() => {
-    if (!open) return
-
-    registerOverlay({
-      id: overlayIdRef.current,
-      dismiss: requestClose,
-    })
-
-    return () => {
-      unregisterOverlay(overlayIdRef.current)
-    }
-  }, [open, requestClose])
+  useEffect(
+    () => () => {
+      teardownBottomSheetOverlay(overlayStateRef.current, {
+        overlayId: overlayIdRef.current,
+        unregister: unregisterOverlay,
+      })
+    },
+    [],
+  )
 
   useEffect(() => {
-    if (!open) return
+    if (!isPresented) return
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!isTopOverlay(overlayIdRef.current)) return false
@@ -135,9 +142,30 @@ export function BottomSheetModal({
     })
 
     return () => subscription.remove()
-  }, [open, requestClose])
+  }, [isPresented, requestClose])
+
+  const handleChange = useCallback(
+    (index: number) => {
+      const nextPresented = index >= 0
+      setIsPresented(nextPresented)
+      syncBottomSheetOverlayRegistration(overlayStateRef.current, {
+        isPresented: nextPresented,
+        overlayId: overlayIdRef.current,
+        register: registerOverlay,
+        requestClose,
+        unregister: unregisterOverlay,
+      })
+    },
+    [requestClose],
+  )
 
   const handleDismiss = useCallback(() => {
+    setIsPresented(false)
+    teardownBottomSheetOverlay(overlayStateRef.current, {
+      overlayId: overlayIdRef.current,
+      unregister: unregisterOverlay,
+    })
+
     if (isOpenRef.current) {
       isOpenRef.current = false
       onClose()
@@ -149,6 +177,7 @@ export function BottomSheetModal({
       ref={bottomSheetRef}
       index={0}
       snapPoints={snapPoints}
+      onChange={handleChange}
       onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       backgroundComponent={renderBackground}

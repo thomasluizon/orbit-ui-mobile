@@ -5,10 +5,10 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
   const router = {
-    back: vi.fn(),
-    replace: vi.fn(),
     push: vi.fn(),
-    canGoBack: vi.fn(() => false),
+    dismiss: vi.fn(),
+    dismissTo: vi.fn(),
+    canDismiss: vi.fn(() => false),
   }
 
   return {
@@ -57,11 +57,11 @@ async function renderHookHarness(): Promise<GoBackOrFallback> {
 
 describe('mobile useGoBackOrFallback', () => {
   beforeEach(() => {
-    mocks.router.back.mockClear()
-    mocks.router.replace.mockClear()
     mocks.router.push.mockClear()
-    mocks.router.canGoBack.mockReset()
-    mocks.router.canGoBack.mockReturnValue(false)
+    mocks.router.dismiss.mockClear()
+    mocks.router.dismissTo.mockClear()
+    mocks.router.canDismiss.mockReset()
+    mocks.router.canDismiss.mockReturnValue(false)
     mocks.dismissTopOverlay.mockReset()
     mocks.dismissTopOverlay.mockReturnValue(false)
   })
@@ -73,26 +73,26 @@ describe('mobile useGoBackOrFallback', () => {
     goBackOrFallback('/profile')
 
     expect(mocks.dismissTopOverlay).toHaveBeenCalledWith('navigation')
-    expect(mocks.router.back).not.toHaveBeenCalled()
-    expect(mocks.router.replace).not.toHaveBeenCalled()
+    expect(mocks.router.dismiss).not.toHaveBeenCalled()
+    expect(mocks.router.dismissTo).not.toHaveBeenCalled()
   })
 
-  it('uses router.back when native history is available', async () => {
-    mocks.router.canGoBack.mockReturnValue(true)
+  it('dismisses the current screen when stack history is available', async () => {
+    mocks.router.canDismiss.mockReturnValue(true)
     const goBackOrFallback = await renderHookHarness()
 
     goBackOrFallback('/profile')
 
-    expect(mocks.router.back).toHaveBeenCalledTimes(1)
-    expect(mocks.router.replace).not.toHaveBeenCalled()
+    expect(mocks.router.dismiss).toHaveBeenCalledTimes(1)
+    expect(mocks.router.dismissTo).not.toHaveBeenCalled()
   })
 
-  it('replaces by default when no backward navigation is available', async () => {
+  it('dismisses to the fallback route by default when no stack history is available', async () => {
     const goBackOrFallback = await renderHookHarness()
 
     goBackOrFallback('/profile', { dismissFirst: false })
 
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+    expect(mocks.router.dismissTo).toHaveBeenCalledWith('/profile')
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
@@ -102,6 +102,6 @@ describe('mobile useGoBackOrFallback', () => {
     goBackOrFallback('/profile', { dismissFirst: false, replace: false })
 
     expect(mocks.router.push).toHaveBeenCalledWith('/profile')
-    expect(mocks.router.replace).not.toHaveBeenCalled()
+    expect(mocks.router.dismissTo).not.toHaveBeenCalled()
   })
 })

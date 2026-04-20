@@ -55,7 +55,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
       if (isActive(item.path)) {
         return
       }
-      router.replace(item.path)
+      router.navigate(item.path)
     },
     [isActive, router],
   )

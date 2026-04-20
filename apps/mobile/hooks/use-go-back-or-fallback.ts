@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useRouter, type Href } from 'expo-router'
+import { dismissOrFallback } from '@/lib/back-navigation'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 interface UseGoBackOrFallbackOptions {
@@ -18,17 +19,7 @@ export function useGoBackOrFallback() {
         return
       }
 
-      if (router.canGoBack()) {
-        router.back()
-        return
-      }
-
-      if (replace) {
-        router.replace(fallbackRoute)
-        return
-      }
-
-      router.push(fallbackRoute)
+      dismissOrFallback(router, fallbackRoute, { replace })
     },
     [router],
   )
