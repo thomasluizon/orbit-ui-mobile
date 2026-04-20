@@ -56,6 +56,21 @@ describe('HabitCard', () => {
     expect(screen.getByText('Exercise')).toBeDefined()
   })
 
+  it('only adds tour markers when the card is explicitly targeted', () => {
+    const habit = createMockHabit({
+      tags: [{ id: 'tag-1', name: 'Health', color: '#22c55e' }],
+    })
+    const { container, rerender } = render(<HabitCard habit={habit} />)
+
+    expect(container.querySelector('[data-tour="tour-habit-card"]')).toBeNull()
+    expect(container.querySelector('[data-tour="tour-habit-tags"]')).toBeNull()
+
+    rerender(<HabitCard habit={habit} tourTargetId="tour-habit-card" />)
+
+    expect(container.querySelector('[data-tour="tour-habit-card"]')).not.toBeNull()
+    expect(container.querySelector('[data-tour="tour-habit-tags"]')).not.toBeNull()
+  })
+
   it('displays the habit title', () => {
     const habit = createMockHabit({ title: 'Morning Run' })
     render(<HabitCard habit={habit} />)

@@ -77,6 +77,7 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useDeviceLocale } from "@/hooks/use-device-locale";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
+import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   TodayHeader,
   TodayTabs,
@@ -271,6 +272,8 @@ export default function TodayScreen() {
   );
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const habitListRef = useRef<HabitListHandle>(null);
+  const habitsTourRef = useRef<View>(null);
+  useTourTarget("tour-habit-list", habitsTourRef);
   const goalsScrollRef = useRef<ScrollView>(null);
   const goalsScrollTo = useCallback((y: number) => {
     goalsScrollRef.current?.scrollTo({ y, animated: true });
@@ -1220,6 +1223,8 @@ export default function TodayScreen() {
         </ScrollView>
       ) : (
         <Animated.View
+          ref={habitsTourRef}
+          collapsable={false}
           testID="today-list-shell"
           style={[styles.listShell, listAnimatedStyle]}
         >

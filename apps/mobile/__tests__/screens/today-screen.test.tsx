@@ -28,6 +28,9 @@ const { todayShellMock } = vi.hoisted(() => ({
       React.createElement("TodayDateNavigation", props),
   },
 }));
+const { useTourTargetMock } = vi.hoisted(() => ({
+  useTourTargetMock: vi.fn(),
+}));
 
 const colorProxy = new Proxy<Record<string, string>>(
   {},
@@ -136,6 +139,10 @@ vi.mock("@/hooks/use-profile", () => ({
   useProfile: () => ({
     profile: mockProfile,
   }),
+}));
+
+vi.mock("@/hooks/use-tour-target", () => ({
+  useTourTarget: useTourTargetMock,
 }));
 
 vi.mock("@/hooks/use-tags", () => ({
@@ -370,6 +377,15 @@ describe("TodayScreen", () => {
       tree.root.findAll((node) => node.props.testID === "bulk-action-bar")
         .length,
     ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("registers the list shell as the habits tour overview target", async () => {
+    await renderTodayScreen();
+
+    expect(useTourTargetMock).toHaveBeenCalledWith(
+      "tour-habit-list",
+      expect.objectContaining({ current: expect.anything() }),
+    );
   });
 
   it("drops bulk action bar movement when reduced motion is enabled", () => {

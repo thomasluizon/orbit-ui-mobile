@@ -8,6 +8,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
+const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 // ---------------------------------------------------------------------------
 // Mocks - must be defined before importing the component
@@ -131,6 +132,7 @@ vi.mock('@/components/habits/habit-card', () => ({
     childrenTotal,
     isRecentlyCompleted,
     isDrillCard,
+    tourTargetId,
     actions,
   }: {
     habit: NormalizedHabit
@@ -138,9 +140,10 @@ vi.mock('@/components/habits/habit-card', () => ({
     childrenTotal?: number
     isRecentlyCompleted?: boolean
     isDrillCard?: boolean
+    tourTargetId?: string
     actions?: { onForceLogParent?: () => void; onLog?: () => void; onEdit?: () => void }
   }) => (
-    <div data-testid={`habit-card-${habit.id}`}>
+    <div data-testid={`habit-card-${habit.id}`} data-tour-target={tourTargetId}>
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
       <span data-testid={`recent-${habit.id}`}>{isRecentlyCompleted ? 'yes' : 'no'}</span>
@@ -328,6 +331,33 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-h-2')).toBeDefined()
     expect(screen.getByText('Exercise')).toBeDefined()
     expect(screen.getByText('Read')).toBeDefined()
+  })
+
+  it('targets the featured demo habit for the card tour steps', () => {
+    const meditation = createMockHabit({
+      id: 'tour-habit-1',
+      title: 'Meditation',
+      position: 0,
+    })
+    const exercise = createMockHabit({
+      id: TOUR_FEATURED_HABIT_ID,
+      title: 'Exercise',
+      position: 1,
+    })
+
+    mockHabitsData.habitsById.set(meditation.id, meditation)
+    mockHabitsData.habitsById.set(exercise.id, exercise)
+    mockHabitsData.topLevelHabits = [meditation, exercise]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    expect(screen.getByTestId('habit-card-tour-habit-1')).not.toHaveAttribute(
+      'data-tour-target',
+      'tour-habit-card',
+    )
+    expect(
+      screen.getByTestId(`habit-card-${TOUR_FEATURED_HABIT_ID}`),
+    ).toHaveAttribute('data-tour-target', 'tour-habit-card')
   })
 
   it('hides completed habits by default when showCompleted is false', () => {

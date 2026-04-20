@@ -111,6 +111,7 @@ export interface HabitListHandle {
 
 type ThemeColors = ReturnType<typeof useAppTheme>['colors']
 type HabitListStyles = ReturnType<typeof createStyles>
+const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 function SkeletonCard({ styles }: { styles: HabitListStyles }) {
   return (
@@ -205,28 +206,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [])
     const { onTourScroll } = useTourScrollContainer('/', scrollTo)
 
-    // When the tour step changes, scroll the list to show the target
+    // Only reset back to the top for header-focused tour steps.
     const isTourActive = useTourStore((s) => s.isActive)
     const tourStepIndex = useTourStore((s) => s.currentStepIndex)
     useEffect(() => {
       if (!isTourActive) return
       const stepId = useTourStore.getState().getCurrentStep()?.id
       if (!stepId) return
-      // Steps that need the list scrolled down (to show habit cards)
-      if (
-        stepId === 'habits-list' ||
-        stepId === 'habits-card' ||
-        stepId === 'habits-tags'
-      ) {
-        const timer = setTimeout(() => {
-          scrollContainerRef.current?.scrollToOffset({
-            offset: 350,
-            animated: true,
-          })
-        }, 400)
-        return () => clearTimeout(timer)
-      }
-      // Steps that need the list scrolled up (to show header elements)
       if (
         stepId === 'habits-tabs' ||
         stepId === 'habits-date-nav' ||
@@ -1350,7 +1336,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderItem = useCallback(
-      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => (
+      ({ item, drag }: RenderItemParams<DragItem>) => (
         <View style={styles.sectionInset}>
           {renderHabitCard(
             item.habit,
@@ -1361,7 +1347,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               onLongPressCard: isDndEnabled
                 ? () => prepareDrag(item, drag)
                 : undefined,
-              tourTargetId: getIndex() === 0 ? 'tour-habit-list' : undefined,
+              tourTargetId:
+                item.habit.id === TOUR_FEATURED_HABIT_ID
+                  ? 'tour-habit-card'
+                  : undefined,
             },
           )}
         </View>

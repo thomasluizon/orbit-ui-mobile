@@ -24,6 +24,7 @@ const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 400
 const MEASURE_POLL_INTERVAL = 200
 const RE_MEASURE_INTERVAL = 500
+const HABITS_TOUR_SCROLL_Y = 220
 
 /**
  * Tour orchestrator: handles navigation, element detection, scroll-into-view,
@@ -180,7 +181,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           break
         case 'scrollHabitsDown': {
           const entry = tourScrollRegistry.get('/')
-          if (entry) entry.scrollTo(300)
+          if (entry) entry.scrollTo(HABITS_TOUR_SCROLL_Y)
           break
         }
         case 'scrollHabitsUp': {
