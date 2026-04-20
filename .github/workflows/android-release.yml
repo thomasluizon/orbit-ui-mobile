@@ -171,18 +171,49 @@ jobs:
           const config = JSON.parse(fs.readFileSync('expo-public-config.json', 'utf8'))
           const extra = config.extra ?? config.expo?.extra ?? {}
           const adMob = extra.adMob ?? {}
+          const plugins = Array.isArray(config.plugins)
+            ? config.plugins
+            : Array.isArray(config.expo?.plugins)
+              ? config.expo.plugins
+              : []
+          const adMobPlugin = plugins.find((plugin) =>
+            Array.isArray(plugin)
+              ? plugin[0] === 'react-native-google-mobile-ads'
+              : plugin === 'react-native-google-mobile-ads'
+          )
+          const adMobPluginOptions =
+            Array.isArray(adMobPlugin) && adMobPlugin[1] && typeof adMobPlugin[1] === 'object'
+              ? adMobPlugin[1]
+              : {}
 
           if (adMob.useTestIds !== false) {
             throw new Error(`Expected extra.adMob.useTestIds=false, got ${String(adMob.useTestIds)}`)
           }
 
-          const expected = {
+          const expectedPluginValues = {
             androidAppId: process.env.PROD_ADMOB_ANDROID_APP_ID,
+          }
+
+          for (const [key, value] of Object.entries(expectedPluginValues)) {
+            if (!value) {
+              throw new Error(`Missing expected env value for ${key}`)
+            }
+            if (adMobPluginOptions[key] !== value) {
+              throw new Error(
+                `Expected react-native-google-mobile-ads.${key}=${value}, got ${String(adMobPluginOptions[key])}`
+              )
+            }
+            if (SAMPLE_IDS.includes(value) || SAMPLE_IDS.includes(adMobPluginOptions[key])) {
+              throw new Error(`Detected Google sample AdMob ID for ${key}`)
+            }
+          }
+
+          const expectedExtraValues = {
             androidInterstitialId: process.env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID,
             androidRewardedId: process.env.PROD_ADMOB_ANDROID_REWARDED_ID,
           }
 
-          for (const [key, value] of Object.entries(expected)) {
+          for (const [key, value] of Object.entries(expectedExtraValues)) {
             if (!value) {
               throw new Error(`Missing expected env value for ${key}`)
             }
