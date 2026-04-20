@@ -131,7 +131,7 @@ interface EmailStepProps {
 
 function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, onSendCode, onSignInWithGoogle, t }: Readonly<EmailStepProps>) {
   return (
-    <>
+    <div data-testid="login-email-step-stack" className="space-y-4">
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSendCode() }}>
         <div className="space-y-1.5">
           <label htmlFor="login-email" className="form-label">{t('auth.email')}</label>
@@ -172,7 +172,7 @@ function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, onSend
         {isGoogleLoading ? <Spinner size={5} /> : <GoogleIcon />}
         {t('auth.signInWithGoogle')}
       </button>
-    </>
+    </div>
   )
 }
 

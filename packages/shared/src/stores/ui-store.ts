@@ -9,6 +9,7 @@ type UIStoreSet = {
 type UIStoreGet = () => UIStoreState
 
 export type HabitFrequencyFilter = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
+export type ActiveView = 'today' | 'all' | 'general' | 'goals'
 
 export type CelebrationKind =
   | 'streak'
@@ -164,14 +165,73 @@ function activateNextCelebration(queue: CelebrationQueueItem[]): ActiveCelebrati
   }
 }
 
+function getTodayDate(): string {
+  return formatAPIDate(new Date())
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object'
+}
+
+function isHabitFrequencyFilter(value: unknown): value is HabitFrequencyFilter {
+  return (
+    value === 'Day' ||
+    value === 'Week' ||
+    value === 'Month' ||
+    value === 'Year' ||
+    value === 'none'
+  )
+}
+
+function isActiveView(value: unknown): value is ActiveView {
+  return (
+    value === 'today' ||
+    value === 'all' ||
+    value === 'general' ||
+    value === 'goals'
+  )
+}
+
 export interface PersistedUIState {
   activeFilters: HabitsFilter
   selectedDate: string
-  activeView: UIStoreState['activeView']
+  followToday: boolean
+  activeView: ActiveView
   searchQuery: string
   selectedFrequency: HabitFrequencyFilter | null
   selectedTagIds: string[]
   showCompleted: boolean
+}
+
+export function migratePersistedUIState(persistedState: unknown): PersistedUIState {
+  const today = getTodayDate()
+  const state = isRecord(persistedState) ? persistedState : {}
+  const selectedDate =
+    typeof state.selectedDate === 'string' ? state.selectedDate : today
+
+  return {
+    activeFilters: isRecord(state.activeFilters)
+      ? (state.activeFilters as HabitsFilter)
+      : {},
+    selectedDate,
+    followToday:
+      typeof state.followToday === 'boolean'
+        ? state.followToday
+        : selectedDate === today,
+    activeView: isActiveView(state.activeView) ? state.activeView : 'today',
+    searchQuery:
+      typeof state.searchQuery === 'string' ? state.searchQuery : '',
+    selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
+      ? state.selectedFrequency
+      : null,
+    selectedTagIds: Array.isArray(state.selectedTagIds)
+      ? state.selectedTagIds.filter(
+          (tagId): tagId is string => typeof tagId === 'string',
+        )
+      : [],
+    showCompleted:
+      typeof state.showCompleted === 'boolean' ? state.showCompleted : false,
+  }
 }
 
 export interface UIStoreState {
@@ -179,10 +239,13 @@ export interface UIStoreState {
   setFilters: (filters: Partial<HabitsFilter>) => void
 
   selectedDate: string
+  followToday: boolean
   setSelectedDate: (date: string) => void
+  goToToday: () => void
+  syncSelectedDateWithToday: () => void
 
-  activeView: 'today' | 'all' | 'general' | 'goals'
-  setActiveView: (view: 'today' | 'all' | 'general' | 'goals') => void
+  activeView: ActiveView
+  setActiveView: (view: ActiveView) => void
 
   activeCelebration: CelebrationQueueItem | null
   queuedCelebrations: CelebrationQueueItem[]
@@ -241,6 +304,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
     activeFilters: state.activeFilters,
     selectedDate: state.selectedDate,
+    followToday: state.followToday,
     activeView: state.activeView,
     searchQuery: state.searchQuery,
     selectedFrequency: state.selectedFrequency,
@@ -263,8 +327,19 @@ export function createUIStoreState(
         activeFilters: { ...state.activeFilters, ...filters },
       })),
 
-    selectedDate: formatAPIDate(new Date()),
-    setSelectedDate: (date) => set({ selectedDate: date }),
+    selectedDate: getTodayDate(),
+    followToday: true,
+    setSelectedDate: (date) => set({ selectedDate: date, followToday: false }),
+    goToToday: () => set({ selectedDate: getTodayDate(), followToday: true }),
+    syncSelectedDateWithToday: () =>
+      set((state) => {
+        const today = getTodayDate()
+        if (!state.followToday || state.selectedDate === today) {
+          return {}
+        }
+
+        return { selectedDate: today }
+      }),
 
     activeView: 'today',
     setActiveView: (view) => set({ activeView: view }),

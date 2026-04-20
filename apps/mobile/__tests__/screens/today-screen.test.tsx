@@ -1,7 +1,8 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { formatAPIDate } from '@orbit/shared/utils'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type RenderedNode = {
@@ -31,9 +32,31 @@ const colorProxy = new Proxy<Record<string, string>>(
   },
 )
 
+const setSelectedDate = vi.fn((date: string) => {
+  uiState.selectedDate = date
+  uiState.followToday = false
+})
+
+const goToToday = vi.fn(() => {
+  uiState.selectedDate = formatAPIDate(new Date())
+  uiState.followToday = true
+})
+
+const syncSelectedDateWithToday = vi.fn(() => {
+  if (!uiState.followToday) return
+
+  const today = formatAPIDate(new Date())
+  if (uiState.selectedDate !== today) {
+    uiState.selectedDate = today
+  }
+})
+
 const uiState = {
   selectedDate: '2026-04-07',
-  setSelectedDate: vi.fn(),
+  followToday: true,
+  setSelectedDate,
+  goToToday,
+  syncSelectedDateWithToday,
   activeView: 'today',
   setActiveView: vi.fn(),
   searchQuery: '',
@@ -272,6 +295,7 @@ async function renderTodayScreen(): Promise<RenderedTree> {
 describe('TodayScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     mockRouterPush.mockReset()
     mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
     bulkLogMutateAsync.mockReset()
@@ -280,6 +304,8 @@ describe('TodayScreen', () => {
     mockHabitsData.childrenByParent = new Map()
     mockHabitsData.topLevelHabits = []
     habitListHandle.allLoadedIds = new Set()
+    uiState.selectedDate = '2026-04-07'
+    uiState.followToday = true
     uiState.activeView = 'today'
     uiState.isSelectMode = false
     uiState.searchQuery = ''
@@ -289,6 +315,10 @@ describe('TodayScreen', () => {
     uiState.selectedHabitIds = new Set<string>()
     uiState.showCreateModal = false
     uiState.showCreateGoalModal = false
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('passes the shared habits header through the habit list and removes the nestable scroll container', async () => {
@@ -388,5 +418,36 @@ describe('TodayScreen', () => {
     const habitList = tree.root.findByType('HabitList')
     expect(habitList.props.view).toBe('today')
     expect(uiState.setActiveView).toHaveBeenCalledWith('today')
+  })
+
+  it('advances a followed today selection after midnight without reopening the screen', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T23:59:55'))
+    uiState.selectedDate = '2026-04-07'
+    uiState.followToday = true
+
+    await renderTodayScreen()
+
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000)
+    })
+
+    expect(uiState.selectedDate).toBe('2026-04-08')
+    expect(syncSelectedDateWithToday).toHaveBeenCalled()
+  })
+
+  it('keeps a manually pinned date fixed after midnight', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T23:59:55'))
+    uiState.selectedDate = '2026-04-06'
+    uiState.followToday = false
+
+    await renderTodayScreen()
+
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000)
+    })
+
+    expect(uiState.selectedDate).toBe('2026-04-06')
   })
 })

@@ -48,6 +48,53 @@ describe('shared ui store', () => {
     })
   })
 
+  it('defaults to following the real current day', () => {
+    const store = createStoreHarness()
+
+    expect(store.getState().selectedDate).toBe('2026-04-06')
+    expect(store.getState().followToday).toBe(true)
+  })
+
+  it('pins manual date selections and disables follow-today mode', () => {
+    const store = createStoreHarness()
+
+    store.getState().setSelectedDate('2026-04-08')
+
+    expect(store.getState().selectedDate).toBe('2026-04-08')
+    expect(store.getState().followToday).toBe(false)
+  })
+
+  it('restores follow-today mode when jumping back to today', () => {
+    const store = createStoreHarness()
+
+    store.getState().setSelectedDate('2026-04-08')
+    vi.setSystemTime(new Date('2026-04-09T12:00:00Z'))
+
+    store.getState().goToToday()
+
+    expect(store.getState().selectedDate).toBe('2026-04-09')
+    expect(store.getState().followToday).toBe(true)
+  })
+
+  it('syncs a followed today date across day changes without moving pinned dates', () => {
+    const store = createStoreHarness()
+
+    vi.setSystemTime(new Date('2026-04-07T12:00:00Z'))
+    store.getState().syncSelectedDateWithToday()
+    expect(store.getState().selectedDate).toBe('2026-04-07')
+
+    store.getState().setSelectedDate('2026-04-05')
+    vi.setSystemTime(new Date('2026-04-08T12:00:00Z'))
+    store.getState().syncSelectedDateWithToday()
+    expect(store.getState().selectedDate).toBe('2026-04-05')
+
+    store.getState().goToToday()
+    vi.setSystemTime(new Date('2026-04-09T12:00:00Z'))
+    store.getState().syncSelectedDateWithToday()
+    expect(store.getState().selectedDate).toBe('2026-04-09')
+    expect(store.getState().followToday).toBe(true)
+  })
+
   it('toggles cascaded selection and clears it when toggled again', () => {
     const store = createStoreHarness()
     const { toggleSelectMode, toggleSelectionCascade } = store.getState()

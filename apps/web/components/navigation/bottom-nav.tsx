@@ -6,7 +6,6 @@ import { Home, MessageCircle, CalendarDays, User, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { formatAPIDate } from '@orbit/shared/utils'
 import type { LucideIcon } from 'lucide-react'
 
 interface NavItem {
@@ -23,7 +22,7 @@ interface BottomNavProps {
 export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const t = useTranslations()
   const pathname = usePathname()
-  const setSelectedDate = useUIStore((s) => s.setSelectedDate)
+  const goToTodayDate = useUIStore((s) => s.goToToday)
   const setActiveView = useUIStore((s) => s.setActiveView)
 
   const navItems: NavItem[] = [
@@ -46,7 +45,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
 
     if (item.path === '/') {
       // Reset date to today and view to 'today' when clicking Home
-      setSelectedDate(formatAPIDate(new Date()))
+      goToTodayDate()
       setActiveView('today')
       if (isActive(item.path)) {
         event.preventDefault()
