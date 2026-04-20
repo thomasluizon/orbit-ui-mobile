@@ -17,19 +17,15 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-const mockSetSelectedDate = vi.fn()
+const mockGoToToday = vi.fn()
 const mockSetActiveView = vi.fn()
 
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
-      setSelectedDate: mockSetSelectedDate,
+      goToToday: mockGoToToday,
       setActiveView: mockSetActiveView,
     }),
-}))
-
-vi.mock('@orbit/shared/utils', () => ({
-  formatAPIDate: () => '2025-06-15',
 }))
 
 import { BottomNav } from '@/components/navigation/bottom-nav'
@@ -91,11 +87,11 @@ describe('BottomNav', () => {
 
   it('resets date and view when home is clicked on home page', () => {
     mockPathname = '/'
-    mockSetSelectedDate.mockClear()
+    mockGoToToday.mockClear()
     mockSetActiveView.mockClear()
     render(<BottomNav />)
     fireEvent.click(screen.getByText('nav.habits'))
-    expect(mockSetSelectedDate).toHaveBeenCalledWith('2025-06-15')
+    expect(mockGoToToday).toHaveBeenCalled()
     expect(mockSetActiveView).toHaveBeenCalledWith('today')
   })
 })

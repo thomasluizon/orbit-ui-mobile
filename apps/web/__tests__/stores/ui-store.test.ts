@@ -9,6 +9,7 @@ describe('ui store', () => {
     useUIStore.setState({
       activeFilters: {},
       selectedDate: formatAPIDate(new Date()),
+      followToday: true,
       activeView: 'today',
       activeCelebration: null,
       queuedCelebrations: [],
@@ -87,6 +88,17 @@ describe('ui store', () => {
       setSelectedDate('2025-06-15')
 
       expect(useUIStore.getState().selectedDate).toBe('2025-06-15')
+      expect(useUIStore.getState().followToday).toBe(false)
+    })
+
+    it('restores followToday when jumping back to today', () => {
+      const { setSelectedDate, goToToday } = useUIStore.getState()
+      setSelectedDate('2025-06-15')
+
+      goToToday()
+
+      expect(useUIStore.getState().selectedDate).toBe(formatAPIDate(new Date()))
+      expect(useUIStore.getState().followToday).toBe(true)
     })
   })
 
@@ -533,7 +545,7 @@ describe('ui store', () => {
         JSON.stringify({
           state: {
             activeFilters: { search: 'focus' },
-            selectedDate: '2026-04-07',
+            selectedDate: '2000-01-01',
             activeView: 'goals',
             searchQuery: 'focus',
             selectedFrequency: 'Month',
@@ -548,7 +560,8 @@ describe('ui store', () => {
 
       expect(useUIStore.getState()).toMatchObject({
         activeFilters: { search: 'focus' },
-        selectedDate: '2026-04-07',
+        selectedDate: '2000-01-01',
+        followToday: false,
         activeView: 'goals',
         searchQuery: 'focus',
         selectedFrequency: 'Month',
@@ -556,6 +569,31 @@ describe('ui store', () => {
         showCompleted: true,
       })
       expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
+    })
+
+    it('migrates legacy today snapshots into followToday mode', async () => {
+      const today = formatAPIDate(new Date())
+
+      globalThis.localStorage.setItem(
+        'orbit-ui-store',
+        JSON.stringify({
+          state: {
+            activeFilters: {},
+            selectedDate: today,
+            activeView: 'today',
+            searchQuery: '',
+            selectedFrequency: null,
+            selectedTagIds: [],
+            showCompleted: false,
+          },
+          version: 0,
+        }),
+      )
+
+      await useUIStore.persist.rehydrate()
+
+      expect(useUIStore.getState().selectedDate).toBe(today)
+      expect(useUIStore.getState().followToday).toBe(true)
     })
   })
 })

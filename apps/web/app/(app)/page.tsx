@@ -56,6 +56,13 @@ import type { HabitsFilter } from '@orbit/shared/types/habit'
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
 
+function getMillisecondsUntilNextLocalMidnight(): number {
+  const now = new Date()
+  const nextMidnight = new Date(now)
+  nextMidnight.setHours(24, 0, 0, 0)
+  return Math.max(nextMidnight.getTime() - now.getTime(), 1_000)
+}
+
 function getTodayTabLabel(
   view: typeof TAB_VIEWS[number],
   t: ReturnType<typeof useTranslations>,
@@ -101,6 +108,8 @@ export default function TodayPage() {
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
   const setSelectedDate = useUIStore((s) => s.setSelectedDate)
+  const goToTodayDate = useUIStore((s) => s.goToToday)
+  const syncSelectedDateWithToday = useUIStore((s) => s.syncSelectedDateWithToday)
   const activeView = useUIStore((s) => s.activeView)
   const setActiveView = useUIStore((s) => s.setActiveView)
   const searchQueryStore = useUIStore((s) => s.searchQuery)
@@ -192,9 +201,48 @@ export default function TodayPage() {
     } else {
       setSlideDirection('right')
     }
-    setSelectedDate(formatAPIDate(new Date()))
+    goToTodayDate()
     setActiveView('today')
-  }, [selectedDate, setSelectedDate, setActiveView])
+  }, [goToTodayDate, selectedDate, setActiveView])
+
+  useEffect(() => {
+    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
+
+    const resetRolloverTimer = () => {
+      if (rolloverTimer) {
+        globalThis.clearTimeout(rolloverTimer)
+      }
+
+      rolloverTimer = globalThis.setTimeout(() => {
+        syncSelectedDateWithToday()
+        resetRolloverTimer()
+      }, getMillisecondsUntilNextLocalMidnight())
+    }
+
+    const handleVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      syncSelectedDateWithToday()
+      resetRolloverTimer()
+    }
+
+    const handleFocus = () => {
+      syncSelectedDateWithToday()
+      resetRolloverTimer()
+    }
+
+    syncSelectedDateWithToday()
+    resetRolloverTimer()
+    document.addEventListener('visibilitychange', handleVisible)
+    globalThis.addEventListener('focus', handleFocus)
+
+    return () => {
+      if (rolloverTimer) {
+        globalThis.clearTimeout(rolloverTimer)
+      }
+      document.removeEventListener('visibilitychange', handleVisible)
+      globalThis.removeEventListener('focus', handleFocus)
+    }
+  }, [syncSelectedDateWithToday])
 
   // Controls menu
   const toggleControlsMenu = useCallback(() => {

@@ -1,12 +1,35 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { formatAPIDate } from '@orbit/shared/utils'
+
+const setSelectedDate = vi.fn((date: string) => {
+  uiState.selectedDate = date
+  uiState.followToday = false
+})
+
+const goToToday = vi.fn(() => {
+  uiState.selectedDate = formatAPIDate(new Date())
+  uiState.followToday = true
+})
+
+const syncSelectedDateWithToday = vi.fn(() => {
+  if (!uiState.followToday) return
+
+  const today = formatAPIDate(new Date())
+  if (uiState.selectedDate !== today) {
+    uiState.selectedDate = today
+  }
+})
 
 const uiState = {
   selectedDate: '2026-04-07',
-  setSelectedDate: vi.fn(),
+  followToday: true,
+  setSelectedDate,
+  goToToday,
+  syncSelectedDateWithToday,
   activeView: 'today',
   setActiveView: vi.fn(),
   searchQuery: '',
@@ -165,6 +188,7 @@ import TodayPage from '@/app/(app)/page'
 describe('TodayPage bulk parent prompts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     mockRouterPush.mockReset()
     mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
     bulkLogMutateAsync.mockReset()
@@ -172,6 +196,8 @@ describe('TodayPage bulk parent prompts', () => {
     mockHabitsData.childrenByParent = new Map()
     mockHabitsData.topLevelHabits = []
     habitListHandle.allLoadedIds = new Set()
+    uiState.selectedDate = '2026-04-07'
+    uiState.followToday = true
     uiState.activeView = 'today'
     uiState.isSelectMode = true
     uiState.searchQuery = ''
@@ -179,6 +205,10 @@ describe('TodayPage bulk parent prompts', () => {
     uiState.selectedTagIds = []
     uiState.showCompleted = false
     uiState.selectedHabitIds = new Set<string>()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('suppresses descendant successes when bulk log finishes', async () => {
@@ -254,5 +284,34 @@ describe('TodayPage bulk parent prompts', () => {
     await waitFor(() => {
       expect(uiState.setActiveView).toHaveBeenCalledWith('today')
     })
+  })
+
+  it('advances a followed today selection after midnight without refresh', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T23:59:55'))
+    uiState.selectedDate = '2026-04-07'
+    uiState.followToday = true
+    uiState.isSelectMode = false
+
+    render(<TodayPage />)
+
+    await vi.advanceTimersByTimeAsync(6_000)
+
+    expect(uiState.selectedDate).toBe('2026-04-08')
+    expect(syncSelectedDateWithToday).toHaveBeenCalled()
+  })
+
+  it('keeps a manually pinned date fixed after midnight', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T23:59:55'))
+    uiState.selectedDate = '2026-04-06'
+    uiState.followToday = false
+    uiState.isSelectMode = false
+
+    render(<TodayPage />)
+
+    await vi.advanceTimersByTimeAsync(6_000)
+
+    expect(uiState.selectedDate).toBe('2026-04-06')
   })
 })

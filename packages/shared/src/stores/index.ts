@@ -3,6 +3,8 @@ export { createTourStoreState, type TourStoreState, type TourTargetRect } from '
 export {
   createUIStoreState,
   getPersistedUIState,
+  migratePersistedUIState,
+  type ActiveView,
   type CelebrationKind,
   type CelebrationPayloadMap,
   type CelebrationQueueItem,
