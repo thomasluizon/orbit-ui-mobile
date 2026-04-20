@@ -8,6 +8,8 @@ export {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,
+  migratePersistedUIState,
+  type ActiveView,
   type CelebrationKind,
   type CelebrationPayloadMap,
   type CelebrationQueueItem,

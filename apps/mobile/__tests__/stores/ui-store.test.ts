@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTourUIState, getPersistedUIState } from "@orbit/shared/stores";
+
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
 }));
@@ -28,6 +29,7 @@ describe("mobile ui store", () => {
     useUIStore.setState({
       activeFilters: {},
       selectedDate: "2026-04-06",
+      followToday: true,
       activeView: "today",
       streakCelebration: null,
       allDoneCelebration: false,
@@ -77,6 +79,18 @@ describe("mobile ui store", () => {
       selectedTagIds: ["tag-1"],
       showCompleted: true,
     });
+  });
+
+  it("pins manual dates and restores followToday when requested", () => {
+    const { setSelectedDate, goToToday } = useUIStore.getState();
+
+    setSelectedDate("2026-04-08");
+    expect(useUIStore.getState().selectedDate).toBe("2026-04-08");
+    expect(useUIStore.getState().followToday).toBe(false);
+
+    goToToday();
+    expect(useUIStore.getState().selectedDate).toBe("2026-04-06");
+    expect(useUIStore.getState().followToday).toBe(true);
   });
 
   it("toggles selection mode and cascades descendant selection", () => {
@@ -174,12 +188,36 @@ describe("mobile ui store", () => {
     expect(useUIStore.getState()).toMatchObject({
       activeFilters: { search: "focus" },
       selectedDate: "2026-04-08",
+      followToday: false,
       activeView: "general",
       searchQuery: "focus",
       selectedFrequency: "Month",
       selectedTagIds: ["tag-2"],
       showCompleted: true,
     });
+  });
+
+  it("migrates legacy today snapshots into followToday mode", async () => {
+    asyncStorageState.data.set(
+      "orbit-ui-store",
+      JSON.stringify({
+        state: {
+          activeFilters: {},
+          selectedDate: "2026-04-06",
+          activeView: "today",
+          searchQuery: "",
+          selectedFrequency: null,
+          selectedTagIds: [],
+          showCompleted: false,
+        },
+        version: 0,
+      }),
+    );
+
+    await useUIStore.persist.rehydrate();
+
+    expect(useUIStore.getState().selectedDate).toBe("2026-04-06");
+    expect(useUIStore.getState().followToday).toBe(true);
   });
 
   it("creates the canonical tour ui state for a fresh session", () => {

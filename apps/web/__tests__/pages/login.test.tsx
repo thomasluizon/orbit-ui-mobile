@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 
 const { mockResolveMotionPreset, mockUseReducedMotion } = vi.hoisted(() => ({
   mockUseReducedMotion: vi.fn(() => true),
@@ -60,13 +60,13 @@ vi.mock('next/link', () => ({
 }))
 
 const mockPush = vi.fn()
+let searchParamValues: Record<string, string | null> = {
+  email: 'person@example.com',
+  code: '123456',
+  returnUrl: '/',
+}
 const mockSearchParams = {
-  get: (key: string) => {
-    if (key === 'email') return 'person@example.com'
-    if (key === 'code') return '123456'
-    if (key === 'returnUrl') return '/'
-    return null
-  },
+  get: (key: string) => searchParamValues[key] ?? null,
 }
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -95,6 +95,11 @@ describe('LoginPage', () => {
     mockResolveMotionPreset.mockClear()
     mockUseReducedMotion.mockReset()
     mockUseReducedMotion.mockReturnValue(true)
+    searchParamValues = {
+      email: 'person@example.com',
+      code: '123456',
+      returnUrl: '/',
+    }
   })
 
   it('keeps the login card at a wider minimum size on larger small screens', () => {
@@ -121,5 +126,21 @@ describe('LoginPage', () => {
 
     expect(mockResolveMotionPreset).toHaveBeenCalledWith('route-replace', true)
     expect(mockResolveMotionPreset).toHaveBeenCalledWith('success-feedback', true)
+  })
+
+  it('renders a spaced stack for send code, divider, and Google sign-in', () => {
+    searchParamValues = {
+      email: null,
+      code: null,
+      returnUrl: '/',
+    }
+
+    render(<LoginPage />)
+
+    const stack = screen.getByTestId('login-email-step-stack')
+    expect(stack).toHaveClass('space-y-4')
+    expect(within(stack).getByRole('button', { name: 'auth.sendCode' })).toBeInTheDocument()
+    expect(within(stack).getByText('auth.orContinueWith')).toBeInTheDocument()
+    expect(within(stack).getByRole('button', { name: 'auth.signInWithGoogle' })).toBeInTheDocument()
   })
 })

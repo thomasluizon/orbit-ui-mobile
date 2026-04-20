@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   createUIStoreState,
   getPersistedUIState,
+  migratePersistedUIState,
   type PersistedUIState,
   type UIStoreState,
 } from '@orbit/shared/stores'
@@ -22,11 +23,13 @@ export const useUIStore = create<UIStoreState>()(
       ),
     {
       name: 'orbit-ui-store',
+      version: 1,
       storage: createJSONStorage<PersistedUIState>(() =>
         globalThis.localStorage === undefined
           ? noopStorage
           : globalThis.localStorage,
       ),
+      migrate: migratePersistedUIState,
       partialize: getPersistedUIState,
     },
   ),

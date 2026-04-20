@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   Animated,
+  AppState,
   Easing,
   View,
   Text,
@@ -89,6 +90,13 @@ import {
 
 const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
 type TodayView = (typeof TAB_VIEWS)[number];
+
+function getMillisecondsUntilNextLocalMidnight(): number {
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setHours(24, 0, 0, 0);
+  return Math.max(nextMidnight.getTime() - now.getTime(), 1_000);
+}
 
 export function resolveTodayView(
   activeView: TodayView,
@@ -230,6 +238,10 @@ export default function TodayScreen() {
   // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate);
   const setSelectedDate = useUIStore((s) => s.setSelectedDate);
+  const goToTodayDate = useUIStore((s) => s.goToToday);
+  const syncSelectedDateWithToday = useUIStore(
+    (s) => s.syncSelectedDateWithToday,
+  );
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const searchQueryStore = useUIStore((s) => s.searchQuery);
@@ -383,9 +395,40 @@ export default function TodayScreen() {
           ? "left"
           : "right",
     );
-    setSelectedDate(formatAPIDate(new Date()));
+    goToTodayDate();
     setActiveView("today");
-  }, [setSelectedDate, setActiveView]);
+  }, [goToTodayDate, selectedDate, setActiveView]);
+
+  useEffect(() => {
+    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+    const resetRolloverTimer = () => {
+      if (rolloverTimer) {
+        globalThis.clearTimeout(rolloverTimer);
+      }
+
+      rolloverTimer = globalThis.setTimeout(() => {
+        syncSelectedDateWithToday();
+        resetRolloverTimer();
+      }, getMillisecondsUntilNextLocalMidnight());
+    };
+
+    syncSelectedDateWithToday();
+    resetRolloverTimer();
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState !== "active") return;
+      syncSelectedDateWithToday();
+      resetRolloverTimer();
+    });
+
+    return () => {
+      if (rolloverTimer) {
+        globalThis.clearTimeout(rolloverTimer);
+      }
+      subscription.remove();
+    };
+  }, [syncSelectedDateWithToday]);
 
   const swipePanResponder = useHorizontalSwipe({
     onSwipeLeft: goToNextDay,
