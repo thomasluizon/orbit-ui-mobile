@@ -121,6 +121,8 @@ interface DragItem {
   isLastChild: boolean
 }
 
+const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
+
 // ---------------------------------------------------------------------------
 // Date group shape
 // ---------------------------------------------------------------------------
@@ -1066,6 +1068,8 @@ const isPostponeAction = useMemo(() => {
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
+    const tourTargetId =
+      habit.id === TOUR_FEATURED_HABIT_ID ? 'tour-habit-card' : undefined
 
     return (
         <HabitCard
@@ -1084,6 +1088,7 @@ const isPostponeAction = useMemo(() => {
         isDraggingList={options?.isDraggingList}
         childrenDone={progress.done}
         childrenTotal={progress.total}
+        tourTargetId={tourTargetId}
         isSelectMode={isSelectMode}
         isSelected={selectedHabitIds?.has(habit.id) ?? false}
         maxHabitDepth={maxHabitDepth}

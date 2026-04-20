@@ -4,6 +4,7 @@ import { SceneStyleInterpolators, TransitionSpecs } from '@react-navigation/bott
 export default function TabLayout() {
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         animation: 'shift',

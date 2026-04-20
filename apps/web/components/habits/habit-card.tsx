@@ -80,6 +80,7 @@ interface HabitCardProps {
   childrenTotal?: number
   searchQuery?: string
   maxHabitDepth?: number
+  tourTargetId?: string
   actions?: HabitCardActions
 }
 
@@ -207,11 +208,12 @@ interface TopLevelBadgesProps {
   searchQuery: string
   matchBadges: Array<{ label: string }>
   displayTime: (time: string) => string
+  isTourTagTarget: boolean
 }
 
 function TopLevelBadges({
   habit, frequencyLabel, flexibleProgressLabel, statusBadge,
-  checkedCount, searchQuery, matchBadges, displayTime,
+  checkedCount, searchQuery, matchBadges, displayTime, isTourTagTarget,
 }: Readonly<TopLevelBadgesProps>) {
   return (
     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -236,7 +238,10 @@ function TopLevelBadges({
       )}
       {habit.isBadHabit && <BadHabitBadge />}
       {habit.tags && habit.tags.length > 0 && (
-        <span data-tour="tour-habit-tags" className="inline-flex flex-wrap gap-1">
+        <span
+          data-tour={isTourTagTarget ? 'tour-habit-tags' : undefined}
+          className="inline-flex flex-wrap gap-1"
+        >
           {habit.tags.map((tag) => (
             <TagBadge key={tag.id} tag={tag} searchQuery={searchQuery} />
           ))}
@@ -298,7 +303,7 @@ function ChildDefaultBadges({ habit, frequencyLabel, statusBadge, searchQuery, c
 }
 
 /** Replaces nested ternary for badge row selection (S3358). */
-function BadgesRow({ isChild, habit, frequencyLabel, flexibleProgressLabel, statusBadge, checkedCount, searchQuery, matchBadges, displayTime }: Readonly<{
+function BadgesRow({ isChild, habit, frequencyLabel, flexibleProgressLabel, statusBadge, checkedCount, searchQuery, matchBadges, displayTime, isTourTagTarget }: Readonly<{
   isChild: boolean
   habit: NormalizedHabit
   frequencyLabel: string
@@ -308,6 +313,7 @@ function BadgesRow({ isChild, habit, frequencyLabel, flexibleProgressLabel, stat
   searchQuery: string
   matchBadges: Array<{ label: string }>
   displayTime: (time: string) => string
+  isTourTagTarget?: boolean
 }>) {
   if (!isChild) {
     return (
@@ -320,6 +326,7 @@ function BadgesRow({ isChild, habit, frequencyLabel, flexibleProgressLabel, stat
         searchQuery={searchQuery}
         matchBadges={matchBadges}
         displayTime={displayTime}
+        isTourTagTarget={Boolean(isTourTagTarget)}
       />
     )
   }
@@ -615,7 +622,7 @@ function ExpandToggle({ hasChildren, isExpanded, isChild, onToggleExpand }: Read
 // Card content (title, description, badges)
 // ---------------------------------------------------------------------------
 
-function CardContent({ habit, isChild, isDoneForRange, searchQuery, frequencyLabel, flexibleProgressLabel, statusBadge, checkedCount, matchBadges, displayTime }: Readonly<{
+function CardContent({ habit, isChild, isDoneForRange, searchQuery, frequencyLabel, flexibleProgressLabel, statusBadge, checkedCount, matchBadges, displayTime, isTourTagTarget }: Readonly<{
   habit: NormalizedHabit
   isChild: boolean
   isDoneForRange: boolean
@@ -626,6 +633,7 @@ function CardContent({ habit, isChild, isDoneForRange, searchQuery, frequencyLab
   checkedCount: number
   matchBadges: Array<{ label: string }>
   displayTime: (time: string) => string
+  isTourTagTarget?: boolean
 }>) {
   return (
     <div className="flex-1 min-w-0">
@@ -659,6 +667,7 @@ function CardContent({ habit, isChild, isDoneForRange, searchQuery, frequencyLab
         searchQuery={searchQuery}
         matchBadges={matchBadges}
         displayTime={displayTime}
+        isTourTagTarget={isTourTagTarget}
       />
     </div>
   )
@@ -917,6 +926,7 @@ export const HabitCard = React.memo(function HabitCard({
   childrenTotal = 0,
   searchQuery = '',
   maxHabitDepth = 5,
+  tourTargetId,
   actions = {},
 }: Readonly<HabitCardProps>) {
   const {
@@ -1125,7 +1135,7 @@ export const HabitCard = React.memo(function HabitCard({
     <>
       <div style={isChild ? indentStyle : undefined}>
         <div
-          data-tour="tour-habit-card"
+          data-tour={tourTargetId}
           className={`${articleClassName} relative text-left w-full`}
         >
           <button
@@ -1181,6 +1191,7 @@ export const HabitCard = React.memo(function HabitCard({
               checkedCount={checkedCount}
               matchBadges={matchBadges}
               displayTime={displayTime}
+              isTourTagTarget={tourTargetId === 'tour-habit-card'}
             />
 
             {!isSelectMode && (

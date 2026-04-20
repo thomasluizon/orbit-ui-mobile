@@ -140,14 +140,71 @@ jobs:
           ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           EOF
 
+      - name: Validate Expo config resolves production AdMob IDs
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        shell: bash
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EAS_BUILD_PROFILE: production
+          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "false"
+          EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
+          EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID: ${{ env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID }}
+          EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID: ${{ env.PROD_ADMOB_ANDROID_REWARDED_ID }}
+          PROD_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
+          PROD_ADMOB_ANDROID_INTERSTITIAL_ID: ${{ env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID }}
+          PROD_ADMOB_ANDROID_REWARDED_ID: ${{ env.PROD_ADMOB_ANDROID_REWARDED_ID }}
+        run: |
+          set -euo pipefail
+
+          npx expo config --type public --json > expo-public-config.json
+
+          node <<'NODE'
+          const fs = require('node:fs')
+
+          const SAMPLE_IDS = [
+            'ca-app-pub-3940256099942544~3347511713',
+            'ca-app-pub-3940256099942544/1033173712',
+            'ca-app-pub-3940256099942544/5224354917',
+          ]
+
+          const config = JSON.parse(fs.readFileSync('expo-public-config.json', 'utf8'))
+          const extra = config.extra ?? config.expo?.extra ?? {}
+          const adMob = extra.adMob ?? {}
+
+          if (adMob.useTestIds !== false) {
+            throw new Error(`Expected extra.adMob.useTestIds=false, got ${String(adMob.useTestIds)}`)
+          }
+
+          const expected = {
+            androidAppId: process.env.PROD_ADMOB_ANDROID_APP_ID,
+            androidInterstitialId: process.env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID,
+            androidRewardedId: process.env.PROD_ADMOB_ANDROID_REWARDED_ID,
+          }
+
+          for (const [key, value] of Object.entries(expected)) {
+            if (!value) {
+              throw new Error(`Missing expected env value for ${key}`)
+            }
+            if (adMob[key] !== value) {
+              throw new Error(`Expected extra.adMob.${key}=${value}, got ${String(adMob[key])}`)
+            }
+            if (SAMPLE_IDS.includes(value) || SAMPLE_IDS.includes(adMob[key])) {
+              throw new Error(`Detected Google sample AdMob ID for ${key}`)
+            }
+          }
+
+          console.log('Expo AdMob config validation passed.')
+          NODE
+
       - name: Generate Android project with Expo prebuild
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
-          EAS_BUILD_PROFILE: ${{ contains(fromJSON('["closed","open","production"]'), inputs.track) && 'production' || 'preview' }}
-          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ contains(fromJSON('["closed","open","production"]'), inputs.track) && 'false' || 'true' }}
+          EAS_BUILD_PROFILE: production
+          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "false"
           EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
           EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID: ${{ env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID }}
           EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID: ${{ env.PROD_ADMOB_ANDROID_REWARDED_ID }}
@@ -155,6 +212,41 @@ jobs:
           set -euo pipefail
 
           npx expo prebuild --platform android --no-install
+
+      - name: Validate generated Android project does not contain sample AdMob IDs
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        shell: bash
+        env:
+          PROD_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
+        run: |
+          set -euo pipefail
+
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ ! -f "${MANIFEST_PATH}" ]; then
+            echo "Android manifest not found at ${MANIFEST_PATH}" >&2
+            exit 1
+          fi
+
+          if ! grep -F -q "${PROD_ADMOB_ANDROID_APP_ID}" "${MANIFEST_PATH}"; then
+            echo "Android manifest does not contain the expected production AdMob app ID." >&2
+            exit 1
+          fi
+
+          SAMPLE_IDS=(
+            "ca-app-pub-3940256099942544~3347511713"
+            "ca-app-pub-3940256099942544/1033173712"
+            "ca-app-pub-3940256099942544/5224354917"
+          )
+
+          for sample_id in "${SAMPLE_IDS[@]}"; do
+            if grep -R -F -q "${sample_id}" android; then
+              echo "Detected Google sample AdMob ID in generated Android project: ${sample_id}" >&2
+              grep -R -F "${sample_id}" android >&2 || true
+              exit 1
+            fi
+          done
+
+          echo "Generated Android project AdMob validation passed."
 
       - name: Configure Android release signing
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile

@@ -1,7 +1,13 @@
 import { useEffect, lazy, Suspense, useMemo, useRef } from 'react'
-import { View } from 'react-native'
+import { BackHandler, Platform, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Stack, usePathname, useRouter, useSegments } from 'expo-router'
+import {
+  Stack,
+  useGlobalSearchParams,
+  usePathname,
+  useRouter,
+  useSegments,
+} from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
@@ -14,7 +20,14 @@ import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
+import {
+  dismissOrFallback,
+  getAndroidBackFallbackRoute,
+} from '@/lib/back-navigation'
+import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useUIStore } from '@/stores/ui-store'
+import { useTourStore } from '@/stores/tour-store'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { BottomNav } from '@/components/navigation/bottom-nav'
@@ -39,7 +52,11 @@ import { TourOverlay } from '@/components/tour/tour-overlay'
 const isExpoGo = Constants.appOwnership === 'expo'
 const PushPrompt = isExpoGo
   ? () => null
-  : lazy(() => import('@/components/ui/push-prompt').then((m) => ({ default: m.PushPrompt })))
+  : lazy(() =>
+      import('@/components/ui/push-prompt').then((m) => ({
+        default: m.PushPrompt,
+      })),
+    )
 
 function AuthGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -90,6 +107,7 @@ function AuthGuard() {
 function RootLayoutNav() {
   const router = useRouter()
   const pathname = usePathname()
+  const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
@@ -112,12 +130,20 @@ function RootLayoutNav() {
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
   const showSharedCelebrations = pathname !== '/'
+  const androidBackFallbackRoute = useMemo(
+    () =>
+      getAndroidBackFallbackRoute(pathname, {
+        isAuthenticated,
+        upgradeFrom: from,
+      }),
+    [from, isAuthenticated, pathname],
+  )
 
   const handleCreate = useMemo(
     () => () => {
       if (activeView === 'goals') {
         if (!hasProAccess) {
-          router.push('/upgrade')
+          router.push(buildUpgradeHref(pathname || '/'))
           return
         }
         setShowCreateGoalModal(true)
@@ -125,7 +151,7 @@ function RootLayoutNav() {
       }
 
       if (!hasProAccess && totalHabitCount >= 10) {
-        router.push('/upgrade')
+        router.push(buildUpgradeHref(pathname || '/'))
         return
       }
 
@@ -134,6 +160,7 @@ function RootLayoutNav() {
     [
       activeView,
       hasProAccess,
+      pathname,
       router,
       setShowCreateGoalModal,
       setShowCreateModal,
@@ -149,6 +176,25 @@ function RootLayoutNav() {
   useEffect(() => {
     void initializeAdMob()
   }, [initializeAdMob])
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return
+    if (!androidBackFallbackRoute) return
+
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (dismissTopOverlay('system-back')) {
+          return true
+        }
+
+        dismissOrFallback(router, androidBackFallbackRoute)
+        return true
+      },
+    )
+
+    return () => subscription.remove()
+  }, [androidBackFallbackRoute, router])
 
   return (
     <>
@@ -166,19 +212,58 @@ function RootLayoutNav() {
             }}
           >
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="login" options={{ animation: 'fade', gestureEnabled: false }} />
-            <Stack.Screen name="auth-callback" options={{ animation: 'fade', gestureEnabled: false }} />
-            <Stack.Screen name="preferences" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="ai-settings" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="advanced" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="about" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="support" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="achievements" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="streak" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="upgrade" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="retrospective" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="calendar-sync" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen
+              name="chat"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="login"
+              options={{ animation: 'fade', gestureEnabled: false }}
+            />
+            <Stack.Screen
+              name="auth-callback"
+              options={{ animation: 'fade', gestureEnabled: false }}
+            />
+            <Stack.Screen
+              name="preferences"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="ai-settings"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="advanced"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="about"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="support"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="achievements"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="streak"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="upgrade"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="retrospective"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="calendar-sync"
+              options={{ animation: 'slide_from_right' }}
+            />
             <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
           </Stack>
         </View>
@@ -205,8 +290,22 @@ function GlobalOverlays({
   showSharedCelebrations: boolean
 }>) {
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
+  const tourStarted = useRef(false)
   const hasProAccess = profile?.hasProAccess ?? false
   const gamification = useGamificationProfile(hasProAccess)
+
+  useEffect(() => {
+    if (
+      profile &&
+      profile.hasCompletedOnboarding &&
+      !profile.hasCompletedTour &&
+      !tourStarted.current &&
+      !useTourStore.getState().isActive
+    ) {
+      tourStarted.current = true
+      setTimeout(() => useTourStore.getState().startFullTour(), 500)
+    }
+  }, [profile])
 
   return (
     <>

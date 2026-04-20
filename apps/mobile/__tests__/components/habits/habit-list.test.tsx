@@ -8,6 +8,7 @@ import { HabitCard } from '@/components/habit-card'
 
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
+const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -68,6 +69,7 @@ vi.mock('expo-router', () => ({
     replace: vi.fn(),
     back: vi.fn(),
   }),
+  usePathname: () => '/',
 }))
 
 vi.mock('expo-secure-store', () => ({
@@ -603,6 +605,44 @@ describe('HabitList', () => {
 
     expect(grandparentCard?.props.childrenDone).toBe(1)
     expect(grandparentCard?.props.childrenTotal).toBe(3)
+  })
+
+  it('targets the featured demo habit for the card tour steps', () => {
+    seedHabits([
+      createMockHabit({
+        id: 'tour-habit-1',
+        title: 'Meditation',
+        position: 0,
+      }),
+      createMockHabit({
+        id: TOUR_FEATURED_HABIT_ID,
+        title: 'Exercise',
+        position: 1,
+      }),
+    ])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const meditationCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === 'tour-habit-1')
+    const exerciseCard = tree.root
+      .findAllByType(HabitCard)
+      .find((node: any) => node.props.habit.id === TOUR_FEATURED_HABIT_ID)
+
+    expect(meditationCard?.props.tourTargetId).toBeUndefined()
+    expect(exerciseCard?.props.tourTargetId).toBe('tour-habit-card')
   })
 
   it('shows a force-log confirmation before logging an incomplete parent', async () => {

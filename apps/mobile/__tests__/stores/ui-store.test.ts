@@ -1,35 +1,39 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTourUIState, getPersistedUIState } from "@orbit/shared/stores";
+
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
-}))
+}));
 
-vi.mock('@react-native-async-storage/async-storage', () => ({
+vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
-    getItem: vi.fn(async (key: string) => asyncStorageState.data.get(key) ?? null),
+    getItem: vi.fn(
+      async (key: string) => asyncStorageState.data.get(key) ?? null,
+    ),
     setItem: vi.fn(async (key: string, value: string) => {
-      asyncStorageState.data.set(key, value)
+      asyncStorageState.data.set(key, value);
     }),
     removeItem: vi.fn(async (key: string) => {
-      asyncStorageState.data.delete(key)
+      asyncStorageState.data.delete(key);
     }),
   },
-}))
+}));
 
-import { useUIStore } from '@/stores/ui-store'
+import { useUIStore } from "@/stores/ui-store";
 
-describe('mobile ui store', () => {
+describe("mobile ui store", () => {
   beforeEach(() => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-06T12:00:00Z'))
-    asyncStorageState.data.clear()
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-06T12:00:00Z"));
+    asyncStorageState.data.clear();
     useUIStore.setState({
       activeFilters: {},
-      selectedDate: '2026-04-06',
+      selectedDate: "2026-04-06",
       followToday: true,
-      activeView: 'today',
+      activeView: "today",
       streakCelebration: null,
       allDoneCelebration: false,
-      allDoneCelebratedDate: '',
+      allDoneCelebratedDate: "",
       goalCompletedCelebration: null,
       isSelectMode: false,
       selectedHabitIds: new Set<string>(),
@@ -37,19 +41,19 @@ describe('mobile ui store', () => {
       lastCreatedHabitId: null,
       showCreateModal: false,
       showCreateGoalModal: false,
-      searchQuery: '',
+      searchQuery: "",
       selectedFrequency: null,
       selectedTagIds: [],
       showCompleted: false,
-    })
-  })
+    });
+  });
 
   afterEach(() => {
-    vi.useRealTimers()
-    asyncStorageState.data.clear()
-  })
+    vi.useRealTimers();
+    asyncStorageState.data.clear();
+  });
 
-  it('merges filters and updates search state', () => {
+  it("merges filters and updates search state", () => {
     const {
       setFilters,
       setSearchQuery,
@@ -57,160 +61,195 @@ describe('mobile ui store', () => {
       setSelectedFrequency,
       setSelectedTagIds,
       setShowCompleted,
-    } = useUIStore.getState()
+    } = useUIStore.getState();
 
-    setFilters({ dateFrom: '2026-04-06' })
-    setFilters({ dateTo: '2026-04-06' })
-    setSearchQuery('focus')
-    setActiveView('goals')
-    setSelectedFrequency('Week')
-    setSelectedTagIds(['tag-1'])
-    setShowCompleted(true)
+    setFilters({ dateFrom: "2026-04-06" });
+    setFilters({ dateTo: "2026-04-06" });
+    setSearchQuery("focus");
+    setActiveView("goals");
+    setSelectedFrequency("Week");
+    setSelectedTagIds(["tag-1"]);
+    setShowCompleted(true);
 
     expect(useUIStore.getState()).toMatchObject({
-      activeFilters: { dateFrom: '2026-04-06', dateTo: '2026-04-06' },
-      searchQuery: 'focus',
-      activeView: 'goals',
-      selectedFrequency: 'Week',
-      selectedTagIds: ['tag-1'],
+      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
+      searchQuery: "focus",
+      activeView: "goals",
+      selectedFrequency: "Week",
+      selectedTagIds: ["tag-1"],
       showCompleted: true,
-    })
-  })
+    });
+  });
 
-  it('pins manual dates and restores followToday when requested', () => {
-    const { setSelectedDate, goToToday } = useUIStore.getState()
+  it("pins manual dates and restores followToday when requested", () => {
+    const { setSelectedDate, goToToday } = useUIStore.getState();
 
-    setSelectedDate('2026-04-08')
-    expect(useUIStore.getState().selectedDate).toBe('2026-04-08')
-    expect(useUIStore.getState().followToday).toBe(false)
+    setSelectedDate("2026-04-08");
+    expect(useUIStore.getState().selectedDate).toBe("2026-04-08");
+    expect(useUIStore.getState().followToday).toBe(false);
 
-    goToToday()
-    expect(useUIStore.getState().selectedDate).toBe('2026-04-06')
-    expect(useUIStore.getState().followToday).toBe(true)
-  })
+    goToToday();
+    expect(useUIStore.getState().selectedDate).toBe("2026-04-06");
+    expect(useUIStore.getState().followToday).toBe(true);
+  });
 
-  it('toggles selection mode and cascades descendant selection', () => {
-    const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState()
+  it("toggles selection mode and cascades descendant selection", () => {
+    const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState();
 
-    toggleSelectMode()
+    toggleSelectMode();
     toggleSelectionCascade(
-      'parent',
-      () => ['child-1', 'child-2'],
+      "parent",
+      () => ["child-1", "child-2"],
       () => false,
-    )
+    );
 
-    expect(useUIStore.getState().selectedHabitIds).toEqual(new Set(['parent', 'child-1', 'child-2']))
+    expect(useUIStore.getState().selectedHabitIds).toEqual(
+      new Set(["parent", "child-1", "child-2"]),
+    );
 
     toggleSelectionCascade(
-      'parent',
-      () => ['child-1', 'child-2'],
+      "parent",
+      () => ["child-1", "child-2"],
       () => false,
-    )
+    );
 
-    expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-  })
+    expect(useUIStore.getState().selectedHabitIds.size).toBe(0);
+  });
 
-  it('enters bulk select mode without selecting habits', () => {
-    useUIStore.getState().toggleSelectMode()
+  it("enters bulk select mode without selecting habits", () => {
+    useUIStore.getState().toggleSelectMode();
 
-    expect(useUIStore.getState().isSelectMode).toBe(true)
-    expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-  })
+    expect(useUIStore.getState().isSelectMode).toBe(true);
+    expect(useUIStore.getState().selectedHabitIds.size).toBe(0);
+  });
 
-  it('enters select mode with the tapped habit and descendants selected', () => {
-    const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState()
+  it("enters select mode with the tapped habit and descendants selected", () => {
+    const { toggleSelectMode, toggleSelectionCascade } = useUIStore.getState();
 
     if (!useUIStore.getState().isSelectMode) {
-      toggleSelectMode()
+      toggleSelectMode();
     }
 
     toggleSelectionCascade(
-      'habit-1',
-      () => ['child-1', 'child-2'],
+      "habit-1",
+      () => ["child-1", "child-2"],
       () => false,
-    )
+    );
 
-    expect(useUIStore.getState().isSelectMode).toBe(true)
+    expect(useUIStore.getState().isSelectMode).toBe(true);
     expect(useUIStore.getState().selectedHabitIds).toEqual(
-      new Set(['habit-1', 'child-1', 'child-2']),
-    )
-  })
+      new Set(["habit-1", "child-1", "child-2"]),
+    );
+  });
 
-  it('shows all-done celebration only for completed top-level habits on today filters', () => {
+  it("shows all-done celebration only for completed top-level habits on today filters", () => {
     useUIStore.setState({
-      activeFilters: { dateFrom: '2026-04-06', dateTo: '2026-04-06' },
-    })
+      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
+    });
 
     useUIStore.getState().checkAllDoneCelebration(
       new Map([
-        ['parent-1', { parentId: null, isCompleted: true }],
-        ['child-1', { parentId: 'parent-1', isCompleted: false }],
+        ["parent-1", { parentId: null, isCompleted: true }],
+        ["child-1", { parentId: "parent-1", isCompleted: false }],
       ]),
-    )
+    );
 
-    expect(useUIStore.getState().allDoneCelebration).toBe(true)
-  })
+    expect(useUIStore.getState().allDoneCelebration).toBe(true);
+  });
 
-  it('clears the last created habit id after the timeout', async () => {
-    useUIStore.getState().setLastCreatedHabitId('habit-1')
-    expect(useUIStore.getState().lastCreatedHabitId).toBe('habit-1')
+  it("clears the last created habit id after the timeout", async () => {
+    useUIStore.getState().setLastCreatedHabitId("habit-1");
+    expect(useUIStore.getState().lastCreatedHabitId).toBe("habit-1");
 
-    await vi.advanceTimersByTimeAsync(1500)
+    await vi.advanceTimersByTimeAsync(1500);
 
-    expect(useUIStore.getState().lastCreatedHabitId).toBeNull()
-  })
+    expect(useUIStore.getState().lastCreatedHabitId).toBeNull();
+  });
 
-  it('rehydrates the durable today context from async storage', async () => {
+  it("rehydrates the durable today context from async storage", async () => {
     asyncStorageState.data.set(
-      'orbit-ui-store',
+      "orbit-ui-store",
       JSON.stringify({
         state: {
-          activeFilters: { search: 'focus' },
-          selectedDate: '2026-04-08',
-          activeView: 'general',
-          searchQuery: 'focus',
-          selectedFrequency: 'Month',
-          selectedTagIds: ['tag-2'],
+          activeFilters: { search: "focus" },
+          selectedDate: "2026-04-08",
+          activeView: "general",
+          searchQuery: "focus",
+          selectedFrequency: "Month",
+          selectedTagIds: ["tag-2"],
           showCompleted: true,
         },
         version: 0,
       }),
-    )
+    );
 
-    await useUIStore.persist.rehydrate()
+    await useUIStore.persist.rehydrate();
 
     expect(useUIStore.getState()).toMatchObject({
-      activeFilters: { search: 'focus' },
-      selectedDate: '2026-04-08',
+      activeFilters: { search: "focus" },
+      selectedDate: "2026-04-08",
       followToday: false,
-      activeView: 'general',
-      searchQuery: 'focus',
-      selectedFrequency: 'Month',
-      selectedTagIds: ['tag-2'],
+      activeView: "general",
+      searchQuery: "focus",
+      selectedFrequency: "Month",
+      selectedTagIds: ["tag-2"],
       showCompleted: true,
-    })
-  })
+    });
+  });
 
-  it('migrates legacy today snapshots into followToday mode', async () => {
+  it("migrates legacy today snapshots into followToday mode", async () => {
     asyncStorageState.data.set(
-      'orbit-ui-store',
+      "orbit-ui-store",
       JSON.stringify({
         state: {
           activeFilters: {},
-          selectedDate: '2026-04-06',
-          activeView: 'today',
-          searchQuery: '',
+          selectedDate: "2026-04-06",
+          activeView: "today",
+          searchQuery: "",
           selectedFrequency: null,
           selectedTagIds: [],
           showCompleted: false,
         },
         version: 0,
       }),
-    )
+    );
 
-    await useUIStore.persist.rehydrate()
+    await useUIStore.persist.rehydrate();
 
-    expect(useUIStore.getState().selectedDate).toBe('2026-04-06')
-    expect(useUIStore.getState().followToday).toBe(true)
-  })
-})
+    expect(useUIStore.getState().selectedDate).toBe("2026-04-06");
+    expect(useUIStore.getState().followToday).toBe(true);
+  });
+
+  it("creates the canonical tour ui state for a fresh session", () => {
+    expect(createTourUIState("2026-04-06")).toEqual({
+      activeFilters: {},
+      selectedDate: "2026-04-06",
+      followToday: true,
+      activeView: "today",
+      searchQuery: "",
+      selectedFrequency: null,
+      selectedTagIds: [],
+      showCompleted: true,
+    });
+  });
+
+  it("returns cloned persisted ui state snapshots", () => {
+    useUIStore.setState({
+      activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
+      selectedTagIds: ["focus"],
+    });
+
+    const snapshot = getPersistedUIState(useUIStore.getState());
+
+    useUIStore.setState({
+      activeFilters: { dateFrom: "2026-04-07" },
+      selectedTagIds: ["health"],
+    });
+
+    expect(snapshot.activeFilters).toEqual({
+      dateFrom: "2026-04-06",
+      includeOverdue: true,
+    });
+    expect(snapshot.selectedTagIds).toEqual(["focus"]);
+  });
+});

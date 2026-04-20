@@ -1215,11 +1215,23 @@
         "pro": "Unlimited",
         "tooltip": "Break complex habits into smaller steps. Sub-habits nest under a parent habit for better organization."
       },
+      "goals": {
+        "label": "Goals",
+        "free": "No",
+        "pro": "Included",
+        "tooltip": "Create long-term goals and link habits to track measurable progress over time."
+      },
       "colors": {
         "label": "Color Schemes",
         "free": "1 theme",
         "pro": "All 6 themes",
         "tooltip": "Personalize Orbit with 6 color schemes: purple, blue, green, rose, orange, and cyan. Free users get the default purple theme."
+      },
+      "premiumColors": {
+        "label": "Premium Colors",
+        "free": "No",
+        "pro": "Included",
+        "tooltip": "Unlock all premium color themes and customize Orbit beyond the default free scheme."
       },
       "aiMemory": {
         "label": "AI Memory",
@@ -1232,6 +1244,12 @@
         "free": "No",
         "pro": "Included",
         "tooltip": "Get an AI-generated daily overview of your habits, streaks, and what needs attention today."
+      },
+      "apiKeys": {
+        "label": "API Keys",
+        "free": "No",
+        "pro": "Included",
+        "tooltip": "Create API keys to connect Orbit with developer tools and external MCP integrations."
       },
       "retrospective": {
         "label": "Retrospective",
@@ -1866,17 +1884,38 @@
   "tour": {
     "mockData": {
       "habits": {
-        "meditation": { "title": "Morning Meditation", "description": "10 minutes of mindfulness to start the day" },
-        "exercise": { "title": "Exercise", "description": "Stay active with regular workouts" },
+        "meditation": {
+          "title": "Morning Meditation",
+          "description": "10 minutes of mindfulness to start the day"
+        },
+        "exercise": {
+          "title": "Exercise",
+          "description": "Stay active with regular workouts"
+        },
         "pushups": { "title": "Push-ups" },
         "stretching": { "title": "Stretching" },
-        "screenTime": { "title": "Reduce Screen Time", "description": "Keep screen time under 2 hours per day" },
-        "readBooks": { "title": "Read Books", "description": "Read at least 5 times this week" },
-        "drinkWater": { "title": "Drink More Water", "description": "Stay hydrated throughout the day" }
+        "screenTime": {
+          "title": "Reduce Screen Time",
+          "description": "Keep screen time under 2 hours per day"
+        },
+        "readBooks": {
+          "title": "Read Books",
+          "description": "Read at least 5 times this week"
+        },
+        "drinkWater": {
+          "title": "Drink More Water",
+          "description": "Stay hydrated throughout the day"
+        }
       },
       "goals": {
-        "marathon": { "title": "Run a Marathon", "description": "Train for and complete a full marathon" },
-        "readGoal": { "title": "Read 24 Books", "description": "Read 2 books per month this year" }
+        "marathon": {
+          "title": "Run a Marathon",
+          "description": "Train for and complete a full marathon"
+        },
+        "readGoal": {
+          "title": "Read 24 Books",
+          "description": "Read 2 books per month this year"
+        }
       },
       "tags": {
         "mindfulness": "Mindfulness",

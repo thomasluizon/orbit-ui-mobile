@@ -9,7 +9,7 @@ import { useMemo } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createColors } from '@/lib/theme'
+import { createColors, spacing } from '@/lib/theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
@@ -22,9 +22,20 @@ export default function PrivacyScreen() {
   const { colors } = useAppTheme()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const styles = useMemo(() => createStyles(colors), [colors])
-  const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences'] as const
+  const dataCollectedKeys = [
+    'account',
+    'habits',
+    'chat',
+    'preferences',
+  ] as const
   const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
-  const thirdPartyKeys = ['google', 'stripe', 'firebase', 'openai', 'resend'] as const
+  const thirdPartyKeys = [
+    'google',
+    'stripe',
+    'firebase',
+    'openai',
+    'resend',
+  ] as const
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -53,7 +64,9 @@ export default function PrivacyScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('privacy.dataCollected.title')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('privacy.dataCollected.title')}
+            </Text>
             {dataCollectedKeys.map((key) => (
               <Text key={key} style={styles.listItem}>
                 • {t(`privacy.dataCollected.${key}`)}
@@ -62,7 +75,9 @@ export default function PrivacyScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('privacy.howWeUse.title')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('privacy.howWeUse.title')}
+            </Text>
             {howWeUseKeys.map((key) => (
               <Text key={key} style={styles.listItem}>
                 • {t(`privacy.howWeUse.${key}`)}
@@ -71,8 +86,12 @@ export default function PrivacyScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('privacy.thirdParty.title')}</Text>
-            <Text style={styles.sectionBody}>{t('privacy.thirdParty.intro')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('privacy.thirdParty.title')}
+            </Text>
+            <Text style={styles.sectionBody}>
+              {t('privacy.thirdParty.intro')}
+            </Text>
             {thirdPartyKeys.map((key) => (
               <Text key={key} style={styles.listItem}>
                 • {t(`privacy.thirdParty.${key}`)}
@@ -86,21 +105,29 @@ export default function PrivacyScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('privacy.security.title')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('privacy.security.title')}
+            </Text>
             <Text style={styles.sectionBody}>{t('privacy.security.body')}</Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('privacy.deletion.title')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('privacy.deletion.title')}
+            </Text>
             <Text style={styles.sectionBody}>{t('privacy.deletion.body')}</Text>
             <Text style={styles.stepText}>{t('privacy.deletion.step1')}</Text>
             <Text style={styles.stepText}>{t('privacy.deletion.step2')}</Text>
             <Text style={styles.stepText}>{t('privacy.deletion.step3')}</Text>
-            <Text style={styles.sectionBody}>{t('privacy.deletion.step4')}</Text>
+            <Text style={styles.sectionBody}>
+              {t('privacy.deletion.step4')}
+            </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('privacy.contact.title')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('privacy.contact.title')}
+            </Text>
             <Text style={styles.sectionBody}>{t('privacy.contact.body')}</Text>
           </View>
         </View>
@@ -113,13 +140,16 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    scrollContent: {
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingTop: 32,
-      paddingBottom: 24,
+      gap: spacing.cardGap,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: {
@@ -131,13 +161,13 @@ function createStyles(colors: AppColors) {
     lastUpdated: {
       fontSize: 12,
       color: colors.textMuted,
-      marginBottom: 16,
+      marginBottom: spacing.sectionGap,
     },
     card: {
       backgroundColor: colors.surface,
       borderRadius: 20,
-      padding: 20,
-      gap: 16,
+      padding: spacing.cardPadding,
+      gap: spacing.sectionGap,
     },
     section: {
       gap: 6,

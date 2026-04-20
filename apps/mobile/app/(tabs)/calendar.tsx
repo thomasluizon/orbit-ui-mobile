@@ -35,7 +35,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
-import { createColors } from "@/lib/theme";
+import { createColors, spacing } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
@@ -268,7 +268,10 @@ export default function CalendarScreen() {
   const calendarScrollTo = useCallback((y: number) => {
     calendarScrollRef.current?.scrollTo({ y, animated: true });
   }, []);
-  const { onTourScroll: onCalendarTourScroll } = useTourScrollContainer("/calendar", calendarScrollTo);
+  const { onTourScroll: onCalendarTourScroll } = useTourScrollContainer(
+    "/calendar",
+    calendarScrollTo,
+  );
 
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(new Date()),
@@ -414,9 +417,7 @@ export default function CalendarScreen() {
           colors={colors}
         />
 
-        {isLoading && (
-          <CalendarLoadingSkeleton colors={colors} />
-        )}
+        {isLoading && <CalendarLoadingSkeleton colors={colors} />}
 
         <View
           style={[
@@ -518,7 +519,9 @@ export default function CalendarScreen() {
         ) : (
           <BottomSheetScrollView
             style={styles.dayDetailScroll}
-            contentContainerStyle={withDrawerContentInset(styles.dayDetailContent)}
+            contentContainerStyle={withDrawerContentInset(
+              styles.dayDetailContent,
+            )}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.summaryRow}>
@@ -607,15 +610,15 @@ function createStyles(colors: AppColors) {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 40,
+      paddingHorizontal: spacing.pageX,
+      paddingBottom: spacing.pageBottom,
     },
 
     // Header
     header: {
-      paddingTop: 32,
-      paddingBottom: 8,
-      gap: 16,
+      paddingTop: spacing.sectionGap * 2,
+      paddingBottom: spacing.itemGap,
+      gap: spacing.sectionGap,
     },
     headerRow: {
       flexDirection: "row",
@@ -705,7 +708,7 @@ function createStyles(colors: AppColors) {
       borderWidth: 1,
       borderColor: colors.borderMuted,
       padding: 12,
-      marginTop: 8,
+      marginTop: spacing.itemGap,
       // shadow-sm equivalent
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
@@ -787,7 +790,7 @@ function createStyles(colors: AppColors) {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 32,
-      paddingHorizontal: 20,
+      paddingHorizontal: spacing.pageX,
     },
     emptyDayText: {
       fontSize: 14,
@@ -797,7 +800,7 @@ function createStyles(colors: AppColors) {
       flex: 1,
     },
     dayDetailContent: {
-      paddingHorizontal: 20,
+      paddingHorizontal: spacing.pageX,
       paddingBottom: 32,
     },
 

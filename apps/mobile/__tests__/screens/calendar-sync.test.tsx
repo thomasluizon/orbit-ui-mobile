@@ -1,20 +1,20 @@
-import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockProfile } from "@orbit/shared/__tests__/factories";
 
-const TestRenderer = require('react-test-renderer')
+const TestRenderer = require("react-test-renderer");
 
 const colorProxy: any = new Proxy(
   {},
   {
-    get: (_target, prop) => (prop === 'white' ? '#ffffff' : '#111111'),
+    get: (_target, prop) => (prop === "white" ? "#ffffff" : "#111111"),
   },
-)
+);
 
 const mocks = vi.hoisted(() => {
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
-  }
+  };
 
   return {
     apiClient: vi.fn(),
@@ -23,50 +23,51 @@ const mocks = vi.hoisted(() => {
       push: vi.fn(),
       replace: vi.fn(),
     },
-  }
-})
+    profile: null as ReturnType<typeof createMockProfile> | null,
+  };
+});
 
-vi.mock('expo-router', async () => {
-  const React = await import('react')
+vi.mock("expo-router", async () => {
+  const React = await import("react");
 
   return {
     useRouter: () => mocks.router,
     useLocalSearchParams: () => ({}),
     useFocusEffect: (callback: () => void | (() => void)) => {
-      React.useEffect(() => callback(), [callback])
+      React.useEffect(() => callback(), [callback]);
     },
-  }
-})
+  };
+});
 
-vi.mock('react-i18next', () => ({
+vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}(${JSON.stringify(params)})` : key,
   }),
-}))
+}));
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => mocks.queryClient,
-}))
+}));
 
-vi.mock('@/hooks/use-profile', () => ({
+vi.mock("@/hooks/use-profile", () => ({
   useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: true }),
+    profile: mocks.profile,
     isLoading: false,
   }),
-}))
+}));
 
-vi.mock('@/hooks/use-habits', () => ({
+vi.mock("@/hooks/use-habits", () => ({
   useBulkCreateHabits: () => ({
     mutateAsync: vi.fn(),
   }),
-}))
+}));
 
-vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+vi.mock("@/hooks/use-calendar-auto-sync", () => ({
   useCalendarAutoSyncState: () => ({
     data: {
       enabled: false,
-      status: 'Idle',
+      status: "Idle",
       lastSyncedAt: null,
       hasGoogleConnection: true,
     },
@@ -86,77 +87,94 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
     mutate: vi.fn(),
     isPending: false,
   }),
-}))
+}));
 
-vi.mock('@/lib/api-client', () => ({
+vi.mock("@/lib/api-client", () => ({
   apiClient: mocks.apiClient,
-}))
+}));
 
-vi.mock('@/lib/google-auth', () => ({
+vi.mock("@/lib/google-auth", () => ({
   startMobileGoogleAuth: vi.fn(),
-}))
+}));
 
-vi.mock('@/lib/use-app-theme', () => ({
+vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({
     colors: colorProxy,
   }),
-}))
+}));
 
-vi.mock('@/hooks/use-offline', () => ({
+vi.mock("@/hooks/use-offline", () => ({
   useOffline: () => ({
     isOnline: true,
   }),
-}))
+}));
 
-vi.mock('@/hooks/use-app-toast', () => ({
+vi.mock("@/hooks/use-app-toast", () => ({
   useAppToast: () => ({
     showError: vi.fn(),
   }),
-}))
+}));
 
-vi.mock('@/components/ui/offline-unavailable-state', () => ({
+vi.mock("@/components/ui/offline-unavailable-state", () => ({
   OfflineUnavailableState: () => null,
-}))
+}));
 
-vi.mock('lucide-react-native', () => {
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
+vi.mock("lucide-react-native", () => {
+  const createIcon = (name: string) => (props: any) =>
+    React.createElement(name, props);
 
   return {
-    AlertTriangle: createIcon('AlertTriangle'),
-    ArrowLeft: createIcon('ArrowLeft'),
-    Bell: createIcon('Bell'),
-    CalendarDays: createIcon('CalendarDays'),
-    Check: createIcon('Check'),
-    Link: createIcon('Link'),
-    Loader2: createIcon('Loader2'),
-    RefreshCw: createIcon('RefreshCw'),
-  }
-})
+    AlertTriangle: createIcon("AlertTriangle"),
+    ArrowLeft: createIcon("ArrowLeft"),
+    Bell: createIcon("Bell"),
+    CalendarDays: createIcon("CalendarDays"),
+    Check: createIcon("Check"),
+    Link: createIcon("Link"),
+    Loader2: createIcon("Loader2"),
+    RefreshCw: createIcon("RefreshCw"),
+  };
+});
 
-vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-native')>()
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
   return {
     ...actual,
-    Switch: (props: Record<string, unknown>) => React.createElement('Switch', props),
-  }
-})
+    Switch: (props: Record<string, unknown>) =>
+      React.createElement("Switch", props),
+  };
+});
 
-import CalendarSyncScreen from '@/app/calendar-sync'
+import CalendarSyncScreen from "@/app/calendar-sync";
 
-describe('CalendarSyncScreen', () => {
+describe("CalendarSyncScreen", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.apiClient.mockResolvedValue([])
-  })
+    vi.clearAllMocks();
+    mocks.profile = createMockProfile({ hasProAccess: true });
+    mocks.apiClient.mockResolvedValue([]);
+  });
 
-  it('fetches calendar events once after the screen settles', async () => {
+  it("fetches calendar events once after the screen settles", async () => {
     await TestRenderer.act(async () => {
-      TestRenderer.create(<CalendarSyncScreen />)
-      await Promise.resolve()
-      await Promise.resolve()
-    })
+      TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
-    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events')
-  })
-})
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1);
+    expect(mocks.apiClient).toHaveBeenCalledWith("/api/calendar/events");
+  });
+
+  it("replaces to upgrade instead of pushing when a free user opens the screen", async () => {
+    mocks.profile = createMockProfile({ hasProAccess: false });
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.router.replace).toHaveBeenCalledWith("/upgrade");
+    expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
+    expect(mocks.apiClient).not.toHaveBeenCalled();
+  });
+});

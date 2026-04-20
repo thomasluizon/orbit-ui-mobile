@@ -1,6 +1,5 @@
 import { useMemo, useCallback, useState, useEffect } from 'react'
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native'
-import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -29,10 +28,10 @@ type AppColors = ReturnType<typeof createColors>
 
 const SECTION_ICON_MAP = {
   'check-circle': CheckCircle,
-  'target': Target,
+  target: Target,
   'message-circle': MessageCircle,
   'calendar-days': CalendarDays,
-  'user': User,
+  user: User,
 } as const
 
 interface TourReplayModalProps {
@@ -44,11 +43,12 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createModalStyles(colors), [colors])
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { startFullTour, startSectionReplay } = useTourStore()
   const { profile } = useProfile()
-  const [sectionCompletion, setSectionCompletion] = useState<Record<TourSection, boolean>>({
+  const [sectionCompletion, setSectionCompletion] = useState<
+    Record<TourSection, boolean>
+  >({
     habits: false,
     goals: false,
     chat: false,
@@ -76,35 +76,32 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
       // Silently fail
     }
 
-    queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
-      if (!old) return old
-      return { ...old, hasCompletedTour: false }
-    })
+    queryClient.setQueryData(
+      profileKeys.detail(),
+      (old: Profile | undefined) => {
+        if (!old) return old
+        return { ...old, hasCompletedTour: false }
+      },
+    )
 
-    router.push('/(tabs)')
-    setTimeout(() => startFullTour(), 300)
-  }, [onClose, queryClient, router, startFullTour])
+    startFullTour()
+  }, [onClose, queryClient, startFullTour])
 
   const handleReplaySection = useCallback(
     (section: TourSection) => {
       onClose()
-
-      const routeMap: Record<TourSection, string> = {
-        habits: '/(tabs)',
-        goals: '/(tabs)',
-        chat: '/chat',
-        calendar: '/(tabs)/calendar',
-        profile: '/(tabs)/profile',
-      }
-
-      router.push(routeMap[section] as never)
-      setTimeout(() => startSectionReplay(section), 300)
+      startSectionReplay(section)
     },
-    [onClose, router, startSectionReplay],
+    [onClose, startSectionReplay],
   )
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
       <View style={styles.backdrop}>
         <Pressable style={styles.backdropTouch} onPress={onClose} />
         <View style={styles.sheet}>
@@ -113,7 +110,9 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
 
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{t('tour.replay.modalTitle')}</Text>
+            <Text style={styles.headerTitle}>
+              {t('tour.replay.modalTitle')}
+            </Text>
             <Pressable onPress={onClose} hitSlop={8}>
               <X size={20} color={colors.textSecondary} />
             </Pressable>
@@ -122,7 +121,9 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
           {/* Replay all */}
           <Pressable style={styles.replayAllButton} onPress={handleReplayAll}>
             <RotateCcw size={16} color={colors.white} />
-            <Text style={styles.replayAllText}>{t('tour.replay.replayAll')}</Text>
+            <Text style={styles.replayAllText}>
+              {t('tour.replay.replayAll')}
+            </Text>
           </Pressable>
 
           {/* Divider */}
@@ -131,21 +132,27 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
           {/* Section cards */}
           {availableSections.map((section) => {
             const iconKey = TOUR_SECTION_ICONS[section]
-            const Icon = SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
+            const Icon =
+              SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
             const stepCount = getSectionStepCount(section)
             const completed = sectionCompletion[section]
 
             return (
               <Pressable
                 key={section}
-                style={({ pressed }) => [styles.sectionCard, pressed && styles.sectionCardPressed]}
+                style={({ pressed }) => [
+                  styles.sectionCard,
+                  pressed && styles.sectionCardPressed,
+                ]}
                 onPress={() => handleReplaySection(section)}
               >
                 <View style={styles.sectionIcon}>
                   {Icon && <Icon size={16} color={colors.primary} />}
                 </View>
                 <View style={styles.sectionBody}>
-                  <Text style={styles.sectionTitle}>{t(`tour.sections.${section}`)}</Text>
+                  <Text style={styles.sectionTitle}>
+                    {t(`tour.sections.${section}`)}
+                  </Text>
                   <Text style={styles.sectionSteps}>
                     {t('tour.replay.steps', { count: stepCount })}
                   </Text>

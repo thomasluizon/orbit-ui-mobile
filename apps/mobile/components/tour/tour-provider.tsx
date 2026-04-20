@@ -4,7 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
+import {
+  createTourUIState,
+  getPersistedUIState,
+  type PersistedUIState,
+} from '@orbit/shared/stores'
 import type { Profile } from '@orbit/shared/types'
+import { formatAPIDate } from '@orbit/shared/utils'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
@@ -18,6 +24,7 @@ const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 400
 const MEASURE_POLL_INTERVAL = 200
 const RE_MEASURE_INTERVAL = 500
+const HABITS_TOUR_SCROLL_Y = 220
 
 /**
  * Tour orchestrator: handles navigation, element detection, scroll-into-view,
@@ -34,13 +41,23 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const hasProAccess = profile?.hasProAccess ?? false
 
   const store = useTourStore()
-  const { isActive, getCurrentStep, setTargetRect, setNavigating, endTour, nextStep, setHiddenSections } = store
+  const {
+    isActive,
+    getCurrentStep,
+    setTargetRect,
+    setNavigating,
+    endTour,
+    nextStep,
+    setHiddenSections,
+  } = store
 
   const prevStepIdRef = useRef<string | null>(null)
+  const uiSnapshotRef = useRef<PersistedUIState | null>(null)
   const mockDataInjectedRef = useRef(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reMeasureRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const managedTimeoutsRef = useRef(new Set<ReturnType<typeof setTimeout>>())
 
   useEffect(() => {
     setHiddenSections(hasProAccess ? [] : ['goals'])
@@ -53,18 +70,71 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   // so we need to ADD the offset to push the spotlight down.
   const yAdjust = Platform.OS === 'android' ? insets.top : 0
 
-  // Inject mock data when tour starts
-  useEffect(() => {
-    if (isActive && !mockDataInjectedRef.current) {
-      useUIStore.getState().setActiveView('today')
-      inject()
-      mockDataInjectedRef.current = true
+  const clearManagedTimeouts = useCallback(() => {
+    managedTimeoutsRef.current.forEach((handle) => clearTimeout(handle))
+    managedTimeoutsRef.current.clear()
+  }, [])
+
+  const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
+    const handle = setTimeout(() => {
+      managedTimeoutsRef.current.delete(handle)
+      callback()
+    }, delay)
+
+    managedTimeoutsRef.current.add(handle)
+    return handle
+  }, [])
+
+  const resetSessionState = useCallback(() => {
+    prevStepIdRef.current = null
+    setTargetRect(null)
+    setNavigating(false)
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
     }
-    if (!isActive && mockDataInjectedRef.current) {
+
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+
+    if (reMeasureRef.current) {
+      clearInterval(reMeasureRef.current)
+      reMeasureRef.current = null
+    }
+
+    clearManagedTimeouts()
+  }, [clearManagedTimeouts, setNavigating, setTargetRect])
+
+  const restoreTourSession = useCallback(() => {
+    resetSessionState()
+
+    if (mockDataInjectedRef.current) {
       restore()
       mockDataInjectedRef.current = false
     }
-  }, [isActive, inject, restore])
+
+    if (uiSnapshotRef.current) {
+      useUIStore.setState(uiSnapshotRef.current)
+      uiSnapshotRef.current = null
+    }
+  }, [resetSessionState, restore])
+
+  // Inject mock data when tour starts
+  useEffect(() => {
+    if (isActive && !mockDataInjectedRef.current) {
+      uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
+      useUIStore.setState(createTourUIState(formatAPIDate(new Date())))
+      resetSessionState()
+      inject()
+      mockDataInjectedRef.current = true
+    }
+    if (!isActive && (mockDataInjectedRef.current || uiSnapshotRef.current)) {
+      restoreTourSession()
+    }
+  }, [isActive, inject, resetSessionState, restoreTourSession])
 
   // Handle tour end
   const handleEndTour = useCallback(async () => {
@@ -76,10 +146,13 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       // Silently fail
     }
 
-    queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
-      if (!old) return old
-      return { ...old, hasCompletedTour: true }
-    })
+    queryClient.setQueryData(
+      profileKeys.detail(),
+      (old: Profile | undefined) => {
+        if (!old) return old
+        return { ...old, hasCompletedTour: true }
+      },
+    )
 
     try {
       await AsyncStorage.setItem(
@@ -97,30 +170,37 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [endTour, queryClient])
 
-  const executePreAction = useCallback((preAction: string) => {
-    switch (preAction) {
-      case 'switchToGoalsTab':
-        useUIStore.getState().setActiveView(hasProAccess ? 'goals' : 'today')
-        break
-      case 'switchToTodayTab':
-        useUIStore.getState().setActiveView('today')
-        break
-      case 'scrollHabitsDown': {
-        const entry = tourScrollRegistry.get('/')
-        if (entry) entry.scrollTo(300)
-        break
+  const executePreAction = useCallback(
+    (preAction: string) => {
+      switch (preAction) {
+        case 'switchToGoalsTab':
+          useUIStore.getState().setActiveView(hasProAccess ? 'goals' : 'today')
+          break
+        case 'switchToTodayTab':
+          useUIStore.getState().setActiveView('today')
+          break
+        case 'scrollHabitsDown': {
+          const entry = tourScrollRegistry.get('/')
+          if (entry) entry.scrollTo(HABITS_TOUR_SCROLL_Y)
+          break
+        }
+        case 'scrollHabitsUp': {
+          const entry = tourScrollRegistry.get('/')
+          if (entry) entry.scrollTo(0)
+          break
+        }
       }
-      case 'scrollHabitsUp': {
-        const entry = tourScrollRegistry.get('/')
-        if (entry) entry.scrollTo(0)
-        break
-      }
-    }
-  }, [hasProAccess])
+    },
+    [hasProAccess],
+  )
 
   /** Measure an element and apply Y correction */
   const measureAndSet = useCallback(
-    (ref: { measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => void }) => {
+    (ref: {
+      measureInWindow: (
+        cb: (x: number, y: number, w: number, h: number) => void,
+      ) => void
+    }) => {
       ref.measureInWindow((x, y, width, height) => {
         if (width > 0 && height > 0) {
           setTargetRect({ x, y: y + yAdjust, width, height })
@@ -157,7 +237,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         // Where we want the element: center of the visible area above tooltip
         const tooltipHeight = 280
         const visibleHeight = screenHeight - tooltipHeight
-        const desiredScreenY = (visibleHeight / 2) - (height / 2)
+        const desiredScreenY = visibleHeight / 2 - height / 2
         const scrollDelta = y - desiredScreenY
 
         // Scroll if element needs to move more than 20px
@@ -167,7 +247,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Re-measure after scroll settles
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (ref.current) {
             measureAndSet(ref.current)
           }
@@ -176,7 +256,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
       return true
     },
-    [measureAndSet],
+    [measureAndSet, scheduleTimeout],
   )
 
   const waitForTarget = useCallback(
@@ -257,15 +337,34 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
     const mobileRoute = routeMap[currentStep.route] ?? currentStep.route
 
-    if (normalizedPathname !== currentStep.route && normalizedPathname !== mobileRoute) {
+    if (
+      normalizedPathname !== currentStep.route &&
+      normalizedPathname !== mobileRoute
+    ) {
       setNavigating(true)
       router.push(mobileRoute as never)
-      setTimeout(() => waitForTarget(currentStep.targetId, currentStep.route), SCROLL_SETTLE_DELAY + 100)
+      scheduleTimeout(
+        () => waitForTarget(currentStep.targetId, currentStep.route),
+        SCROLL_SETTLE_DELAY + 100,
+      )
     } else {
       setNavigating(true)
-      setTimeout(() => waitForTarget(currentStep.targetId, currentStep.route), 200)
+      scheduleTimeout(
+        () => waitForTarget(currentStep.targetId, currentStep.route),
+        200,
+      )
     }
-  }, [isActive, stepId, currentStep, pathname, router, setNavigating, executePreAction, waitForTarget])
+  }, [
+    isActive,
+    stepId,
+    currentStep,
+    pathname,
+    router,
+    setNavigating,
+    executePreAction,
+    waitForTarget,
+    scheduleTimeout,
+  ])
 
   // When pathname changes during navigation, search for the element
   useEffect(() => {
@@ -282,21 +381,23 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     const mobileRoute = routeMap[step.route] ?? step.route
 
     if (
-      (normalizedPathname === step.route || normalizedPathname === mobileRoute) &&
+      (normalizedPathname === step.route ||
+        normalizedPathname === mobileRoute) &&
       useTourStore.getState().isNavigating
     ) {
-      setTimeout(() => waitForTarget(step.targetId, step.route), SCROLL_SETTLE_DELAY)
+      scheduleTimeout(
+        () => waitForTarget(step.targetId, step.route),
+        SCROLL_SETTLE_DELAY,
+      )
     }
-  }, [pathname, isActive, getCurrentStep, waitForTarget])
+  }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-      if (pollRef.current) clearInterval(pollRef.current)
-      if (reMeasureRef.current) clearInterval(reMeasureRef.current)
+      resetSessionState()
     }
-  }, [])
+  }, [resetSessionState])
 
   return <>{children}</>
 }

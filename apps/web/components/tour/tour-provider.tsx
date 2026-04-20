@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  createTourUIState,
+  getPersistedUIState,
+  type PersistedUIState,
+} from '@orbit/shared/stores'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
@@ -27,30 +33,84 @@ export function TourProvider() {
   const hasProAccess = profile?.hasProAccess ?? false
 
   const store = useTourStore()
-  const { isActive, getCurrentStep, setTargetRect, setNavigating, endTour, nextStep, setHiddenSections } = store
+  const {
+    isActive,
+    getCurrentStep,
+    setTargetRect,
+    setNavigating,
+    endTour,
+    nextStep,
+    setHiddenSections,
+  } = store
 
   const prevStepIdRef = useRef<string | null>(null)
+  const uiSnapshotRef = useRef<PersistedUIState | null>(null)
   const mockDataInjectedRef = useRef(false)
   const observerRef = useRef<MutationObserver | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const managedTimeoutsRef = useRef(new Set<ReturnType<typeof setTimeout>>())
 
   useEffect(() => {
     setHiddenSections(hasProAccess ? [] : ['goals'])
   }, [hasProAccess, setHiddenSections])
 
-  // Inject mock data and reset view when tour starts
-  useEffect(() => {
-    if (isActive && !mockDataInjectedRef.current) {
-      // Switch to Today tab so mock habits are visible
-      useUIStore.getState().setActiveView('today')
-      inject()
-      mockDataInjectedRef.current = true
+  const clearManagedTimeouts = useCallback(() => {
+    managedTimeoutsRef.current.forEach((handle) => clearTimeout(handle))
+    managedTimeoutsRef.current.clear()
+  }, [])
+
+  const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
+    const handle = setTimeout(() => {
+      managedTimeoutsRef.current.delete(handle)
+      callback()
+    }, delay)
+
+    managedTimeoutsRef.current.add(handle)
+    return handle
+  }, [])
+
+  const resetSessionState = useCallback(() => {
+    prevStepIdRef.current = null
+    setTargetRect(null)
+    setNavigating(false)
+    observerRef.current?.disconnect()
+    observerRef.current = null
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
     }
-    if (!isActive && mockDataInjectedRef.current) {
+
+    clearManagedTimeouts()
+  }, [clearManagedTimeouts, setNavigating, setTargetRect])
+
+  const restoreTourSession = useCallback(() => {
+    resetSessionState()
+
+    if (mockDataInjectedRef.current) {
       restore()
       mockDataInjectedRef.current = false
     }
-  }, [isActive, inject, restore])
+
+    if (uiSnapshotRef.current) {
+      useUIStore.setState(uiSnapshotRef.current)
+      uiSnapshotRef.current = null
+    }
+  }, [resetSessionState, restore])
+
+  // Inject mock data and reset view when tour starts
+  useEffect(() => {
+    if (isActive && !mockDataInjectedRef.current) {
+      uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
+      useUIStore.setState(createTourUIState(formatAPIDate(new Date())))
+      resetSessionState()
+      inject()
+      mockDataInjectedRef.current = true
+    }
+    if (!isActive && (mockDataInjectedRef.current || uiSnapshotRef.current)) {
+      restoreTourSession()
+    }
+  }, [isActive, inject, resetSessionState, restoreTourSession])
 
   // Handle tour completion
   const handleEndTour = useCallback(async () => {
@@ -64,10 +124,13 @@ export function TourProvider() {
     }
 
     // Optimistically update profile cache
-    queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
-      if (!old) return old
-      return { ...old, hasCompletedTour: true }
-    })
+    queryClient.setQueryData(
+      profileKeys.detail(),
+      (old: Profile | undefined) => {
+        if (!old) return old
+        return { ...old, hasCompletedTour: true }
+      },
+    )
 
     // Save section completion to localStorage
     try {
@@ -117,7 +180,7 @@ export function TourProvider() {
 
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
-      setTimeout(() => {
+      scheduleTimeout(() => {
         const rect = el.getBoundingClientRect()
         setTargetRect({
           x: rect.x,
@@ -130,7 +193,7 @@ export function TourProvider() {
 
       return true
     },
-    [setTargetRect, setNavigating],
+    [scheduleTimeout, setNavigating, setTargetRect],
   )
 
   // Watch for target element via MutationObserver
@@ -189,13 +252,23 @@ export function TourProvider() {
       // Same page: find element immediately
       setNavigating(true)
       // Small delay to allow pre-actions (e.g. tab switch) to render
-      setTimeout(() => waitForTarget(currentStep.targetId), 100)
+      scheduleTimeout(() => waitForTarget(currentStep.targetId), 100)
     } else {
       setNavigating(true)
       router.push(normalizedRoute)
       // waitForTarget will be called when pathname changes (below)
     }
-  }, [isActive, stepId, currentStep, pathname, router, setNavigating, executePreAction, waitForTarget])
+  }, [
+    isActive,
+    stepId,
+    currentStep,
+    pathname,
+    router,
+    setNavigating,
+    executePreAction,
+    waitForTarget,
+    scheduleTimeout,
+  ])
 
   // When pathname changes during navigation, search for the element
   useEffect(() => {
@@ -205,11 +278,14 @@ export function TourProvider() {
     const normalizedPathname = pathname === '/' ? '/' : pathname
     const normalizedRoute = step.route === '/' ? '/' : step.route
 
-    if (normalizedPathname === normalizedRoute && useTourStore.getState().isNavigating) {
+    if (
+      normalizedPathname === normalizedRoute &&
+      useTourStore.getState().isNavigating
+    ) {
       // Arrived at the target page, wait for element
-      setTimeout(() => waitForTarget(step.targetId), 200)
+      scheduleTimeout(() => waitForTarget(step.targetId), 200)
     }
-  }, [pathname, isActive, getCurrentStep, waitForTarget])
+  }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout])
 
   // Update target rect on scroll/resize
   useEffect(() => {
@@ -249,10 +325,9 @@ export function TourProvider() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      observerRef.current?.disconnect()
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      resetSessionState()
     }
-  }, [])
+  }, [resetSessionState])
 
   return null
 }

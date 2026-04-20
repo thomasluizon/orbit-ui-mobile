@@ -61,6 +61,14 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/theme', () => ({
   createColors: () => new Proxy({}, { get: () => '#111111' }),
+  spacing: {
+    pageX: 20,
+    pageBottom: 40,
+    sectionGap: 16,
+    cardPadding: 20,
+    cardGap: 12,
+    itemGap: 8,
+  },
 }))
 
 vi.mock('@/lib/api-client', () => ({

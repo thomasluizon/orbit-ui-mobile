@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,66 +6,66 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-} from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Sparkles, CheckCircle2 } from 'lucide-react-native'
-import { usePathname, useRouter } from 'expo-router'
-import { useTranslation } from 'react-i18next'
-import { useTrialExpired } from '@/hooks/use-profile'
-import { plural } from '@/lib/plural'
-import { radius } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Sparkles, CheckCircle2 } from "lucide-react-native";
+import { usePathname, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { useTrialExpired } from "@/hooks/use-profile";
+import { plural } from "@/lib/plural";
+import { radius } from "@/lib/theme";
+import { buildUpgradeHref } from "@/lib/upgrade-route";
+import { useAppTheme } from "@/lib/use-app-theme";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = 'orbit_trial_expired_seen'
+const STORAGE_KEY = "orbit_trial_expired_seen";
 
 const FEATURES = [
-  'trial.expired.unlimitedHabits',
-  'trial.expired.aiChat',
-  'trial.expired.allColors',
-  'trial.expired.aiSummary',
-  'trial.expired.subHabits',
-]
+  "trial.expired.unlimitedHabits",
+  "trial.expired.aiChat",
+  "trial.expired.allColors",
+  "trial.expired.aiSummary",
+  "trial.expired.subHabits",
+];
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function TrialExpiredModal() {
-  const { t } = useTranslation()
-  const router = useRouter()
-  const pathname = usePathname()
-  const { colors, shadows } = useAppTheme()
-  const trialExpired = useTrialExpired()
-  const [dismissed, setDismissed] = useState(false)
-  const [alreadySeen, setAlreadySeen] = useState(true)
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { colors, shadows } = useAppTheme();
+  const trialExpired = useTrialExpired();
+  const [dismissed, setDismissed] = useState(false);
+  const [alreadySeen, setAlreadySeen] = useState(true);
+  const styles = useMemo(
+    () => createStyles(colors, shadows),
+    [colors, shadows],
+  );
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      setAlreadySeen(value === '1')
-    })
-  }, [])
+      setAlreadySeen(value === "1");
+    });
+  }, []);
 
-  const isOpen = pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
+  const isOpen =
+    pathname !== "/upgrade" && !dismissed && trialExpired && !alreadySeen;
 
   const dismiss = useCallback(() => {
-    setDismissed(true)
-    AsyncStorage.setItem(STORAGE_KEY, '1')
-  }, [])
+    setDismissed(true);
+    AsyncStorage.setItem(STORAGE_KEY, "1");
+  }, []);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="fade"
-      onRequestClose={dismiss}
-    >
+    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
       <View style={styles.backdrop}>
         <View style={styles.dialog}>
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -74,17 +74,17 @@ export function TrialExpiredModal() {
               <View style={styles.iconCircle}>
                 <Sparkles size={20} color={colors.primary} />
               </View>
-              <Text style={styles.title}>{t('trial.expired.title')}</Text>
+              <Text style={styles.title}>{t("trial.expired.title")}</Text>
             </View>
 
             {/* Subtitle */}
             <Text style={styles.subtitle}>
-              {plural(t('trial.expired.subtitle', { days: 7 }), 7)}
+              {plural(t("trial.expired.subtitle", { days: 7 }), 7)}
             </Text>
 
             {/* Don't lose */}
             <Text style={styles.sectionLabel}>
-              {t('trial.expired.dontLose')}
+              {t("trial.expired.dontLose")}
             </Text>
 
             {/* Feature list */}
@@ -102,12 +102,12 @@ export function TrialExpiredModal() {
               style={styles.subscribeBtn}
               activeOpacity={0.8}
               onPress={() => {
-                dismiss()
-                router.push('/upgrade')
+                dismiss();
+                router.push(buildUpgradeHref(pathname || "/"));
               }}
             >
               <Text style={styles.subscribeBtnText}>
-                {t('trial.expired.subscribe')}
+                {t("trial.expired.subscribe")}
               </Text>
             </TouchableOpacity>
 
@@ -118,14 +118,14 @@ export function TrialExpiredModal() {
               onPress={dismiss}
             >
               <Text style={styles.continueBtnText}>
-                {t('trial.expired.continueFree')}
+                {t("trial.expired.continueFree")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
     </Modal>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -133,19 +133,19 @@ export function TrialExpiredModal() {
 // ---------------------------------------------------------------------------
 
 function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
+  colors: ReturnType<typeof useAppTheme>["colors"],
+  shadows: ReturnType<typeof useAppTheme>["shadows"],
 ) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.60)',
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: "rgba(0,0,0,0.60)",
+      justifyContent: "center",
+      alignItems: "center",
       padding: 24,
     },
     dialog: {
-      width: '100%',
+      width: "100%",
       maxWidth: 360,
       backgroundColor: colors.surfaceOverlay,
       borderRadius: radius.xl,
@@ -156,8 +156,8 @@ function createStyles(
       elevation: 12,
     },
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 12,
       marginBottom: 16,
     },
@@ -166,13 +166,13 @@ function createStyles(
       height: 40,
       borderRadius: 20,
       backgroundColor: colors.primary_10,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     title: {
       flex: 1,
       fontSize: 18,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
     },
     subtitle: {
@@ -183,9 +183,9 @@ function createStyles(
     },
     sectionLabel: {
       fontSize: 12,
-      fontWeight: '600',
+      fontWeight: "600",
       color: colors.textMuted,
-      textTransform: 'uppercase',
+      textTransform: "uppercase",
       letterSpacing: 0.5,
       marginBottom: 12,
     },
@@ -194,8 +194,8 @@ function createStyles(
       marginBottom: 24,
     },
     featureRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 10,
     },
     featureText: {
@@ -207,24 +207,24 @@ function createStyles(
       backgroundColor: colors.primary,
       borderRadius: radius.xl,
       paddingVertical: 14,
-      alignItems: 'center',
+      alignItems: "center",
       ...shadows.sm,
       elevation: 3,
     },
     subscribeBtnText: {
       color: colors.white,
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: "700",
     },
     continueBtn: {
       paddingVertical: 8,
-      alignItems: 'center',
+      alignItems: "center",
       marginTop: 8,
     },
     continueBtnText: {
       color: colors.textSecondary,
       fontSize: 14,
-      fontWeight: '500',
+      fontWeight: "500",
     },
-  })
+  });
 }
