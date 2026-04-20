@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,97 +7,97 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
-} from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Lock, BarChart3 } from 'lucide-react-native'
-import { useTranslation } from 'react-i18next'
-import { API } from '@orbit/shared/api'
-import { getErrorMessage } from '@orbit/shared/utils'
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ArrowLeft, Lock, BarChart3 } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import { API } from "@orbit/shared/api";
+import { getErrorMessage } from "@orbit/shared/utils";
 import {
   getRetrospectiveCacheKey,
   RETROSPECTIVE_PERIODS,
-} from '@orbit/shared/utils/retrospective'
+} from "@orbit/shared/utils/retrospective";
 import {
   useProfile,
   useHasProAccess,
   useIsYearlyPro,
-} from '@/hooks/use-profile'
+} from "@/hooks/use-profile";
 import {
   useRetrospective,
   type RetrospectivePeriod,
-} from '@/hooks/use-retrospective'
-import { apiClient } from '@/lib/api-client'
-import { spacing } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { useOffline } from '@/hooks/use-offline'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+} from "@/hooks/use-retrospective";
+import { apiClient } from "@/lib/api-client";
+import { spacing } from "@/lib/theme";
+import { useAppTheme } from "@/lib/use-app-theme";
+import { buildUpgradeHref } from "@/lib/upgrade-route";
+import { useOffline } from "@/hooks/use-offline";
+import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
+import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 
 function RetrospectiveBody({
   text,
   styles,
 }: Readonly<{ text: string; styles: ReturnType<typeof createStyles> }>) {
   const lines = text
-    .split('\n')
+    .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean)
+    .filter(Boolean);
 
   function renderInlineMarkdown(line: string) {
-    const parts = line.split(/(\*\*.+?\*\*)/g).filter(Boolean)
+    const parts = line.split(/(\*\*.+?\*\*)/g).filter(Boolean);
 
     return parts.map((part, index) => {
-      const strongMatch = /^\*\*(.+?)\*\*$/.exec(part)
+      const strongMatch = /^\*\*(.+?)\*\*$/.exec(part);
       if (strongMatch) {
         return (
           <Text key={`${part}-${index}`} style={styles.resultStrong}>
             {strongMatch[1]}
           </Text>
-        )
+        );
       }
 
       return (
         <Text key={`${part}-${index}`} style={styles.resultInline}>
           {part}
         </Text>
-      )
-    })
+      );
+    });
   }
 
   return (
     <View style={styles.resultContent}>
       {lines.map((line, index) => {
-        const headingMatch = /^\*\*(.+?)\*\*$/.exec(line)
+        const headingMatch = /^\*\*(.+?)\*\*$/.exec(line);
         if (headingMatch) {
           return (
             <Text key={`${line}-${index}`} style={styles.resultHeading}>
               {headingMatch[1]}
             </Text>
-          )
+          );
         }
 
         return (
           <Text key={`${line}-${index}`} style={styles.resultParagraph}>
             {renderInlineMarkdown(line)}
           </Text>
-        )
+        );
       })}
     </View>
-  )
+  );
 }
 
 export default function RetrospectiveScreen() {
-  const router = useRouter()
-  const goBackOrFallback = useGoBackOrFallback()
-  const { t } = useTranslation()
-  const { profile } = useProfile()
-  const { colors } = useAppTheme()
-  const { isOnline } = useOffline()
-  const styles = useMemo(() => createStyles(colors), [colors])
-  const hasProAccess = useHasProAccess()
-  const isYearlyPro = useIsYearlyPro()
+  const router = useRouter();
+  const goBackOrFallback = useGoBackOrFallback();
+  const { t } = useTranslation();
+  const { profile } = useProfile();
+  const { colors } = useAppTheme();
+  const { isOnline } = useOffline();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const hasProAccess = useHasProAccess();
+  const isYearlyPro = useIsYearlyPro();
   const {
     retrospective,
     setRetrospective,
@@ -108,89 +108,89 @@ export default function RetrospectiveScreen() {
     period,
     setPeriod,
     generate,
-  } = useRetrospective()
-  const [portalError, setPortalError] = useState('')
+  } = useRetrospective();
+  const [portalError, setPortalError] = useState("");
   const [cachedRetrospective, setCachedRetrospective] = useState<string | null>(
     null,
-  )
-  const [isCacheLoading, setIsCacheLoading] = useState(true)
-  const cacheKey = getRetrospectiveCacheKey(period)
+  );
+  const [isCacheLoading, setIsCacheLoading] = useState(true);
+  const cacheKey = getRetrospectiveCacheKey(period);
 
   useEffect(() => {
-    if (!profile) return
+    if (!profile) return;
     if (!hasProAccess || !isYearlyPro) {
-      router.push(buildUpgradeHref('/retrospective'))
+      router.replace("/upgrade");
     }
-  }, [hasProAccess, isYearlyPro, profile, router])
+  }, [hasProAccess, isYearlyPro, profile, router]);
 
   useEffect(() => {
-    let active = true
-    setIsCacheLoading(true)
+    let active = true;
+    setIsCacheLoading(true);
 
     AsyncStorage.getItem(cacheKey)
       .then((value) => {
         if (active) {
-          setCachedRetrospective(value)
+          setCachedRetrospective(value);
         }
       })
       .finally(() => {
         if (active) {
-          setIsCacheLoading(false)
+          setIsCacheLoading(false);
         }
-      })
+      });
 
     return () => {
-      active = false
-    }
-  }, [cacheKey])
+      active = false;
+    };
+  }, [cacheKey]);
 
   useEffect(() => {
-    if (!retrospective) return
+    if (!retrospective) return;
 
-    AsyncStorage.setItem(cacheKey, retrospective).catch(() => {})
-  }, [cacheKey, retrospective])
+    AsyncStorage.setItem(cacheKey, retrospective).catch(() => {});
+  }, [cacheKey, retrospective]);
 
   const displayedRetrospective =
-    retrospective ?? (!isOnline && !isLoading ? cachedRetrospective : null)
+    retrospective ?? (!isOnline && !isLoading ? cachedRetrospective : null);
   const displayedFromCache =
     fromCache ||
-    (!retrospective && !isOnline && !isLoading && cachedRetrospective !== null)
+    (!retrospective && !isOnline && !isLoading && cachedRetrospective !== null);
 
   function selectPeriod(nextPeriod: RetrospectivePeriod) {
-    setPeriod(nextPeriod)
-    setRetrospective(null)
-    setError(null)
+    setPeriod(nextPeriod);
+    setRetrospective(null);
+    setError(null);
   }
 
   async function handleOpenPortal() {
     if (!isOnline) {
-      setPortalError(t('calendarSync.notConnected'))
-      return
+      setPortalError(t("calendarSync.notConnected"));
+      return;
     }
 
-    setPortalError('')
+    setPortalError("");
     try {
       const data = await apiClient<{ url?: string }>(API.subscription.portal, {
-        method: 'POST',
-      })
+        method: "POST",
+      });
       if (data?.url) {
-        await Linking.openURL(data.url)
+        await Linking.openURL(data.url);
       }
     } catch (err: unknown) {
-      setPortalError(getErrorMessage(err, t('auth.genericError')))
+      setPortalError(getErrorMessage(err, t("auth.genericError")));
     }
   }
 
   function handleGenerate() {
     if (!isOnline) {
-      setError(t('calendarSync.notConnected'))
-      return
+      setError(t("calendarSync.notConnected"));
+      return;
     }
 
-    void generate()
+    void generate();
   }
 
-  const isLoaded = !!profile
+  const isLoaded = !!profile;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -202,18 +202,18 @@ export default function RetrospectiveScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => goBackOrFallback('/profile')}
+            onPress={() => goBackOrFallback("/profile")}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={t('common.goBack')}
+            accessibilityLabel={t("common.goBack")}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>{t('retrospective.title')}</Text>
+            <Text style={styles.headerTitle}>{t("retrospective.title")}</Text>
             <View style={styles.yearlyBadge}>
               <Text style={styles.yearlyBadgeText}>
-                {t('common.yearlyBadge')}
+                {t("common.yearlyBadge")}
               </Text>
             </View>
           </View>
@@ -224,17 +224,17 @@ export default function RetrospectiveScreen() {
             <View style={styles.lockedIconCircle}>
               <Lock size={32} color={colors.primary} />
             </View>
-            <Text style={styles.lockedTitle}>{t('retrospective.locked')}</Text>
+            <Text style={styles.lockedTitle}>{t("retrospective.locked")}</Text>
             <Text style={styles.lockedDescription}>
-              {t('retrospective.lockedHint')}
+              {t("retrospective.lockedHint")}
             </Text>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => router.push(buildUpgradeHref('/retrospective'))}
+              onPress={() => router.push(buildUpgradeHref("/retrospective"))}
               activeOpacity={0.8}
             >
               <Text style={styles.primaryButtonText}>
-                {t('upgrade.subscribe')}
+                {t("upgrade.subscribe")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -246,19 +246,19 @@ export default function RetrospectiveScreen() {
               <Lock size={32} color={colors.primary} />
             </View>
             <Text style={styles.lockedTitle}>
-              {t('retrospective.lockedYearly')}
+              {t("retrospective.lockedYearly")}
             </Text>
             <Text style={styles.lockedDescription}>
-              {t('retrospective.lockedYearlyHint')}
+              {t("retrospective.lockedYearlyHint")}
             </Text>
             {profile?.isTrialActive ? (
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={() => router.push(buildUpgradeHref('/retrospective'))}
+                onPress={() => router.push(buildUpgradeHref("/retrospective"))}
                 activeOpacity={0.8}
               >
                 <Text style={styles.primaryButtonText}>
-                  {t('upgrade.subscribe')}
+                  {t("upgrade.subscribe")}
                 </Text>
               </TouchableOpacity>
             ) : (
@@ -272,14 +272,14 @@ export default function RetrospectiveScreen() {
                 activeOpacity={0.8}
               >
                 <Text style={styles.primaryButtonText}>
-                  {t('retrospective.changePlan')}
+                  {t("retrospective.changePlan")}
                 </Text>
               </TouchableOpacity>
             )}
             {!isOnline && (
               <OfflineUnavailableState
-                title={t('calendarSync.notConnected')}
-                description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                title={t("calendarSync.notConnected")}
+                description={`${t("retrospective.generate")} / ${t("retrospective.changePlan")}`}
                 compact
               />
             )}
@@ -293,8 +293,8 @@ export default function RetrospectiveScreen() {
           <>
             {!isOnline && (
               <OfflineUnavailableState
-                title={t('calendarSync.notConnected')}
-                description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                title={t("calendarSync.notConnected")}
+                description={`${t("retrospective.generate")} / ${t("retrospective.changePlan")}`}
                 compact
               />
             )}
@@ -335,8 +335,8 @@ export default function RetrospectiveScreen() {
               ) : null}
               <Text style={styles.generateButtonText}>
                 {isLoading
-                  ? t('retrospective.generating')
-                  : t('retrospective.generate')}
+                  ? t("retrospective.generating")
+                  : t("retrospective.generate")}
               </Text>
             </TouchableOpacity>
 
@@ -349,14 +349,14 @@ export default function RetrospectiveScreen() {
                   <View
                     style={[
                       styles.skeletonBlock,
-                      { width: '100%', height: 14 },
+                      { width: "100%", height: 14 },
                     ]}
                   />
                   <View
-                    style={[styles.skeletonBlock, { width: '86%', height: 14 }]}
+                    style={[styles.skeletonBlock, { width: "86%", height: 14 }]}
                   />
                   <View
-                    style={[styles.skeletonBlock, { width: '70%', height: 14 }]}
+                    style={[styles.skeletonBlock, { width: "70%", height: 14 }]}
                   />
                 </View>
                 <View
@@ -366,11 +366,11 @@ export default function RetrospectiveScreen() {
                   <View
                     style={[
                       styles.skeletonBlock,
-                      { width: '100%', height: 14 },
+                      { width: "100%", height: 14 },
                     ]}
                   />
                   <View
-                    style={[styles.skeletonBlock, { width: '78%', height: 14 }]}
+                    style={[styles.skeletonBlock, { width: "78%", height: 14 }]}
                   />
                 </View>
               </View>
@@ -384,7 +384,7 @@ export default function RetrospectiveScreen() {
                 />
                 {displayedFromCache && (
                   <Text style={styles.cachedText}>
-                    {t('retrospective.cached')}
+                    {t("retrospective.cached")}
                   </Text>
                 )}
               </View>
@@ -393,10 +393,10 @@ export default function RetrospectiveScreen() {
             {!isLoading && error && (!displayedRetrospective || isOnline) && (
               <View style={styles.errorCard}>
                 <Text style={styles.errorTitle}>
-                  {t('retrospective.error')}
+                  {t("retrospective.error")}
                 </Text>
                 <TouchableOpacity onPress={handleGenerate} activeOpacity={0.7}>
-                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                  <Text style={styles.retryText}>{t("common.retry")}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -410,7 +410,7 @@ export default function RetrospectiveScreen() {
                     <BarChart3 size={24} color={colors.primary} />
                   </View>
                   <Text style={styles.emptyText}>
-                    {t('retrospective.empty')}
+                    {t("retrospective.empty")}
                   </Text>
                 </View>
               )}
@@ -418,10 +418,10 @@ export default function RetrospectiveScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     container: { flex: 1 },
@@ -430,17 +430,17 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       paddingBottom: spacing.pageBottom,
     },
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.cardGap,
       paddingTop: spacing.sectionGap * 2,
       paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8, borderRadius: 999 },
-    headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     headerTitle: {
       fontSize: 28,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
       letterSpacing: -0.5,
     },
@@ -452,8 +452,8 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     yearlyBadgeText: {
       fontSize: 10,
-      fontWeight: '700',
-      textTransform: 'uppercase',
+      fontWeight: "700",
+      textTransform: "uppercase",
       color: colors.primary,
       letterSpacing: 0.5,
     },
@@ -461,7 +461,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       backgroundColor: colors.surface,
       borderRadius: 20,
       padding: spacing.cardPadding + 4,
-      alignItems: 'center',
+      alignItems: "center",
       gap: spacing.sectionGap,
     },
     lockedIconCircle: {
@@ -469,33 +469,33 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       height: 64,
       borderRadius: 32,
       backgroundColor: colors.primary_20,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     lockedTitle: {
       fontSize: 18,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
-      textAlign: 'center',
+      textAlign: "center",
     },
     lockedDescription: {
       fontSize: 14,
       color: colors.textSecondary,
-      textAlign: 'center',
+      textAlign: "center",
       lineHeight: 22,
     },
     primaryButton: {
-      width: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
       backgroundColor: colors.primary,
       borderRadius: 20,
       paddingVertical: 14,
     },
     primaryButtonText: {
       fontSize: 14,
-      fontWeight: '700',
-      color: '#fff',
+      fontWeight: "700",
+      color: "#fff",
     },
     disabledButton: {
       opacity: 0.5,
@@ -503,11 +503,11 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     portalError: {
       fontSize: 12,
       color: colors.red400,
-      textAlign: 'center',
+      textAlign: "center",
     },
     periodRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+      flexDirection: "row",
+      flexWrap: "wrap",
       gap: 8,
       marginBottom: 24,
     },
@@ -525,16 +525,16 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     periodChipText: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: "600",
       color: colors.textSecondary,
     },
     periodChipTextActive: {
-      color: '#fff',
+      color: "#fff",
     },
     generateButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       gap: 8,
       backgroundColor: colors.primary,
       borderRadius: 20,
@@ -546,8 +546,8 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     generateButtonText: {
       fontSize: 14,
-      fontWeight: '700',
-      color: '#fff',
+      fontWeight: "700",
+      color: "#fff",
     },
     resultCard: {
       backgroundColor: colors.surface,
@@ -564,13 +564,13 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     resultHeading: {
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
       marginTop: 8,
     },
     resultStrong: {
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
     },
     resultInline: {
@@ -591,24 +591,24 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       backgroundColor: colors.surface,
       borderRadius: 20,
       padding: 20,
-      alignItems: 'center',
+      alignItems: "center",
       gap: 12,
     },
     errorTitle: {
       fontSize: 14,
       color: colors.red400,
-      textAlign: 'center',
+      textAlign: "center",
     },
     retryText: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: "600",
       color: colors.primary,
     },
     emptyCard: {
       backgroundColor: colors.surface,
       borderRadius: 20,
       padding: 24,
-      alignItems: 'center',
+      alignItems: "center",
       gap: 12,
     },
     emptyIconCircle: {
@@ -616,13 +616,13 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       height: 48,
       borderRadius: 24,
       backgroundColor: colors.primary_10,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     emptyText: {
       fontSize: 14,
       color: colors.textSecondary,
-      textAlign: 'center',
+      textAlign: "center",
     },
-  })
+  });
 }

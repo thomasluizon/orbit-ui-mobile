@@ -224,6 +224,7 @@ describe("mobile ui store", () => {
     expect(createTourUIState("2026-04-06")).toEqual({
       activeFilters: {},
       selectedDate: "2026-04-06",
+      followToday: true,
       activeView: "today",
       searchQuery: "",
       selectedFrequency: null,

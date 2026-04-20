@@ -4,49 +4,49 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-} from 'react-native'
-import { useEffect, useMemo } from 'react'
-import { useRouter } from 'expo-router'
-import { useTranslation } from 'react-i18next'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Lock } from 'lucide-react-native'
-import { createColors, spacing } from '@/lib/theme'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
-import { useGamificationProfile } from '@/hooks/use-gamification'
+} from "react-native";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ArrowLeft, Lock } from "lucide-react-native";
+import { createColors, spacing } from "@/lib/theme";
+import { buildUpgradeHref } from "@/lib/upgrade-route";
+import { useProfile, useHasProAccess } from "@/hooks/use-profile";
+import { useGamificationProfile } from "@/hooks/use-gamification";
 import {
   AchievementCategorySection,
   createAchievementsScreenStyles,
-} from './achievements-sections'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { ProBadge } from '@/components/ui/pro-badge'
+} from "./achievements-sections";
+import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
+import { useAppTheme } from "@/lib/use-app-theme";
+import { ProBadge } from "@/components/ui/pro-badge";
 
-type AppColors = ReturnType<typeof createColors>
+type AppColors = ReturnType<typeof createColors>;
 
 export default function AchievementsScreen() {
-  const { t } = useTranslation()
-  const router = useRouter()
-  const goBackOrFallback = useGoBackOrFallback()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { t } = useTranslation();
+  const router = useRouter();
+  const goBackOrFallback = useGoBackOrFallback();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const categoryStyles = useMemo(
     () => createAchievementsScreenStyles(colors),
     [colors],
-  )
-  const { profile: accountProfile, isLoading: profileLoading } = useProfile()
-  const hasProAccess = useHasProAccess()
+  );
+  const { profile: accountProfile, isLoading: profileLoading } = useProfile();
+  const hasProAccess = useHasProAccess();
   const { profile, isLoading, xpProgress, achievementsByCategory } =
-    useGamificationProfile(hasProAccess)
+    useGamificationProfile(hasProAccess);
 
   useEffect(() => {
     if (accountProfile && !hasProAccess) {
-      router.push(buildUpgradeHref('/achievements'))
+      router.replace("/upgrade");
     }
-  }, [accountProfile, hasProAccess, router])
+  }, [accountProfile, hasProAccess, router]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -55,13 +55,13 @@ export default function AchievementsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => goBackOrFallback('/profile')}
+            onPress={() => goBackOrFallback("/profile")}
             activeOpacity={0.7}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>{t('gamification.title')}</Text>
+            <Text style={styles.headerTitle}>{t("gamification.title")}</Text>
             <ProBadge alwaysVisible />
           </View>
         </View>
@@ -72,18 +72,18 @@ export default function AchievementsScreen() {
               <Lock size={32} color={colors.primary} />
             </View>
             <Text style={styles.lockedTitle}>
-              {t('gamification.page.lockedTitle')}
+              {t("gamification.page.lockedTitle")}
             </Text>
             <Text style={styles.lockedDescription}>
-              {t('gamification.page.lockedDescription')}
+              {t("gamification.page.lockedDescription")}
             </Text>
             <TouchableOpacity
               style={styles.upgradeButton}
-              onPress={() => router.push(buildUpgradeHref('/achievements'))}
+              onPress={() => router.push(buildUpgradeHref("/achievements"))}
               activeOpacity={0.8}
             >
               <Text style={styles.upgradeButtonText}>
-                {t('gamification.page.upgradeButton')}
+                {t("gamification.page.upgradeButton")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -100,7 +100,7 @@ export default function AchievementsScreen() {
                 <View
                   style={[
                     styles.skeletonBar,
-                    { width: '100%', height: 10, borderRadius: 999 },
+                    { width: "100%", height: 10, borderRadius: 999 },
                   ]}
                 />
               </View>
@@ -118,7 +118,7 @@ export default function AchievementsScreen() {
                         {profile.levelTitle}
                       </Text>
                       <Text style={styles.levelSubtitle}>
-                        {t('gamification.profileCard.level', {
+                        {t("gamification.profileCard.level", {
                           level: profile.level,
                         })}
                       </Text>
@@ -133,13 +133,13 @@ export default function AchievementsScreen() {
                     </View>
                     <View style={styles.xpTextRow}>
                       <Text style={styles.xpText}>
-                        {t('gamification.profileCard.xp', {
+                        {t("gamification.profileCard.xp", {
                           current: profile.totalXp.toLocaleString(),
                           next: profile.xpForNextLevel.toLocaleString(),
                         })}
                       </Text>
                       <Text style={styles.xpTotal}>
-                        {t('gamification.profileCard.totalXp', {
+                        {t("gamification.profileCard.totalXp", {
                           total: profile.totalXp.toLocaleString(),
                         })}
                       </Text>
@@ -147,7 +147,7 @@ export default function AchievementsScreen() {
                   </View>
 
                   <Text style={styles.earnedCount}>
-                    {t('gamification.profileCard.earned', {
+                    {t("gamification.profileCard.earned", {
                       count: profile.achievementsEarned,
                       total: profile.achievementsTotal,
                     })}
@@ -168,7 +168,7 @@ export default function AchievementsScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 function createStyles(colors: AppColors) {
@@ -180,17 +180,17 @@ function createStyles(colors: AppColors) {
       paddingBottom: spacing.pageBottom,
     },
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.cardGap,
       paddingTop: spacing.sectionGap * 2,
       paddingBottom: spacing.cardGap * 2,
     },
     backButton: { padding: 8, marginLeft: -8, borderRadius: 999 },
-    headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     headerTitle: {
       fontSize: 28,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
       letterSpacing: -0.5,
     },
@@ -198,7 +198,7 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.surface,
       borderRadius: 20,
       padding: spacing.cardPadding + 4,
-      alignItems: 'center',
+      alignItems: "center",
       gap: spacing.sectionGap,
     },
     lockedIconCircle: {
@@ -206,18 +206,18 @@ function createStyles(colors: AppColors) {
       height: 64,
       borderRadius: 32,
       backgroundColor: colors.primary_20,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     lockedTitle: {
       fontSize: 18,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
     },
     lockedDescription: {
       fontSize: 14,
       color: colors.textSecondary,
-      textAlign: 'center',
+      textAlign: "center",
     },
     upgradeButton: {
       backgroundColor: colors.primary,
@@ -227,8 +227,8 @@ function createStyles(colors: AppColors) {
     },
     upgradeButtonText: {
       fontSize: 14,
-      fontWeight: '600',
-      color: '#fff',
+      fontWeight: "600",
+      color: "#fff",
     },
     loadingCard: {
       backgroundColor: colors.surface,
@@ -247,8 +247,8 @@ function createStyles(colors: AppColors) {
       gap: 12,
     },
     levelRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 12,
     },
     levelCircle: {
@@ -256,17 +256,17 @@ function createStyles(colors: AppColors) {
       height: 48,
       borderRadius: 24,
       backgroundColor: colors.primary_20,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     levelNumber: {
       fontSize: 18,
-      fontWeight: '800',
+      fontWeight: "800",
       color: colors.primary,
     },
     levelTitle: {
       fontSize: 18,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
     },
     levelSubtitle: {
@@ -277,21 +277,21 @@ function createStyles(colors: AppColors) {
       height: 10,
       backgroundColor: colors.surfaceElevated,
       borderRadius: 999,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     xpBarFill: {
-      height: '100%',
+      height: "100%",
       backgroundColor: colors.primary,
       borderRadius: 999,
     },
     xpTextRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
     },
     xpText: {
       fontSize: 12,
-      fontWeight: '700',
+      fontWeight: "700",
       color: colors.textPrimary,
     },
     xpTotal: {
@@ -309,17 +309,17 @@ function createStyles(colors: AppColors) {
     },
     categoryLabel: {
       fontSize: 11,
-      fontWeight: '700',
+      fontWeight: "700",
       letterSpacing: 1,
       color: colors.textMuted,
-      textTransform: 'uppercase',
+      textTransform: "uppercase",
     },
     achievementGrid: {
-      flexDirection: 'column',
+      flexDirection: "column",
       gap: 12,
     },
     achievementItem: {
-      width: '100%',
+      width: "100%",
     },
-  })
+  });
 }
