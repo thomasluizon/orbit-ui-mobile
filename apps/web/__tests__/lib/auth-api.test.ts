@@ -105,12 +105,14 @@ describe('auth-api session helpers', () => {
 
   it('keeps the current access token when refresh fails but the token is still valid', async () => {
     const nearlyExpiredToken = makeJwt(Math.floor(FIXED_NOW / 1000) + 30)
+    const clearRefreshToken = vi.fn()
 
     const { resolveSessionTokens } = await import('@/lib/auth-api')
     const session = await resolveSessionTokens({
       authToken: nearlyExpiredToken,
       refreshToken: 'refresh-token',
       persistSession: vi.fn(),
+      clearRefreshToken,
     })
 
     expect(session).toEqual({
@@ -118,6 +120,25 @@ describe('auth-api session helpers', () => {
       expiresAt: FIXED_NOW + 30_000,
       refreshed: false,
     })
+    expect(clearRefreshToken).not.toHaveBeenCalled()
+  })
+
+  it('clears the stale refresh cookie when refresh fails without a usable access token', async () => {
+    const clearRefreshToken = vi.fn()
+
+    const { resolveSessionTokens } = await import('@/lib/auth-api')
+    const session = await resolveSessionTokens({
+      authToken: null,
+      refreshToken: 'refresh-token',
+      clearRefreshToken,
+    })
+
+    expect(session).toEqual({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+    })
+    expect(clearRefreshToken).toHaveBeenCalledTimes(1)
   })
 
   it('does not clear cookies when refresh fails and clearOnFailure is false', async () => {

@@ -951,7 +951,7 @@ export function HabitCard({
                     <TouchableOpacity
                       onPress={() => {
                         if (isNotDueToday) return
-                        if (isDoneForRange) {
+                        if (showParentCompletedState) {
                           onUnlog?.()
                         } else if (childrenDone >= childrenTotal) {
                           onLog?.()

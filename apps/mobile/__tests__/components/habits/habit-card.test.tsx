@@ -302,6 +302,40 @@ describe('HabitCard', () => {
     ).toBeGreaterThanOrEqual(1)
   })
 
+  it('treats the recent parent completion state as completed when tapped', () => {
+    const onLog = vi.fn()
+    const onUnlog = vi.fn()
+    const onForceLogParent = vi.fn()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({ isCompleted: false, hasSubHabits: true })}
+          hasChildren
+          childrenDone={3}
+          childrenTotal={3}
+          isRecentlyCompleted
+          actions={{ onLog, onUnlog, onForceLogParent }}
+        />,
+      )
+    })
+
+    const parentRingButton = tree.root.find(
+      (node: any) =>
+        node.type === 'TouchableOpacity' &&
+        node.props.accessibilityLabel === 'Exercise 3/3',
+    )
+
+    TestRenderer.act(() => {
+      parentRingButton.props.onPress?.()
+    })
+
+    expect(onUnlog).toHaveBeenCalledTimes(1)
+    expect(onLog).not.toHaveBeenCalled()
+    expect(onForceLogParent).not.toHaveBeenCalled()
+  })
+
   it('does not dim pending drill cards', () => {
     let tree: any
 

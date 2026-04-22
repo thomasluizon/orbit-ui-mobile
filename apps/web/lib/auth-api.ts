@@ -146,6 +146,13 @@ export async function setRefreshCookie(
   })
 }
 
+export async function clearRefreshCookie(
+  cookieTarget?: CookieValueWriter,
+): Promise<void> {
+  const target = cookieTarget ?? await getCookieStore()
+  await target.set(REFRESH_COOKIE, '', { ...COOKIE_OPTIONS, maxAge: 0 })
+}
+
 /**
  * Sets both auth and refresh cookies in one call.
  */
@@ -169,7 +176,7 @@ export async function clearSessionCookies(
 ): Promise<void> {
   const target = cookieTarget ?? await getCookieStore()
   await target.set(AUTH_COOKIE, '', { ...COOKIE_OPTIONS, maxAge: 0 })
-  await target.set(REFRESH_COOKIE, '', { ...COOKIE_OPTIONS, maxAge: 0 })
+  await clearRefreshCookie(target)
 }
 
 export async function refreshSessionTokens(
@@ -258,6 +265,9 @@ export async function resolveServerSession(options?: {
     persistSession: async (tokens) => {
       await setSessionCookies(tokens.token, tokens.refreshToken, cookieStore)
     },
+    clearRefreshToken: async () => {
+      await clearRefreshCookie(cookieStore)
+    },
   })
 }
 
@@ -267,6 +277,7 @@ export async function resolveSessionTokens(options: {
   forceRefresh?: boolean
   refreshThresholdMs?: number
   persistSession?: (tokens: SessionTokens) => void | Promise<void>
+  clearRefreshToken?: () => void | Promise<void>
 }): Promise<ResolvedServerSession> {
   const forceRefresh = options.forceRefresh ?? false
   const refreshThresholdMs =
@@ -306,6 +317,10 @@ export async function resolveSessionTokens(options: {
       expiresAt: currentExpiry,
       refreshed: false,
     }
+  }
+
+  if (options.refreshToken) {
+    await options.clearRefreshToken?.()
   }
 
   return {
