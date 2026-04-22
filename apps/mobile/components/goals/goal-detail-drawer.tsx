@@ -96,9 +96,9 @@ export function GoalDetailDrawer({
   const updateStatus = useUpdateGoalStatus()
   const deleteGoalMut = useDeleteGoal()
 
-  // Get goal from list cache for immediate display
-  const goal = goalsData?.goalsById.get(goalId) ?? null
+  // Prefer detail data once loaded so streak sync updates are reflected immediately.
   const detail = detailData?.goal ?? null
+  const goal = detail ?? goalsData?.goalsById.get(goalId) ?? null
   const metrics = detailData?.metrics ?? null
 
   const isStreak = isStreakGoal(goal?.type)

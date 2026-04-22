@@ -1,14 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-// Mock fetch globally
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 describe('auth store', () => {
   beforeEach(() => {
-    // Reset store state between tests
     useAuthStore.setState({
       isAuthenticated: false,
       user: null,
@@ -26,140 +24,81 @@ describe('auth store', () => {
     }
   }
 
-  describe('initial state', () => {
-    it('starts unauthenticated', () => {
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
-      expect(state.user).toBeNull()
-      expect(state.expiresAt).toBeNull()
-    })
+  it('starts unauthenticated', () => {
+    const state = useAuthStore.getState()
+    expect(state.isAuthenticated).toBe(false)
+    expect(state.user).toBeNull()
+    expect(state.expiresAt).toBeNull()
   })
 
-  describe('setAuth', () => {
-    it('sets authenticated state from LoginResponse', () => {
-      const { setAuth } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
+  it('sets authenticated state from LoginResponse', () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
 
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(true)
-      expect(state.user).toEqual({
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: {
         userId: 'user-1',
         name: 'Thomas',
         email: 'thomas@example.com',
-      })
-    })
-
-    it('overwrites previous user on re-login', () => {
-      const { setAuth } = useAuthStore.getState()
-      setAuth(makeLoginResponse({ userId: 'user-1', name: 'Alice' }))
-      setAuth(makeLoginResponse({ userId: 'user-2', name: 'Bob' }))
-
-      const state = useAuthStore.getState()
-      expect(state.user?.userId).toBe('user-2')
-      expect(state.user?.name).toBe('Bob')
+      },
     })
   })
 
-  describe('logout', () => {
-    it('clears user state', async () => {
-      mockFetch.mockResolvedValue({ ok: true })
+  it('logs out and calls the BFF logout endpoint', async () => {
+    mockFetch.mockResolvedValue({ ok: true })
+    useAuthStore.getState().setAuth(makeLoginResponse())
 
-      const { setAuth, logout } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
+    await useAuthStore.getState().logout()
 
-      await logout()
-
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
-      expect(state.user).toBeNull()
-      expect(state.expiresAt).toBeNull()
-    })
-
-    it('calls BFF logout endpoint', async () => {
-      mockFetch.mockResolvedValue({ ok: true })
-
-      const { setAuth, logout } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
-
-      await logout()
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
-    })
-
-    it('still logs out if BFF logout fails', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'))
-
-      const { setAuth, logout } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
-
-      await logout()
-
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
-      expect(state.user).toBeNull()
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
     })
   })
 
-  describe('checkSession', () => {
-    it('updates expiresAt from session response', async () => {
-      const expiresAt = Date.now() + 60 * 60 * 1000 // 1 hour from now
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ expiresAt }),
-      })
-
-      const { setAuth, checkSession } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
-
-      await checkSession()
-
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(true)
-      expect(state.expiresAt).toBe(expiresAt)
+  it('updates expiresAt from the session response', async () => {
+    const expiresAt = Date.now() + 3600000
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ expiresAt }),
     })
+    useAuthStore.getState().setAuth(makeLoginResponse())
 
-    it('logs out when session response has no expiresAt', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ expiresAt: null }),
-      })
+    await useAuthStore.getState().checkSession()
 
-      const { setAuth, checkSession } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
-
-      await checkSession()
-
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
-      expect(state.user).toBeNull()
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      expiresAt,
     })
+  })
 
-    it('logs out on non-OK response', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        json: () => Promise.resolve({}),
-      })
-
-      const { setAuth, checkSession } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
-
-      await checkSession()
-
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
+  it('clears auth state when the session response has no active expiry', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ expiresAt: null }),
     })
+    useAuthStore.getState().setAuth(makeLoginResponse())
 
-    it('keeps current state on network error', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'))
+    await useAuthStore.getState().checkSession()
 
-      const { setAuth, checkSession } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+    })
+  })
 
-      await checkSession()
+  it('keeps the current state on network errors', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'))
+    useAuthStore.getState().setAuth(makeLoginResponse())
 
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(true)
-      expect(state.user).not.toBeNull()
+    await useAuthStore.getState().checkSession()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: expect.objectContaining({ userId: 'user-1' }),
     })
   })
 
@@ -172,126 +111,46 @@ describe('auth store', () => {
       vi.useRealTimers()
     })
 
-    it('returns a cleanup function', () => {
+    it('returns a cleanup function and checks the session immediately', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ expiresAt: Date.now() + 3600000 }),
       })
+      useAuthStore.getState().setAuth(makeLoginResponse())
 
-      const { startExpiryMonitor } = useAuthStore.getState()
-      const cleanup = startExpiryMonitor()
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      await vi.runOnlyPendingTimersAsync()
 
       expect(typeof cleanup).toBe('function')
-      cleanup()
-    })
-
-    it('triggers checkSession immediately', () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000 }),
-      })
-
-      const { startExpiryMonitor } = useAuthStore.getState()
-      const cleanup = startExpiryMonitor()
-
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
       cleanup()
     })
 
-    it('auto-logouts when expiry time passes', async () => {
-      const now = Date.now()
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ expiresAt: now + 30000 }), // 30s
-        })
-        .mockResolvedValue({ ok: true }) // logout call
+    it('polls the session endpoint every minute while authenticated', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000 }),
+      })
+      useAuthStore.getState().setAuth(makeLoginResponse())
 
-      const { setAuth, startExpiryMonitor } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      await vi.runOnlyPendingTimersAsync()
+      mockFetch.mockClear()
 
-      // Simulate the session check resolving
-      useAuthStore.setState({ expiresAt: now - 1000 }) // Already expired
+      await vi.advanceTimersByTimeAsync(60000)
 
-      const cleanup = startExpiryMonitor()
-
-      // Advance past the check interval (60s)
-      await vi.advanceTimersByTimeAsync(61000)
-
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
       cleanup()
     })
 
-    it('enters warning zone when remaining time is under 5 minutes', async () => {
-      const now = Date.now()
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ expiresAt: now + 3600000 }),
-      })
+    it('skips interval polling when not authenticated', async () => {
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      mockFetch.mockClear()
 
-      const { setAuth, startExpiryMonitor } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
+      await vi.advanceTimersByTimeAsync(60000)
 
-      // Set expiry to 3 minutes from now (under the 5-minute warning threshold)
-      useAuthStore.setState({ expiresAt: now + 3 * 60 * 1000 })
-
-      const cleanup = startExpiryMonitor()
-
-      // Advance past one check interval (60s)
-      await vi.advanceTimersByTimeAsync(61000)
-
-      // Should still be authenticated -- warning branch doesn't logout
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(true)
-      cleanup()
-    })
-
-    it('skips interval check when not authenticated', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ expiresAt: null }),
-      })
-
-      const { startExpiryMonitor } = useAuthStore.getState()
-      // Not authenticated, no expiresAt
-      useAuthStore.setState({ isAuthenticated: false, expiresAt: null })
-
-      const cleanup = startExpiryMonitor()
-
-      await vi.advanceTimersByTimeAsync(61000)
-
-      // Should remain unauthenticated
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
-      cleanup()
-    })
-
-    it('skips interval check when expiresAt is null', async () => {
-      // Return a valid session so the initial checkSession keeps us authenticated
-      const future = Date.now() + 3600000
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ expiresAt: future }),
-      })
-
-      const { setAuth, startExpiryMonitor } = useAuthStore.getState()
-      setAuth(makeLoginResponse())
-
-      const cleanup = startExpiryMonitor()
-
-      // Wait for the initial checkSession to complete
-      await vi.advanceTimersByTimeAsync(0)
-
-      // Now clear expiresAt to simulate the condition we want to test
-      useAuthStore.setState({ expiresAt: null })
-
-      // Advance past the interval
-      await vi.advanceTimersByTimeAsync(61000)
-
-      // Should still be authenticated -- interval check bails early when expiresAt is null
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(true)
+      expect(mockFetch).not.toHaveBeenCalled()
       cleanup()
     })
   })

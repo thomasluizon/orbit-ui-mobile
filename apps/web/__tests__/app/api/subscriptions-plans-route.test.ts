@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/subscriptions/plans/route'
-import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
-  getAuthToken: vi.fn(),
-  tryRefreshSession: vi.fn(),
+  resolveServerSession: vi.fn(),
 }))
 
 const mockFetch = vi.fn()
@@ -14,12 +13,15 @@ vi.stubGlobal('fetch', mockFetch)
 describe('subscriptions plans route', () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    vi.mocked(getAuthToken).mockReset()
-    vi.mocked(tryRefreshSession).mockReset()
+    vi.mocked(resolveServerSession).mockReset()
   })
 
   it('forwards geo country headers and a sanitized client ip', async () => {
-    vi.mocked(getAuthToken).mockResolvedValue('token')
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
     mockFetch.mockResolvedValue(
       new Response('[]', {
         status: 200,

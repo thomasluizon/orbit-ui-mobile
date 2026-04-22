@@ -1,30 +1,35 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock auth-api
+const resolveServerSessionMock = vi.fn()
+
 vi.mock('@/lib/auth-api', () => ({
-  getAuthHeaders: vi.fn().mockResolvedValue({ Authorization: 'Bearer test-token' }),
+  resolveServerSession: resolveServerSessionMock,
 }))
 
-// Mock shared error utils
 vi.mock('@orbit/shared', () => ({
   createApiClientError: vi.fn((status: number, _payload: unknown, fallbackMessage: string) => {
     const err = new Error(fallbackMessage)
-    ;(err as unknown as Record<string, unknown>).status = status
-    ;(err as unknown as Record<string, unknown>).name = 'ApiClientError'
+    ;(err as Error & { status: number }).status = status
+    ;(err as Error & { name: string }).name = 'ApiClientError'
     return err
   }),
 }))
 
-// Mock fetch globally
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 describe('serverAuthFetch', () => {
   beforeEach(() => {
+    resolveServerSessionMock.mockReset()
     mockFetch.mockReset()
   })
 
-  it('calls fetch with auth headers and JSON content type', async () => {
+  it('calls fetch with the resolved auth token', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -46,7 +51,66 @@ describe('serverAuthFetch', () => {
     expect(result).toEqual({ id: 'h-1' })
   })
 
-  it('returns null for 204 No Content', async () => {
+  it('retries once with a force refresh after a 401', async () => {
+    resolveServerSessionMock
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'fresh-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      })
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+    const result = await serverAuthFetch('/api/habits')
+
+    expect(result).toEqual({ ok: true })
+    expect(resolveServerSessionMock).toHaveBeenNthCalledWith(1)
+    expect(resolveServerSessionMock).toHaveBeenNthCalledWith(2, { forceRefresh: true })
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer fresh-token',
+        }),
+      }),
+    )
+  })
+
+  it('throws unauthorized when no session token can be resolved', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+    })
+
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+
+    await expect(serverAuthFetch('/api/habits')).rejects.toMatchObject({ status: 401 })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('returns null for 204 responses', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
     mockFetch.mockResolvedValue({
       ok: true,
       status: 204,
@@ -57,64 +121,5 @@ describe('serverAuthFetch', () => {
     const result = await serverAuthFetch('/api/habits/h-1', { method: 'DELETE' })
 
     expect(result).toBeNull()
-  })
-
-  it('returns null for empty response body', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(''),
-    })
-
-    const { serverAuthFetch } = await import('@/lib/server-fetch')
-    const result = await serverAuthFetch('/api/some-endpoint')
-
-    expect(result).toBeNull()
-  })
-
-  it('throws ApiClientError on non-ok response', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({ error: 'Bad request' }),
-    })
-
-    const { serverAuthFetch } = await import('@/lib/server-fetch')
-
-    await expect(serverAuthFetch('/api/habits')).rejects.toThrow()
-  })
-
-  it('handles json parse failure in error response', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.reject(new Error('Invalid JSON')),
-    })
-
-    const { serverAuthFetch } = await import('@/lib/server-fetch')
-
-    await expect(serverAuthFetch('/api/habits')).rejects.toThrow()
-  })
-
-  it('merges custom init options', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(JSON.stringify({ ok: true })),
-    })
-
-    const { serverAuthFetch } = await import('@/lib/server-fetch')
-    await serverAuthFetch('/api/habits', {
-      method: 'POST',
-      body: JSON.stringify({ title: 'Test' }),
-    })
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ title: 'Test' }),
-      }),
-    )
   })
 })

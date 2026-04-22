@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/auth-api', () => ({
-  getAuthHeaders: vi.fn().mockResolvedValue({
-    Authorization: 'Bearer test-token',
+  resolveServerSession: vi.fn().mockResolvedValue({
+    token: 'test-token',
+    expiresAt: Date.now() + 3600000,
+    refreshed: false,
   }),
 }))
 

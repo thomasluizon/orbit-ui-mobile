@@ -1,6 +1,6 @@
 'use server'
 
-import { getAuthHeaders } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 import { API } from '@orbit/shared/api'
 import type {
   AgentExecuteOperationResponse,
@@ -30,19 +30,33 @@ export type PendingOperationActionResult<T> = ActionResult<T>
  * (Server Actions cannot propagate custom Error subclasses to the client).
  */
 export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
-  const headers = await getAuthHeaders()
-
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS)
 
   try {
-    // Do NOT set Content-Type -- fetch will set the multipart boundary automatically
-    const res = await fetch(`${API_BASE}/api/chat`, {
+    const execute = async (token: string) => fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
-      headers,
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
       signal: controller.signal,
     })
+
+    let session = await resolveServerSession()
+    if (!session.token) {
+      return { ok: false, error: 'Unauthorized', status: 401 }
+    }
+
+    // Do NOT set Content-Type -- fetch will set the multipart boundary automatically
+    let res = await execute(session.token)
+
+    if (res.status === 401) {
+      session = await resolveServerSession({ forceRefresh: true })
+      if (!session.token) {
+        return { ok: false, error: 'Unauthorized', status: 401 }
+      }
+
+      res = await execute(session.token)
+    }
 
     if (!res.ok) {
       const body = await res.json().catch(() => null)

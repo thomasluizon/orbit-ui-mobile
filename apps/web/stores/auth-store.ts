@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000 // 60 seconds
-const EXPIRY_WARNING_THRESHOLD = 5 * 60 * 1000 // 5 minutes
 
 interface AuthState {
   isAuthenticated: boolean
@@ -54,20 +53,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     get().checkSession()
 
     const intervalId = setInterval(() => {
-      const { expiresAt, isAuthenticated } = get()
-      if (!isAuthenticated || !expiresAt) return
-
-      const remaining = expiresAt - Date.now()
-
-      if (remaining <= 0) {
-        // Token expired -- auto-logout
-        get().logout()
+      const { isAuthenticated } = get()
+      if (!isAuthenticated) {
         return
       }
 
-      if (remaining <= EXPIRY_WARNING_THRESHOLD) {
-        // Session expiry warning will be shown via toast when toast system is integrated
-      }
+      void get().checkSession()
     }, EXPIRY_CHECK_INTERVAL)
 
     // Return cleanup function

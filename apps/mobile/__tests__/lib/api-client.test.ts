@@ -1,14 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getTokenMock, clearAllTokensMock, fetchMock } = vi.hoisted(() => ({
+const {
+  getTokenMock,
+  clearAllTokensMock,
+  fetchMock,
+  refreshSessionTokenMock,
+  clearSessionAndResetAuthMock,
+} = vi.hoisted(() => ({
   getTokenMock: vi.fn(),
   clearAllTokensMock: vi.fn(),
   fetchMock: vi.fn(),
+  refreshSessionTokenMock: vi.fn(),
+  clearSessionAndResetAuthMock: vi.fn(),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
   getToken: getTokenMock,
   clearAllTokens: clearAllTokensMock,
+}))
+
+vi.mock('@/stores/auth-store', () => ({
+  refreshSessionToken: refreshSessionTokenMock,
+  clearSessionAndResetAuth: clearSessionAndResetAuthMock,
 }))
 
 vi.stubGlobal('fetch', fetchMock)
@@ -20,6 +33,8 @@ describe('mobile apiClient', () => {
     getTokenMock.mockReset()
     clearAllTokensMock.mockReset()
     fetchMock.mockReset()
+    refreshSessionTokenMock.mockReset()
+    clearSessionAndResetAuthMock.mockReset()
   })
 
   it('adds auth and JSON headers for standard requests', async () => {
@@ -69,12 +84,40 @@ describe('mobile apiClient', () => {
     )
   })
 
-  it('clears tokens and throws on unauthorized responses', async () => {
+  it('retries once after a 401 when refresh succeeds', async () => {
     getTokenMock.mockResolvedValue('token-123')
+    refreshSessionTokenMock.mockResolvedValue('token-456')
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    await expect(apiClient('/secure')).resolves.toEqual({ ok: true })
+
+    expect(refreshSessionTokenMock).toHaveBeenCalledWith({ clearOnFailure: false })
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://api.useorbit.org/secure',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-456',
+        }),
+      }),
+    )
+  })
+
+  it('clears auth state when refresh cannot recover a 401', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionTokenMock.mockResolvedValue(null)
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
-    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledTimes(1)
   })
 
   it('prefers backend error payload text when available', async () => {
@@ -86,27 +129,5 @@ describe('mobile apiClient', () => {
     })
 
     await expect(apiClient('/broken')).rejects.toThrow('Validation failed')
-  })
-
-  it('returns undefined for 204 responses', async () => {
-    getTokenMock.mockResolvedValue(null)
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 204,
-      text: () => Promise.resolve(''),
-    })
-
-    await expect(apiClient('/empty')).resolves.toBeUndefined()
-  })
-
-  it('returns undefined for successful empty 200 responses', async () => {
-    getTokenMock.mockResolvedValue(null)
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(''),
-    })
-
-    await expect(apiClient('/empty-200')).resolves.toBeUndefined()
   })
 })

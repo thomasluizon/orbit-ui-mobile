@@ -15,6 +15,7 @@ const {
   queryClientClearMock,
   clearStoredAuthReturnUrlMock,
   clearMessagesMock,
+  fetchMock,
 } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
   getTokenMock: vi.fn(),
@@ -30,6 +31,7 @@ const {
   queryClientClearMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
   clearMessagesMock: vi.fn(),
+  fetchMock: vi.fn(),
 }))
 
 vi.mock('expo-router', () => ({
@@ -75,7 +77,9 @@ vi.mock('@/stores/chat-store', () => ({
   },
 }))
 
-import { useAuthStore } from '@/stores/auth-store'
+vi.stubGlobal('fetch', fetchMock)
+
+import { refreshSessionToken, useAuthStore } from '@/stores/auth-store'
 
 function makeJwt(expirySeconds: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' }), 'utf8').toString('base64')
@@ -99,6 +103,7 @@ describe('mobile auth store security paths', () => {
     queryClientClearMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
     clearMessagesMock.mockReset()
+    fetchMock.mockReset()
 
     clearWidgetTokenMock.mockResolvedValue(undefined)
     saveWidgetTokenMock.mockResolvedValue(undefined)
@@ -146,6 +151,35 @@ describe('mobile auth store security paths', () => {
       isAuthenticated: false,
       user: null,
       isLoading: false,
+      expiresAt: null,
+    })
+  })
+
+  it('clears auth state when refreshSessionToken receives an invalid refresh response', async () => {
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        userId: 'user-1',
+        email: 'user@example.com',
+        name: 'User',
+      },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    const refreshedToken = await refreshSessionToken()
+
+    expect(refreshedToken).toBeNull()
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
+    expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
+    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(clearMessagesMock).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
       expiresAt: null,
     })
   })

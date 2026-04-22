@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 
 /**
@@ -149,13 +149,13 @@ async function toNextResponse(source: Response): Promise<NextResponse> {
 }
 
 async function handleProxy(request: NextRequest, path: string) {
-  const token = await getAuthToken()
-  const response = await proxyRequest(request, path, token)
+  const session = await resolveServerSession()
+  const response = await proxyRequest(request, path, session.token)
 
   if (response.status === 401) {
-    const newToken = await tryRefreshSession()
-    if (newToken) {
-      const retryResponse = await proxyRequest(request, path, newToken)
+    const refreshedSession = await resolveServerSession({ forceRefresh: true })
+    if (refreshedSession.token) {
+      const retryResponse = await proxyRequest(request, path, refreshedSession.token)
       return toNextResponse(retryResponse)
     }
   }

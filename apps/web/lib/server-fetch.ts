@@ -1,19 +1,40 @@
-import { getAuthHeaders } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
 /**
  * Shared authenticated fetch for Server Actions.
- * Reads the auth_token cookie, forwards it as Bearer to the .NET API,
+ * Resolves the current session, forwards it as Bearer to the .NET API,
  * and throws a structured ApiClientError on failure.
  */
 export async function serverAuthFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = await getAuthHeaders()
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { ...headers, 'Content-Type': 'application/json', ...init.headers },
+  const buildHeaders = (token: string) => ({
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    ...init.headers,
   })
+
+  let session = await resolveServerSession()
+  if (!session.token) {
+    throw createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized')
+  }
+
+  let res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: buildHeaders(session.token),
+  })
+
+  if (res.status === 401) {
+    session = await resolveServerSession({ forceRefresh: true })
+    if (session.token) {
+      res = await fetch(`${API_BASE}${path}`, {
+        ...init,
+        headers: buildHeaders(session.token),
+      })
+    }
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
     throw createApiClientError(res.status, error, `Failed with status ${res.status}`)

@@ -1,3 +1,4 @@
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
@@ -13,7 +14,7 @@ vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
 
-const mockGoal = {
+const listGoal = {
   id: '1',
   title: 'Read 12 books',
   description: null,
@@ -29,15 +30,17 @@ const mockGoal = {
   linkedHabits: [],
 }
 
+let detailGoal = { ...listGoal, progressHistory: [] as Array<unknown> }
+
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
     data: {
-      allGoals: [mockGoal],
-      goalsById: new Map([['1', mockGoal]]),
+      allGoals: [listGoal],
+      goalsById: new Map([['1', listGoal]]),
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: { ...mockGoal, progressHistory: [] }, metrics: null } : null,
+    data: id ? { goal: detailGoal, metrics: null } : null,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -52,7 +55,7 @@ vi.mock('@/components/goals/edit-goal-modal', () => ({
 }))
 
 vi.mock('@/components/goals/goal-metrics-panel', () => ({
-  GoalMetricsPanel: () => <div data-testid="metrics-panel" />,
+  GoalMetricsPanel: () => React.createElement('div', { 'data-testid': 'metrics-panel' }),
 }))
 
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -60,6 +63,7 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    detailGoal = { ...listGoal, progressHistory: [] }
   })
 
   it('renders nothing when closed', () => {
@@ -130,5 +134,22 @@ describe('GoalDetailDrawer', () => {
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
     expect(screen.getByTestId('metrics-panel')).toBeInTheDocument()
+  })
+
+  it('prefers synced detail data over the stale list cache', () => {
+    detailGoal = {
+      ...listGoal,
+      title: 'Read 12 books (synced)',
+      currentValue: 6,
+      progressPercentage: 50,
+      progressHistory: [],
+    }
+
+    render(
+      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
+    )
+
+    expect(screen.getByText('Read 12 books (synced)')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('"current":6')
   })
 })

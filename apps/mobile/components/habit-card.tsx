@@ -463,6 +463,8 @@ export function HabitCard({
     childrenTotal === 0
       ? 0
       : Math.round((childrenDone / childrenTotal) * 100)
+  const showParentCompletedState =
+    isParentWithChildren && (isDoneForRange || isRecentlyCompleted)
 
   // Frequency label
   const frequencyLabel = useMemo(
@@ -503,6 +505,8 @@ export function HabitCard({
   const completePop = useSharedValue(1)
   const completeGlow = useSharedValue(0)
   const completionFlash = useSharedValue(0)
+  const parentRingPressScale = useSharedValue(1)
+  const parentRingPulse = useSharedValue(0)
   const spark0 = useSharedValue(0)
   const spark1 = useSharedValue(0)
   const spark2 = useSharedValue(0)
@@ -519,6 +523,19 @@ export function HabitCard({
     opacity: completionFlash.value,
     transform: [{ scale: interpolate(completionFlash.value, [0, 1], [0.985, 1.015]) }],
   }))
+  const parentRingPressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: parentRingPressScale.value }],
+  }))
+  const parentRingPulseStyle = useAnimatedStyle(() => ({
+    opacity: parentRingPulse.value,
+    transform: [{ scale: interpolate(parentRingPulse.value, [0, 1], [0.88, 1.24]) }],
+  }))
+  const handleParentRingPressIn = useCallback(() => {
+    parentRingPressScale.value = withTiming(0.965, { duration: 90 })
+  }, [parentRingPressScale])
+  const handleParentRingPressOut = useCallback(() => {
+    parentRingPressScale.value = withSpring(1, { stiffness: 260, damping: 18 })
+  }, [parentRingPressScale])
   const spark0Style = useAnimatedStyle(() => ({
     opacity: 1 - spark0.value,
     transform: [
@@ -615,11 +632,27 @@ export function HabitCard({
       fireAndReset(spark2, 100)
       fireAndReset(spark3, 150)
     }
+
+    if (isParentWithChildren) {
+      parentRingPulse.value = 0
+      parentRingPulse.value = withSequence(
+        withTiming(successMotion.reducedMotionEnabled ? 0.45 : 1, {
+          duration: Math.round(enterDuration * 0.5),
+          easing: Easing.bezier(...successMotion.enterEasing),
+        }),
+        withTiming(0, {
+          duration: Math.max(exitDuration, durations.completeGlow),
+          easing: Easing.bezier(...successMotion.exitEasing),
+        }),
+      )
+    }
   }, [
     completionFlash,
     completionTrigger,
     completeGlow,
     completePop,
+    isParentWithChildren,
+    parentRingPulse,
     shouldRenderCompletionSparks,
     spark0,
     spark1,
@@ -714,7 +747,7 @@ export function HabitCard({
   }
 
   // Dimming for completed / not-due
-  if (isDoneForRange || isNotDueToday) {
+  if (isNotDueToday || (isDoneForRange && !isRecentlyCompleted)) {
     cardStyle.push(styles.cardDimmed)
   }
 
@@ -853,6 +886,32 @@ export function HabitCard({
               >
                 <Animated.View
                   pointerEvents="none"
+                  testID={showParentCompletedState ? 'habit-parent-ring-pulse' : undefined}
+                  style={[
+                    {
+                      position: 'absolute',
+                      top: -8,
+                      left: -8,
+                      right: -8,
+                      bottom: -8,
+                      borderRadius: radius.full,
+                      borderWidth: 1.5,
+                      borderColor: withAlpha(
+                        colors.primary,
+                        0.28,
+                        'rgba(139, 92, 246, 0.28)',
+                      ),
+                      backgroundColor: withAlpha(
+                        colors.primary,
+                        0.08,
+                        'rgba(139, 92, 246, 0.08)',
+                      ),
+                    },
+                    parentRingPulseStyle,
+                  ]}
+                />
+                <Animated.View
+                  pointerEvents="none"
                   style={[
                     {
                       position: 'absolute',
@@ -888,76 +947,134 @@ export function HabitCard({
                   />
                 ))}
                 <Animated.View style={completePopStyle}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (isNotDueToday) return
-                      if (isDoneForRange) {
-                        onUnlog?.()
-                      } else if (childrenDone >= childrenTotal) {
-                        onLog?.()
-                      } else {
-                        onForceLogParent?.()
-                      }
-                    }}
-                    style={[
-                      styles.progressRingContainer,
-                      {
-                        width: isChild ? 32 : 44,
-                        height: isChild ? 32 : 44,
-                      },
-                    ]}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-                  >
-                    <Svg
+                  <Animated.View style={parentRingPressStyle}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (isNotDueToday) return
+                        if (isDoneForRange) {
+                          onUnlog?.()
+                        } else if (childrenDone >= childrenTotal) {
+                          onLog?.()
+                        } else {
+                          onForceLogParent?.()
+                        }
+                      }}
+                      onPressIn={handleParentRingPressIn}
+                      onPressOut={handleParentRingPressOut}
                       style={[
-                        styles.progressRingSvg,
+                        styles.progressRingContainer,
                         {
                           width: isChild ? 32 : 44,
                           height: isChild ? 32 : 44,
                         },
                       ]}
-                      viewBox="0 0 36 36"
+                      activeOpacity={1}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
                     >
-                      <Circle
-                        cx="18"
-                        cy="18"
-                        r="15"
-                        fill="none"
-                        stroke={colors.borderMuted}
-                        strokeWidth="2"
-                      />
-                      <Circle
-                        cx="18"
-                        cy="18"
-                        r="15"
-                        fill="none"
-                        stroke={
-                          isDoneForRange || progressPercent === 100
-                            ? colors.primary
-                            : withAlpha(
-                                colors.primary,
-                                0.6,
-                                'rgba(59, 130, 246, 0.6)',
-                              )
-                        }
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeDasharray={getHabitProgressStrokeDasharray(
-                          progressPercent,
-                          isDoneForRange,
+                      {showParentCompletedState && (
+                        <View
+                          pointerEvents="none"
+                          style={{
+                            position: 'absolute',
+                            top: isChild ? 4 : 5,
+                            left: isChild ? 4 : 5,
+                            right: isChild ? 4 : 5,
+                            bottom: isChild ? 4 : 5,
+                            borderRadius: radius.full,
+                            backgroundColor: withAlpha(
+                              colors.primary,
+                              0.12,
+                              'rgba(139, 92, 246, 0.12)',
+                            ),
+                          }}
+                        />
+                      )}
+                      <Svg
+                        style={[
+                          styles.progressRingSvg,
+                          {
+                            width: isChild ? 32 : 44,
+                            height: isChild ? 32 : 44,
+                          },
+                        ]}
+                        viewBox="0 0 36 36"
+                      >
+                        <Circle
+                          cx="18"
+                          cy="18"
+                          r="15"
+                          fill="none"
+                          stroke={colors.borderMuted}
+                          strokeWidth="2"
+                        />
+                        {showParentCompletedState && (
+                          <Circle
+                            testID="habit-parent-ring-glow"
+                            cx="18"
+                            cy="18"
+                            r="15"
+                            fill="none"
+                            stroke={withAlpha(
+                              colors.primary,
+                              0.2,
+                              'rgba(139, 92, 246, 0.2)',
+                            )}
+                            strokeWidth="5.5"
+                          />
                         )}
-                      />
-                    </Svg>
-                    {isDoneForRange ? (
-                      <Check size={16} color={colors.primary} />
-                    ) : (
-                      <Text style={styles.progressText}>
-                        {childrenDone}/{childrenTotal}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
+                        <Circle
+                          cx="18"
+                          cy="18"
+                          r="15"
+                          fill="none"
+                          stroke={
+                            showParentCompletedState || progressPercent === 100
+                              ? colors.primary
+                              : withAlpha(
+                                  colors.primary,
+                                  0.6,
+                                  'rgba(59, 130, 246, 0.6)',
+                                )
+                          }
+                          strokeWidth={showParentCompletedState ? '2.85' : '2.5'}
+                          strokeLinecap="round"
+                          strokeDasharray={getHabitProgressStrokeDasharray(
+                            progressPercent,
+                            isDoneForRange,
+                          )}
+                        />
+                      </Svg>
+                      {showParentCompletedState && (
+                        <LinearGradient
+                          testID="habit-parent-complete-center"
+                          colors={[
+                            lightenHex(colors.primary, 0.18),
+                            colors.primary,
+                          ]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{
+                            position: 'absolute',
+                            width: isChild ? 20 : 28,
+                            height: isChild ? 20 : 28,
+                            borderRadius: radius.full,
+                            shadowColor: colors.primary,
+                            shadowOpacity: 0.35,
+                            shadowRadius: 8,
+                            elevation: 4,
+                          }}
+                        />
+                      )}
+                      {showParentCompletedState ? (
+                        <Check size={16} color={colors.white} />
+                      ) : (
+                        <Text style={styles.progressText}>
+                          {childrenDone}/{childrenTotal}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
                 </Animated.View>
               </View>
             ) : (
