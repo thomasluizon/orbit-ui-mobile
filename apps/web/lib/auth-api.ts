@@ -28,7 +28,7 @@ type CookieValueWriter = {
     name: string,
     value: string,
     options: typeof COOKIE_OPTIONS & { maxAge: number },
-  ) => void | Promise<void>
+  ) => unknown
 }
 
 type CookieTarget = CookieValueReader & CookieValueWriter
