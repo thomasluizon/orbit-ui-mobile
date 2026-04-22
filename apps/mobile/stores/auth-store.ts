@@ -21,6 +21,8 @@ import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 
+const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
+
 interface AuthState {
   isAuthenticated: boolean
   user: User | null
@@ -90,7 +92,7 @@ function isTokenExpired(token: string): boolean {
   return expiresAt < Date.now() + 60_000
 }
 
-async function clearSessionAndResetAuth(): Promise<void> {
+export async function clearSessionAndResetAuth(): Promise<void> {
   await clearAllTokens()
   await clearWidgetToken().catch(() => {})
   queryClient.clear()
@@ -100,25 +102,50 @@ async function clearSessionAndResetAuth(): Promise<void> {
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
 }
 
-async function refreshExpiredToken(): Promise<string | null> {
+export async function refreshSessionToken(options?: {
+  clearOnFailure?: boolean
+}): Promise<string | null> {
+  const clearOnFailure = options?.clearOnFailure ?? true
   const refreshToken = await getRefreshToken()
   if (!refreshToken) {
-    await clearSessionAndResetAuth()
+    if (clearOnFailure) {
+      await clearSessionAndResetAuth()
+    }
     return null
   }
 
   try {
-    const response = await apiClient<RefreshResponse>(API.auth.refresh, {
+    const response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     })
 
-    await setToken(response.token)
-    await setRefreshToken(response.refreshToken)
-    await saveWidgetToken(response.token).catch(() => {})
-    return response.token
+    if (!response.ok) {
+      if (clearOnFailure) {
+        await clearSessionAndResetAuth()
+      }
+      return null
+    }
+
+    const data = (await response.json()) as RefreshResponse
+    await setToken(data.token)
+    await setRefreshToken(data.refreshToken)
+    await saveWidgetToken(data.token).catch(() => {})
+
+    const currentUser = useAuthStore.getState().user
+    const tokenUser = getUserFromToken(data.token, currentUser?.name)
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: currentUser ?? tokenUser,
+      expiresAt: getExpiresAt(data.token),
+    })
+
+    return data.token
   } catch {
-    await clearSessionAndResetAuth()
+    if (clearOnFailure) {
+      await clearSessionAndResetAuth()
+    }
     return null
   }
 }
@@ -228,7 +255,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (isTokenExpired(token)) {
-      token = await refreshExpiredToken()
+      token = await refreshSessionToken()
       if (!token) {
         return false
       }

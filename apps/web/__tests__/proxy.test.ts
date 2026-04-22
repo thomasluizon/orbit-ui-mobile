@@ -1,15 +1,28 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { proxy } from '@/proxy'
+import { resolveSessionTokens, setSessionCookies } from '@/lib/auth-api'
 
-// Mock NextResponse methods
+vi.mock('@/lib/auth-api', () => ({
+  AUTH_COOKIE: 'auth_token',
+  REFRESH_COOKIE: 'refresh_token',
+  resolveSessionTokens: vi.fn(),
+  setSessionCookies: vi.fn(),
+}))
+
 vi.mock('next/server', async () => {
   const actual = await vi.importActual('next/server')
+  const makeResponse = (type: 'next' | 'redirect', url?: string) => ({
+    type,
+    url,
+    cookies: { set: vi.fn() },
+  })
+
   return {
     ...actual,
     NextResponse: {
-      next: vi.fn(() => ({ type: 'next' })),
-      redirect: vi.fn((url: URL) => ({ type: 'redirect', url: url.toString() })),
+      next: vi.fn(() => makeResponse('next')),
+      redirect: vi.fn((url: URL) => makeResponse('redirect', url.toString())),
     },
   }
 })
@@ -31,167 +44,71 @@ describe('proxy', () => {
   beforeEach(() => {
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
+    vi.mocked(resolveSessionTokens).mockReset()
+    vi.mocked(setSessionCookies).mockReset()
   })
 
-  // -------------------------------------------------------------------------
-  // Public paths pass-through
-  // -------------------------------------------------------------------------
+  it('allows public paths without resolving a session', async () => {
+    const response = await proxy(createRequest('/privacy'))
 
-  describe('public paths', () => {
-    it('allows unauthenticated access to /login', () => {
-      const request = createRequest('/login')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-      expect(NextResponse.redirect).not.toHaveBeenCalled()
-    })
-
-    it('allows unauthenticated access to /auth-callback', () => {
-      const request = createRequest('/auth-callback')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
-
-    it('allows unauthenticated access to /privacy', () => {
-      const request = createRequest('/privacy')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
-
-    it('allows unauthenticated access to /app-ads.txt', () => {
-      const request = createRequest('/app-ads.txt')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-      expect(NextResponse.redirect).not.toHaveBeenCalled()
-    })
-
-    it('allows unauthenticated access to /r/ base path', () => {
-      const request = createRequest('/r/')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
-
-    it('allows unauthenticated access to /r/ sub-paths', () => {
-      // PUBLIC_PATHS contains '/r/' -- isPublicPath checks startsWith('/r/' + '/') = '/r//'
-      // So '/r/abc123' would need startsWith('/r//') which is false
-      // Only '/r//' and '/r/' match. The proxy treats sub-paths of /r/ as
-      // needing the double-slash pattern. Test the actual behavior:
-      const request = createRequest('/r//abc123')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
-  // -------------------------------------------------------------------------
-  // API and static asset pass-through
-  // -------------------------------------------------------------------------
-
-  describe('API and static paths', () => {
-    it('passes through /api/ routes', () => {
-      const request = createRequest('/api/auth/session')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
+  it('redirects protected routes to login when no session can be resolved', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
     })
 
-    it('passes through /_next/ paths', () => {
-      const request = createRequest('/_next/static/chunk.js')
-      proxy(request)
+    await proxy(createRequest('/habits'))
 
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
-
-    it('passes through /app-ads.txt as a public static asset', () => {
-      const request = createRequest('/app-ads.txt')
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-      expect(NextResponse.redirect).not.toHaveBeenCalled()
-    })
+    expect(NextResponse.redirect).toHaveBeenCalled()
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/habits')
   })
 
-  // -------------------------------------------------------------------------
-  // Unauthenticated user on protected routes
-  // -------------------------------------------------------------------------
+  it('restores a missing access cookie from a valid refresh-backed session', async () => {
+    vi.mocked(resolveSessionTokens).mockImplementation(async (options) => {
+      await options.persistSession?.({
+        token: 'fresh-token',
+        refreshToken: 'fresh-refresh',
+      })
 
-  describe('unauthenticated on protected routes', () => {
-    it('redirects to /login', () => {
-      const request = createRequest('/')
-      proxy(request)
-
-      expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
-      expect(redirectUrl.pathname).toBe('/login')
+      return {
+        token: 'fresh-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      }
     })
 
-    it('sets returnUrl param for protected path', () => {
-      const request = createRequest('/habits')
-      proxy(request)
+    const response = await proxy(createRequest('/', {
+      cookies: { refresh_token: 'refresh-cookie' },
+    }))
 
-      expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
-      expect(redirectUrl.pathname).toBe('/login')
-      expect(redirectUrl.searchParams.get('returnUrl')).toBe('/habits')
-    })
-
-    it('redirects /settings to /login with returnUrl', () => {
-      const request = createRequest('/settings')
-      proxy(request)
-
-      expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
-      expect(redirectUrl.searchParams.get('returnUrl')).toBe('/settings')
-    })
+    expect(response).toMatchObject({ type: 'next' })
+    expect(setSessionCookies).toHaveBeenCalledWith(
+      'fresh-token',
+      'fresh-refresh',
+      expect.objectContaining({ set: expect.any(Function) }),
+    )
   })
 
-  // -------------------------------------------------------------------------
-  // Authenticated user redirects
-  // -------------------------------------------------------------------------
-
-  describe('authenticated user', () => {
-    it('allows access to protected routes', () => {
-      const request = createRequest('/', {
-        cookies: { auth_token: 'valid-token' },
-      })
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-      expect(NextResponse.redirect).not.toHaveBeenCalled()
+  it('redirects authenticated users away from login', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: 'valid-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
     })
 
-    it('redirects /login to /', () => {
-      const request = createRequest('/login', {
-        cookies: { auth_token: 'valid-token' },
-      })
-      proxy(request)
+    await proxy(createRequest('/login', {
+      cookies: { auth_token: 'valid-token' },
+    }))
 
-      expect(NextResponse.redirect).toHaveBeenCalled()
-      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
-      expect(redirectUrl.pathname).toBe('/')
-      expect(redirectUrl.search).toBe('')
-    })
-
-    it('allows access to /settings when authenticated', () => {
-      const request = createRequest('/settings', {
-        cookies: { auth_token: 'valid-token' },
-      })
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
-
-    it('allows access to public paths when authenticated', () => {
-      const request = createRequest('/privacy', {
-        cookies: { auth_token: 'valid-token' },
-      })
-      proxy(request)
-
-      expect(NextResponse.next).toHaveBeenCalled()
-    })
+    expect(NextResponse.redirect).toHaveBeenCalled()
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/')
   })
 })

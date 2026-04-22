@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/[...path]/route'
-import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
-  getAuthToken: vi.fn(),
-  tryRefreshSession: vi.fn(),
+  resolveServerSession: vi.fn(),
 }))
 
 const mockFetch = vi.fn()
@@ -23,8 +22,7 @@ function createRequest(
 describe('catch-all API proxy route', () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    vi.mocked(getAuthToken).mockReset()
-    vi.mocked(tryRefreshSession).mockReset()
+    vi.mocked(resolveServerSession).mockReset()
   })
 
   it('rejects malformed paths before calling auth or backend', async () => {
@@ -36,14 +34,22 @@ describe('catch-all API proxy route', () => {
 
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'Not found' })
-    expect(getAuthToken).not.toHaveBeenCalled()
-    expect(tryRefreshSession).not.toHaveBeenCalled()
+    expect(resolveServerSession).not.toHaveBeenCalled()
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('forwards sanitized client context and retries with a refreshed token', async () => {
-    vi.mocked(getAuthToken).mockResolvedValue('initial-token')
-    vi.mocked(tryRefreshSession).mockResolvedValue('refreshed-token')
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'initial-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'refreshed-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      })
     mockFetch
       .mockResolvedValueOnce(
         new Response('unauthorized', {
@@ -81,50 +87,47 @@ describe('catch-all API proxy route', () => {
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('{"ok":true}')
     expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
-    expect(tryRefreshSession).toHaveBeenCalledTimes(1)
+    expect(resolveServerSession).toHaveBeenNthCalledWith(2, { forceRefresh: true })
     expect(mockFetch).toHaveBeenCalledTimes(2)
-
-    const firstCall = mockFetch.mock.calls[0]
-    expect(firstCall?.[0]).toBe('http://localhost:5000/api/profile/me?include=details')
-    expect(firstCall?.[1]).toMatchObject({
-      method: 'GET',
-      cache: 'no-store',
-      headers: {
-        Authorization: 'Bearer initial-token',
-        'X-Orbit-Country-Code': 'BR',
-        'CF-Connecting-IP': '177.55.44.33',
-        'X-Forwarded-For': '177.55.44.33',
-        'X-Real-IP': '198.51.100.7',
-        'X-Vercel-IP-Country': 'BR',
-        'CF-IPCountry': 'BR',
-        'CloudFront-Viewer-Country': 'BR',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'X-Orbit-Time-Zone': 'America/Sao_Paulo',
-      },
-    })
-
-    const secondCall = mockFetch.mock.calls[1]
-    expect(secondCall?.[0]).toBe('http://localhost:5000/api/profile/me?include=details')
-    expect(secondCall?.[1]).toMatchObject({
-      method: 'GET',
-      cache: 'no-store',
-      headers: {
-        Authorization: 'Bearer refreshed-token',
-        'X-Orbit-Country-Code': 'BR',
-        'CF-Connecting-IP': '177.55.44.33',
-        'X-Forwarded-For': '177.55.44.33',
-        'X-Real-IP': '198.51.100.7',
-        'X-Vercel-IP-Country': 'BR',
-        'CF-IPCountry': 'BR',
-        'CloudFront-Viewer-Country': 'BR',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'X-Orbit-Time-Zone': 'America/Sao_Paulo',
-      },
-    })
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:5000/api/profile/me?include=details',
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          Authorization: 'Bearer initial-token',
+          'X-Orbit-Country-Code': 'BR',
+          'CF-Connecting-IP': '177.55.44.33',
+          'X-Forwarded-For': '177.55.44.33',
+          'X-Real-IP': '198.51.100.7',
+          'X-Vercel-IP-Country': 'BR',
+          'CF-IPCountry': 'BR',
+          'CloudFront-Viewer-Country': 'BR',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'X-Orbit-Time-Zone': 'America/Sao_Paulo',
+        },
+      }),
+    )
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:5000/api/profile/me?include=details',
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer refreshed-token',
+        }),
+      }),
+    )
   })
 
   it('allows AI metadata routes through the proxy allowlist', async () => {
-    vi.mocked(getAuthToken).mockResolvedValue('initial-token')
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'initial-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
     mockFetch.mockResolvedValue(
       new Response('[]', {
         status: 200,

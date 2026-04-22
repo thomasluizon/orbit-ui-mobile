@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitCard } from '@/components/habit-card'
 
 const TestRenderer = require('react-test-renderer')
@@ -83,6 +82,43 @@ function hasDimmedStyle(style: unknown): boolean {
     return style.some((entry) => hasDimmedStyle(entry))
   }
   return typeof style === 'object' && style !== null && 'opacity' in style && (style as { opacity?: number }).opacity === 0.4
+}
+
+function createMockHabit(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'habit-1',
+    title: 'Exercise',
+    description: null,
+    frequencyUnit: 'Day',
+    frequencyQuantity: 1,
+    isBadHabit: false,
+    isCompleted: false,
+    isGeneral: false,
+    isFlexible: false,
+    days: [],
+    dueDate: '2025-01-01',
+    dueTime: null,
+    dueEndTime: null,
+    endDate: null,
+    position: null,
+    checklistItems: [],
+    createdAtUtc: '2025-01-01T00:00:00Z',
+    parentId: null,
+    scheduledDates: ['2025-01-01'],
+    isOverdue: false,
+    reminderEnabled: false,
+    reminderTimes: [],
+    scheduledReminders: [],
+    slipAlertEnabled: false,
+    tags: [],
+    hasSubHabits: false,
+    flexibleTarget: null,
+    flexibleCompleted: null,
+    isLoggedInRange: false,
+    instances: [],
+    searchMatches: null,
+    ...overrides,
+  }
 }
 
 describe('HabitCard', () => {
@@ -235,6 +271,69 @@ describe('HabitCard', () => {
     expect(
       tree.root.findAll((node: any) => node.props.testID === 'habit-completion-spark-0').length,
     ).toBeGreaterThanOrEqual(1)
+  })
+
+  it('keeps the parent completion celebration visible while recently completed', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({ isCompleted: false, hasSubHabits: true })}
+          hasChildren
+          childrenDone={3}
+          childrenTotal={3}
+          isRecentlyCompleted
+        />,
+      )
+    })
+
+    const [outerCard] = findOuterCardTouchables(tree.root)
+
+    expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
+    expect(
+      tree.root.findAll((node: any) => node.props.testID === 'habit-parent-complete-center').length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(
+      tree.root.findAll((node: any) => node.props.testID === 'habit-parent-ring-glow').length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(
+      tree.root.findAll((node: any) => node.props.testID === 'habit-parent-ring-pulse').length,
+    ).toBeGreaterThanOrEqual(1)
+  })
+
+  it('treats the recent parent completion state as completed when tapped', () => {
+    const onLog = vi.fn()
+    const onUnlog = vi.fn()
+    const onForceLogParent = vi.fn()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({ isCompleted: false, hasSubHabits: true })}
+          hasChildren
+          childrenDone={3}
+          childrenTotal={3}
+          isRecentlyCompleted
+          actions={{ onLog, onUnlog, onForceLogParent }}
+        />,
+      )
+    })
+
+    const parentRingButton = tree.root.find(
+      (node: any) =>
+        node.type === 'TouchableOpacity' &&
+        node.props.accessibilityLabel === 'Exercise 3/3',
+    )
+
+    TestRenderer.act(() => {
+      parentRingButton.props.onPress?.()
+    })
+
+    expect(onUnlog).toHaveBeenCalledTimes(1)
+    expect(onLog).not.toHaveBeenCalled()
+    expect(onForceLogParent).not.toHaveBeenCalled()
   })
 
   it('does not dim pending drill cards', () => {

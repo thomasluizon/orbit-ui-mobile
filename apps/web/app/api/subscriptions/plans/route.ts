@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getAuthToken, tryRefreshSession } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 import {
   buildForwardedClientHeaders,
   sanitizeClientTimeZone,
@@ -55,15 +55,15 @@ function resolveForwardedClientHeaders(request: NextRequest): Record<string, str
 }
 
 export async function GET(request: NextRequest) {
-  const token = await getAuthToken()
+  const session = await resolveServerSession()
   const forwardedClientHeaders = resolveForwardedClientHeaders(request)
 
-  const response = await proxyPlans(token, forwardedClientHeaders)
+  const response = await proxyPlans(session.token, forwardedClientHeaders)
 
   if (response.status === 401) {
-    const newToken = await tryRefreshSession()
-    if (newToken) {
-      const retryResponse = await proxyPlans(newToken, forwardedClientHeaders)
+    const refreshedSession = await resolveServerSession({ forceRefresh: true })
+    if (refreshedSession.token) {
+      const retryResponse = await proxyPlans(refreshedSession.token, forwardedClientHeaders)
       const retryData = await retryResponse.text()
       return new NextResponse(retryData, {
         status: retryResponse.status,

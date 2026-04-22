@@ -1,41 +1,19 @@
 import { NextResponse } from 'next/server'
-import { getAuthToken } from '@/lib/auth-api'
+import { resolveServerSession } from '@/lib/auth-api'
 
 /**
  * BFF: GET /api/auth/session
- * Reads the auth_token cookie, decodes the JWT expiry, and returns { expiresAt }.
- * Does NOT validate the signature -- that's the backend's job.
- * This is only used for the client-side expiry monitor.
+ * Resolves the current session, silently refreshing when needed,
+ * and returns { expiresAt } for the active access token.
  */
 export async function GET() {
   try {
-    const token = await getAuthToken()
-
-    if (!token) {
+    const session = await resolveServerSession()
+    if (!session.token || !session.expiresAt) {
       return NextResponse.json({ expiresAt: null }, { status: 401 })
     }
 
-    // Decode JWT payload (base64url, no signature verification)
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-      return NextResponse.json({ expiresAt: null }, { status: 401 })
-    }
-
-    const payloadSegment = parts[1]
-    if (!payloadSegment) {
-      return NextResponse.json({ expiresAt: null }, { status: 401 })
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadSegment, 'base64url').toString('utf-8')
-    ) as { exp?: number }
-
-    if (!payload.exp) {
-      return NextResponse.json({ expiresAt: null }, { status: 401 })
-    }
-
-    // exp is in seconds, convert to milliseconds for client
-    return NextResponse.json({ expiresAt: payload.exp * 1000 })
+    return NextResponse.json({ expiresAt: session.expiresAt })
   } catch {
     return NextResponse.json({ expiresAt: null }, { status: 500 })
   }

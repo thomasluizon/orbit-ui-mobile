@@ -1,5 +1,6 @@
 import { getToken, clearAllTokens } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
+import { API } from '@orbit/shared/api'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -12,6 +13,11 @@ interface ApiErrorPayload {
   error?: string
   message?: string
   requestId?: string
+}
+
+type RequestExecution = {
+  response: Response
+  requestId: string | null
 }
 
 function getResponseHeader(
@@ -46,55 +52,108 @@ function attachRequestIdToPayload(
   }
 }
 
-export async function apiClient<T = unknown>(
-  path: string,
-  options: ApiRequestOptions = {},
-): Promise<T> {
-  const token = await getToken()
+function buildRequestHeaders(
+  token: string | null,
+  options: ApiRequestOptions,
+): Record<string, string> {
   const headers: Record<string, string> = {
     ...buildClientTimeZoneHeaders(),
     ...(options.headers ?? {}),
   }
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
+
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers } as RequestInit)
+  return headers
+}
 
-  if (res.status === 401) {
-    await clearAllTokens()
-    // Navigation to login handled by auth store listener
-    throw createApiClientError(
-      401,
-      attachRequestIdToPayload(
-        { error: 'Unauthorized' },
-        getResponseHeader(res, 'x-orbit-request-id'),
-      ),
-      'Unauthorized',
-    )
+async function executeRequest(
+  path: string,
+  options: ApiRequestOptions,
+  tokenOverride?: string | null,
+): Promise<RequestExecution> {
+  const token = tokenOverride ?? await getToken()
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: buildRequestHeaders(token, options),
+  } as RequestInit)
+
+  return {
+    response,
+    requestId: getResponseHeader(response, 'x-orbit-request-id'),
   }
+}
 
-  if (!res.ok) {
+function toUnauthorizedError(requestId: string | null): Error {
+  return createApiClientError(
+    401,
+    attachRequestIdToPayload(
+      { error: 'Unauthorized' },
+      requestId,
+    ),
+    'Unauthorized',
+  )
+}
+
+async function parseApiResponse<T>(
+  response: Response,
+  requestId: string | null,
+): Promise<T> {
+  if (!response.ok) {
     const error = attachRequestIdToPayload(
-      (await res.json().catch(() => null)) as ApiErrorPayload | null,
-      getResponseHeader(res, 'x-orbit-request-id'),
+      (await response.json().catch(() => null)) as ApiErrorPayload | null,
+      requestId,
     )
     throw createApiClientError(
-      res.status,
+      response.status,
       error,
-      `Request failed: ${res.status}`,
+      `Request failed: ${response.status}`,
     )
   }
 
-  if (res.status === 204) return undefined as T
+  if (response.status === 204) return undefined as T
 
-  const text = await res.text()
+  const text = await response.text()
   if (!text.trim()) {
     return undefined as T
   }
 
   return JSON.parse(text) as T
+}
+
+export async function apiClient<T = unknown>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const { response, requestId } = await executeRequest(path, options)
+
+  if (response.status === 401 && path !== API.auth.refresh) {
+    const { clearSessionAndResetAuth, refreshSessionToken } = await import('@/stores/auth-store')
+    const refreshedToken = await refreshSessionToken({ clearOnFailure: false })
+
+    if (refreshedToken) {
+      const retry = await executeRequest(path, options, refreshedToken)
+      if (retry.response.status !== 401) {
+        return parseApiResponse<T>(retry.response, retry.requestId)
+      }
+
+      await clearSessionAndResetAuth()
+      throw toUnauthorizedError(retry.requestId)
+    }
+
+    await clearSessionAndResetAuth()
+    throw toUnauthorizedError(requestId)
+  }
+
+  if (response.status === 401) {
+    await clearAllTokens()
+    throw toUnauthorizedError(requestId)
+  }
+
+  return parseApiResponse<T>(response, requestId)
 }
