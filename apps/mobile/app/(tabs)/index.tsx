@@ -129,6 +129,8 @@ interface TodaySearchBarProps {
   onChange: (value: string) => void;
   onFocusChange: (focused: boolean) => void;
   placeholder: string;
+  clearLabel: string;
+  focused: boolean;
   colors: ReturnType<typeof useAppTheme>["colors"];
   styles: ReturnType<typeof createStyles>;
 }
@@ -138,6 +140,8 @@ const TodaySearchBar = memo(function TodaySearchBar({
   onChange,
   onFocusChange,
   placeholder,
+  clearLabel,
+  focused,
   colors,
   styles,
 }: Readonly<TodaySearchBarProps>) {
@@ -157,7 +161,12 @@ const TodaySearchBar = memo(function TodaySearchBar({
 
   return (
     <View style={styles.searchWrapper}>
-      <View style={styles.searchContainer}>
+      <View
+        style={[
+          styles.searchContainer,
+          focused ? styles.searchContainerFocused : null,
+        ]}
+      >
         <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
         <AppTextInput
           style={styles.searchInput}
@@ -174,6 +183,9 @@ const TodaySearchBar = memo(function TodaySearchBar({
           <TouchableOpacity
             onPress={() => setDraft("")}
             style={styles.searchClear}
+            accessibilityRole="button"
+            accessibilityLabel={clearLabel}
+            activeOpacity={0.75}
           >
             <X size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -978,7 +990,11 @@ export default function TodayScreen() {
           }
         />
 
-        {showSummary ? <HabitSummaryCard date={dateStr} /> : null}
+        {showSummary ? (
+          <View style={styles.summaryWrap}>
+            <HabitSummaryCard date={dateStr} />
+          </View>
+        ) : null}
 
         <Animated.View
           testID="today-filters-shell"
@@ -989,98 +1005,102 @@ export default function TodayScreen() {
             onChange={setSearchQueryStore}
             onFocusChange={setIsSearchFocused}
             placeholder={t("habits.searchPlaceholder")}
+            clearLabel={t("common.clear")}
+            focused={isSearchFocused}
             colors={colors}
             styles={styles}
           />
 
           <View style={styles.filtersWrapper}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filtersContent}
-            >
-              {activeView !== "general" ? (
-                <>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterChip,
-                      !selectedFrequency && styles.filterChipActive,
-                    ]}
-                    onPress={() => setSelectedFrequency(null)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        !selectedFrequency && styles.filterChipTextActive,
-                      ]}
-                    >
-                      {t("common.all")}
-                    </Text>
-                  </TouchableOpacity>
-                  {frequencyOptions.map((opt) => (
+            <View style={styles.filtersRail}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filtersContent}
+              >
+                {activeView !== "general" ? (
+                  <>
                     <TouchableOpacity
-                      key={opt.key}
                       style={[
                         styles.filterChip,
-                        selectedFrequency === opt.key &&
-                          styles.filterChipActive,
+                        !selectedFrequency && styles.filterChipActive,
                       ]}
-                      onPress={() =>
-                        setSelectedFrequency(
-                          selectedFrequency === opt.key ? null : opt.key,
-                        )
-                      }
-                      activeOpacity={0.7}
+                      onPress={() => setSelectedFrequency(null)}
+                      activeOpacity={0.72}
                     >
                       <Text
                         style={[
                           styles.filterChipText,
-                          selectedFrequency === opt.key &&
-                            styles.filterChipTextActive,
+                          !selectedFrequency && styles.filterChipTextActive,
                         ]}
                       >
-                        {opt.label}
+                        {t("common.all")}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </>
-              ) : null}
+                    {frequencyOptions.map((opt) => (
+                      <TouchableOpacity
+                        key={opt.key}
+                        style={[
+                          styles.filterChip,
+                          selectedFrequency === opt.key &&
+                            styles.filterChipActive,
+                        ]}
+                        onPress={() =>
+                          setSelectedFrequency(
+                            selectedFrequency === opt.key ? null : opt.key,
+                          )
+                        }
+                        activeOpacity={0.72}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            selectedFrequency === opt.key &&
+                              styles.filterChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                ) : null}
 
-              {activeView !== "general" && tags.length > 0 ? (
-                <View style={styles.filterDivider} />
-              ) : null}
+                {activeView !== "general" && tags.length > 0 ? (
+                  <View style={styles.filterDivider} />
+                ) : null}
 
-              {tags.map((tag) => (
-                <TouchableOpacity
-                  key={tag.id}
-                  style={[
-                    styles.filterChip,
-                    selectedTagIds.includes(tag.id)
-                      ? { backgroundColor: tag.color, borderColor: tag.color }
-                      : null,
-                  ]}
-                  onPress={() => toggleTagFilter(tag.id)}
-                  activeOpacity={0.7}
-                >
-                  {!selectedTagIds.includes(tag.id) ? (
-                    <View
-                      style={[styles.tagDot, { backgroundColor: tag.color }]}
-                    />
-                  ) : null}
-                  <Text
+                {tags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag.id}
                     style={[
-                      styles.filterChipText,
+                      styles.filterChip,
                       selectedTagIds.includes(tag.id)
-                        ? { color: "#fff" }
+                        ? { backgroundColor: tag.color, borderColor: tag.color }
                         : null,
                     ]}
+                    onPress={() => toggleTagFilter(tag.id)}
+                    activeOpacity={0.72}
                   >
-                    {tag.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                    {!selectedTagIds.includes(tag.id) ? (
+                      <View
+                        style={[styles.tagDot, { backgroundColor: tag.color }]}
+                      />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        selectedTagIds.includes(tag.id)
+                          ? { color: "#fff" }
+                          : null,
+                      ]}
+                    >
+                      {tag.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
             <View ref={controlsButtonRef} collapsable={false}>
               <TouchableOpacity
@@ -1509,17 +1529,23 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       borderRadius: radius.lg,
       padding: 4,
       gap: 4,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
     },
     // flex-1 text-center py-2 text-sm font-bold rounded-[var(--radius-md)]
     tab: {
       flex: 1,
       alignItems: "center",
-      paddingVertical: 8,
+      minHeight: 44,
+      justifyContent: "center",
+      paddingVertical: 10,
       borderRadius: radius.md,
     },
     // text-primary bg-surface shadow-[var(--shadow-sm)]
     tabActive: {
       backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
       ...(Platform.OS === "ios"
         ? {
             shadowColor: "#000",
@@ -1530,7 +1556,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
         : { elevation: 2 }),
     },
     tabText: {
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: "700",
       color: colors.textSecondary,
     },
@@ -1557,13 +1583,15 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceGround,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
       alignItems: "center",
       justifyContent: "center",
     },
     // min-w-40 = 160px, text-base font-semibold
     dateLabel: {
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: "600",
       color: colors.textPrimary,
       minWidth: 160,
@@ -1598,16 +1626,20 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       lineHeight: 20,
       color: colors.textSecondary,
     },
+    summaryWrap: {
+      paddingTop: 4,
+      paddingBottom: 6,
+    },
 
     // Habits section
     habitsSection: {
-      paddingTop: 4,
+      paddingTop: 8,
     },
 
     // Search bar: pt-3 pb-2 = 12px/8px
     searchWrapper: {
-      paddingTop: 12,
-      paddingBottom: 8,
+      paddingTop: 14,
+      paddingBottom: 10,
     },
     // rounded-full py-3 pl-12 pr-12 bg-surface border border-border
     searchContainer: {
@@ -1616,10 +1648,24 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       backgroundColor: colors.surface,
       borderRadius: radius.full,
       borderWidth: 1,
-      borderColor: colors.border,
-      paddingVertical: 10,
-      paddingLeft: 44,
-      paddingRight: 44,
+      borderColor: colors.borderMuted,
+      paddingVertical: 12,
+      paddingLeft: 48,
+      paddingRight: 48,
+      minHeight: 56,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    searchContainerFocused: {
+      backgroundColor: colors.surfaceOverlay,
+      borderColor: colors.primaryTintBorder,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.22,
+      shadowRadius: 18,
+      elevation: 6,
     },
     searchIcon: {
       position: "absolute",
@@ -1627,47 +1673,66 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     },
     searchInput: {
       flex: 1,
-      fontSize: 14,
+      fontSize: 16,
       color: colors.textPrimary,
       padding: 0,
     },
     searchClear: {
       position: "absolute",
       right: 12,
-      padding: 8,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceElevated,
     },
 
     // Filter chips row: pb-2 = 8px
     filtersWrapper: {
       flexDirection: "row",
       alignItems: "center",
-      paddingBottom: 8,
-      gap: 8,
+      paddingBottom: 10,
+      gap: 10,
+    },
+    filtersRail: {
+      flex: 1,
     },
     filtersContent: {
       flexDirection: "row",
-      gap: 8,
-      paddingRight: 8,
+      gap: 10,
+      paddingRight: 16,
+      paddingBottom: 2,
     },
     // px-4 py-2 rounded-full text-xs font-semibold
     filterChip: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      minHeight: 44,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
       borderRadius: radius.full,
       backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderMuted,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
     },
     filterChipActive: {
       backgroundColor: colors.primary,
       borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      elevation: 4,
     },
     filterChipText: {
-      fontSize: 12,
-      fontWeight: "600",
+      fontSize: 13,
+      fontWeight: "700",
       color: colors.textFaded,
     },
     filterChipTextActive: {
@@ -1687,8 +1752,19 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     },
     // Controls (3-dot) button
     controlsButton: {
-      padding: 8,
+      width: 44,
+      height: 44,
       borderRadius: radius.xl,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.14,
+      shadowRadius: 8,
+      elevation: 3,
     },
     controlsMenuItem: {
       flexDirection: "row",

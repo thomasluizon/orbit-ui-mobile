@@ -1202,6 +1202,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           isDrillCard?: boolean
           onLongPressCard?: () => void
           tourTargetId?: string
+          entryIndex?: number
         },
       ) => {
         const progress = hasChildren
@@ -1219,6 +1220,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             hasChildren={hasChildren}
             hasSubHabits={hasSubHabits}
             tourTargetId={options?.tourTargetId}
+            entryIndex={options?.entryIndex}
             isExpanded={!collapsedIds.has(habit.id)}
             childrenDone={progress.done}
             childrenTotal={progress.total}
@@ -1317,7 +1319,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const children = getVisibleChildren(parentId)
         if (children.length === 0) return null
 
-        return children.map((child) => {
+        return children.map((child, index) => {
           const visibleChildren = getVisibleChildren(child.id)
           return (
             <View key={child.id} style={styles.allViewChild}>
@@ -1326,6 +1328,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 depth,
                 visibleChildren.length > 0,
                 child.hasSubHabits,
+                { entryIndex: index + depth + 1 },
               )}
               {renderAllViewChildren(child.id, depth + 1)}
             </View>
@@ -1336,7 +1339,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderItem = useCallback(
-      ({ item, drag }: RenderItemParams<DragItem>) => (
+      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => (
         <View style={styles.sectionInset}>
           {renderHabitCard(
             item.habit,
@@ -1344,6 +1347,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             item.hasChildren,
             item.hasSubHabits,
             {
+              entryIndex: getIndex?.() ?? 0,
               onLongPressCard: isDndEnabled
                 ? () => prepareDrag(item, drag)
                 : undefined,
@@ -1415,7 +1419,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           group={group}
           overdueLabel={t('habits.overdue')}
           styles={styles}
-          renderHabit={(habit) => {
+          renderHabit={(habit, index) => {
             const children = getVisibleChildren(habit.id)
             return (
               <>
@@ -1424,6 +1428,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   0,
                   children.length > 0,
                   habit.hasSubHabits,
+                  { entryIndex: index },
                 )}
                 {renderAllViewChildren(habit.id, 1)}
               </>

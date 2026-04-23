@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { shadows } from '@/lib/theme'
+import { useUIStore } from '@/stores/ui-store'
 
 interface BottomNavProps {
   onCreate?: () => void
@@ -31,6 +32,8 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
   const { colors, nav, currentTheme } = useAppTheme()
+  const goToTodayDate = useUIStore((s) => s.goToToday)
+  const setActiveView = useUIStore((s) => s.setActiveView)
   const isLight = currentTheme === 'light'
   const fabRef = useRef<View>(null)
   useTourTarget('tour-fab-button', fabRef)
@@ -52,12 +55,18 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
 
   const handleNavPress = useCallback(
     (item: NavItem) => {
+      if (item.path === '/') {
+        goToTodayDate()
+        setActiveView('today')
+      }
+
       if (isActive(item.path)) {
         return
       }
+
       router.navigate(item.path)
     },
-    [isActive, router],
+    [goToTodayDate, isActive, router, setActiveView],
   )
 
   return (

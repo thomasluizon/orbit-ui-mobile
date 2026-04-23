@@ -94,7 +94,7 @@ export function HabitListEmptyState({
 interface HabitListDateGroupSectionProps {
   group: HabitListDateGroup
   overdueLabel: string
-  renderHabit: (habit: NormalizedHabit) => ReactNode
+  renderHabit: (habit: NormalizedHabit, index: number) => ReactNode
   styles: {
     sectionInset: object
     groupSection: object
@@ -134,9 +134,9 @@ export function HabitListDateGroupSection({
           />
         </View>
         <View style={styles.groupItems}>
-          {group.habits.map((habit) => (
+          {group.habits.map((habit, index) => (
             <View key={habit.id} style={styles.groupItem}>
-              {renderHabit(habit)}
+              {renderHabit(habit, index)}
             </View>
           ))}
         </View>

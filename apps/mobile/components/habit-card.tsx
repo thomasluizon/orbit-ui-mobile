@@ -103,6 +103,7 @@ interface HabitCardProps {
   searchQuery?: string
   actions?: HabitCardActions
   tourTargetId?: string
+  entryIndex?: number
 }
 
 function withAlpha(color: string, opacity: number, fallback: string): string {
@@ -394,6 +395,7 @@ export function HabitCard({
   searchQuery = '',
   actions = {},
   tourTargetId,
+  entryIndex = 0,
 }: HabitCardProps) {
   const {
     onLog,
@@ -416,6 +418,7 @@ export function HabitCard({
   const { colors, currentTheme } = useAppTheme()
   const { displayTime } = useTimeFormat()
   const styles = useMemo(() => createStyles(colors, currentTheme), [colors, currentTheme])
+  const listEnterMotion = useResolvedMotionPreset('list-enter')
   const successMotion = useResolvedMotionPreset('success-feedback')
   const shouldRenderCompletionSparks = !successMotion.reducedMotionEnabled
 
@@ -483,9 +486,69 @@ export function HabitCard({
   // ---------------------------------------------------------------------------
   const pressScale = useSharedValue(1)
   const pressY = useSharedValue(0)
+  const entryOpacity = useSharedValue(listEnterMotion.reducedMotionEnabled ? 1 : 0)
+  const entryTranslateY = useSharedValue(
+    listEnterMotion.reducedMotionEnabled ? 0 : Math.max(10, listEnterMotion.shift),
+  )
+  const entryScale = useSharedValue(listEnterMotion.reducedMotionEnabled ? 1 : 0.985)
+  const entryAnimStyle = useAnimatedStyle(() => ({
+    opacity: entryOpacity.value,
+    transform: [
+      { translateY: entryTranslateY.value },
+      { scale: entryScale.value },
+    ],
+  }))
   const pressAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: pressY.value }, { scale: pressScale.value }],
   }))
+
+  useEffect(() => {
+    if (listEnterMotion.reducedMotionEnabled) {
+      entryOpacity.value = 1
+      entryTranslateY.value = 0
+      entryScale.value = 1
+      return
+    }
+
+    const entryDelay = Math.min(entryIndex, 6) * 40
+    const entryDuration = Math.max(160, listEnterMotion.enterDuration)
+
+    entryOpacity.value = 0
+    entryTranslateY.value = Math.max(10, listEnterMotion.shift)
+    entryScale.value = 0.985
+
+    entryOpacity.value = withDelay(
+      entryDelay,
+      withTiming(1, {
+        duration: entryDuration,
+        easing: Easing.bezier(...listEnterMotion.enterEasing),
+      }),
+    )
+    entryTranslateY.value = withDelay(
+      entryDelay,
+      withTiming(0, {
+        duration: entryDuration,
+        easing: Easing.bezier(...listEnterMotion.enterEasing),
+      }),
+    )
+    entryScale.value = withDelay(
+      entryDelay,
+      withTiming(1, {
+        duration: Math.max(140, Math.round(entryDuration * 0.92)),
+        easing: Easing.bezier(...easings.out),
+      }),
+    )
+  }, [
+    entryIndex,
+    entryOpacity,
+    entryScale,
+    entryTranslateY,
+    listEnterMotion.enterDuration,
+    listEnterMotion.enterEasing,
+    listEnterMotion.reducedMotionEnabled,
+    listEnterMotion.shift,
+    habit.id,
+  ])
 
   const handlePressIn = useCallback(() => {
     pressScale.value = withTiming(0.985, { duration: 100 })
@@ -766,29 +829,9 @@ export function HabitCard({
 
   return (
     <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
-      <Animated.View
-        testID="habit-completion-flash"
-        pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            top: -1,
-            left: -1,
-            right: -1,
-            bottom: -1,
-            borderRadius: isChild ? radius.md + 2 : radius.lg + 2,
-            backgroundColor: withAlpha(
-              colors.primary,
-              0.12,
-              'rgba(139, 92, 246, 0.12)',
-            ),
-          },
-          completionFlashStyle,
-        ]}
-      />
-      {/* Step 10: creation glow rim — absolutely behind the card */}
-      {isJustCreated && (
+      <Animated.View style={entryAnimStyle}>
         <Animated.View
+          testID="habit-completion-flash"
           pointerEvents="none"
           style={[
             {
@@ -798,56 +841,77 @@ export function HabitCard({
               right: -1,
               bottom: -1,
               borderRadius: isChild ? radius.md + 2 : radius.lg + 2,
-              borderWidth: 1,
-              borderColor: primaryRgba(0.25),
+              backgroundColor: withAlpha(
+                colors.primary,
+                0.12,
+                'rgba(139, 92, 246, 0.12)',
+              ),
             },
-            creationGlowStyle,
+            completionFlashStyle,
           ]}
         />
-      )}
-
-      {/* Step 8: wrap TouchableOpacity in Animated.View for press spring */}
-      <Animated.View style={pressAnimStyle}>
-        <TouchableOpacity
-          style={cardStyle}
-          onPress={handleCardPress}
-          onLongPress={!isSelectMode ? onLongPressCard : undefined}
-          delayLongPress={300}
-          activeOpacity={0.85}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-        >
-          <HabitCardSurface isChild={isChild} status={status} colors={colors} />
-          <View
+        {/* Step 10: creation glow rim — absolutely behind the card */}
+        {isJustCreated && (
+          <Animated.View
+            pointerEvents="none"
             style={[
-              styles.cardRow,
-              { gap: isChild ? 12 : 14 },
+              {
+                position: 'absolute',
+                top: -1,
+                left: -1,
+                right: -1,
+                bottom: -1,
+                borderRadius: isChild ? radius.md + 2 : radius.lg + 2,
+                borderWidth: 1,
+                borderColor: primaryRgba(0.25),
+              },
+              creationGlowStyle,
             ]}
+          />
+        )}
+
+        {/* Step 8: wrap TouchableOpacity in Animated.View for press spring */}
+        <Animated.View style={pressAnimStyle}>
+          <TouchableOpacity
+            style={cardStyle}
+            onPress={handleCardPress}
+            onLongPress={!isSelectMode ? onLongPressCard : undefined}
+            delayLongPress={300}
+            activeOpacity={0.85}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
           >
-            {/* Expand/collapse toggle */}
-            {hasChildren && (
-              <TouchableOpacity
-                onPress={onToggleExpand}
-                style={[
-                  styles.expandButton,
-                  {
-                    width: isChild ? 24 : 28,
-                    height: isChild ? 24 : 28,
-                    borderRadius: 8,
-                  },
-                  isExpanded && styles.expandButtonRotated,
-                ]}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <ChevronRight
-                  size={isChild ? 14 : 16}
-                  color={colors.textMuted}
-                />
-              </TouchableOpacity>
-            )}
+            <HabitCardSurface isChild={isChild} status={status} colors={colors} />
+            <View
+              style={[
+                styles.cardRow,
+                { gap: isChild ? 12 : 14 },
+              ]}
+            >
+              {/* Expand/collapse toggle */}
+              {hasChildren && (
+                <TouchableOpacity
+                  onPress={onToggleExpand}
+                  style={[
+                    styles.expandButton,
+                    {
+                      width: isChild ? 24 : 28,
+                      height: isChild ? 24 : 28,
+                      borderRadius: 8,
+                    },
+                    isExpanded && styles.expandButtonRotated,
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <ChevronRight
+                    size={isChild ? 14 : 16}
+                    color={colors.textMuted}
+                  />
+                </TouchableOpacity>
+              )}
 
             {/* Selection checkbox */}
             {isSelectMode ? (
@@ -1253,6 +1317,7 @@ export function HabitCard({
           </View>
         </TouchableOpacity>
       </Animated.View>
+      </Animated.View>
 
       <AnchoredMenu
         visible={showActionsMenu}
@@ -1404,12 +1469,13 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: cardBorder,
-    padding: 16,
-    marginBottom: 10,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    marginBottom: 12,
     position: 'relative',
     overflow: 'hidden',
     ...parentShadow,
-    elevation: isLight ? 1 : 5,
+    elevation: isLight ? 1 : 6,
   },
 
   cardChild: {
@@ -1421,13 +1487,13 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     borderColor: cardBorderFaint,
     borderLeftWidth: 2,
     borderLeftColor: withAlpha(colors.primary, 0.25, 'rgba(59, 130, 246, 0.25)'),
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    marginBottom: 12,
     position: 'relative',
     overflow: 'hidden',
     ...childShadow,
-    elevation: isLight ? 0 : 3,
+    elevation: isLight ? 0 : 4,
   },
 
   cardDueToday: {
@@ -1450,9 +1516,9 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     borderColor: colors.primary,
     borderWidth: 2,
     shadowColor: colors.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 7,
   },
   cardJustCreated: {
     shadowColor: colors.primary,
@@ -1465,6 +1531,7 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 1,
+    gap: 14,
   },
 
   // Expand/collapse button
@@ -1501,7 +1568,7 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     transform: [{ rotate: '-90deg' }],
   },
   progressText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
@@ -1529,18 +1596,21 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
   content: {
     flex: 1,
     minWidth: 0,
+    paddingVertical: 2,
   },
 
   // Title - parent
   titleParent: {
-    fontSize: 14, // text-sm sm:text-base (mobile = sm)
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '700',
     color: colors.textPrimary,
   },
 
   // Title - child
   titleChild: {
-    fontSize: 14, // text-sm
+    fontSize: 15,
+    lineHeight: 19,
     fontWeight: '700',
     color: colors.textPrimary,
   },
@@ -1553,24 +1623,26 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
 
   // Description - parent
   descriptionParent: {
-    fontSize: 11, // text-[11px]
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.textMuted,
-    marginTop: 2,
+    marginTop: 3,
   },
 
   // Description - child
   descriptionChild: {
-    fontSize: 10, // text-[10px]
+    fontSize: 11,
+    lineHeight: 15,
     color: colors.textMuted,
-    marginTop: 2,
+    marginTop: 3,
   },
 
   // Badges row - parent
   badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6, // gap-1.5
-    marginTop: 6, // mt-1.5
+    gap: 8,
+    marginTop: 8,
     flexWrap: 'wrap',
   },
 
@@ -1579,16 +1651,16 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2, // mt-0.5
+    marginTop: 4,
     flexWrap: 'wrap',
   },
 
   // Frequency label - parent
   frequencyLabel: {
-    fontSize: 10, // text-[10px]
+    fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 1.6, // tracking-widest
+    letterSpacing: 1.8,
     color: withAlpha(colors.textMuted, 0.7, 'rgba(122, 116, 144, 0.7)'),
   },
 
@@ -1603,7 +1675,7 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
 
   // Due time text
   dueTimeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     color: colors.textSecondary,
   },
@@ -1731,6 +1803,19 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
   // More button (three dots)
   moreButton: {
     borderRadius: 9999,
+    backgroundColor: withAlpha(
+      colors.surfaceElevated,
+      themeMode === 'light' ? 0.9 : 0.72,
+      colors.surfaceElevated,
+    ),
+    borderWidth: 1,
+    borderColor: withAlpha(
+      colors.white,
+      themeMode === 'light' ? 0.06 : 0.05,
+      themeMode === 'light'
+        ? 'rgba(255, 255, 255, 0.06)'
+        : 'rgba(255, 255, 255, 0.05)',
+    ),
   },
 
   menuItem: {
