@@ -18,6 +18,7 @@ dist/
 .idea/
 .claude/worktrees/
 .mcp.json
+.codex/config.toml
 *.swp
 *.swo
 
