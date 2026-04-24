@@ -36,11 +36,15 @@ export {
   buildHabitFrequencyUnits,
   buildEditHabitFormState,
   buildEmptyHabitFormValues,
+  DEFAULT_HABIT_EMOJI,
+  filterHabitEmojiCategories,
   buildParentHabitFormState,
   buildSubHabitRequest,
   buildUpdateHabitRequest,
   DEFAULT_REMINDER_TIMES,
   HABIT_REMINDER_PRESETS,
+  HABIT_EMOJI_OPTIONS,
+  HABIT_EMOJI_CATEGORIES,
   resolveAutoManagedReminderEnabled,
   fetchAllPaginatedItems,
   detectDefaultTimeFormat,
@@ -57,6 +61,7 @@ export {
   getHabitFormFlags,
   normalizeHabitFormData,
   resolveHabitFormMode,
+  resolveHabitEmoji,
   applyLinkedGoalUpdates,
   buildChildrenIndex,
   normalizeHabitQueryData,
@@ -183,6 +188,7 @@ export * from './query/index'
 export * from './stores/index'
 export * from './validation/index'
 export type { FriendlyErrorContext } from './utils/error-utils'
+export type { HabitEmojiOption } from './utils/habit-emoji-options'
 export type { HabitFormValidationContext } from './utils/habit-form-helpers'
 export type { AutoManagedReminderEnabledInput } from './utils/habit-form-state'
 export type { NotificationTimeTranslationAdapter } from './utils/notification-time'

@@ -123,6 +123,7 @@ function buildOptimisticHabitPatch(
   }
 
   if ('description' in data) patch.description = data.description ?? null
+  if ('emoji' in data) patch.emoji = data.emoji ?? null
   if ('isGeneral' in data) patch.isGeneral = data.isGeneral ?? false
   if ('isFlexible' in data) patch.isFlexible = data.isFlexible ?? false
   if ('frequencyUnit' in data) patch.frequencyUnit = data.frequencyUnit ?? null

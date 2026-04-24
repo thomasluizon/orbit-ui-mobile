@@ -9,12 +9,17 @@ import {
   normalizeHabitFormData,
   validateHabitFormInput,
 } from '../utils/habit-form-helpers'
+import {
+  filterHabitEmojiCategories,
+  HABIT_EMOJI_OPTIONS,
+} from '../utils/habit-emoji-options'
 
 describe('habit form helpers', () => {
   it('normalizes missing habit form values', () => {
     expect(normalizeHabitFormData({ title: 'Exercise' })).toMatchObject({
       title: 'Exercise',
       description: '',
+      emoji: '',
       frequencyUnit: null,
       frequencyQuantity: null,
       days: [],
@@ -27,6 +32,15 @@ describe('habit form helpers', () => {
       slipAlertEnabled: false,
       checklistItems: [],
     })
+  })
+
+  it('filters habit emoji categories by habit-focused keywords', () => {
+    const results = filterHabitEmojiCategories('run')
+    const emojis = results.flatMap((category) => category.emojis)
+
+    expect(HABIT_EMOJI_OPTIONS.length).toBeGreaterThan(100)
+    expect(emojis).toContain('🏃')
+    expect(emojis).toContain('🏃‍♀️')
   })
 
   it('derives display flags for one-time, recurring, and general habits', () => {

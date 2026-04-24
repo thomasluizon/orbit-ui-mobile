@@ -10,6 +10,7 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
   return {
     title: 'Test Habit',
     description: '',
+    emoji: '',
     isGeneral: false,
     isFlexible: false,
     frequencyUnit: null,
@@ -41,6 +42,12 @@ describe('buildCreateHabitRequest', () => {
     const data = makeFormData({ description: 'My description' })
     const result = buildCreateHabitRequest(data, [], [], [], [])
     expect(result.description).toBe('My description')
+  })
+
+  it('includes emoji when provided', () => {
+    const data = makeFormData({ emoji: '🌱' })
+    const result = buildCreateHabitRequest(data, [], [], [], [])
+    expect(result.emoji).toBe('🌱')
   })
 
   it('sets isGeneral when general habit', () => {
@@ -148,6 +155,12 @@ describe('buildSubHabitRequest', () => {
     expect(result.title).toBe('Test Habit')
   })
 
+  it('includes emoji on sub-habits', () => {
+    const data = makeFormData({ emoji: '💧' })
+    const result = buildSubHabitRequest(data, [], [])
+    expect(result.emoji).toBe('💧')
+  })
+
   it('includes schedule fields for non-general sub-habits', () => {
     const data = makeFormData({
       frequencyUnit: 'Day',
@@ -176,6 +189,13 @@ describe('buildUpdateHabitRequest', () => {
     const result = buildUpdateHabitRequest(data, true, '', [], [])
     expect(result.title).toBe('Test Habit')
     expect(result.isGeneral).toBe(false)
+    expect(result.emoji).toBeNull()
+  })
+
+  it('includes emoji on update requests', () => {
+    const data = makeFormData({ emoji: '📚' })
+    const result = buildUpdateHabitRequest(data, true, '', [], [])
+    expect(result.emoji).toBe('📚')
   })
 
   it('sets clearEndDate when original had endDate but new does not', () => {

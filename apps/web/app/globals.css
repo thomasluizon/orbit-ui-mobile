@@ -1001,16 +1001,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ═══════════════════════════════════════════════════════
-   HABIT CARDS v3 -- Premium Dark Glass
-   Layered shadows, gradient surfaces, inner highlights, glow states
+   HABIT RITUAL STRIPS -- Aurora Maximalism
+   Dark violet surfaces, personal emoji identity, neon status rails
    ═══════════════════════════════════════════════════════ */
 
 /* Parent card -- glass surface with depth */
 .habit-card-parent {
+  position: relative;
+  overflow: hidden;
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.035) 0%, transparent 40%),
     var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.075);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
     0 8px 24px rgba(0, 0, 0, 0.15),
@@ -1018,6 +1019,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: transform 280ms var(--ease-out),
               box-shadow 280ms var(--ease-out),
               border-color 280ms ease;
+}
+
+.habit-card-parent::before,
+.habit-card-child::before {
+  content: none;
 }
 .habit-card-parent:hover {
   transform: translateY(-3px);
@@ -1035,7 +1041,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Due-today -- amber inner glow */
 .habit-card-parent.habit-status-due {
-  border-left: 3px solid rgba(245, 158, 11, 0.7);
+  border-left: 4px solid rgba(245, 158, 11, 0.82);
+  background:
+    var(--color-surface);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
     0 8px 24px rgba(0, 0, 0, 0.15),
@@ -1054,7 +1062,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Overdue -- red inner glow */
 .habit-card-parent.habit-status-overdue {
-  border-left: 3px solid rgba(239, 68, 68, 0.7);
+  border-left: 4px solid rgba(239, 68, 68, 0.86);
+  background:
+    var(--color-surface);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
     0 8px 24px rgba(0, 0, 0, 0.15),
@@ -1073,8 +1083,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Child card -- glass nested surface with accent line */
 .habit-card-child {
+  position: relative;
+  overflow: hidden;
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.02) 0%, transparent 40%),
     rgba(13, 11, 22, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-left: 2px solid rgba(var(--primary-shadow), 0.25);
@@ -1086,6 +1097,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
               box-shadow 250ms var(--ease-out),
               border-color 250ms ease,
               background 250ms ease;
+}
+
+.habit-emoji-orb {
+  text-shadow: 0 0 18px rgba(var(--primary-shadow), 0.25);
 }
 .habit-card-child:hover {
   transform: translateY(-2px);
@@ -1099,6 +1114,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     0 8px 24px rgba(0, 0, 0, 0.15),
     0 0 16px rgba(var(--primary-shadow), 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.habit-card-child.habit-status-due {
+  border-left: 3px solid rgba(245, 158, 11, 0.72);
+  background:
+    rgba(13, 11, 22, 0.62);
+}
+
+.habit-card-child.habit-status-overdue {
+  border-left: 3px solid rgba(239, 68, 68, 0.76);
+  background:
+    rgba(13, 11, 22, 0.62);
 }
 .habit-card-child:active {
   transform: translateY(-1px) scale(0.99);
@@ -1143,6 +1170,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 :root:not(.dark) .habit-card-parent {
   background:
+    radial-gradient(ellipse at 0% 50%, rgba(var(--primary-shadow), 0.14), transparent 42%),
+    radial-gradient(circle at 72% 0%, rgba(255, 0, 110, 0.07), transparent 34%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.6) 0%, transparent 40%),
     var(--color-surface);
   border: 1px solid rgba(0, 0, 0, 0.07);
@@ -1161,7 +1190,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 :root:not(.dark) .habit-card-parent.habit-status-due {
-  border-left: 3px solid rgba(245, 158, 11, 0.5);
+  border-left: 4px solid rgba(245, 158, 11, 0.62);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.04),
@@ -1178,7 +1207,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 :root:not(.dark) .habit-card-parent.habit-status-overdue {
-  border-left: 3px solid rgba(239, 68, 68, 0.5);
+  border-left: 4px solid rgba(239, 68, 68, 0.62);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.04),
@@ -1196,6 +1225,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 :root:not(.dark) .habit-card-child {
   background:
+    radial-gradient(ellipse at 0% 50%, rgba(var(--primary-shadow), 0.10), transparent 42%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
     var(--color-surface-ground);
   border: 1px solid rgba(0, 0, 0, 0.05);
@@ -1204,6 +1234,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 2px 8px rgba(0, 0, 0, 0.03),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+:root:not(.dark) .habit-card-child.habit-status-due {
+  border-left: 3px solid rgba(245, 158, 11, 0.52);
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.09), transparent 34%),
+    radial-gradient(ellipse at 28% 40%, rgba(var(--primary-shadow), 0.08), transparent 42%),
+    var(--color-surface-ground);
+}
+
+:root:not(.dark) .habit-card-child.habit-status-overdue {
+  border-left: 3px solid rgba(239, 68, 68, 0.54);
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(239, 68, 68, 0.10), transparent 34%),
+    radial-gradient(ellipse at 28% 40%, rgba(var(--primary-shadow), 0.08), transparent 42%),
+    var(--color-surface-ground);
 }
 :root:not(.dark) .habit-card-child:hover {
   background:

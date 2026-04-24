@@ -26,6 +26,7 @@ import {
   computeHabitFrequencyLabel,
   computeHabitMatchBadges,
   computeHabitStatusBadge,
+  resolveHabitEmoji,
   type HabitCardTranslationAdapter,
   type HabitCardStatus,
 } from '@orbit/shared/utils'
@@ -106,8 +107,8 @@ function buildArticleClassName(opts: ArticleClassNameOptions): string {
   } else {
     classes.push('habit-card-parent rounded-2xl p-4 sm:p-5')
   }
-  if (!isChild && status === 'due-today') classes.push('habit-status-due pl-4 sm:pl-5')
-  if (!isChild && status === 'overdue') classes.push('habit-status-overdue pl-4 sm:pl-5')
+  if (status === 'due-today') classes.push('habit-status-due')
+  if (status === 'overdue') classes.push('habit-status-overdue')
   if (isDoneForRange || isNotDueToday) classes.push('opacity-40')
   if (isSelected) classes.push('ring-2 ring-primary ring-offset-2 ring-offset-background')
   if (justCompleted) classes.push('animate-complete-glow')
@@ -192,6 +193,35 @@ function ChecklistBadge({ items, checkedCount, hasBorder }: Readonly<{
       <ClipboardCheck className="size-3" />
       {checkedCount}/{items.length}
     </span>
+  )
+}
+
+function HabitIdentityOrb({ habit, isChild, isDoneForRange, status }: Readonly<{
+  habit: NormalizedHabit
+  isChild: boolean
+  isDoneForRange: boolean
+  status: HabitCardStatus
+}>) {
+  const emoji = resolveHabitEmoji(habit.emoji)
+  const statusClass = status === 'overdue'
+    ? 'from-red-500/35 via-red-400/12 to-transparent'
+    : status === 'due-today'
+      ? 'from-amber-400/35 via-primary/16 to-transparent'
+      : 'from-primary/30 via-fuchsia-400/12 to-transparent'
+
+  return (
+    <div
+      className={`habit-emoji-orb relative shrink-0 grid place-items-center rounded-[1.35rem] border border-white/10 bg-surface-elevated/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] overflow-hidden ${
+        isChild ? 'size-9 text-lg' : 'size-12 sm:size-13 text-2xl'
+      } ${isDoneForRange ? 'opacity-70' : ''}`}
+      aria-hidden="true"
+    >
+      <span className={`absolute inset-0 bg-gradient-to-br ${statusClass}`} />
+      <span className="absolute -inset-4 bg-[radial-gradient(circle_at_30%_20%,rgba(var(--primary-shadow),0.25),transparent_52%)]" />
+      <span className="relative drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
+        {emoji}
+      </span>
+    </div>
   )
 }
 
@@ -1136,11 +1166,12 @@ export const HabitCard = React.memo(function HabitCard({
       <div style={isChild ? indentStyle : undefined}>
         <div
           data-tour={tourTargetId}
+          data-testid="habit-card-surface"
           className={`${articleClassName} relative text-left w-full`}
         >
           <button
             type="button"
-            className={`${articleClassName} absolute inset-0 z-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+            className={`absolute inset-0 z-0 cursor-pointer bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isChild ? 'rounded-xl' : 'rounded-2xl'}`}
             onClick={handleCardClick}
             aria-label={habit.title}
           />
@@ -1157,6 +1188,27 @@ export const HabitCard = React.memo(function HabitCard({
                 onToggleExpand={onToggleExpand}
               />
             </div>
+
+            <HabitIdentityOrb
+              habit={habit}
+              isChild={isChild}
+              isDoneForRange={isDoneForRange}
+              status={status}
+            />
+
+            <CardContent
+              habit={habit}
+              isChild={isChild}
+              isDoneForRange={isDoneForRange}
+              searchQuery={searchQuery}
+              frequencyLabel={frequencyLabel}
+              flexibleProgressLabel={flexibleProgressLabel}
+              statusBadge={statusBadge}
+              checkedCount={checkedCount}
+              matchBadges={matchBadges}
+              displayTime={displayTime}
+              isTourTagTarget={tourTargetId === 'tour-habit-card'}
+            />
 
             <div className="pointer-events-auto">
               <LogIndicator
@@ -1179,20 +1231,6 @@ export const HabitCard = React.memo(function HabitCard({
                 onToggleSelection={onToggleSelection}
               />
             </div>
-
-            <CardContent
-              habit={habit}
-              isChild={isChild}
-              isDoneForRange={isDoneForRange}
-              searchQuery={searchQuery}
-              frequencyLabel={frequencyLabel}
-              flexibleProgressLabel={flexibleProgressLabel}
-              statusBadge={statusBadge}
-              checkedCount={checkedCount}
-              matchBadges={matchBadges}
-              displayTime={displayTime}
-              isTourTagTarget={tourTargetId === 'tour-habit-card'}
-            />
 
             {!isSelectMode && (
               <div className="pointer-events-auto">

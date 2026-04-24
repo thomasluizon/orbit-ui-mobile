@@ -215,6 +215,7 @@ describe('habit mutation helper builders', () => {
       title: 'Read 20 minutes',
       tagIds: ['tag-1'],
       goalIds: ['goal-1'],
+      emoji: '📚',
       reminderEnabled: true,
       reminderTimes: [10],
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
@@ -222,6 +223,7 @@ describe('habit mutation helper builders', () => {
     })
 
     expect(result.position).toBe(4)
+    expect(result.emoji).toBe('📚')
     expect(result.dueDate).toBe(formatAPIDate(new Date()))
     expect(result.tags).toEqual([
       { id: 'tag-1', name: 'Learning', color: '#3b82f6' },
@@ -247,10 +249,12 @@ describe('habit mutation helper builders', () => {
 
     const result = buildOptimisticSubHabit(queryClient, 'parent-1', 'temp-child', {
       title: 'Stretch',
+      emoji: '🧘',
       tagIds: ['tag-1'],
     })
 
     expect(result.position).toBe(1)
+    expect(result.emoji).toBe('🧘')
     expect(result.dueDate).toBe('2025-03-01')
     expect(result.tags).toEqual([
       { id: 'tag-1', name: 'Health', color: '#22c55e' },
@@ -266,6 +270,7 @@ describe('habit mutation helper builders', () => {
       makeHabit({
         id: 'habit-1',
         title: 'Morning Run',
+        emoji: '🏃',
         tags: [{ id: 'tag-1', name: 'Fitness', color: '#ef4444' }],
         reminderEnabled: true,
         reminderTimes: [15],
@@ -282,6 +287,7 @@ describe('habit mutation helper builders', () => {
     expect(duplicate).toMatchObject({
       id: 'temp-copy',
       title: 'Morning Run Copy',
+      emoji: '🏃',
       tags: [{ id: 'tag-1', name: 'Fitness', color: '#ef4444' }],
       reminderEnabled: true,
       reminderTimes: [15],
@@ -300,6 +306,7 @@ describe('habit mutation helper builders', () => {
     const patch = buildOptimisticHabitPatch(queryClient, {
       title: 'Updated Habit',
       description: 'Updated description',
+      emoji: '✅',
       isBadHabit: true,
       isGeneral: true,
       isFlexible: true,
@@ -322,6 +329,7 @@ describe('habit mutation helper builders', () => {
     expect(patch).toMatchObject({
       title: 'Updated Habit',
       description: 'Updated description',
+      emoji: '✅',
       isBadHabit: true,
       isGeneral: true,
       isFlexible: true,

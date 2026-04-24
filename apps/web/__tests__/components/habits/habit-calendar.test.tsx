@@ -33,7 +33,7 @@ function createWrapper() {
 
 describe('HabitCalendar', () => {
   const logs: HabitLog[] = [
-    { id: 'log1', date: '2025-01-15', value: 1, note: 'Great session!', createdAtUtc: '2025-01-15T10:00:00Z' },
+    { id: 'log1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' },
     { id: 'log2', date: '2025-01-16', value: 1, createdAtUtc: '2025-01-16T09:00:00Z' },
   ]
 

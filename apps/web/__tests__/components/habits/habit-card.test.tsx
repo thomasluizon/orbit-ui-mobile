@@ -96,6 +96,15 @@ describe('HabitCard', () => {
     expect(article.tagName).toBe('BUTTON')
   })
 
+  it('keeps the invisible card click target visually neutral', () => {
+    const habit = createMockHabit()
+    render(<HabitCard habit={habit} />)
+    const clickTarget = screen.getByLabelText('Exercise')
+
+    expect(clickTarget.className).not.toContain('habit-card-parent')
+    expect(clickTarget.className).not.toContain('habit-card-child')
+  })
+
   it('calls onDetail when card is clicked', () => {
     const onDetail = vi.fn()
     const habit = createMockHabit()
@@ -143,13 +152,13 @@ describe('HabitCard', () => {
   it('applies opacity-40 when habit is completed', () => {
     const habit = createMockHabit({ isCompleted: true })
     render(<HabitCard habit={habit} />)
-    expect(screen.getByLabelText('Exercise').className).toContain('opacity-40')
+    expect(screen.getByTestId('habit-card-surface').className).toContain('opacity-40')
   })
 
   it('does not apply opacity-40 to general habits on today view', () => {
     const habit = createMockHabit({ isGeneral: true, isCompleted: false })
     render(<HabitCard habit={habit} selectedDate={new Date('2025-01-02')} />)
-    expect(screen.getByLabelText('Exercise').className).not.toContain('opacity-40')
+    expect(screen.getByTestId('habit-card-surface').className).not.toContain('opacity-40')
   })
 
   it('does not dim pending drill cards', () => {
@@ -166,7 +175,7 @@ describe('HabitCard', () => {
         isDrillCard={true}
       />,
     )
-    expect(screen.getByLabelText('Exercise').className).not.toContain('opacity-40')
+    expect(screen.getByTestId('habit-card-surface').className).not.toContain('opacity-40')
   })
 
   it('applies line-through to title when completed', () => {
@@ -408,19 +417,30 @@ describe('HabitCard', () => {
   it('uses child CSS classes at depth > 0', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} depth={1} />)
-    expect(screen.getByLabelText('Exercise').className).toContain('habit-card-child')
+    expect(screen.getByTestId('habit-card-surface').className).toContain('habit-card-child')
+  })
+
+  it('applies status classes to child habit surfaces', () => {
+    const habit = createMockHabit({
+      isOverdue: true,
+      isCompleted: false,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    render(<HabitCard habit={habit} depth={1} />)
+    expect(screen.getByTestId('habit-card-surface').className).toContain('habit-status-overdue')
   })
 
   it('uses parent CSS classes at depth 0', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} depth={0} />)
-    expect(screen.getByLabelText('Exercise').className).toContain('habit-card-parent')
+    expect(screen.getByTestId('habit-card-surface').className).toContain('habit-card-parent')
   })
 
   it('renders ring highlight when isSelected is true', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} isSelectMode={true} isSelected={true} />)
-    expect(screen.getByLabelText('Exercise').className).toContain('ring-2')
+    expect(screen.getByTestId('habit-card-surface').className).toContain('ring-2')
   })
 
   it('shows streak badge when currentStreak >= 2', () => {

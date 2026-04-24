@@ -43,6 +43,7 @@ import {
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitStatusBadge,
+  resolveHabitEmoji,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
@@ -139,27 +140,11 @@ function HabitCardSurface({
 }>) {
   return (
     <>
-      {/* Diagonal sheen gradient — mirrors the 165deg CSS overlay */}
-      <LinearGradient
-        pointerEvents="none"
-        colors={isChild ? gradients.surfaceSheenChild : gradients.surfaceSheen}
-        locations={gradients.surfaceSheenLocations}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.25, y: 1 }}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      />
-
-      {/* Status side-glow for due-today / overdue (parent only) */}
-      {!isChild && status === 'due-today' && (
+      {/* Status side-glow for due-today / overdue */}
+      {status === 'due-today' && (
         <LinearGradient
           pointerEvents="none"
-          colors={gradients.statusDue}
+          colors={isChild ? ['rgba(245, 158, 11, 0.10)', 'rgba(245, 158, 11, 0.025)', 'transparent'] : gradients.statusDue}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={{
@@ -167,14 +152,14 @@ function HabitCardSurface({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 24,
+            width: isChild ? 16 : 24,
           }}
         />
       )}
-      {!isChild && status === 'overdue' && (
+      {status === 'overdue' && (
         <LinearGradient
           pointerEvents="none"
-          colors={gradients.statusOverdue}
+          colors={isChild ? ['rgba(239, 68, 68, 0.11)', 'rgba(239, 68, 68, 0.03)', 'transparent'] : gradients.statusOverdue}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={{
@@ -182,7 +167,7 @@ function HabitCardSurface({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 24,
+            width: isChild ? 16 : 24,
           }}
         />
       )}
@@ -215,6 +200,37 @@ function HabitBadge({
   style: StyleProp<ViewStyle>
 }>) {
   return <View style={style}>{children}</View>
+}
+
+function HabitIdentityOrb({ habit, isChild, isDoneForRange, status, colors, styles }: Readonly<{
+  habit: NormalizedHabit
+  isChild: boolean
+  isDoneForRange: boolean
+  status: string
+  colors: ReturnType<typeof createColors>
+  styles: ReturnType<typeof createStyles>
+}>) {
+  const emoji = resolveHabitEmoji(habit.emoji)
+  const gradientColors = status === 'overdue'
+    ? ['rgba(239,68,68,0.34)', 'rgba(239,68,68,0.08)', 'transparent'] as const
+    : status === 'due-today'
+      ? ['rgba(251,191,36,0.32)', withAlpha(colors.primary, 0.16, 'rgba(139,92,246,0.16)'), 'transparent'] as const
+      : [withAlpha(colors.primary, 0.30, 'rgba(139,92,246,0.30)'), 'rgba(255,0,110,0.10)', 'transparent'] as const
+
+  return (
+    <View style={[styles.identityOrb, isChild ? styles.identityOrbChild : null, isDoneForRange ? styles.identityOrbDone : null]}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.identityOrbGradient}
+      />
+      <Text style={[styles.identityEmoji, isChild ? styles.identityEmojiChild : null]}>
+        {emoji}
+      </Text>
+    </View>
+  )
 }
 
 function HabitBadgesRow({
@@ -801,12 +817,12 @@ export function HabitCard({
   const cardStyle: ViewStyle[] = [
     isChild ? styles.cardChild : styles.cardParent,
   ]
-  // Status border for due-today / overdue (parent only)
-  if (!isChild && status === 'due-today') {
-    cardStyle.push(styles.cardDueToday)
+  // Status border for due-today / overdue
+  if (status === 'due-today') {
+    cardStyle.push(isChild ? styles.cardChildDueToday : styles.cardDueToday)
   }
-  if (!isChild && status === 'overdue') {
-    cardStyle.push(styles.cardOverdue)
+  if (status === 'overdue') {
+    cardStyle.push(isChild ? styles.cardChildOverdue : styles.cardOverdue)
   }
 
   // Dimming for completed / not-due
@@ -912,6 +928,53 @@ export function HabitCard({
                   />
                 </TouchableOpacity>
               )}
+
+              <HabitIdentityOrb
+                habit={habit}
+                isChild={isChild}
+                isDoneForRange={isDoneForRange}
+                status={status}
+                colors={colors}
+                styles={styles}
+              />
+
+              {/* Content */}
+              <View style={styles.content}>
+                <Text
+                  style={[
+                    isChild ? styles.titleChild : styles.titleParent,
+                    isDoneForRange && styles.titleDone,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {habit.title}
+                </Text>
+
+                {habit.description ? (
+                  <Text
+                    style={[
+                      isChild ? styles.descriptionChild : styles.descriptionParent,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {habit.description}
+                  </Text>
+                ) : null}
+
+                <HabitBadgesRow
+                  isChild={isChild}
+                  habit={habit}
+                  frequencyLabel={frequencyLabel}
+                  flexibleProgressLabel={flexibleProgressLabel}
+                  statusBadge={statusBadge}
+                  checkedCount={checkedCount}
+                  colors={colors}
+                  t={t}
+                  styles={styles}
+                  displayTime={displayTime}
+                  tagsRef={tourTargetId ? tagsTourRef : undefined}
+                />
+              </View>
 
             {/* Selection checkbox */}
             {isSelectMode ? (
@@ -1256,44 +1319,6 @@ export function HabitCard({
               </View>
             )}
 
-            {/* Content */}
-            <View style={styles.content}>
-                <Text
-                  style={[
-                    isChild ? styles.titleChild : styles.titleParent,
-                    isDoneForRange && styles.titleDone,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {habit.title}
-                </Text>
-
-                {habit.description ? (
-                  <Text
-                    style={[
-                      isChild ? styles.descriptionChild : styles.descriptionParent,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {habit.description}
-                  </Text>
-                ) : null}
-
-                <HabitBadgesRow
-                  isChild={isChild}
-                  habit={habit}
-                  frequencyLabel={frequencyLabel}
-                  flexibleProgressLabel={flexibleProgressLabel}
-                  statusBadge={statusBadge}
-                  checkedCount={checkedCount}
-                  colors={colors}
-                  t={t}
-                  styles={styles}
-                  displayTime={displayTime}
-                  tagsRef={tourTargetId ? tagsTourRef : undefined}
-                />
-              </View>
-
             {/* Actions menu trigger */}
             {!isSelectMode && (
               <View ref={actionsButtonRef} collapsable={false}>
@@ -1496,16 +1521,63 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     elevation: isLight ? 0 : 4,
   },
 
+  identityOrb: {
+    width: 48,
+    height: 48,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: withAlpha(colors.white, isLight ? 0.16 : 0.1, 'rgba(255, 255, 255, 0.1)'),
+  },
+  identityOrbChild: {
+    width: 36,
+    height: 36,
+    borderRadius: 16,
+  },
+  identityOrbDone: {
+    opacity: 0.7,
+  },
+  identityOrbGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  identityEmoji: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  identityEmojiChild: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+
   cardDueToday: {
-    borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.amber500, 0.7, 'rgba(245, 158, 11, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
+    borderLeftWidth: 4,
+    borderLeftColor: withAlpha(colors.amber500, 0.78, 'rgba(245, 158, 11, 0.78)'),
+    borderColor: withAlpha(colors.white, 0.075, 'rgba(255, 255, 255, 0.075)'),
   },
 
   cardOverdue: {
+    borderLeftWidth: 4,
+    borderLeftColor: withAlpha(colors.red500, 0.82, 'rgba(239, 68, 68, 0.82)'),
+    borderColor: withAlpha(colors.white, 0.075, 'rgba(255, 255, 255, 0.075)'),
+  },
+
+  cardChildDueToday: {
     borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.red500, 0.7, 'rgba(239, 68, 68, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
+    borderLeftColor: withAlpha(colors.amber500, 0.72, 'rgba(245, 158, 11, 0.72)'),
+    borderColor: cardBorderFaint,
+  },
+
+  cardChildOverdue: {
+    borderLeftWidth: 3,
+    borderLeftColor: withAlpha(colors.red500, 0.76, 'rgba(239, 68, 68, 0.76)'),
+    borderColor: cardBorderFaint,
   },
 
   cardDimmed: {

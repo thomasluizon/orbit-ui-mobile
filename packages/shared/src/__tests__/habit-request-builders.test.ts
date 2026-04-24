@@ -10,6 +10,7 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
   return {
     title: 'Read',
     description: '',
+    emoji: '',
     isGeneral: false,
     isFlexible: false,
     frequencyUnit: null,
@@ -63,6 +64,23 @@ describe('habit-request-builders', () => {
       tagIds: ['tag-1'],
       goalIds: ['goal-1'],
       subHabits: ['Chapter 1', 'Chapter 2'],
+    })
+  })
+
+  it('normalizes emoji fields in create, sub-habit, and update requests', () => {
+    const data = makeFormData({ emoji: ' 🌱 ' })
+
+    expect(buildCreateHabitRequest(data, [], [], [], [])).toMatchObject({
+      emoji: '🌱',
+    })
+    expect(buildSubHabitRequest(data, [], [])).toMatchObject({
+      emoji: '🌱',
+    })
+    expect(buildUpdateHabitRequest(data, true, '', [], [])).toMatchObject({
+      emoji: '🌱',
+    })
+    expect(buildUpdateHabitRequest(makeFormData(), true, '', [], [])).toMatchObject({
+      emoji: null,
     })
   })
 
@@ -200,6 +218,7 @@ describe('habit-request-builders', () => {
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,
+      emoji: null,
       description: 'Keep the streak alive',
       dueDate: '2026-04-08',
       frequencyUnit: 'Day',
@@ -233,6 +252,7 @@ describe('habit-request-builders', () => {
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,
+      emoji: null,
       dueDate: '2026-04-08',
       dueTime: '10:00',
       dueEndTime: '10:30',
@@ -258,6 +278,7 @@ describe('habit-request-builders', () => {
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,
+      emoji: null,
       dueDate: '2026-04-08',
       reminderEnabled: false,
       reminderTimes: [],
@@ -284,6 +305,7 @@ describe('habit-request-builders', () => {
       isBadHabit: false,
       isGeneral: false,
       isFlexible: false,
+      emoji: null,
       dueDate: '2026-04-08',
       frequencyUnit: undefined,
       frequencyQuantity: undefined,

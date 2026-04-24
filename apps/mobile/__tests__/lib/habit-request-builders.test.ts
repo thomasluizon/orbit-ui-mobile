@@ -10,6 +10,7 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
   return {
     title: 'Test Habit',
     description: '',
+    emoji: '',
     isGeneral: false,
     isFlexible: false,
     frequencyUnit: null,
@@ -32,6 +33,7 @@ describe('mobile habit request builders', () => {
   it('builds create payloads with recurring fields, reminders, tags, goals, and sub-habits', () => {
     const data = makeFormData({
       description: 'Description',
+      emoji: '🌱',
       frequencyUnit: 'Week',
       frequencyQuantity: 1,
       days: ['Monday', 'Wednesday'],
@@ -46,6 +48,7 @@ describe('mobile habit request builders', () => {
     expect(result).toMatchObject({
       title: 'Test Habit',
       description: 'Description',
+      emoji: '🌱',
       frequencyUnit: 'Week',
       frequencyQuantity: 1,
       days: ['Monday', 'Wednesday'],
@@ -78,6 +81,15 @@ describe('mobile habit request builders', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 2,
       tagIds: ['tag-1'],
+    })
+  })
+
+  it('builds emoji fields for sub-habit and update payloads', () => {
+    expect(buildSubHabitRequest(makeFormData({ emoji: '💧' }), [], [])).toMatchObject({
+      emoji: '💧',
+    })
+    expect(buildUpdateHabitRequest(makeFormData({ emoji: '📚' }), true, '', [], [])).toMatchObject({
+      emoji: '📚',
     })
   })
 

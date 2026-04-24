@@ -1,5 +1,6 @@
 export const MAX_HABIT_TITLE_LENGTH = 200
 export const MAX_HABIT_DESCRIPTION_LENGTH = 2000
+export const MAX_HABIT_EMOJI_LENGTH = 32
 export const MAX_CHECKLIST_ITEM_LENGTH = 500
 export const MAX_CHECKLIST_ITEMS = 50
 export const MAX_SUB_HABITS = 20

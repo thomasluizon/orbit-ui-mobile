@@ -156,8 +156,8 @@ describe('auth-api session helpers', () => {
   })
 
   it('deduplicates concurrent refresh requests for the same refresh token', async () => {
-    let resolveResponse: ((value: unknown) => void) | null = null
-    const pendingResponse = new Promise((resolve) => {
+    let resolveResponse: (value: unknown) => void = () => {}
+    const pendingResponse = new Promise<unknown>((resolve) => {
       resolveResponse = resolve
     })
     mockFetch.mockReturnValue(pendingResponse)
@@ -166,7 +166,7 @@ describe('auth-api session helpers', () => {
     const firstRequest = refreshSessionTokens('refresh-token')
     const secondRequest = refreshSessionTokens('refresh-token')
 
-    resolveResponse?.({
+    resolveResponse({
       ok: true,
       json: () => Promise.resolve({
         token: makeJwt(Math.floor(FIXED_NOW / 1000) + 3600),

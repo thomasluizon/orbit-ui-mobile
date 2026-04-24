@@ -8,6 +8,7 @@ import type {
 export interface HabitFormData {
   title: string
   description: string
+  emoji: string
   isGeneral: boolean
   isFlexible: boolean
   frequencyUnit: 'Day' | 'Week' | 'Month' | 'Year' | null
@@ -22,6 +23,11 @@ export interface HabitFormData {
   reminderEnabled: boolean
   scheduledReminders: ScheduledReminderTime[]
   checklistItems: Array<{ text: string; isChecked: boolean }>
+}
+
+function normalizeHabitEmoji(emoji: string | null | undefined): string | null {
+  const normalized = emoji?.trim() ?? ''
+  return normalized.length > 0 ? normalized : null
 }
 
 function applyScheduleFields(
@@ -66,6 +72,8 @@ export function buildSubHabitRequest(
 ): CreateSubHabitRequest {
   const req = { title: data.title } as Record<string, unknown>
   if (data.description) req.description = data.description
+  const emoji = normalizeHabitEmoji(data.emoji)
+  if (emoji) req.emoji = emoji
   if (!data.isGeneral) {
     applyScheduleFields(req, data)
     applyReminderFields(req, data, reminderTimes)
@@ -91,6 +99,8 @@ export function buildCreateHabitRequest(
     isBadHabit: data.isBadHabit,
   }
   if (data.description) req.description = data.description
+  const emoji = normalizeHabitEmoji(data.emoji)
+  if (emoji) req.emoji = emoji
   if (data.isGeneral) {
     req.isGeneral = true
   } else {
@@ -163,6 +173,7 @@ export function buildUpdateHabitRequest(
     isFlexible: data.isFlexible,
   }
   if (data.description) request.description = data.description
+  request.emoji = normalizeHabitEmoji(data.emoji)
 
   if (!data.isGeneral) {
     applyUpdateScheduleFields(request, data, isOneTime, originalEndDate)

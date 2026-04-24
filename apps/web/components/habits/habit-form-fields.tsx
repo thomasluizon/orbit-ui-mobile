@@ -8,6 +8,9 @@ import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
+  DEFAULT_HABIT_EMOJI,
+  HABIT_EMOJI_CATEGORIES,
+  filterHabitEmojiCategories,
   formatLocaleTime,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
@@ -194,6 +197,142 @@ interface HabitTagChipProps {
   onDelete: () => void
   editAriaLabel: string
   deleteAriaLabel: string
+}
+
+interface HabitEmojiSelectorProps {
+  selectedEmoji: string
+  onSelect: (emoji: string) => void
+}
+
+function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSelectorProps>) {
+  const t = useTranslations()
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const filteredCategories = useMemo(() => filterHabitEmojiCategories(query), [query])
+  const selectedDisplayEmoji = selectedEmoji || DEFAULT_HABIT_EMOJI
+
+  useEffect(() => {
+    if (!pickerOpen) return undefined
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setPickerOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [pickerOpen])
+
+  function handleSelectEmoji(emoji: string) {
+    onSelect(emoji)
+    setPickerOpen(false)
+    setQuery('')
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-border bg-surface/80 p-4 text-left transition-colors duration-150 hover:border-primary/30 hover:bg-surface-elevated/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        onClick={() => setPickerOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={pickerOpen}
+        aria-label={t('habits.form.emojiOpenPicker')}
+      >
+        <span>
+          <span className="form-label mb-1">{t('habits.form.emoji')}</span>
+          <span className="block text-xs text-text-muted">{t('habits.form.emojiDescription')}</span>
+        </span>
+        <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-2xl transition-colors duration-150 group-hover:bg-primary/15">
+          {selectedDisplayEmoji}
+        </span>
+      </button>
+
+      {pickerOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={() => setPickerOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('habits.form.emojiPickerTitle')}
+            className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-[0_20px_80px_rgba(0,0,0,0.45)]"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border-muted px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-2xl">{selectedDisplayEmoji}</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">{t('habits.form.emojiPickerTitle')}</h3>
+                  <p className="text-xs text-text-muted">{t('habits.form.emojiDescription')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="grid size-8 place-items-center rounded-lg text-text-muted hover:bg-surface-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                onClick={() => setPickerOpen(false)}
+                aria-label={t('common.close')}
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t('habits.form.emojiSearchPlaceholder')}
+                className="form-input h-11 py-2"
+              />
+              <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('habits.form.emojiCategories')}>
+                {HABIT_EMOJI_CATEGORIES.map((category) => (
+                  <a
+                    key={category.id}
+                    href={`#habit-emoji-${category.id}`}
+                    className="shrink-0 rounded-lg border border-border-muted bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/30 hover:text-text-primary"
+                  >
+                    {t(category.labelKey)}
+                  </a>
+                ))}
+              </div>
+
+              <div className="max-h-[min(420px,55vh)] overflow-y-auto pr-1">
+                {filteredCategories.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-text-muted">{t('habits.form.emojiPickerEmpty')}</p>
+                ) : filteredCategories.map((category) => (
+                  <section key={category.id} id={`habit-emoji-${category.id}`} className="scroll-mt-3 pb-4">
+                    <h4 className="mb-2 text-xs font-semibold text-text-muted">{t(category.labelKey)}</h4>
+                    <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10" role="listbox" aria-label={t(category.labelKey)}>
+                      {category.emojis.map((emoji) => {
+                        const isSelected = selectedDisplayEmoji === emoji
+                        return (
+                          <button
+                            key={`${category.id}-${emoji}`}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            aria-label={`${t('habits.form.emoji')}: ${emoji}`}
+                            className={`grid size-10 place-items-center rounded-xl border text-xl transition-colors duration-150 ${
+                              isSelected
+                                ? 'border-primary/60 bg-primary/18'
+                                : 'border-transparent hover:border-border hover:bg-surface-elevated'
+                            }`}
+                            onClick={() => handleSelectEmoji(emoji)}
+                          >
+                            {emoji}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function HabitTagChip({
@@ -789,6 +928,7 @@ export function HabitFormFields({
 
   // Count filled advanced fields for the badge
   const watchedDescription = watch('description') ?? ''
+  const watchedEmoji = watch('emoji') ?? ''
   const advancedFieldCount = useMemo(() => {
     return [
       watchedDescription.length > 0,
@@ -844,6 +984,11 @@ export function HabitFormFields({
           </p>
         )}
       </div>
+
+      <HabitEmojiSelector
+        selectedEmoji={watchedEmoji}
+        onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
+      />
 
       {/* Frequency type cards (2x2 grid) */}
       <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
