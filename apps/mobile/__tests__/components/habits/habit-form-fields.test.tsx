@@ -293,6 +293,45 @@ describe('HabitFormFields (mobile)', () => {
     })
   })
 
+  it('filters emojis by category when tapping a category chip', async () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
+
+    await TestRenderer.act(async () => {
+      emojiTrigger.props.onPress()
+    })
+
+    const natureCategory = tree.root
+      .findAllByProps({ accessibilityLabel: 'habits.form.emojiCategoryNature' })
+      .find((node: any) => typeof node.props.onPress === 'function')
+
+    expect(natureCategory).toBeTruthy()
+
+    await TestRenderer.act(async () => {
+      natureCategory!.props.onPress()
+    })
+
+    expect(tree.root.findByProps({ accessibilityLabel: 'habits.form.emoji: 🌱' })).toBeTruthy()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })).toHaveLength(0)
+  })
+
   it('hides goal linking for free users', async () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
