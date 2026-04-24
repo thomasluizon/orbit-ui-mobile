@@ -1010,9 +1010,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(93, 52, 208, 0.20), transparent 40%),
-    radial-gradient(circle at 70% 0%, rgba(255, 0, 110, 0.08), transparent 34%),
-    linear-gradient(165deg, rgba(0, 240, 255, 0.026) 0%, transparent 36%),
+    radial-gradient(ellipse at 12% 50%, rgba(93, 52, 208, 0.14), transparent 34%),
+    radial-gradient(circle at 70% 0%, rgba(255, 0, 110, 0.035), transparent 30%),
     var(--color-surface);
   border: 1px solid rgba(255, 255, 255, 0.075);
   box-shadow:
@@ -1031,9 +1030,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 12% 45%, rgba(168, 85, 247, 0.12), transparent 38%),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.035), rgba(168, 85, 247, 0.05), rgba(255, 0, 110, 0.035));
-  opacity: 0.34;
+    radial-gradient(ellipse at 18% 50%, rgba(168, 85, 247, 0.10), transparent 34%);
+  opacity: 0.28;
 }
 .habit-card-parent:hover {
   transform: translateY(-3px);
@@ -1053,9 +1051,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .habit-card-parent.habit-status-due {
   border-left: 4px solid rgba(245, 158, 11, 0.82);
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.10), transparent 30%),
-    radial-gradient(ellipse at 30% 45%, rgba(93, 52, 208, 0.22), transparent 42%),
-    radial-gradient(circle at 70% 0%, rgba(255, 0, 110, 0.07), transparent 34%),
+    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.08), transparent 28%),
+    radial-gradient(ellipse at 24% 50%, rgba(93, 52, 208, 0.16), transparent 34%),
     var(--color-surface);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
@@ -1077,9 +1074,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .habit-card-parent.habit-status-overdue {
   border-left: 4px solid rgba(239, 68, 68, 0.86);
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(239, 68, 68, 0.12), transparent 30%),
-    radial-gradient(ellipse at 30% 45%, rgba(93, 52, 208, 0.20), transparent 42%),
-    radial-gradient(circle at 70% 0%, rgba(255, 0, 110, 0.09), transparent 34%),
+    radial-gradient(ellipse at 0% 50%, rgba(239, 68, 68, 0.09), transparent 28%),
+    radial-gradient(ellipse at 24% 50%, rgba(93, 52, 208, 0.14), transparent 34%),
     var(--color-surface);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
@@ -1102,9 +1098,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(var(--primary-shadow), 0.12), transparent 38%),
-    radial-gradient(circle at 48% 0%, rgba(255, 0, 110, 0.035), transparent 30%),
-    linear-gradient(165deg, rgba(0, 240, 255, 0.018) 0%, transparent 38%),
+    radial-gradient(ellipse at 14% 50%, rgba(var(--primary-shadow), 0.10), transparent 34%),
     rgba(13, 11, 22, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-left: 2px solid rgba(var(--primary-shadow), 0.25);
@@ -1124,8 +1118,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .habit-card-child:hover {
   transform: translateY(-2px);
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(var(--primary-shadow), 0.16), transparent 38%),
-    radial-gradient(circle at 48% 0%, rgba(255, 0, 110, 0.045), transparent 30%),
+    radial-gradient(ellipse at 14% 50%, rgba(var(--primary-shadow), 0.13), transparent 34%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%),
     rgba(19, 17, 31, 0.8);
   border-color: rgba(255, 255, 255, 0.07);
@@ -1140,16 +1133,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .habit-card-child.habit-status-due {
   border-left: 3px solid rgba(245, 158, 11, 0.72);
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.08), transparent 30%),
-    radial-gradient(ellipse at 28% 45%, rgba(var(--primary-shadow), 0.13), transparent 38%),
+    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.06), transparent 28%),
+    radial-gradient(ellipse at 18% 50%, rgba(var(--primary-shadow), 0.09), transparent 32%),
     rgba(13, 11, 22, 0.62);
 }
 
 .habit-card-child.habit-status-overdue {
   border-left: 3px solid rgba(239, 68, 68, 0.76);
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(239, 68, 68, 0.09), transparent 30%),
-    radial-gradient(ellipse at 28% 45%, rgba(var(--primary-shadow), 0.12), transparent 38%),
+    radial-gradient(ellipse at 0% 50%, rgba(239, 68, 68, 0.07), transparent 28%),
+    radial-gradient(ellipse at 18% 50%, rgba(var(--primary-shadow), 0.08), transparent 32%),
     rgba(13, 11, 22, 0.62);
 }
 .habit-card-child:active {

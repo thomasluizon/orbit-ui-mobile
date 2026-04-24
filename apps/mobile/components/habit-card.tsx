@@ -159,18 +159,17 @@ function HabitCardSurface({
       <LinearGradient
         pointerEvents="none"
         colors={[
-          withAlpha(colors.primary, isChild ? 0.08 : 0.13, 'rgba(139, 92, 246, 0.13)'),
-          isChild ? 'rgba(255,0,110,0.035)' : 'rgba(255,0,110,0.055)',
+          withAlpha(colors.primary, isChild ? 0.09 : 0.14, 'rgba(139, 92, 246, 0.14)'),
           'transparent',
         ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0.2 }}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
-          right: 0,
-          height: isChild ? 34 : 44,
+          bottom: 0,
+          width: isChild ? 140 : 220,
         }}
       />
 
@@ -178,7 +177,7 @@ function HabitCardSurface({
       {status === 'due-today' && (
         <LinearGradient
           pointerEvents="none"
-          colors={isChild ? ['rgba(245, 158, 11, 0.12)', 'rgba(245, 158, 11, 0.035)', 'transparent'] : gradients.statusDue}
+          colors={isChild ? ['rgba(245, 158, 11, 0.10)', 'rgba(245, 158, 11, 0.025)', 'transparent'] : gradients.statusDue}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={{
@@ -193,7 +192,7 @@ function HabitCardSurface({
       {status === 'overdue' && (
         <LinearGradient
           pointerEvents="none"
-          colors={isChild ? ['rgba(239, 68, 68, 0.14)', 'rgba(239, 68, 68, 0.04)', 'transparent'] : gradients.statusOverdue}
+          colors={isChild ? ['rgba(239, 68, 68, 0.11)', 'rgba(239, 68, 68, 0.03)', 'transparent'] : gradients.statusOverdue}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={{
