@@ -208,22 +208,38 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
   const t = useTranslations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const filteredCategories = useMemo(() => filterHabitEmojiCategories(query), [query])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const searchedCategories = useMemo(() => filterHabitEmojiCategories(query), [query])
+  const filteredCategories = useMemo(
+    () => selectedCategoryId
+      ? searchedCategories.filter((category) => category.id === selectedCategoryId)
+      : searchedCategories,
+    [searchedCategories, selectedCategoryId],
+  )
   const selectedDisplayEmoji = selectedEmoji || DEFAULT_HABIT_EMOJI
+
+  const closePicker = useCallback(() => {
+    setPickerOpen(false)
+    setQuery('')
+    setSelectedCategoryId(null)
+  }, [])
 
   useEffect(() => {
     if (!pickerOpen) return undefined
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setPickerOpen(false)
+      if (event.key === 'Escape') closePicker()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [pickerOpen])
+  }, [closePicker, pickerOpen])
 
   function handleSelectEmoji(emoji: string) {
     onSelect(emoji)
-    setPickerOpen(false)
-    setQuery('')
+    closePicker()
+  }
+
+  function handleSelectCategory(categoryId: string) {
+    setSelectedCategoryId((current) => current === categoryId ? null : categoryId)
   }
 
   return (
@@ -249,7 +265,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
           role="presentation"
-          onMouseDown={() => setPickerOpen(false)}
+          onMouseDown={closePicker}
         >
           <div
             role="dialog"
@@ -269,7 +285,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
               <button
                 type="button"
                 className="grid size-8 place-items-center rounded-lg text-text-muted hover:bg-surface-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                onClick={() => setPickerOpen(false)}
+                onClick={closePicker}
                 aria-label={t('common.close')}
               >
                 <X className="size-4" aria-hidden="true" />
@@ -285,15 +301,24 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                 className="form-input h-11 py-2"
               />
               <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('habits.form.emojiCategories')}>
-                {HABIT_EMOJI_CATEGORIES.map((category) => (
-                  <a
-                    key={category.id}
-                    href={`#habit-emoji-${category.id}`}
-                    className="shrink-0 rounded-lg border border-border-muted bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/30 hover:text-text-primary"
-                  >
-                    {t(category.labelKey)}
-                  </a>
-                ))}
+                {HABIT_EMOJI_CATEGORIES.map((category) => {
+                  const selected = selectedCategoryId === category.id
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      aria-pressed={selected}
+                      className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        selected
+                          ? 'border-primary/60 bg-primary/15 text-text-primary'
+                          : 'border-border-muted bg-surface text-text-secondary hover:border-primary/30 hover:text-text-primary'
+                      }`}
+                      onClick={() => handleSelectCategory(category.id)}
+                    >
+                      {t(category.labelKey)}
+                    </button>
+                  )
+                })}
               </div>
 
               <div className="max-h-[min(420px,55vh)] overflow-y-auto pr-1">

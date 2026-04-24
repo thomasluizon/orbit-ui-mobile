@@ -193,13 +193,29 @@ function HabitEmojiSelector({
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const filteredCategories = useMemo(() => filterHabitEmojiCategories(query), [query]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const searchedCategories = useMemo(() => filterHabitEmojiCategories(query), [query]);
+  const filteredCategories = useMemo(
+    () => selectedCategoryId
+      ? searchedCategories.filter((category) => category.id === selectedCategoryId)
+      : searchedCategories,
+    [searchedCategories, selectedCategoryId],
+  );
   const selectedDisplayEmoji = selectedEmoji || DEFAULT_HABIT_EMOJI;
+
+  const closePicker = useCallback(() => {
+    setPickerOpen(false);
+    setQuery("");
+    setSelectedCategoryId(null);
+  }, []);
 
   function handleSelectEmoji(emoji: string) {
     onSelect(emoji);
-    setPickerOpen(false);
-    setQuery("");
+    closePicker();
+  }
+
+  function handleSelectCategory(categoryId: string) {
+    setSelectedCategoryId((current) => current === categoryId ? null : categoryId);
   }
 
   return (
@@ -225,9 +241,9 @@ function HabitEmojiSelector({
           visible
           transparent
           animationType="slide"
-          onRequestClose={() => setPickerOpen(false)}
+          onRequestClose={closePicker}
         >
-          <Pressable style={styles.emojiModalBackdrop} onPress={() => setPickerOpen(false)}>
+          <Pressable style={styles.emojiModalBackdrop} onPress={closePicker}>
             <Pressable style={styles.emojiModalSheet} onPress={(event) => event.stopPropagation()}>
               <View style={styles.emojiModalHeader}>
                 <View style={styles.emojiModalTitleRow}>
@@ -241,7 +257,7 @@ function HabitEmojiSelector({
                 </View>
                 <TouchableOpacity
                   style={styles.emojiCloseButton}
-                  onPress={() => setPickerOpen(false)}
+                  onPress={closePicker}
                   accessibilityRole="button"
                   accessibilityLabel={t("common.close")}
                 >
@@ -266,11 +282,24 @@ function HabitEmojiSelector({
                 contentContainerStyle={styles.emojiCategoryTabs}
                 accessibilityLabel={t("habits.form.emojiCategories")}
               >
-                {HABIT_EMOJI_CATEGORIES.map((category) => (
-                  <Text key={category.id} style={styles.emojiCategoryTab}>
-                    {t(category.labelKey)}
-                  </Text>
-                ))}
+                {HABIT_EMOJI_CATEGORIES.map((category) => {
+                  const selected = selectedCategoryId === category.id;
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[styles.emojiCategoryTab, selected ? styles.emojiCategoryTabActive : null]}
+                      onPress={() => handleSelectCategory(category.id)}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(category.labelKey)}
+                      accessibilityState={{ selected }}
+                    >
+                      <Text style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
+                        {t(category.labelKey)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
 
               <ScrollView style={styles.emojiModalList} showsVerticalScrollIndicator>
@@ -2153,15 +2182,24 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 2,
     },
     emojiCategoryTab: {
-      color: colors.textSecondary,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.borderMuted,
       borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 6,
+    },
+    emojiCategoryTabActive: {
+      backgroundColor: colors.primary_15,
+      borderColor: colors.primary,
+    },
+    emojiCategoryTabText: {
+      color: colors.textSecondary,
       fontSize: 12,
       fontWeight: "600",
+    },
+    emojiCategoryTabTextActive: {
+      color: colors.primary,
     },
     emojiModalList: {
       maxHeight: 430,

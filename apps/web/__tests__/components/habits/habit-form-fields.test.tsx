@@ -250,6 +250,29 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull()
   })
 
+  it('filters emojis by category when clicking a category chip', () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiCategoryNature' }))
+
+    expect(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' })).toBeDefined()
+    expect(screen.queryByRole('option', { name: 'habits.form.emoji: 🏃' })).toBeNull()
+  })
+
   it('shows schedule type buttons', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
