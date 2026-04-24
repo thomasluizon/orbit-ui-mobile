@@ -1025,13 +1025,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .habit-card-parent::before,
 .habit-card-child::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 18% 50%, rgba(168, 85, 247, 0.10), transparent 34%);
-  opacity: 0.28;
+  content: none;
 }
 .habit-card-parent:hover {
   transform: translateY(-3px);

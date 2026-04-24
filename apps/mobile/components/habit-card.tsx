@@ -156,23 +156,6 @@ function HabitCardSurface({
         }}
       />
 
-      <LinearGradient
-        pointerEvents="none"
-        colors={[
-          withAlpha(colors.primary, isChild ? 0.09 : 0.14, 'rgba(139, 92, 246, 0.14)'),
-          'transparent',
-        ]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: isChild ? 140 : 220,
-        }}
-      />
-
       {/* Status side-glow for due-today / overdue */}
       {status === 'due-today' && (
         <LinearGradient
