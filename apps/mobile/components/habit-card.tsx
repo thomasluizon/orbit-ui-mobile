@@ -972,6 +972,44 @@ export function HabitCard({
                 styles={styles}
               />
 
+              {/* Content */}
+              <View style={styles.content}>
+                <Text
+                  style={[
+                    isChild ? styles.titleChild : styles.titleParent,
+                    isDoneForRange && styles.titleDone,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {habit.title}
+                </Text>
+
+                {habit.description ? (
+                  <Text
+                    style={[
+                      isChild ? styles.descriptionChild : styles.descriptionParent,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {habit.description}
+                  </Text>
+                ) : null}
+
+                <HabitBadgesRow
+                  isChild={isChild}
+                  habit={habit}
+                  frequencyLabel={frequencyLabel}
+                  flexibleProgressLabel={flexibleProgressLabel}
+                  statusBadge={statusBadge}
+                  checkedCount={checkedCount}
+                  colors={colors}
+                  t={t}
+                  styles={styles}
+                  displayTime={displayTime}
+                  tagsRef={tourTargetId ? tagsTourRef : undefined}
+                />
+              </View>
+
             {/* Selection checkbox */}
             {isSelectMode ? (
               <TouchableOpacity
@@ -1314,44 +1352,6 @@ export function HabitCard({
                 </Animated.View>
               </View>
             )}
-
-            {/* Content */}
-            <View style={styles.content}>
-                <Text
-                  style={[
-                    isChild ? styles.titleChild : styles.titleParent,
-                    isDoneForRange && styles.titleDone,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {habit.title}
-                </Text>
-
-                {habit.description ? (
-                  <Text
-                    style={[
-                      isChild ? styles.descriptionChild : styles.descriptionParent,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {habit.description}
-                  </Text>
-                ) : null}
-
-                <HabitBadgesRow
-                  isChild={isChild}
-                  habit={habit}
-                  frequencyLabel={frequencyLabel}
-                  flexibleProgressLabel={flexibleProgressLabel}
-                  statusBadge={statusBadge}
-                  checkedCount={checkedCount}
-                  colors={colors}
-                  t={t}
-                  styles={styles}
-                  displayTime={displayTime}
-                  tagsRef={tourTargetId ? tagsTourRef : undefined}
-                />
-              </View>
 
             {/* Actions menu trigger */}
             {!isSelectMode && (

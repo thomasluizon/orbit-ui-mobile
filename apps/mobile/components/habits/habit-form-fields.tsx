@@ -11,6 +11,10 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Modal,
+  Pressable,
+  ScrollView,
+  TextInput,
   Switch,
   StyleSheet,
   LayoutAnimation,
@@ -41,7 +45,8 @@ import type {
 import {
   HABIT_REMINDER_PRESETS,
   DEFAULT_HABIT_EMOJI,
-  HABIT_EMOJI_OPTIONS,
+  HABIT_EMOJI_CATEGORIES,
+  filterHabitEmojiCategories,
   formatLocaleTime,
   getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
@@ -186,39 +191,119 @@ function HabitEmojiSelector({
   onSelect,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const filteredCategories = useMemo(() => filterHabitEmojiCategories(query), [query]);
+  const selectedDisplayEmoji = selectedEmoji || DEFAULT_HABIT_EMOJI;
+
+  function handleSelectEmoji(emoji: string) {
+    onSelect(emoji);
+    setPickerOpen(false);
+    setQuery("");
+  }
+
   return (
     <View style={styles.fieldGroup}>
-      <View style={styles.emojiHeader}>
+      <TouchableOpacity
+        style={styles.emojiTrigger}
+        onPress={() => setPickerOpen(true)}
+        activeOpacity={0.78}
+        accessibilityRole="button"
+        accessibilityLabel={t("habits.form.emojiOpenPicker")}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>{t("habits.form.emoji")}</Text>
           <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
         </View>
         <View style={styles.emojiPreview}>
-          <Text style={styles.emojiPreviewText}>{selectedEmoji || DEFAULT_HABIT_EMOJI}</Text>
+          <Text style={styles.emojiPreviewText}>{selectedDisplayEmoji}</Text>
         </View>
-      </View>
-      <View
-        style={styles.emojiGrid}
-        accessibilityRole="list"
-        accessibilityLabel={t("habits.form.emoji")}
-      >
-        {HABIT_EMOJI_OPTIONS.map((emoji) => {
-          const selected = selectedEmoji === emoji;
-          return (
-            <TouchableOpacity
-              key={emoji}
-              style={[styles.emojiOption, selected ? styles.emojiOptionSelected : null]}
-              onPress={() => onSelect(emoji)}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
-            >
-              <Text style={[styles.emojiOptionText, { color: colors.textPrimary }]}>{emoji}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      </TouchableOpacity>
+
+      {pickerOpen ? (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPickerOpen(false)}
+        >
+          <Pressable style={styles.emojiModalBackdrop} onPress={() => setPickerOpen(false)}>
+            <Pressable style={styles.emojiModalSheet} onPress={(event) => event.stopPropagation()}>
+              <View style={styles.emojiModalHeader}>
+                <View style={styles.emojiModalTitleRow}>
+                  <View style={styles.emojiPreviewCompact}>
+                    <Text style={styles.emojiPreviewCompactText}>{selectedDisplayEmoji}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emojiModalTitle}>{t("habits.form.emojiPickerTitle")}</Text>
+                    <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.emojiCloseButton}
+                  onPress={() => setPickerOpen(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.close")}
+                >
+                  <X size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t("habits.form.emojiSearchPlaceholder")}
+                placeholderTextColor={colors.textMuted}
+                style={styles.emojiSearchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
+              />
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.emojiCategoryTabs}
+                accessibilityLabel={t("habits.form.emojiCategories")}
+              >
+                {HABIT_EMOJI_CATEGORIES.map((category) => (
+                  <Text key={category.id} style={styles.emojiCategoryTab}>
+                    {t(category.labelKey)}
+                  </Text>
+                ))}
+              </ScrollView>
+
+              <ScrollView style={styles.emojiModalList} showsVerticalScrollIndicator>
+                {filteredCategories.length === 0 ? (
+                  <Text style={styles.emojiEmptyText}>{t("habits.form.emojiPickerEmpty")}</Text>
+                ) : filteredCategories.map((category) => (
+                  <View key={category.id} style={styles.emojiCategorySection}>
+                    <Text style={styles.emojiCategoryTitle}>{t(category.labelKey)}</Text>
+                    <View style={styles.emojiGrid} accessibilityRole="list" accessibilityLabel={t(category.labelKey)}>
+                      {category.emojis.map((emoji) => {
+                        const selected = selectedDisplayEmoji === emoji;
+                        return (
+                          <TouchableOpacity
+                            key={`${category.id}-${emoji}`}
+                            style={[styles.emojiOption, selected ? styles.emojiOptionSelected : null]}
+                            onPress={() => handleSelectEmoji(emoji)}
+                            activeOpacity={0.75}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                            accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
+                          >
+                            <Text style={[styles.emojiOptionText, { color: colors.textPrimary }]}>{emoji}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -1973,10 +2058,15 @@ function createStyles(colors: ThemeColors) {
       fontSize: 12,
       color: colors.textMuted,
     },
-    emojiHeader: {
+    emojiTrigger: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 14,
     },
     emojiPreview: {
       width: 48,
@@ -1991,6 +2081,105 @@ function createStyles(colors: ThemeColors) {
     emojiPreviewText: {
       fontSize: 24,
       lineHeight: 30,
+    },
+    emojiModalBackdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0, 0, 0, 0.58)",
+    },
+    emojiModalSheet: {
+      maxHeight: "82%",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      backgroundColor: colors.surfaceOverlay,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 24,
+      gap: 12,
+    },
+    emojiModalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    emojiModalTitleRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    emojiModalTitle: {
+      color: colors.textPrimary,
+      fontSize: 16,
+      fontWeight: "700",
+    },
+    emojiPreviewCompact: {
+      width: 38,
+      height: 38,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+    },
+    emojiPreviewCompactText: {
+      fontSize: 21,
+      lineHeight: 26,
+    },
+    emojiCloseButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceElevated,
+    },
+    emojiSearchInput: {
+      height: 44,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      color: colors.textPrimary,
+      paddingHorizontal: 14,
+      fontSize: 14,
+    },
+    emojiCategoryTabs: {
+      gap: 8,
+      paddingVertical: 2,
+    },
+    emojiCategoryTab: {
+      color: colors.textSecondary,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    emojiModalList: {
+      maxHeight: 430,
+    },
+    emojiCategorySection: {
+      paddingBottom: 18,
+      gap: 8,
+    },
+    emojiCategoryTitle: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    emojiEmptyText: {
+      color: colors.textMuted,
+      textAlign: "center",
+      paddingVertical: 32,
+      fontSize: 14,
     },
     emojiGrid: {
       flexDirection: "row",

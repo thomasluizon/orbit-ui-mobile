@@ -220,6 +220,36 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.description')).toBeDefined()
   })
 
+  it('opens a searchable emoji picker from the whole emoji field', () => {
+    const setValue = vi.fn()
+    const formHelpers = createMockFormHelpers()
+    formHelpers.form.setValue = setValue
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
+    expect(screen.getByText('habits.form.emojiPickerTitle')).toBeDefined()
+
+    fireEvent.change(screen.getByPlaceholderText('habits.form.emojiSearchPlaceholder'), {
+      target: { value: 'run' },
+    })
+    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+
+    expect(setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true })
+    expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull()
+  })
+
   it('shows schedule type buttons', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()

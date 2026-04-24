@@ -1166,11 +1166,12 @@ export const HabitCard = React.memo(function HabitCard({
       <div style={isChild ? indentStyle : undefined}>
         <div
           data-tour={tourTargetId}
+          data-testid="habit-card-surface"
           className={`${articleClassName} relative text-left w-full`}
         >
           <button
             type="button"
-            className={`${articleClassName} absolute inset-0 z-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+            className={`absolute inset-0 z-0 cursor-pointer bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isChild ? 'rounded-xl' : 'rounded-2xl'}`}
             onClick={handleCardClick}
             aria-label={habit.title}
           />
