@@ -1,0 +1,46 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "postgres-local": {
+      "type": "local",
+      "command": ["cmd", "/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "{env:LOCAL_POSTGRES_URL}"],
+      "timeout": 45000
+    },
+    "vercel": {
+      "type": "remote",
+      "url": "https://mcp.vercel.com"
+    },
+    "render": {
+      "type": "remote",
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:RENDER_MCP_TOKEN}"
+      }
+    },
+    "stripe": {
+      "type": "remote",
+      "url": "https://mcp.stripe.com"
+    },
+    "sonarqube": {
+      "type": "local",
+      "command": ["docker", "run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "environment": {
+        "SONARQUBE_TOKEN": "{env:SONARQUBE_TOKEN}",
+        "SONARQUBE_ORG": "{env:SONARQUBE_ORG}"
+      },
+      "timeout": 120000
+    },
+    "postgres": {
+      "type": "local",
+      "command": ["cmd", "/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "{env:SUPABASE_POSTGRES_URL}"],
+      "timeout": 45000
+    },
+    "stitch": {
+      "type": "remote",
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "{env:STITCH_API_KEY}"
+      }
+    }
+  }
+}
