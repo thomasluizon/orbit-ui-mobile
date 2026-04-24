@@ -63,6 +63,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     defaultValues: {
       title: '',
       description: '',
+      emoji: '',
       frequencyUnit: null,
       frequencyQuantity: null,
       days: [],

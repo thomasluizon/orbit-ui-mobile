@@ -284,7 +284,7 @@ describe('useHabitLogs', () => {
 
   it('fetches logs for a given habit id', async () => {
     const logs: HabitLog[] = [
-      { id: 'log-1', date: '2025-01-15', value: 1, note: 'Good run', createdAtUtc: '2025-01-15T10:00:00Z' },
+      { id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' },
       { id: 'log-2', date: '2025-01-16', value: 1, createdAtUtc: '2025-01-16T10:00:00Z' },
     ]
     mockFetch.mockResolvedValue({

@@ -36,6 +36,7 @@ export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFor
   return {
     title: '',
     description: '',
+    emoji: '',
     frequencyUnit: null,
     frequencyQuantity: null,
     days: [],
@@ -121,6 +122,7 @@ export function buildParentHabitFormState(
     formValues: {
       title: '',
       description: '',
+      emoji: parent.emoji ?? '',
       frequencyUnit: parent.frequencyUnit,
       frequencyQuantity: parent.frequencyQuantity,
       days: [...(parent.days ?? [])],
@@ -151,6 +153,7 @@ export function buildEditHabitFormState(
     formValues: {
       title: habit.title,
       description: habit.description ?? '',
+      emoji: habit.emoji ?? '',
       frequencyUnit: habit.frequencyUnit,
       frequencyQuantity: habit.frequencyQuantity,
       days: [...(habit.days ?? [])],

@@ -550,7 +550,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -614,7 +614,7 @@ describe('HabitList', () => {
       hasSubHabits: true,
       dueDate: TOMORROW,
       scheduledDates: [TOMORROW],
-      instances: [{ date: TOMORROW, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',
@@ -644,14 +644,14 @@ describe('HabitList', () => {
       id: 'grandparent',
       title: 'Grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
       parentId: 'grandparent',
       hasSubHabits: true,
-      instances: [{ date: TODAY, status: 'Pending', logId: null, note: null }],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const child = createMockHabit({
       id: 'child',

@@ -26,6 +26,7 @@ describe('habitFormSchema', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.description).toBe('')
+      expect(result.data.emoji).toBe('')
       expect(result.data.days).toEqual([])
       expect(result.data.isBadHabit).toBe(false)
       expect(result.data.isGeneral).toBe(false)
@@ -58,6 +59,7 @@ describe('habitFormSchema', () => {
     const result = habitFormSchema.safeParse({
       title: 'Morning Run',
       description: 'Run 5km every morning',
+      emoji: '🏃',
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       days: ['Mon', 'Tue', 'Wed'],
@@ -96,6 +98,14 @@ describe('habitFormSchema', () => {
     const result = habitFormSchema.safeParse({
       title: 'Test',
       frequencyQuantity: 1.5,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects emoji values exceeding max length', () => {
+    const result = habitFormSchema.safeParse({
+      title: 'Test',
+      emoji: 'x'.repeat(33),
     })
     expect(result.success).toBe(false)
   })
@@ -405,6 +415,7 @@ describe('validateHabitForm', () => {
     const data = {
       title: '   ',
       description: '',
+      emoji: '',
       frequencyUnit: null,
       frequencyQuantity: null,
       days: [],
@@ -463,6 +474,7 @@ describe('validateHabitForm', () => {
     const data = {
       title: '   ',
       description: '',
+      emoji: '',
       frequencyUnit: 'Day' as const,
       frequencyQuantity: null,
       days: [],

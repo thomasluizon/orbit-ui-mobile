@@ -66,6 +66,12 @@ export {
 } from './habit-request-builders'
 export type { HabitFormData } from './habit-request-builders'
 export {
+  DEFAULT_HABIT_EMOJI,
+  HABIT_EMOJI_OPTIONS,
+  resolveHabitEmoji,
+} from './habit-emoji-options'
+export type { HabitEmojiOption } from './habit-emoji-options'
+export {
   applyHabitFormMode,
   buildEditHabitFormState,
   buildEmptyHabitFormValues,

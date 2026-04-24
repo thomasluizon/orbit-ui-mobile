@@ -143,6 +143,7 @@ const syncHabitDtoSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
+  emoji: z.string().nullable().optional(),
   frequencyUnit: z.string().nullable(),
   frequencyQuantity: z.number().nullable(),
   isBadHabit: z.boolean(),

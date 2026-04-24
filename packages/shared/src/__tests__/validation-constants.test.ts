@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   MAX_HABIT_TITLE_LENGTH,
   MAX_HABIT_DESCRIPTION_LENGTH,
+  MAX_HABIT_EMOJI_LENGTH,
   MAX_CHECKLIST_ITEM_LENGTH,
   MAX_CHECKLIST_ITEMS,
   MAX_SUB_HABITS,
@@ -24,6 +25,10 @@ describe('validation constants', () => {
 
   it('has correct habit description max length', () => {
     expect(MAX_HABIT_DESCRIPTION_LENGTH).toBe(2000)
+  })
+
+  it('has correct habit emoji max length', () => {
+    expect(MAX_HABIT_EMOJI_LENGTH).toBe(32)
   })
 
   it('has correct checklist item max length', () => {
@@ -82,6 +87,7 @@ describe('validation constants', () => {
     const constants = [
       MAX_HABIT_TITLE_LENGTH,
       MAX_HABIT_DESCRIPTION_LENGTH,
+      MAX_HABIT_EMOJI_LENGTH,
       MAX_CHECKLIST_ITEM_LENGTH,
       MAX_CHECKLIST_ITEMS,
       MAX_SUB_HABITS,

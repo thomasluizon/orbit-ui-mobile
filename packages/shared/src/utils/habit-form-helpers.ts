@@ -46,6 +46,7 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
   return {
     title: values.title ?? '',
     description: values.description ?? '',
+    emoji: values.emoji ?? '',
     frequencyUnit: values.frequencyUnit ?? null,
     frequencyQuantity: values.frequencyQuantity ?? null,
     days: values.days ?? [],

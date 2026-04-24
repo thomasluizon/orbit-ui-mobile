@@ -1001,14 +1001,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ═══════════════════════════════════════════════════════
-   HABIT CARDS v3 -- Premium Dark Glass
-   Layered shadows, gradient surfaces, inner highlights, glow states
+   HABIT RITUAL STRIPS -- Aurora Maximalism
+   Dark violet surfaces, personal emoji identity, neon status rails
    ═══════════════════════════════════════════════════════ */
 
 /* Parent card -- glass surface with depth */
 .habit-card-parent {
+  position: relative;
+  overflow: hidden;
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.035) 0%, transparent 40%),
+    radial-gradient(circle at 0% 0%, rgba(93, 52, 208, 0.22), transparent 32%),
+    radial-gradient(circle at 72% 0%, rgba(255, 0, 110, 0.10), transparent 34%),
+    linear-gradient(165deg, rgba(0, 240, 255, 0.035) 0%, transparent 36%),
     var(--color-surface);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
@@ -1018,6 +1022,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: transform 280ms var(--ease-out),
               box-shadow 280ms var(--ease-out),
               border-color 280ms ease;
+}
+
+.habit-card-parent::before,
+.habit-card-child::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.12), rgba(168, 85, 247, 0.12), rgba(255, 0, 110, 0.08));
+  opacity: 0.28;
+  transform: translateY(-99%);
 }
 .habit-card-parent:hover {
   transform: translateY(-3px);
@@ -1073,8 +1088,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Child card -- glass nested surface with accent line */
 .habit-card-child {
+  position: relative;
+  overflow: hidden;
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.02) 0%, transparent 40%),
+    radial-gradient(circle at 0% 0%, rgba(var(--primary-shadow), 0.16), transparent 32%),
+    linear-gradient(165deg, rgba(0, 240, 255, 0.025) 0%, transparent 40%),
     rgba(13, 11, 22, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-left: 2px solid rgba(var(--primary-shadow), 0.25);
@@ -1086,6 +1104,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
               box-shadow 250ms var(--ease-out),
               border-color 250ms ease,
               background 250ms ease;
+}
+
+.habit-emoji-orb {
+  text-shadow: 0 0 18px rgba(var(--primary-shadow), 0.25);
 }
 .habit-card-child:hover {
   transform: translateY(-2px);
@@ -1143,6 +1165,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 :root:not(.dark) .habit-card-parent {
   background:
+    radial-gradient(circle at 0% 0%, rgba(var(--primary-shadow), 0.11), transparent 32%),
+    radial-gradient(circle at 72% 0%, rgba(255, 0, 110, 0.055), transparent 34%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.6) 0%, transparent 40%),
     var(--color-surface);
   border: 1px solid rgba(0, 0, 0, 0.07);
@@ -1196,6 +1220,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 :root:not(.dark) .habit-card-child {
   background:
+    radial-gradient(circle at 0% 0%, rgba(var(--primary-shadow), 0.08), transparent 32%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
     var(--color-surface-ground);
   border: 1px solid rgba(0, 0, 0, 0.05);

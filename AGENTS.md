@@ -10,7 +10,15 @@ Personal habit tracker. Turborepo monorepo: Next.js 15 (web) + Expo/React Native
 - **Shared package** (`@orbit/shared`) contains all types (Zod schemas), utils, i18n locales, theme data, API endpoint constants, TanStack Query key factories, and form validation schemas. Both apps import from it.
 - **Web app** uses Next.js 15 App Router with Server Components by default. Client components marked with `"use client"`. State: Zustand (client) + TanStack Query (server). Auth via httpOnly cookies + BFF proxy.
 - **Mobile app** uses Expo SDK 53 + Expo Router. Auth via SecureStore. Direct API calls (no BFF). SQLite offline queue.
-- **API** is a separate .NET 10 codebase at `orbit-api/`. Not in this repo.
+- **API** is a separate .NET 10 codebase at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`. OpenCode is usually launched from `C:\orbit`, but agents may read and edit this API repository whenever a request needs backend/API changes.
+
+### API Repository Access
+
+- Treat `C:\Users\thoma\Documents\Programming\Projects\orbit-api` as part of the Orbit working context when needed.
+- If a feature requires backend support, update the API repository in the same task instead of stopping at frontend-only changes.
+- Keep frontend and API contracts aligned: update shared endpoints, Zod types, request/response handling, and API implementation together when required.
+- Do not invent API fields or behavior. Inspect and modify the API repository directly when backend support is needed.
+- Preserve separate git histories: edits in `C:\orbit` and `orbit-api` belong to different repositories.
 
 ### Key Files
 

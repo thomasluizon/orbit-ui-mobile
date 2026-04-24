@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { HabitCard } from '@/components/habit-card'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -84,7 +85,7 @@ function hasDimmedStyle(style: unknown): boolean {
   return typeof style === 'object' && style !== null && 'opacity' in style && (style as { opacity?: number }).opacity === 0.4
 }
 
-function createMockHabit(overrides: Record<string, unknown> = {}) {
+function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
   return {
     id: 'habit-1',
     title: 'Exercise',

@@ -40,6 +40,8 @@ import type {
 } from "@orbit/shared/types/habit";
 import {
   HABIT_REMINDER_PRESETS,
+  DEFAULT_HABIT_EMOJI,
+  HABIT_EMOJI_OPTIONS,
   formatLocaleTime,
   getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
@@ -166,6 +168,57 @@ function ChoiceButtonRow({
           </Text>
         </TouchableOpacity>
       ))}
+    </View>
+  );
+}
+
+interface HabitEmojiSelectorProps {
+  selectedEmoji: string;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+  onSelect: (emoji: string) => void;
+}
+
+function HabitEmojiSelector({
+  selectedEmoji,
+  colors,
+  styles,
+  onSelect,
+}: Readonly<HabitEmojiSelectorProps>) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.fieldGroup}>
+      <View style={styles.emojiHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>{t("habits.form.emoji")}</Text>
+          <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
+        </View>
+        <View style={styles.emojiPreview}>
+          <Text style={styles.emojiPreviewText}>{selectedEmoji || DEFAULT_HABIT_EMOJI}</Text>
+        </View>
+      </View>
+      <View
+        style={styles.emojiGrid}
+        accessibilityRole="list"
+        accessibilityLabel={t("habits.form.emoji")}
+      >
+        {HABIT_EMOJI_OPTIONS.map((emoji) => {
+          const selected = selectedEmoji === emoji;
+          return (
+            <TouchableOpacity
+              key={emoji}
+              style={[styles.emojiOption, selected ? styles.emojiOptionSelected : null]}
+              onPress={() => onSelect(emoji)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
+            >
+              <Text style={[styles.emojiOptionText, { color: colors.textPrimary }]}>{emoji}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -1010,6 +1063,7 @@ export function HabitFormFields({
     control: form.control,
     name: "description",
   }) ?? "";
+  const watchedEmoji = useWatch({ control: form.control, name: "emoji" }) ?? "";
 
   // Reminder label function
   function reminderLabel(minutes: number): string {
@@ -1118,6 +1172,13 @@ export function HabitFormFields({
           </Text>
         )}
       </View>
+
+      <HabitEmojiSelector
+        selectedEmoji={watchedEmoji}
+        colors={colors}
+        styles={styles}
+        onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
+      />
 
       {/* Frequency type cards (2x2 grid) */}
       <View style={styles.fieldGroup}>
@@ -1911,6 +1972,48 @@ function createStyles(colors: ThemeColors) {
     flexibleHint: {
       fontSize: 12,
       color: colors.textMuted,
+    },
+    emojiHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    emojiPreview: {
+      width: 48,
+      height: 48,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primary_10,
+      borderWidth: 1,
+      borderColor: colors.primary_20,
+    },
+    emojiPreviewText: {
+      fontSize: 24,
+      lineHeight: 30,
+    },
+    emojiGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    emojiOption: {
+      width: 38,
+      height: 38,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+    },
+    emojiOptionSelected: {
+      backgroundColor: colors.primary_15,
+      borderColor: colors.primary,
+    },
+    emojiOptionText: {
+      fontSize: 18,
+      lineHeight: 22,
     },
     // Frequency card grid
     frequencyCardGrid: {

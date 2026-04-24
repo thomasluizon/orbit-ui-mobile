@@ -5,6 +5,7 @@ import {
   MAX_CHECKLIST_ITEMS,
   MAX_GOALS_PER_HABIT,
   MAX_HABIT_DESCRIPTION_LENGTH,
+  MAX_HABIT_EMOJI_LENGTH,
   MAX_HABIT_TITLE_LENGTH,
   MAX_SCHEDULED_REMINDERS,
   MAX_SUB_HABITS,
@@ -22,6 +23,11 @@ export const habitFormSchema = z.object({
   description: z
     .string()
     .max(MAX_HABIT_DESCRIPTION_LENGTH, 'habits.form.descriptionTooLong')
+    .optional()
+    .default(''),
+  emoji: z
+    .string()
+    .max(MAX_HABIT_EMOJI_LENGTH, 'habits.form.emojiTooLong')
     .optional()
     .default(''),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
@@ -106,6 +112,14 @@ export function validateDescription(description: string | undefined): string | n
   if (!description) return null
   if (description.length > MAX_HABIT_DESCRIPTION_LENGTH) {
     return 'habits.form.descriptionTooLong'
+  }
+  return null
+}
+
+export function validateEmoji(emoji: string | undefined): string | null {
+  if (!emoji) return null
+  if (emoji.length > MAX_HABIT_EMOJI_LENGTH) {
+    return 'habits.form.emojiTooLong'
   }
   return null
 }
@@ -229,6 +243,9 @@ export function validateHabitForm(data: HabitFormData): string | null {
 
   const descriptionErr = validateDescription(data.description)
   if (descriptionErr) return descriptionErr
+
+  const emojiErr = validateEmoji(data.emoji)
+  if (emojiErr) return emojiErr
 
   const checklistErr = validateChecklistItems(data.checklistItems)
   if (checklistErr) return checklistErr

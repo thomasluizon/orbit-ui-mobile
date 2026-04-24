@@ -43,6 +43,7 @@ import {
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitStatusBadge,
+  resolveHabitEmoji,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
@@ -155,6 +156,24 @@ function HabitCardSurface({
         }}
       />
 
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          withAlpha(colors.primary, isChild ? 0.08 : 0.13, 'rgba(139, 92, 246, 0.13)'),
+          'rgba(255,0,110,0.055)',
+          'transparent',
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0.2 }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: isChild ? 34 : 44,
+        }}
+      />
+
       {/* Status side-glow for due-today / overdue (parent only) */}
       {!isChild && status === 'due-today' && (
         <LinearGradient
@@ -215,6 +234,37 @@ function HabitBadge({
   style: StyleProp<ViewStyle>
 }>) {
   return <View style={style}>{children}</View>
+}
+
+function HabitIdentityOrb({ habit, isChild, isDoneForRange, status, colors, styles }: Readonly<{
+  habit: NormalizedHabit
+  isChild: boolean
+  isDoneForRange: boolean
+  status: string
+  colors: ReturnType<typeof createColors>
+  styles: ReturnType<typeof createStyles>
+}>) {
+  const emoji = resolveHabitEmoji(habit.emoji)
+  const gradientColors = status === 'overdue'
+    ? ['rgba(239,68,68,0.34)', 'rgba(239,68,68,0.08)', 'transparent'] as const
+    : status === 'due-today'
+      ? ['rgba(251,191,36,0.32)', withAlpha(colors.primary, 0.16, 'rgba(139,92,246,0.16)'), 'transparent'] as const
+      : [withAlpha(colors.primary, 0.30, 'rgba(139,92,246,0.30)'), 'rgba(255,0,110,0.10)', 'transparent'] as const
+
+  return (
+    <View style={[styles.identityOrb, isChild ? styles.identityOrbChild : null, isDoneForRange ? styles.identityOrbDone : null]}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.identityOrbGradient}
+      />
+      <Text style={[styles.identityEmoji, isChild ? styles.identityEmojiChild : null]}>
+        {emoji}
+      </Text>
+    </View>
+  )
 }
 
 function HabitBadgesRow({
@@ -913,6 +963,15 @@ export function HabitCard({
                 </TouchableOpacity>
               )}
 
+              <HabitIdentityOrb
+                habit={habit}
+                isChild={isChild}
+                isDoneForRange={isDoneForRange}
+                status={status}
+                colors={colors}
+                styles={styles}
+              />
+
             {/* Selection checkbox */}
             {isSelectMode ? (
               <TouchableOpacity
@@ -1494,6 +1553,41 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     overflow: 'hidden',
     ...childShadow,
     elevation: isLight ? 0 : 4,
+  },
+
+  identityOrb: {
+    width: 48,
+    height: 48,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: withAlpha(colors.white, isLight ? 0.16 : 0.1, 'rgba(255, 255, 255, 0.1)'),
+  },
+  identityOrbChild: {
+    width: 36,
+    height: 36,
+    borderRadius: 16,
+  },
+  identityOrbDone: {
+    opacity: 0.7,
+  },
+  identityOrbGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  identityEmoji: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  identityEmojiChild: {
+    fontSize: 18,
+    lineHeight: 22,
   },
 
   cardDueToday: {

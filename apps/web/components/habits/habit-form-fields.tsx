@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
+  DEFAULT_HABIT_EMOJI,
+  HABIT_EMOJI_OPTIONS,
   formatLocaleTime,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
@@ -194,6 +196,50 @@ interface HabitTagChipProps {
   onDelete: () => void
   editAriaLabel: string
   deleteAriaLabel: string
+}
+
+interface HabitEmojiSelectorProps {
+  selectedEmoji: string
+  onSelect: (emoji: string) => void
+}
+
+function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSelectorProps>) {
+  const t = useTranslations()
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <span className="form-label">{t('habits.form.emoji')}</span>
+          <p className="text-xs text-text-muted">{t('habits.form.emojiDescription')}</p>
+        </div>
+        <div className="size-12 rounded-[1.35rem] grid place-items-center bg-primary/10 border border-primary/20 text-2xl shadow-[var(--shadow-glow-sm)]">
+          {selectedEmoji || DEFAULT_HABIT_EMOJI}
+        </div>
+      </div>
+      <div className="grid grid-cols-8 sm:grid-cols-12 gap-2" role="listbox" aria-label={t('habits.form.emoji')}>
+        {HABIT_EMOJI_OPTIONS.map((emoji) => {
+          const isSelected = selectedEmoji === emoji
+          return (
+            <button
+              key={emoji}
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              aria-label={`${t('habits.form.emoji')}: ${emoji}`}
+              className={`grid place-items-center size-9 rounded-2xl text-lg border transition-all duration-200 ${
+                isSelected
+                  ? 'bg-primary/16 border-primary/45 shadow-[0_0_18px_rgba(var(--primary-shadow),0.22)] scale-105'
+                  : 'bg-surface-elevated/55 border-border-muted hover:border-primary/25 hover:bg-primary/8'
+              }`}
+              onClick={() => onSelect(emoji)}
+            >
+              {emoji}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function HabitTagChip({
@@ -789,6 +835,7 @@ export function HabitFormFields({
 
   // Count filled advanced fields for the badge
   const watchedDescription = watch('description') ?? ''
+  const watchedEmoji = watch('emoji') ?? ''
   const advancedFieldCount = useMemo(() => {
     return [
       watchedDescription.length > 0,
@@ -844,6 +891,11 @@ export function HabitFormFields({
           </p>
         )}
       </div>
+
+      <HabitEmojiSelector
+        selectedEmoji={watchedEmoji}
+        onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
+      />
 
       {/* Frequency type cards (2x2 grid) */}
       <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
