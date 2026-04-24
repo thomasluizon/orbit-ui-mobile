@@ -29,6 +29,9 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Temporary files
+.tmp/
+
 # Expo
 *.jks
 *.p8
