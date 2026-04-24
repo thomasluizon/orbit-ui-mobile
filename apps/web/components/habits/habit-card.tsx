@@ -107,8 +107,8 @@ function buildArticleClassName(opts: ArticleClassNameOptions): string {
   } else {
     classes.push('habit-card-parent rounded-2xl p-4 sm:p-5')
   }
-  if (!isChild && status === 'due-today') classes.push('habit-status-due pl-4 sm:pl-5')
-  if (!isChild && status === 'overdue') classes.push('habit-status-overdue pl-4 sm:pl-5')
+  if (status === 'due-today') classes.push('habit-status-due')
+  if (status === 'overdue') classes.push('habit-status-overdue')
   if (isDoneForRange || isNotDueToday) classes.push('opacity-40')
   if (isSelected) classes.push('ring-2 ring-primary ring-offset-2 ring-offset-background')
   if (justCompleted) classes.push('animate-complete-glow')

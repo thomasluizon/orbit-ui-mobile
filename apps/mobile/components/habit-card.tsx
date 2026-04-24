@@ -160,7 +160,7 @@ function HabitCardSurface({
         pointerEvents="none"
         colors={[
           withAlpha(colors.primary, isChild ? 0.08 : 0.13, 'rgba(139, 92, 246, 0.13)'),
-          'rgba(255,0,110,0.055)',
+          isChild ? 'rgba(255,0,110,0.035)' : 'rgba(255,0,110,0.055)',
           'transparent',
         ]}
         start={{ x: 0, y: 0 }}
@@ -174,11 +174,11 @@ function HabitCardSurface({
         }}
       />
 
-      {/* Status side-glow for due-today / overdue (parent only) */}
-      {!isChild && status === 'due-today' && (
+      {/* Status side-glow for due-today / overdue */}
+      {status === 'due-today' && (
         <LinearGradient
           pointerEvents="none"
-          colors={gradients.statusDue}
+          colors={isChild ? ['rgba(245, 158, 11, 0.12)', 'rgba(245, 158, 11, 0.035)', 'transparent'] : gradients.statusDue}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={{
@@ -186,14 +186,14 @@ function HabitCardSurface({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 24,
+            width: isChild ? 16 : 24,
           }}
         />
       )}
-      {!isChild && status === 'overdue' && (
+      {status === 'overdue' && (
         <LinearGradient
           pointerEvents="none"
-          colors={gradients.statusOverdue}
+          colors={isChild ? ['rgba(239, 68, 68, 0.14)', 'rgba(239, 68, 68, 0.04)', 'transparent'] : gradients.statusOverdue}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={{
@@ -201,7 +201,7 @@ function HabitCardSurface({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 24,
+            width: isChild ? 16 : 24,
           }}
         />
       )}
@@ -851,12 +851,12 @@ export function HabitCard({
   const cardStyle: ViewStyle[] = [
     isChild ? styles.cardChild : styles.cardParent,
   ]
-  // Status border for due-today / overdue (parent only)
-  if (!isChild && status === 'due-today') {
-    cardStyle.push(styles.cardDueToday)
+  // Status border for due-today / overdue
+  if (status === 'due-today') {
+    cardStyle.push(isChild ? styles.cardChildDueToday : styles.cardDueToday)
   }
-  if (!isChild && status === 'overdue') {
-    cardStyle.push(styles.cardOverdue)
+  if (status === 'overdue') {
+    cardStyle.push(isChild ? styles.cardChildOverdue : styles.cardOverdue)
   }
 
   // Dimming for completed / not-due
@@ -1591,15 +1591,27 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
   },
 
   cardDueToday: {
-    borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.amber500, 0.7, 'rgba(245, 158, 11, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
+    borderLeftWidth: 4,
+    borderLeftColor: withAlpha(colors.amber500, 0.78, 'rgba(245, 158, 11, 0.78)'),
+    borderColor: withAlpha(colors.white, 0.075, 'rgba(255, 255, 255, 0.075)'),
   },
 
   cardOverdue: {
+    borderLeftWidth: 4,
+    borderLeftColor: withAlpha(colors.red500, 0.82, 'rgba(239, 68, 68, 0.82)'),
+    borderColor: withAlpha(colors.white, 0.075, 'rgba(255, 255, 255, 0.075)'),
+  },
+
+  cardChildDueToday: {
     borderLeftWidth: 3,
-    borderLeftColor: withAlpha(colors.red500, 0.7, 'rgba(239, 68, 68, 0.7)'),
-    borderColor: withAlpha(colors.white, 0.06, 'rgba(255, 255, 255, 0.06)'),
+    borderLeftColor: withAlpha(colors.amber500, 0.72, 'rgba(245, 158, 11, 0.72)'),
+    borderColor: cardBorderFaint,
+  },
+
+  cardChildOverdue: {
+    borderLeftWidth: 3,
+    borderLeftColor: withAlpha(colors.red500, 0.76, 'rgba(239, 68, 68, 0.76)'),
+    borderColor: cardBorderFaint,
   },
 
   cardDimmed: {

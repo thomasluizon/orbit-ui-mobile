@@ -420,6 +420,17 @@ describe('HabitCard', () => {
     expect(screen.getByTestId('habit-card-surface').className).toContain('habit-card-child')
   })
 
+  it('applies status classes to child habit surfaces', () => {
+    const habit = createMockHabit({
+      isOverdue: true,
+      isCompleted: false,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    render(<HabitCard habit={habit} depth={1} />)
+    expect(screen.getByTestId('habit-card-surface').className).toContain('habit-status-overdue')
+  })
+
   it('uses parent CSS classes at depth 0', () => {
     const habit = createMockHabit()
     render(<HabitCard habit={habit} depth={0} />)

@@ -85,6 +85,14 @@ function hasDimmedStyle(style: unknown): boolean {
   return typeof style === 'object' && style !== null && 'opacity' in style && (style as { opacity?: number }).opacity === 0.4
 }
 
+function hasBorderLeftWidth(style: unknown, width: number): boolean {
+  if (!style) return false
+  if (Array.isArray(style)) {
+    return style.some((entry) => hasBorderLeftWidth(entry, width))
+  }
+  return typeof style === 'object' && style !== null && 'borderLeftWidth' in style && (style as { borderLeftWidth?: number }).borderLeftWidth === width
+}
+
 function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
   return {
     id: 'habit-1',
@@ -357,5 +365,26 @@ describe('HabitCard', () => {
 
     const [outerCard] = findOuterCardTouchables(tree.root)
     expect(hasDimmedStyle(outerCard?.props.style)).toBe(false)
+  })
+
+  it('applies status rail styling to sub-habits', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitCard
+          habit={createMockHabit({
+            isOverdue: true,
+            isCompleted: false,
+            frequencyUnit: null,
+            scheduledDates: [],
+          })}
+          depth={1}
+        />,
+      )
+    })
+
+    const [outerCard] = findOuterCardTouchables(tree.root)
+    expect(hasBorderLeftWidth(outerCard?.props.style, 3)).toBe(true)
   })
 })
