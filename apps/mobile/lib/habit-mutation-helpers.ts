@@ -436,6 +436,7 @@ export function buildOptimisticHabit(
     id: tempId,
     title: data.title,
     description: data.description ?? null,
+    emoji: data.emoji ?? null,
     frequencyUnit: data.frequencyUnit ?? null,
     frequencyQuantity: data.frequencyQuantity ?? null,
     isBadHabit: data.isBadHabit ?? false,
@@ -486,6 +487,7 @@ export function buildOptimisticSubHabit(
     id: tempId,
     title: data.title,
     description: data.description ?? null,
+    emoji: data.emoji ?? null,
     frequencyUnit: data.frequencyUnit ?? null,
     frequencyQuantity: data.frequencyQuantity ?? null,
     isBadHabit: data.isBadHabit ?? false,
@@ -527,6 +529,7 @@ export function buildOptimisticDuplicateHabit(
     ...buildOptimisticHabit(queryClient, tempId, {
       title: `${source.title} Copy`,
       description: source.description ?? undefined,
+      emoji: source.emoji ?? undefined,
       frequencyUnit: source.frequencyUnit ?? undefined,
       frequencyQuantity: source.frequencyQuantity ?? undefined,
       days: source.days,
@@ -558,6 +561,7 @@ export function buildOptimisticHabitPatch(
   }
 
   setHabitPatchField(patch, data, 'description', 'description', data.description ?? null)
+  setHabitPatchField(patch, data, 'emoji', 'emoji', data.emoji ?? null)
   setHabitPatchField(patch, data, 'isGeneral', 'isGeneral', data.isGeneral ?? false)
   setHabitPatchField(patch, data, 'isFlexible', 'isFlexible', data.isFlexible ?? false)
   setHabitPatchField(patch, data, 'frequencyUnit', 'frequencyUnit', data.frequencyUnit ?? null)

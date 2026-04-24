@@ -550,6 +550,33 @@ describe('useUpdateHabit', () => {
 
     expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false })
   })
+
+  it('optimistically patches emoji changes', async () => {
+    const { useUpdateHabit } = await import('@/hooks/use-habits')
+    const { updateHabit } = await import('@/app/actions/habits')
+    const mockedUpdateHabit = vi.mocked(updateHabit)
+    mockedUpdateHabit.mockResolvedValue(undefined)
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', emoji: '🏃' }),
+    ])
+
+    const { result } = renderHook(() => useUpdateHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        habitId: 'h-1',
+        data: { title: 'Updated Exercise', isBadHabit: false, emoji: '💪' },
+      })
+    })
+
+    expect(
+      queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.emoji,
+    ).toBe('💪')
+  })
 })
 
 // ---------------------------------------------------------------------------

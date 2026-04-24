@@ -153,7 +153,7 @@ export function buildEditHabitFormState(
     formValues: {
       title: habit.title,
       description: habit.description ?? '',
-      emoji: habit.emoji ?? '',
+      emoji: detail?.emoji ?? habit.emoji ?? '',
       frequencyUnit: habit.frequencyUnit,
       frequencyQuantity: habit.frequencyQuantity,
       days: [...(habit.days ?? [])],
