@@ -47,6 +47,69 @@ Personal habit tracker. Turborepo monorepo: Next.js 15 (web) + Expo/React Native
 - All mutations through Server Actions (web) or apiClient (mobile).
 - Auth cookie: httpOnly, sameSite strict, secure always.
 
+### Frontend Website Rules
+
+#### Always Do First
+
+- **Invoke the `frontend-design` skill** before writing any frontend code, every session, no exceptions.
+
+#### Reference Images
+
+- If a reference image is provided: match layout, spacing, typography, and color exactly. Swap in placeholder content with images via `https://placehold.co/` and generic copy. Do not improve or add to the design.
+- If no reference image is provided: design from scratch with high craft using the guardrails below.
+- Screenshot the output, compare against the reference, fix mismatches, and re-screenshot. Do at least 2 comparison rounds. Stop only when no visible differences remain or the user says so.
+
+#### Local Server
+
+- Always serve on localhost. Never screenshot a `file:///` URL.
+- Start the dev server with `node serve.mjs`, which serves the project root at `http://localhost:3000`.
+- `serve.mjs` lives in the project root. Start it in the background before taking screenshots.
+- If the server is already running, do not start a second instance.
+
+#### Screenshot Workflow
+
+- Puppeteer is installed at `C:/Users/nateh/AppData/Local/Temp/puppeteer-test/`. Chrome cache is at `C:/Users/nateh/.cache/puppeteer/`.
+- Always screenshot from localhost with `node screenshot.mjs http://localhost:3000`.
+- Screenshots are saved automatically to `./temporary screenshots/screenshot-N.png`, auto-incremented and never overwritten.
+- Optional label suffix: `node screenshot.mjs http://localhost:3000 label` saves as `screenshot-N-label.png`.
+- `screenshot.mjs` lives in the project root. Use it as-is.
+- After screenshotting, read the PNG from `temporary screenshots/` with the Read tool so the agent can see and analyze the image directly.
+- When comparing, be specific: for example, "heading is 32px but reference shows ~24px" or "card gap is 16px but should be 24px".
+- Check spacing and padding, font size, weight, line-height, colors with exact hex values, alignment, border radius, shadows, and image sizing.
+
+#### Output Defaults
+
+- Single `index.html` file with all styles inline unless the user says otherwise.
+- Tailwind CSS via CDN: `<script src="https://cdn.tailwindcss.com"></script>`.
+- Placeholder images: `https://placehold.co/WIDTHxHEIGHT`.
+- Mobile-first responsive.
+
+#### Brand Assets
+
+- Always check the `brand_assets/` folder before designing. It may contain logos, color guides, style guides, or images.
+- If assets exist there, use them. Do not use placeholders where real assets are available.
+- If a logo is present, use it. If a color palette is defined, use those exact values. Do not invent brand colors.
+
+#### Anti-Generic Guardrails
+
+- Colors: never use the default Tailwind palette such as `indigo-500` or `blue-600` as the primary color. Pick a custom brand color and derive from it.
+- Shadows: never use flat `shadow-md`. Use layered, color-tinted shadows with low opacity.
+- Typography: never use the same font for headings and body. Pair a display or serif with a clean sans. Apply tight tracking such as `-0.03em` on large headings and generous line-height such as `1.7` on body text.
+- Gradients: layer multiple radial gradients. Add grain or texture via SVG noise filter for depth.
+- Animations: only animate `transform` and `opacity`. Never use `transition-all`. Use spring-style easing.
+- Interactive states: every clickable element needs hover, focus-visible, and active states. No exceptions.
+- Images: add a gradient overlay such as `bg-gradient-to-t from-black/60` and a color treatment layer with `mix-blend-multiply`.
+- Spacing: use intentional, consistent spacing tokens, not random Tailwind steps.
+- Depth: surfaces should have a layering system from base to elevated to floating, not all sit at the same z-plane.
+
+#### Hard Rules
+
+- Do not add sections, features, or content not in the reference.
+- Do not improve a reference design. Match it.
+- Do not stop after one screenshot pass.
+- Do not use `transition-all`.
+- Do not use default Tailwind blue or indigo as the primary color.
+
 ### Testing
 
 - Unit: Vitest + React Testing Library. Config: `apps/web/vitest.config.ts`
