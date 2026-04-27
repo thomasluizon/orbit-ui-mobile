@@ -2,9 +2,11 @@
 
 import { useState, useMemo } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { GoalDetailDrawer } from './goal-detail-drawer'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -22,15 +24,18 @@ interface GoalCardProps {
 
 export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const t = useTranslations()
+  const prefersReducedMotion = useReducedMotion()
   const [showDetail, setShowDetail] = useState(false)
+  const selectionMotion = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
+  const tapTarget = prefersReducedMotion ? undefined : { scale: 0.985 }
 
   const isStreak = isStreakGoal(goal.type)
 
   const progressColor = useMemo(() => {
-    if (goal.status === 'Completed') return 'bg-green-500'
+    if (goal.status === 'Completed') return 'bg-success'
     if (goal.status === 'Abandoned') return 'bg-text-muted'
-    if (isStreak) return 'bg-orange-500'
-    if (goal.progressPercentage >= 75) return 'bg-green-500'
+    if (isStreak) return 'bg-warning'
+    if (goal.progressPercentage >= 75) return 'bg-success'
     if (goal.progressPercentage >= 50) return 'bg-primary'
     return 'bg-primary'
   }, [goal.status, goal.progressPercentage, isStreak])
@@ -46,13 +51,13 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (daysLeft < 0) {
       return {
         text: t('goals.deadline.overdue'),
-        className: 'text-red-400 bg-red-500/10',
+        className: 'text-danger bg-danger/10',
       }
     }
     if (daysLeft <= 7) {
       return {
         text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-        className: 'text-amber-400 bg-amber-500/10',
+        className: 'text-warning bg-warning/10',
       }
     }
     return {
@@ -65,7 +70,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (goal.status === 'Completed') {
       return {
         text: t('goals.status.completed'),
-        className: 'text-green-400 bg-green-500/10',
+        className: 'text-success bg-success/10',
       }
     }
     if (goal.status === 'Abandoned') {
@@ -80,11 +85,11 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const trackingBorderClass = useMemo(() => {
     switch (goal.trackingStatus) {
       case 'on_track':
-        return 'border-l-[3px] border-l-green-500'
+        return 'border-l-[3px] border-l-success'
       case 'at_risk':
-        return 'border-l-[3px] border-l-amber-500'
+        return 'border-l-[3px] border-l-warning'
       case 'behind':
-        return 'border-l-[3px] border-l-red-500'
+        return 'border-l-[3px] border-l-danger'
       default:
         return ''
     }
@@ -93,13 +98,27 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   return (
     <>
       {/* Use a button so the card is keyboard-accessible and has the correct role */}
-      <button
+      <motion.button
         type="button"
         data-tour="tour-goal-card"
-        className={`w-full text-left bg-surface rounded-[var(--radius-xl)] p-5 cursor-pointer hover:bg-surface-elevated/80 border border-border-muted shadow-[var(--shadow-sm)] surface-interactive ${trackingBorderClass}`}
+        className={`group relative w-full overflow-hidden rounded-[var(--radius-xl)] border border-border-muted bg-surface p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-surface-elevated/80 ${trackingBorderClass}`}
+        whileTap={tapTarget}
+        transition={{
+          duration: selectionMotion.enterDuration / 1000,
+          ease: selectionMotion.enterEasing,
+        }}
         onClick={() => setShowDetail(true)}
       >
-        <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-80"
+          style={{ background: 'linear-gradient(165deg, var(--surface-sheen-start) 0%, transparent 44%)' }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[var(--surface-top-highlight)]"
+        />
+        <div className="relative z-10 flex items-start gap-3">
           <div className="flex-1 min-w-0">
             {/* Title row */}
             <div className="flex items-center gap-2 mb-1">
@@ -153,7 +172,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                 aria-hidden="true"
               >
                 <div
-                  className={`h-full rounded-full transition-all duration-500 animate-[progress-fill_0.6s_ease-out] ${progressColor}`}
+                  className={`h-full rounded-full transition-[width,background-color,transform] duration-500 animate-[progress-fill_0.6s_ease-out] ${progressColor}`}
                   style={{
                     width: `${Math.min(goal.progressPercentage, 100)}%`,
                   }}
@@ -178,7 +197,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
             </div>
           </div>
         </div>
-      </button>
+      </motion.button>
 
       <GoalDetailDrawer
         open={showDetail}

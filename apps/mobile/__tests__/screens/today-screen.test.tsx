@@ -40,6 +40,37 @@ const colorProxy = new Proxy<Record<string, string>>(
   },
 );
 
+const shadowStub = {
+  shadowColor: "#111111",
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0,
+  shadowRadius: 0,
+};
+const createSurfaceLayer = () => ({
+  backgroundColor: "#111111",
+  borderColor: "#111111",
+  topHighlight: "#111111",
+  shadow: shadowStub,
+  elevation: 0,
+});
+const surfacesMock = {
+  screen: {
+    backgroundColor: "#111111",
+    ambientStart: "#111111",
+    ambientEnd: "transparent",
+  },
+  ground: createSurfaceLayer(),
+  card: createSurfaceLayer(),
+  elevated: createSurfaceLayer(),
+  overlay: createSurfaceLayer(),
+  primaryTint: createSurfaceLayer(),
+  glow: {
+    subtle: shadowStub,
+    base: shadowStub,
+    strong: shadowStub,
+  },
+};
+
 const setSelectedDate = vi.fn((date: string) => {
   uiState.selectedDate = date;
   uiState.followToday = false;
@@ -271,6 +302,7 @@ vi.mock("@/lib/theme", () => ({
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    surfaces: surfacesMock,
   }),
 }));
 

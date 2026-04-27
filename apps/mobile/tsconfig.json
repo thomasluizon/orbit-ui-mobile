@@ -12,6 +12,9 @@
       "@/*": [
         "./*"
       ],
+      "@orbit/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
       "@orbit/shared/*": [
         "../../packages/shared/src/*"
       ]

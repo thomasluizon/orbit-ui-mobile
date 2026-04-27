@@ -51,10 +51,10 @@ export function GoalsView() {
         {statusFilters.map((filter) => (
           <button
             key={filter.key ?? 'all'}
-            className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 ${
+            className={`min-h-11 shrink-0 rounded-[var(--radius-lg)] border px-4 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[var(--orbit-press-scale)] ${
               activeFilter === filter.key
-                ? 'bg-primary text-white'
-                : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                ? 'border-primary/20 bg-primary/10 text-primary shadow-[inset_0_1px_0_var(--surface-top-highlight)]'
+                : 'border-border-muted bg-surface-ground text-text-faded hover:border-border-emphasis hover:bg-surface hover:text-text-primary'
             }`}
             onClick={() => handleFilterChange(filter.key)}
           >
@@ -67,7 +67,7 @@ export function GoalsView() {
       {!isFetched && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <SkeletonCard key={`skeleton-${i}`} lines={3} />
+            <SkeletonCard key={`skeleton-${i}`} lines={3} className="bg-surface-ground shadow-[var(--shadow-sm)]" />
           ))}
         </div>
       )}
@@ -82,6 +82,7 @@ export function GoalsView() {
               icon={Flag}
               title={t('goals.empty')}
               description={t('goals.emptyHint')}
+              className="rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground shadow-[var(--shadow-sm)]"
             />
           )}
         </>

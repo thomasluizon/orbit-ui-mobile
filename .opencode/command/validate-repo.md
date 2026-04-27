@@ -35,7 +35,7 @@ This command performs a comprehensive validation of:
 
 4. **Documentation Accuracy**
    - README component counts match registry
-   - OpenAgent documentation references are valid
+   - Agent documentation references are valid
    - Context file references are correct
    - Installation guide is up to date
 
@@ -108,7 +108,7 @@ For each profile (essential, developer, business, full, advanced):
    - Compare with actual registry counts
    - Check profile descriptions match registry descriptions
 
-2. **docs/agents/openagent.md**:
+2. **docs/agents/*.md**:
    - Verify delegation criteria mentioned
    - Check context file references
    - Validate workflow descriptions
@@ -219,7 +219,7 @@ Generated: 2025-11-19 14:30:00
 
 ### Documentation Accuracy
 ✅ README component counts match registry
-✅ OpenAgent documentation up to date
+✅ Agent documentation up to date
 ✅ Installation guide accurate
 
 ---
@@ -252,7 +252,7 @@ Generated: 2025-11-19 14:30:00
    - Action: Create file or remove from registry
 
 2. **Broken Dependency**
-   - Component: `agent:opencoder`
+   - Component: `agent:<id>`
    - Dependency: `subagent:pattern-matcher`
    - Issue: Dependency not found in registry
    - Action: Add missing subagent or fix dependency reference
@@ -296,7 +296,7 @@ Generated: 2025-11-19 14:30:00
 
 ### High Priority (Errors)
 1. Create missing file: `.opencode/context/core/advanced-patterns.md`
-2. Fix broken dependency in `opencoder`
+2. Fix broken dependency in the affected agent
 
 ### Medium Priority (Warnings)
 1. Remove orphaned file or add to registry

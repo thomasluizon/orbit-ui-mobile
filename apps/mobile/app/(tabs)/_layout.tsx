@@ -1,7 +1,10 @@
 import { Tabs } from 'expo-router'
 import { SceneStyleInterpolators, TransitionSpecs } from '@react-navigation/bottom-tabs'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 export default function TabLayout() {
+  const { surfaces } = useAppTheme()
+
   return (
     <Tabs
       backBehavior="history"
@@ -10,8 +13,11 @@ export default function TabLayout() {
         animation: 'shift',
         sceneStyleInterpolator: SceneStyleInterpolators.forShift,
         transitionSpec: TransitionSpecs.ShiftSpec,
-        sceneStyle: { backgroundColor: 'transparent' },
-        tabBarStyle: { display: 'none' },
+        sceneStyle: { backgroundColor: surfaces.screen.backgroundColor },
+        tabBarStyle: {
+          backgroundColor: surfaces.screen.backgroundColor,
+          display: 'none',
+        },
       }}
     >
       <Tabs.Screen name="index" />

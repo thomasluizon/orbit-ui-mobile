@@ -1,6 +1,7 @@
 import {
   schemes,
   motionDurations,
+  orbitalMotion,
   type ColorScheme,
   type ColorSchemeDefinition,
   type ThemeMode,
@@ -100,6 +101,17 @@ export function applyThemeTokensToDOM(
   root.style.setProperty('--primary-tint-border-hover', `rgba(${def.shadowRgb}, ${tint.borderHover})`)
   root.style.setProperty('--primary-tint-icon-bg', `rgba(${def.shadowRgb}, ${tint.iconBg})`)
   root.style.setProperty('--primary-tint-icon-bg-hover', `rgba(${def.shadowRgb}, ${tint.iconBgHover})`)
+  root.style.setProperty('--surface-top-highlight', theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.85)')
+  root.style.setProperty('--surface-sheen-start', theme === 'dark' ? 'rgba(255, 255, 255, 0.035)' : 'rgba(255, 255, 255, 0.55)')
+  root.style.setProperty('--surface-sheen-end', 'transparent')
+  root.style.setProperty('--orbit-press-scale', String(orbitalMotion.press.scale))
+  root.style.setProperty('--orbit-press-y', `${orbitalMotion.press.translateY}px`)
+  root.style.setProperty('--orbit-elevated-press-scale', String(orbitalMotion.elevatedPress.scale))
+  root.style.setProperty('--orbit-elevated-press-y', `${orbitalMotion.elevatedPress.translateY}px`)
+  root.style.setProperty('--orbit-list-stagger', `${orbitalMotion.list.staggerMs}ms`)
+  root.style.setProperty('--orbit-route-tint-opacity', String(orbitalMotion.route.backgroundTintOpacity))
+  root.style.setProperty('--orbit-completion-peak-scale', String(orbitalMotion.completion.peakScale))
+  root.style.setProperty('--orbit-completion-glow-scale', String(orbitalMotion.completion.glowScale))
   root.style.setProperty('--date-icon-filter', theme === 'dark' ? 'invert(0.6)' : 'none')
 
   const metaThemeColor = document.querySelector('meta[name="theme-color"]')

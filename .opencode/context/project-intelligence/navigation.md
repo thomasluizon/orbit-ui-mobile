@@ -2,7 +2,7 @@
 
 # Orbit Project Intelligence
 
-> Start here when using OpenAgentsControl in Orbit. Project-local `AGENTS.md` remains authoritative; these files summarize the same rules in OAC's context system.
+> Start here when using OpenCode in Orbit. Project-local `AGENTS.md` remains authoritative; these files summarize the same rules in the project context system.
 
 ## Structure
 
@@ -38,10 +38,8 @@
 | `packages/shared/src/i18n/en.json` | English locale strings |
 | `packages/shared/src/i18n/pt-BR.json` | Brazilian Portuguese locale strings |
 
-## OAC Usage Notes
+## Usage Notes
 
-- Use `OpenAgent` for general project tasks and explanations.
-- Use `OpenCoder` for multi-file implementation work.
 - Always preserve web/mobile parity.
 - Always load `AGENTS.md` before implementing.
 - For frontend UI work, also follow existing design tokens and project visual language.

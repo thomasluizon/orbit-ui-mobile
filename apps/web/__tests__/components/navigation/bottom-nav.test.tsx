@@ -74,7 +74,7 @@ describe('BottomNav', () => {
     mockPathname = '/'
     render(<BottomNav />)
     const chatLink = screen.getByText('nav.chat').closest('a')
-    expect(chatLink?.className).toContain('text-text-secondary')
+    expect(chatLink?.className).toContain('text-text-muted')
   })
 
   it('shows active indicator dot for current page', () => {

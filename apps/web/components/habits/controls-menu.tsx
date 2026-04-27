@@ -46,7 +46,7 @@ export function ControlsMenu({
       ref={menuPanelRef}
       role="menu"
       tabIndex={0}
-      className="fixed z-[70] min-w-[12.5rem] rounded-[var(--radius-lg)] border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1"
+      className="habit-actions-menu fixed z-[70] min-w-[13.75rem] rounded-[var(--radius-lg)] p-1.5"
       style={{
         left: `${position.left}px`,
         top: `${position.top}px`,
@@ -55,7 +55,7 @@ export function ControlsMenu({
       onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
     >
       <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        className="w-full min-h-10 flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-sm text-text-primary transition-colors hover:bg-surface-elevated/60"
         onClick={() => {
           onToggleSelect()
           onClose()
@@ -69,7 +69,7 @@ export function ControlsMenu({
         {isSelectMode ? t('common.cancel') : t('common.select')}
       </button>
       <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        className="w-full min-h-10 flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-sm text-text-primary transition-colors hover:bg-surface-elevated/60"
         onClick={() => {
           onToggleCollapse()
           onClose()
@@ -85,7 +85,7 @@ export function ControlsMenu({
           : t('habits.collapseAll')}
       </button>
       <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        className="w-full min-h-10 flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-sm text-text-primary transition-colors hover:bg-surface-elevated/60"
         disabled={isFetching}
         onClick={() => {
           onRefresh()
@@ -96,7 +96,7 @@ export function ControlsMenu({
         {t('habits.refresh')}
       </button>
       <button
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface transition-colors"
+        className="w-full min-h-10 flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-sm text-text-primary transition-colors hover:bg-surface-elevated/60"
         onClick={() => {
           onToggleCompleted()
           onClose()

@@ -145,7 +145,7 @@ export default function TodayPage() {
   const controlsMenuPanelRef = useRef<HTMLDivElement>(null)
   const habitListRef = useRef<HabitListHandle>(null)
 
-  const CONTROLS_MENU_WIDTH_PX = 200
+  const CONTROLS_MENU_WIDTH_PX = 220
   const CONTROLS_MENU_MARGIN_PX = 8
 
   // ?date= query parameter handling
@@ -574,11 +574,11 @@ export default function TodayPage() {
 
           {/* Loading skeleton (before first fetch) */}
           {!hasFetched && (
-            <div className="space-y-3 pt-2">
+            <div className="stagger-enter space-y-3 pt-2">
               {SKELETON_KEYS.map((key) => (
                 <div
                   key={key}
-                  className="bg-surface rounded-[var(--radius-xl)] p-4 flex items-center gap-4"
+                  className="flex items-center gap-4 rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground p-4 shadow-[var(--shadow-sm)]"
                 >
                   <div className="size-10 rounded-full bg-surface-elevated animate-pulse" />
                   <div className="flex-1 space-y-2">

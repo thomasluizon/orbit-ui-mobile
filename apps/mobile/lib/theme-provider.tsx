@@ -25,6 +25,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   createColors,
   createNav,
+  createSurfaces,
   getRuntimeTheme,
   radius,
   shadows,
@@ -33,6 +34,7 @@ import {
   type AppNav,
   type AppRadius,
   type AppShadows,
+  type AppSurfaces,
 } from '@/lib/theme'
 import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 
@@ -50,6 +52,7 @@ export interface ThemeContextValue {
   currentTheme: ThemeMode
   colors: AppColors
   nav: AppNav
+  surfaces: AppSurfaces
   radius: AppRadius
   shadows: AppShadows
   applyScheme: (scheme: ColorScheme) => void
@@ -252,6 +255,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     currentTheme,
     colors: createColors(currentScheme, currentTheme),
     nav: createNav(currentScheme, currentTheme),
+    surfaces: createSurfaces(currentScheme, currentTheme),
     radius,
     shadows,
     applyScheme,

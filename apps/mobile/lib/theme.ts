@@ -128,6 +128,32 @@ export interface AppShadows {
   glowLg: (color: string) => ShadowValue
 }
 
+export interface AppSurfaceLayer {
+  backgroundColor: string
+  borderColor: string
+  topHighlight: string
+  shadow: ShadowValue
+  elevation: number
+}
+
+export interface AppSurfaces {
+  screen: {
+    backgroundColor: string
+    ambientStart: string
+    ambientEnd: string
+  }
+  ground: AppSurfaceLayer
+  card: AppSurfaceLayer
+  elevated: AppSurfaceLayer
+  overlay: AppSurfaceLayer
+  primaryTint: AppSurfaceLayer
+  glow: {
+    subtle: ShadowValue
+    base: ShadowValue
+    strong: ShadowValue
+  }
+}
+
 let runtimeTheme: ThemeRuntime = {
   scheme: 'purple',
   themeMode: 'dark',
@@ -448,6 +474,85 @@ export const shadows: AppShadows = {
     shadowRadius: 30,
   }),
 }
+
+// ---------------------------------------------------------------------------
+// Semantic surface presets
+// ---------------------------------------------------------------------------
+
+function createLightShadow(radiusValue: number, opacity: number): ShadowValue {
+  return {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: Math.max(1, Math.round(radiusValue / 4)) },
+    shadowOpacity: opacity,
+    shadowRadius: radiusValue,
+  }
+}
+
+export function createSurfaces(
+  colorScheme: ColorScheme = runtimeTheme.scheme,
+  themeMode: ThemeMode = runtimeTheme.themeMode,
+): AppSurfaces {
+  const colors = createColors(colorScheme, themeMode)
+  const isLight = themeMode === 'light'
+  const screenAmbient = isLight
+    ? withAlpha(colors.primary, 0.05, 'rgba(139, 92, 246, 0.05)')
+    : withAlpha(colors.primary, 0.12, 'rgba(139, 92, 246, 0.12)')
+  const topHighlight = isLight
+    ? withAlpha(colors.white, 0.85, 'rgba(255, 255, 255, 0.85)')
+    : withAlpha(colors.white, 0.05, 'rgba(255, 255, 255, 0.05)')
+
+  return {
+    screen: {
+      backgroundColor: colors.background,
+      ambientStart: screenAmbient,
+      ambientEnd: 'transparent',
+    },
+    ground: {
+      backgroundColor: colors.surfaceGround,
+      borderColor: colors.borderMuted,
+      topHighlight,
+      shadow: isLight ? createLightShadow(4, 0.035) : shadows.sm,
+      elevation: isLight ? 0 : 1,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: isLight ? colors.border : colors.borderMuted,
+      topHighlight,
+      shadow: isLight ? createLightShadow(8, 0.06) : shadows.cardParent,
+      elevation: isLight ? 1 : 5,
+    },
+    elevated: {
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.border,
+      topHighlight,
+      shadow: isLight ? createLightShadow(12, 0.075) : shadows.md,
+      elevation: isLight ? 2 : 7,
+    },
+    overlay: {
+      backgroundColor: colors.surfaceOverlay,
+      borderColor: colors.borderEmphasis,
+      topHighlight,
+      shadow: isLight ? createLightShadow(18, 0.1) : shadows.lg,
+      elevation: isLight ? 8 : 16,
+    },
+    primaryTint: {
+      backgroundColor: colors.primaryTintBg,
+      borderColor: colors.primaryTintBorder,
+      topHighlight,
+      shadow: isLight ? createLightShadow(12, 0.08) : shadows.glow(colors.primary),
+      elevation: isLight ? 2 : 8,
+    },
+    glow: {
+      subtle: shadows.glowSm(colors.primary),
+      base: shadows.glow(colors.primary),
+      strong: shadows.glowLg(colors.primary),
+    },
+  }
+}
+
+export const surfaces = new Proxy({} as AppSurfaces, {
+  get: (_target, prop) => createSurfaces()[prop as keyof AppSurfaces],
+})
 
 // ---------------------------------------------------------------------------
 // Gradient helpers (for use with expo-linear-gradient)

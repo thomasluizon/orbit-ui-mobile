@@ -1,7 +1,14 @@
 import { useMemo } from 'react'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { createColors, createNav, getRuntimeTheme, radius, shadows } from '@/lib/theme'
+import {
+  createColors,
+  createNav,
+  createSurfaces,
+  getRuntimeTheme,
+  radius,
+  shadows,
+} from '@/lib/theme'
 import { useThemeContext, type ThemeContextValue } from '@/lib/theme-provider'
 
 export function useAppTheme(): ThemeContextValue {
@@ -17,6 +24,7 @@ export function useAppTheme(): ThemeContextValue {
       currentTheme: themeMode,
       colors: createColors(scheme, themeMode),
       nav: createNav(scheme, themeMode),
+      surfaces: createSurfaces(scheme, themeMode),
       radius,
       shadows,
       applyScheme: (_scheme: ColorScheme) => {},

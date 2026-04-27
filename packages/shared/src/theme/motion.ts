@@ -70,6 +70,34 @@ export const motionLayerTiming = {
   tabShift: 10,
 } as const
 
+export const orbitalMotion = {
+  press: {
+    scale: 0.985,
+    translateY: -1,
+    duration: 100,
+  },
+  elevatedPress: {
+    scale: 0.98,
+    translateY: -2,
+    duration: motionDurations.micro,
+  },
+  list: {
+    maxStaggerItems: 6,
+    staggerMs: 40,
+    initialScale: 0.985,
+  },
+  route: {
+    backgroundTintOpacity: 0.12,
+  },
+  completion: {
+    peakScale: 1.12,
+    reducedPeakScale: 1.04,
+    flashOpacity: 0.24,
+    reducedFlashOpacity: 0.12,
+    glowScale: 1.4,
+  },
+} as const
+
 export const motionSprings = {
   soft: {
     stiffness: 220,

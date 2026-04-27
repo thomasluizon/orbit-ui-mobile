@@ -40,7 +40,8 @@ export function ConfirmDialog({
   variant = 'danger',
 }: Readonly<ConfirmDialogProps>) {
   const { t } = useTranslation()
-  const { colors, shadows } = useAppTheme()
+  const theme = useAppTheme()
+  const { colors } = theme
   const dialogMotion = useResolvedMotionPreset('dialog')
   const progress = useRef(new Animated.Value(0)).current
   const [visible, setVisible] = useState(open)
@@ -71,7 +72,7 @@ export function ConfirmDialog({
     }
   }, [colors, variant])
   const Icon = config.icon
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const styles = useMemo(() => createStyles(theme), [theme])
 
   useEffect(() => {
     if (open) {
@@ -196,10 +197,9 @@ export function ConfirmDialog({
   )
 }
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  const { colors, shadows, surfaces } = theme
+
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -209,18 +209,18 @@ function createStyles(
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.50)',
+      backgroundColor: 'rgba(0,0,0,0.58)',
     },
     dialog: {
       width: '100%',
       maxWidth: 360,
-      backgroundColor: colors.surfaceOverlay,
-      borderRadius: radius.lg,
+      backgroundColor: surfaces.overlay.backgroundColor,
+      borderRadius: radius.xl,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: surfaces.overlay.borderColor,
       padding: 20,
-      ...shadows.lg,
-      elevation: 12,
+      ...surfaces.overlay.shadow,
+      elevation: Math.max(12, surfaces.overlay.elevation),
     },
     header: {
       flexDirection: 'row',
@@ -257,7 +257,8 @@ function createStyles(
       paddingHorizontal: 8,
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: surfaces.ground.borderColor,
+      backgroundColor: surfaces.ground.backgroundColor,
       alignItems: 'center',
       justifyContent: 'center',
     },

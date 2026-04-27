@@ -48,4 +48,11 @@ describe('mobile motion helpers', () => {
     expect(reduced.enterDuration).toBeLessThan(regular.enterDuration)
     expect(reduced.shift).toBe(0)
   })
+
+  it('exposes shared orbital motion tokens to mobile consumers', async () => {
+    const { mobileMotion } = await import('@/lib/motion')
+
+    expect(mobileMotion.orbital.press.scale).toBeLessThan(1)
+    expect(mobileMotion.orbital.list.staggerMs).toBeGreaterThan(0)
+  })
 })

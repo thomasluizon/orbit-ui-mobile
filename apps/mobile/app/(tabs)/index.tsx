@@ -72,7 +72,7 @@ import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import { useResolvedMotionPreset } from "@/lib/motion";
-import { createColors, radius, shadows, spacing } from "@/lib/theme";
+import { radius, shadows, spacing } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useDeviceLocale } from "@/hooks/use-device-locale";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
@@ -146,6 +146,8 @@ const TodaySearchBar = memo(function TodaySearchBar({
   styles,
 }: Readonly<TodaySearchBarProps>) {
   const [draft, setDraft] = useState(initialValue);
+  const focusMotion = useResolvedMotionPreset("selection");
+  const focusAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
     setDraft(initialValue);
@@ -159,12 +161,37 @@ const TodaySearchBar = memo(function TodaySearchBar({
     return () => clearTimeout(timer);
   }, [draft, onChange]);
 
+  useEffect(() => {
+    Animated.timing(focusAnim, {
+      ...createAnimatedTimingConfig(
+        focused ? focusMotion.enterDuration : focusMotion.exitDuration,
+        focused ? focusMotion.enterEasing : focusMotion.exitEasing,
+      ),
+      toValue: focused ? 1 : 0,
+    }).start();
+  }, [focusAnim, focusMotion, focused]);
+
+  const focusAnimatedStyle = useMemo(
+    () => ({
+      transform: [
+        {
+          scale: focusAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, focusMotion.reducedMotionEnabled ? 1 : 1.01],
+          }),
+        },
+      ],
+    }),
+    [focusAnim, focusMotion.reducedMotionEnabled],
+  );
+
   return (
     <View style={styles.searchWrapper}>
-      <View
+      <Animated.View
         style={[
           styles.searchContainer,
           focused ? styles.searchContainerFocused : null,
+          focusAnimatedStyle,
         ]}
       >
         <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
@@ -190,7 +217,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
             <X size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         ) : null}
-      </View>
+      </Animated.View>
     </View>
   );
 });
@@ -232,14 +259,15 @@ function createAnimatedTimingConfig(
 
 export default function TodayScreen() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const theme = useAppTheme();
+  const { colors } = theme;
   const listMotion = useResolvedMotionPreset("list-enter");
   const selectionMotion = useResolvedMotionPreset("selection");
   const router = useRouter();
   const locale = useDeviceLocale();
   const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
@@ -1429,12 +1457,14 @@ export default function TodayScreen() {
 // Styles - pixel-accurate match with web CSS
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ReturnType<typeof createColors>) {
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  const { colors, surfaces } = theme;
+
   return StyleSheet.create({
     // Layout
     safeArea: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: surfaces.screen.backgroundColor,
     },
     scrollView: {
       flex: 1,
@@ -1455,8 +1485,16 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingTop: spacing.sectionGap * 2,
-      paddingBottom: spacing.itemGap,
+      paddingHorizontal: 12,
+      paddingTop: spacing.sectionGap,
+      paddingBottom: spacing.sectionGap,
+      marginTop: 4,
+      borderRadius: radius.xl,
+      backgroundColor: surfaces.ground.backgroundColor,
+      borderWidth: 1,
+      borderColor: surfaces.ground.borderColor,
+      ...surfaces.ground.shadow,
+      elevation: surfaces.ground.elevation,
     },
     logoRow: {
       flexDirection: "row",
@@ -1469,6 +1507,10 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       height: 40,
       alignItems: "center",
       justifyContent: "center",
+      borderRadius: radius.lg,
+      backgroundColor: colors.primaryTintBg,
+      borderWidth: 1,
+      borderColor: colors.primaryTintBorder,
     },
     logoImage: {
       width: 34,
@@ -1520,17 +1562,17 @@ function createStyles(colors: ReturnType<typeof createColors>) {
 
     // Tabs: pt-4 = 16px
     tabsWrapper: {
-      paddingTop: spacing.sectionGap,
+      paddingTop: 12,
     },
     // bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1
     tabsRow: {
       flexDirection: "row",
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: surfaces.ground.backgroundColor,
       borderRadius: radius.lg,
       padding: 4,
       gap: 4,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: surfaces.ground.borderColor,
     },
     // flex-1 text-center py-2 text-sm font-bold rounded-[var(--radius-md)]
     tab: {
@@ -1543,17 +1585,11 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     },
     // text-primary bg-surface shadow-[var(--shadow-sm)]
     tabActive: {
-      backgroundColor: colors.surface,
+      backgroundColor: surfaces.card.backgroundColor,
       borderWidth: 1,
-      borderColor: colors.border,
-      ...(Platform.OS === "ios"
-        ? {
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.4,
-            shadowRadius: 3,
-          }
-        : { elevation: 2 }),
+      borderColor: surfaces.card.borderColor,
+      ...surfaces.card.shadow,
+      elevation: surfaces.card.elevation,
     },
     tabText: {
       fontSize: 14,
@@ -1574,18 +1610,24 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: spacing.sectionGap,
-      paddingTop: spacing.sectionGap,
-      paddingBottom: spacing.sectionGap,
+      gap: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      marginTop: 12,
+      marginBottom: 6,
+      borderRadius: radius.xl,
+      backgroundColor: surfaces.ground.backgroundColor,
+      borderWidth: 1,
+      borderColor: surfaces.ground.borderColor,
     },
     // size-9 = 36px rounded-full bg-surface
     dateNavButton: {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: surfaces.elevated.backgroundColor,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: surfaces.elevated.borderColor,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1594,7 +1636,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       fontSize: 17,
       fontWeight: "600",
       color: colors.textPrimary,
-      minWidth: 160,
+      minWidth: 148,
       textAlign: "center",
     },
     dateLabelToday: {
@@ -1633,39 +1675,34 @@ function createStyles(colors: ReturnType<typeof createColors>) {
 
     // Habits section
     habitsSection: {
-      paddingTop: 8,
+      paddingTop: 6,
     },
 
     // Search bar: pt-3 pb-2 = 12px/8px
     searchWrapper: {
-      paddingTop: 14,
-      paddingBottom: 10,
+      paddingTop: 12,
+      paddingBottom: 8,
     },
     // rounded-full py-3 pl-12 pr-12 bg-surface border border-border
     searchContainer: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.surface,
-      borderRadius: radius.full,
+      backgroundColor: surfaces.card.backgroundColor,
+      borderRadius: radius.xl,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      paddingVertical: 12,
+      borderColor: surfaces.card.borderColor,
+      paddingVertical: 11,
       paddingLeft: 48,
       paddingRight: 48,
-      minHeight: 56,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 4,
+      minHeight: 54,
+      ...surfaces.card.shadow,
+      elevation: surfaces.card.elevation,
     },
     searchContainerFocused: {
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: surfaces.elevated.backgroundColor,
       borderColor: colors.primaryTintBorder,
-      shadowColor: colors.primary,
-      shadowOpacity: 0.22,
-      shadowRadius: 18,
-      elevation: 6,
+      ...surfaces.primaryTint.shadow,
+      elevation: surfaces.primaryTint.elevation,
     },
     searchIcon: {
       position: "absolute",
@@ -1685,15 +1722,20 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: surfaces.elevated.backgroundColor,
     },
 
     // Filter chips row: pb-2 = 8px
     filtersWrapper: {
       flexDirection: "row",
       alignItems: "center",
-      paddingBottom: 10,
-      gap: 10,
+      gap: 8,
+      marginBottom: 4,
+      padding: 8,
+      borderRadius: radius.xl,
+      backgroundColor: surfaces.ground.backgroundColor,
+      borderWidth: 1,
+      borderColor: surfaces.ground.borderColor,
     },
     filtersRail: {
       flex: 1,
@@ -1710,25 +1752,20 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       alignItems: "center",
       gap: 6,
       minHeight: 44,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       paddingVertical: 10,
-      borderRadius: radius.full,
-      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      backgroundColor: surfaces.card.backgroundColor,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 2,
+      borderColor: surfaces.card.borderColor,
+      ...surfaces.ground.shadow,
+      elevation: surfaces.ground.elevation,
     },
     filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOpacity: 0.18,
-      shadowRadius: 14,
-      elevation: 4,
+      backgroundColor: colors.primaryTintBg,
+      borderColor: colors.primaryTintBorder,
+      ...surfaces.primaryTint.shadow,
+      elevation: surfaces.primaryTint.elevation,
     },
     filterChipText: {
       fontSize: 13,
@@ -1736,7 +1773,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       color: colors.textFaded,
     },
     filterChipTextActive: {
-      color: "#fff",
+      color: colors.primary,
     },
     // Divider between frequency and tag chips
     filterDivider: {
@@ -1757,14 +1794,11 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       borderRadius: radius.xl,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
+      backgroundColor: surfaces.card.backgroundColor,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.14,
-      shadowRadius: 8,
-      elevation: 3,
+      borderColor: surfaces.card.borderColor,
+      ...surfaces.ground.shadow,
+      elevation: surfaces.ground.elevation,
     },
     controlsMenuItem: {
       flexDirection: "row",
@@ -1787,14 +1821,14 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       left: 20,
       right: 20,
       zIndex: 20,
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: surfaces.overlay.backgroundColor,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: surfaces.overlay.borderColor,
       borderRadius: radius.xl,
       paddingHorizontal: 14,
       paddingVertical: 12,
-      ...shadows.lg,
-      elevation: 12,
+      ...surfaces.overlay.shadow,
+      elevation: surfaces.overlay.elevation,
     },
     bulkSelectionText: {
       fontSize: 13,
@@ -1813,9 +1847,9 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       borderRadius: 18,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
+      backgroundColor: surfaces.elevated.backgroundColor,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: surfaces.elevated.borderColor,
     },
     bulkActionButtonDisabled: {
       opacity: 0.45,

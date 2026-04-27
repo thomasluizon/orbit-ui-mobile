@@ -37,9 +37,9 @@ export function AnchoredMenu({
   estimatedHeight = 220,
   panelStyle,
 }: Readonly<AnchoredMenuProps>) {
-  const { colors, shadows } = useAppTheme()
+  const theme = useAppTheme()
   const menuMotion = useResolvedMotionPreset('menu')
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const styles = useMemo(() => createStyles(theme), [theme])
   const [menuHeight, setMenuHeight] = useState(estimatedHeight)
   const [shouldRender, setShouldRender] = useState(visible)
   const progress = useRef(new Animated.Value(0)).current
@@ -157,17 +157,16 @@ export function AnchoredMenu({
   )
 }
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  const { surfaces } = theme
+
   return StyleSheet.create({
     overlay: {
       flex: 1,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.08)',
+      backgroundColor: 'rgba(0, 0, 0, 0.16)',
     },
     backdropPressTarget: {
       ...StyleSheet.absoluteFillObject,
@@ -177,11 +176,11 @@ function createStyles(
       minWidth: 176,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surfaceOverlay,
+      borderColor: surfaces.overlay.borderColor,
+      backgroundColor: surfaces.overlay.backgroundColor,
       padding: 6,
-      ...shadows.lg,
-      elevation: 16,
+      ...surfaces.overlay.shadow,
+      elevation: Math.max(16, surfaces.overlay.elevation),
     },
   })
 }

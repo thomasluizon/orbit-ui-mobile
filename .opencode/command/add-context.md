@@ -606,7 +606,7 @@ What's next?
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. Test it:
-   opencode --agent OpenCoder
+   opencode
    > "Create API endpoint"
    (Uses YOUR pattern!)
 
@@ -614,7 +614,7 @@ What's next?
 
 3. Add business context: /add-context --business
 
-4. Build: opencode --agent OpenCoder > "Create user auth system"
+4. Build: opencode > "Create user auth system"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💡 Tip: Update context as project evolves

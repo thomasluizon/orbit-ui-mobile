@@ -380,7 +380,7 @@ function SelectionCheckbox({ isChild, isSelected, habitTitle, onToggle }: Readon
   return (
     <label
       data-no-drag
-      className={`shrink-0 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
+      className={`shrink-0 rounded-full border-2 flex items-center justify-center transition-[background-color,border-color,color,box-shadow,transform] duration-200 cursor-pointer ${
         isChild ? 'size-8' : 'size-10 sm:size-11'
       } ${
         isSelected
@@ -434,7 +434,7 @@ function ProgressRingSvg({ isDoneForRange, progressPercent, ringPulse }: Readonl
       <circle
         cx="18" cy="18" r="15"
         fill="none" stroke="currentColor" strokeWidth="2.5"
-        className={`transition-all duration-500 ${progressStrokeClass}`}
+        className={`transition-[stroke-dasharray,color] duration-500 ${progressStrokeClass}`}
         strokeLinecap="round"
         strokeDasharray={`${isDoneForRange ? 94.25 : progressPercent * 0.9425} 94.25`}
       />
@@ -639,7 +639,7 @@ function ExpandToggle({ hasChildren, isExpanded, isChild, onToggleExpand }: Read
         e.stopPropagation()
         onToggleExpand?.()
       }}
-      className={`shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated/60 transition-all duration-200 ${
+      className={`shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated/60 transition-[background-color,color,transform] duration-200 ${
         isChild ? 'size-6' : 'size-7'
       } ${isExpanded ? 'rotate-90' : ''}`}
     >
@@ -721,7 +721,7 @@ function ActionsMenuTrigger({ isChild, menuRef, onToggle }: Readonly<{
           e.stopPropagation()
           onToggle()
         }}
-        className={`text-text-muted/40 hover:text-text-primary transition-all duration-200 rounded-full hover:bg-surface-elevated/60 ${
+        className={`text-text-muted/40 hover:text-text-primary transition-[background-color,color,transform] duration-200 rounded-full hover:bg-surface-elevated/60 ${
           isChild ? 'p-1.5' : 'p-2'
         }`}
         title={t('habits.actions.more')}

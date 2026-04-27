@@ -199,8 +199,10 @@ export function Popover({
                 className={[
                   'habit-actions-menu',
                   'fixed',
+                  'p-1.5',
                   'rounded-[var(--radius-xl)]',
-                  'z-50',
+                  'z-[70]',
+                  'shadow-[var(--shadow-lg)]',
                   className,
                 ]
                   .filter(Boolean)

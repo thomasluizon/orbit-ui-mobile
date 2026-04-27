@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { Pressable, Text, View, StyleSheet } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
 import { createColors } from '@/lib/theme'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppColors = ReturnType<typeof createColors>
@@ -30,6 +31,7 @@ export function ProfileNavCard({
   rightText,
 }: ProfileNavCardProps) {
   const styles = useMemo(() => createProfileNavCardStyles(colors), [colors])
+  const selectionMotion = useResolvedMotionPreset('selection')
   const isPrimary = variant === 'primary'
 
   return (
@@ -38,6 +40,8 @@ export function ProfileNavCard({
         styles.navCardShell,
         isPrimary && styles.navCardPrimaryShell,
         pressed && styles.navCardPressed,
+        pressed && !selectionMotion.reducedMotionEnabled &&
+          styles.navCardPressedMotion,
       ]}
       onPress={onPress}
       accessibilityRole="link"
@@ -69,16 +73,16 @@ function createProfileNavCardStyles(colors: AppColors) {
       width: '100%',
       borderColor: colors.borderMuted,
       borderWidth: 1,
-      borderRadius: 24,
+      borderRadius: 20,
       overflow: 'hidden',
       shadowColor: '#000000',
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
       elevation: 1,
     },
     navCardContent: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceGround,
       padding: 20,
       flexDirection: 'row',
       alignItems: 'center',
@@ -91,6 +95,9 @@ function createProfileNavCardStyles(colors: AppColors) {
     },
     navCardPressed: {
       opacity: 0.86,
+    },
+    navCardPressedMotion: {
+      transform: [{ scale: 0.985 }],
     },
     navCardIcon: {
       borderRadius: 16,

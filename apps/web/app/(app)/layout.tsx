@@ -156,7 +156,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 
   return (
-    <div className="min-h-dvh bg-background text-text-primary pb-28 pt-[var(--safe-top)] ambient-glow">
+    <div className="relative isolate min-h-dvh overflow-x-hidden bg-background text-text-primary pb-28 pt-[var(--safe-top)] ambient-glow">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[99999] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded"
@@ -167,7 +167,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       {/* Main content - full width mobile, max-w on desktop */}
       <main
         id="main-content"
-        className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
+        className="relative z-10 mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
       >
         <TrialBanner />
         <RouteTransitionShell>
@@ -249,7 +249,7 @@ function GlobalOverlays({
           </p>
           <div className="flex flex-col gap-3 w-full">
             <button
-              className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all active:scale-[0.98] shadow-[var(--shadow-glow)]"
+              className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center shadow-[var(--shadow-glow)] transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-primary/90 active:scale-[0.98]"
               onClick={onCalendarImport}
             >
               {t('onboarding.wizard.calendarButton')}

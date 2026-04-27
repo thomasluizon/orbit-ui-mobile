@@ -1,6 +1,13 @@
 import { useEffect, lazy, Suspense, useMemo, useRef } from 'react'
-import { BackHandler, Platform, View } from 'react-native'
+import { BackHandler, Platform, StyleSheet, View } from 'react-native'
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+  type Theme as NavigationTheme,
+} from '@react-navigation/native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { LinearGradient } from 'expo-linear-gradient'
 import {
   Stack,
   useGlobalSearchParams,
@@ -19,6 +26,7 @@ import { useAdMob } from '@/hooks/use-ad-mob'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { mobileMotion } from '@/lib/motion'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
 import {
   dismissOrFallback,
@@ -115,7 +123,7 @@ function RootLayoutNav() {
   useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
-  const { colors, currentTheme, currentScheme } = useAppTheme()
+  const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
@@ -206,9 +214,11 @@ function RootLayoutNav() {
           <Stack
             screenOptions={{
               headerShown: false,
-              animation: 'slide_from_right',
+              animation: 'fade_from_bottom',
+              animationDuration: mobileMotion.presets['route-push'].enterDuration,
+              animationMatchesGesture: true,
               animationTypeForReplace: 'push',
-              contentStyle: { backgroundColor: colors.background },
+              contentStyle: { backgroundColor: surfaces.screen.backgroundColor },
             }}
           >
             <Stack.Screen name="(tabs)" />
@@ -341,14 +351,63 @@ function GlobalOverlays({
 }
 
 function RootLayoutContent() {
-  const { colors } = useAppTheme()
+  const { colors, currentTheme, surfaces } = useAppTheme()
+  const navigationTheme = useMemo<NavigationTheme>(() => {
+    const baseTheme = currentTheme === 'dark' ? DarkTheme : DefaultTheme
+
+    return {
+      ...baseTheme,
+      dark: currentTheme === 'dark',
+      colors: {
+        ...baseTheme.colors,
+        primary: colors.primary,
+        background: surfaces.screen.backgroundColor,
+        card: surfaces.elevated.backgroundColor,
+        text: colors.textPrimary,
+        border: colors.borderMuted,
+        notification: colors.primary,
+      },
+    }
+  }, [
+    colors.borderMuted,
+    colors.primary,
+    colors.textPrimary,
+    currentTheme,
+    surfaces.elevated.backgroundColor,
+    surfaces.screen.backgroundColor,
+  ])
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <RootLayoutNav />
-    </View>
+    <NavigationThemeProvider value={navigationTheme}>
+      <View
+        style={[
+          styles.shellRoot,
+          { backgroundColor: surfaces.screen.backgroundColor },
+        ]}
+      >
+        <LinearGradient
+          colors={[
+            surfaces.screen.ambientStart,
+            surfaces.screen.backgroundColor,
+            surfaces.screen.ambientEnd,
+          ] as const}
+          locations={[0, 0.48, 1] as const}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <RootLayoutNav />
+      </View>
+    </NavigationThemeProvider>
   )
 }
+
+const styles = StyleSheet.create({
+  shellRoot: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+})
 
 export default function RootLayout() {
   return (

@@ -8,6 +8,8 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
 const projectRoot = path.join(__dirname, '..')
 const androidDir = path.join(__dirname, '..', 'android')
+const autolinkingCacheDir = path.join(androidDir, 'build', 'generated', 'autolinking')
+const cmakeBuildDir = path.join(os.tmpdir(), 'orbit-mobile-cxx')
 
 const gradlew = path.join(androidDir, 'gradlew.bat')
 
@@ -42,7 +44,11 @@ execSync('npx expo prebuild --platform android --no-install', {
   env: process.env,
 })
 
-execSync(`"${gradlew}" assembleRelease`, {
+fs.rmSync(autolinkingCacheDir, { recursive: true, force: true })
+
+const normalizedCmakeBuildDir = cmakeBuildDir.split(path.sep).join('/')
+
+execSync(`"${gradlew}" assembleRelease -Porbit.cmakeBuildStagingDirectory="${normalizedCmakeBuildDir}"`, {
   shell: true,
   cwd: androidDir,
   stdio: 'inherit',

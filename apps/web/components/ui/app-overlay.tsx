@@ -251,7 +251,7 @@ export function AppOverlay({
         >
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default"
+            className="absolute inset-0 bg-black/65 backdrop-blur-md cursor-default"
             aria-label={t('common.close')}
             tabIndex={-1}
             onPointerDown={handlePointerDown}
@@ -279,7 +279,7 @@ export function AppOverlay({
             aria-modal="true"
             aria-labelledby={hasTitle ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
-            className="relative w-full sm:max-w-lg max-h-[90dvh] bg-surface-overlay rounded-t-2xl sm:rounded-2xl border-t sm:border border-border overflow-clip flex flex-col shadow-[var(--shadow-lg)] overscroll-contain"
+            className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-clip rounded-t-[var(--radius-2xl)] border-t border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] sm:rounded-[var(--radius-2xl)] sm:border flex flex-col overscroll-contain [box-shadow:var(--shadow-lg),inset_0_1px_0_var(--surface-top-highlight)]"
             initial={{
               opacity: 0,
               y: motionPreset.shift,
@@ -305,7 +305,7 @@ export function AppOverlay({
             }}
           >
             <div className="flex justify-center pt-3 pb-2 sm:hidden">
-              <div className="w-10 h-1 rounded-full bg-border-emphasis" />
+              <div className="h-1 w-10 rounded-full bg-primary/20" />
             </div>
 
             {hasTitle && (
@@ -326,7 +326,7 @@ export function AppOverlay({
                       />
                       {expandable && (
                         <button
-                          className="shrink-0 size-7 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors mt-0.5"
+                          className="shrink-0 size-8 rounded-full border border-border-muted bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-[background-color,border-color,color] duration-150 mt-0.5"
                           aria-label={t('common.expandDescription')}
                           onClick={onExpandDescription}
                         >
@@ -338,7 +338,7 @@ export function AppOverlay({
                 </div>
                 {dismissible && (
                   <button
-                    className="shrink-0 size-8 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors ml-4"
+                    className="shrink-0 size-9 rounded-full border border-border-muted bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-[background-color,border-color,color,transform] duration-150 ml-4 active:scale-[var(--orbit-press-scale)]"
                     aria-label={t('common.close')}
                     onClick={() => requestClose('close-button')}
                   >
@@ -360,7 +360,7 @@ export function AppOverlay({
             {footer && (
               <div
                 data-slot="overlay-footer"
-                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-border"
+                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-border-muted bg-surface-overlay/80"
               >
                 {footer}
               </div>

@@ -55,14 +55,14 @@ export function TodayFilters({
         className="pt-3 pb-2"
         transition={transition}
       >
-        <div className="relative">
+        <div className="relative rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground/90 shadow-[inset_0_1px_0_var(--surface-top-highlight)] transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out focus-within:border-primary/25 focus-within:bg-surface focus-within:shadow-[var(--shadow-sm)] focus-within:scale-[1.01] motion-reduce:focus-within:scale-100">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-5 text-text-muted pointer-events-none" />
           <input
             value={localSearchQuery}
             type="text"
             aria-label={t('habits.searchPlaceholder')}
             placeholder={t('habits.searchPlaceholder')}
-            className="w-full bg-surface text-text-primary placeholder-text-muted rounded-full py-3 pl-12 pr-12 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+            className="min-h-12 w-full rounded-[var(--radius-xl)] bg-transparent py-3 pl-12 pr-12 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20"
             onChange={(e) => onSearchChange(e.target.value)}
           />
           <AnimatePresence initial={false}>
@@ -109,10 +109,10 @@ export function TodayFilters({
                   <motion.button
                     layout
                     aria-pressed={!selectedFrequency}
-                    className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
+                    className={`flex min-h-11 items-center gap-2 rounded-[var(--radius-lg)] border px-4 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[var(--orbit-press-scale)] ${
                       selectedFrequency
-                        ? 'bg-surface border border-border text-text-faded hover:text-text-primary'
-                        : 'bg-primary text-white'
+                        ? 'border-border-muted bg-surface-ground text-text-faded hover:border-border-emphasis hover:bg-surface hover:text-text-primary'
+                        : 'border-primary/20 bg-primary/10 text-primary shadow-[inset_0_1px_0_var(--surface-top-highlight)]'
                     }`}
                     onClick={() => onFrequencyChange(null)}
                     transition={transition}
@@ -125,10 +125,10 @@ export function TodayFilters({
                       layout
                       key={opt.key}
                       aria-pressed={selectedFrequency === opt.key}
-                      className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 ${
+                      className={`flex min-h-11 items-center gap-2 rounded-[var(--radius-lg)] border px-4 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[var(--orbit-press-scale)] ${
                         selectedFrequency === opt.key
-                          ? 'bg-primary text-white'
-                          : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                          ? 'border-primary/20 bg-primary/10 text-primary shadow-[inset_0_1px_0_var(--surface-top-highlight)]'
+                          : 'border-border-muted bg-surface-ground text-text-faded hover:border-border-emphasis hover:bg-surface hover:text-text-primary'
                       }`}
                       onClick={() =>
                         onFrequencyChange(
@@ -153,10 +153,10 @@ export function TodayFilters({
                     <motion.button
                       layout
                       key={tag.id}
-                      className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      className={`flex min-h-11 items-center gap-1.5 rounded-[var(--radius-lg)] border px-4 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[var(--orbit-press-scale)] ${
                         selectedTagIds.includes(tag.id)
-                          ? 'text-white'
-                          : 'bg-surface border border-border text-text-faded hover:text-text-primary'
+                          ? 'border-transparent text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]'
+                          : 'border-border-muted bg-surface-ground text-text-faded hover:border-border-emphasis hover:bg-surface hover:text-text-primary'
                       }`}
                       style={selectedTagIds.includes(tag.id) ? { backgroundColor: tag.color } : undefined}
                       onClick={() => onTagToggle(tag.id)}
@@ -181,7 +181,7 @@ export function TodayFilters({
         )}
         <div ref={controlsMenuRef} className="shrink-0">
           <motion.button
-            className="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-surface"
+            className="flex size-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-muted bg-surface-ground text-text-secondary transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-border-emphasis hover:bg-surface hover:text-text-primary active:scale-[var(--orbit-press-scale)]"
             title={t('habits.actions.more')}
             aria-label={t('habits.actions.more')}
             onClick={(e) => {

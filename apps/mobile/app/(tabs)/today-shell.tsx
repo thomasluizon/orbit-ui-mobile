@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useTourTarget } from '@/hooks/use-tour-target'
+import { useResolvedMotionPreset } from '@/lib/motion'
 
 export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
 
@@ -158,6 +159,12 @@ export function TodayDateNavigation({
   panHandlers?: GestureResponderHandlers
 }) {
   const dateNavRef = useRef<View>(null)
+  const dateMotion = useResolvedMotionPreset('tab-switch')
+  const dateLabelEnterShift = dateMotion.reducedMotionEnabled
+    ? 0
+    : slideDirection === 'left'
+      ? -12
+      : 12
   useTourTarget('tour-date-nav', dateNavRef)
 
   if (!visible) return null
@@ -189,7 +196,7 @@ export function TodayDateNavigation({
                 {
                   translateX: dateLabelAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [slideDirection === 'left' ? -12 : 12, 0],
+                    outputRange: [dateLabelEnterShift, 0],
                   }),
                 },
               ],

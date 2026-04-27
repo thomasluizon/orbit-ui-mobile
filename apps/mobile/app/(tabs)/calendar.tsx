@@ -36,6 +36,7 @@ import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { createColors, spacing } from "@/lib/theme";
+import { usePrefersReducedMotion } from "@/lib/motion";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
@@ -193,10 +194,17 @@ function statusLabel(
 }
 
 function PerfectDayDot({ color }: { color: string }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const opacity = useRef(new Animated.Value(0.72)).current;
   const scale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      opacity.setValue(1);
+      scale.setValue(1);
+      return undefined;
+    }
+
     const animation = Animated.loop(
       Animated.sequence([
         Animated.parallel([
@@ -227,7 +235,21 @@ function PerfectDayDot({ color }: { color: string }) {
     );
     animation.start();
     return () => animation.stop();
-  }, [opacity, scale]);
+  }, [opacity, prefersReducedMotion, scale]);
+
+  if (prefersReducedMotion) {
+    return (
+      <View
+        style={{
+          width: 4,
+          height: 4,
+          borderRadius: 2,
+          marginTop: 4,
+          backgroundColor: color,
+        }}
+      />
+    );
+  }
 
   return (
     <Animated.View
@@ -466,6 +488,11 @@ export default function CalendarScreen() {
                       onPress={() => canSelect && onSelectDay(cell.dateStr)}
                       activeOpacity={canSelect ? 0.6 : 1}
                       disabled={!canSelect}
+                      hitSlop={
+                        canSelect
+                          ? { top: 4, bottom: 4, left: 4, right: 4 }
+                          : undefined
+                      }
                     >
                       <Text
                         style={[
@@ -644,7 +671,7 @@ function createStyles(colors: AppColors) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceGround,
       borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.borderMuted,
@@ -652,9 +679,9 @@ function createStyles(colors: AppColors) {
       // shadow-sm equivalent
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.4,
-      shadowRadius: 3,
-      elevation: 2,
+      shadowOpacity: 0.18,
+      shadowRadius: 8,
+      elevation: 3,
     },
     monthNavButton: {
       width: 40,
@@ -662,6 +689,7 @@ function createStyles(colors: AppColors) {
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
+      backgroundColor: colors.surface,
     },
     monthLabel: {
       fontSize: 16,
@@ -681,8 +709,10 @@ function createStyles(colors: AppColors) {
     loadingCell: {
       width: "13.28%",
       aspectRatio: 1,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceElevated,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceGround,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
     },
     fetchingBar: {
       height: 2,
@@ -703,18 +733,18 @@ function createStyles(colors: AppColors) {
 
     // Calendar card
     calendarCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
+      backgroundColor: colors.surfaceGround,
+      borderRadius: 24,
       borderWidth: 1,
       borderColor: colors.borderMuted,
-      padding: 12,
+      padding: 10,
       marginTop: spacing.itemGap,
       // shadow-sm equivalent
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.4,
-      shadowRadius: 3,
-      elevation: 2,
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 4,
     },
     calendarCardFetching: {
       opacity: 0.4,
@@ -746,7 +776,8 @@ function createStyles(colors: AppColors) {
       alignItems: "center",
       justifyContent: "center",
       aspectRatio: 1,
-      borderRadius: 20,
+      minHeight: 44,
+      borderRadius: 16,
       gap: 2,
     },
     dayCellToday: {
@@ -768,7 +799,12 @@ function createStyles(colors: AppColors) {
       alignItems: "center",
       justifyContent: "center",
       gap: 24,
-      paddingVertical: 16,
+      paddingVertical: 14,
+      marginTop: 12,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceGround,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
     },
     legendItem: {
       flexDirection: "row",
@@ -791,6 +827,10 @@ function createStyles(colors: AppColors) {
       justifyContent: "center",
       paddingVertical: 32,
       paddingHorizontal: spacing.pageX,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceGround,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
     },
     emptyDayText: {
       fontSize: 14,

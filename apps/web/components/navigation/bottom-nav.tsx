@@ -55,7 +55,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
 
   return (
     <nav data-bottom-nav="" className="fixed bottom-0 left-0 right-0 z-50">
-      <div className="nav-glass border-t border-border-muted pb-[var(--safe-bottom)]">
+      <div className="nav-glass pb-[var(--safe-bottom)]">
         <div className="flex items-center justify-around h-20 max-w-[var(--app-max-w)] mx-auto px-[var(--app-px)] relative">
           {/* First two nav items */}
           {navItems.slice(0, 2).map((item) => (
@@ -72,7 +72,8 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
             <button
               data-tour="tour-fab-button"
               aria-label={t('nav.createHabit')}
-              className="bg-primary rounded-full size-14 flex items-center justify-center ring-4 ring-background shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:scale-105 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+              className="touch-target relative flex size-14 items-center justify-center rounded-full bg-primary text-white ring-4 ring-background shadow-[var(--shadow-glow)] transition-[box-shadow,opacity,transform] duration-150 ease-out hover:shadow-[var(--shadow-glow-lg)] active:translate-y-[var(--orbit-elevated-press-y)] active:scale-[var(--orbit-elevated-press-scale)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 motion-reduce:active:translate-y-0 motion-reduce:active:scale-100 disabled:opacity-50"
+              disabled={!onCreate}
               onClick={onCreate}
             >
               <Plus className="size-5 text-white" />
@@ -110,20 +111,22 @@ function NavLink({
       href={item.path}
       data-tour={item.dataTour}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex flex-col items-center gap-1 py-2 min-w-[48px] transition-all duration-150 ${
-        active ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
+      className={`touch-target relative flex min-h-12 min-w-14 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1.5 py-2 transition-[background-color,color,opacity,transform] duration-150 ease-out active:translate-y-[var(--orbit-press-y)] active:scale-[var(--orbit-press-scale)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:active:translate-y-0 motion-reduce:active:scale-100 ${
+        active
+          ? 'bg-primary/10 text-primary'
+          : 'text-text-muted hover:bg-primary/5 hover:text-text-primary'
       }`}
       onClick={onClick}
     >
       <Icon
-        className={`size-[22px] transition-transform duration-150 ${
-          active ? 'scale-110' : ''
+        className={`size-[22px] transition-transform duration-150 motion-reduce:transition-none ${
+          active ? 'scale-[1.08] motion-reduce:scale-100' : ''
         }`}
       />
-      <span className="text-[10px] font-medium">{item.name}</span>
+      <span className="text-[10px] font-medium leading-3">{item.name}</span>
       {/* Active indicator dot */}
       {active && (
-        <span className="absolute -bottom-0.5 w-4 h-0.5 rounded-full bg-primary transition-all duration-200" />
+        <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary transition-[opacity,transform] duration-200" />
       )}
     </Link>
   )

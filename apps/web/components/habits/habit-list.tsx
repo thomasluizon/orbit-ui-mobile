@@ -1165,7 +1165,7 @@ const isPostponeAction = useMemo(() => {
             ),
           )}
           <button
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-[border-color,color,background-color,transform] duration-150"
             onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
           >
             <Plus className="size-4" />
@@ -1181,7 +1181,7 @@ const isPostponeAction = useMemo(() => {
           {t('habits.noSubHabits')}
         </p>
         <button
-          className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-all duration-150"
+          className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-[border-color,color,background-color,transform] duration-150"
           onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
         >
           <Plus className="size-4" />
@@ -1200,7 +1200,7 @@ const isPostponeAction = useMemo(() => {
           <div className="flex items-center gap-3 pb-1">
             <button
               aria-label={t('common.goBack')}
-              className="shrink-0 size-8 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated/80 transition-all duration-150"
+              className="shrink-0 size-8 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated/80 transition-[background-color,transform] duration-150"
               onClick={drill.drillBack}
             >
               <ArrowLeft className="size-4 text-text-secondary" aria-hidden="true" />
@@ -1292,7 +1292,7 @@ const isPostponeAction = useMemo(() => {
             items={activeDragItems.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className={isDragging ? 'is-dragging' : undefined}>
+            <div className={isDragging ? 'is-dragging stagger-enter' : 'stagger-enter'}>
               {activeDragItems.map((item) => (
                 <SortableHabitItem key={item.id} id={item.id}>
                   {renderHabitCard(
@@ -1312,7 +1312,7 @@ const isPostponeAction = useMemo(() => {
 
     // TODAY / GENERAL VIEW: select mode (no drag)
     return (
-      <>
+      <div className="stagger-enter">
         {dragItems.map((item) => (
           <div key={item.id} className="mb-2.5">
             {renderHabitCard(
@@ -1324,7 +1324,7 @@ const isPostponeAction = useMemo(() => {
             )}
           </div>
         ))}
-      </>
+      </div>
     )
   }
 
@@ -1456,14 +1456,14 @@ const isPostponeAction = useMemo(() => {
         footer={
           <div className="flex gap-3">
             <button
-              className="flex-1 py-3 rounded-xl border border-border text-text-primary font-bold text-sm hover:bg-surface-elevated/80 transition-all duration-150 disabled:opacity-50"
+              className="flex-1 py-3 rounded-xl border border-border text-text-primary font-bold text-sm hover:bg-surface-elevated/80 transition-[background-color,border-color,color,opacity,transform] duration-150 disabled:opacity-50"
               disabled={isMovingParent}
               onClick={closeMoveParentPicker}
             >
               {t('common.cancel')}
             </button>
             <button
-              className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-[background-color,opacity,transform] duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canSubmitMoveParent}
               onClick={confirmMoveParent}
             >
@@ -1477,7 +1477,7 @@ const isPostponeAction = useMemo(() => {
             {moveParentOptions.map((option) => (
               <button
                 key={option.id ?? '__root__'}
-                className={`w-full text-left rounded-lg border px-3 py-2.5 transition-all duration-150 ${
+                className={`w-full text-left rounded-lg border px-3 py-2.5 transition-[background-color,border-color,color,opacity] duration-150 ${
                   option.id === selectedMoveParentId
                     ? 'border-primary bg-primary/10'
                     : 'border-border-muted bg-surface hover:bg-surface-elevated/80'

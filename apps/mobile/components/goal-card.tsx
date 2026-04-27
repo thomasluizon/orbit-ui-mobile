@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react'
-import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useCallback, useMemo, useRef } from 'react'
+import { Animated, Easing, Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
@@ -8,7 +8,8 @@ import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
-import { createColors, gradients, shadows } from '@/lib/theme'
+import { createColors, gradients, radius, shadows } from '@/lib/theme'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -28,13 +29,33 @@ interface GoalCardProps {
 export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const selectionMotion = useResolvedMotionPreset('selection')
   const progress = Math.min(100, Math.round(goal.progressPercentage))
   const isStreak = isStreakGoal(goal.type)
   const styles = useMemo(() => createStyles(colors), [colors])
   const cardRef = useRef<View>(null)
   const progressRef = useRef<View>(null)
+  const pressScale = useRef(new Animated.Value(1)).current
   useTourTarget(tourTargetId ?? '__noop__', cardRef)
   useTourTarget(tourTargetId ? 'tour-goal-progress' : '__noop__', progressRef)
+
+  const handlePressIn = useCallback(() => {
+    Animated.timing(pressScale, {
+      toValue: selectionMotion.reducedMotionEnabled ? 1 : 0.985,
+      duration: 100,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+  }, [pressScale, selectionMotion.reducedMotionEnabled])
+
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressScale, {
+      toValue: 1,
+      duration: selectionMotion.exitDuration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+  }, [pressScale, selectionMotion.exitDuration])
 
   // Progress bar color (matches web progressColor logic)
   const progressBarColor = useMemo(() => {
@@ -123,15 +144,18 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
   const isCompleted = goal.status === 'Completed'
 
   return (
-    <TouchableOpacity
-      ref={tourTargetId ? cardRef : undefined}
-      style={[styles.card, trackingBorder, isCompleted && styles.cardCompleted]}
-      onPress={() => onPress?.(goal.id)}
-      activeOpacity={0.85}
-      disabled={!onPress}
-      accessibilityRole="button"
-      accessibilityLabel={goal.title}
-    >
+    <Animated.View style={{ transform: [{ scale: pressScale }] }}>
+      <TouchableOpacity
+        ref={tourTargetId ? cardRef : undefined}
+        style={[styles.card, trackingBorder, isCompleted && styles.cardCompleted]}
+        onPress={() => onPress?.(goal.id)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.88}
+        disabled={!onPress}
+        accessibilityRole="button"
+        accessibilityLabel={goal.title}
+      >
       {/* Android completed glow backing */}
       {isCompleted && Platform.OS === 'android' && (
         <View style={styles.androidCompletedGlow} pointerEvents="none" />
@@ -230,7 +254,8 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
           )}
         </View>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   )
 }
 
@@ -243,7 +268,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   // Card: matches bg-surface rounded-[var(--radius-xl)] p-5 border border-border-muted shadow-sm
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 20, // --radius-xl = 1.25rem = 20px
+    borderRadius: radius.xl,
     padding: 20, // p-5
     borderWidth: 1,
     borderColor: colors.borderMuted,
@@ -254,15 +279,15 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   },
   cardCompleted: {
     // iOS emerald tinted glow for completed state
-    shadowColor: 'rgba(16,185,129,1)',
+    shadowColor: colors.green500,
     shadowOpacity: 0.2,
     shadowRadius: 20,
   },
   androidCompletedGlow: {
     position: 'absolute',
     inset: -4,
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    borderRadius: 24,
+    backgroundColor: colors.emerald500_10,
+    borderRadius: radius.xl + 4,
   },
   insetHighlight: {
     position: 'absolute',
@@ -270,7 +295,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.border50,
     pointerEvents: 'none',
   },
 
@@ -319,9 +344,9 @@ function createStyles(colors: ReturnType<typeof createColors>) {
   },
 
   // Progress bar: h-2 bg-surface-elevated rounded-full
-  progressBar: {
-    height: 8, // h-2
-    backgroundColor: colors.surfaceElevated,
+    progressBar: {
+      height: 8, // h-2
+      backgroundColor: colors.surfaceGround,
     borderRadius: 9999,
     overflow: 'hidden',
     marginBottom: 8,

@@ -60,7 +60,7 @@ import {
   primaryRgba,
   lightenHex,
 } from '@/lib/theme'
-import { useResolvedMotionPreset } from '@/lib/motion'
+import { mobileMotion, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -133,10 +133,12 @@ function HabitCardSurface({
   isChild,
   status,
   colors,
+  isLight,
 }: Readonly<{
   isChild: boolean
   status?: string
   colors: ReturnType<typeof createColors>
+  isLight: boolean
 }>) {
   return (
     <>
@@ -172,22 +174,23 @@ function HabitCardSurface({
         />
       )}
 
-      {/* 1px top-edge inset highlight */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 1,
-          backgroundColor: withAlpha(
-            colors.white,
-            isChild ? 0.03 : 0.05,
-            isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
-          ),
-        }}
-      />
+      {!isLight && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            backgroundColor: withAlpha(
+              colors.white,
+              isChild ? 0.03 : 0.05,
+              isChild ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.05)',
+            ),
+          }}
+        />
+      )}
     </>
   )
 }
@@ -202,20 +205,27 @@ function HabitBadge({
   return <View style={style}>{children}</View>
 }
 
-function HabitIdentityOrb({ habit, isChild, isDoneForRange, status, colors, styles }: Readonly<{
+function HabitIdentityOrb({ habit, isChild, isDoneForRange, status, colors, isLight, styles }: Readonly<{
   habit: NormalizedHabit
   isChild: boolean
   isDoneForRange: boolean
   status: string
   colors: ReturnType<typeof createColors>
+  isLight: boolean
   styles: ReturnType<typeof createStyles>
 }>) {
   const emoji = resolveHabitEmoji(habit.emoji)
   const gradientColors = status === 'overdue'
-    ? ['rgba(239,68,68,0.34)', 'rgba(239,68,68,0.08)', 'transparent'] as const
+    ? isLight
+      ? ['rgba(239,68,68,0.18)', 'rgba(239,68,68,0.05)', 'transparent'] as const
+      : ['rgba(239,68,68,0.34)', 'rgba(239,68,68,0.08)', 'transparent'] as const
     : status === 'due-today'
-      ? ['rgba(251,191,36,0.32)', withAlpha(colors.primary, 0.16, 'rgba(139,92,246,0.16)'), 'transparent'] as const
-      : [withAlpha(colors.primary, 0.30, 'rgba(139,92,246,0.30)'), 'rgba(255,0,110,0.10)', 'transparent'] as const
+      ? isLight
+        ? ['rgba(251,191,36,0.18)', withAlpha(colors.primary, 0.07, 'rgba(139,92,246,0.07)'), 'transparent'] as const
+        : ['rgba(251,191,36,0.32)', withAlpha(colors.primary, 0.16, 'rgba(139,92,246,0.16)'), 'transparent'] as const
+      : isLight
+        ? [withAlpha(colors.primary, 0.12, 'rgba(139,92,246,0.12)'), withAlpha(colors.primary, 0.04, 'rgba(139,92,246,0.04)'), 'transparent'] as const
+        : [withAlpha(colors.primary, 0.30, 'rgba(139,92,246,0.30)'), 'rgba(255,0,110,0.10)', 'transparent'] as const
 
   return (
     <View style={[styles.identityOrb, isChild ? styles.identityOrbChild : null, isDoneForRange ? styles.identityOrbDone : null]}>
@@ -506,7 +516,9 @@ export function HabitCard({
   const entryTranslateY = useSharedValue(
     listEnterMotion.reducedMotionEnabled ? 0 : Math.max(10, listEnterMotion.shift),
   )
-  const entryScale = useSharedValue(listEnterMotion.reducedMotionEnabled ? 1 : 0.985)
+  const entryScale = useSharedValue(
+    listEnterMotion.reducedMotionEnabled ? 1 : mobileMotion.orbital.list.initialScale,
+  )
   const entryAnimStyle = useAnimatedStyle(() => ({
     opacity: entryOpacity.value,
     transform: [
@@ -526,12 +538,14 @@ export function HabitCard({
       return
     }
 
-    const entryDelay = Math.min(entryIndex, 6) * 40
+    const entryDelay =
+      Math.min(entryIndex, mobileMotion.orbital.list.maxStaggerItems) *
+      mobileMotion.orbital.list.staggerMs
     const entryDuration = Math.max(160, listEnterMotion.enterDuration)
 
     entryOpacity.value = 0
     entryTranslateY.value = Math.max(10, listEnterMotion.shift)
-    entryScale.value = 0.985
+    entryScale.value = mobileMotion.orbital.list.initialScale
 
     entryOpacity.value = withDelay(
       entryDelay,
@@ -567,8 +581,12 @@ export function HabitCard({
   ])
 
   const handlePressIn = useCallback(() => {
-    pressScale.value = withTiming(0.985, { duration: 100 })
-    pressY.value = withTiming(-1, { duration: 100 })
+    pressScale.value = withTiming(mobileMotion.orbital.press.scale, {
+      duration: mobileMotion.orbital.press.duration,
+    })
+    pressY.value = withTiming(mobileMotion.orbital.press.translateY, {
+      duration: mobileMotion.orbital.press.duration,
+    })
   }, [pressScale, pressY])
 
   const handlePressOut = useCallback(() => {
@@ -897,7 +915,12 @@ export function HabitCard({
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
           >
-            <HabitCardSurface isChild={isChild} status={status} colors={colors} />
+            <HabitCardSurface
+              isChild={isChild}
+              status={status}
+              colors={colors}
+              isLight={currentTheme === 'light'}
+            />
             <View
               style={[
                 styles.cardRow,
@@ -935,6 +958,7 @@ export function HabitCard({
                 isDoneForRange={isDoneForRange}
                 status={status}
                 colors={colors}
+                isLight={currentTheme === 'light'}
                 styles={styles}
               />
 
@@ -1528,9 +1552,11 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: isLight ? colors.surface : colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: withAlpha(colors.white, isLight ? 0.16 : 0.1, 'rgba(255, 255, 255, 0.1)'),
+    borderColor: isLight
+      ? 'rgba(0, 0, 0, 0.07)'
+      : withAlpha(colors.white, 0.1, 'rgba(255, 255, 255, 0.1)'),
   },
   identityOrbChild: {
     width: 36,

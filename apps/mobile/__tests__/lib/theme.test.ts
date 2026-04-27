@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { schemes } from '@orbit/shared/theme'
-import { colors, createColors, createNav, getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import {
+  colors,
+  createColors,
+  createNav,
+  createSurfaces,
+  getRuntimeTheme,
+  setRuntimeTheme,
+  surfaces,
+} from '@/lib/theme'
 
 describe('mobile theme runtime', () => {
   afterEach(() => {
@@ -37,5 +45,17 @@ describe('mobile theme runtime', () => {
     expect(lightNav.tabBarBorder).toBe(schemes.rose.light.navGlassBorder)
     expect(darkNav.tabBarBg).toBe(schemes.rose.dark.navGlassBg)
     expect(darkNav.tabBarBorder).toBe(schemes.rose.dark.navGlassBorder)
+  })
+
+  it('derives semantic surface presets from the active theme mode', () => {
+    const lightSurfaces = createSurfaces('green', 'light')
+    const darkSurfaces = createSurfaces('green', 'dark')
+
+    expect(lightSurfaces.card.backgroundColor).toBe(createColors('green', 'light').surface)
+    expect(darkSurfaces.card.backgroundColor).toBe(createColors('green', 'dark').surface)
+    expect(lightSurfaces.card.shadow.shadowOpacity).toBeLessThan(darkSurfaces.card.shadow.shadowOpacity)
+
+    setRuntimeTheme({ scheme: 'green', themeMode: 'light' })
+    expect(surfaces.screen.backgroundColor).toBe(lightSurfaces.screen.backgroundColor)
   })
 })

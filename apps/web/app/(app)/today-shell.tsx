@@ -25,27 +25,31 @@ export function TodayHeader({
   goToTodayLabel,
 }: Readonly<TodayHeaderProps>) {
   return (
-    <header className="flex items-center justify-between pt-8 pb-2">
-      <button
-        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={onGoToToday}
-        aria-label={goToTodayLabel}
-      >
-        <Image
-          src="/logo-no-bg.png"
-          alt="Orbit"
-          className="size-10"
-          width={40}
-          height={40}
-        />
-        <span className="text-[length:var(--text-fluid-xl)] font-extrabold text-text-primary tracking-tight">
-          Orbit
-        </span>
-      </button>
-      <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <span data-tour="tour-streak-badge"><StreakBadge streak={streak} /></span>
-        <NotificationBell />
+    <header className="pt-6 pb-2">
+      <div className="flex items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground/85 px-3 py-3 shadow-[var(--shadow-sm)] backdrop-blur-xl [box-shadow:var(--shadow-sm),inset_0_1px_0_var(--surface-top-highlight)]">
+        <button
+          className="flex min-h-11 items-center gap-3 rounded-[var(--radius-lg)] px-1 cursor-pointer transition-[opacity,transform] duration-150 ease-out hover:opacity-85 active:scale-[var(--orbit-press-scale)]"
+          onClick={onGoToToday}
+          aria-label={goToTodayLabel}
+        >
+          <span className="grid size-10 place-items-center rounded-[var(--radius-lg)] border border-primary/20 bg-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <Image
+              src="/logo-no-bg.png"
+              alt="Orbit"
+              className="size-8"
+              width={32}
+              height={32}
+            />
+          </span>
+          <span className="text-[length:var(--text-fluid-xl)] font-extrabold text-text-primary tracking-tight">
+            Orbit
+          </span>
+        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <span data-tour="tour-streak-badge"><StreakBadge streak={streak} /></span>
+          <NotificationBell />
+        </div>
       </div>
     </header>
   )
@@ -67,12 +71,12 @@ export function TodayTabs({
   onKeyDown,
 }: Readonly<TodayTabsProps>) {
   return (
-    <div className="pt-4" data-tour="tour-tabs-bar">
+    <div className="pt-3" data-tour="tour-tabs-bar">
       <div
         role="tablist"
         tabIndex={0}
         aria-label={viewsLabel}
-        className="flex bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1"
+        className="flex gap-1 rounded-[var(--radius-lg)] border border-border-muted bg-surface-ground/85 p-1 shadow-[inset_0_1px_0_var(--surface-top-highlight)]"
         onKeyDown={onKeyDown}
       >
         {tabs.map((tab) => (
@@ -85,10 +89,10 @@ export function TodayTabs({
               tab.view === 'goals' ? 'tabpanel-goals' : 'tabpanel-habits'
             }
             data-tour={tab.view === 'goals' ? 'tour-goals-tab' : undefined}
-            className={`flex-1 text-center py-2 text-sm font-bold transition-all duration-200 rounded-[var(--radius-md)] ${
+            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-md)] border text-center text-sm font-bold transition-[background-color,border-color,box-shadow,color,transform] duration-200 ease-out active:scale-[var(--orbit-press-scale)] ${
               activeView === tab.view
-                ? 'text-primary bg-surface shadow-[var(--shadow-sm)]'
-                : 'text-text-secondary hover:text-text-primary'
+                ? 'border-border-muted bg-surface text-primary shadow-[var(--shadow-sm)]'
+                : 'border-transparent text-text-secondary hover:bg-surface/55 hover:text-text-primary'
             }`}
             onClick={() => onChangeView(tab.view)}
           >
@@ -132,7 +136,7 @@ export function TodayDateNavigation({
       <div className="flex items-center justify-center gap-4">
         <button
           aria-label={previousLabel}
-          className="size-9 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
+          className="flex size-11 items-center justify-center rounded-full border border-border-muted bg-surface shadow-[var(--shadow-sm)] transition-[background-color,border-color,transform,box-shadow] duration-150 ease-out hover:border-border-emphasis hover:bg-surface-elevated active:scale-[var(--orbit-press-scale)]"
           onClick={onGoToPreviousDay}
         >
           <ChevronLeft className="size-5 text-text-secondary" />
@@ -140,7 +144,7 @@ export function TodayDateNavigation({
         <button
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`min-w-40 text-center text-[length:var(--text-fluid-base)] font-semibold text-text-primary hover:text-primary transition-colors animate-slide-date-${slideDirection} ${
+          className={`inline-flex min-h-11 min-w-40 items-center justify-center rounded-[var(--radius-lg)] px-4 text-center text-[length:var(--text-fluid-base)] font-semibold text-text-primary transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface/55 hover:text-primary active:scale-[var(--orbit-press-scale)] animate-slide-date-${slideDirection} ${
             isTodaySelected ? 'text-primary' : ''
           }`}
           onClick={onGoToToday}
@@ -149,7 +153,7 @@ export function TodayDateNavigation({
         </button>
         <button
           aria-label={nextLabel}
-          className="size-9 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
+          className="flex size-11 items-center justify-center rounded-full border border-border-muted bg-surface shadow-[var(--shadow-sm)] transition-[background-color,border-color,transform,box-shadow] duration-150 ease-out hover:border-border-emphasis hover:bg-surface-elevated active:scale-[var(--orbit-press-scale)]"
           onClick={onGoToNextDay}
         >
           <ChevronRight className="size-5 text-text-secondary" />

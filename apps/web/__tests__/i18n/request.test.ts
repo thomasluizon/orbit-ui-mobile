@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const cookiesMock = vi.fn()
-const headersMock = vi.fn()
+const { cookiesMock, headersMock } = vi.hoisted(() => ({
+  cookiesMock: vi.fn(),
+  headersMock: vi.fn(),
+}))
 
 vi.mock('next-intl/server', () => ({
   getRequestConfig: (factory: () => Promise<unknown>) => factory,

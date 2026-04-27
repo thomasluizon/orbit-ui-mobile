@@ -50,6 +50,17 @@ function withAdMobPlugin(plugins, adMobOptions) {
   return nextPlugins;
 }
 
+function withAndroidReleaseBuildFixesPlugin(plugins) {
+  const nextPlugins = Array.isArray(plugins) ? [...plugins] : [];
+  const pluginPath = "./plugins/with-android-release-build-fixes";
+
+  if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
+    nextPlugins.push(pluginPath);
+  }
+
+  return nextPlugins;
+}
+
 function assertProductionAdMobConfig(adMobOptions) {
   if (process.env.EAS_BUILD_PROFILE !== "production") {
     return;
@@ -96,10 +107,12 @@ module.exports = () => {
 
   return {
     ...baseConfig,
-    plugins: withAdMobPlugin(baseConfig.plugins, {
-      androidAppId: adMobOptions.androidAppId ?? TEST_ANDROID_APP_ID,
-      iosAppId: adMobOptions.iosAppId ?? TEST_IOS_APP_ID,
-    }),
+    plugins: withAndroidReleaseBuildFixesPlugin(
+      withAdMobPlugin(baseConfig.plugins, {
+        androidAppId: adMobOptions.androidAppId ?? TEST_ANDROID_APP_ID,
+        iosAppId: adMobOptions.iosAppId ?? TEST_IOS_APP_ID,
+      })
+    ),
     extra: {
       ...(baseConfig.extra ?? {}),
       adMob: {

@@ -54,10 +54,11 @@ export function BottomSheetModal({
   onAttemptDismiss,
   children,
 }: BottomSheetModalProps) {
-  const { colors } = useAppTheme()
+  const theme = useAppTheme()
+  const { colors } = theme
   const prefersReducedMotion = usePrefersReducedMotion()
   const insets = useSafeAreaInsets()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(theme), [theme])
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
   const overlayStateRef = useRef(createBottomSheetOverlayState())
@@ -92,7 +93,7 @@ export function BottomSheetModal({
         {...props}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
-        opacity={0.55}
+        opacity={0.62}
         pressBehavior={canDismiss && !isDirty ? 'close' : 'none'}
         onPress={() => {
           if (isTopOverlay(overlayIdRef.current)) {
@@ -214,13 +215,13 @@ export function BottomSheetModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-type ThemeColors = ThemeContextValue['colors']
+function createStyles(theme: ThemeContextValue) {
+  const { colors, surfaces } = theme
 
-function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     handleIndicator: {
-      backgroundColor: colors.handle,
-      width: 36,
+      backgroundColor: colors.primaryTintBorder,
+      width: 42,
       height: 4,
     },
     header: {
@@ -242,17 +243,21 @@ function createStyles(colors: ThemeColors) {
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: surfaces.elevated.backgroundColor,
+      borderWidth: 1,
+      borderColor: surfaces.elevated.borderColor,
       alignItems: 'center',
       justifyContent: 'center',
     },
     sheetBackground: {
-      backgroundColor: colors.surface,
+      backgroundColor: surfaces.overlay.backgroundColor,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.borderMuted,
+      borderTopColor: surfaces.overlay.borderColor,
       overflow: 'hidden',
+      ...surfaces.overlay.shadow,
+      elevation: surfaces.overlay.elevation,
     },
   })
 }

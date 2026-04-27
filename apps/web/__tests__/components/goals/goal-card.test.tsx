@@ -94,7 +94,7 @@ describe('GoalCard', () => {
       <GoalCard goal={makeGoal({ trackingStatus: 'on_track' })} />,
     )
     const btn = container.querySelector('button')
-    expect(btn?.className).toContain('border-l-green-500')
+    expect(btn?.className).toContain('border-l-success')
   })
 
   it('applies at_risk border class', () => {
@@ -102,7 +102,7 @@ describe('GoalCard', () => {
       <GoalCard goal={makeGoal({ trackingStatus: 'at_risk' })} />,
     )
     const btn = container.querySelector('button')
-    expect(btn?.className).toContain('border-l-amber-500')
+    expect(btn?.className).toContain('border-l-warning')
   })
 
   it('opens detail drawer on click', () => {
@@ -113,7 +113,7 @@ describe('GoalCard', () => {
 
   it('uses green progress bar for high progress', () => {
     render(<GoalCard goal={makeGoal({ progressPercentage: 80 })} />)
-    const bar = document.querySelector('.bg-green-500')
+    const bar = document.querySelector('.bg-success')
     expect(bar).toBeInTheDocument()
   })
 

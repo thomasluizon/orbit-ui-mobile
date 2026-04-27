@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { BlurView } from 'expo-blur'
+import { Pressable } from 'react-native-gesture-handler'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { usePathname, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { shadows } from '@/lib/theme'
+import { mobileMotion, useResolvedMotionPreset } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
 
 interface BottomNavProps {
@@ -31,7 +32,7 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
-  const { colors, nav, currentTheme } = useAppTheme()
+  const { colors, nav, currentTheme, surfaces } = useAppTheme()
   const goToTodayDate = useUIStore((s) => s.goToToday)
   const setActiveView = useUIStore((s) => s.setActiveView)
   const isLight = currentTheme === 'light'
@@ -70,8 +71,19 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
   )
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={[styles.navGlass, { borderTopColor: nav.tabBarBorder, ...shadows.cardParent }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}> 
+      <View
+        style={[
+          styles.navGlass,
+          {
+            backgroundColor: surfaces.overlay.backgroundColor,
+            borderTopColor: nav.tabBarBorder,
+            elevation: surfaces.overlay.elevation,
+            ...surfaces.overlay.shadow,
+          },
+          isLight ? styles.navGlassLight : null,
+        ]}
+      >
         <BlurView
           intensity={isLight ? 60 : 48}
           tint={isLight ? 'light' : 'dark'}
@@ -96,21 +108,37 @@ export function BottomNav({ onCreate }: Readonly<BottomNavProps>) {
           ))}
 
           <View style={styles.fabSlot} ref={fabRef}>
-            <TouchableOpacity
+            <Pressable
               accessibilityLabel={t('nav.createHabit')}
-              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !onCreate }}
+              disabled={!onCreate}
+              hitSlop={8}
               onPress={onCreate}
-              style={[
+              style={({ pressed }) => [
                 styles.fabButton,
                 {
                   backgroundColor: colors.primary,
-                  borderColor: colors.background,
+                  borderColor: surfaces.screen.backgroundColor,
+                  opacity: pressed ? 0.9 : 1,
                   shadowColor: colors.primary,
+                  transform: [
+                    {
+                      translateY: pressed
+                        ? mobileMotion.orbital.elevatedPress.translateY
+                        : 0,
+                    },
+                    {
+                      scale: pressed
+                        ? mobileMotion.orbital.elevatedPress.scale
+                        : 1,
+                    },
+                  ],
                 },
               ]}
             >
               <Plus size={20} color={colors.white} strokeWidth={2.5} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {navItems.slice(2).map((item) => (
@@ -136,21 +164,28 @@ interface NavLinkProps {
 }
 
 function NavLink({ active, icon: Icon, label, onPress }: Readonly<NavLinkProps>) {
-  const { nav } = useAppTheme()
+  const { colors, nav, radius } = useAppTheme()
+  const tabMotion = useResolvedMotionPreset('tab-switch')
+  const [focused, setFocused] = useState(false)
   const progress = useRef(new Animated.Value(active ? 1 : 0)).current
 
   useEffect(() => {
+    const easing = active ? tabMotion.enterEasing : tabMotion.exitEasing
+
     Animated.timing(progress, {
       toValue: active ? 1 : 0,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
+      duration: active ? tabMotion.enterDuration : tabMotion.exitDuration,
+      easing: Easing.bezier(easing[0], easing[1], easing[2], easing[3]),
       useNativeDriver: true,
     }).start()
-  }, [active, progress])
+  }, [active, progress, tabMotion])
+
+  const activeIconScale = tabMotion.reducedMotionEnabled ? 1 : 1.08
+  const activeLabelOffset = tabMotion.reducedMotionEnabled ? 0 : -1
 
   const iconScale = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.08],
+    outputRange: [1, activeIconScale],
   })
   const labelOpacity = progress.interpolate({
     inputRange: [0, 1],
@@ -158,7 +193,7 @@ function NavLink({ active, icon: Icon, label, onPress }: Readonly<NavLinkProps>)
   })
   const labelTranslateY = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -1],
+    outputRange: [0, activeLabelOffset],
   })
   const indicatorScaleX = progress.interpolate({
     inputRange: [0, 1],
@@ -166,12 +201,29 @@ function NavLink({ active, icon: Icon, label, onPress }: Readonly<NavLinkProps>)
   })
 
   return (
-    <TouchableOpacity
+    <Pressable
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
-      activeOpacity={0.75}
+      hitSlop={6}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
       onPress={onPress}
-      style={styles.navItem}
+      style={({ pressed }) => [
+        styles.navItem,
+        {
+          backgroundColor: active || focused ? colors.primary_10 : 'transparent',
+          borderRadius: radius.md,
+          opacity: pressed ? 0.86 : 1,
+          transform: tabMotion.reducedMotionEnabled
+            ? undefined
+            : [
+                {
+                  translateY: pressed ? mobileMotion.orbital.press.translateY : 0,
+                },
+                { scale: pressed ? mobileMotion.orbital.press.scale : 1 },
+              ],
+        },
+      ]}
     >
       <Animated.View style={{ transform: [{ scale: iconScale }] }}>
         <Icon
@@ -202,7 +254,7 @@ function NavLink({ active, icon: Icon, label, onPress }: Readonly<NavLinkProps>)
           },
         ]}
       />
-    </TouchableOpacity>
+    </Pressable>
   )
 }
 
@@ -215,6 +267,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: 20,
     overflow: 'hidden',
+  },
+  navGlassLight: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.055,
+    shadowRadius: 10,
+    elevation: 2,
   },
   blurFill: {
     borderTopLeftRadius: 0,
@@ -229,18 +288,23 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    minWidth: 48,
+    minHeight: 48,
+    minWidth: 56,
+    paddingHorizontal: 6,
     paddingVertical: 8,
+    position: 'relative',
   },
   navLabel: {
     fontSize: 10,
     fontWeight: '500',
+    lineHeight: 12,
   },
   activeIndicator: {
     position: 'absolute',
-    bottom: 0,
-    width: 16,
+    bottom: 3,
+    width: 18,
     height: 2,
     borderRadius: 999,
   },

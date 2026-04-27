@@ -967,11 +967,16 @@ function createStyles(colors: ReturnType<typeof createColors>) {
 
     // Card (user info, etc.)
     card: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceGround,
       borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.borderMuted,
       padding: spacing.cardPadding,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.16,
+      shadowRadius: 10,
+      elevation: 3,
     },
     skeleton: { backgroundColor: colors.surfaceElevated, borderRadius: 8 },
     userName: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
@@ -979,11 +984,16 @@ function createStyles(colors: ReturnType<typeof createColors>) {
 
     // Streak card
     streakCard: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceGround,
       borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.borderMuted,
       padding: spacing.cardPadding,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.16,
+      shadowRadius: 10,
+      elevation: 3,
     },
     streakCardInner: {
       flexDirection: 'row',
@@ -1037,7 +1047,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
     subscriptionActive: {
       backgroundColor: colors.primary_10,
       borderWidth: 1,
-      borderColor: colors.primary_20,
+      borderColor: colors.primaryTintBorder,
     },
     subscriptionInactive: {
       backgroundColor: 'rgba(245,158,11,0.10)',
@@ -1076,9 +1086,11 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       paddingTop: 24,
     },
     modalContent: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceOverlay,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderMuted,
       padding: 24,
       paddingBottom: spacing.pageBottom,
       maxHeight: '88%',
@@ -1193,7 +1205,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
 
     // Confirm input
     confirmInput: {
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: colors.surfaceGround,
       borderRadius: 16,
       paddingHorizontal: 16,
       paddingVertical: 12,
@@ -1212,7 +1224,7 @@ function createStyles(colors: ReturnType<typeof createColors>) {
       width: 44,
       height: 52,
       borderRadius: 16,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: colors.surfaceGround,
       borderWidth: 1,
       borderColor: colors.border,
       color: colors.textPrimary,

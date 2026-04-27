@@ -81,6 +81,19 @@
   --primary-tint-icon-bg: rgba(var(--primary-shadow), 0.20);
   --primary-tint-icon-bg-hover: rgba(var(--primary-shadow), 0.30);
 
+  /* Orbital surface and motion tokens shared with mobile theme utilities */
+  --surface-top-highlight: rgba(255, 255, 255, 0.05);
+  --surface-sheen-start: rgba(255, 255, 255, 0.035);
+  --surface-sheen-end: transparent;
+  --orbit-press-scale: 0.985;
+  --orbit-press-y: -1px;
+  --orbit-elevated-press-scale: 0.98;
+  --orbit-elevated-press-y: -2px;
+  --orbit-list-stagger: 40ms;
+  --orbit-route-tint-opacity: 0.12;
+  --orbit-completion-peak-scale: 1.12;
+  --orbit-completion-glow-scale: 1.4;
+
   /* Transition tokens */
   --duration-fast: 120ms;
   --duration-normal: 200ms;
@@ -253,12 +266,12 @@ button {
 
 .page-enter-active,
 .layout-enter-active {
-  transition: all 280ms var(--ease-out);
+  transition: opacity 280ms var(--ease-out), transform 280ms var(--ease-out);
 }
 
 .page-leave-active,
 .layout-leave-active {
-  transition: all 150ms ease-in;
+  transition: opacity 150ms ease-in, transform 150ms ease-in;
 }
 
 .page-enter-from,
@@ -356,7 +369,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .form-input {
-  @apply w-full bg-surface text-text-primary placeholder-text-muted rounded-[var(--radius-md)] py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all duration-200;
+  @apply w-full bg-surface text-text-primary placeholder-text-muted rounded-[var(--radius-md)] py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-[background-color,border-color,box-shadow,color] duration-200;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -740,7 +753,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: var(--shadow-md);
 }
 .surface-interactive:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(var(--orbit-press-y)) scale(var(--orbit-elevated-press-scale));
   transition-duration: 80ms;
 }
 
@@ -753,15 +766,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-enter > *:nth-child(2) { animation-delay: 40ms; }
-.stagger-enter > *:nth-child(3) { animation-delay: 40ms; }
-.stagger-enter > *:nth-child(4) { animation-delay: 80ms; }
-.stagger-enter > *:nth-child(5) { animation-delay: 100ms; }
-.stagger-enter > *:nth-child(6) { animation-delay: 120ms; }
-.stagger-enter > *:nth-child(7) { animation-delay: 140ms; }
-.stagger-enter > *:nth-child(8) { animation-delay: 160ms; }
-.stagger-enter > *:nth-child(9) { animation-delay: 180ms; }
-.stagger-enter > *:nth-child(10) { animation-delay: 200ms; }
+.stagger-enter > *:nth-child(2) { animation-delay: var(--orbit-list-stagger); }
+.stagger-enter > *:nth-child(3) { animation-delay: var(--orbit-list-stagger); }
+.stagger-enter > *:nth-child(4) { animation-delay: calc(var(--orbit-list-stagger) * 2); }
+.stagger-enter > *:nth-child(5) { animation-delay: calc(var(--orbit-list-stagger) * 2.5); }
+.stagger-enter > *:nth-child(6) { animation-delay: calc(var(--orbit-list-stagger) * 3); }
+.stagger-enter > *:nth-child(7) { animation-delay: calc(var(--orbit-list-stagger) * 3.5); }
+.stagger-enter > *:nth-child(8) { animation-delay: calc(var(--orbit-list-stagger) * 4); }
+.stagger-enter > *:nth-child(9) { animation-delay: calc(var(--orbit-list-stagger) * 4.5); }
+.stagger-enter > *:nth-child(10) { animation-delay: calc(var(--orbit-list-stagger) * 5); }
 
 /* Collapsible section animation */
 .collapsible {
@@ -778,10 +791,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* Bottom navigation glass effect */
 .nav-glass {
-  background: var(--nav-glass-bg);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--nav-glass-bg) 82%, transparent) 0%,
+    var(--nav-glass-bg) 100%
+  );
   border-top: 1px solid var(--nav-glass-border);
   -webkit-backdrop-filter: blur(48px) saturate(1.8);
   backdrop-filter: blur(48px) saturate(1.8);
+  box-shadow:
+    0 -18px 44px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 var(--surface-top-highlight);
+}
+
+:root:not(.dark) .nav-glass {
+  box-shadow:
+    0 -8px 24px rgba(26, 22, 37, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 /* Chat glass effect */
@@ -976,12 +1002,34 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   pointer-events: none;
   z-index: 0;
 }
+
+.ambient-glow::after {
+  content: '';
+  position: fixed;
+  right: -18%;
+  bottom: 10%;
+  width: min(34rem, 68vw);
+  height: min(34rem, 68vw);
+  background: radial-gradient(
+    circle at center,
+    rgba(var(--primary-shadow), var(--orbit-route-tint-opacity)) 0%,
+    rgba(var(--primary-shadow), 0.04) 34%,
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.44;
+}
 :root:not(.dark) .ambient-glow::before {
   background: radial-gradient(
     ellipse at center,
     rgba(var(--primary-shadow), 0.02) 0%,
     transparent 70%
   );
+}
+
+:root:not(.dark) .ambient-glow::after {
+  opacity: 0.22;
 }
 @media (max-width: 640px) {
   .ambient-glow::before {
@@ -991,12 +1039,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       transparent 70%
     );
   }
+
+  .ambient-glow::after {
+    right: -42%;
+    bottom: 3rem;
+    width: 24rem;
+    height: 24rem;
+    opacity: 0.34;
+  }
   :root:not(.dark) .ambient-glow::before {
     background: radial-gradient(
       ellipse at center,
       rgba(var(--primary-shadow), 0.015) 0%,
       transparent 70%
     );
+  }
+
+  :root:not(.dark) .ambient-glow::after {
+    opacity: 0.16;
   }
 }
 
@@ -1023,7 +1083,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .habit-card-parent::before,
 .habit-card-child::before {
-  content: none;
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: var(--surface-top-highlight);
+  pointer-events: none;
+  z-index: 1;
 }
 .habit-card-parent:hover {
   transform: translateY(-3px);
@@ -1102,6 +1169,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .habit-emoji-orb {
   text-shadow: 0 0 18px rgba(var(--primary-shadow), 0.25);
 }
+
+:root:not(.dark) .habit-emoji-orb {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(0, 0, 0, 0.07);
+  box-shadow:
+    0 1px 2px rgba(26, 22, 37, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  text-shadow: none;
+}
+
+:root:not(.dark) .habit-emoji-orb > span:first-child {
+  opacity: 0.42;
+}
+
+:root:not(.dark) .habit-emoji-orb > span:nth-child(2) {
+  opacity: 0.08;
+}
+
+:root:not(.dark) .habit-emoji-orb > span:last-child {
+  filter: drop-shadow(0 1px 1px rgba(26, 22, 37, 0.14));
+}
 .habit-card-child:hover {
   transform: translateY(-2px);
   background:
@@ -1135,7 +1223,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Log button -- glow ring on hover, gradient when done */
 .log-btn {
   border-radius: 9999px;
-  transition: all 250ms var(--ease-out);
+  transition: background-color 250ms var(--ease-out), border-color 250ms var(--ease-out), box-shadow 250ms var(--ease-out), transform 250ms var(--ease-out);
 }
 .log-btn:not(.log-btn-done):hover {
   box-shadow: 0 0 0 3px rgba(var(--primary-shadow), 0.12),
@@ -1169,11 +1257,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    ═══════════════════════════════════════════════════════ */
 
 :root:not(.dark) .habit-card-parent {
-  background:
-    radial-gradient(ellipse at 0% 50%, rgba(var(--primary-shadow), 0.14), transparent 42%),
-    radial-gradient(circle at 72% 0%, rgba(255, 0, 110, 0.07), transparent 34%),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.6) 0%, transparent 40%),
-    var(--color-surface);
+  background: var(--color-surface);
   border: 1px solid rgba(0, 0, 0, 0.07);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
@@ -1224,10 +1308,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 :root:not(.dark) .habit-card-child {
-  background:
-    radial-gradient(ellipse at 0% 50%, rgba(var(--primary-shadow), 0.10), transparent 42%),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
-    var(--color-surface-ground);
+  background: var(--color-surface-ground);
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-left: 2px solid rgba(var(--primary-shadow), 0.2);
   box-shadow:
@@ -1238,23 +1319,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 :root:not(.dark) .habit-card-child.habit-status-due {
   border-left: 3px solid rgba(245, 158, 11, 0.52);
-  background:
-    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.09), transparent 34%),
-    radial-gradient(ellipse at 28% 40%, rgba(var(--primary-shadow), 0.08), transparent 42%),
-    var(--color-surface-ground);
+  background: var(--color-surface-ground);
 }
 
 :root:not(.dark) .habit-card-child.habit-status-overdue {
   border-left: 3px solid rgba(239, 68, 68, 0.54);
-  background:
-    radial-gradient(ellipse at 0% 50%, rgba(239, 68, 68, 0.10), transparent 34%),
-    radial-gradient(ellipse at 28% 40%, rgba(var(--primary-shadow), 0.08), transparent 42%),
-    var(--color-surface-ground);
+  background: var(--color-surface-ground);
 }
 :root:not(.dark) .habit-card-child:hover {
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.5) 0%, transparent 40%),
-    var(--color-surface);
+  background: var(--color-surface);
   border-color: rgba(0, 0, 0, 0.08);
   border-left-color: rgba(var(--primary-shadow), 0.4);
   box-shadow:
@@ -1293,7 +1366,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .slide-up-enter-from,
@@ -1307,7 +1380,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .slide-date-right-leave-active,
 .slide-date-left-enter-active,
 .slide-date-left-leave-active {
-  transition: all 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .slide-date-right-enter-from {

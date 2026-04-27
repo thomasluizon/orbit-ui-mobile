@@ -5,6 +5,7 @@ import {
   motionEasings,
   motionLayerTiming,
   motionPresets,
+  orbitalMotion,
   motionSprings,
   resolveMotionPreset,
   type MotionScenario,
@@ -123,5 +124,6 @@ export const mobileMotion = {
   durations: motionDurations,
   easings: motionEasings,
   layerTiming: motionLayerTiming,
+  orbital: orbitalMotion,
   presets: motionPresets,
 } as const

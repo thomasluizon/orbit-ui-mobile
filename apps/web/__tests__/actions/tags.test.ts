@@ -4,6 +4,11 @@ vi.mock('@/lib/auth-api', () => ({
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
+  resolveServerSession: vi.fn().mockResolvedValue({
+    token: 'test-token',
+    expiresAt: null,
+    refreshed: false,
+  }),
 }))
 
 const mockFetch = vi.fn()

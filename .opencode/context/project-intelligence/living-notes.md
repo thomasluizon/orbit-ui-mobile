@@ -25,7 +25,6 @@
 
 ## Agent Workflow Notes
 
-- Use `OpenCoder` for multi-file implementation.
 - Use `ContextScout` before significant changes.
 - Use `ExternalScout` when current package docs matter.
 - Prefer minimal changes over broad rewrites.
@@ -36,7 +35,6 @@
 | Question | Status |
 |----------|--------|
 | Which OAC context files should be committed long-term? | Open |
-| Whether `OpenAgent` should become the default OpenCode agent | Open |
 | Whether SonarQube MCP should remain enabled in every session | Open |
 
 ## Related Files

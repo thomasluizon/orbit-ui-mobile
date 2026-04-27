@@ -3,52 +3,6 @@
   "schema_version": "1.0.0",
   "description": "Centralized metadata for OpenAgents Control agents. This file stores metadata that is not part of the OpenCode agent schema but is needed for registry management, installation, and documentation.",
   "agents": {
-    "openagent": {
-      "id": "openagent",
-      "name": "OpenAgent",
-      "category": "core",
-      "type": "agent",
-      "version": "1.0.0",
-      "author": "opencode",
-      "tags": ["universal", "coordination", "primary"],
-      "dependencies": [
-        "subagent:task-manager",
-        "subagent:batch-executor",
-        "subagent:documentation",
-        "subagent:contextscout",
-        "subagent:externalscout",
-        "context:standards-code",
-        "context:standards-docs",
-        "context:standards-tests",
-        "context:review-ref",
-        "context:delegation-ref",
-        "context:external-libraries-workflow"
-      ]
-    },
-    "opencoder": {
-      "id": "opencoder",
-      "name": "OpenCoder",
-      "category": "core",
-      "type": "agent",
-      "version": "1.0.0",
-      "author": "opencode",
-      "tags": ["development", "coding", "implementation"],
-      "dependencies": [
-        "subagent:documentation",
-        "subagent:task-manager",
-        "subagent:batch-executor",
-        "subagent:coder-agent",
-        "subagent:tester",
-        "subagent:reviewer",
-        "subagent:build-agent",
-        "subagent:contextscout",
-        "subagent:externalscout",
-        "context:standards-code",
-        "context:task-delegation-basics",
-        "context:component-planning",
-        "context:external-libraries-workflow"
-      ]
-    },
     "repo-manager": {
       "id": "repo-manager",
       "name": "Repo Manager",

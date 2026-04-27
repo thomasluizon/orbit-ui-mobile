@@ -4,7 +4,7 @@
 
 **Category**: development  
 **Purpose**: REST API design principles, GraphQL patterns, and API versioning strategies  
-**Used by**: opencoder
+**Used by**: development agents
 
 ---
 

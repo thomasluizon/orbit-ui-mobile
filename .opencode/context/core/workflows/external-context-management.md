@@ -131,7 +131,7 @@ official_docs: https://orm.drizzle.team/docs/goodies#multi-file-schemas
 ### Stage 1: Main Agent Needs External Context
 
 ```
-Main Agent (e.g., OpenAgent)
+Primary agent
   ↓
   Detects: "User is asking about Drizzle + Better Auth + Next.js"
   ↓
@@ -282,7 +282,7 @@ After deleting external context files, update `.manifest.json`:
 
 ## Best Practices
 
-### For Main Agents (OpenAgent, etc.)
+### For Primary Agents
 
 1. **Call ExternalScout early** in the planning phase
 2. **Capture returned file paths** from ExternalScout
