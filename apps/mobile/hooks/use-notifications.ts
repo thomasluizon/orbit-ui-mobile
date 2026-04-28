@@ -5,8 +5,11 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { AppState, type AppStateStatus } from 'react-native'
-import { notificationKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import {
+  notificationKeys,
+  NOTIFICATIONS_REFETCH_INTERVAL,
+  QUERY_STALE_TIMES,
+} from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
   NotificationItem,
@@ -45,7 +48,7 @@ export function useNotifications() {
   const notifications = query.data?.items ?? []
   const unreadCount = query.data?.unreadCount ?? 0
 
-  // Poll every 60 seconds, pause when app is backgrounded
+  // Poll on a conservative cadence, pausing while the app is backgrounded.
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export function useNotifications() {
       if (intervalRef.current) return
       intervalRef.current = setInterval(() => {
         void invalidateNotificationList(queryClient)
-      }, 60000)
+      }, NOTIFICATIONS_REFETCH_INTERVAL)
     }
 
     function stopPolling() {

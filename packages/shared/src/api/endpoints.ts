@@ -38,6 +38,8 @@ export const API = {
     get: (id: string) => `/api/habits/${id}` as const,
     update: (id: string) => `/api/habits/${id}` as const,
     delete: (id: string) => `/api/habits/${id}` as const,
+    count: '/api/habits/count',
+    widget: '/api/habits/widget',
     detail: (id: string) => `/api/habits/${id}/detail` as const,
     log: (id: string) => `/api/habits/${id}/log` as const,
     skip: (id: string) => `/api/habits/${id}/skip` as const,

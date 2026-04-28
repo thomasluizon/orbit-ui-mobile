@@ -9,9 +9,14 @@ export const QUERY_STALE_TIMES = {
   notifications: 60 * 1000,
 } as const
 
+const ACTIVE_POLLING_INTERVAL = 5 * 60 * 1000
+
 /**
  * Polling interval for the Today-view habits list query.
  * Paired with visibility/online guards so polling pauses when the tab/app
  * isn't visible or the device is offline.
  */
-export const HABITS_REFETCH_INTERVAL = 30_000
+export const HABITS_REFETCH_INTERVAL = ACTIVE_POLLING_INTERVAL
+
+/** Polling interval for notification badge/list updates while the app is active. */
+export const NOTIFICATIONS_REFETCH_INTERVAL = ACTIVE_POLLING_INTERVAL
