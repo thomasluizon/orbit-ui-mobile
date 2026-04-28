@@ -5,7 +5,11 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { notificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import {
+  notificationKeys,
+  NOTIFICATIONS_REFETCH_INTERVAL,
+  QUERY_STALE_TIMES,
+} from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
   NotificationsResponse,
@@ -37,7 +41,7 @@ export function useNotifications() {
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list),
     staleTime: QUERY_STALE_TIMES.notifications,
     refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
     refetchIntervalInBackground: false,
   })
 

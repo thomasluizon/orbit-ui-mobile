@@ -376,17 +376,10 @@ describe('useTotalHabitCount', () => {
     mockFetch.mockReset()
   })
 
-  it('returns totalCount from paginated response', async () => {
+  it('returns count from lightweight count response', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({
-          items: [makeScheduleItem()],
-          page: 1,
-          pageSize: 1,
-          totalCount: 42,
-          totalPages: 42,
-        }),
+      json: () => Promise.resolve({ count: 42 }),
     })
 
     const { result } = renderHook(() => useTotalHabitCount(), {

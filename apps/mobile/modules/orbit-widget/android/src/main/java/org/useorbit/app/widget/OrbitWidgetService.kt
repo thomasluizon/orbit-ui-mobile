@@ -18,8 +18,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 
 class OrbitWidgetService : RemoteViewsService() {
@@ -34,7 +32,8 @@ data class HabitItem(
     val isCompleted: Boolean,
     val isOverdue: Boolean,
     val dueTime: String?,
-    val checklistItems: List<ChecklistEntry>?,
+    val checklistChecked: Int,
+    val checklistTotal: Int,
     val isBadHabit: Boolean,
     val depth: Int,
     val hasChildren: Boolean,
@@ -43,32 +42,25 @@ data class HabitItem(
     val hasDeeper: Boolean
 )
 
-data class ChecklistEntry(
-    val text: String,
-    val isChecked: Boolean
-)
-
 data class ApiHabit(
     val id: String,
     val title: String,
     val isCompleted: Boolean,
     val isOverdue: Boolean,
     val dueTime: String?,
-    val checklistItems: List<ChecklistEntry>?,
+    val checklistChecked: Int?,
+    val checklistTotal: Int?,
     val isBadHabit: Boolean,
     val children: List<ApiHabit>?,
-    val hasSubHabits: Boolean?,
-    val isLoggedInRange: Boolean?
+    val hasSubHabits: Boolean?
 )
 
-data class PaginatedResponse(
-    val items: List<ApiHabit>,
-    val totalCount: Int
-)
-
-data class ProfileData(
+data class HabitWidgetResponse(
+    val dayOffset: Int,
     val language: String?,
-    val currentStreak: Int?
+    val currentStreak: Int?,
+    val items: List<ApiHabit>,
+    val totalCount: Int?
 )
 
 /** Color tokens for a single theme variant (scheme + mode) */
@@ -391,32 +383,14 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return
         }
 
-        // Fetch profile once (language + streak)
-        val profileData = fetchProfile(token)
-        lang = detectLanguage(profileData)
-        val streak = profileData?.currentStreak ?: 0
-
-        val today = getDateString(0)
-        val result = fetchHabits(token, today, today)
-        habits = flattenHabits(result?.items ?: emptyList())
-
-        // Switch to tomorrow if today has no habits OR all are completed
-        val allDone = habits.isNotEmpty() && habits.filter { it.depth == 0 }.all { it.isCompleted }
-
-        if (habits.isEmpty() || allDone) {
-            val tomorrow = getDateString(1)
-            val tomorrowResult = fetchHabits(token, tomorrow, tomorrow)
-            val tomorrowHabits = flattenHabits(tomorrowResult?.items ?: emptyList())
-            if (tomorrowHabits.isNotEmpty()) {
-                habits = tomorrowHabits
-                headerLabel = tr(lang, "tomorrow")
-            } else {
-                // No tomorrow habits either -- show empty "today" state
-                habits = emptyList()
-                headerLabel = tr(lang, "today")
-            }
+        val widgetData = fetchWidget(token)
+        lang = detectLanguage(widgetData?.language)
+        val streak = widgetData?.currentStreak ?: 0
+        habits = flattenHabits(widgetData?.items ?: emptyList())
+        headerLabel = if (widgetData?.dayOffset == 1 && habits.isNotEmpty()) {
+            tr(lang, "tomorrow")
         } else {
-            headerLabel = tr(lang, "today")
+            tr(lang, "today")
         }
 
         // Compute completion stats
@@ -462,9 +436,9 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
     }
 
-    private fun detectLanguage(profileData: ProfileData?): String {
-        // Use language from profile API if available
-        if (profileData?.language != null) return profileData.language
+    private fun detectLanguage(language: String?): String {
+        // Use language from widget API if available
+        if (language != null) return language
 
         // Fall back to cached value
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
@@ -476,9 +450,9 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         return if (deviceLocale == "pt") "pt-BR" else "en"
     }
 
-    private fun fetchProfile(token: String): ProfileData? {
+    private fun fetchWidget(token: String): HabitWidgetResponse? {
         return try {
-            val url = URL("$API_BASE/api/profile")
+            val url = URL("$API_BASE/api/habits/widget")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("Authorization", "Bearer $token")
@@ -490,7 +464,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 val reader = BufferedReader(InputStreamReader(conn.inputStream))
                 val response = reader.readText()
                 reader.close()
-                gson.fromJson(response, ProfileData::class.java)
+                gson.fromJson(response, HabitWidgetResponse::class.java)
             } else {
                 null
             }
@@ -499,9 +473,9 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
     }
 
-    /** Matches frontend HabitCard: isDoneForRange = isCompleted || isLoggedInRange */
+    /** The widget endpoint precomputes completion for the selected day. */
     private fun isDoneForRange(habit: ApiHabit): Boolean {
-        return habit.isCompleted || habit.isLoggedInRange == true
+        return habit.isCompleted
     }
 
     private fun flattenHabits(apiHabits: List<ApiHabit>): List<HabitItem> {
@@ -518,7 +492,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                     isCompleted = done,
                     isOverdue = if (done) false else habit.isOverdue,
                     dueTime = habit.dueTime,
-                    checklistItems = habit.checklistItems,
+                    checklistChecked = habit.checklistChecked ?: 0,
+                    checklistTotal = habit.checklistTotal ?: 0,
                     isBadHabit = habit.isBadHabit,
                     depth = 0,
                     hasChildren = children.isNotEmpty(),
@@ -537,7 +512,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                         isCompleted = childDone,
                         isOverdue = if (childDone) false else child.isOverdue,
                         dueTime = child.dueTime,
-                        checklistItems = child.checklistItems,
+                        checklistChecked = child.checklistChecked ?: 0,
+                        checklistTotal = child.checklistTotal ?: 0,
                         isBadHabit = child.isBadHabit,
                         depth = 1,
                         hasChildren = false,
@@ -667,10 +643,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
 
         // Checklist badge
-        val checklist = habit.checklistItems
-        if (!checklist.isNullOrEmpty()) {
-            val checked = checklist.count { it.isChecked }
-            views.setTextViewText(R.id.item_checklist_badge, "$checked/${checklist.size}")
+        if (habit.checklistTotal > 0) {
+            views.setTextViewText(R.id.item_checklist_badge, "${habit.checklistChecked}/${habit.checklistTotal}")
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.VISIBLE)
             if (habit.isCompleted) {
                 views.setTextColor(R.id.item_checklist_badge, Color.argb(0x55, Color.red(colors.primary), Color.green(colors.primary), Color.blue(colors.primary)))
@@ -705,33 +679,4 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     override fun hasStableIds(): Boolean = false
 
-    private fun fetchHabits(token: String, dateFrom: String, dateTo: String): PaginatedResponse? {
-        return try {
-            val url = URL("$API_BASE/api/habits?dateFrom=$dateFrom&dateTo=$dateTo&includeOverdue=true&pageSize=50")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("Authorization", "Bearer $token")
-            conn.setRequestProperty("Accept", "application/json")
-            conn.connectTimeout = 10000
-            conn.readTimeout = 10000
-
-            if (conn.responseCode == 200) {
-                val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                val response = reader.readText()
-                reader.close()
-                gson.fromJson(response, PaginatedResponse::class.java)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun getDateString(daysFromToday: Int): String {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, daysFromToday)
-        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        return formatter.format(calendar.time)
-    }
 }

@@ -70,7 +70,7 @@ export function useHabits(filters: HabitsFilter) {
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: selectNormalizedHabits,
-    // Auto-refresh Today-style single-day queries every ~30s so the list stays
+    // Auto-refresh Today-style single-day queries every ~5 minutes so the list stays
     // fresh across midnight rollovers and other-device logs. Calendar/month
     // range queries stay event-driven only.
     refetchInterval: () => {
@@ -150,9 +150,8 @@ export function useTotalHabitCount(): number {
   const query = useQuery({
     queryKey: habitKeys.count(),
     queryFn: async () => {
-      const url = buildUrlWithQuery(API.habits.list, 'pageSize=1')
-      const data = await fetchJson<PaginatedResponse<HabitScheduleItem>>(url)
-      return data.totalCount
+      const data = await fetchJson<{ count: number }>(API.habits.count)
+      return data.count
     },
     staleTime: QUERY_STALE_TIMES.habits,
   })

@@ -1,6 +1,4 @@
 package org.useorbit.app.widget
-import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.work.Worker
@@ -17,15 +15,6 @@ class OrbitWidgetWorker(
             action = OrbitWidgetProvider.ACTION_REFRESH
         }
         context.sendBroadcast(intent)
-
-        // Also directly notify data changed so the factory re-fetches
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val widgetIds = appWidgetManager.getAppWidgetIds(
-            ComponentName(context, OrbitWidgetProvider::class.java)
-        )
-        if (widgetIds.isNotEmpty()) {
-            appWidgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.widget_list)
-        }
 
         return Result.success()
     }
