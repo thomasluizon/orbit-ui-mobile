@@ -6,10 +6,10 @@ import {
 } from '../query'
 
 describe('query options', () => {
-  it('exposes 5 minute refetch intervals matching stale times', () => {
+  it('keeps active polling slower than query freshness', () => {
     expect(HABITS_REFETCH_INTERVAL).toBe(5 * 60 * 1000)
-    expect(HABITS_REFETCH_INTERVAL).toBe(QUERY_STALE_TIMES.habits)
+    expect(QUERY_STALE_TIMES.habits).toBe(30 * 1000)
     expect(NOTIFICATIONS_REFETCH_INTERVAL).toBe(5 * 60 * 1000)
-    expect(NOTIFICATIONS_REFETCH_INTERVAL).toBe(QUERY_STALE_TIMES.notifications)
+    expect(QUERY_STALE_TIMES.notifications).toBe(60 * 1000)
   })
 })
