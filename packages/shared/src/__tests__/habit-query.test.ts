@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildHabitQueryString, buildUrlWithQuery } from '../utils/habit-query'
+import {
+  buildHabitQueryString,
+  buildUrlWithQuery,
+  getDailySummaryTimeBucket,
+  getMsUntilNextDailySummaryTimeBucket,
+} from '../utils/habit-query'
 
 describe('buildHabitQueryString', () => {
   it('builds repeated tag ids and scalar filters for the habits API', () => {
@@ -26,5 +31,18 @@ describe('buildUrlWithQuery', () => {
 
   it('returns the base url when the query string is empty', () => {
     expect(buildUrlWithQuery('/api/habits', '')).toBe('/api/habits')
+  })
+})
+
+describe('daily summary time buckets', () => {
+  it('classifies day periods by local hour', () => {
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T07:00:00'))).toBe('morning')
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T13:00:00'))).toBe('afternoon')
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T19:00:00'))).toBe('evening')
+    expect(getDailySummaryTimeBucket(new Date('2025-04-01T22:00:00'))).toBe('night')
+  })
+
+  it('returns the next bucket boundary delay', () => {
+    expect(getMsUntilNextDailySummaryTimeBucket(new Date('2025-04-01T10:59:00'))).toBe(60_000)
   })
 })

@@ -184,7 +184,7 @@ export function BottomSheetModal({
       backgroundComponent={renderBackground}
       enablePanDownToClose={canDismiss && !isDirty}
       enableBlurKeyboardOnGesture={formMode}
-      enableContentPanningGesture={!formMode}
+      enableContentPanningGesture
       keyboardBehavior={formMode ? 'extend' : 'interactive'}
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"

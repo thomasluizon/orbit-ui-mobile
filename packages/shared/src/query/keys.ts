@@ -9,8 +9,10 @@ export const habitKeys = {
   logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
   calendar: (from: string, to: string) => [...habitKeys.all, 'calendar', from, to] as const,
   summaryPrefix: () => [...habitKeys.all, 'summary'] as const,
-  summary: (from: string, to: string, locale: string = 'en') =>
-    [...habitKeys.all, 'summary', from, to, locale] as const,
+  summary: (from: string, to: string, locale: string = 'en', timeBucket?: string) =>
+    timeBucket
+      ? [...habitKeys.all, 'summary', from, to, locale, timeBucket] as const
+      : [...habitKeys.all, 'summary', from, to, locale] as const,
   retrospective: (period: string) => [...habitKeys.all, 'retrospective', period] as const,
 }
 

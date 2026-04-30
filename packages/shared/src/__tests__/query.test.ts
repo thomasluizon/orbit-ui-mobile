@@ -74,6 +74,12 @@ describe('habitKeys', () => {
     expect(en).not.toEqual(pt)
   })
 
+  it('summary can include a time bucket', () => {
+    expect(habitKeys.summary('2025-01-01', '2025-01-01', 'en', 'evening')).toEqual(
+      ['habits', 'summary', '2025-01-01', '2025-01-01', 'en', 'evening'],
+    )
+  })
+
   it('retrospective appends period', () => {
     expect(habitKeys.retrospective('week')).toEqual(['habits', 'retrospective', 'week'])
   })

@@ -137,6 +137,7 @@ export {
   normalizeHabitDetailForDrill,
   createHabitVisibilityHelpers,
   getChildrenFromIndex,
+  isHabitVisibleInAllView,
   buildRetrospectiveRequestUrl,
   getRetrospectiveCacheKey,
   RETROSPECTIVE_CACHE_PREFIX,

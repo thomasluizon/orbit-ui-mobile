@@ -424,6 +424,78 @@ describe('HabitList', () => {
       await pendingLog
     })
   })
+
+  it('hides only completed one-time habits in all view when showCompleted is false', () => {
+    const active = createMockHabit({ id: 'active', title: 'Active', isCompleted: false })
+    const completedOneTime = createMockHabit({
+      id: 'completed-one-time',
+      title: 'Done one-time',
+      isCompleted: true,
+      frequencyUnit: null,
+    })
+    const completedRecurring = createMockHabit({
+      id: 'completed-recurring',
+      title: 'Done recurring',
+      isCompleted: true,
+      frequencyUnit: 'Day',
+    })
+    const general = createMockHabit({ id: 'general', title: 'General', isGeneral: true })
+    seedHabits([active, completedOneTime, completedRecurring, general])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="all"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitIds = tree.root
+      .findByType('FlatList')
+      .props.data.flatMap((group: any) =>
+        group.habits.map((habit: NormalizedHabit) => habit.id),
+      )
+
+    expect(habitIds).toEqual(['active', 'completed-recurring'])
+  })
+
+  it('shows completed one-time habits in all view when showCompleted is true', () => {
+    const active = createMockHabit({ id: 'active', title: 'Active', isCompleted: false })
+    const completedOneTime = createMockHabit({
+      id: 'completed-one-time',
+      title: 'Done one-time',
+      isCompleted: true,
+      frequencyUnit: null,
+    })
+    seedHabits([active, completedOneTime])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="all"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const habitIds = tree.root
+      .findByType('FlatList')
+      .props.data.flatMap((group: any) =>
+        group.habits.map((habit: NormalizedHabit) => habit.id),
+      )
+
+    expect(habitIds).toEqual(['active', 'completed-one-time'])
+  })
+
   it('uses plain draggable list for today view outside select mode', () => {
     let tree: any
 

@@ -3,6 +3,7 @@ import { createMockHabit } from './factories'
 import {
   createHabitVisibilityHelpers,
   getChildrenFromIndex,
+  isHabitVisibleInAllView,
 } from '../utils/habit-visibility'
 import type { NormalizedHabit } from '../types/habit'
 
@@ -148,11 +149,58 @@ describe('habit-visibility', () => {
     expect(helpers.hasVisibleContent(missed)).toBe(false)
   })
 
-  it('filters completed children unless recently completed or showCompleted is on', () => {
-    const completed = createMockHabit({
-      id: 'completed',
+  it('hides logged recurring habits in today view until showCompleted is on', () => {
+    const today = '2026-04-09'
+    const logged = createMockHabit({
+      id: 'logged',
+      isCompleted: false,
+      isLoggedInRange: true,
+      frequencyUnit: 'Day',
+      instances: [{ date: today, status: 'Completed', logId: 'log-1' }],
+      scheduledDates: [],
+    })
+
+    const hidden = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([logged]),
+      childrenByParent: new Map(),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: false,
+      recentlyCompletedIds: new Set(),
+    })
+    const visible = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([logged]),
+      childrenByParent: new Map(),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: true,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(hidden.hasVisibleContent(logged)).toBe(false)
+    expect(visible.hasVisibleContent(logged)).toBe(true)
+    expect(isHabitVisibleInAllView(logged, false)).toBe(true)
+  })
+
+  it('filters only completed one-time children in all view when showCompleted is off', () => {
+    const completedOneTime = createMockHabit({
+      id: 'completed-one-time',
       parentId: 'parent',
       isCompleted: true,
+      frequencyUnit: null,
+    })
+    const completedRecurring = createMockHabit({
+      id: 'completed-recurring',
+      parentId: 'parent',
+      isCompleted: true,
+      frequencyUnit: 'Day',
+    })
+    const general = createMockHabit({
+      id: 'general',
+      parentId: 'parent',
+      isGeneral: true,
+      isCompleted: false,
+      frequencyUnit: null,
     })
     const open = createMockHabit({
       id: 'open',
@@ -161,10 +209,19 @@ describe('habit-visibility', () => {
       instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
 
-    const habitsById = buildHabitMap([createMockHabit({ id: 'parent' }), completed, open])
-    const childrenByParent = new Map([['parent', ['completed', 'open']]])
+    const habitsById = buildHabitMap([
+      createMockHabit({ id: 'parent' }),
+      completedOneTime,
+      completedRecurring,
+      general,
+      open,
+    ])
+    const childrenByParent = new Map([[
+      'parent',
+      ['completed-one-time', 'completed-recurring', 'general', 'open'],
+    ]])
 
-    const hiddenCompleted = createHabitVisibilityHelpers({
+    const withoutCompletedOneTime = createHabitVisibilityHelpers({
       habitsById,
       childrenByParent,
       selectedDate: '2025-01-01',
@@ -174,21 +231,28 @@ describe('habit-visibility', () => {
     })
 
     expect(
-      hiddenCompleted.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['open'])
+      withoutCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
+    ).toEqual(['completed-recurring', 'open'])
 
-    const withRecentCompleted = createHabitVisibilityHelpers({
+    const withCompletedOneTime = createHabitVisibilityHelpers({
       habitsById,
       childrenByParent,
       selectedDate: '2025-01-01',
       searchQuery: '',
-      showCompleted: false,
-      recentlyCompletedIds: new Set(['completed']),
+      showCompleted: true,
+      recentlyCompletedIds: new Set(),
     })
 
     expect(
-      withRecentCompleted.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['completed', 'open'])
+      withCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
+    ).toEqual(['completed-one-time', 'completed-recurring', 'open'])
+  })
+
+  it('applies all-view top-level visibility rules', () => {
+    expect(isHabitVisibleInAllView(createMockHabit({ isGeneral: true }), true)).toBe(false)
+    expect(isHabitVisibleInAllView(createMockHabit({ isCompleted: true, frequencyUnit: null }), false)).toBe(false)
+    expect(isHabitVisibleInAllView(createMockHabit({ isCompleted: true, frequencyUnit: 'Day' }), false)).toBe(true)
+    expect(isHabitVisibleInAllView(createMockHabit({ isCompleted: true, frequencyUnit: null }), true)).toBe(true)
   })
 
   it('treats optimistic habits with scheduledDates as visible on the selected date', () => {
