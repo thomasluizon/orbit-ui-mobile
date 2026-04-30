@@ -17,6 +17,7 @@ import {
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
+  HabitScheduleChild,
   LogHabitResponse,
   CreateHabitRequest,
   UpdateHabitRequest,
@@ -75,6 +76,46 @@ type CreateSubHabitMutationInput = {
 type HabitListSnapshots = ReadonlyArray<
   readonly [readonly unknown[], HabitScheduleItem[] | undefined]
 >
+type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
+
+function getTomorrowDateString(): string {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return formatAPIDate(tomorrow)
+}
+
+function findHabitInTree(node: HabitTreeNode, habitId: string): HabitTreeNode | null {
+  if (node.id === habitId) return node
+
+  for (const child of node.children) {
+    const match = findHabitInTree(child, habitId)
+    if (match) return match
+  }
+
+  return null
+}
+
+function findHabitInList(items: HabitScheduleItem[], habitId: string): HabitTreeNode | null {
+  for (const item of items) {
+    const match = findHabitInTree(item, habitId)
+    if (match) return match
+  }
+
+  return null
+}
+
+function buildOptimisticSkipPatch(habit: HabitTreeNode): Partial<HabitScheduleItem> {
+  if (habit.frequencyUnit !== null) return { isCompleted: true }
+
+  const dueDate = getTomorrowDateString()
+  return {
+    isCompleted: false,
+    dueDate,
+    scheduledDates: [dueDate],
+    isOverdue: false,
+    instances: [{ date: dueDate, status: 'Pending', logId: null }],
+  }
+}
 export {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -226,11 +267,13 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
-      // Optimistic: mark as completed (only when no specific date)
+      // Optimistic: recurring skips should leave the current view; one-time skips are postponed.
       if (!date) {
-        updateHabitLists(queryClient, (items) => optimisticPatchHabit(items, habitId, {
-          isCompleted: true,
-        }))
+        updateHabitLists(queryClient, (items) => {
+          const habit = findHabitInList(items, habitId)
+          if (!habit) return items
+          return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
+        })
       }
 
       return { previousLists }
