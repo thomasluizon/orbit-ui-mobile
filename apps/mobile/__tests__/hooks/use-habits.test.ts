@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys, goalKeys, tagKeys } from '@orbit/shared/query'
-import type { ChecklistItem, CreateHabitRequest, HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem } from '@orbit/shared/types/habit'
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -169,6 +169,7 @@ import {
   useCreateSubHabit,
   useLogHabit,
   useMoveHabitParent,
+  useSkipHabit,
   useUpdateChecklist,
 } from '@/hooks/use-habits'
 
@@ -221,6 +222,35 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
   }
 }
 
+function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
+  return {
+    id: overrides.id ?? 'child-1',
+    title: overrides.title ?? 'Child task',
+    description: overrides.description ?? null,
+    frequencyUnit: overrides.frequencyUnit ?? null,
+    frequencyQuantity: overrides.frequencyQuantity ?? null,
+    isBadHabit: overrides.isBadHabit ?? false,
+    isCompleted: overrides.isCompleted ?? false,
+    isGeneral: overrides.isGeneral ?? false,
+    isFlexible: overrides.isFlexible ?? false,
+    days: overrides.days ?? [],
+    dueDate: overrides.dueDate ?? '2025-01-15',
+    dueTime: overrides.dueTime ?? null,
+    dueEndTime: overrides.dueEndTime ?? null,
+    endDate: overrides.endDate ?? null,
+    scheduledDates: overrides.scheduledDates ?? ['2025-01-15'],
+    isOverdue: overrides.isOverdue ?? false,
+    position: overrides.position ?? 0,
+    checklistItems: overrides.checklistItems ?? [],
+    tags: overrides.tags ?? [],
+    children: overrides.children ?? [],
+    hasSubHabits: overrides.hasSubHabits ?? false,
+    isLoggedInRange: overrides.isLoggedInRange ?? false,
+    instances: overrides.instances ?? [{ date: '2025-01-15', status: 'Pending', logId: null }],
+    searchMatches: overrides.searchMatches ?? null,
+  }
+}
+
 function seedHabitState(habits: HabitScheduleItem[], count = habits.length): void {
   mocks.state.entries = [
     { key: habitKeys.list({}), value: habits },
@@ -238,6 +268,7 @@ function getHabitList(): HabitScheduleItem[] {
 
 describe('mobile habit hooks', () => {
   beforeEach(() => {
+    vi.useRealTimers()
     seedHabitState([makeHabit()], 1)
     mocks.state.tempIds = []
     mocks.queryClient.cancelQueries.mockReset()
@@ -282,6 +313,36 @@ describe('mobile habit hooks', () => {
     expect(getHabitList()[0]?.isCompleted).toBe(true)
 
     resolveCancel?.()
+  })
+
+  it('optimistically postpones one-time child skips instead of completing them', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+    seedHabitState([
+      makeHabit({
+        id: 'parent-1',
+        hasSubHabits: true,
+        children: [makeChild({ id: 'child-1', frequencyUnit: null })],
+      }),
+    ], 1)
+
+    const mutation = useSkipHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+    >
+
+    await mutation.onMutate?.({ habitId: 'child-1' })
+
+    expect(getHabitList()[0]?.children[0]).toMatchObject({
+      isCompleted: false,
+      dueDate: '2025-01-16',
+      scheduledDates: ['2025-01-16'],
+      isOverdue: false,
+      instances: [{ date: '2025-01-16', status: 'Pending', logId: null }],
+    })
+
+    vi.useRealTimers()
   })
 
   it('queues an optimistic habit create offline and skips invalidation', async () => {

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import type { HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 // Mock fetch
 const mockFetch = vi.fn()
@@ -79,6 +79,36 @@ function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitSche
     flexibleTarget: null,
     flexibleCompleted: null,
     instances: [],
+    ...overrides,
+  }
+}
+
+function makeScheduleChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
+  return {
+    id: 'child-1',
+    title: 'Child task',
+    description: null,
+    frequencyUnit: null,
+    frequencyQuantity: null,
+    isBadHabit: false,
+    isCompleted: false,
+    isGeneral: false,
+    isFlexible: false,
+    days: [],
+    dueDate: '2025-01-15',
+    dueTime: null,
+    dueEndTime: null,
+    endDate: null,
+    scheduledDates: ['2025-01-15'],
+    isOverdue: false,
+    position: 0,
+    checklistItems: [],
+    tags: [],
+    children: [],
+    hasSubHabits: false,
+    isLoggedInRange: false,
+    instances: [{ date: '2025-01-15', status: 'Pending', logId: null }],
+    searchMatches: null,
     ...overrides,
   }
 }
@@ -324,6 +354,7 @@ describe('useLogHabit', () => {
 describe('useSkipHabit', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    vi.useRealTimers()
   })
 
   it('calls skipHabit action', async () => {
@@ -354,6 +385,44 @@ describe('useSkipHabit', () => {
     })
 
     expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', '2025-01-15')
+  })
+
+  it('optimistically postpones one-time child skips instead of completing them', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+
+    const { skipHabit } = await import('@/app/actions/habits')
+    const mockedSkipHabit = vi.mocked(skipHabit)
+    mockedSkipHabit.mockResolvedValue(undefined)
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(
+      habitKeys.list({}),
+      [makeScheduleItem({
+        id: 'parent-1',
+        hasSubHabits: true,
+        children: [makeScheduleChild({ id: 'child-1', frequencyUnit: null })],
+      })],
+    )
+
+    const { result } = renderHook(() => useSkipHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'child-1' })
+    })
+
+    const child = queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children[0]
+    expect(child).toMatchObject({
+      isCompleted: false,
+      dueDate: '2025-01-16',
+      scheduledDates: ['2025-01-16'],
+      isOverdue: false,
+      instances: [{ date: '2025-01-16', status: 'Pending', logId: null }],
+    })
+
+    vi.useRealTimers()
   })
 })
 
