@@ -1132,9 +1132,9 @@ const isPostponeAction = useMemo(() => {
     return <HabitListSkeleton />
   }
 
-  // Render nested children in all-view (avoids depth > 4 nesting)
+  // Render nested children in all-view up to the configured habit depth.
   function renderAllViewChildren(parentId: string, depth: number): React.ReactNode {
-    if (collapsedIds.has(parentId) || depth >= 3) return null
+    if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
     const children = getVisibleChildren(parentId)
     if (children.length === 0) return null
 

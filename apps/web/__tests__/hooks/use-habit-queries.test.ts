@@ -185,6 +185,27 @@ describe('useHabits (query hook)', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.size).toBe(2)
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?pageSize=200')
+    expect(mockFetch.mock.calls[1]?.[0]).toBe('/api/habits?page=2&pageSize=200')
+  })
+
+  it('uses a larger page size for all-view habit lists', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makePaginatedResponse([
+        makeScheduleItem({ id: 'h-1', title: 'Habit 1' }),
+      ])),
+    })
+
+    const { result } = renderHook(
+      () => useHabits({}),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?pageSize=200')
   })
 })
 

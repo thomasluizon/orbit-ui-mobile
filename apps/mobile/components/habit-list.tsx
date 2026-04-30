@@ -1322,7 +1322,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const renderAllViewChildren = useCallback(
       (parentId: string, depth: number) => {
-        if (collapsedIds.has(parentId) || depth >= 3) return null
+        if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
         const children = getVisibleChildren(parentId)
         if (children.length === 0) return null
 
@@ -1342,7 +1342,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           )
         })
       },
-      [collapsedIds, getVisibleChildren, renderHabitCard, styles.allViewChild],
+      [collapsedIds, getVisibleChildren, maxHabitDepth, renderHabitCard, styles.allViewChild],
     )
 
     const renderItem = useCallback(

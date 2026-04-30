@@ -30,6 +30,12 @@ export function isHabitVisibleInAllView(
   return !habit.isCompleted || habit.frequencyUnit !== null
 }
 
+function isChildVisibleInAllView(
+  habit: Pick<NormalizedHabit, 'isGeneral'>,
+): boolean {
+  return !habit.isGeneral
+}
+
 export function getChildrenFromIndex(
   parentId: string,
   habitsById: Map<string, NormalizedHabit>,
@@ -107,7 +113,7 @@ export function createHabitVisibilityHelpers({
     }
 
     if (view === 'all') {
-      return children.filter((child) => isHabitVisibleInAllView(child, showCompleted))
+      return children.filter((child) => isChildVisibleInAllView(child))
     }
 
     if (showCompleted) return children

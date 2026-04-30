@@ -404,6 +404,34 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-h-2')).toBeDefined()
   })
 
+  it('renders deeply nested all-view children up to the configured depth', () => {
+    const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
+    const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
+    const greatGrandchild = createMockHabit({ id: 'great-grandchild', title: 'Great grandchild', parentId: 'grandchild', frequencyUnit: 'Day', isCompleted: true })
+
+    for (const habit of [root, child, grandchild, greatGrandchild]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(root.id, [child.id])
+    mockHabitsData.childrenByParent.set(child.id, [grandchild.id])
+    mockHabitsData.childrenByParent.set(grandchild.id, [greatGrandchild.id])
+    mockHabitsData.topLevelHabits = [root]
+
+    renderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        view="all"
+        showCompleted={false}
+      />,
+    )
+
+    expect(screen.getByTestId('habit-card-root')).toBeDefined()
+    expect(screen.getByTestId('habit-card-child')).toBeDefined()
+    expect(screen.getByTestId('habit-card-grandchild')).toBeDefined()
+    expect(screen.getByTestId('habit-card-great-grandchild')).toBeDefined()
+  })
+
   it('renders the create button in all view empty state', () => {
     renderWithProviders(
       <HabitList filters={defaultFilters} view="all" />,

@@ -496,6 +496,39 @@ describe('HabitList', () => {
     expect(habitIds).toEqual(['active', 'completed-one-time'])
   })
 
+  it('renders deeply nested all-view children up to the configured depth', () => {
+    const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
+    const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
+    const greatGrandchild = createMockHabit({ id: 'great-grandchild', title: 'Great grandchild', parentId: 'grandchild', frequencyUnit: 'Day', isCompleted: true })
+    seedHabits([root, child, grandchild, greatGrandchild])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="all"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const flatList = tree.root.findByType('FlatList')
+    let groupTree: any
+    TestRenderer.act(() => {
+      groupTree = TestRenderer.create(flatList.props.renderItem({ item: flatList.props.data[0] }))
+    })
+
+    const habitIds = groupTree.root
+      .findAllByType(HabitCard)
+      .map((node: any) => node.props.habit.id)
+
+    expect(habitIds).toEqual(['root', 'child', 'grandchild', 'great-grandchild'])
+  })
+
   it('uses plain draggable list for today view outside select mode', () => {
     let tree: any
 

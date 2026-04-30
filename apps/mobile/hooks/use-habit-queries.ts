@@ -46,14 +46,20 @@ export const EMPTY_HABITS_BY_ID: Map<string, NormalizedHabit> = new Map()
 export const EMPTY_CHILDREN_BY_PARENT: Map<string, string[]> = new Map()
 export const EMPTY_NORMALIZED_HABITS: NormalizedHabit[] = []
 
+function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
+  if (filters.dateFrom || filters.pageSize) return filters
+  return { ...filters, pageSize: 200 }
+}
+
 export function useHabits(filters: HabitsFilter) {
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
-      const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(filters))
+      const requestFilters = withDefaultPageSize(filters)
+      const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
 
-      if (filters.dateFrom || firstPage.totalPages <= 1) {
+      if (requestFilters.dateFrom || firstPage.totalPages <= 1) {
         return firstPage.items
       }
 
@@ -61,7 +67,7 @@ export function useHabits(filters: HabitsFilter) {
         async (page) => {
           if (page === 1) return firstPage
 
-          const pageFilters = { ...filters, page }
+          const pageFilters = { ...requestFilters, page }
           const pageUrl = buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters))
           return apiClient<PaginatedResponse<HabitScheduleItem>>(pageUrl)
         },
