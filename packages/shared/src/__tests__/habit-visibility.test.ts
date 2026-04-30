@@ -182,7 +182,7 @@ describe('habit-visibility', () => {
     expect(isHabitVisibleInAllView(logged, false)).toBe(true)
   })
 
-  it('shows all non-general children in all view regardless of completion', () => {
+  it('hides completed one-time and general children in all view when showCompleted is off', () => {
     const completedOneTime = createMockHabit({
       id: 'completed-one-time',
       parentId: 'parent',
@@ -232,7 +232,7 @@ describe('habit-visibility', () => {
 
     expect(
       withoutCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['completed-one-time', 'completed-recurring', 'open'])
+    ).toEqual(['completed-recurring', 'open'])
 
     const withCompletedOneTime = createHabitVisibilityHelpers({
       habitsById,

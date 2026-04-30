@@ -31,9 +31,12 @@ export function isHabitVisibleInAllView(
 }
 
 function isChildVisibleInAllView(
-  habit: Pick<NormalizedHabit, 'isGeneral'>,
+  habit: Pick<NormalizedHabit, 'frequencyUnit' | 'isCompleted' | 'isGeneral'>,
+  showCompleted: boolean,
 ): boolean {
-  return !habit.isGeneral
+  if (habit.isGeneral) return false
+  if (showCompleted) return true
+  return !habit.isCompleted || habit.frequencyUnit !== null
 }
 
 export function getChildrenFromIndex(
@@ -113,7 +116,7 @@ export function createHabitVisibilityHelpers({
     }
 
     if (view === 'all') {
-      return children.filter((child) => isChildVisibleInAllView(child))
+      return children.filter((child) => isChildVisibleInAllView(child, showCompleted))
     }
 
     if (showCompleted) return children
