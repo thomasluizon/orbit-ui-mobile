@@ -182,7 +182,7 @@ describe('habit-visibility', () => {
     expect(isHabitVisibleInAllView(logged, false)).toBe(true)
   })
 
-  it('filters only completed one-time children in all view when showCompleted is off', () => {
+  it('shows all non-general children in all view regardless of completion', () => {
     const completedOneTime = createMockHabit({
       id: 'completed-one-time',
       parentId: 'parent',
@@ -232,7 +232,7 @@ describe('habit-visibility', () => {
 
     expect(
       withoutCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['completed-recurring', 'general', 'open'])
+    ).toEqual(['completed-one-time', 'completed-recurring', 'open'])
 
     const withCompletedOneTime = createHabitVisibilityHelpers({
       habitsById,
@@ -245,7 +245,7 @@ describe('habit-visibility', () => {
 
     expect(
       withCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['completed-one-time', 'completed-recurring', 'general', 'open'])
+    ).toEqual(['completed-one-time', 'completed-recurring', 'open'])
   })
 
   it('applies all-view top-level visibility rules', () => {
