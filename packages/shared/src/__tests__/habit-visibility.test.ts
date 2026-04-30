@@ -232,7 +232,7 @@ describe('habit-visibility', () => {
 
     expect(
       withoutCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['completed-recurring', 'open'])
+    ).toEqual(['completed-recurring', 'general', 'open'])
 
     const withCompletedOneTime = createHabitVisibilityHelpers({
       habitsById,
@@ -245,7 +245,7 @@ describe('habit-visibility', () => {
 
     expect(
       withCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
-    ).toEqual(['completed-one-time', 'completed-recurring', 'open'])
+    ).toEqual(['completed-one-time', 'completed-recurring', 'general', 'open'])
   })
 
   it('applies all-view top-level visibility rules', () => {
