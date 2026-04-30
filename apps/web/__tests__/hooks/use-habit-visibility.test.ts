@@ -143,17 +143,21 @@ describe('useHabitVisibility', () => {
     expect(children).toHaveLength(2)
   })
 
-  it('getVisibleChildren filters completed in "all" view when showCompleted is false', () => {
+  it('getVisibleChildren filters only completed one-time habits in "all" view when showCompleted is false', () => {
     const parent = makeHabit({ id: 'parent' })
     const child1 = makeHabit({ id: 'c1', parentId: 'parent', isCompleted: false, position: 0 })
-    const child2 = makeHabit({ id: 'c2', parentId: 'parent', isCompleted: true, position: 1 })
+    const child2 = makeHabit({ id: 'c2', parentId: 'parent', isCompleted: true, frequencyUnit: null, position: 1 })
+    const child3 = makeHabit({ id: 'c3', parentId: 'parent', isCompleted: true, frequencyUnit: 'Day', position: 2 })
+    const child4 = makeHabit({ id: 'c4', parentId: 'parent', isGeneral: true, position: 3 })
 
     const habitsById = new Map([
       ['parent', parent],
       ['c1', child1],
       ['c2', child2],
+      ['c3', child3],
+      ['c4', child4],
     ])
-    const childrenByParent = new Map([['parent', ['c1', 'c2']]])
+    const childrenByParent = new Map([['parent', ['c1', 'c2', 'c3', 'c4']]])
 
     const { result } = renderHook(() =>
       useHabitVisibility({
@@ -167,13 +171,12 @@ describe('useHabitVisibility', () => {
     )
 
     const children = result.current.getVisibleChildren('parent', 'all')
-    expect(children).toHaveLength(1)
-    expect(children[0]!.id).toBe('c1')
+    expect(children.map((child) => child.id)).toEqual(['c1', 'c3'])
   })
 
-  it('keeps recently completed habits visible when showCompleted is false', () => {
+  it('keeps completed one-time habits hidden in all view until showCompleted is true', () => {
     const parent = makeHabit({ id: 'parent' })
-    const child = makeHabit({ id: 'c1', parentId: 'parent', isCompleted: true, position: 0 })
+    const child = makeHabit({ id: 'c1', parentId: 'parent', isCompleted: true, frequencyUnit: null, position: 0 })
 
     const habitsById = new Map([
       ['parent', parent],
@@ -181,7 +184,7 @@ describe('useHabitVisibility', () => {
     ])
     const childrenByParent = new Map([['parent', ['c1']]])
 
-    const { result } = renderHook(() =>
+    const hidden = renderHook(() =>
       useHabitVisibility({
         habitsById,
         childrenByParent,
@@ -192,8 +195,20 @@ describe('useHabitVisibility', () => {
       }),
     )
 
-    const children = result.current.getVisibleChildren('parent', 'all')
-    expect(children).toHaveLength(1)
+    expect(hidden.result.current.getVisibleChildren('parent', 'all')).toHaveLength(0)
+
+    const visible = renderHook(() =>
+      useHabitVisibility({
+        habitsById,
+        childrenByParent,
+        selectedDate,
+        searchQuery: '',
+        showCompleted: true,
+        recentlyCompletedIds: new Set(),
+      }),
+    )
+
+    expect(visible.result.current.getVisibleChildren('parent', 'all')).toHaveLength(1)
   })
 
   it('hasVisibleContent returns true for overdue habits', () => {

@@ -39,6 +39,7 @@ function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitSche
     hasSubHabits: overrides.hasSubHabits ?? false,
     flexibleTarget: overrides.flexibleTarget ?? null,
     flexibleCompleted: overrides.flexibleCompleted ?? null,
+    isLoggedInRange: overrides.isLoggedInRange,
     linkedGoals: overrides.linkedGoals,
     instances: overrides.instances ?? [],
     searchMatches: overrides.searchMatches,
@@ -102,6 +103,19 @@ describe('habit normalization utils', () => {
     })
     expect(data.topLevelHabits.map((habit) => habit.id)).toEqual(['parent'])
     expect(data.childrenByParent.get('parent')).toEqual(['child-1'])
+  })
+
+  it('derives top-level logged-in-range from completed instances', () => {
+    const data = normalizeHabitQueryData([
+      makeScheduleItem({
+        id: 'logged-recurring',
+        scheduledDates: [],
+        isLoggedInRange: undefined,
+        instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
+      }),
+    ])
+
+    expect(data.habitsById.get('logged-recurring')?.isLoggedInRange).toBe(true)
   })
 
   it('applies linked goal updates without disturbing unrelated goals', () => {

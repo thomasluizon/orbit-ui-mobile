@@ -35,6 +35,7 @@ import {
   formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
+  isHabitVisibleInAllView,
   type ReorderableHabitItem,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
@@ -355,6 +356,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         if (showCompleted) return topLevelHabits
         return topLevelHabits.filter((habit) =>
           visibility.hasVisibleContent(habit),
+        )
+      }
+
+      if (view === 'all') {
+        return topLevelHabits.filter((habit) =>
+          isHabitVisibleInAllView(habit, showCompleted),
         )
       }
 

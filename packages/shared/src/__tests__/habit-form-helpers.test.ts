@@ -11,6 +11,7 @@ import {
 } from '../utils/habit-form-helpers'
 import {
   filterHabitEmojiCategories,
+  HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from '../utils/habit-emoji-options'
 
@@ -41,6 +42,22 @@ describe('habit form helpers', () => {
     expect(HABIT_EMOJI_OPTIONS.length).toBeGreaterThan(100)
     expect(emojis).toContain('🏃')
     expect(emojis).toContain('🏃‍♀️')
+  })
+
+  it('filters habit emojis by Portuguese names without accents', () => {
+    const runResults = filterHabitEmojiCategories('corrida')
+    const dogResults = filterHabitEmojiCategories('cão')
+
+    expect(runResults.flatMap((category) => category.emojis)).toContain('🏃')
+    expect(dogResults.flatMap((category) => category.emojis)).toContain('🐶')
+  })
+
+  it('keeps animal emojis out of the nature category', () => {
+    const natureCategory = HABIT_EMOJI_CATEGORIES.find((category) => category.id === 'nature')
+    const animalsCategory = HABIT_EMOJI_CATEGORIES.find((category) => category.id === 'animals')
+
+    expect(natureCategory?.emojis).not.toContain('🐶')
+    expect(animalsCategory?.emojis).toContain('🐶')
   })
 
   it('derives display flags for one-time, recurring, and general habits', () => {

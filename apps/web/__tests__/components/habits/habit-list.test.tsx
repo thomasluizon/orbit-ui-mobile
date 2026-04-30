@@ -360,13 +360,17 @@ describe('HabitList', () => {
     ).toHaveAttribute('data-tour-target', 'tour-habit-card')
   })
 
-  it('hides completed habits by default when showCompleted is false', () => {
+  it('hides only completed one-time habits in all view when showCompleted is false', () => {
     const habit1 = createMockHabit({ id: 'h-1', title: 'Active', isCompleted: false })
-    const habit2 = createMockHabit({ id: 'h-2', title: 'Done', isCompleted: true })
+    const habit2 = createMockHabit({ id: 'h-2', title: 'Done one-time', isCompleted: true, frequencyUnit: null })
+    const habit3 = createMockHabit({ id: 'h-3', title: 'Done recurring', isCompleted: true, frequencyUnit: 'Day' })
+    const habit4 = createMockHabit({ id: 'h-4', title: 'General', isGeneral: true })
 
     mockHabitsData.habitsById.set('h-1', habit1)
     mockHabitsData.habitsById.set('h-2', habit2)
-    mockHabitsData.topLevelHabits = [habit1, habit2]
+    mockHabitsData.habitsById.set('h-3', habit3)
+    mockHabitsData.habitsById.set('h-4', habit4)
+    mockHabitsData.topLevelHabits = [habit1, habit2, habit3, habit4]
 
     renderWithProviders(
       <HabitList
@@ -376,12 +380,14 @@ describe('HabitList', () => {
       />,
     )
     expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
+    expect(screen.getByTestId('habit-card-h-3')).toBeDefined()
     expect(screen.queryByTestId('habit-card-h-2')).toBeNull()
+    expect(screen.queryByTestId('habit-card-h-4')).toBeNull()
   })
 
-  it('shows completed habits when showCompleted is true', () => {
+  it('shows completed one-time habits in all view when showCompleted is true', () => {
     const habit1 = createMockHabit({ id: 'h-1', title: 'Active', isCompleted: false })
-    const habit2 = createMockHabit({ id: 'h-2', title: 'Done', isCompleted: true })
+    const habit2 = createMockHabit({ id: 'h-2', title: 'Done', isCompleted: true, frequencyUnit: null })
 
     mockHabitsData.habitsById.set('h-1', habit1)
     mockHabitsData.habitsById.set('h-2', habit2)

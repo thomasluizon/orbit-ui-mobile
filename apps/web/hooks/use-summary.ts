@@ -3,6 +3,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import {
+  getDailySummaryTimeBucket,
+  getMsUntilNextDailySummaryTimeBucket,
+} from '@orbit/shared/utils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,9 +39,10 @@ export function useSummary({
   aiSummaryEnabled,
 }: UseSummaryOptions) {
   const enabled = hasProAccess && aiSummaryEnabled && !!date
+  const summaryTimeBucket = getDailySummaryTimeBucket()
 
   const query = useQuery({
-    queryKey: habitKeys.summary(date, date, locale),
+    queryKey: habitKeys.summary(date, date, locale, summaryTimeBucket),
     queryFn: async (): Promise<string> => {
       const params = new URLSearchParams({
         dateFrom: date,
@@ -56,6 +61,8 @@ export function useSummary({
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes -- summary is expensive, no need for frequent refresh
+    refetchInterval: () => getMsUntilNextDailySummaryTimeBucket(),
+    refetchIntervalInBackground: false,
     // Summary is heavy/expensive -- don't refetch on window focus
     refetchOnWindowFocus: false,
   })

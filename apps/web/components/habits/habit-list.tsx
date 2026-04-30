@@ -21,6 +21,7 @@ import {
   formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
+  isHabitVisibleInAllView,
 } from '@orbit/shared/utils'
 import { HabitCard } from './habit-card'
 import { HabitDetailDrawer } from './habit-detail-drawer'
@@ -395,7 +396,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // Filter habits
   const habits = useMemo(() => {
-    if (view === 'general' || view === 'all') {
+    if (view === 'all') {
+      return topLevelHabits.filter((h) => isHabitVisibleInAllView(h, showCompleted))
+    }
+
+    if (view === 'general') {
       return showCompleted
         ? topLevelHabits
         : topLevelHabits.filter(

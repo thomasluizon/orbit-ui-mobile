@@ -141,6 +141,7 @@ export const habitScheduleItemSchema = baseHabitFieldsSchema.extend({
   hasSubHabits: z.boolean(),
   flexibleTarget: z.number().nullable(),
   flexibleCompleted: z.number().nullable(),
+  isLoggedInRange: z.boolean().optional(),
   linkedGoals: z.array(linkedGoalInfoSchema).optional(),
   instances: z.array(habitInstanceSchema),
   searchMatches: z.array(searchMatchFieldSchema).nullable().optional(),

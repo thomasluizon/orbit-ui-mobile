@@ -39,7 +39,11 @@ import {
 } from "lucide-react-native";
 import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { formatAPIDate, formatLocaleDate } from "@orbit/shared/utils";
+import {
+  formatAPIDate,
+  formatLocaleDate,
+  isHabitVisibleInAllView,
+} from "@orbit/shared/utils";
 import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
 import { plural } from "@/lib/plural";
@@ -630,6 +634,11 @@ export default function TodayScreen() {
     if (currentActiveView === "today") {
       if (showCompleted) return habits;
       return habits.filter((habit) => visibility.hasVisibleContent(habit));
+    }
+    if (currentActiveView === "all") {
+      return habits.filter((habit) =>
+        isHabitVisibleInAllView(habit, showCompleted),
+      );
     }
     if (showCompleted) return habits;
     return habits.filter((habit) => !habit.isCompleted);

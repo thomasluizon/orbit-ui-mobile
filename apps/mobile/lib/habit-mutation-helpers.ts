@@ -87,7 +87,7 @@ function cloneChildHabit(node: HabitTreeNode): HabitScheduleChild {
     tags: node.tags,
     children,
     hasSubHabits: children.length > 0 || node.hasSubHabits,
-    isLoggedInRange: 'isLoggedInRange' in node ? node.isLoggedInRange : false,
+    isLoggedInRange: ('isLoggedInRange' in node ? node.isLoggedInRange : false) ?? false,
     instances: 'instances' in node ? node.instances : [],
     searchMatches: node.searchMatches ?? null,
   }
@@ -125,6 +125,7 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     hasSubHabits: children.length > 0 || node.hasSubHabits,
     flexibleTarget: 'flexibleTarget' in node ? node.flexibleTarget : null,
     flexibleCompleted: 'flexibleCompleted' in node ? node.flexibleCompleted : null,
+    isLoggedInRange: ('isLoggedInRange' in node ? node.isLoggedInRange : false) ?? false,
     linkedGoals: 'linkedGoals' in node ? node.linkedGoals : undefined,
     instances: 'instances' in node ? node.instances : [],
     searchMatches: node.searchMatches ?? null,

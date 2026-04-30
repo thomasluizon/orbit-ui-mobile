@@ -1,5 +1,7 @@
 import type { HabitsFilter } from '../types/habit'
 
+export type DailySummaryTimeBucket = 'morning' | 'afternoon' | 'evening' | 'night'
+
 export function buildHabitQueryString(filters: HabitsFilter): string {
   const params = new URLSearchParams()
   if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
@@ -25,4 +27,29 @@ export function buildHabitQueryString(filters: HabitsFilter): string {
 
 export function buildUrlWithQuery(base: string, queryString: string): string {
   return queryString ? `${base}?${queryString}` : base
+}
+
+export function getDailySummaryTimeBucket(date: Date = new Date()): DailySummaryTimeBucket {
+  const hour = date.getHours()
+  if (hour < 11) return 'morning'
+  if (hour < 17) return 'afternoon'
+  if (hour < 21) return 'evening'
+  return 'night'
+}
+
+export function getMsUntilNextDailySummaryTimeBucket(date: Date = new Date()): number {
+  const next = new Date(date)
+  const hour = date.getHours()
+  if (hour < 11) {
+    next.setHours(11, 0, 0, 0)
+  } else if (hour < 17) {
+    next.setHours(17, 0, 0, 0)
+  } else if (hour < 21) {
+    next.setHours(21, 0, 0, 0)
+  } else {
+    next.setDate(next.getDate() + 1)
+    next.setHours(0, 0, 0, 0)
+  }
+
+  return Math.max(60_000, next.getTime() - date.getTime())
 }

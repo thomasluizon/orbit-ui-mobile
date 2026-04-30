@@ -21,6 +21,15 @@ export interface HabitVisibilityHelpers {
   getVisibleChildren: (parentId: string, view: HabitVisibilityView) => NormalizedHabit[]
 }
 
+export function isHabitVisibleInAllView(
+  habit: Pick<NormalizedHabit, 'frequencyUnit' | 'isCompleted' | 'isGeneral'>,
+  showCompleted: boolean,
+): boolean {
+  if (habit.isGeneral) return false
+  if (showCompleted) return true
+  return !habit.isCompleted || habit.frequencyUnit !== null
+}
+
 export function getChildrenFromIndex(
   parentId: string,
   habitsById: Map<string, NormalizedHabit>,
@@ -49,9 +58,17 @@ export function createHabitVisibilityHelpers({
   showCompleted,
   recentlyCompletedIds,
 }: HabitVisibilityOptions): HabitVisibilityHelpers {
+  const selectedDateStr = selectedDate || formatAPIDate(new Date())
+
+  const isLoggedOnSelectedDate = (habit: NormalizedHabit): boolean => {
+    if (habit.isLoggedInRange) return true
+    return habit.instances.some(
+      (instance) => instance.date === selectedDateStr && instance.status === 'Completed',
+    )
+  }
+
   const isDueOnSelectedDate = (habit: NormalizedHabit): boolean => {
-    const dateStr = selectedDate || formatAPIDate(new Date())
-    return hasHabitScheduleOnDate(habit, dateStr)
+    return hasHabitScheduleOnDate(habit, selectedDateStr)
   }
 
   const isRelevantToday = (habit: NormalizedHabit): boolean => {
@@ -63,7 +80,10 @@ export function createHabitVisibilityHelpers({
 
   const hasVisibleContent = (habit: NormalizedHabit): boolean => {
     if (recentlyCompletedIds.has(habit.id)) return true
-    if (!habit.isCompleted && (habit.isGeneral || isDueOnSelectedDate(habit) || habit.isOverdue)) {
+    const loggedOnSelectedDate = isLoggedOnSelectedDate(habit)
+    if (showCompleted && (habit.isCompleted || loggedOnSelectedDate)) return true
+    const hasOpenOwnContent = habit.isGeneral || isDueOnSelectedDate(habit) || habit.isOverdue
+    if (!habit.isCompleted && !loggedOnSelectedDate && hasOpenOwnContent) {
       return true
     }
     const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
@@ -86,9 +106,13 @@ export function createHabitVisibilityHelpers({
       children = children.filter((child) => hasSearchMatch(child))
     }
 
+    if (view === 'all') {
+      return children.filter((child) => isHabitVisibleInAllView(child, showCompleted))
+    }
+
     if (showCompleted) return children
 
-    if (view === 'general' || view === 'all') {
+    if (view === 'general') {
       return children.filter(
         (child) => !child.isCompleted || recentlyCompletedIds.has(child.id),
       )

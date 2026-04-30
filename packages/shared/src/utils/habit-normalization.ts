@@ -39,6 +39,12 @@ function fallbackChildOverdue(
     child.dueDate < todayStr
 }
 
+function hasCompletedInstance(
+  instances: Array<{ status: string }> | undefined,
+): boolean {
+  return instances?.some((instance) => instance.status === 'Completed') ?? false
+}
+
 function normalizeChildren(
   children: HabitScheduleChild[],
   parentId: string,
@@ -63,7 +69,7 @@ function normalizeChildren(
       hasSubHabits: child.hasSubHabits ?? grandchildren.length > 0,
       flexibleTarget: null,
       flexibleCompleted: null,
-      isLoggedInRange: child.isLoggedInRange ?? false,
+      isLoggedInRange: child.isLoggedInRange ?? hasCompletedInstance(child.instances),
       instances: child.instances ?? [],
       searchMatches: child.searchMatches ?? null,
     })
@@ -88,7 +94,7 @@ export function normalizeHabits(
       hasSubHabits: item.hasSubHabits,
       flexibleTarget: item.flexibleTarget ?? null,
       flexibleCompleted: item.flexibleCompleted ?? null,
-      isLoggedInRange: false,
+      isLoggedInRange: item.isLoggedInRange ?? hasCompletedInstance(item.instances),
       instances: item.instances ?? [],
       searchMatches: item.searchMatches ?? null,
     })

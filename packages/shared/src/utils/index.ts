@@ -131,7 +131,13 @@ export {
   resolveSystemLocale,
 } from './locale-format'
 export { fetchAllPaginatedItems } from './pagination'
-export { buildHabitQueryString, buildUrlWithQuery } from './habit-query'
+export {
+  buildHabitQueryString,
+  buildUrlWithQuery,
+  getDailySummaryTimeBucket,
+  getMsUntilNextDailySummaryTimeBucket,
+} from './habit-query'
+export type { DailySummaryTimeBucket } from './habit-query'
 export {
   applySubscriptionDiscount,
   formatPrice,
@@ -275,6 +281,7 @@ export type { NormalizedDrillDetail } from './drill-navigation'
 export {
   createHabitVisibilityHelpers,
   getChildrenFromIndex,
+  isHabitVisibleInAllView,
 } from './habit-visibility'
 export type {
   HabitVisibilityHelpers,
