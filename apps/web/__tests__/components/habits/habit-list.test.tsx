@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
@@ -77,19 +78,22 @@ vi.mock('@/hooks/use-habits', () => ({
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
-vi.mock('@/hooks/use-habit-visibility', () => ({
-  useHabitVisibility: () => ({
-    hasVisibleContent: () => true,
-    getVisibleChildren: (parentId: string) => {
-      const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
-      return childIds
-        .map((id) => mockHabitsData.habitsById.get(id))
-        .filter(Boolean) as NormalizedHabit[]
+vi.mock('@/hooks/use-habit-visibility', async () => {
+  const { createHabitVisibilityHelpers } = await import('@orbit/shared/utils/habit-visibility')
+
+  return {
+    useHabitVisibility: (options: HabitVisibilityOptions) => {
+      const helpers = createHabitVisibilityHelpers(options)
+
+      return {
+        ...helpers,
+        hasVisibleContent: () => true,
+        isRelevantToday: () => true,
+        isDueOnSelectedDate: () => true,
+      }
     },
-    isRelevantToday: () => true,
-    isDueOnSelectedDate: () => true,
-  }),
-}))
+  }
+})
 
 vi.mock('@/hooks/use-drill-navigation', () => ({
   useDrillNavigation: () => mockDrillState,
@@ -402,6 +406,62 @@ describe('HabitList', () => {
     )
     expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
     expect(screen.getByTestId('habit-card-h-2')).toBeDefined()
+  })
+
+  it('hides completed one-time all-view children when showCompleted is false', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const activeChild = createMockHabit({ id: 'active-child', title: 'Active child', parentId: 'parent' })
+    const completedOneTimeChild = createMockHabit({
+      id: 'completed-one-time-child',
+      title: 'Done child',
+      parentId: 'parent',
+      isCompleted: true,
+      frequencyUnit: null,
+    })
+    const completedRecurringChild = createMockHabit({
+      id: 'completed-recurring-child',
+      title: 'Done recurring child',
+      parentId: 'parent',
+      isCompleted: true,
+      frequencyUnit: 'Day',
+    })
+    const generalChild = createMockHabit({
+      id: 'general-child',
+      title: 'General child',
+      parentId: 'parent',
+      isGeneral: true,
+    })
+
+    for (const habit of [
+      parent,
+      activeChild,
+      completedOneTimeChild,
+      completedRecurringChild,
+      generalChild,
+    ]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [
+      activeChild.id,
+      completedOneTimeChild.id,
+      completedRecurringChild.id,
+      generalChild.id,
+    ])
+    mockHabitsData.topLevelHabits = [parent]
+
+    renderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        view="all"
+        showCompleted={false}
+      />,
+    )
+
+    expect(screen.getByTestId('habit-card-parent')).toBeDefined()
+    expect(screen.getByTestId('habit-card-active-child')).toBeDefined()
+    expect(screen.getByTestId('habit-card-completed-recurring-child')).toBeDefined()
+    expect(screen.queryByTestId('habit-card-completed-one-time-child')).toBeNull()
+    expect(screen.queryByTestId('habit-card-general-child')).toBeNull()
   })
 
   it('renders deeply nested all-view children up to the configured depth', () => {

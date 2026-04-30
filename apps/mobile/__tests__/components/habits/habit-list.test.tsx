@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitCard } from '@/components/habit-card'
 
@@ -41,18 +42,6 @@ const mockDrillState = {
   drillBack: vi.fn(),
   drillReset: vi.fn(),
   getDrillChildren: vi.fn(() => [] as NormalizedHabit[]),
-}
-
-const mockHabitVisibility = {
-  hasVisibleContent: () => true,
-  getVisibleChildren: (habitId: string) => {
-    const childIds = mockHabitsData.childrenByParent.get(habitId) ?? []
-    return childIds
-      .map((id) => mockHabitsData.habitsById.get(id))
-      .filter(Boolean) as NormalizedHabit[]
-  },
-  isRelevantToday: () => true,
-  isDueOnSelectedDate: () => true,
 }
 
 vi.mock('react-i18next', () => ({
@@ -117,9 +106,22 @@ vi.mock('@/hooks/use-config', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-habit-visibility', () => ({
-  useHabitVisibility: () => mockHabitVisibility,
-}))
+vi.mock('@/hooks/use-habit-visibility', async () => {
+  const { createHabitVisibilityHelpers } = await import('@orbit/shared/utils/habit-visibility')
+
+  return {
+    useHabitVisibility: (options: HabitVisibilityOptions) => {
+      const helpers = createHabitVisibilityHelpers(options)
+
+      return {
+        ...helpers,
+        hasVisibleContent: () => true,
+        isRelevantToday: () => true,
+        isDueOnSelectedDate: () => true,
+      }
+    },
+  }
+})
 
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (state: any) => unknown) =>
@@ -494,6 +496,63 @@ describe('HabitList', () => {
       )
 
     expect(habitIds).toEqual(['active', 'completed-one-time'])
+  })
+
+  it('hides completed one-time all-view children when showCompleted is false', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const activeChild = createMockHabit({ id: 'active-child', title: 'Active child', parentId: 'parent' })
+    const completedOneTimeChild = createMockHabit({
+      id: 'completed-one-time-child',
+      title: 'Done child',
+      parentId: 'parent',
+      isCompleted: true,
+      frequencyUnit: null,
+    })
+    const completedRecurringChild = createMockHabit({
+      id: 'completed-recurring-child',
+      title: 'Done recurring child',
+      parentId: 'parent',
+      isCompleted: true,
+      frequencyUnit: 'Day',
+    })
+    const generalChild = createMockHabit({
+      id: 'general-child',
+      title: 'General child',
+      parentId: 'parent',
+      isGeneral: true,
+    })
+    seedHabits([
+      parent,
+      activeChild,
+      completedOneTimeChild,
+      completedRecurringChild,
+      generalChild,
+    ])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="all"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const flatList = tree.root.findByType('FlatList')
+    let groupTree: any
+    TestRenderer.act(() => {
+      groupTree = TestRenderer.create(flatList.props.renderItem({ item: flatList.props.data[0] }))
+    })
+
+    const habitIds = groupTree.root
+      .findAllByType(HabitCard)
+      .map((node: any) => node.props.habit.id)
+
+    expect(habitIds).toEqual(['parent', 'active-child', 'completed-recurring-child'])
   })
 
   it('renders deeply nested all-view children up to the configured depth', () => {
