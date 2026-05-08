@@ -599,6 +599,7 @@ export function HabitCard({
   // ---------------------------------------------------------------------------
   const completionTrigger = isDoneForRange || isRecentlyCompleted
   const prevCompletionTriggerRef = useRef(completionTrigger)
+  const isAnimatingCompletionRef = useRef(false)
   const completePop = useSharedValue(1)
   const completeGlow = useSharedValue(0)
   const completionFlash = useSharedValue(0)
@@ -671,6 +672,11 @@ export function HabitCard({
     prevCompletionTriggerRef.current = completionTrigger
     if (!wasInactive || !completionTrigger) return
 
+    isAnimatingCompletionRef.current = true
+    const animationTimeout = setTimeout(() => {
+      isAnimatingCompletionRef.current = false
+    }, 1400)
+
     const enterDuration = Math.max(100, successMotion.enterDuration)
     const exitDuration = Math.max(80, successMotion.exitDuration)
     const peakScale = successMotion.reducedMotionEnabled ? 1.04 : 1.12
@@ -742,6 +748,10 @@ export function HabitCard({
           easing: Easing.bezier(...successMotion.exitEasing),
         }),
       )
+    }
+
+    return () => {
+      clearTimeout(animationTimeout)
     }
   }, [
     completionFlash,
@@ -843,8 +853,9 @@ export function HabitCard({
     cardStyle.push(isChild ? styles.cardChildOverdue : styles.cardOverdue)
   }
 
-  // Dimming for completed / not-due
-  if (isNotDueToday || (isDoneForRange && !isRecentlyCompleted)) {
+  // Dimming for completed / not-due (skip during completion animation)
+  const justCompleted = completionTrigger && !prevCompletionTriggerRef.current
+  if (isNotDueToday || (isDoneForRange && !isRecentlyCompleted && !isAnimatingCompletionRef.current && !justCompleted)) {
     cardStyle.push(styles.cardDimmed)
   }
 
