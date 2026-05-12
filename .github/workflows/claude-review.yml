@@ -30,4 +30,4 @@ jobs:
             - Type imports from `@orbit/shared/types` and query keys from `@orbit/shared/query`.
 
             Post inline review comments on specific lines for issues you find. Keep the overall summary brief.
-          claude_args: "--max-turns 6"
+          claude_args: "--max-turns 30"
