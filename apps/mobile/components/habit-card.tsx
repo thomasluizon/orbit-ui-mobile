@@ -104,7 +104,6 @@ interface HabitCardProps {
   searchQuery?: string
   actions?: HabitCardActions
   tourTargetId?: string
-  entryIndex?: number
 }
 
 function withAlpha(color: string, opacity: number, fallback: string): string {
@@ -421,7 +420,6 @@ export function HabitCard({
   searchQuery = '',
   actions = {},
   tourTargetId,
-  entryIndex = 0,
 }: HabitCardProps) {
   const {
     onLog,
@@ -511,16 +509,6 @@ export function HabitCard({
   // ---------------------------------------------------------------------------
   const pressScale = useSharedValue(1)
   const pressY = useSharedValue(0)
-  const entryOpacity = useSharedValue(1)
-  const entryTranslateY = useSharedValue(0)
-  const entryScale = useSharedValue(1)
-  const entryAnimStyle = useAnimatedStyle(() => ({
-    opacity: entryOpacity.value,
-    transform: [
-      { translateY: entryTranslateY.value },
-      { scale: entryScale.value },
-    ],
-  }))
   const pressAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: pressY.value }, { scale: pressScale.value }],
   }))
@@ -822,7 +810,6 @@ export function HabitCard({
 
   return (
     <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
-      <Animated.View style={entryAnimStyle}>
         <Animated.View
           testID="habit-completion-flash"
           pointerEvents="none"
@@ -1324,7 +1311,6 @@ export function HabitCard({
             )}
           </View>
         </TouchableOpacity>
-      </Animated.View>
       </Animated.View>
 
       <AnchoredMenu
