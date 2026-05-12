@@ -1,0 +1,32 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Review this pull request for correctness, code quality, security, and compliance with CLAUDE.md / AGENTS.md.
+
+            Pay special attention to:
+            - Cross-platform parity: any change touching apps/web must also touch apps/mobile (and vice versa). Flag missing parity explicitly.
+            - Hardcoded user-facing strings (must go through i18n).
+            - Use of `any` (banned) and `console.log` in production code (banned).
+            - Type imports from `@orbit/shared/types` and query keys from `@orbit/shared/query`.
+
+            Post inline review comments on specific lines for issues you find. Keep the overall summary brief.
+          claude_args: "--max-turns 6"
