@@ -610,7 +610,7 @@ export function HabitCard({
 
     setJustCompleted(true)
     if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
-    completionTimerRef.current = setTimeout(() => setJustCompleted(false), 1400)
+    completionTimerRef.current = setTimeout(() => setJustCompleted(false), 1200)
 
     const enterDuration = Math.max(100, successMotion.enterDuration)
     const exitDuration = Math.max(80, successMotion.exitDuration)
