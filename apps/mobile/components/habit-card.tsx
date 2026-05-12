@@ -444,7 +444,6 @@ export function HabitCard({
   const { colors, currentTheme } = useAppTheme()
   const { displayTime } = useTimeFormat()
   const styles = useMemo(() => createStyles(colors, currentTheme), [colors, currentTheme])
-  const listEnterMotion = useResolvedMotionPreset('list-enter')
   const successMotion = useResolvedMotionPreset('success-feedback')
   const shouldRenderCompletionSparks = !successMotion.reducedMotionEnabled
 
@@ -512,13 +511,9 @@ export function HabitCard({
   // ---------------------------------------------------------------------------
   const pressScale = useSharedValue(1)
   const pressY = useSharedValue(0)
-  const entryOpacity = useSharedValue(listEnterMotion.reducedMotionEnabled ? 1 : 0)
-  const entryTranslateY = useSharedValue(
-    listEnterMotion.reducedMotionEnabled ? 0 : Math.max(10, listEnterMotion.shift),
-  )
-  const entryScale = useSharedValue(
-    listEnterMotion.reducedMotionEnabled ? 1 : mobileMotion.orbital.list.initialScale,
-  )
+  const entryOpacity = useSharedValue(1)
+  const entryTranslateY = useSharedValue(0)
+  const entryScale = useSharedValue(1)
   const entryAnimStyle = useAnimatedStyle(() => ({
     opacity: entryOpacity.value,
     transform: [
@@ -529,56 +524,6 @@ export function HabitCard({
   const pressAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: pressY.value }, { scale: pressScale.value }],
   }))
-
-  useEffect(() => {
-    if (listEnterMotion.reducedMotionEnabled) {
-      entryOpacity.value = 1
-      entryTranslateY.value = 0
-      entryScale.value = 1
-      return
-    }
-
-    const entryDelay =
-      Math.min(entryIndex, mobileMotion.orbital.list.maxStaggerItems) *
-      mobileMotion.orbital.list.staggerMs
-    const entryDuration = Math.max(160, listEnterMotion.enterDuration)
-
-    entryOpacity.value = 0
-    entryTranslateY.value = Math.max(10, listEnterMotion.shift)
-    entryScale.value = mobileMotion.orbital.list.initialScale
-
-    entryOpacity.value = withDelay(
-      entryDelay,
-      withTiming(1, {
-        duration: entryDuration,
-        easing: Easing.bezier(...listEnterMotion.enterEasing),
-      }),
-    )
-    entryTranslateY.value = withDelay(
-      entryDelay,
-      withTiming(0, {
-        duration: entryDuration,
-        easing: Easing.bezier(...listEnterMotion.enterEasing),
-      }),
-    )
-    entryScale.value = withDelay(
-      entryDelay,
-      withTiming(1, {
-        duration: Math.max(140, Math.round(entryDuration * 0.92)),
-        easing: Easing.bezier(...easings.out),
-      }),
-    )
-  }, [
-    entryIndex,
-    entryOpacity,
-    entryScale,
-    entryTranslateY,
-    listEnterMotion.enterDuration,
-    listEnterMotion.enterEasing,
-    listEnterMotion.reducedMotionEnabled,
-    listEnterMotion.shift,
-    habit.id,
-  ])
 
   const handlePressIn = useCallback(() => {
     pressScale.value = withTiming(mobileMotion.orbital.press.scale, {
@@ -599,7 +544,8 @@ export function HabitCard({
   // ---------------------------------------------------------------------------
   const completionTrigger = isDoneForRange || isRecentlyCompleted
   const prevCompletionTriggerRef = useRef(completionTrigger)
-  const isAnimatingCompletionRef = useRef(false)
+  const [justCompleted, setJustCompleted] = useState(false)
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const completePop = useSharedValue(1)
   const completeGlow = useSharedValue(0)
   const completionFlash = useSharedValue(0)
@@ -669,13 +615,14 @@ export function HabitCard({
 
   useEffect(() => {
     const wasInactive = !prevCompletionTriggerRef.current
-    prevCompletionTriggerRef.current = completionTrigger
-    if (!wasInactive || !completionTrigger) return
+    if (!wasInactive || !completionTrigger) {
+      prevCompletionTriggerRef.current = completionTrigger
+      return
+    }
 
-    isAnimatingCompletionRef.current = true
-    const animationTimeout = setTimeout(() => {
-      isAnimatingCompletionRef.current = false
-    }, 1400)
+    setJustCompleted(true)
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+    completionTimerRef.current = setTimeout(() => setJustCompleted(false), 1400)
 
     const enterDuration = Math.max(100, successMotion.enterDuration)
     const exitDuration = Math.max(80, successMotion.exitDuration)
@@ -750,8 +697,10 @@ export function HabitCard({
       )
     }
 
+    prevCompletionTriggerRef.current = completionTrigger
+
     return () => {
-      clearTimeout(animationTimeout)
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
     }
   }, [
     completionFlash,
@@ -854,8 +803,7 @@ export function HabitCard({
   }
 
   // Dimming for completed / not-due (skip during completion animation)
-  const justCompleted = completionTrigger && !prevCompletionTriggerRef.current
-  if (isNotDueToday || (isDoneForRange && !isRecentlyCompleted && !isAnimatingCompletionRef.current && !justCompleted)) {
+  if (isNotDueToday || (isDoneForRange && !isRecentlyCompleted && !justCompleted)) {
     cardStyle.push(styles.cardDimmed)
   }
 
@@ -1533,9 +1481,8 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     paddingHorizontal: 16,
     marginBottom: 12,
     position: 'relative',
-    overflow: 'hidden',
     ...parentShadow,
-    elevation: isLight ? 1 : 6,
+    elevation: isLight ? 1 : 4,
   },
 
   cardChild: {
@@ -1694,7 +1641,6 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
   },
   logButtonDone: {
     // Background provided by LinearGradient overlay inside the button
-    elevation: 8,
   },
   logButtonOverdue: {
     borderWidth: 2,

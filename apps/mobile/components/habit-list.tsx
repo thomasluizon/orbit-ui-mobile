@@ -749,7 +749,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const parentId = autoLogParentId
       if (!parentId) return
 
-      setShowAutoLogParent(false)
       setAutoLogParentId(null)
       markRecentlyCompleted(parentId)
 
