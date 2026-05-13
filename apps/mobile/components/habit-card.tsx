@@ -810,6 +810,10 @@ export function HabitCard({
 
   return (
     <View style={indentMargin} ref={tourTargetId ? cardTourRef : undefined}>
+      {/* Bare Animated.View wrapper stabilizes the Reanimated worklet graph
+          used by @gorhom/bottom-sheet on Android. Removing it (PR #71)
+          regressed all BottomSheet modals — keep the wrapper, no animation. */}
+      <Animated.View>
         <Animated.View
           testID="habit-completion-flash"
           pointerEvents="none"
@@ -1311,6 +1315,7 @@ export function HabitCard({
             )}
           </View>
         </TouchableOpacity>
+      </Animated.View>
       </Animated.View>
 
       <AnchoredMenu
