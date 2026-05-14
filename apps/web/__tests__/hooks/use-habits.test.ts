@@ -736,6 +736,97 @@ describe('useUpdateChecklist', () => {
 
     expect(mockedUpdateChecklist).toHaveBeenCalledWith('h-1', items)
   })
+
+  it('optimistically updates the detail and fullDetail caches', async () => {
+    const { useUpdateChecklist } = await import('@/hooks/use-habits')
+    const { updateChecklist } = await import('@/app/actions/habits')
+    vi.mocked(updateChecklist).mockImplementation(
+      () => new Promise(() => {}),
+    )
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.detail('h-1'), {
+      id: 'h-1',
+      title: 'A',
+      checklistItems: [{ text: 'Old', isChecked: false }],
+    } as unknown)
+    queryClient.setQueryData(habitKeys.fullDetail('h-1'), {
+      habit: {
+        id: 'h-1',
+        title: 'A',
+        checklistItems: [{ text: 'Old', isChecked: false }],
+      },
+      metrics: null,
+      logs: [],
+    } as unknown)
+
+    const wrapper = createWrapper(queryClient)
+    const { result } = renderHook(() => useUpdateChecklist(), { wrapper })
+
+    const items = [{ text: 'New', isChecked: true }]
+    act(() => {
+      result.current.mutate({ habitId: 'h-1', items })
+    })
+
+    await waitFor(() => {
+      const detail = queryClient.getQueryData<{ checklistItems: unknown }>(
+        habitKeys.detail('h-1'),
+      )
+      expect(detail?.checklistItems).toEqual(items)
+    })
+
+    const full = queryClient.getQueryData<{ habit: { checklistItems: unknown } }>(
+      habitKeys.fullDetail('h-1'),
+    )
+    expect(full?.habit.checklistItems).toEqual(items)
+  })
+
+  it('rolls back detail and fullDetail caches when the mutation errors', async () => {
+    const { useUpdateChecklist } = await import('@/hooks/use-habits')
+    const { updateChecklist } = await import('@/app/actions/habits')
+    vi.mocked(updateChecklist).mockRejectedValue(new Error('boom'))
+
+    const queryClient = createQueryClient()
+    const originalDetail = {
+      id: 'h-1',
+      title: 'A',
+      checklistItems: [{ text: 'Original', isChecked: false }],
+    }
+    const originalFull = {
+      habit: {
+        id: 'h-1',
+        title: 'A',
+        checklistItems: [{ text: 'Original', isChecked: false }],
+      },
+      metrics: null,
+      logs: [],
+    }
+    queryClient.setQueryData(habitKeys.detail('h-1'), originalDetail as unknown)
+    queryClient.setQueryData(habitKeys.fullDetail('h-1'), originalFull as unknown)
+
+    const wrapper = createWrapper(queryClient)
+    const { result } = renderHook(() => useUpdateChecklist(), { wrapper })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({
+          habitId: 'h-1',
+          items: [{ text: 'Optimistic', isChecked: true }],
+        })
+      } catch {
+        // expected
+      }
+    })
+
+    const detail = queryClient.getQueryData<typeof originalDetail>(
+      habitKeys.detail('h-1'),
+    )
+    const full = queryClient.getQueryData<typeof originalFull>(
+      habitKeys.fullDetail('h-1'),
+    )
+    expect(detail?.checklistItems).toEqual(originalDetail.checklistItems)
+    expect(full?.habit.checklistItems).toEqual(originalFull.habit.checklistItems)
+  })
 })
 
 // ---------------------------------------------------------------------------

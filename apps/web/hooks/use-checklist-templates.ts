@@ -5,6 +5,7 @@ import { checklistTemplateKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type {
   ChecklistTemplate,
   CreateChecklistTemplateRequest,
+  CreateChecklistTemplateResponse,
 } from '@orbit/shared/types/checklist-template'
 import {
   createChecklistTemplateAction,
@@ -23,8 +24,8 @@ export function useChecklistTemplates() {
 export function useCreateChecklistTemplate() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (data: CreateChecklistTemplateRequest) => createChecklistTemplateAction(data),
+  return useMutation<CreateChecklistTemplateResponse, Error, CreateChecklistTemplateRequest>({
+    mutationFn: (data) => createChecklistTemplateAction(data),
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: checklistTemplateKeys.lists() })
@@ -35,8 +36,8 @@ export function useCreateChecklistTemplate() {
 export function useDeleteChecklistTemplate() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (id: string) => deleteChecklistTemplateAction(id),
+  return useMutation<void, Error, string, { previous: ChecklistTemplate[] | undefined }>({
+    mutationFn: (id) => deleteChecklistTemplateAction(id),
 
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: checklistTemplateKeys.lists() })

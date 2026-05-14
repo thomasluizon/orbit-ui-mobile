@@ -14,6 +14,7 @@ import {
   useCreateChecklistTemplate,
   useDeleteChecklistTemplate,
 } from '@/hooks/use-checklist-templates'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -28,6 +29,7 @@ export function ChecklistTemplates({
 }: Readonly<ChecklistTemplatesProps>) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const { showError } = useAppToast()
   const styles = useMemo(() => createStyles(colors), [colors])
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
@@ -37,7 +39,7 @@ export function ChecklistTemplates({
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
-    if (!name || items.length === 0) return
+    if (!name || items.length === 0 || createTemplate.isPending) return
 
     createTemplate.mutate(
       { name, items: items.map((item) => item.text) },
@@ -46,9 +48,12 @@ export function ChecklistTemplates({
           setTemplateName('')
           setShowSave(false)
         },
+        onError: () => {
+          showError(t('habits.form.saveTemplateError'))
+        },
       },
     )
-  }, [createTemplate, items, templateName])
+  }, [createTemplate, items, showError, t, templateName])
 
   const handleLoad = useCallback((id: string) => {
     const template = templates.find((entry) => entry.id === id)
@@ -57,8 +62,12 @@ export function ChecklistTemplates({
   }, [onLoad, templates])
 
   const handleDelete = useCallback((id: string) => {
-    deleteTemplate.mutate(id)
-  }, [deleteTemplate])
+    deleteTemplate.mutate(id, {
+      onError: () => {
+        showError(t('habits.form.deleteTemplateError'))
+      },
+    })
+  }, [deleteTemplate, showError, t])
 
   if (items.length === 0 && templates.length === 0 && !showSave) {
     return null

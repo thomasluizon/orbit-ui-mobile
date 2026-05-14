@@ -513,6 +513,64 @@ describe('mobile habit hooks', () => {
     expect(list[0]?.checklistItems).toEqual(originalItems)
   })
 
+  it('optimistically updates the detail and fullDetail caches when present', async () => {
+    const originalItems: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
+    const newItems: ChecklistItem[] = [{ text: 'Step 1', isChecked: true }]
+    seedHabitState([
+      makeHabit({ id: 'habit-1', checklistItems: originalItems }),
+    ], 1)
+
+    mocks.queryClient.setQueryData(habitKeys.detail('habit-1'), {
+      id: 'habit-1',
+      title: 'Test',
+      checklistItems: originalItems,
+    })
+    mocks.queryClient.setQueryData(habitKeys.fullDetail('habit-1'), {
+      habit: {
+        id: 'habit-1',
+        title: 'Test',
+        checklistItems: originalItems,
+      },
+      metrics: null,
+      logs: [],
+    })
+
+    const mutation = useUpdateChecklist() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { habitId: string; items: ChecklistItem[] },
+      {
+        previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>
+        previousDetail: { checklistItems: ChecklistItem[] } | undefined
+        previousFullDetail: { habit: { checklistItems: ChecklistItem[] } } | undefined
+      }
+    >
+
+    const variables = { habitId: 'habit-1', items: newItems }
+    const context = await mutation.onMutate?.(variables)
+
+    const detail = mocks.queryClient.getQueryData(habitKeys.detail('habit-1')) as {
+      checklistItems: ChecklistItem[]
+    } | undefined
+    const full = mocks.queryClient.getQueryData(habitKeys.fullDetail('habit-1')) as {
+      habit: { checklistItems: ChecklistItem[] }
+    } | undefined
+    expect(detail?.checklistItems).toEqual(newItems)
+    expect(full?.habit.checklistItems).toEqual(newItems)
+    expect(context?.previousDetail?.checklistItems).toEqual(originalItems)
+    expect(context?.previousFullDetail?.habit.checklistItems).toEqual(originalItems)
+
+    // Rollback path also restores both caches
+    mutation.onError?.(new Error('boom'), variables, context)
+    const detailAfter = mocks.queryClient.getQueryData(habitKeys.detail('habit-1')) as {
+      checklistItems: ChecklistItem[]
+    }
+    const fullAfter = mocks.queryClient.getQueryData(habitKeys.fullDetail('habit-1')) as {
+      habit: { checklistItems: ChecklistItem[] }
+    }
+    expect(detailAfter.checklistItems).toEqual(originalItems)
+    expect(fullAfter.habit.checklistItems).toEqual(originalItems)
+  })
+
   it('optimistically moves a habit under a new parent and restores the tree on failure', async () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false, position: 0 }),

@@ -10,6 +10,7 @@ import {
   useCreateChecklistTemplate,
   useDeleteChecklistTemplate,
 } from '@/hooks/use-checklist-templates'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -18,6 +19,7 @@ interface ChecklistTemplatesProps {
 
 export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplatesProps>) {
   const t = useTranslations()
+  const { showError } = useAppToast()
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
@@ -26,7 +28,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
-    if (!name || items.length === 0) return
+    if (!name || items.length === 0 || createTemplate.isPending) return
 
     createTemplate.mutate(
       { name, items: items.map((item) => item.text) },
@@ -35,9 +37,12 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           setTemplateName('')
           setShowSave(false)
         },
+        onError: () => {
+          showError(t('habits.form.saveTemplateError'))
+        },
       },
     )
-  }, [createTemplate, items, templateName])
+  }, [createTemplate, items, showError, t, templateName])
 
   const handleLoad = useCallback(
     (id: string) => {
@@ -49,9 +54,13 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
 
   const handleDelete = useCallback(
     (id: string) => {
-      deleteTemplate.mutate(id)
+      deleteTemplate.mutate(id, {
+        onError: () => {
+          showError(t('habits.form.deleteTemplateError'))
+        },
+      })
     },
-    [deleteTemplate],
+    [deleteTemplate, showError, t],
   )
 
   return (
