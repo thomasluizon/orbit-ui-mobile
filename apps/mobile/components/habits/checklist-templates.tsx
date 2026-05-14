@@ -37,6 +37,11 @@ export function ChecklistTemplates({
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
+  const isDeletingThisTemplate = useCallback(
+    (id: string) => deleteTemplate.isPending && deleteTemplate.variables === id,
+    [deleteTemplate.isPending, deleteTemplate.variables],
+  )
+
   const handleSave = useCallback(() => {
     const name = templateName.trim()
     if (!name || items.length === 0 || createTemplate.isPending) return
@@ -108,13 +113,13 @@ export function ChecklistTemplates({
                     accessibilityLabel={t('common.delete')}
                     accessibilityRole="button"
                     accessibilityHint={template.name}
-                    accessibilityState={{ disabled: deleteTemplate.isPending }}
+                    accessibilityState={{ disabled: isDeletingThisTemplate(template.id) }}
                     style={[
                       styles.chipDeleteButton,
-                      deleteTemplate.isPending && styles.chipDeleteButtonDisabled,
+                      isDeletingThisTemplate(template.id) && styles.chipDeleteButtonDisabled,
                     ]}
                     onPress={() => handleDelete(template.id)}
-                    disabled={deleteTemplate.isPending}
+                    disabled={isDeletingThisTemplate(template.id)}
                     activeOpacity={0.8}
                   >
                     <X size={12} color={colors.textMuted} />

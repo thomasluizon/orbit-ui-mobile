@@ -99,5 +99,31 @@ describe('checklist template server actions', () => {
       mock204()
       await expect(deleteChecklistTemplateAction('tmpl-1')).resolves.toBeUndefined()
     })
+
+    it('accepts GUID-shaped ids', async () => {
+      mock204()
+      await deleteChecklistTemplateAction('abc12345-1234-4567-89ab-123456789abc')
+      const [url] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/checklist-templates/abc12345-1234-4567-89ab-123456789abc')
+    })
+
+    it('rejects ids that try to traverse the URL path', async () => {
+      await expect(
+        deleteChecklistTemplateAction('abc/../../other-endpoint'),
+      ).rejects.toThrow('Invalid template id')
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('rejects empty ids', async () => {
+      await expect(deleteChecklistTemplateAction('')).rejects.toThrow('Invalid template id')
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('rejects overly long ids', async () => {
+      await expect(
+        deleteChecklistTemplateAction('a'.repeat(129)),
+      ).rejects.toThrow('Invalid template id')
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
   })
 })
