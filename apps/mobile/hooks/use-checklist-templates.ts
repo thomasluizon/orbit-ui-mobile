@@ -57,9 +57,7 @@ export function useCreateChecklistTemplate() {
     },
 
     onError: (_err, _data, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(checklistTemplateKeys.lists(), context.previous)
-      }
+      queryClient.setQueryData(checklistTemplateKeys.lists(), context?.previous)
     },
 
     onSettled: () => {
@@ -96,9 +94,7 @@ export function useDeleteChecklistTemplate() {
     },
 
     onError: (_err, _id, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(checklistTemplateKeys.lists(), context.previous)
-      }
+      queryClient.setQueryData(checklistTemplateKeys.lists(), context?.previous)
     },
 
     onSettled: () => {

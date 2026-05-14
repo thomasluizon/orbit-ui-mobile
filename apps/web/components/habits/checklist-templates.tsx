@@ -100,8 +100,9 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                   <button
                     type="button"
                     aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="px-1 py-0.5 text-text-muted hover:text-red-500 transition-colors"
+                    className="px-1 py-0.5 text-text-muted hover:text-red-500 transition-colors disabled:opacity-50"
                     onClick={() => handleDelete(tmpl.id)}
+                    disabled={deleteTemplate.isPending}
                   >
                     <X className="size-3" />
                   </button>

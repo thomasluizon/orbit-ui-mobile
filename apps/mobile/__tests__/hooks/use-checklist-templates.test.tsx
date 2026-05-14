@@ -143,7 +143,7 @@ describe('mobile useChecklistTemplates', () => {
       expect(seeded[0]?.name).toBe('New')
     })
 
-    it('onError restores the snapshot when a previous list existed', async () => {
+    it('onError restores the snapshot regardless of whether a previous list existed', async () => {
       await renderHook(() => useCreateChecklistTemplate())
       const onError = mocks.captured.mutationArgs?.onError as (
         err: unknown,
@@ -158,9 +158,14 @@ describe('mobile useChecklistTemplates', () => {
         snapshot,
       )
 
+      // When previous is undefined (empty-cache first-load case), the rollback
+      // still writes undefined back so the optimistic placeholder is cleared.
       mocks.queryClient.setQueryData.mockClear()
       onError(new Error('boom'), { name: 'X', items: [] }, { previous: undefined })
-      expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+      expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
+        checklistTemplateKeys.lists(),
+        undefined,
+      )
     })
   })
 
@@ -223,9 +228,13 @@ describe('mobile useChecklistTemplates', () => {
         snapshot,
       )
 
+      // Empty-cache path: setQueryData(key, undefined) clears the cache entry.
       mocks.queryClient.setQueryData.mockClear()
       onError(new Error('boom'), 't1', { previous: undefined })
-      expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+      expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
+        checklistTemplateKeys.lists(),
+        undefined,
+      )
     })
 
     it('invalidates the list on settle', async () => {

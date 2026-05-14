@@ -108,8 +108,13 @@ export function ChecklistTemplates({
                     accessibilityLabel={t('common.delete')}
                     accessibilityRole="button"
                     accessibilityHint={template.name}
-                    style={styles.chipDeleteButton}
+                    accessibilityState={{ disabled: deleteTemplate.isPending }}
+                    style={[
+                      styles.chipDeleteButton,
+                      deleteTemplate.isPending && styles.chipDeleteButtonDisabled,
+                    ]}
                     onPress={() => handleDelete(template.id)}
+                    disabled={deleteTemplate.isPending}
                     activeOpacity={0.8}
                   >
                     <X size={12} color={colors.textMuted} />
@@ -217,6 +222,9 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       minHeight: 32,
       paddingHorizontal: 6,
       paddingVertical: 6,
+    },
+    chipDeleteButtonDisabled: {
+      opacity: 0.5,
     },
     saveRow: {
       flexDirection: 'row',
