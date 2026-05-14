@@ -93,7 +93,7 @@ export function useDeleteChecklistTemplate() {
     },
 
     onError: (_err, _id, context) => {
-      if (context?.previous) {
+      if (context?.previous !== undefined) {
         queryClient.setQueryData(checklistTemplateKeys.lists(), context.previous)
       }
     },
