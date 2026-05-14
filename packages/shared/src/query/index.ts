@@ -12,6 +12,7 @@ export {
   calendarKeys,
   userFactKeys,
   versionCheckKeys,
+  checklistTemplateKeys,
 } from './keys'
 
 export {

@@ -1,102 +1,61 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
+import { applyChecklistTemplate } from '@orbit/shared/utils'
 import {
-  applyChecklistTemplate,
-  CHECKLIST_TEMPLATE_STORAGE_KEY,
-  createChecklistTemplate,
-  deleteChecklistTemplate,
-  LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY,
-  resolveChecklistTemplates,
-} from '@orbit/shared/utils'
-
-// ---------------------------------------------------------------------------
-// Local storage template management
-// ---------------------------------------------------------------------------
-
-function loadTemplates(): ChecklistTemplate[] {
-  if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return [] // NOSONAR - SSR guard
-  try {
-    const raw = localStorage.getItem(CHECKLIST_TEMPLATE_STORAGE_KEY)
-    const legacyRaw = localStorage.getItem(LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY)
-    const { templates, shouldMigrateLegacy } = resolveChecklistTemplates(raw, legacyRaw)
-
-    if (shouldMigrateLegacy) {
-      localStorage.setItem(CHECKLIST_TEMPLATE_STORAGE_KEY, JSON.stringify(templates))
-      localStorage.removeItem(LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY)
-    }
-
-    return templates
-  } catch {
-    return []
-  }
-}
-
-function persistTemplates(templates: ChecklistTemplate[]) {
-  localStorage.setItem(CHECKLIST_TEMPLATE_STORAGE_KEY, JSON.stringify(templates))
-  localStorage.removeItem(LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY)
-}
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+  useChecklistTemplates,
+  useCreateChecklistTemplate,
+  useDeleteChecklistTemplate,
+} from '@/hooks/use-checklist-templates'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
   onLoad: (items: ChecklistItem[]) => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplatesProps>) {
   const t = useTranslations()
-  const [templates, setTemplates] = useState<ChecklistTemplate[]>(loadTemplates)
+  const { data: templates = [] } = useChecklistTemplates()
+  const createTemplate = useCreateChecklistTemplate()
+  const deleteTemplate = useDeleteChecklistTemplate()
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
   const handleSave = useCallback(() => {
-    const newTemplate = createChecklistTemplate(
-      templateName,
-      items,
-      () => crypto.randomUUID(),
-    )
-    if (!newTemplate) return
+    const name = templateName.trim()
+    if (!name || items.length === 0) return
 
-    const next = [...templates, newTemplate]
-    setTemplates(next)
-    persistTemplates(next)
-    setTemplateName('')
-    setShowSave(false)
-  }, [templateName, items, templates])
+    createTemplate.mutate(
+      { name, items: items.map((item) => item.text) },
+      {
+        onSuccess: () => {
+          setTemplateName('')
+          setShowSave(false)
+        },
+      },
+    )
+  }, [createTemplate, items, templateName])
 
   const handleLoad = useCallback(
     (id: string) => {
-      const tmpl = templates.find((t) => t.id === id)
-      if (tmpl) {
-        onLoad(applyChecklistTemplate(tmpl))
-      }
+      const tmpl = templates.find((entry) => entry.id === id)
+      if (tmpl) onLoad(applyChecklistTemplate(tmpl))
     },
-    [templates, onLoad],
+    [onLoad, templates],
   )
 
   const handleDelete = useCallback(
     (id: string) => {
-      const next = deleteChecklistTemplate(templates, id)
-      setTemplates(next)
-      persistTemplates(next)
+      deleteTemplate.mutate(id)
     },
-    [templates],
+    [deleteTemplate],
   )
 
   return (
     <div className="space-y-3">
-      {/* Template actions */}
       <div className="flex items-center gap-3 flex-wrap">
         {items.length > 0 && !showSave && (
           <button
@@ -144,7 +103,6 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         )}
       </div>
 
-      {/* Save template form */}
       {showSave && (
         <div className="flex items-center gap-2">
           <input
@@ -163,7 +121,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           <button
             type="button"
             className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-all duration-150"
-            disabled={!templateName.trim()}
+            disabled={!templateName.trim() || createTemplate.isPending}
             onClick={handleSave}
             aria-label={t('common.save')}
           >

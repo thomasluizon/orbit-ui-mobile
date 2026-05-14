@@ -18,6 +18,8 @@ import {
 import type {
   HabitScheduleItem,
   HabitScheduleChild,
+  HabitDetail,
+  HabitFullDetail,
   CreateHabitRequest,
   UpdateHabitRequest,
   ReorderHabitsRequest,
@@ -391,6 +393,7 @@ export function useUpdateHabit() {
     onSettled: (_data, _err, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
+      queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
@@ -449,31 +452,51 @@ export function useUpdateChecklist() {
     }) => updateChecklistAction(habitId, items),
 
     onMutate: async ({ habitId, items }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+      ])
 
       const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
         queryKey: habitKeys.lists(),
       })
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))
+      const previousFullDetail = queryClient.getQueryData<HabitFullDetail>(
+        habitKeys.fullDetail(habitId),
+      )
 
-      // Optimistic checklist update via extracted helper (reduces nesting - S2004)
       queryClient.setQueriesData<HabitScheduleItem[]>(
         { queryKey: habitKeys.lists() },
         (old) => old ? optimisticUpdateChecklist(old, habitId, items) : old,
       )
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(habitId), (old) =>
+        old ? { ...old, checklistItems: items } : old,
+      )
+      queryClient.setQueryData<HabitFullDetail>(habitKeys.fullDetail(habitId), (old) =>
+        old ? { ...old, habit: { ...old.habit, checklistItems: items } } : old,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetail, previousFullDetail }
     },
 
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        for (const [key, data] of context.previousLists) {
-          if (data) queryClient.setQueryData(key, data)
-        }
+    onError: (_err, { habitId }, context) => {
+      if (!context) return
+      for (const [key, data] of context.previousLists) {
+        if (data) queryClient.setQueryData(key, data)
+      }
+      if (context.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(habitId), context.previousDetail)
+      }
+      if (context.previousFullDetail) {
+        queryClient.setQueryData(habitKeys.fullDetail(habitId), context.previousFullDetail)
       }
     },
 
-    onSettled: () => {
+    onSettled: (_data, _err, { habitId }) => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
+      queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })

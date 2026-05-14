@@ -1,19 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-// Mock crypto.randomUUID
-vi.stubGlobal('crypto', { randomUUID: () => 'test-uuid-123' })
+const mockTemplates = vi.fn<() => { data: ChecklistTemplate[] }>(() => ({ data: [] }))
+const mockCreate = vi.fn()
+const mockDelete = vi.fn()
+
+vi.mock('@/hooks/use-checklist-templates', () => ({
+  useChecklistTemplates: () => mockTemplates(),
+  useCreateChecklistTemplate: () => ({
+    mutate: mockCreate,
+    isPending: false,
+  }),
+  useDeleteChecklistTemplate: () => ({ mutate: mockDelete }),
+}))
 
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 
 describe('ChecklistTemplates', () => {
   beforeEach(() => {
-    localStorage.clear()
+    mockTemplates.mockReturnValue({ data: [] })
+    mockCreate.mockReset()
+    mockDelete.mockReset()
   })
 
   it('shows save button when items are present', () => {
@@ -34,7 +47,7 @@ describe('ChecklistTemplates', () => {
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toBeInTheDocument()
   })
 
-  it('saves a template to localStorage', () => {
+  it('calls createTemplate mutation with the typed name and items', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
 
@@ -43,18 +56,16 @@ describe('ChecklistTemplates', () => {
     fireEvent.change(input, { target: { value: 'Morning Routine' } })
     fireEvent.click(screen.getByText('common.save'))
 
-    const stored = JSON.parse(localStorage.getItem('orbit-checklist-templates') ?? '[]')
-    expect(stored).toHaveLength(1)
-    expect(stored[0].name).toBe('Morning Routine')
-    expect(stored[0].items).toEqual(['Step 1'])
+    expect(mockCreate).toHaveBeenCalledWith(
+      { name: 'Morning Routine', items: ['Step 1'] },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    )
   })
 
-  it('loads a template calling onLoad', () => {
-    // Pre-populate localStorage with a template
-    localStorage.setItem(
-      'orbit-checklist-templates',
-      JSON.stringify([{ id: 'tmpl1', name: 'Workout', items: ['Warmup', 'Main'] }]),
-    )
+  it('loads a template calling onLoad with checklist items', () => {
+    mockTemplates.mockReturnValue({
+      data: [{ id: 'tmpl1', name: 'Workout', items: ['Warmup', 'Main'] }],
+    })
 
     const onLoad = vi.fn()
     render(
@@ -68,51 +79,16 @@ describe('ChecklistTemplates', () => {
     ])
   })
 
-  it('migrates legacy template storage to the current key', () => {
-    localStorage.setItem(
-      'orbit:checklist-templates',
-      JSON.stringify([{ id: 'tmpl-legacy', name: 'Packing', items: ['Passport'] }]),
-    )
+  it('calls deleteTemplate mutation when delete is clicked', () => {
+    mockTemplates.mockReturnValue({
+      data: [{ id: 'tmpl1', name: 'Workout', items: ['Warmup'] }],
+    })
 
     render(
       <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
     )
 
-    expect(screen.getByText('Packing')).toBeInTheDocument()
-    expect(localStorage.getItem('orbit-checklist-templates')).toContain('Packing')
-    expect(localStorage.getItem('orbit:checklist-templates')).toBeNull()
-  })
-
-  it('falls back to legacy templates when the current key is corrupted', () => {
-    localStorage.setItem('orbit-checklist-templates', '{not valid json')
-    localStorage.setItem(
-      'orbit:checklist-templates',
-      JSON.stringify([{ id: 'tmpl-legacy', name: 'Packing', items: ['Passport'] }]),
-    )
-
-    render(
-      <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
-    )
-
-    expect(screen.getByText('Packing')).toBeInTheDocument()
-    expect(localStorage.getItem('orbit-checklist-templates')).toBe('{not valid json')
-    expect(localStorage.getItem('orbit:checklist-templates')).toContain('Packing')
-  })
-
-  it('deletes a template', () => {
-    localStorage.setItem(
-      'orbit-checklist-templates',
-      JSON.stringify([{ id: 'tmpl1', name: 'Workout', items: ['Warmup'] }]),
-    )
-
-    render(
-      <ChecklistTemplates items={[{ text: 'A', isChecked: false }]} onLoad={vi.fn()} />,
-    )
-
-    const deleteBtn = screen.getByLabelText('common.delete: Workout')
-    fireEvent.click(deleteBtn)
-
-    const stored = JSON.parse(localStorage.getItem('orbit-checklist-templates') ?? '[]')
-    expect(stored).toHaveLength(0)
+    fireEvent.click(screen.getByLabelText('common.delete: Workout'))
+    expect(mockDelete).toHaveBeenCalledWith('tmpl1')
   })
 })

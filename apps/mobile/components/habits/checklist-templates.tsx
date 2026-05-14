@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   StyleSheet,
   Text,
@@ -7,27 +7,19 @@ import {
 } from 'react-native'
 import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { applyChecklistTemplate } from '@orbit/shared/utils'
 import {
-  applyChecklistTemplate,
-  createChecklistTemplate,
-  deleteChecklistTemplate,
-} from '@orbit/shared/utils'
-import {
-  loadChecklistTemplates,
-  saveChecklistTemplates,
-} from '@/lib/checklist-template-storage'
+  useChecklistTemplates,
+  useCreateChecklistTemplate,
+  useDeleteChecklistTemplate,
+} from '@/hooks/use-checklist-templates'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
   onLoad: (items: ChecklistItem[]) => void
-}
-
-function createTemplateId(): string {
-  return `checklist-template-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export function ChecklistTemplates({
@@ -37,29 +29,26 @@ export function ChecklistTemplates({
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
+  const { data: templates = [] } = useChecklistTemplates()
+  const createTemplate = useCreateChecklistTemplate()
+  const deleteTemplate = useDeleteChecklistTemplate()
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
-  useEffect(() => {
-    loadChecklistTemplates()
-      .then(setTemplates)
-      .catch(() => setTemplates([]))
-  }, [])
+  const handleSave = useCallback(() => {
+    const name = templateName.trim()
+    if (!name || items.length === 0) return
 
-  const persistTemplates = useCallback(async (next: ChecklistTemplate[]) => {
-    setTemplates(next)
-    await saveChecklistTemplates(next)
-  }, [])
-
-  const handleSave = useCallback(async () => {
-    const newTemplate = createChecklistTemplate(templateName, items, createTemplateId)
-    if (!newTemplate) return
-
-    await persistTemplates([...templates, newTemplate])
-    setTemplateName('')
-    setShowSave(false)
-  }, [items, persistTemplates, templateName, templates])
+    createTemplate.mutate(
+      { name, items: items.map((item) => item.text) },
+      {
+        onSuccess: () => {
+          setTemplateName('')
+          setShowSave(false)
+        },
+      },
+    )
+  }, [createTemplate, items, templateName])
 
   const handleLoad = useCallback((id: string) => {
     const template = templates.find((entry) => entry.id === id)
@@ -67,9 +56,9 @@ export function ChecklistTemplates({
     onLoad(applyChecklistTemplate(template))
   }, [onLoad, templates])
 
-  const handleDelete = useCallback(async (id: string) => {
-    await persistTemplates(deleteChecklistTemplate(templates, id))
-  }, [persistTemplates, templates])
+  const handleDelete = useCallback((id: string) => {
+    deleteTemplate.mutate(id)
+  }, [deleteTemplate])
 
   if (items.length === 0 && templates.length === 0 && !showSave) {
     return null
@@ -111,9 +100,7 @@ export function ChecklistTemplates({
                     accessibilityRole="button"
                     accessibilityHint={template.name}
                     style={styles.chipDeleteButton}
-                    onPress={() => {
-                      void handleDelete(template.id)
-                    }}
+                    onPress={() => handleDelete(template.id)}
                     activeOpacity={0.8}
                   >
                     <X size={12} color={colors.textMuted} />
@@ -135,24 +122,20 @@ export function ChecklistTemplates({
             accessibilityLabel={t('habits.form.templateNamePlaceholder')}
             accessibilityHint={t('habits.form.saveAsTemplate')}
             onChangeText={setTemplateName}
-            onSubmitEditing={() => {
-              void handleSave()
-            }}
+            onSubmitEditing={handleSave}
             returnKeyType="done"
           />
           <TouchableOpacity
             style={[
               styles.saveButton,
-              !templateName.trim() && styles.saveButtonDisabled,
+              (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
             ]}
-            onPress={() => {
-              void handleSave()
-            }}
-            disabled={!templateName.trim()}
+            onPress={handleSave}
+            disabled={!templateName.trim() || createTemplate.isPending}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('common.save')}
-            accessibilityState={{ disabled: !templateName.trim() }}
+            accessibilityState={{ disabled: !templateName.trim() || createTemplate.isPending }}
           >
             <Text style={styles.saveButtonText}>{t('common.save')}</Text>
           </TouchableOpacity>

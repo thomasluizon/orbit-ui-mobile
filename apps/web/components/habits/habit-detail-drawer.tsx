@@ -52,6 +52,7 @@ export function HabitDetailDrawer({
 
   const metrics = fullDetail?.metrics ?? null
   const logs = fullDetail?.logs ?? null
+  const liveChecklist = fullDetail?.habit?.checklistItems ?? habit?.checklistItems ?? []
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
@@ -59,16 +60,16 @@ export function HabitDetailDrawer({
   const handleChecklistToggle = useCallback(
     (index: number) => {
       if (!habit) return
-      const items = [...habit.checklistItems]
+      const items = [...liveChecklist]
       const item = items[index]
       if (!item) return
       items[index] = { ...item, isChecked: !item.isChecked }
       updateChecklist.mutate({ habitId: habit.id, items })
-      if (items.every((i) => i.isChecked) && !habit.isCompleted) {
+      if (items.length > 0 && items.every((i) => i.isChecked) && !habit.isCompleted) {
         setShowChecklistLogPrompt(true)
       }
     },
-    [habit, updateChecklist],
+    [habit, liveChecklist, updateChecklist],
   )
 
   const confirmChecklistLog = useCallback(async () => {
@@ -84,9 +85,9 @@ export function HabitDetailDrawer({
 
   const handleChecklistReset = useCallback(() => {
     if (!habit) return
-    const items = habit.checklistItems.map((i) => ({ ...i, isChecked: false }))
+    const items = liveChecklist.map((i) => ({ ...i, isChecked: false }))
     updateChecklist.mutate({ habitId: habit.id, items })
-  }, [habit, updateChecklist])
+  }, [habit, liveChecklist, updateChecklist])
 
   const handleChecklistClear = useCallback(() => {
     if (!habit) return
@@ -161,9 +162,9 @@ export function HabitDetailDrawer({
             )}
 
             {/* Checklist */}
-            {habit.checklistItems && habit.checklistItems.length > 0 && (
+            {liveChecklist.length > 0 && (
               <HabitChecklist
-                items={habit.checklistItems}
+                items={liveChecklist}
                 interactive
                 onToggle={handleChecklistToggle}
                 onReset={handleChecklistReset}

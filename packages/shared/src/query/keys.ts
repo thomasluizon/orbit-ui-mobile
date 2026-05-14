@@ -5,6 +5,7 @@ export const habitKeys = {
   count: () => [...habitKeys.all, 'count'] as const,
   details: () => [...habitKeys.all, 'detail'] as const,
   detail: (id: string) => [...habitKeys.details(), id] as const,
+  fullDetail: (id: string) => [...habitKeys.all, 'fullDetail', id] as const,
   metrics: (id: string) => [...habitKeys.all, 'metrics', id] as const,
   logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
   calendar: (from: string, to: string) => [...habitKeys.all, 'calendar', from, to] as const,
@@ -71,6 +72,11 @@ export const apiKeyKeys = {
 export const configKeys = {
   all: ['config'] as const,
   detail: () => [...configKeys.all, 'detail'] as const,
+}
+
+export const checklistTemplateKeys = {
+  all: ['checklistTemplates'] as const,
+  lists: () => [...checklistTemplateKeys.all, 'list'] as const,
 }
 
 export const calendarKeys = {

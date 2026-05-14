@@ -156,6 +156,12 @@ export function HabitChecklist({
   const checkedCount = items.filter((i) => i.isChecked).length
   const progressPercent = items.length > 0 ? (checkedCount / items.length) * 100 : 0
 
+  useEffect(() => {
+    return () => {
+      if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
+    }
+  }, [])
+
   // -- Editable actions --
 
   const addItem = useCallback(() => {
