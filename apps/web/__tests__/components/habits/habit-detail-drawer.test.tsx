@@ -32,9 +32,12 @@ vi.mock('@/hooks/use-time-format', () => ({
   }),
 }))
 
+// Mock returns no habit.checklistItems so the drawer falls back to the prop's
+// checklistItems. Tests that exercise checklist behavior assert against the prop value.
 vi.mock('@/hooks/use-habits', () => ({
   useHabitFullDetail: () => ({
     data: {
+      habit: {},
       metrics: {
         currentStreak: 5,
         longestStreak: 14,

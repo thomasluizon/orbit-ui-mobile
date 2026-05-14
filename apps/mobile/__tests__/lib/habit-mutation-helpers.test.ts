@@ -155,6 +155,9 @@ describe('finalizeHabitMutation', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.detail('habit-1'),
     })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.fullDetail('habit-1'),
+    })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })

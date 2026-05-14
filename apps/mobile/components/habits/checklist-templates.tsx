@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   StyleSheet,
   Text,
@@ -7,17 +7,14 @@ import {
 } from 'react-native'
 import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { applyChecklistTemplate } from '@orbit/shared/utils'
 import {
-  applyChecklistTemplate,
-  createChecklistTemplate,
-  deleteChecklistTemplate,
-} from '@orbit/shared/utils'
-import {
-  loadChecklistTemplates,
-  saveChecklistTemplates,
-} from '@/lib/checklist-template-storage'
+  useChecklistTemplates,
+  useCreateChecklistTemplate,
+  useDeleteChecklistTemplate,
+} from '@/hooks/use-checklist-templates'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -26,40 +23,42 @@ interface ChecklistTemplatesProps {
   onLoad: (items: ChecklistItem[]) => void
 }
 
-function createTemplateId(): string {
-  return `checklist-template-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
 export function ChecklistTemplates({
   items,
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
   const { t } = useTranslation()
   const { colors } = useAppTheme()
+  const { showError } = useAppToast()
   const styles = useMemo(() => createStyles(colors), [colors])
-  const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
+  const { data: templates = [] } = useChecklistTemplates()
+  const createTemplate = useCreateChecklistTemplate()
+  const deleteTemplate = useDeleteChecklistTemplate()
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
-  useEffect(() => {
-    loadChecklistTemplates()
-      .then(setTemplates)
-      .catch(() => setTemplates([]))
-  }, [])
+  const isDeletingThisTemplate = useCallback(
+    (id: string) => deleteTemplate.isPending && deleteTemplate.variables === id,
+    [deleteTemplate.isPending, deleteTemplate.variables],
+  )
 
-  const persistTemplates = useCallback(async (next: ChecklistTemplate[]) => {
-    setTemplates(next)
-    await saveChecklistTemplates(next)
-  }, [])
+  const handleSave = useCallback(() => {
+    const name = templateName.trim()
+    if (!name || items.length === 0 || createTemplate.isPending) return
 
-  const handleSave = useCallback(async () => {
-    const newTemplate = createChecklistTemplate(templateName, items, createTemplateId)
-    if (!newTemplate) return
-
-    await persistTemplates([...templates, newTemplate])
-    setTemplateName('')
-    setShowSave(false)
-  }, [items, persistTemplates, templateName, templates])
+    createTemplate.mutate(
+      { name, items: items.map((item) => item.text) },
+      {
+        onSuccess: () => {
+          setTemplateName('')
+          setShowSave(false)
+        },
+        onError: () => {
+          showError(t('habits.form.saveTemplateError'))
+        },
+      },
+    )
+  }, [createTemplate, items, showError, t, templateName])
 
   const handleLoad = useCallback((id: string) => {
     const template = templates.find((entry) => entry.id === id)
@@ -67,9 +66,13 @@ export function ChecklistTemplates({
     onLoad(applyChecklistTemplate(template))
   }, [onLoad, templates])
 
-  const handleDelete = useCallback(async (id: string) => {
-    await persistTemplates(deleteChecklistTemplate(templates, id))
-  }, [persistTemplates, templates])
+  const handleDelete = useCallback((id: string) => {
+    deleteTemplate.mutate(id, {
+      onError: () => {
+        showError(t('habits.form.deleteTemplateError'))
+      },
+    })
+  }, [deleteTemplate, showError, t])
 
   if (items.length === 0 && templates.length === 0 && !showSave) {
     return null
@@ -110,10 +113,13 @@ export function ChecklistTemplates({
                     accessibilityLabel={t('common.delete')}
                     accessibilityRole="button"
                     accessibilityHint={template.name}
-                    style={styles.chipDeleteButton}
-                    onPress={() => {
-                      void handleDelete(template.id)
-                    }}
+                    accessibilityState={{ disabled: isDeletingThisTemplate(template.id) }}
+                    style={[
+                      styles.chipDeleteButton,
+                      isDeletingThisTemplate(template.id) && styles.chipDeleteButtonDisabled,
+                    ]}
+                    onPress={() => handleDelete(template.id)}
+                    disabled={isDeletingThisTemplate(template.id)}
                     activeOpacity={0.8}
                   >
                     <X size={12} color={colors.textMuted} />
@@ -135,24 +141,20 @@ export function ChecklistTemplates({
             accessibilityLabel={t('habits.form.templateNamePlaceholder')}
             accessibilityHint={t('habits.form.saveAsTemplate')}
             onChangeText={setTemplateName}
-            onSubmitEditing={() => {
-              void handleSave()
-            }}
+            onSubmitEditing={handleSave}
             returnKeyType="done"
           />
           <TouchableOpacity
             style={[
               styles.saveButton,
-              !templateName.trim() && styles.saveButtonDisabled,
+              (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
             ]}
-            onPress={() => {
-              void handleSave()
-            }}
-            disabled={!templateName.trim()}
+            onPress={handleSave}
+            disabled={!templateName.trim() || createTemplate.isPending}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('common.save')}
-            accessibilityState={{ disabled: !templateName.trim() }}
+            accessibilityState={{ disabled: !templateName.trim() || createTemplate.isPending }}
           >
             <Text style={styles.saveButtonText}>{t('common.save')}</Text>
           </TouchableOpacity>
@@ -225,6 +227,9 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       minHeight: 32,
       paddingHorizontal: 6,
       paddingVertical: 6,
+    },
+    chipDeleteButtonDisabled: {
+      opacity: 0.5,
     },
     saveRow: {
       flexDirection: 'row',

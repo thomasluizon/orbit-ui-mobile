@@ -18,6 +18,8 @@ import {
 import type {
   HabitScheduleItem,
   HabitScheduleChild,
+  HabitDetail,
+  HabitFullDetail,
   LogHabitResponse,
   CreateHabitRequest,
   UpdateHabitRequest,
@@ -529,7 +531,11 @@ export function useUpdateChecklist() {
     void | QueuedMarker,
     Error,
     { habitId: string; items: ChecklistItem[] },
-    { previousLists: HabitListSnapshots }
+    {
+      previousLists: HabitListSnapshots
+      previousDetail: HabitDetail | undefined
+      previousFullDetail: HabitFullDetail | undefined
+    }
   >({
     mutationFn: ({ habitId, items }) =>
       performQueuedApiMutation<void>({
@@ -543,20 +549,39 @@ export function useUpdateChecklist() {
       }),
 
     onMutate: async ({ habitId, items }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+      ])
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))
+      const previousFullDetail = queryClient.getQueryData<HabitFullDetail>(
+        habitKeys.fullDetail(habitId),
+      )
 
       updateHabitLists(queryClient, (oldItems) =>
         optimisticUpdateChecklist(oldItems, habitId, items),
       )
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(habitId), (old) =>
+        old ? { ...old, checklistItems: items } : old,
+      )
+      queryClient.setQueryData<HabitFullDetail>(habitKeys.fullDetail(habitId), (old) =>
+        old ? { ...old, habit: { ...old.habit, checklistItems: items } } : old,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetail, previousFullDetail }
     },
 
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        restoreHabitLists(queryClient, context.previousLists)
+    onError: (_err, { habitId }, context) => {
+      if (!context) return
+      restoreHabitLists(queryClient, context.previousLists)
+      if (context.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(habitId), context.previousDetail)
+      }
+      if (context.previousFullDetail) {
+        queryClient.setQueryData(habitKeys.fullDetail(habitId), context.previousFullDetail)
       }
     },
 

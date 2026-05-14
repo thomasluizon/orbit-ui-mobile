@@ -279,6 +279,10 @@ describe('QUERY_STALE_TIMES', () => {
     expect(QUERY_STALE_TIMES.notifications).toBe(60 * 1000)
   })
 
+  it('checklistTemplates is 5 minutes', () => {
+    expect(QUERY_STALE_TIMES.checklistTemplates).toBe(5 * 60 * 1000)
+  })
+
   it('has all expected keys', () => {
     const keys = Object.keys(QUERY_STALE_TIMES)
     expect(keys).toContain('profile')
@@ -289,7 +293,8 @@ describe('QUERY_STALE_TIMES', () => {
     expect(keys).toContain('config')
     expect(keys).toContain('tags')
     expect(keys).toContain('notifications')
-    expect(keys.length).toBe(8)
+    expect(keys).toContain('checklistTemplates')
+    expect(keys.length).toBe(9)
   })
 
   it('all values are positive numbers', () => {

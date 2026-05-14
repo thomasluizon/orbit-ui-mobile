@@ -456,6 +456,8 @@
       "templateNamePlaceholder": "ex. Compras semanais",
       "deleteTemplate": "Excluir",
       "noTemplates": "Nenhum modelo salvo",
+      "saveTemplateError": "Não foi possível salvar o modelo. Tente novamente.",
+      "deleteTemplateError": "Não foi possível excluir o modelo. Tente novamente.",
       "resetChecklist": "Resetar",
       "clearChecklist": "Limpar tudo",
       "duplicateChecklistItem": "Duplicar item",

@@ -36,4 +36,4 @@ jobs:
             Use `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) to post inline review comments on specific lines for any issues you find.
             Use `gh pr comment` for an overall summary at the end. Keep the summary brief.
             Only post GitHub comments — do not submit review text as a chat message.
-          claude_args: '--max-turns 30 --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'

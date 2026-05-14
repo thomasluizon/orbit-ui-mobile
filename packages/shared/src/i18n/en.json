@@ -456,6 +456,8 @@
       "templateNamePlaceholder": "e.g. Weekly groceries",
       "deleteTemplate": "Delete",
       "noTemplates": "No saved templates",
+      "saveTemplateError": "Couldn't save template. Please try again.",
+      "deleteTemplateError": "Couldn't delete template. Please try again.",
       "resetChecklist": "Reset",
       "clearChecklist": "Clear all",
       "duplicateChecklistItem": "Duplicate item",
