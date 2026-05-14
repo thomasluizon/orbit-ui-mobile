@@ -113,6 +113,55 @@ describe('mobile useChecklistTemplates', () => {
         queryKey: checklistTemplateKeys.lists(),
       })
     })
+
+    it('onMutate optimistically appends a placeholder with an optimistic id', async () => {
+      const existing = [{ id: 't1', name: 'Existing', items: ['A'] }]
+      mocks.queryClient.getQueryData.mockReturnValue(existing)
+
+      await renderHook(() => useCreateChecklistTemplate())
+      const onMutate = mocks.captured.mutationArgs?.onMutate as (
+        data: { name: string; items: string[] },
+      ) => Promise<{ previous: unknown }>
+
+      const ctx = await onMutate({ name: 'New', items: ['B'] })
+      expect(ctx.previous).toEqual(existing)
+
+      const updater = mocks.queryClient.setQueryData.mock.calls[0]![1] as (
+        old: typeof existing | undefined,
+      ) => typeof existing | undefined
+
+      const next = updater(existing)!
+      expect(next).toHaveLength(2)
+      expect(next[0]).toEqual(existing[0])
+      expect(next[1]?.name).toBe('New')
+      expect(next[1]?.items).toEqual(['B'])
+      expect(next[1]?.id.startsWith('optimistic-')).toBe(true)
+
+      // When the cache is empty, still seeds with the placeholder
+      const seeded = updater(undefined)!
+      expect(seeded).toHaveLength(1)
+      expect(seeded[0]?.name).toBe('New')
+    })
+
+    it('onError restores the snapshot when a previous list existed', async () => {
+      await renderHook(() => useCreateChecklistTemplate())
+      const onError = mocks.captured.mutationArgs?.onError as (
+        err: unknown,
+        data: unknown,
+        ctx: { previous: unknown } | undefined,
+      ) => void
+
+      const snapshot = [{ id: 't1', name: 'A', items: [] }]
+      onError(new Error('boom'), { name: 'X', items: [] }, { previous: snapshot })
+      expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
+        checklistTemplateKeys.lists(),
+        snapshot,
+      )
+
+      mocks.queryClient.setQueryData.mockClear()
+      onError(new Error('boom'), { name: 'X', items: [] }, { previous: undefined })
+      expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    })
   })
 
   describe('useDeleteChecklistTemplate', () => {

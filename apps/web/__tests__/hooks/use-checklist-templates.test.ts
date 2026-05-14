@@ -112,6 +112,67 @@ describe('useCreateChecklistTemplate', () => {
       queryKey: checklistTemplateKeys.lists(),
     })
   })
+
+  it('optimistically appends a placeholder template to the cache', async () => {
+    let resolveCreate: ((value: { id: string }) => void) | null = null
+    vi.mocked(createChecklistTemplateAction).mockImplementation(
+      () => new Promise((resolve) => { resolveCreate = resolve }),
+    )
+
+    const client = makeQueryClient()
+    client.setQueryData<ChecklistTemplate[]>(checklistTemplateKeys.lists(), [
+      { id: 't1', name: 'Existing', items: ['A'] },
+    ])
+
+    const { result } = renderHook(() => useCreateChecklistTemplate(), {
+      wrapper: wrapperFor(client),
+    })
+
+    await act(async () => {
+      result.current.mutate({ name: 'New', items: ['B'] })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const data = client.getQueryData<ChecklistTemplate[]>(
+      checklistTemplateKeys.lists(),
+    )
+    expect(data).toHaveLength(2)
+    expect(data?.[0]).toEqual({ id: 't1', name: 'Existing', items: ['A'] })
+    expect(data?.[1]?.name).toBe('New')
+    expect(data?.[1]?.items).toEqual(['B'])
+    expect(data?.[1]?.id.startsWith('optimistic-')).toBe(true)
+
+    if (resolveCreate) (resolveCreate as (v: { id: string }) => void)({ id: 'real-id' })
+  })
+
+  it('rolls back the optimistic insert on error', async () => {
+    vi.mocked(createChecklistTemplateAction).mockRejectedValue(new Error('boom'))
+
+    const client = makeQueryClient()
+    const original = [{ id: 't1', name: 'Existing', items: ['A'] }]
+    client.setQueryData<ChecklistTemplate[]>(
+      checklistTemplateKeys.lists(),
+      original,
+    )
+
+    const { result } = renderHook(() => useCreateChecklistTemplate(), {
+      wrapper: wrapperFor(client),
+    })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ name: 'New', items: ['B'] })
+      } catch {
+        // expected
+      }
+    })
+
+    const data = client.getQueryData<ChecklistTemplate[]>(
+      checklistTemplateKeys.lists(),
+    )
+    expect(data).toEqual(original)
+  })
 })
 
 describe('useDeleteChecklistTemplate', () => {
@@ -147,7 +208,7 @@ describe('useDeleteChecklistTemplate', () => {
     ).toEqual([{ id: 't2', name: 'B', items: [] }])
 
     // Release the mutation so the test cleanup completes
-    resolveDelete?.()
+    if (resolveDelete) (resolveDelete as () => void)()
   })
 
   it('rolls back the cache on error', async () => {

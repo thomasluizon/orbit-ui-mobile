@@ -52,7 +52,7 @@ export function HabitDetailDrawer({
 
   const metrics = fullDetail?.metrics ?? null
   const logs = fullDetail?.logs ?? null
-  const liveChecklist = fullDetail?.habit?.checklistItems ?? habit?.checklistItems ?? []
+  const liveChecklist = fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? []
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)

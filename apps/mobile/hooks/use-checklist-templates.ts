@@ -12,19 +12,55 @@ export function useChecklistTemplates() {
   return useQuery({
     queryKey: checklistTemplateKeys.lists(),
     queryFn: () => apiClient<ChecklistTemplate[]>(API.checklistTemplates.list),
-    staleTime: QUERY_STALE_TIMES.habits,
+    staleTime: QUERY_STALE_TIMES.checklistTemplates,
   })
+}
+
+function createOptimisticTemplateId(): string {
+  return `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export function useCreateChecklistTemplate() {
   const queryClient = useQueryClient()
 
-  return useMutation<CreateChecklistTemplateResponse, Error, CreateChecklistTemplateRequest>({
+  return useMutation<
+    CreateChecklistTemplateResponse,
+    Error,
+    CreateChecklistTemplateRequest,
+    { previous: ChecklistTemplate[] | undefined }
+  >({
     mutationFn: (data) =>
       apiClient<CreateChecklistTemplateResponse>(API.checklistTemplates.create, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: checklistTemplateKeys.lists() })
+
+      const previous = queryClient.getQueryData<ChecklistTemplate[]>(
+        checklistTemplateKeys.lists(),
+      )
+
+      const placeholder: ChecklistTemplate = {
+        id: createOptimisticTemplateId(),
+        name: data.name,
+        items: data.items,
+      }
+
+      queryClient.setQueryData<ChecklistTemplate[]>(
+        checklistTemplateKeys.lists(),
+        (old) => (old ? [...old, placeholder] : [placeholder]),
+      )
+
+      return { previous }
+    },
+
+    onError: (_err, _data, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(checklistTemplateKeys.lists(), context.previous)
+      }
+    },
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: checklistTemplateKeys.lists() })
