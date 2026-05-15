@@ -63,12 +63,6 @@ export function MessageBubble({
     [message.actions],
   )
 
-  const operationResults = useMemo(
-    () =>
-      message.operations?.filter((operation) => operation.status !== 'PendingConfirmation') ?? [],
-    [message.operations],
-  )
-
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns((prev) => new Set([...prev, key]))
   }
@@ -154,29 +148,6 @@ export function MessageBubble({
                 onPrepareStepUp={onPendingOperationPrepareStepUp}
                 onVerifyStepUp={onPendingOperationVerifyStepUp}
               />
-            ))}
-          </div>
-        )}
-
-        {!isUser && operationResults.length > 0 && (
-          <div className="mt-3 w-full space-y-2">
-            {operationResults.map((operation) => (
-              <div
-                key={`${operation.operationId}-${operation.targetId ?? operation.sourceName}`}
-                className="rounded-[var(--radius-xl)] border border-border bg-surface px-3 py-2"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium text-text-primary">
-                    {operation.summary ?? operation.sourceName}
-                  </p>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                    {operation.status}
-                  </span>
-                </div>
-                {operation.policyReason && (
-                  <p className="mt-1 text-[11px] text-text-secondary">{operation.policyReason}</p>
-                )}
-              </div>
             ))}
           </div>
         )}

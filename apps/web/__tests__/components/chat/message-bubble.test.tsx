@@ -153,22 +153,11 @@ describe('MessageBubble', () => {
     expect(screen.getByTestId('pending-operation-card')).toBeInTheDocument()
   })
 
-  it('renders policy denials and operation summaries', () => {
+  it('renders policy denials', () => {
     render(
       <MessageBubble
         message={makeMessage({
           role: 'ai',
-          operations: [
-            {
-              operationId: 'habit.read',
-              sourceName: 'Read habits',
-              riskClass: 'Low',
-              confirmationRequirement: 'None',
-              status: 'Succeeded',
-              summary: 'Loaded habits',
-              payload: null,
-            },
-          ],
           policyDenials: [
             {
               operationId: 'habit.delete',
@@ -182,7 +171,6 @@ describe('MessageBubble', () => {
       />,
     )
 
-    expect(screen.getByText('Loaded habits')).toBeInTheDocument()
     expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
   })
 })
