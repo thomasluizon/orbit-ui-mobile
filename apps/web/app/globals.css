@@ -53,9 +53,12 @@
   /* Typography */
   --font-family-sans: var(--font-manrope), 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
-  /* Animations */
+  /* Animations.
+     `slide-up-fade` uses `backwards` fill-mode (start-state only, no post-animation
+     hold) so it doesn't pin transform values that would override later inline
+     transforms in drag-enabled contexts. Matches `.stagger-enter > *` below. */
   --animate-shimmer: shimmer 2s ease-in-out infinite;
-  --animate-slide-up: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-up: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-gentle-pulse: gentle-pulse 2s ease-in-out infinite;
 }
@@ -761,9 +764,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
-/* Stagger entrance animation for lists */
+/* Stagger entrance animation for lists.
+   fill-mode is `backwards` (not `both`) so the keyframe's end-state transform
+   isn't pinned to the element after the animation finishes - otherwise it would
+   override any subsequent inline transforms (e.g., @dnd-kit drag transforms). */
 .stagger-enter > * {
-  animation: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 .stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-enter > *:nth-child(2) { animation-delay: var(--orbit-list-stagger); }
@@ -1068,7 +1074,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Parent card -- glass surface with depth */
 .habit-card-parent {
   position: relative;
-  overflow: hidden;
   background:
     var(--color-surface);
   border: 1px solid rgba(255, 255, 255, 0.075);
@@ -1151,7 +1156,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Child card -- glass nested surface with accent line */
 .habit-card-child {
   position: relative;
-  overflow: hidden;
   background:
     rgba(13, 11, 22, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.04);

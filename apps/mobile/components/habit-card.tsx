@@ -1489,7 +1489,6 @@ function createStyles(colors: ReturnType<typeof createColors>, themeMode: 'light
     paddingHorizontal: 15,
     marginBottom: 12,
     position: 'relative',
-    overflow: 'hidden',
     ...childShadow,
     elevation: isLight ? 0 : 4,
   },

@@ -153,22 +153,11 @@ describe('MessageBubble', () => {
     expect(screen.getByTestId('pending-operation-card')).toBeInTheDocument()
   })
 
-  it('renders policy denials and operation summaries', () => {
+  it('renders policy denials', () => {
     render(
       <MessageBubble
         message={makeMessage({
           role: 'ai',
-          operations: [
-            {
-              operationId: 'habit.read',
-              sourceName: 'Read habits',
-              riskClass: 'Low',
-              confirmationRequirement: 'None',
-              status: 'Succeeded',
-              summary: 'Loaded habits',
-              payload: null,
-            },
-          ],
           policyDenials: [
             {
               operationId: 'habit.delete',
@@ -182,7 +171,32 @@ describe('MessageBubble', () => {
       />,
     )
 
-    expect(screen.getByText('Loaded habits')).toBeInTheDocument()
     expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
+  })
+
+  it('does not render the raw operation summary card for completed operations', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          content: 'Logged your meditation habit.',
+          operations: [
+            {
+              operationId: 'habit.log',
+              sourceName: 'Log habit',
+              riskClass: 'Low',
+              confirmationRequirement: 'None',
+              status: 'Succeeded',
+              summary: 'Logged Meditation',
+              payload: null,
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Logged your meditation habit.')).toBeInTheDocument()
+    expect(screen.queryByText('Logged Meditation')).not.toBeInTheDocument()
+    expect(screen.queryByText(/SUCCEEDED/i)).not.toBeInTheDocument()
   })
 })

@@ -124,13 +124,6 @@ export function MessageBubble({
     () => message.actions?.filter((a) => a.status !== "Suggestion") ?? [],
     [message.actions],
   );
-  const operationResults = useMemo(
-    () =>
-      message.operations?.filter(
-        (operation) => operation.status !== "PendingConfirmation",
-      ) ?? [],
-    [message.operations],
-  );
   const formattedSegments = useMemo(
     () => parseFormattedSegments(message.content ?? ""),
     [message.content],
@@ -239,27 +232,6 @@ export function MessageBubble({
               ))}
             </View>
           )}
-
-        {!isUser && operationResults.length > 0 && (
-          <View style={styles.operationStack}>
-            {operationResults.map((operation) => (
-              <View
-                key={`${operation.operationId}-${operation.targetId ?? operation.sourceName}`}
-                style={styles.operationCard}
-              >
-                <View style={styles.operationHeader}>
-                  <Text style={styles.operationTitle}>
-                    {operation.summary ?? operation.sourceName}
-                  </Text>
-                  <Text style={styles.operationStatus}>{operation.status}</Text>
-                </View>
-                {operation.policyReason ? (
-                  <Text style={styles.operationDetail}>{operation.policyReason}</Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        )}
 
         {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
           <View style={styles.operationStack}>
@@ -489,39 +461,6 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       marginTop: 12,
       width: "100%",
-    },
-    operationCard: {
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      gap: 6,
-    },
-    operationHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 8,
-    },
-    operationTitle: {
-      flex: 1,
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.textPrimary,
-    },
-    operationStatus: {
-      fontSize: 10,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      color: colors.textMuted,
-    },
-    operationDetail: {
-      fontSize: 11,
-      lineHeight: 16,
-      color: colors.textSecondary,
     },
     denialCard: {
       borderRadius: 16,
