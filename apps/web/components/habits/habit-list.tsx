@@ -1297,7 +1297,7 @@ const isPostponeAction = useMemo(() => {
             items={activeDragItems.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className={isDragging ? 'is-dragging' : undefined}>
+            <div className={isDragging ? 'is-dragging stagger-enter' : 'stagger-enter'}>
               {activeDragItems.map((item) => (
                 <SortableHabitItem key={item.id} id={item.id}>
                   {renderHabitCard(

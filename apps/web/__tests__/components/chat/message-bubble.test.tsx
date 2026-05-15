@@ -173,4 +173,30 @@ describe('MessageBubble', () => {
 
     expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
   })
+
+  it('does not render the raw operation summary card for completed operations', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          content: 'Logged your meditation habit.',
+          operations: [
+            {
+              operationId: 'habit.log',
+              sourceName: 'Log habit',
+              riskClass: 'Low',
+              confirmationRequirement: 'None',
+              status: 'Succeeded',
+              summary: 'Logged Meditation',
+              payload: null,
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Logged your meditation habit.')).toBeInTheDocument()
+    expect(screen.queryByText('Logged Meditation')).not.toBeInTheDocument()
+    expect(screen.queryByText(/SUCCEEDED/i)).not.toBeInTheDocument()
+  })
 })

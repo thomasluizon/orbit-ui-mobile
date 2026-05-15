@@ -761,9 +761,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
-/* Stagger entrance animation for lists */
+/* Stagger entrance animation for lists.
+   fill-mode is `backwards` (not `both`) so the keyframe's end-state transform
+   isn't pinned to the element after the animation finishes - otherwise it would
+   override any subsequent inline transforms (e.g., @dnd-kit drag transforms). */
 .stagger-enter > * {
-  animation: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slide-up-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 .stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-enter > *:nth-child(2) { animation-delay: var(--orbit-list-stagger); }
