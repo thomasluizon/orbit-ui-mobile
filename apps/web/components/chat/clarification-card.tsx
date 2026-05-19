@@ -30,32 +30,37 @@ export function ClarificationCard({
     setActiveValue(value)
     setErrorKey(null)
 
-    const result = await resolve.mutateAsync({
-      operationId: clarificationRequest.operationId,
-      value,
-    })
+    try {
+      const result = await resolve.mutateAsync({
+        operationId: clarificationRequest.operationId,
+        value,
+      })
 
-    if (!result.ok) {
-      setActiveValue(null)
-      setErrorKey(
-        result.status === 404
-          ? ('habits.clarification.errorExpired' as IntlKey)
-          : ('habits.clarification.errorGeneric' as IntlKey),
-      )
-      return
-    }
+      if (!result.ok) {
+        setErrorKey(
+          result.status === 404
+            ? ('habits.clarification.errorExpired' as IntlKey)
+            : ('habits.clarification.errorGeneric' as IntlKey),
+        )
+        return
+      }
 
-    // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
-    // Only flip to the success state when the operation actually executed.
-    if (result.data.operation.status !== 'Succeeded') {
-      setActiveValue(null)
+      // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
+      // Only flip to the success state when the operation actually executed.
+      if (result.data.operation.status !== 'Succeeded') {
+        setErrorKey('habits.clarification.errorGeneric' as IntlKey)
+        return
+      }
+
+      setResolved(true)
+      setResolvedLabel(label)
+    } catch {
+      // mutateAsync can throw on unmount, abort, or unexpected runtime errors.
+      // Always clear the active state below so the button doesn't get stuck disabled.
       setErrorKey('habits.clarification.errorGeneric' as IntlKey)
-      return
+    } finally {
+      setActiveValue(null)
     }
-
-    setResolved(true)
-    setResolvedLabel(label)
-    setActiveValue(null)
   }
 
   if (resolved) {
