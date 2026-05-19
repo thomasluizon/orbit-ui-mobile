@@ -39,7 +39,9 @@ export type ActionStatus = z.infer<typeof actionStatusSchema>
 
 export const quickActionSchema = z.object({
   label: z.string(),
-  value: z.string(),
+  // `value` is what the client echoes back verbatim to the resolve endpoint; empty
+  // strings would be meaningless and the backend rejects them anyway.
+  value: z.string().min(1),
   // Backend always emits the field; serializes as `null` when unset, not omitted.
   description: z.string().nullable(),
 })

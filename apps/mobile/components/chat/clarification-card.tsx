@@ -113,7 +113,11 @@ export function ClarificationCard({
         })}
       </View>
 
-      {errorKey && <Text style={styles.errorText}>{t(errorKey)}</Text>}
+      {errorKey && (
+        <Text style={styles.errorText} accessibilityLiveRegion="polite" accessibilityRole="alert">
+          {t(errorKey)}
+        </Text>
+      )}
     </View>
   )
 }

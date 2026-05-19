@@ -95,7 +95,7 @@ export function ClarificationCard({
               type="button"
               disabled={disabled}
               onClick={() => handleSelect(label, action.value)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border-muted bg-surface-elevated px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-primary/10 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border-muted bg-surface-elevated px-3 py-1.5 text-xs font-medium text-text-primary transition-transform duration-150 hover:bg-primary/10 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isActive && <Loader2 className="size-3 animate-spin" />}
               {label}
@@ -104,7 +104,11 @@ export function ClarificationCard({
         })}
       </div>
 
-      {errorKey && <p className="text-xs text-red-400">{t(errorKey as IntlKey)}</p>}
+      {errorKey && (
+        <p className="text-xs text-red-400" role="alert">
+          {t(errorKey as IntlKey)}
+        </p>
+      )}
     </div>
   )
 }
