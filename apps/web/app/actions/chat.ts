@@ -1,7 +1,7 @@
 'use server'
 
 import { resolveServerSession } from '@/lib/auth-api'
-import { API } from '@orbit/shared/api'
+import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -137,6 +137,27 @@ export async function executePendingOperation(
     serverAuthFetch<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(id), {
       method: 'POST',
       body: JSON.stringify({ confirmationToken }),
+    }),
+  )
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function resolveClarification(
+  operationId: string,
+  value: string,
+): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
+  if (!UUID_RE.test(operationId)) {
+    return { ok: false, error: 'Invalid operationId', status: 400 }
+  }
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > MAX_CLARIFICATION_VALUE_LENGTH) {
+    return { ok: false, error: 'Invalid value', status: 400 }
+  }
+
+  return wrapServerAction(() =>
+    serverAuthFetch<AgentExecuteOperationResponse>(API.ai.clarificationResolve(operationId), {
+      method: 'POST',
+      body: JSON.stringify({ value }),
     }),
   )
 }

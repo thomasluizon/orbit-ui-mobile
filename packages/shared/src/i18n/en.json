@@ -522,6 +522,19 @@
       "createAsParentSuccess": "Created '{name}' with {n} sub-habit | Created '{name}' with {n} sub-habits",
       "every": "every"
     },
+    "clarification": {
+      "questionFallback": "What schedule should this be on?",
+      "quickAction": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "threePerWeek": "3 times per week",
+        "oneTime": "One-time task"
+      },
+      "successCreated": "Created '{name}'",
+      "errorExpired": "This clarification expired. Please ask again.",
+      "errorAlreadyResolved": "Already handled. Please ask again.",
+      "errorGeneric": "Something went wrong. Please try again."
+    },
     "subHabitPlaceholder": "Sub-habit title..."
   },
   "calendar": {

@@ -129,6 +129,8 @@ export const API = {
     pendingOperationVerifyStepUp: (id: string) =>
       `/api/ai/pending-operations/${id}/step-up/verify` as const,
     pendingOperationExecute: (id: string) => `/api/ai/pending-operations/${id}/execute` as const,
+    clarificationResolve: (operationId: string) =>
+      `/api/ai/clarifications/${operationId}/resolve` as const,
   },
 
   // -- User Facts ------------------------------------------------------------

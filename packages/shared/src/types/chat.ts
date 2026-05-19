@@ -31,9 +31,31 @@ export const aiActionTypeSchema = z.enum([
 
 export type AiActionType = z.infer<typeof aiActionTypeSchema>
 
-export const actionStatusSchema = z.enum(['Success', 'Failed', 'Suggestion'])
+export const actionStatusSchema = z.enum(['Success', 'Failed', 'Suggestion', 'NeedsClarification'])
 
 export type ActionStatus = z.infer<typeof actionStatusSchema>
+
+// --- Clarification (NeedsClarification status) ---
+
+export const quickActionSchema = z.object({
+  label: z.string(),
+  // `value` is what the client echoes back verbatim to the resolve endpoint; empty
+  // strings would be meaningless and the backend rejects them anyway.
+  value: z.string().min(1),
+  // Backend always emits the field; serializes as `null` when unset, not omitted.
+  description: z.string().nullable(),
+})
+
+export type QuickAction = z.infer<typeof quickActionSchema>
+
+export const clarificationRequestSchema = z.object({
+  question: z.string(),
+  operationId: z.string().uuid(),
+  missingArgumentKey: z.string(),
+  quickActions: z.array(quickActionSchema),
+})
+
+export type ClarificationRequest = z.infer<typeof clarificationRequestSchema>
 
 // --- Sub-schemas ---
 
@@ -83,16 +105,33 @@ export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
 // --- Action result ---
 
-export const actionResultSchema = z.object({
-  type: aiActionTypeSchema,
-  status: actionStatusSchema,
-  entityId: z.string().nullable(),
-  entityName: z.string().nullable(),
-  error: z.string().nullable(),
-  field: z.string().nullable(),
-  suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
-  conflictWarning: conflictWarningSchema.nullable(),
-})
+export const actionResultSchema = z
+  .object({
+    type: aiActionTypeSchema,
+    status: actionStatusSchema,
+    entityId: z.string().nullable(),
+    entityName: z.string().nullable(),
+    error: z.string().nullable(),
+    field: z.string().nullable(),
+    suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
+    conflictWarning: conflictWarningSchema.nullable(),
+    // Backend serializes the field as null when absent (System.Text.Json default), so
+    // .nullable() covers the wire format. .optional() is the cheap belt for callers
+    // that build ActionResults without explicitly setting this field (existing tests +
+    // any future code) — the superRefine below guards the real invariant.
+    clarificationRequest: clarificationRequestSchema.nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    // NeedsClarification is meaningless without the structured payload — fail loudly
+    // rather than letting the card silently fail to render.
+    if (value.status === 'NeedsClarification' && !value.clarificationRequest) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clarificationRequest'],
+        message: 'clarificationRequest is required when status is NeedsClarification',
+      })
+    }
+  })
 
 export type ActionResult = z.infer<typeof actionResultSchema>
 
