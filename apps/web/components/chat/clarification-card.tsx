@@ -110,7 +110,10 @@ export function ClarificationCard({
 }
 
 function mapStatusToErrorKey(status: number): string {
-  if (status === 404) return 'habits.clarification.errorExpired'
+  // 404 = backend currently returns this when the row is gone. 410 Gone is the
+  // semantically-correct status for an expired clarification; treat both the
+  // same in case the backend tightens up later.
+  if (status === 404 || status === 410) return 'habits.clarification.errorExpired'
   if (status === 409) return 'habits.clarification.errorAlreadyResolved'
   return 'habits.clarification.errorGeneric'
 }

@@ -117,6 +117,30 @@ describe('ClarificationCard', () => {
     })
   })
 
+  it('shows already-resolved error when the resolve returns 409', async () => {
+    mutateAsync.mockResolvedValueOnce({ ok: false, error: 'already resolved', status: 409 })
+
+    render(<ClarificationCard clarificationRequest={baseClarification} />, { wrapper: createWrapper() })
+
+    fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
+
+    await waitFor(() => {
+      expect(screen.getByText('habits.clarification.errorAlreadyResolved')).toBeInTheDocument()
+    })
+  })
+
+  it('shows expired error when the resolve returns 410 Gone', async () => {
+    mutateAsync.mockResolvedValueOnce({ ok: false, error: 'gone', status: 410 })
+
+    render(<ClarificationCard clarificationRequest={baseClarification} />, { wrapper: createWrapper() })
+
+    fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
+
+    await waitFor(() => {
+      expect(screen.getByText('habits.clarification.errorExpired')).toBeInTheDocument()
+    })
+  })
+
   it('shows generic error when HTTP succeeds but operation.status is not Succeeded', async () => {
     // The resolve endpoint can return 200 with operation.status = Denied/Failed/PendingConfirmation.
     // Those shouldn't render the green success state — there's no created entity to celebrate.
