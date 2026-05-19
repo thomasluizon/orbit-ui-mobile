@@ -8,6 +8,7 @@ import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
+import { ClarificationCard } from './clarification-card'
 import { formatChatMessage } from './format-chat-message'
 import { PendingOperationCard } from './pending-operation-card'
 
@@ -58,8 +59,19 @@ export function MessageBubble({
     [message.actions],
   )
 
+  const clarificationActions = useMemo(
+    () =>
+      message.actions?.filter(
+        (a) => a.status === 'NeedsClarification' && a.clarificationRequest,
+      ) ?? [],
+    [message.actions],
+  )
+
   const nonSuggestionActions = useMemo(
-    () => message.actions?.filter((a) => a.status !== 'Suggestion') ?? [],
+    () =>
+      message.actions?.filter(
+        (a) => a.status !== 'Suggestion' && a.status !== 'NeedsClarification',
+      ) ?? [],
     [message.actions],
   )
 
@@ -135,6 +147,19 @@ export function MessageBubble({
                 />
               )
             })}
+          </div>
+        )}
+
+        {/* Clarification cards */}
+        {!isUser && clarificationActions.length > 0 && (
+          <div className="space-y-3 mt-3 w-full">
+            {clarificationActions.map((action) => (
+              <ClarificationCard
+                key={action.clarificationRequest!.operationId}
+                clarificationRequest={action.clarificationRequest!}
+                entityName={action.entityName}
+              />
+            ))}
           </div>
         )}
 

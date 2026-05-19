@@ -7,6 +7,7 @@ import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
 import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
+import { ClarificationCard } from "@/components/chat/clarification-card";
 import { formatChatMessage } from "@/components/chat/format-chat-message";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -120,8 +121,19 @@ export function MessageBubble({
     [message.actions],
   );
 
+  const clarificationActions = useMemo(
+    () =>
+      message.actions?.filter(
+        (a) => a.status === "NeedsClarification" && a.clarificationRequest,
+      ) ?? [],
+    [message.actions],
+  );
+
   const nonSuggestionActions = useMemo(
-    () => message.actions?.filter((a) => a.status !== "Suggestion") ?? [],
+    () =>
+      message.actions?.filter(
+        (a) => a.status !== "Suggestion" && a.status !== "NeedsClarification",
+      ) ?? [],
     [message.actions],
   );
   const formattedSegments = useMemo(
@@ -211,6 +223,19 @@ export function MessageBubble({
                 />
               );
             })}
+          </View>
+        )}
+
+        {/* Clarification cards */}
+        {!isUser && clarificationActions.length > 0 && (
+          <View style={styles.breakdownContainer}>
+            {clarificationActions.map((action) => (
+              <ClarificationCard
+                key={action.clarificationRequest!.operationId}
+                clarificationRequest={action.clarificationRequest!}
+                entityName={action.entityName}
+              />
+            ))}
           </View>
         )}
 

@@ -522,6 +522,19 @@
       "createAsParentSuccess": "'{name}' criado com {n} sub-hábito | '{name}' criado com {n} sub-hábitos",
       "every": "a cada"
     },
+    "clarification": {
+      "questionFallback": "Qual deve ser a frequência?",
+      "quickAction": {
+        "daily": "Diariamente",
+        "weekly": "Semanalmente",
+        "threePerWeek": "3 vezes por semana",
+        "oneTime": "Tarefa única"
+      },
+      "submitting": "Configurando...",
+      "successCreated": "'{name}' criado",
+      "errorExpired": "Esta clarificação expirou. Por favor, pergunte novamente.",
+      "errorGeneric": "Algo deu errado. Tente novamente."
+    },
     "subHabitPlaceholder": "Título do sub-hábito..."
   },
   "calendar": {

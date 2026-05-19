@@ -140,3 +140,15 @@ export async function executePendingOperation(
     }),
   )
 }
+
+export async function resolveClarification(
+  operationId: string,
+  value: string,
+): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
+  return wrapServerAction(() =>
+    serverAuthFetch<AgentExecuteOperationResponse>(API.ai.clarificationResolve(operationId), {
+      method: 'POST',
+      body: JSON.stringify({ value }),
+    }),
+  )
+}

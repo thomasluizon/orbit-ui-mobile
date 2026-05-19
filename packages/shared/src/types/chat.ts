@@ -31,9 +31,39 @@ export const aiActionTypeSchema = z.enum([
 
 export type AiActionType = z.infer<typeof aiActionTypeSchema>
 
-export const actionStatusSchema = z.enum(['Success', 'Failed', 'Suggestion'])
+export const actionStatusSchema = z.enum(['Success', 'Failed', 'Suggestion', 'NeedsClarification'])
 
 export type ActionStatus = z.infer<typeof actionStatusSchema>
+
+// --- Clarification (NeedsClarification status) ---
+
+export const quickActionSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+  description: z.string().nullable().optional(),
+})
+
+export type QuickAction = z.infer<typeof quickActionSchema>
+
+export const clarificationRequestSchema = z.object({
+  question: z.string(),
+  operationId: z.string().uuid(),
+  missingArgumentKey: z.string(),
+  quickActions: z.array(quickActionSchema),
+})
+
+export type ClarificationRequest = z.infer<typeof clarificationRequestSchema>
+
+export const clarificationResolveResponseSchema = z.object({
+  operation: z.object({
+    status: z.string(),
+    targetId: z.string().nullable().optional(),
+    targetName: z.string().nullable().optional(),
+    policyReason: z.string().nullable().optional(),
+  }),
+})
+
+export type ClarificationResolveResponse = z.infer<typeof clarificationResolveResponseSchema>
 
 // --- Sub-schemas ---
 
@@ -92,6 +122,7 @@ export const actionResultSchema = z.object({
   field: z.string().nullable(),
   suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
   conflictWarning: conflictWarningSchema.nullable(),
+  clarificationRequest: clarificationRequestSchema.nullable().optional(),
 })
 
 export type ActionResult = z.infer<typeof actionResultSchema>
