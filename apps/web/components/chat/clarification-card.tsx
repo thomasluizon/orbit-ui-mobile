@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import type { ClarificationRequest } from '@orbit/shared/types/chat'
+import type { ClarificationRequest } from '@orbit/shared/types'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { safeT } from '@/lib/i18n'
 
@@ -99,7 +99,7 @@ export function ClarificationCard({
               type="button"
               disabled={disabled}
               onClick={() => handleSelect(label, action.value)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border-muted bg-surface-elevated px-3 py-1.5 text-xs font-medium text-text-primary transition-colors duration-150 hover:bg-primary/10 hover:border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border-muted bg-surface-elevated px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-primary/10 hover:border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isActive && <Loader2 className="size-3 animate-spin" />}
               {label}
