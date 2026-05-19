@@ -150,7 +150,7 @@ export async function resolveClarification(
   if (!UUID_RE.test(operationId)) {
     return { ok: false, error: 'Invalid operationId', status: 400 }
   }
-  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_CLARIFICATION_VALUE_LENGTH) {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > MAX_CLARIFICATION_VALUE_LENGTH) {
     return { ok: false, error: 'Invalid value', status: 400 }
   }
 

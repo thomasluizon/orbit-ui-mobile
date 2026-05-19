@@ -40,10 +40,10 @@ const baseClarification: ClarificationRequest = {
   operationId: '00000000-0000-0000-0000-000000000001',
   missingArgumentKey: 'frequency_unit',
   quickActions: [
-    { label: 'habits.clarification.quickAction.daily', value: '{"frequency_unit":"Day","frequency_quantity":1}' },
-    { label: 'habits.clarification.quickAction.weekly', value: '{"frequency_unit":"Week","frequency_quantity":1}' },
-    { label: 'habits.clarification.quickAction.threePerWeek', value: '{"frequency_unit":"Week","frequency_quantity":3,"is_flexible":true}' },
-    { label: 'habits.clarification.quickAction.oneTime', value: '{"frequency_unit":null}' },
+    { label: 'habits.clarification.quickAction.daily', value: '{"frequency_unit":"Day","frequency_quantity":1}', description: null },
+    { label: 'habits.clarification.quickAction.weekly', value: '{"frequency_unit":"Week","frequency_quantity":1}', description: null },
+    { label: 'habits.clarification.quickAction.threePerWeek', value: '{"frequency_unit":"Week","frequency_quantity":3,"is_flexible":true}', description: null },
+    { label: 'habits.clarification.quickAction.oneTime', value: '{"frequency_unit":null}', description: null },
   ],
 }
 

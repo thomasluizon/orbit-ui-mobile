@@ -40,7 +40,8 @@ export type ActionStatus = z.infer<typeof actionStatusSchema>
 export const quickActionSchema = z.object({
   label: z.string(),
   value: z.string(),
-  description: z.string().nullable().optional(),
+  // Backend always emits the field; serializes as `null` when unset, not omitted.
+  description: z.string().nullable(),
 })
 
 export type QuickAction = z.infer<typeof quickActionSchema>

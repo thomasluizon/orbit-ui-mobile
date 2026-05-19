@@ -24,7 +24,10 @@ export function ClarificationCard({
   const [activeValue, setActiveValue] = useState<string | null>(null)
   const [resolved, setResolved] = useState(false)
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
-  const [errorKey, setErrorKey] = useState<IntlKey | null>(null)
+  // Error keys are statically-known i18n catalog entries, but typing as string keeps
+  // the setter calls clean (no `as IntlKey` cast at every assignment). The cast
+  // moves to the single render call where t() is invoked.
+  const [errorKey, setErrorKey] = useState<string | null>(null)
 
   async function handleSelect(label: string, value: string) {
     if (resolve.isPending || resolved) return
@@ -49,7 +52,7 @@ export function ClarificationCard({
       // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
       // Only flip to the success state when the operation actually executed.
       if (result.data.operation.status !== 'Succeeded') {
-        setErrorKey('habits.clarification.errorGeneric' as IntlKey)
+        setErrorKey('habits.clarification.errorGeneric')
         return
       }
 
@@ -58,7 +61,7 @@ export function ClarificationCard({
     } catch {
       // mutateAsync can throw on unmount, abort, or unexpected runtime errors.
       // Always clear the active state below so the button doesn't get stuck disabled.
-      setErrorKey('habits.clarification.errorGeneric' as IntlKey)
+      setErrorKey('habits.clarification.errorGeneric')
     } finally {
       setActiveValue(null)
     }
@@ -105,7 +108,7 @@ export function ClarificationCard({
         })}
       </div>
 
-      {errorKey && <p className="text-xs text-red-400">{t(errorKey)}</p>}
+      {errorKey && <p className="text-xs text-red-400">{t(errorKey as IntlKey)}</p>}
     </div>
   )
 }
