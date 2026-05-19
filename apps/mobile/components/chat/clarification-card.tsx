@@ -51,7 +51,16 @@ export function ClarificationCard({
       setResolved(true)
       setResolvedLabel(label)
     } catch (err: unknown) {
-      const status = (err as { status?: number })?.status ?? 0
+      // Narrow `err` defensively — matches the codebase idiom in
+      // apps/web/app/actions/chat.ts so unrelated runtime errors can't
+      // squeak through as a `status === 0` fallback.
+      const status =
+        typeof err === 'object' &&
+        err !== null &&
+        'status' in err &&
+        typeof (err as { status?: unknown }).status === 'number'
+          ? (err as { status: number }).status
+          : 0
       setErrorKey(
         status === 404
           ? 'habits.clarification.errorExpired'
