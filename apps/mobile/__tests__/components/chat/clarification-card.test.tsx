@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import type { ClarificationRequest } from '@orbit/shared/types/chat'
+import type { ClarificationRequest } from '@orbit/shared/types'
 
 // react-test-renderer ships as CJS-only and doesn't surface ESM-friendly types
 // for the bits we use, so we declare a local shape and require() it the same

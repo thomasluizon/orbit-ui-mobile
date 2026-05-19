@@ -8,7 +8,7 @@ import {
 } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import type { ClarificationRequest } from '@orbit/shared/types/chat'
+import type { ClarificationRequest } from '@orbit/shared/types'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -61,11 +61,7 @@ export function ClarificationCard({
         typeof (err as { status?: unknown }).status === 'number'
           ? (err as { status: number }).status
           : 0
-      setErrorKey(
-        status === 404
-          ? 'habits.clarification.errorExpired'
-          : 'habits.clarification.errorGeneric',
-      )
+      setErrorKey(mapStatusToErrorKey(status))
     } finally {
       setActiveValue(null)
     }
@@ -120,6 +116,12 @@ export function ClarificationCard({
       {errorKey && <Text style={styles.errorText}>{t(errorKey)}</Text>}
     </View>
   )
+}
+
+function mapStatusToErrorKey(status: number): string {
+  if (status === 404) return 'habits.clarification.errorExpired'
+  if (status === 409) return 'habits.clarification.errorAlreadyResolved'
+  return 'habits.clarification.errorGeneric'
 }
 
 function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {

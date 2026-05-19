@@ -532,6 +532,7 @@
       },
       "successCreated": "Created '{name}'",
       "errorExpired": "This clarification expired. Please ask again.",
+      "errorAlreadyResolved": "Already handled. Please ask again.",
       "errorGeneric": "Something went wrong. Please try again."
     },
     "subHabitPlaceholder": "Sub-habit title..."
