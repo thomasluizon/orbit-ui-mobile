@@ -5,6 +5,7 @@ import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
+import { safeT } from '@/lib/i18n'
 
 interface ClarificationCardProps {
   clarificationRequest: ClarificationRequest
@@ -107,18 +108,4 @@ export function ClarificationCard({
       {errorKey && <p className="text-xs text-red-400">{t(errorKey)}</p>}
     </div>
   )
-}
-
-/**
- * Translate a server-provided string. Falls back to the literal when the key isn't in
- * the catalog. Defends against next-intl provider configs that have `onError: 'throw'`
- * — without this, an unknown backend key would crash the render. Matches the
- * `defaultValue` pattern used in the mobile (i18next) card.
- */
-function safeT(t: ReturnType<typeof useTranslations>, keyOrLiteral: string): string {
-  try {
-    return t(keyOrLiteral as IntlKey)
-  } catch {
-    return keyOrLiteral
-  }
 }

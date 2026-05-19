@@ -51,13 +51,7 @@ export function ClarificationCard({
       setResolved(true)
       setResolvedLabel(label)
     } catch (err: unknown) {
-      const status =
-        typeof err === 'object' &&
-        err !== null &&
-        'status' in err &&
-        typeof (err as { status?: unknown }).status === 'number'
-          ? (err as { status: number }).status
-          : 0
+      const status = (err as { status?: number })?.status ?? 0
       setErrorKey(
         status === 404
           ? 'habits.clarification.errorExpired'

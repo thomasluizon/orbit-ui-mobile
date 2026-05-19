@@ -1,7 +1,7 @@
 'use server'
 
 import { resolveServerSession } from '@/lib/auth-api'
-import { API } from '@orbit/shared/api'
+import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -142,11 +142,6 @@ export async function executePendingOperation(
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-// Mirrors AppConstants.MaxClarificationValueLength on the backend. Server is
-// authoritative; this is a cheap client guard to avoid wasted round-trips
-// when the action is invoked directly outside the React component.
-const MAX_CLARIFICATION_VALUE_LENGTH = 2048
 
 export async function resolveClarification(
   operationId: string,
