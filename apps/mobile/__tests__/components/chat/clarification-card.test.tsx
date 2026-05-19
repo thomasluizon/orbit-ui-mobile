@@ -1,9 +1,39 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
 
-const TestRenderer = require('react-test-renderer')
+// react-test-renderer ships as CJS-only and doesn't surface ESM-friendly types
+// for the bits we use, so we declare a local shape and require() it the same
+// way the sibling pending-operation-card.test.tsx does.
+interface TestNode {
+  type: unknown
+  props: {
+    children?: unknown
+    onPress?: (...args: unknown[]) => unknown
+    [key: string]: unknown
+  }
+}
 
-const colorProxy: any = new Proxy(
+interface TestTreeRoot extends TestNode {
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
+}
+
+interface TestInstance {
+  root: TestTreeRoot
+}
+
+interface TestRendererApi {
+  create(element: React.ReactNode): TestInstance
+  act(callback: () => Promise<void> | void): Promise<void>
+}
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TestRenderer: TestRendererApi = require('react-test-renderer')
+
+interface ColorRecord {
+  [key: string]: string
+}
+
+const colorProxy = new Proxy<ColorRecord>(
   {},
   {
     get: (_target, prop) => {
@@ -31,9 +61,10 @@ vi.mock('@/lib/theme', () => ({
 }))
 
 vi.mock('lucide-react-native', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react')
   return {
-    Check: (props: any) => React.createElement('Check', props),
+    Check: (props: Record<string, unknown>) => React.createElement('Check', props),
   }
 })
 
@@ -51,17 +82,17 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
 
-function findPressables(root: any) {
+function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(
-    (node: any) =>
-      node.props &&
+    (node) =>
+      node.props != null &&
       typeof node.props.onPress === 'function' &&
       typeof node.type !== 'string',
   )
 }
 
-function findTextNodesWithChild(root: any, text: string) {
-  return root.findAll((node: any) => {
+function findTextNodesWithChild(root: TestTreeRoot, text: string): TestNode[] {
+  return root.findAll((node) => {
     if (typeof node.type !== 'function' && node.type !== 'Text') return false
     const children = node.props?.children
     if (typeof children === 'string' && children === text) return true
@@ -89,7 +120,7 @@ describe('ClarificationCard (mobile)', () => {
   })
 
   it('renders four quick-action buttons', async () => {
-    let tree: any
+    let tree!: TestInstance
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
@@ -99,7 +130,7 @@ describe('ClarificationCard (mobile)', () => {
   })
 
   it('renders the question text', async () => {
-    let tree: any
+    let tree!: TestInstance
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
@@ -111,14 +142,15 @@ describe('ClarificationCard (mobile)', () => {
   it('calls mutateAsync with the chosen value when a button is pressed', async () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
 
-    let tree: any
+    let tree!: TestInstance
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
     const [firstButton] = findPressables(tree.root)
+    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
     await TestRenderer.act(async () => {
-      await firstButton.props.onPress()
+      await firstButton.props.onPress!()
     })
 
     expect(mutateAsync).toHaveBeenCalledWith({
@@ -130,7 +162,7 @@ describe('ClarificationCard (mobile)', () => {
   it('shows success text after a successful resolve', async () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
 
-    let tree: any
+    let tree!: TestInstance
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <ClarificationCard clarificationRequest={baseClarification} entityName="meditation" />,
@@ -138,31 +170,48 @@ describe('ClarificationCard (mobile)', () => {
     })
 
     const [firstButton] = findPressables(tree.root)
+    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
     await TestRenderer.act(async () => {
-      await firstButton.props.onPress()
+      await firstButton.props.onPress!()
     })
 
-    const successNodes = tree.root.findAll((node: any) => {
-      const children = node.props?.children
-      return typeof children === 'string' && children === 'habits.clarification.successCreated'
-    })
+    const successNodes = findTextNodesWithChild(tree.root, 'habits.clarification.successCreated')
     expect(successNodes.length).toBeGreaterThan(0)
   })
 
   it('shows expired-error text when resolve throws a 404', async () => {
     mutateAsync.mockRejectedValueOnce(Object.assign(new Error('expired'), { status: 404 }))
 
-    let tree: any
+    let tree!: TestInstance
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
     const [firstButton] = findPressables(tree.root)
+    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
     await TestRenderer.act(async () => {
-      await firstButton.props.onPress()
+      await firstButton.props.onPress!()
     })
 
     const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorExpired')
+    expect(errorNodes.length).toBeGreaterThan(0)
+  })
+
+  it('shows generic-error text when operation.status is not Succeeded', async () => {
+    mutateAsync.mockResolvedValueOnce({ operation: { status: 'Denied' } })
+
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
+    })
+
+    const [firstButton] = findPressables(tree.root)
+    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
+    await TestRenderer.act(async () => {
+      await firstButton.props.onPress!()
+    })
+
+    const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorGeneric')
     expect(errorNodes.length).toBeGreaterThan(0)
   })
 })

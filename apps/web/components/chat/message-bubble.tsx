@@ -61,9 +61,10 @@ export function MessageBubble({
 
   const clarificationActions = useMemo(
     () =>
-      message.actions?.filter(
-        (a) => a.status === 'NeedsClarification' && a.clarificationRequest,
-      ) ?? [],
+      (message.actions ?? []).filter(
+        (a): a is typeof a & { clarificationRequest: NonNullable<typeof a.clarificationRequest> } =>
+          a.status === 'NeedsClarification' && a.clarificationRequest != null,
+      ),
     [message.actions],
   )
 
@@ -155,8 +156,8 @@ export function MessageBubble({
           <div className="space-y-3 mt-3 w-full">
             {clarificationActions.map((action) => (
               <ClarificationCard
-                key={action.clarificationRequest!.operationId}
-                clarificationRequest={action.clarificationRequest!}
+                key={action.clarificationRequest.operationId}
+                clarificationRequest={action.clarificationRequest}
                 entityName={action.entityName}
               />
             ))}

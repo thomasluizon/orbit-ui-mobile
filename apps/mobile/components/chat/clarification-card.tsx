@@ -38,10 +38,16 @@ export function ClarificationCard({
     setErrorKey(null)
 
     try {
-      await resolve.mutateAsync({
+      const response = await resolve.mutateAsync({
         operationId: clarificationRequest.operationId,
         value,
       })
+      // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
+      // Only flip to the success state when the operation actually executed.
+      if (response.operation.status !== 'Succeeded') {
+        setErrorKey('habits.clarification.errorGeneric')
+        return
+      }
       setResolved(true)
       setResolvedLabel(label)
     } catch (err: unknown) {
@@ -83,13 +89,13 @@ export function ClarificationCard({
     <View style={styles.card}>
       <Text style={styles.questionText}>
         {t(clarificationRequest.question, {
-          defaultValue: t('habits.clarification.questionFallback'),
+          defaultValue: clarificationRequest.question,
         })}
       </Text>
 
       <View style={styles.actionsRow}>
         {clarificationRequest.quickActions.map((action) => {
-          const label = t(action.label)
+          const label = t(action.label, { defaultValue: action.label })
           const isActive = activeValue === action.value
           const disabled = resolve.isPending
 

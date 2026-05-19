@@ -1,6 +1,6 @@
 # Implementation Report: Chat Clarification (#98 + #99)
 
-**Plan**: `.agents/plans/chat-clarification.plan.md`
+**Plan**: `.agents/plans/completed/chat-clarification.plan.md`
 **Issues**: #98, #99
 **Status**: COMPLETE (pending push + E2E smoke)
 
@@ -125,7 +125,7 @@ All parity items present and behavior-equivalent.
 | `apps/mobile/components/chat/clarification-card.tsx` | CREATE |
 | `apps/mobile/components/message-bubble.tsx` | UPDATE — dispatch |
 | `apps/mobile/__tests__/components/chat/clarification-card.test.tsx` | CREATE |
-| `.agents/plans/chat-clarification.plan.md` | (already committed as part of /plan) |
+| `.agents/plans/completed/chat-clarification.plan.md` | (already committed as part of /plan) |
 
 ## Deviations from Plan
 

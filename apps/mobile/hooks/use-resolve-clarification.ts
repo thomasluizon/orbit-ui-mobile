@@ -18,7 +18,11 @@ export function useResolveClarification() {
       )
     },
 
-    onSettled: () => {
+    onSuccess: (response) => {
+      // Only invalidate when the tool actually ran successfully — Failed/Denied/PendingConfirmation
+      // leave the habit list unchanged.
+      if (response.operation.status !== 'Succeeded') return
+
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })

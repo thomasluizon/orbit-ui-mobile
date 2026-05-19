@@ -54,17 +54,6 @@ export const clarificationRequestSchema = z.object({
 
 export type ClarificationRequest = z.infer<typeof clarificationRequestSchema>
 
-export const clarificationResolveResponseSchema = z.object({
-  operation: z.object({
-    status: z.string(),
-    targetId: z.string().nullable().optional(),
-    targetName: z.string().nullable().optional(),
-    policyReason: z.string().nullable().optional(),
-  }),
-})
-
-export type ClarificationResolveResponse = z.infer<typeof clarificationResolveResponseSchema>
-
 // --- Sub-schemas ---
 
 export const conflictingHabitSchema = z.object({
@@ -113,17 +102,29 @@ export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
 // --- Action result ---
 
-export const actionResultSchema = z.object({
-  type: aiActionTypeSchema,
-  status: actionStatusSchema,
-  entityId: z.string().nullable(),
-  entityName: z.string().nullable(),
-  error: z.string().nullable(),
-  field: z.string().nullable(),
-  suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
-  conflictWarning: conflictWarningSchema.nullable(),
-  clarificationRequest: clarificationRequestSchema.nullable().optional(),
-})
+export const actionResultSchema = z
+  .object({
+    type: aiActionTypeSchema,
+    status: actionStatusSchema,
+    entityId: z.string().nullable(),
+    entityName: z.string().nullable(),
+    error: z.string().nullable(),
+    field: z.string().nullable(),
+    suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
+    conflictWarning: conflictWarningSchema.nullable(),
+    clarificationRequest: clarificationRequestSchema.nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    // NeedsClarification is meaningless without the structured payload — fail loudly
+    // rather than letting the card silently fail to render.
+    if (value.status === 'NeedsClarification' && !value.clarificationRequest) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clarificationRequest'],
+        message: 'clarificationRequest is required when status is NeedsClarification',
+      })
+    }
+  })
 
 export type ActionResult = z.infer<typeof actionResultSchema>
 
