@@ -530,7 +530,6 @@
         "threePerWeek": "3 vezes por semana",
         "oneTime": "Tarefa única"
       },
-      "submitting": "Configurando...",
       "successCreated": "'{name}' criado",
       "errorExpired": "Esta clarificação expirou. Por favor, pergunte novamente.",
       "errorGeneric": "Algo deu errado. Tente novamente."

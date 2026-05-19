@@ -141,10 +141,18 @@ export async function executePendingOperation(
   )
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function resolveClarification(
   operationId: string,
   value: string,
 ): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
+  // Server Actions can be invoked directly without going through the React component,
+  // so reject anything that isn't a UUID before we interpolate it into the request URL.
+  if (!UUID_RE.test(operationId)) {
+    return { ok: false, error: 'Invalid operationId', status: 400 }
+  }
+
   return wrapServerAction(() =>
     serverAuthFetch<AgentExecuteOperationResponse>(API.ai.clarificationResolve(operationId), {
       method: 'POST',

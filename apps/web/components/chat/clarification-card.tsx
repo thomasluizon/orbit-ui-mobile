@@ -76,12 +76,14 @@ export function ClarificationCard({
   return (
     <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-text-primary">
-        {translateOrLiteral(t, clarificationRequest.question)}
+        {/* next-intl returns the key itself when missing, which doubles as a literal
+            fallback if the backend ever sends raw text instead of a catalog key. */}
+        {t(clarificationRequest.question as IntlKey)}
       </p>
 
       <div className="flex flex-wrap gap-2">
         {clarificationRequest.quickActions.map((action) => {
-          const label = translateOrLiteral(t, action.label)
+          const label = t(action.label as IntlKey)
           const isActive = activeValue === action.value
           const disabled = resolve.isPending
           return (
@@ -102,26 +104,4 @@ export function ClarificationCard({
       {errorKey && <p className="text-xs text-red-400">{t(errorKey)}</p>}
     </div>
   )
-}
-
-/**
- * Translate a server-provided string that is *intended* to be an i18n key, but
- * may be a literal fallback. `next-intl` doesn't expose a defaultValue option,
- * so we look up the key; if it returns the key unchanged (meaning the key
- * wasn't found), we render the literal as a final fallback.
- */
-function translateOrLiteral(
-  t: ReturnType<typeof useTranslations>,
-  keyOrLiteral: string,
-): string {
-  try {
-    const translated = t(keyOrLiteral as IntlKey)
-    // next-intl returns the key itself when no match exists in the catalog.
-    if (translated === keyOrLiteral && !keyOrLiteral.includes('.')) {
-      return keyOrLiteral
-    }
-    return translated
-  } catch {
-    return keyOrLiteral
-  }
 }
