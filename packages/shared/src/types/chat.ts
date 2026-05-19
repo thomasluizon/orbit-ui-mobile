@@ -115,6 +115,10 @@ export const actionResultSchema = z
     field: z.string().nullable(),
     suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
     conflictWarning: conflictWarningSchema.nullable(),
+    // Backend serializes the field as null when absent (System.Text.Json default), so
+    // .nullable() covers the wire format. .optional() is the cheap belt for callers
+    // that build ActionResults without explicitly setting this field (existing tests +
+    // any future code) — the superRefine below guards the real invariant.
     clarificationRequest: clarificationRequestSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {

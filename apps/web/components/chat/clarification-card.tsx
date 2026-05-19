@@ -46,7 +46,10 @@ export function ClarificationCard({
       }
 
       // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
-      // Only flip to the success state when the operation actually executed.
+      // Clarifications use the HabitsWrite capability (no step-up requirement), so
+      // PendingConfirmation isn't expected here — if it ever shows up the user gets the
+      // generic error and can re-initiate from chat. Only flip to the success state
+      // when the operation actually executed.
       if (result.data.operation.status !== 'Succeeded') {
         setErrorKey('habits.clarification.errorGeneric')
         return
