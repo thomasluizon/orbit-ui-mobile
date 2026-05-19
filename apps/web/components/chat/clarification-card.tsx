@@ -81,14 +81,12 @@ export function ClarificationCard({
   return (
     <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-text-primary">
-        {/* next-intl returns the key itself when missing, which doubles as a literal
-            fallback if the backend ever sends raw text instead of a catalog key. */}
-        {t(clarificationRequest.question as IntlKey)}
+        {safeT(t, clarificationRequest.question)}
       </p>
 
       <div className="flex flex-wrap gap-2">
         {clarificationRequest.quickActions.map((action) => {
-          const label = t(action.label as IntlKey)
+          const label = safeT(t, action.label)
           const isActive = activeValue === action.value
           const disabled = resolve.isPending
           return (
@@ -109,4 +107,18 @@ export function ClarificationCard({
       {errorKey && <p className="text-xs text-red-400">{t(errorKey)}</p>}
     </div>
   )
+}
+
+/**
+ * Translate a server-provided string. Falls back to the literal when the key isn't in
+ * the catalog. Defends against next-intl provider configs that have `onError: 'throw'`
+ * — without this, an unknown backend key would crash the render. Matches the
+ * `defaultValue` pattern used in the mobile (i18next) card.
+ */
+function safeT(t: ReturnType<typeof useTranslations>, keyOrLiteral: string): string {
+  try {
+    return t(keyOrLiteral as IntlKey)
+  } catch {
+    return keyOrLiteral
+  }
 }

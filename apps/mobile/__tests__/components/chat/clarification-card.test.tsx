@@ -197,6 +197,25 @@ describe('ClarificationCard (mobile)', () => {
     expect(errorNodes.length).toBeGreaterThan(0)
   })
 
+  it('shows generic-error text when resolve throws a non-404 error', async () => {
+    // No .status property — exercises the `status === 0` fallback path.
+    mutateAsync.mockRejectedValueOnce(new Error('network error'))
+
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
+    })
+
+    const [firstButton] = findPressables(tree.root)
+    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
+    await TestRenderer.act(async () => {
+      await firstButton.props.onPress!()
+    })
+
+    const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorGeneric')
+    expect(errorNodes.length).toBeGreaterThan(0)
+  })
+
   it('shows generic-error text when operation.status is not Succeeded', async () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Denied' } })
 
