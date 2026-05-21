@@ -4,13 +4,14 @@ import { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
 import type { Locale } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import {
-  ArrowLeft, Loader2, BadgeCheck, Sparkles, CreditCard,
+  Loader2, BadgeCheck, Sparkles, CreditCard,
   Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
   AlertTriangle, Download, CheckCircle2, Clock, Check, X as XIcon,
   Megaphone, Tag, Info,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { AppBar } from '@/components/ui/app-bar'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -796,20 +797,14 @@ export default function UpgradePage() {
   }, [t])
 
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-            <button
-              type="button"
-              aria-label={t('common.backToProfile')}
-              className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
-              onClick={() => goBackOrFallback('/profile')}
-            >
-              <ArrowLeft className="size-5 text-text-primary" />
-            </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('upgrade.title')}
-        </h1>
-      </header>
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('upgrade.title')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-4">
 
       {/* Already Pro: Billing Dashboard */}
       {hasProAccess && !profile?.isTrialActive ? (
@@ -845,6 +840,7 @@ export default function UpgradePage() {
           t={t}
         />
       )}
+      </div>
     </div>
   )
 }

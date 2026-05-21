@@ -4,14 +4,12 @@ import { useTranslations } from 'next-intl'
 import { useDateFormat } from '@/hooks/use-date-format'
 import type { Achievement } from '@orbit/shared/types/gamification'
 
-function rarityColor(rarity: string): string {
-  switch (rarity.toLowerCase()) {
-    case 'uncommon': return 'text-emerald-400 bg-emerald-400/10'
-    case 'rare': return 'text-blue-400 bg-blue-400/10'
-    case 'epic': return 'text-purple-400 bg-purple-400/10'
-    case 'legendary': return 'text-amber-400 bg-amber-400/10'
-    default: return 'text-text-secondary bg-surface-elevated'
-  }
+const RARITY_GLYPH: Record<string, string> = {
+  common: '◇',
+  uncommon: '◈',
+  rare: '◆',
+  epic: '★',
+  legendary: '✦',
 }
 
 interface AchievementCardProps {
@@ -24,42 +22,70 @@ export function AchievementCard({ achievement, earned, earnedDate }: Readonly<Ac
   const t = useTranslations()
   const { displayDate } = useDateFormat()
 
+  const rarityKey = achievement.rarity.toLowerCase()
+  const glyph = RARITY_GLYPH[rarityKey] ?? RARITY_GLYPH.common
+
   return (
     <div
-      className={`rounded-[var(--radius-lg)] p-4 transition-all duration-150 shadow-[var(--shadow-sm)] ${
-        earned
-          ? 'bg-surface border border-primary/20 shadow-[var(--shadow-glow-sm)]'
-          : 'bg-surface-ground opacity-50 border border-border-muted'
-      }`}
+      data-testid={`achievement-${achievement.id}`}
+      className="flex items-center"
+      style={{
+        gap: 12,
+        padding: '13px 20px',
+        borderBottom: '1px solid var(--hairline)',
+        background: earned ? 'transparent' : 'var(--bg-sunk)',
+      }}
     >
-      <div className="text-2xl mb-2">
-        {earned ? '\u2B50' : '\uD83D\uDD12'}
-      </div>
-
-      <p className="text-sm font-bold text-text-primary">
-        {t(`gamification.achievements.${achievement.id}.name`)}
-      </p>
-
-      <p className="text-[11px] text-text-secondary mt-0.5">
-        {t(`gamification.achievements.${achievement.id}.description`)}
-      </p>
-
-      <div className="mt-2 flex items-center gap-1 flex-wrap">
-        <span
-          className={`inline-block px-1.5 py-0.5 rounded-lg text-[9px] font-bold uppercase ${rarityColor(achievement.rarity)}`}
+      <span
+        aria-hidden="true"
+        style={{
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 16,
+          color: earned ? 'var(--fg-1)' : 'var(--fg-4)',
+          width: 18,
+          textAlign: 'center',
+        }}
+      >
+        {glyph}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 15,
+            fontWeight: earned ? 600 : 400,
+            color: earned ? 'var(--fg-1)' : 'var(--fg-3)',
+          }}
         >
-          {t(`gamification.rarity.${achievement.rarity.toLowerCase()}`)}
-        </span>
-        <span className="text-[10px] font-bold text-primary">
-          {t('gamification.xpReward', { n: achievement.xpReward })}
-        </span>
+          {t(`gamification.achievements.${achievement.id}.name`)}
+        </div>
+        {earned && (
+          <div
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 12,
+              fontStyle: 'italic',
+              color: 'var(--fg-3)',
+              marginTop: 2,
+            }}
+          >
+            {t(`gamification.achievements.${achievement.id}.description`)}
+          </div>
+        )}
       </div>
-
-      {earned && earnedDate && (
-        <p className="text-[10px] text-text-muted mt-1">
-          {t('gamification.page.earnedOn', { date: displayDate(new Date(earnedDate)) })}
-        </p>
-      )}
+      <span
+        style={{
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 11,
+          color: earned ? 'var(--fg-3)' : 'var(--fg-4)',
+          fontStyle: earned ? 'normal' : 'italic',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {earned && earnedDate
+          ? `${t('gamification.page.earnedOn', { date: displayDate(new Date(earnedDate)) })}`
+          : t('gamification.rarityLocked')}
+      </span>
     </div>
   )
 }

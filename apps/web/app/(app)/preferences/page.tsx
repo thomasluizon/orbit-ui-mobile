@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { Check, Lock } from 'lucide-react'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import {
   buildWeekStartOptions,
@@ -22,12 +22,109 @@ import {
 } from '@/hooks/use-push-notification-preferences'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Chip } from '@/components/ui/chip'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
   updateLanguage,
 } from '@/app/actions/profile'
+
+interface MonoToggleProps {
+  on: boolean
+  onToggle: () => void
+  ariaLabel: string
+  disabled?: boolean
+}
+
+function MonoToggle({ on, onToggle, ariaLabel, disabled }: Readonly<MonoToggleProps>) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={onToggle}
+      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 relative"
+      style={{
+        width: 36,
+        height: 20,
+        borderRadius: 999,
+        background: on ? 'var(--primary)' : 'var(--bg-elev)',
+        boxShadow: on ? 'none' : 'inset 0 0 0 1px var(--hairline-strong)',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute rounded-full"
+        style={{
+          top: 2,
+          left: 2,
+          width: 16,
+          height: 16,
+          background: 'var(--fg-on-primary)',
+          transform: on ? 'translateX(16px)' : 'translateX(0)',
+          transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      />
+    </button>
+  )
+}
+
+interface SchemeSwatchesProps {
+  active: ColorScheme
+  hasProAccess: boolean
+  mounted: boolean
+  onSelect: (scheme: ColorScheme) => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function SchemeSwatches({ active, hasProAccess, mounted, onSelect, t }: Readonly<SchemeSwatchesProps>) {
+  return (
+    <div className="flex items-center" style={{ gap: 12 }}>
+      {colorSchemeOptions.map((option) => {
+        const isActive = mounted && active === option.value
+        const isLocked = !hasProAccess && option.value !== 'purple'
+        const ariaLabel = t(
+          `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
+        ) // NOSONAR - dynamic i18n key
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-label={ariaLabel}
+            aria-pressed={isActive}
+            onClick={() => onSelect(option.value)}
+            className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 999,
+              background: option.color,
+              boxShadow: isActive ? 'inset 0 0 0 2px var(--fg-1)' : 'none',
+            }}
+          >
+            {isActive && (
+              <Check
+                size={11}
+                strokeWidth={2.5}
+                color="var(--fg-on-primary)"
+                style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.4))' }}
+              />
+            )}
+            {!isActive && isLocked && (
+              <Lock size={9} strokeWidth={2} color="rgba(255,255,255,0.65)" />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function PreferencesPage() {
   const t = useTranslations()
@@ -46,43 +143,37 @@ export default function PreferencesPage() {
     togglePush: handleTogglePush,
   } = usePushNotificationPreferences()
 
-  // Hydration guard: cookie/localStorage reads differ between server and client.
-  // Defer client-only state until after mount to prevent aria-pressed mismatches.
   const mounted = useIsClient()
 
-  // One-time legacy preference cleanup (orbit_time_format was removed). Run
-  // as an effect so the DOM/storage mutation happens after hydration.
   useEffect(() => {
     localStorage.removeItem('orbit_time_format')
     document.cookie = 'orbit_time_format=;max-age=0;path=/;samesite=strict'
   }, [])
 
-  // --- Language --- read the current locale from the cookie at mount via
-  // lazy initial state so we don't trigger setState-in-effect.
   const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
     if (typeof document === 'undefined') return 'en'
     const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
     return match?.[1] ? decodeURIComponent(match[1]) : 'en'
   })
 
-  const handleLanguageChange = useCallback(async (locale: SupportedLocale) => {
-    setSelectedLanguage(locale)
-    if (typeof document !== 'undefined') {
-      document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
-    }
-    if (isAuthenticated) {
-      try {
-        await updateLanguage({ language: locale })
-      } catch {
-        // Error handled silently like Vue
+  const handleLanguageChange = useCallback(
+    async (locale: SupportedLocale) => {
+      setSelectedLanguage(locale)
+      if (typeof document !== 'undefined') {
+        document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
       }
-    }
-    // Hard reload to re-trigger next-intl proxy with the new locale cookie
-    // (router.refresh() alone does not re-evaluate proxy)
-    globalThis.location.reload()
-  }, [isAuthenticated])
+      if (isAuthenticated) {
+        try {
+          await updateLanguage({ language: locale })
+        } catch {
+          // Error handled silently
+        }
+      }
+      globalThis.location.reload()
+    },
+    [isAuthenticated],
+  )
 
-  // --- Week Start Day ---
   const weekStartOptions = buildWeekStartOptions(t)
 
   const weekStartMutation = useMutation({
@@ -99,7 +190,6 @@ export default function PreferencesPage() {
     },
   })
 
-  // --- Color Scheme ---
   const colorSchemeMutation = useMutation({
     mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
     onMutate: (scheme) => {
@@ -126,8 +216,6 @@ export default function PreferencesPage() {
     colorSchemeMutation.mutate(scheme)
   }
 
-  // --- Home Screen Toggle (local-only preference) ---
-  // Lazy initial state reads from localStorage on the client only.
   const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
     if (typeof localStorage === 'undefined') return false
     return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
@@ -140,185 +228,185 @@ export default function PreferencesPage() {
   }
 
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-        <button
-          type="button"
-          aria-label={t('common.backToProfile')}
-          className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
-          onClick={() => goBackOrFallback('/profile')}
-        >
-          <ArrowLeft className="size-5" />
-        </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('preferences.title')}
-        </h1>
-      </header>
-
-      <div className="space-y-4">
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('preferences.title')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Language */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {t('profile.language.title')}
-          </h2>
-          <p className="text-sm text-text-secondary">
-            {t('profile.language.description')}
-          </p>
-          <div className="flex gap-2">
-            {LANGUAGE_OPTIONS.map((lang) => {
-              const isActive = mounted && selectedLanguage === lang.value
-              return (
-                <button
-                  key={lang.value}
-                  aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                  }`}
-                  onClick={() => handleLanguageChange(lang.value)}
-                >
-                  {lang.label}
-                </button>
-              )
-            })}
-          </div>
+        <SectionLabel>{t('profile.language.title')}</SectionLabel>
+        <div
+          className="flex items-center"
+          style={{
+            padding: '0 20px 14px',
+            gap: 6,
+            borderBottom: '1px solid var(--hairline)',
+            flexWrap: 'wrap',
+          }}
+        >
+          {LANGUAGE_OPTIONS.map((lang) => {
+            const isActive = mounted && selectedLanguage === lang.value
+            return (
+              <Chip
+                key={lang.value}
+                active={isActive}
+                onClick={() => handleLanguageChange(lang.value)}
+                ariaLabel={lang.label}
+              >
+                {lang.label}
+              </Chip>
+            )
+          })}
+        </div>
+        <div
+          style={{
+            padding: '0 20px 14px',
+            borderBottom: '1px solid var(--hairline)',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('profile.language.description')}
         </div>
 
-        {/* Color Scheme */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-              {t('profile.colorScheme.title')}
-            </h2>
-            <ProBadge />
-          </div>
-          <p className="text-sm text-text-secondary">
-            {t('profile.colorScheme.description')}
-          </p>
-          <div className="flex gap-3">
-            {colorSchemeOptions.map((option) => {
-              const isActive = mounted && currentScheme === option.value
-              return (
-                <button
-                  key={option.value}
-                  aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
-                  aria-pressed={isActive}
-                  className={`size-12 rounded-full transition-all active:scale-90 flex items-center justify-center ${
-                    isActive
-                      ? 'ring-2 ring-offset-2 ring-offset-surface scale-110'
-                      : 'hover:scale-105 opacity-70 hover:opacity-100'
-                  }`}
-                  style={{
-                    backgroundColor: option.color,
-                    '--tw-ring-color': isActive ? option.color : undefined,
-                  } as React.CSSProperties}
-                  onClick={() => handleSchemeChange(option.value)}
-                >
-                  {isActive && (
-                    <Check className="size-5 text-white" />
-                  )}
-                  {!profile?.hasProAccess && option.value !== 'purple' && !isActive && (
-                    <Lock className="size-3.5 text-white/70" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
+        {/* Appearance (color scheme) */}
+        <SectionLabel trailing={<ProBadge />}>{t('profile.colorScheme.title')}</SectionLabel>
+        <div
+          className="flex items-center justify-end"
+          style={{
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--hairline)',
+            gap: 12,
+          }}
+        >
+          <SchemeSwatches
+            active={currentScheme}
+            hasProAccess={profile?.hasProAccess ?? false}
+            mounted={mounted}
+            onSelect={handleSchemeChange}
+            t={t}
+          />
+        </div>
+        <div
+          style={{
+            padding: '0 20px 14px',
+            borderBottom: '1px solid var(--hairline)',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('profile.colorScheme.description')}
         </div>
 
-        {/* Week Start Day */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {t('settings.weekStartDay.title')}
-          </h2>
-          <p className="text-sm text-text-secondary">
-            {t('settings.weekStartDay.description')}
-          </p>
-          <div className="flex gap-2">
+        {/* Schedule (week start day) */}
+        <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
+        <div
+          className="flex items-center justify-end"
+          style={{
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--hairline)',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div className="flex items-center" style={{ gap: 4 }}>
             {weekStartOptions.map((opt) => {
               const isActive = mounted && profile?.weekStartDay === opt.value
               return (
-                <button
+                <Chip
                   key={opt.value}
-                  aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                  }`}
+                  active={isActive}
                   onClick={() => weekStartMutation.mutate(opt.value)}
+                  ariaLabel={opt.label}
                 >
                   {opt.label}
-                </button>
+                </Chip>
               )
             })}
           </div>
         </div>
-
-        {/* Home Screen */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('settings.homeScreen.title')}
-              </h2>
-              <p className="text-xs text-text-muted mt-1">
-                {t('settings.homeScreen.showGeneralDesc')}
-              </p>
-            </div>
-            <button
-              role="switch"
-              aria-checked={mounted && showGeneralOnToday}
-              aria-label={t('settings.homeScreen.showGeneral')}
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                mounted && showGeneralOnToday ? 'bg-primary' : 'bg-surface-elevated'
-              }`}
-              onClick={toggleShowGeneral}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                  mounted && showGeneralOnToday ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
+        <div
+          style={{
+            padding: '0 20px 14px',
+            borderBottom: '1px solid var(--hairline)',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('settings.weekStartDay.description')}
         </div>
 
-        {/* Push Notifications */}
+        {/* Home Screen */}
+        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
+        <SettingsRow label={t('settings.homeScreen.showGeneral')} accessory="none">
+          <MonoToggle
+            on={mounted && showGeneralOnToday}
+            onToggle={toggleShowGeneral}
+            ariaLabel={t('settings.homeScreen.showGeneral')}
+          />
+        </SettingsRow>
+        <div
+          style={{
+            padding: '0 20px 14px',
+            borderBottom: '1px solid var(--hairline)',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('settings.homeScreen.showGeneralDesc')}
+        </div>
+
+        {/* Notifications */}
         {pushSupported && (
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('settings.notifications.title')}
-              </h2>
+          <>
+            <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+            <SettingsRow label={t('settings.notifications.allowed')} accessory="none">
               {pushPermission !== 'denied' && (
-                <button
-                  role="switch"
-                  aria-checked={pushSubscribed}
-                  aria-label={t('settings.notifications.title')}
+                <MonoToggle
+                  on={pushSubscribed}
+                  onToggle={handleTogglePush}
+                  ariaLabel={t('settings.notifications.title')}
                   disabled={pushLoading}
-                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
-                    pushSubscribed ? 'bg-primary' : 'bg-surface-elevated'
-                  }`}
-                  onClick={handleTogglePush}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                      pushSubscribed ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                />
               )}
-            </div>
-            <p className="text-sm text-text-secondary">
+            </SettingsRow>
+            <div
+              style={{
+                padding: '0 20px 6px',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                fontStyle: 'italic',
+                color: 'var(--fg-3)',
+              }}
+            >
               {t('settings.notifications.description')}
-            </p>
-            <p className={`text-xs font-medium ${getPushStatusTone(pushStatus)}`}>
+            </div>
+            <div
+              className={getPushStatusTone(pushStatus)}
+              style={{
+                padding: '0 20px 14px',
+                borderBottom: '1px solid var(--hairline)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
               {t(getPushStatusMessageKey(pushStatus, pushPermission))}
-            </p>
-          </div>
+            </div>
+          </>
         )}
+        <div style={{ height: 24 }} />
       </div>
     </div>
   )

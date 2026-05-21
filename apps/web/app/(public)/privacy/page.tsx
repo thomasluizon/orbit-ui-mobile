@@ -1,7 +1,8 @@
 'use client'
 
-import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -10,85 +11,65 @@ export default function PrivacyPage() {
   const goBackOrFallback = useGoBackOrFallback()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
+  const sections: { label: string; body: string }[] = [
+    { label: t('privacy.intro.title'), body: t('privacy.intro.body') },
+    { label: t('privacy.dataCollected.title'), body: [
+      t('privacy.dataCollected.account'),
+      t('privacy.dataCollected.habits'),
+      t('privacy.dataCollected.chat'),
+      t('privacy.dataCollected.preferences'),
+    ].join(' ') },
+    { label: t('privacy.howWeUse.title'), body: [
+      t('privacy.howWeUse.provide'),
+      t('privacy.howWeUse.personalize'),
+      t('privacy.howWeUse.notifications'),
+    ].join(' ') },
+    { label: t('privacy.thirdParty.title'), body: [
+      t('privacy.thirdParty.intro'),
+      t('privacy.thirdParty.google'),
+      t('privacy.thirdParty.stripe'),
+      t('privacy.thirdParty.firebase'),
+      t('privacy.thirdParty.openai'),
+      t('privacy.thirdParty.resend'),
+    ].join(' ') },
+    { label: t('privacy.noSell.title'), body: t('privacy.noSell.body') },
+    { label: t('privacy.security.title'), body: t('privacy.security.body') },
+    { label: t('privacy.deletion.title'), body: [
+      t('privacy.deletion.body'),
+      t('privacy.deletion.step1'),
+      t('privacy.deletion.step2'),
+      t('privacy.deletion.step3'),
+      t('privacy.deletion.step4'),
+    ].join(' ') },
+    { label: t('privacy.contact.title'), body: t('privacy.contact.body') },
+  ]
+
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-        <button
-          type="button"
-          className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
-          onClick={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
-        >
-          <ArrowLeft className="size-5 text-text-primary" />
-        </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">{t('privacy.title')}</h1>
-      </header>
-
-      <div className="space-y-4">
-        <p className="text-xs text-text-muted">{t('privacy.lastUpdated')}</p>
-
-        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.intro.title')}</h2>
-            <p className="text-sm text-text-secondary leading-relaxed">{t('privacy.intro.body')}</p>
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
+        title={t('privacy.title')}
+        subtitle={t('privacy.lastUpdated')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {sections.map(({ label, body }) => (
+          <div key={label}>
+            <SectionLabel>{label}</SectionLabel>
+            <div
+              className="px-5 pb-[18px]"
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                lineHeight: 1.6,
+                color: 'var(--fg-2)',
+              }}
+            >
+              {body}
+            </div>
           </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.dataCollected.title')}</h2>
-            <ul className="text-sm text-text-secondary leading-relaxed space-y-1.5 list-disc list-inside">
-              <li>{t('privacy.dataCollected.account')}</li>
-              <li>{t('privacy.dataCollected.habits')}</li>
-              <li>{t('privacy.dataCollected.chat')}</li>
-              <li>{t('privacy.dataCollected.preferences')}</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.howWeUse.title')}</h2>
-            <ul className="text-sm text-text-secondary leading-relaxed space-y-1.5 list-disc list-inside">
-              <li>{t('privacy.howWeUse.provide')}</li>
-              <li>{t('privacy.howWeUse.personalize')}</li>
-              <li>{t('privacy.howWeUse.notifications')}</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.thirdParty.title')}</h2>
-            <p className="text-sm text-text-secondary leading-relaxed mb-1.5">{t('privacy.thirdParty.intro')}</p>
-            <ul className="text-sm text-text-secondary leading-relaxed space-y-1.5 list-disc list-inside">
-              <li>{t('privacy.thirdParty.google')}</li>
-              <li>{t('privacy.thirdParty.stripe')}</li>
-              <li>{t('privacy.thirdParty.firebase')}</li>
-              <li>{t('privacy.thirdParty.openai')}</li>
-              <li>{t('privacy.thirdParty.resend')}</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.noSell.title')}</h2>
-            <p className="text-sm text-text-secondary leading-relaxed">{t('privacy.noSell.body')}</p>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.security.title')}</h2>
-            <p className="text-sm text-text-secondary leading-relaxed">{t('privacy.security.body')}</p>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.deletion.title')}</h2>
-            <p className="text-sm text-text-secondary leading-relaxed mb-1.5">{t('privacy.deletion.body')}</p>
-            <ul className="text-sm text-text-secondary leading-relaxed space-y-1 list-none">
-              <li>{t('privacy.deletion.step1')}</li>
-              <li>{t('privacy.deletion.step2')}</li>
-              <li>{t('privacy.deletion.step3')}</li>
-            </ul>
-            <p className="text-sm text-text-secondary leading-relaxed mt-1.5">{t('privacy.deletion.step4')}</p>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-text-primary mb-1.5">{t('privacy.contact.title')}</h2>
-            <p className="text-sm text-text-secondary leading-relaxed">{t('privacy.contact.body')}</p>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   )

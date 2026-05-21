@@ -1,17 +1,93 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, Loader2, Send } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
 import { sendSupportMessage } from '@/app/actions/support'
+import { AppBar } from '@/components/ui/app-bar'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
+
+interface UnderlinedInputProps {
+  label?: string
+  value: string
+  onChange: (next: string) => void
+  placeholder?: string
+  ariaLabel?: string
+  type?: 'text' | 'email'
+  mono?: boolean
+  error?: string | null
+  multiline?: boolean
+  rows?: number
+}
+
+function UnderlinedInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  type = 'text',
+  mono = false,
+  error,
+  multiline = false,
+  rows = 4,
+}: Readonly<UnderlinedInputProps>) {
+  const family = mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)'
+  const Tag = multiline ? 'textarea' : 'input'
+  return (
+    <label className="flex flex-col gap-1.5 flex-1 min-w-0">
+      {label && (
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--fg-3)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {label}
+        </span>
+      )}
+      <Tag
+        type={multiline ? undefined : type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={ariaLabel ?? label}
+        rows={multiline ? rows : undefined}
+        className="appearance-none border-0 bg-transparent outline-none resize-none w-full"
+        style={{
+          fontFamily: family,
+          fontSize: 15,
+          color: 'var(--fg-1)',
+          padding: '6px 0',
+          borderBottom: `1px solid ${error ? 'var(--status-overdue)' : 'var(--hairline-strong)'}`,
+        }}
+      />
+      {error && (
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {error}
+        </span>
+      )}
+    </label>
+  )
+}
 
 export default function SupportPage() {
   const t = useTranslations()
@@ -19,8 +95,6 @@ export default function SupportPage() {
   const { profile } = useProfile()
   const { isOnline } = useOffline()
 
-  // Initial state: hydrate from saved draft via lazy useState so we don't
-  // trigger setState-in-effect.
   const initialDraft = (() => {
     if (typeof globalThis === 'undefined' || globalThis.localStorage === undefined) {
       return { name: '', email: '', subject: '', message: '' }
@@ -50,10 +124,6 @@ export default function SupportPage() {
   const [nameError, setNameError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
 
-  // Pre-fill from profile when it loads and the field is still empty.
-  // "Adjusting state when a prop changes" pattern: detect profile becoming
-  // available during render. Profile has no id; use email as the identity
-  // key since it is unique per user.
   const profileKey = profile?.email ?? null
   const [previousProfileKey, setPreviousProfileKey] = useState<string | null>(profileKey)
   if (profileKey !== previousProfileKey) {
@@ -66,20 +136,12 @@ export default function SupportPage() {
 
   useEffect(() => {
     if (globalThis.localStorage === undefined) return
-
-    const draft = {
-      name,
-      email,
-      subject,
-      message,
-    }
+    const draft = { name, email, subject, message }
     const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
-
     if (!hasDraft) {
       globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
       return
     }
-
     globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
   }, [email, message, name, subject])
 
@@ -107,10 +169,7 @@ export default function SupportPage() {
   }, [name, email, profile?.name, profile?.email, t])
 
   const handleSend = useCallback(async () => {
-    if (!isOnline) {
-      return
-    }
-
+    if (!isOnline) return
     if (!subject.trim() || !message.trim()) return
     if (!validateForm()) return
 
@@ -119,14 +178,8 @@ export default function SupportPage() {
     setSuccess(false)
 
     try {
-      const payload = buildSupportRequestBody(profile, {
-        name,
-        email,
-        subject,
-        message,
-      })
+      const payload = buildSupportRequestBody(profile, { name, email, subject, message })
       await sendSupportMessage(payload)
-
       setSuccess(true)
       setSubject('')
       setMessage('')
@@ -140,105 +193,123 @@ export default function SupportPage() {
     }
   }, [email, isOnline, message, name, profile, subject, t, validateForm])
 
-  return (
-    <div className="pb-8">
-      {/* Header */}
-      <header className="pt-8 pb-6 flex items-center gap-3">
-        <button
-          type="button"
-          aria-label={t('common.backToProfile')}
-          className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
-          onClick={() => goBackOrFallback('/profile')}
-        >
-          <ArrowLeft className="size-5 text-text-primary" />
-        </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('profile.support.title')}
-        </h1>
-      </header>
+  const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
 
-      <div className="space-y-4">
-        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <p className="text-sm text-text-secondary">{t('profile.support.description')}</p>
-          {!isOnline && (
+  return (
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('profile.support.title')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '16px 20px' }}>
+        {!isOnline && (
+          <div className="mb-4">
             <OfflineUnavailableState
               title={t('calendarSync.notConnected')}
               description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
               compact
             />
-          )}
+          </div>
+        )}
 
-          {success && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400">
-              {t('profile.support.success')}
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-red-400">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t('profile.support.namePlaceholder')}
-                  aria-label={t('profile.support.namePlaceholder')}
-                  className={`w-full bg-background text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all duration-200 ${
-                    nameError ? 'border-red-500' : 'border-border'
-                  }`}
-                />
-                {nameError && <p className="text-xs text-red-400 mt-1 px-1">{nameError}</p>}
-              </div>
-              <div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t('profile.support.emailPlaceholder')}
-                  aria-label={t('profile.support.emailPlaceholder')}
-                  className={`w-full bg-background text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all duration-200 ${
-                    emailError ? 'border-red-500' : 'border-border'
-                  }`}
-                />
-                {emailError && <p className="text-xs text-red-400 mt-1 px-1">{emailError}</p>}
-              </div>
-            </div>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder={t('profile.support.subjectPlaceholder')}
-              aria-label={t('profile.support.subjectPlaceholder')}
-              className="w-full bg-background text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all duration-200"
-            />
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={t('profile.support.messagePlaceholder')}
-              aria-label={t('profile.support.messagePlaceholder')}
-              rows={5}
-              className="w-full bg-background text-text-primary placeholder-text-muted rounded-[var(--radius-lg)] py-2.5 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none transition-all duration-200"
-            />
-            <button
-              disabled={isSending || !subject.trim() || !message.trim() || !isOnline}
-              className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-[var(--radius-xl)] transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-sm)] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
-              onClick={handleSend}
+        {success ? (
+          <div className="flex flex-col items-center gap-3.5 py-10">
+            <Check size={28} strokeWidth={1.8} color="var(--primary)" />
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 16,
+                color: 'var(--fg-1)',
+              }}
             >
-              {isSending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
+              {t('profile.support.success')}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+                fontStyle: 'italic',
+              }}
+            >
+              {t('profile.support.description')}
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-3">
+              <UnderlinedInput
+                label={t('profile.support.namePlaceholder')}
+                value={name}
+                onChange={setName}
+                placeholder={t('profile.support.namePlaceholder')}
+                ariaLabel={t('profile.support.namePlaceholder')}
+                error={nameError}
+              />
+              <UnderlinedInput
+                label={t('profile.support.emailPlaceholder')}
+                value={email}
+                onChange={setEmail}
+                placeholder={t('profile.support.emailPlaceholder')}
+                ariaLabel={t('profile.support.emailPlaceholder')}
+                type="email"
+                mono
+                error={emailError}
+              />
+            </div>
+            <UnderlinedInput
+              label={t('profile.support.subjectPlaceholder')}
+              value={subject}
+              onChange={setSubject}
+              placeholder={t('profile.support.subjectPlaceholder')}
+              ariaLabel={t('profile.support.subjectPlaceholder')}
+            />
+            <UnderlinedInput
+              label={t('profile.support.messagePlaceholder')}
+              value={message}
+              onChange={setMessage}
+              placeholder={t('profile.support.messagePlaceholder')}
+              ariaLabel={t('profile.support.messagePlaceholder')}
+              multiline
+              rows={6}
+            />
+            {error && (
+              <div
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 14,
+                  fontStyle: 'italic',
+                  color: 'var(--status-overdue)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={handleSend}
+              aria-label={t('profile.support.send')}
+              className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 w-full"
+              style={{
+                marginTop: 8,
+                height: 44,
+                borderRadius: 8,
+                background: disabled ? 'var(--bg-elev)' : 'var(--primary)',
+                color: disabled ? 'var(--fg-3)' : 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                boxShadow: disabled ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',
+              }}
+            >
+              {isSending && <Loader2 size={14} className="animate-spin" />}
               {t('profile.support.send')}
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

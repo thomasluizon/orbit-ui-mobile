@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -7,6 +7,12 @@ vi.mock('next-intl', () => ({
     return key
   },
   useLocale: () => 'en',
+}))
+
+vi.mock('@/hooks/use-date-format', () => ({
+  useDateFormat: () => ({
+    displayDate: (d: Date) => d.toISOString().slice(0, 10),
+  }),
 }))
 
 import { AchievementCard } from '@/components/gamification/achievement-card'
@@ -25,7 +31,7 @@ const baseAchievement: Achievement = {
 }
 
 describe('AchievementCard', () => {
-  it('renders earned state with star emoji', () => {
+  it('renders earned glyph for common rarity', () => {
     render(
       <AchievementCard
         achievement={baseAchievement}
@@ -33,10 +39,11 @@ describe('AchievementCard', () => {
         earnedDate="2025-01-15T10:00:00Z"
       />,
     )
-    expect(document.body.textContent).toContain('\u2B50')
+    // v8 uses glyph shapes (◇ ◈ ◆ ★ ✦), not emoji
+    expect(document.body.textContent).toContain('◇')
   })
 
-  it('renders locked state with lock emoji', () => {
+  it('renders locked state with locked label', () => {
     render(
       <AchievementCard
         achievement={baseAchievement}
@@ -44,7 +51,7 @@ describe('AchievementCard', () => {
         earnedDate={null}
       />,
     )
-    expect(document.body.textContent).toContain('\uD83D\uDD12')
+    expect(document.body.textContent).toContain('gamification.rarityLocked')
   })
 
   it('displays achievement name via i18n key', () => {
@@ -58,18 +65,18 @@ describe('AchievementCard', () => {
     expect(document.body.textContent).toContain('gamification.achievements.first_habit.name')
   })
 
-  it('displays achievement description via i18n key', () => {
+  it('displays achievement description only when earned', () => {
     render(
       <AchievementCard
         achievement={baseAchievement}
-        earned={false}
-        earnedDate={null}
+        earned={true}
+        earnedDate="2025-01-15T10:00:00Z"
       />,
     )
     expect(document.body.textContent).toContain('gamification.achievements.first_habit.description')
   })
 
-  it('displays rarity badge', () => {
+  it('hides description when not earned', () => {
     render(
       <AchievementCard
         achievement={baseAchievement}
@@ -77,18 +84,7 @@ describe('AchievementCard', () => {
         earnedDate={null}
       />,
     )
-    expect(document.body.textContent).toContain('gamification.rarity.common')
-  })
-
-  it('displays XP reward', () => {
-    render(
-      <AchievementCard
-        achievement={baseAchievement}
-        earned={false}
-        earnedDate={null}
-      />,
-    )
-    expect(document.body.textContent).toContain('gamification.xpReward')
+    expect(document.body.textContent).not.toContain('gamification.achievements.first_habit.description')
   })
 
   it('shows earned date when earned', () => {
@@ -113,40 +109,16 @@ describe('AchievementCard', () => {
     expect(document.body.textContent).not.toContain('gamification.page.earnedOn')
   })
 
-  it('applies reduced opacity for locked cards', () => {
-    const { container } = render(
-      <AchievementCard
-        achievement={baseAchievement}
-        earned={false}
-        earnedDate={null}
-      />,
-    )
-    const card = container.firstChild as HTMLElement
-    expect(card.className).toContain('opacity-50')
-  })
-
-  it('applies glow styling for earned cards', () => {
-    const { container } = render(
-      <AchievementCard
-        achievement={baseAchievement}
-        earned={true}
-        earnedDate="2025-01-15T10:00:00Z"
-      />,
-    )
-    const card = container.firstChild as HTMLElement
-    expect(card.className).toContain('border-primary/20')
-  })
-
-  it('shows correct rarity color for Rare', () => {
+  it('renders a rare-rarity glyph for Rare achievements', () => {
     const rareAchievement = { ...baseAchievement, rarity: 'Rare' }
     render(
       <AchievementCard
         achievement={rareAchievement}
-        earned={false}
-        earnedDate={null}
+        earned={true}
+        earnedDate="2025-01-15T10:00:00Z"
       />,
     )
-    const rarityBadge = document.querySelector('.text-blue-400')
-    expect(rarityBadge).toBeInTheDocument()
+    // v8: Rare uses ◆
+    expect(document.body.textContent).toContain('◆')
   })
 })

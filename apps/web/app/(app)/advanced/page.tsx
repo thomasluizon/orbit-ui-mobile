@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft,
   CheckCircle,
   Clock,
   List,
@@ -16,6 +15,9 @@ import {
   Lock,
   Smartphone,
 } from 'lucide-react'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -169,59 +171,96 @@ export default function AdvancedPage() {
   }
 
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('advancedSettings.title')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Widget */}
+        <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
         <button
           type="button"
-          aria-label={t('common.backToProfile')}
-          className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
-          onClick={() => goBackOrFallback('/profile')}
-        >
-          <ArrowLeft className="size-5" />
-        </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('advancedSettings.title')}
-        </h1>
-      </header>
-
-      <div className="space-y-4">
-        {/* Widget tip */}
-        <button
-          className="w-full bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 flex items-center gap-4 hover:bg-surface-elevated hover:shadow-[var(--shadow-md)] hover:border-border transition-all duration-200 group text-left shadow-[var(--shadow-sm)]"
           onClick={() => setShowWidgetInfo(true)}
           aria-haspopup="dialog"
           aria-expanded={showWidgetInfo}
           aria-controls="widget-info-dialog"
+          aria-label={t('profile.widgetTitle')}
+          className="appearance-none border-0 bg-transparent cursor-pointer w-full text-left flex items-center justify-between"
+          style={{
+            padding: '14px 20px',
+            gap: 12,
+            borderBottom: '1px solid var(--hairline)',
+          }}
         >
-          <div className="shrink-0 flex items-center justify-center bg-primary/10 rounded-[var(--radius-lg)] p-3 transition-colors">
-            <Smartphone className="size-5 text-primary" />
+          <div className="flex items-center min-w-0 flex-1" style={{ gap: 10 }}>
+            <Smartphone size={14} color="var(--fg-3)" />
+            <div className="min-w-0">
+              <p
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 15,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {t('profile.widgetTitle')}
+              </p>
+              <p
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 12,
+                  fontStyle: 'italic',
+                  color: 'var(--fg-3)',
+                  marginTop: 2,
+                }}
+              >
+                {t('profile.widgetHint')}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">{t('profile.widgetTitle')}</p>
-            <p className="text-xs text-text-secondary mt-0.5">{t('profile.widgetHint')}</p>
-          </div>
-          <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
+          <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
         </button>
 
         {/* For Developers */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">{t('orbitMcp.title')}</h2>
-              <ProBadge />
-            </div>
-            {!profile?.hasProAccess && (
+        <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
+        <div style={{ padding: '0 20px 14px' }}>
+          {!profile?.hasProAccess && (
+            <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>
               <Link
                 href="/upgrade"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
+                className="inline-flex items-center"
+                style={{
+                  gap: 6,
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--fg-1)',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                  textDecorationColor: 'var(--hairline-strong)',
+                }}
               >
-                <Lock className="size-3.5" />
+                <Lock size={12} />
                 {t('common.proBadge')}
               </Link>
-            )}
-          </div>
+            </div>
+          )}
 
-          <p className="text-sm text-text-secondary">{t('orbitMcp.description')}</p>
+          <p
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              fontStyle: 'italic',
+              color: 'var(--fg-3)',
+              lineHeight: 1.5,
+            }}
+          >
+            {t('orbitMcp.description')}
+          </p>
+        </div>
+        <div className="px-5 py-4 space-y-4" style={{ borderBottom: '1px solid var(--hairline)' }}>
 
           {profile?.hasProAccess && (
             <>

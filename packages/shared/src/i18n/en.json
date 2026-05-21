@@ -14,6 +14,7 @@
     },
     "notifications": {
       "title": "Push Notifications",
+      "allowed": "Push notifications",
       "description": "Receive reminders and updates even when the app is closed",
       "enabled": "Notifications are enabled",
       "disabled": "Notifications are turned off",
@@ -506,7 +507,14 @@
       "activity": "Activity",
       "streakDays": "{n}d",
       "stats": "Stats",
-      "noDataYet": "No data yet"
+      "noDataYet": "No data yet",
+      "reminders": "Reminders",
+      "linkedGoal": "Linked goal",
+      "children": "Children",
+      "askAstraAbout": "Ask Astra about this",
+      "askAstraEyebrow": "ASK ASTRA",
+      "askAstraSubHabits": "Want to break this into smaller steps?",
+      "askAstraDefault": "Want a perspective on this habit?"
     },
     "filter": {
       "daily": "Daily",
@@ -548,6 +556,10 @@
       "missed": "Missed",
       "sectionTitle": "Legend"
     },
+    "thisMonth": "This month",
+    "bestStreak": "Best streak",
+    "totalLogs": "Total logs",
+    "missedCount": "Missed",
     "summary": {
       "days": "days completed"
     },
@@ -739,8 +751,8 @@
       "disabled": "Daily summary is turned off"
     },
     "facts": {
-      "title": "What Orbit Knows About You",
-      "empty": "Chat with Orbit to build your profile",
+      "title": "What Astra knows",
+      "empty": "Chat with Astra to build your profile",
       "add": "Add Fact",
       "save": "Save",
       "cancel": "Cancel",
@@ -974,8 +986,9 @@
     "generate": "Generate Retrospective",
     "generating": "Analyzing your habits...",
     "error": "Couldn't generate your retrospective.",
-    "empty": "Choose a time period and generate a retrospective to see AI insights on your habits.",
+    "empty": "Choose a time period and generate a retrospective to see Astra's insights on your habits.",
     "cached": "Loaded from cache",
+    "astraEyebrow": "Astra",
     "periods": {
       "week": "Week",
       "month": "Month",
@@ -1544,7 +1557,9 @@
       "edit": "Edit Goal",
       "loadError": "Could not load full details. Showing cached data.",
       "showAllHistory": "Show all",
-      "showLessHistory": "Show less"
+      "showLessHistory": "Show less",
+      "askAstraDefault": "Want a weekly check-in plan for this?",
+      "askAstraEyebrow": "ASK ASTRA"
     },
     "filters": {
       "all": "All",
@@ -1635,6 +1650,7 @@
       "epic": "Epic",
       "legendary": "Legendary"
     },
+    "rarityLocked": "Locked",
     "achievements": {
       "first_orbit": {
         "name": "First Orbit",
@@ -1801,6 +1817,7 @@
       "progressReady": "Your next freeze is ready!",
       "maxAccumulated": "You've hit the maximum of {max} freezes. Use one before earning more.",
       "monthlyUsage": "{used} of {max} used this month",
+      "monthlyUsageLabel": "This month",
       "monthlyLimit": "You've used all {max} freezes this month",
       "accumulatedLabel": "Freezes banked",
       "accumulatedShort": "{count}/{max}",
@@ -1894,7 +1911,9 @@
     "title": "About & Help"
   },
   "advancedSettings": {
-    "title": "Advanced"
+    "title": "Advanced",
+    "widgetSection": "Widget",
+    "developersSection": "Developers"
   },
   "calendarSync": {
     "title": "Calendar Sync",

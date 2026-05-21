@@ -1,16 +1,12 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft,
-  ShieldCheck,
-  Trash2,
-  Lock,
   ChevronLeft,
   ChevronRight,
-  Check,
-  CheckCircle,
+  Lock,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,6 +18,10 @@ import {
   USER_FACTS_PER_PAGE,
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { SelectCheck } from '@/components/ui/select-check'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
 import { bulkDeleteUserFacts, deleteUserFact } from '@/app/actions/user-facts'
@@ -34,66 +34,88 @@ async function fetchUserFacts(): Promise<UserFact[]> {
   return res.json()
 }
 
-// deleteUserFact and bulkDeleteUserFacts live in app/actions/user-facts.ts so mutations
-// go through the Server Action layer (per CLAUDE.md BFF rule).
-
 // ---------------------------------------------------------------------------
-// Helpers (pure functions -- outer scope per SonarQube S7721)
+// MonoToggle: v8-style 36x20 pill switch
 // ---------------------------------------------------------------------------
 
-  function factCategoryColor(category: string | null): string {
-    switch (normalizeUserFactCategory(category)) {
-      case 'preference':
-        return 'text-primary bg-primary/10'
-      case 'routine':
-        return 'text-emerald-400 bg-emerald-400/10'
-      case 'context':
-      return 'text-blue-400 bg-blue-400/10'
-    default:
-      return 'text-text-secondary bg-surface-elevated'
-  }
+interface MonoToggleProps {
+  on: boolean
+  onToggle: () => void
+  ariaLabel: string
+  disabled?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components (reduce cognitive complexity per SonarQube S3776)
-// ---------------------------------------------------------------------------
-
-function ToggleSwitch({
-  enabled,
-  disabled,
-  onToggle,
-}: Readonly<{
-  enabled: boolean
-  disabled: boolean
-  onToggle: () => void
-}>) {
+function MonoToggle({ on, onToggle, ariaLabel, disabled }: Readonly<MonoToggleProps>) {
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
       disabled={disabled}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
-        enabled ? 'bg-primary' : 'bg-surface-elevated'
-      }`}
       onClick={onToggle}
+      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 relative shrink-0"
+      style={{
+        width: 36,
+        height: 20,
+        borderRadius: 999,
+        background: on ? 'var(--primary)' : 'var(--bg-elev)',
+        boxShadow: on ? 'none' : 'inset 0 0 0 1px var(--hairline-strong)',
+      }}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-          enabled ? 'translate-x-5' : 'translate-x-0'
-        }`}
+        aria-hidden="true"
+        className="absolute rounded-full"
+        style={{
+          top: 2,
+          left: 2,
+          width: 16,
+          height: 16,
+          background: 'var(--fg-on-primary)',
+          transform: on ? 'translateX(16px)' : 'translateX(0)',
+          transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       />
     </button>
   )
 }
 
+// ---------------------------------------------------------------------------
+// Locked pro upgrade affordance
+// ---------------------------------------------------------------------------
+
 function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   return (
     <Link
       href="/upgrade"
-      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80"
+      className="inline-flex items-center"
+      style={{
+        gap: 6,
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        fontWeight: 600,
+        color: 'var(--fg-1)',
+        textDecoration: 'underline',
+        textUnderlineOffset: 3,
+        textDecorationColor: 'var(--hairline-strong)',
+      }}
     >
-      <Lock className="size-3.5" />
+      <Lock size={12} />
       {label}
     </Link>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Fact item row
+// ---------------------------------------------------------------------------
+
+interface FactItemProps {
+  fact: UserFact
+  selectMode: boolean
+  isSelected: boolean
+  onToggleSelection: () => void
+  onDelete: () => void
 }
 
 function FactItem({
@@ -102,52 +124,50 @@ function FactItem({
   isSelected,
   onToggleSelection,
   onDelete,
-}: Readonly<{
-  fact: UserFact
-  selectMode: boolean
-  isSelected: boolean
-  onToggleSelection: () => void
-  onDelete: () => void
-}>) {
-  const content = (
+}: Readonly<FactItemProps>) {
+  const category = fact.category ? normalizeUserFactCategory(fact.category) : null
+  const categoryLabel = category ? category.toUpperCase() : null
+
+  const Inner = (
     <>
-      {selectMode && (
-        <button
-          className="shrink-0 mt-0.5"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleSelection()
-          }}
-        >
-          <div
-            className={`size-5 rounded-md border-2 transition-colors flex items-center justify-center ${
-              isSelected
-                ? 'bg-primary border-primary'
-                : 'border-border'
-            }`}
-          >
-            {isSelected && (
-              <Check className="size-3 text-white" />
-            )}
-          </div>
-        </button>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-text-primary">{fact.factText}</p>
-        {fact.category && (
+      {selectMode && <SelectCheck selected={isSelected} size={16} />}
+      <div className="flex-1 min-w-0" style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {categoryLabel && (
           <span
-            className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${factCategoryColor(fact.category)}`}
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'var(--fg-2)',
+              letterSpacing: '0.06em',
+              padding: '2px 6px',
+              borderRadius: 4,
+              alignSelf: 'flex-start',
+              boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+            }}
           >
-            {fact.category}
+            {categoryLabel}
           </span>
         )}
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {fact.factText}
+        </span>
       </div>
       {!selectMode && (
         <button
-          className="shrink-0 p-1.5 text-text-muted hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+          type="button"
           onClick={onDelete}
+          aria-label="delete"
+          className="appearance-none border-0 bg-transparent cursor-pointer shrink-0"
+          style={{ padding: 4 }}
         >
-          <Trash2 className="size-3.5" />
+          <X size={14} strokeWidth={1.6} color="var(--fg-4)" />
         </button>
       )}
     </>
@@ -157,19 +177,30 @@ function FactItem({
     return (
       <button
         type="button"
-        className={`flex items-start gap-3 rounded-2xl bg-background p-3 transition-colors w-full text-left cursor-pointer ${
-          isSelected ? 'ring-1 ring-primary/40' : ''
-        }`}
         onClick={onToggleSelection}
+        className="appearance-none border-0 cursor-pointer w-full text-left flex items-center"
+        style={{
+          padding: '12px 20px',
+          gap: 12,
+          borderBottom: '1px solid var(--hairline)',
+          background: isSelected ? 'var(--bg-sunk)' : 'transparent',
+        }}
       >
-        {content}
+        {Inner}
       </button>
     )
   }
 
   return (
-    <div className="flex items-start gap-3 rounded-2xl bg-background p-3 transition-colors">
-      {content}
+    <div
+      className="flex items-center"
+      style={{
+        padding: '12px 20px',
+        gap: 12,
+        borderBottom: '1px solid var(--hairline)',
+      }}
+    >
+      {Inner}
     </div>
   )
 }
@@ -187,7 +218,6 @@ export default function AiSettingsPage() {
   const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
 
-  // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) => updateAiMemory({ enabled }),
     onMutate: (enabled) => {
@@ -202,7 +232,6 @@ export default function AiSettingsPage() {
     },
   })
 
-  // --- AI Summary toggle ---
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) => updateAiSummary({ enabled }),
     onMutate: (enabled) => {
@@ -217,7 +246,6 @@ export default function AiSettingsPage() {
     },
   })
 
-  // --- User Facts ---
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
     queryFn: fetchUserFacts,
@@ -237,6 +265,9 @@ export default function AiSettingsPage() {
     },
   })
 
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedFactIds, setSelectedFactIds] = useState<Set<string>>(new Set())
+
   const bulkDeleteMutation = useMutation({
     mutationFn: bulkDeleteUserFacts,
     onSuccess: () => {
@@ -246,7 +277,6 @@ export default function AiSettingsPage() {
     },
   })
 
-  // Pagination
   const [factsPage, setFactsPage] = useState(1)
   const totalFactsPages = useMemo(
     () => Math.max(1, Math.ceil(facts.length / USER_FACTS_PER_PAGE)),
@@ -257,16 +287,9 @@ export default function AiSettingsPage() {
     return facts.slice(start, start + USER_FACTS_PER_PAGE)
   }, [facts, factsPage])
 
-  // Keep page in bounds when facts change. Clamp during render via the
-  // "Adjusting state when a prop changes" pattern, comparing against the
-  // computed total.
   if (factsPage > totalFactsPages) {
     setFactsPage(totalFactsPages)
   }
-
-  // Selection mode
-  const [selectMode, setSelectMode] = useState(false)
-  const [selectedFactIds, setSelectedFactIds] = useState<Set<string>>(new Set())
 
   function toggleSelectMode() {
     setSelectMode(!selectMode)
@@ -291,194 +314,236 @@ export default function AiSettingsPage() {
     }
   }
 
-  return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
+  const factsTrailing = (() => {
+    if (facts.length === 0) return undefined
+    if (selectMode) return undefined
+    return totalFactsPages > 1 ? (
+      <span
+        className="inline-flex items-center"
+        style={{
+          gap: 8,
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 11,
+          color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {t('profile.facts.count', { n: factsPage, max: totalFactsPages })}
         <button
           type="button"
-          aria-label={t('common.backToProfile')}
-          className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
-          onClick={() => goBackOrFallback('/profile')}
+          disabled={factsPage === 1}
+          onClick={() => setFactsPage((p) => p - 1)}
+          aria-label="previous page"
+          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
         >
-          <ArrowLeft className="size-5" />
+          <ChevronLeft size={12} color="var(--fg-3)" />
         </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('aiSettings.title')}
-        </h1>
-      </header>
+        <button
+          type="button"
+          disabled={factsPage === totalFactsPages}
+          onClick={() => setFactsPage((p) => p + 1)}
+          aria-label="next page"
+          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
+        >
+          <ChevronRight size={12} color="var(--fg-3)" />
+        </button>
+      </span>
+    ) : undefined
+  })()
 
-      <div className="space-y-4">
-        {/* AI Memory */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('profile.aiMemory.title')}
-              </h2>
-              <ProBadge />
-            </div>
-            {hasProAccess ? (
-              <ToggleSwitch
-                enabled={aiMemoryEnabled}
-                disabled={aiMemoryMutation.isPending}
-                onToggle={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
-              />
-            ) : (
-              <ProUpgradeLink label={t('common.proBadge')} />
-            )}
-          </div>
-          <p className="text-sm text-text-secondary">
-            {t('profile.aiMemory.description')}
-          </p>
-          <p className="text-xs text-text-muted leading-relaxed">
-            <ShieldCheck className="size-3.5 inline-block align-text-bottom mr-1 text-emerald-400" />
-            {t('profile.aiMemory.privacy')}
-          </p>
-          <p
-            className={`text-xs font-medium ${
-              aiMemoryEnabled ? 'text-primary' : 'text-text-muted'
-            }`}
-          >
-            {aiMemoryEnabled ? t('profile.aiMemory.enabled') : t('profile.aiMemory.disabled')}
-          </p>
+  return (
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('aiSettings.title')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Reflect / Memory */}
+        <SectionLabel trailing={<ProBadge />}>{t('profile.aiMemory.title')}</SectionLabel>
+        <SettingsRow label={t('profile.aiMemory.title')} accessory="none">
+          {hasProAccess ? (
+            <MonoToggle
+              on={aiMemoryEnabled}
+              onToggle={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
+              ariaLabel={t('profile.aiMemory.title')}
+              disabled={aiMemoryMutation.isPending}
+            />
+          ) : (
+            <ProUpgradeLink label={t('common.proBadge')} />
+          )}
+        </SettingsRow>
+        <div
+          style={{
+            padding: '0 20px 14px',
+            borderBottom: '1px solid var(--hairline)',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('profile.aiMemory.description')}
         </div>
 
-        {/* AI Summary */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('profile.aiSummary.title')}
-              </h2>
-              <ProBadge />
-            </div>
-            {hasProAccess ? (
-              <ToggleSwitch
-                enabled={aiSummaryEnabled}
-                disabled={aiSummaryMutation.isPending}
-                onToggle={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
-              />
-            ) : (
-              <ProUpgradeLink label={t('common.proBadge')} />
-            )}
-          </div>
-          <p className="text-sm text-text-secondary">
-            {t('profile.aiSummary.description')}
-          </p>
-          <p
-            className={`text-xs font-medium ${
-              aiSummaryEnabled ? 'text-primary' : 'text-text-muted'
-            }`}
-          >
-            {aiSummaryEnabled ? t('profile.aiSummary.enabled') : t('profile.aiSummary.disabled')}
-          </p>
+        {/* Summary */}
+        <SectionLabel trailing={<ProBadge />}>{t('profile.aiSummary.title')}</SectionLabel>
+        <SettingsRow label={t('profile.aiSummary.title')} accessory="none">
+          {hasProAccess ? (
+            <MonoToggle
+              on={aiSummaryEnabled}
+              onToggle={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+              ariaLabel={t('profile.aiSummary.title')}
+              disabled={aiSummaryMutation.isPending}
+            />
+          ) : (
+            <ProUpgradeLink label={t('common.proBadge')} />
+          )}
+        </SettingsRow>
+        <div
+          style={{
+            padding: '0 20px 14px',
+            borderBottom: '1px solid var(--hairline)',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('profile.aiSummary.description')}
         </div>
 
-        {/* What Orbit Knows -- User Facts */}
-        <div className="bg-surface rounded-[var(--radius-xl)] p-5 space-y-4 border border-border-muted shadow-[var(--shadow-sm)]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('profile.facts.title')}
-              </h2>
-              {facts.length > 0 && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-text-muted bg-surface-elevated">
-                  {facts.length}
-                </span>
+        {/* What Astra knows */}
+        <SectionLabel trailing={factsTrailing}>{t('profile.facts.title')}</SectionLabel>
+
+        {!hasProAccess && (
+          <div style={{ padding: '14px 20px' }}>
+            <ProUpgradeLink label={t('common.proBadge')} />
+          </div>
+        )}
+
+        {hasProAccess && facts.length > 0 && (
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '8px 20px 12px',
+              borderBottom: '1px solid var(--hairline)',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 12,
+                fontWeight: 500,
+                color: selectMode ? 'var(--fg-1)' : 'var(--fg-3)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {selectMode
+                ? `${selectedFactIds.size} ${t('profile.facts.select').toLowerCase()}`
+                : `${facts.length}`}
+            </span>
+            <div className="inline-flex items-center" style={{ gap: 14 }}>
+              {selectMode && (
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className="appearance-none border-0 bg-transparent cursor-pointer"
+                  style={{
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--fg-1)',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 3,
+                    textDecorationColor: 'var(--hairline-strong)',
+                  }}
+                >
+                  {selectedFactIds.size === facts.length
+                    ? t('profile.facts.deselectAll')
+                    : t('profile.facts.selectAll')}
+                </button>
               )}
-            </div>
-            {facts.length > 0 && (
+              {selectMode && selectedFactIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
+                  disabled={bulkDeleteMutation.isPending}
+                  className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
+                  style={{
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 13,
+                    fontStyle: 'italic',
+                    color: 'var(--status-overdue)',
+                  }}
+                >
+                  {t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
+                </button>
+              )}
               <button
-                className={`text-xs font-semibold flex items-center gap-1 hover:underline ${
-                  selectMode ? 'text-text-secondary' : 'text-text-muted'
-                }`}
+                type="button"
                 onClick={toggleSelectMode}
+                className="appearance-none border-0 bg-transparent cursor-pointer"
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontWeight: selectMode ? 400 : 600,
+                  fontStyle: selectMode ? 'italic' : 'normal',
+                  color: selectMode ? 'var(--fg-3)' : 'var(--fg-1)',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                  textDecorationColor: 'var(--hairline-strong)',
+                }}
               >
-                {selectMode ? (
-                  <X className="size-3" />
-                ) : (
-                  <CheckCircle className="size-3" />
-                )}
                 {selectMode ? t('profile.facts.cancel') : t('profile.facts.select')}
               </button>
-            )}
+            </div>
           </div>
+        )}
 
-          {/* Bulk actions bar */}
-          {selectMode && (
-            <div className="flex items-center justify-between rounded-2xl bg-background border border-border p-3">
-              <button
-                className="text-xs font-semibold text-primary hover:underline"
-                onClick={toggleSelectAll}
-              >
-                {selectedFactIds.size === facts.length ? t('profile.facts.deselectAll') : t('profile.facts.selectAll')}
-              </button>
-              <button
-                disabled={selectedFactIds.size === 0}
-                className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-full disabled:opacity-30 transition-all active:scale-95"
-                onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
-              >
-                {t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
-              </button>
-            </div>
-          )}
+        {hasProAccess && factsQuery.isLoading && (
+          <div className="px-5 py-4 space-y-2">
+            <div className="h-10 w-full rounded-md animate-pulse" style={{ background: 'var(--bg-elev)' }} />
+            <div className="h-10 w-full rounded-md animate-pulse" style={{ background: 'var(--bg-elev)' }} />
+          </div>
+        )}
 
-          {/* Loading state */}
-          {factsQuery.isLoading && (
-            <div className="space-y-3">
-              <div className="h-10 w-full bg-surface-elevated rounded-2xl animate-pulse" />
-              <div className="h-10 w-full bg-surface-elevated rounded-2xl animate-pulse" />
-            </div>
-          )}
+        {hasProAccess && !factsQuery.isLoading && facts.length === 0 && (
+          <div
+            className="flex flex-col items-center text-center"
+            style={{ padding: '40px 24px', gap: 14 }}
+          >
+            <Sparkles size={28} strokeWidth={1.4} color="var(--fg-3)" />
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontStyle: 'italic',
+                color: 'var(--fg-3)',
+                lineHeight: 1.5,
+              }}
+            >
+              {t('profile.facts.empty')}
+            </span>
+          </div>
+        )}
 
-          {/* Empty state */}
-          {!factsQuery.isLoading && facts.length === 0 && (
-            <div className="text-center py-6">
-              <p className="text-text-muted text-sm">
-                {t('profile.facts.empty')}
-              </p>
-            </div>
-          )}
-
-          {/* Facts list */}
-          {!factsQuery.isLoading && facts.length > 0 && (
-            <div className="space-y-2">
-              {pagedFacts.map((fact) => (
-                <FactItem
-                  key={fact.id}
-                  fact={fact}
-                  selectMode={selectMode}
-                  isSelected={selectedFactIds.has(fact.id)}
-                  onToggleSelection={() => toggleFactSelection(fact.id)}
-                  onDelete={() => deleteMutation.mutate(fact.id)}
-                />
-              ))}
-
-              {/* Pagination */}
-              {totalFactsPages > 1 && (
-                <div className="flex items-center justify-center gap-3 pt-1">
-                  <button
-                    disabled={factsPage === 1}
-                    className="p-1.5 rounded-full text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors hover:bg-surface-elevated"
-                    onClick={() => setFactsPage((p) => p - 1)}
-                  >
-                    <ChevronLeft className="size-4" />
-                  </button>
-                  <span className="text-xs font-semibold text-text-secondary tabular-nums">
-                    {factsPage} / {totalFactsPages}
-                  </span>
-                  <button
-                    disabled={factsPage === totalFactsPages}
-                    className="p-1.5 rounded-full text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors hover:bg-surface-elevated"
-                    onClick={() => setFactsPage((p) => p + 1)}
-                  >
-                    <ChevronRight className="size-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {hasProAccess && !factsQuery.isLoading && facts.length > 0 && (
+          <div>
+            {pagedFacts.map((fact) => (
+              <FactItem
+                key={fact.id}
+                fact={fact}
+                selectMode={selectMode}
+                isSelected={selectedFactIds.has(fact.id)}
+                onToggleSelection={() => toggleFactSelection(fact.id)}
+                onDelete={() => deleteMutation.mutate(fact.id)}
+              />
+            ))}
+          </div>
+        )}
+        <div style={{ height: 24 }} />
       </div>
     </div>
   )

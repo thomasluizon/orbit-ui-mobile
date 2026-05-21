@@ -249,9 +249,8 @@ describe('AchievementsPage', () => {
       achievements: [],
     }
     const { container } = render(<AchievementsPage />)
-    const progressBar = container.querySelector('[style*="width"]')
+    const progressBar = container.querySelector('[style*="width: 60%"]')
     expect(progressBar).toBeTruthy()
-    expect(progressBar?.getAttribute('style')).toContain('60%')
   })
 
   it('does not show locked state while profile is still loading', () => {

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { ArrowLeft } from 'lucide-react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import { getErrorMessage } from '@orbit/shared/utils'
@@ -11,6 +10,7 @@ import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamificati
 import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
+import { AppBar } from '@/components/ui/app-bar'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreezeProgressCard, StreakTimelineCard } from './_components/streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -90,7 +90,7 @@ export default function StreakPage() {
         }
       }
 
-      return { date, dateStr, dayLabel, dayNum, status, isTodayDate }
+      return { dateStr, dayLabel, dayNum, status }
     })
   }, [streakInfo, streak, isFrozenToday, displayDate])
 
@@ -102,99 +102,104 @@ export default function StreakPage() {
       setTimeout(() => setFreezeSuccess(false), 3000)
       freezeCelebrationRef.current?.show()
     } catch {
-      // Error is handled by the mutation
+      // Error surfaced via mutation.error
     }
   }
 
-  return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-          <button
-            type="button"
-            aria-label={t('common.backToProfile')}
-            className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
-            onClick={() => goBackOrFallback('/profile')}
-          >
-            <ArrowLeft className="size-5 text-text-primary" />
-          </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('streakDisplay.detail.title')}
-        </h1>
-      </header>
+  const isLoading = streakQuery.isLoading && !streakInfo
 
-      {streakQuery.isLoading && !streakInfo ? (
-        <div className="space-y-6">
-          <div className="h-32 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
-          <div className="h-20 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
-          <div className="h-40 bg-surface rounded-[var(--radius-xl)] animate-pulse" />
+  return (
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('streakDisplay.detail.title')}
+      />
+
+      {isLoading ? (
+        <div className="flex-1 px-5 py-8 space-y-4">
+          <div className="h-32 bg-[var(--bg-elev)] rounded-md animate-pulse" />
+          <div className="h-20 bg-[var(--bg-elev)] rounded-md animate-pulse" />
+          <div className="h-40 bg-[var(--bg-elev)] rounded-md animate-pulse" />
         </div>
       ) : (
-        <div className="space-y-5">
-          <div className={`streak-hero streak-hero--${tier}`}>
-            {streak > 0 && <div className="streak-hero__glow" />}
-            <div className="relative flex flex-col items-center text-center py-4">
-              {streak > 0 ? (
-                <div className="streak-hero__flame mb-3">
-                  <svg viewBox="0 0 40 50" fill="none" className="size-16">
-                    <path
-                      d="M20 0C20 0 5 16.25 5 30a15 15 0 0 0 30 0C35 16.25 20 0 20 0Zm0 42.5a7.5 7.5 0 0 1-7.5-7.5c0-5 7.5-13.75 7.5-13.75S27.5 30 27.5 35A7.5 7.5 0 0 1 20 42.5Z"
-                      fill="url(#streakDetailFlame)"
-                    />
-                    <defs>
-                      <linearGradient id="streakDetailFlame" x1="20" y1="0" x2="20" y2="50" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stopColor="#fbbf24" />
-                        <stop offset="0.5" stopColor="#f97316" />
-                        <stop offset="1" stopColor="#ef4444" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                </div>
-              ) : (
-                <div className="size-16 flex items-center justify-center rounded-full bg-surface-elevated mb-3">
-                  <svg viewBox="0 0 40 50" fill="none" className="size-10 opacity-30">
-                    <path
-                      d="M20 0C20 0 5 16.25 5 30a15 15 0 0 0 30 0C35 16.25 20 0 20 0Zm0 42.5a7.5 7.5 0 0 1-7.5-7.5c0-5 7.5-13.75 7.5-13.75S27.5 30 27.5 35A7.5 7.5 0 0 1 20 42.5Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </div>
-              )}
-
-              <p className="text-4xl font-extrabold tracking-tight streak-hero__count">
-                {streak}
-              </p>
-              <p className="text-sm text-text-secondary mt-1">
-                {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
-              </p>
-              {encouragement && (
-                <p className="text-sm text-text-secondary mt-2 font-medium">
-                  {encouragement}
-                </p>
-              )}
-            </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {/* Hero block: 80px mono number */}
+          <div
+            className={`streak-hero streak-hero--${tier} flex flex-col items-center text-center`}
+            style={{
+              padding: '32px 20px 28px',
+              gap: 10,
+              borderBottom: '1px solid var(--hairline)',
+              borderRadius: 0,
+              border: 0,
+              borderBottomWidth: 1,
+              borderBottomStyle: 'solid',
+              borderBottomColor: 'var(--hairline)',
+              boxShadow: 'none',
+              background: 'transparent',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: '0.06em',
+                color: isFrozenToday ? 'var(--status-frozen)' : 'var(--fg-3)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {isFrozenToday
+                ? t('streakDisplay.freeze.activeToday')
+                : t('streakDisplay.detail.currentStreak')}
+            </span>
+            <span
+              className="streak-hero__count"
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: streak > 100 ? 64 : 80,
+                fontWeight: 500,
+                letterSpacing: '-0.04em',
+                lineHeight: 0.9,
+                color: 'var(--fg-1)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {streak}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
+            </span>
+            {encouragement && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 14,
+                  fontStyle: 'italic',
+                  color: 'var(--fg-3)',
+                }}
+              >
+                {encouragement}
+              </span>
+            )}
           </div>
 
           <StreakTimelineCard t={t} weekDays={weekDays} />
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-4 text-center">
-              <p className="text-2xl font-extrabold text-amber-400">{streak}</p>
-              <p className="text-xs text-text-muted font-bold uppercase tracking-wider mt-1">
-                {t('streakDisplay.detail.currentStreak')}
-              </p>
-            </div>
-            <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-4 text-center">
-              <p className="text-2xl font-extrabold text-amber-500/60">{streakInfo?.longestStreak ?? 0}</p>
-              <p className="text-xs text-text-muted font-bold uppercase tracking-wider mt-1">
-                {t('streakDisplay.detail.longestStreak')}
-              </p>
-            </div>
-          </div>
 
           <FreezeProgressCard
             t={t}
             locale={locale}
             streak={streak}
+            longestStreak={streakInfo?.longestStreak ?? 0}
             streakFreezesAccumulated={streakFreezesAccumulated}
             maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
             daysUntilNextFreeze={daysUntilNextFreeze}
@@ -207,7 +212,11 @@ export default function StreakPage() {
             canEarnMore={canEarnMore}
             hasReachedMonthlyLimit={hasReachedMonthlyLimit}
             freezeSuccess={freezeSuccess}
-            errorMessage={activateFreezeMutation.error ? getErrorMessage(activateFreezeMutation.error, t('toast.errors.activateFreeze')) : undefined}
+            errorMessage={
+              activateFreezeMutation.error
+                ? getErrorMessage(activateFreezeMutation.error, t('toast.errors.activateFreeze'))
+                : undefined
+            }
             streakInfo={streakInfo}
             onActivateFreeze={() => setShowConfirm(true)}
           />
@@ -220,20 +229,52 @@ export default function StreakPage() {
         title={t('streakDisplay.freeze.confirmTitle')}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary leading-relaxed">
-            {plural(t('streakDisplay.freeze.confirmBody', { count: freezesAvailable, remaining: freezesAvailable, streak }), freezesAvailable)}
+          <p
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: 'var(--fg-2)',
+            }}
+          >
+            {plural(
+              t('streakDisplay.freeze.confirmBody', {
+                count: freezesAvailable,
+                remaining: freezesAvailable,
+                streak,
+              }),
+              freezesAvailable,
+            )}
           </p>
           <div className="flex flex-col gap-2">
             <button
-              className="w-full py-3 rounded-[var(--radius-xl)] bg-blue-500/15 border border-blue-500/25 text-blue-400 font-bold text-sm hover:bg-blue-500/25 transition-all active:scale-[0.98] disabled:opacity-50"
+              type="button"
               disabled={activateFreezeMutation.isPending}
               onClick={handleFreeze}
+              className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full"
+              style={{
+                height: 44,
+                borderRadius: 8,
+                background: 'var(--primary)',
+                color: 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                opacity: activateFreezeMutation.isPending ? 0.5 : 1,
+              }}
             >
               {activateFreezeMutation.isPending ? '...' : t('streakDisplay.freeze.activate')}
             </button>
             <button
-              className="w-full py-2.5 text-text-secondary text-sm font-medium hover:text-text-primary transition-colors"
+              type="button"
               onClick={() => setShowConfirm(false)}
+              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center w-full"
+              style={{
+                height: 40,
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+              }}
             >
               {t('common.cancel')}
             </button>

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  ArrowLeft,
   Loader2,
   Check,
   Link as LinkIcon,
@@ -14,6 +13,7 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react'
+import { AppBar } from '@/components/ui/app-bar'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
@@ -388,26 +388,17 @@ export default function CalendarSyncPage() {
   }
 
   return (
-    <div className="pb-8 space-y-6">
-      {/* Header */}
-      <header className="pt-6">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label={t('common.backToProfile')}
-            className="p-2 rounded-full hover:bg-surface transition-colors"
-            onClick={() => goBackOrFallback('/profile')}
-          >
-            <ArrowLeft className="size-4 text-text-primary" />
-          </button>
-          <h1 className="text-[length:var(--text-fluid-xl)] font-bold text-text-primary">
-            {isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
-          </h1>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
+      />
 
-      {/* Auto-sync settings card (always visible at top) */}
-      {hasProAccess && <AutoSyncSettingsCard />}
+      <div className="flex-1 min-h-0 overflow-y-auto pb-8 space-y-6">
+        {/* Auto-sync settings card (always visible at top) */}
+        {hasProAccess && <AutoSyncSettingsCard />}
 
       {/* Loading */}
       {step === 'loading' && (
@@ -610,6 +601,7 @@ export default function CalendarSyncPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

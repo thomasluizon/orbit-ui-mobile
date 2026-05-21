@@ -14,6 +14,7 @@
     },
     "notifications": {
       "title": "Notificações Push",
+      "allowed": "Notificações push",
       "description": "Receba lembretes e atualizações mesmo quando o app estiver fechado",
       "enabled": "Notificações estão ativadas",
       "disabled": "Notificações estão desativadas",
@@ -506,7 +507,14 @@
       "activity": "Atividade",
       "streakDays": "{n}d",
       "stats": "Estatísticas",
-      "noDataYet": "Nenhum dado ainda"
+      "noDataYet": "Nenhum dado ainda",
+      "reminders": "Lembretes",
+      "linkedGoal": "Meta vinculada",
+      "children": "Sub-hábitos",
+      "askAstraAbout": "Pergunte ao Astra sobre isto",
+      "askAstraEyebrow": "PERGUNTE AO ASTRA",
+      "askAstraSubHabits": "Quer dividir isto em passos menores?",
+      "askAstraDefault": "Quer uma perspectiva sobre este hábito?"
     },
     "filter": {
       "daily": "Diário",
@@ -548,6 +556,10 @@
       "missed": "Perdido",
       "sectionTitle": "Legenda"
     },
+    "thisMonth": "Este mês",
+    "bestStreak": "Melhor sequência",
+    "totalLogs": "Total de registros",
+    "missedCount": "Perdidos",
     "summary": {
       "days": "dias completados"
     },
@@ -739,8 +751,8 @@
       "disabled": "Resumo diário está desativado"
     },
     "facts": {
-      "title": "O que o Orbit Sabe Sobre Você",
-      "empty": "Converse com o Orbit para construir seu perfil",
+      "title": "O que a Astra sabe",
+      "empty": "Converse com a Astra para construir seu perfil",
       "add": "Adicionar Fato",
       "save": "Salvar",
       "cancel": "Cancelar",
@@ -974,8 +986,9 @@
     "generate": "Gerar Retrospectiva",
     "generating": "Analisando seus hábitos...",
     "error": "Não foi possível gerar sua retrospectiva.",
-    "empty": "Escolha um período e gere uma retrospectiva para ver insights da IA sobre seus hábitos.",
+    "empty": "Escolha um período e gere uma retrospectiva para ver os insights da Astra sobre seus hábitos.",
     "cached": "Carregado do cache",
+    "astraEyebrow": "Astra",
     "periods": {
       "week": "Semana",
       "month": "Mês",
@@ -1544,7 +1557,9 @@
       "edit": "Editar Meta",
       "loadError": "Não foi possível carregar os detalhes completos. Exibindo dados em cache.",
       "showAllHistory": "Ver todos",
-      "showLessHistory": "Ver menos"
+      "showLessHistory": "Ver menos",
+      "askAstraDefault": "Quer um plano de check-in semanal para isto?",
+      "askAstraEyebrow": "PERGUNTE AO ASTRA"
     },
     "filters": {
       "all": "Todas",
@@ -1635,6 +1650,7 @@
       "epic": "Épico",
       "legendary": "Lendário"
     },
+    "rarityLocked": "Bloqueado",
     "achievements": {
       "first_orbit": {
         "name": "Primeira Órbita",
@@ -1801,6 +1817,7 @@
       "progressReady": "Seu próximo congelamento está pronto!",
       "maxAccumulated": "Você atingiu o máximo de {max} congelamentos. Use um antes de ganhar mais.",
       "monthlyUsage": "{used} de {max} usados este mês",
+      "monthlyUsageLabel": "Este mês",
       "monthlyLimit": "Você já usou os {max} congelamentos deste mês",
       "accumulatedLabel": "Congelamentos guardados",
       "accumulatedShort": "{count}/{max}",
@@ -1894,7 +1911,9 @@
     "title": "Sobre e Ajuda"
   },
   "advancedSettings": {
-    "title": "Avançado"
+    "title": "Avançado",
+    "widgetSection": "Widget",
+    "developersSection": "Desenvolvedores"
   },
   "calendarSync": {
     "title": "Sincronização de Calendário",
