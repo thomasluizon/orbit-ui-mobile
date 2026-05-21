@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Manrope } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Toaster } from 'sonner'
@@ -9,9 +9,15 @@ import { schemes } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import './globals.css'
 
-const manrope = Manrope({
+const geistSans = Geist({
   subsets: ['latin'],
-  variable: '--font-manrope',
+  variable: '--font-geist-sans',
+  display: 'swap',
+})
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
   display: 'swap',
 })
 
@@ -53,9 +59,17 @@ export default async function RootLayout({
 
       if (themeName === 'dark') {
         root.classList.add('dark')
+        root.classList.remove('light')
       } else {
+        root.classList.add('light')
         root.classList.remove('dark')
       }
+
+      // v2: scheme class enables OKLCH neutrals via .scheme-{name}.dark|.light rules.
+      const schemeNames = ['purple','blue','green','rose','orange','cyan']
+      schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
+      const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
+      root.classList.add('scheme-' + activeScheme)
 
       const primary = themeName === 'light' ? def.primaryLight : def.primary
       root.style.setProperty('color-scheme', themeName)
@@ -115,7 +129,7 @@ export default async function RootLayout({
   `
 
   return (
-    <html lang={locale} className={`dark ${manrope.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`dark scheme-purple ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

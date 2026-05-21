@@ -46,9 +46,15 @@ export function applyThemeTokensToDOM(
 
   if (theme === 'dark') {
     root.classList.add('dark')
+    root.classList.remove('light')
   } else {
+    root.classList.add('light')
     root.classList.remove('dark')
   }
+
+  // v2: scheme class drives OKLCH neutrals via .scheme-{name}.dark|.light rules.
+  for (const s of VALID_COLOR_SCHEMES) root.classList.remove(`scheme-${s}`)
+  root.classList.add(`scheme-${scheme}`)
 
   root.style.setProperty('color-scheme', theme)
 

@@ -5,6 +5,7 @@ import {
   type ColorScheme,
 } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
+import { oklchToHex, oklchToRgba } from './oklch'
 
 type ThemeRuntime = {
   scheme: ColorScheme
@@ -581,6 +582,135 @@ export const gradients = {
 /** Returns an rgba string using the given rgb components (defaults to purple 139,92,246) */
 export function primaryRgba(alpha: number, rgb?: string): string {
   return `rgba(${rgb ?? '139,92,246'},${alpha})`
+}
+
+// ---------------------------------------------------------------------------
+// v2 tokens (redesign/v2 — Linear-tactical OKLCH system)
+// Old `colors`/`surfaces`/`shadows`/`gradients` exports stay until Phase 7
+// removes them after the last consumer migrates.
+// ---------------------------------------------------------------------------
+
+export interface AppTokensV2 {
+  bg: string
+  bgElev: string
+  bgSunk: string
+  hairline: string
+  hairlineStrong: string
+  fg1: string
+  fg2: string
+  fg3: string
+  fg4: string
+  fgOnPrimary: string
+  primary: string
+  primaryPressed: string
+  statusDone: string
+  statusEmpty: string
+  statusSkip: string
+  statusOverdue: string
+  statusBad: string
+  statusFrozen: string
+  selectionBg: string
+}
+
+export interface AppShadowV2 extends Record<string, unknown> {
+  shadowColor: string
+  shadowOffset: { width: number; height: number }
+  shadowOpacity: number
+  shadowRadius: number
+  elevation: number
+}
+
+export interface AppShadowsV2 {
+  shadow1: AppShadowV2
+  shadow2: AppShadowV2
+  shadow3: AppShadowV2
+}
+
+export function createTokensV2(
+  colorScheme: ColorScheme = runtimeTheme.scheme,
+  themeMode: ThemeMode = runtimeTheme.themeMode,
+): AppTokensV2 {
+  const def = schemes[colorScheme]
+  const { hue } = def.v2
+  const modeDef = def.v2[themeMode]
+  const { primary, primaryPressed, chromaBg, chromaFg } = modeDef
+  const isLight = themeMode === 'light'
+
+  if (isLight) {
+    return {
+      bg: oklchToHex(0.985, chromaBg, hue),
+      bgElev: oklchToHex(0.995, chromaBg, hue),
+      bgSunk: oklchToHex(0.965, chromaBg, hue),
+      hairline: oklchToHex(0.905, chromaBg * 1.4, hue),
+      hairlineStrong: oklchToHex(0.84, chromaBg * 1.6, hue),
+      fg1: oklchToHex(0.205, chromaFg, hue),
+      fg2: oklchToHex(0.4, chromaFg, hue),
+      fg3: oklchToHex(0.55, chromaFg, hue),
+      fg4: oklchToHex(0.68, chromaFg, hue),
+      fgOnPrimary: '#fcfcfc',
+      primary,
+      primaryPressed,
+      statusDone: primary,
+      statusEmpty: oklchToHex(0.78, chromaBg, hue),
+      statusSkip: oklchToHex(0.62, chromaFg, hue),
+      statusOverdue: oklchToHex(0.62, 0.13, 60),
+      statusBad: oklchToHex(0.55, 0.14, 20),
+      statusFrozen: oklchToHex(0.62, 0.09, 235),
+      selectionBg: oklchToHex(0.92, chromaBg * 1.6, hue),
+    }
+  }
+
+  return {
+    bg: oklchToHex(0.16, 0.012, hue),
+    bgElev: oklchToHex(0.2, 0.014, hue),
+    bgSunk: oklchToHex(0.13, 0.01, hue),
+    hairline: oklchToRgba(0.965, 0.014, hue, 0.08),
+    hairlineStrong: oklchToRgba(0.965, 0.014, hue, 0.16),
+    fg1: oklchToHex(0.965, 0.014, hue),
+    fg2: oklchToHex(0.74, 0.014, hue),
+    fg3: oklchToHex(0.58, 0.014, hue),
+    fg4: oklchToHex(0.42, 0.012, hue),
+    fgOnPrimary: '#fcfcfc',
+    primary,
+    primaryPressed,
+    statusDone: primary,
+    statusEmpty: oklchToHex(0.42, 0.012, hue),
+    statusSkip: oklchToHex(0.58, 0.014, hue),
+    statusOverdue: oklchToHex(0.74, 0.1, 60),
+    statusBad: oklchToHex(0.65, 0.12, 20),
+    statusFrozen: oklchToHex(0.72, 0.07, 235),
+    selectionBg: oklchToHex(0.32, 0.018, hue),
+  }
+}
+
+export const tokens = new Proxy({} as AppTokensV2, {
+  get: (_target, prop) => createTokensV2()[prop as keyof AppTokensV2],
+})
+
+// v2 shadows: 3 cool hairline-layered tiers (no glows, no color).
+// Mobile picks the dominant layer; elevation gives Android the same depth.
+export const shadowsV2: AppShadowsV2 = {
+  shadow1: {
+    shadowColor: '#0f1016',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  shadow2: {
+    shadowColor: '#0f1016',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  shadow3: {
+    shadowColor: '#0f1016',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
+    elevation: 10,
+  },
 }
 
 /**

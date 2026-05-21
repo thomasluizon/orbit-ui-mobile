@@ -24,6 +24,19 @@ export interface ThemeValues {
   navGlassBorder: string
 }
 
+export interface ColorSchemeV2Mode {
+  primary: string
+  primaryPressed: string
+  chromaBg: number
+  chromaFg: number
+}
+
+export interface ColorSchemeV2 {
+  hue: number
+  dark: ColorSchemeV2Mode
+  light: ColorSchemeV2Mode
+}
+
 export interface ColorSchemeDefinition {
   primary: string
   primaryLight: string
@@ -31,4 +44,5 @@ export interface ColorSchemeDefinition {
   dark: ThemeValues
   light: ThemeValues
   scale: Record<number, string>
+  v2: ColorSchemeV2
 }

@@ -51,7 +51,32 @@
   --color-primary-950: #3b0764;
 
   /* Typography */
-  --font-family-sans: var(--font-manrope), 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: var(--font-geist-sans), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-family-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* v2 (redesign/v2) — Linear-tactical OKLCH semantic tokens.
+     Concrete values are set per-scheme on :root.dark / :root.light below. */
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-sunk: var(--bg-sunk);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-fg-on-primary: var(--fg-on-primary);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-status-done: var(--status-done);
+  --color-status-empty: var(--status-empty);
+  --color-status-skip: var(--status-skip);
+  --color-status-overdue: var(--status-overdue);
+  --color-status-bad: var(--status-bad);
+  --color-status-frozen: var(--status-frozen);
+  --shadow-hairline: 0 0 0 0.5px rgba(15, 16, 22, 0.06);
+  --shadow-1: 0 1px 2px rgba(15, 16, 22, 0.04), 0 1px 0 rgba(15, 16, 22, 0.02);
+  --shadow-2: 0 1px 2px rgba(15, 16, 22, 0.05), 0 4px 12px rgba(15, 16, 22, 0.04);
+  --shadow-3: 0 2px 6px rgba(15, 16, 22, 0.06), 0 12px 32px rgba(15, 16, 22, 0.08);
 
   /* Animations.
      `slide-up-fade` uses `backwards` fill-mode (start-state only, no post-animation
@@ -131,6 +156,203 @@
   /* Composite transitions */
   --transition-interactive: var(--duration-fast) var(--ease-smooth);
   --transition-layout: var(--duration-normal) var(--ease-out);
+
+  /* ═══════════════════════════════════════════════════════
+     v2 (redesign/v2) — Linear-tactical OKLCH design system
+     Type scale, motion, hit targets. Scheme + mode token
+     wiring lives in the .scheme-* / :root.dark|.light blocks
+     below so OKLCH neutrals can derive from --hue / --chroma.
+     ═══════════════════════════════════════════════════════ */
+
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-base: 16px;
+  --fs-md: 18px;
+  --fs-lg: 22px;
+  --fs-xl: 28px;
+  --fs-2xl: 34px;
+  --fs-3xl: 44px;
+  --fs-4xl: 60px;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+  --lh-loose: 1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.04em;
+  --tracking-widest: 0.12em;
+
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --dur-base: 220ms;
+
+  --hit-min: 44px;
+  --hit-comfortable: 56px;
+
+  /* Default scheme (purple, dark) — overridden by .scheme-* classes below */
+  --primary: #8b5cf6;
+  --primary-pressed: #a78bfa;
+  --hue: 286;
+  --chroma-bg: 0.014;
+  --chroma-fg: 0.020;
+}
+
+/* ═══════════════════════════════════════════════════════
+   v2 scheme classes — set per-scheme primary + OKLCH hue/chroma
+   Applied on documentElement by theme-dom.ts and bootstrap script
+   ═══════════════════════════════════════════════════════ */
+
+.scheme-purple.light, :root.scheme-purple.light { --primary: #7c3aed; --primary-pressed: #6d28d9; --hue: 286; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-purple.dark                              { --primary: #8b5cf6; --primary-pressed: #a78bfa; --hue: 286; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+.scheme-blue.light                               { --primary: #2563eb; --primary-pressed: #1d4ed8; --hue: 256; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-blue.dark                                { --primary: #3b82f6; --primary-pressed: #60a5fa; --hue: 256; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+.scheme-green.light                              { --primary: #16a34a; --primary-pressed: #15803d; --hue: 150; --chroma-bg: 0.010; --chroma-fg: 0.016; }
+.scheme-green.dark                               { --primary: #22c55e; --primary-pressed: #4ade80; --hue: 150; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-rose.light                               { --primary: #e11d48; --primary-pressed: #be123c; --hue: 12;  --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-rose.dark                                { --primary: #f43f5e; --primary-pressed: #fb7185; --hue: 12;  --chroma-bg: 0.014; --chroma-fg: 0.022; }
+.scheme-orange.light                             { --primary: #ea580c; --primary-pressed: #c2410c; --hue: 50;  --chroma-bg: 0.013; --chroma-fg: 0.020; }
+.scheme-orange.dark                              { --primary: #f97316; --primary-pressed: #fb923c; --hue: 50;  --chroma-bg: 0.015; --chroma-fg: 0.024; }
+.scheme-cyan.light                               { --primary: #0891b2; --primary-pressed: #0e7490; --hue: 220; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-cyan.dark                                { --primary: #06b6d4; --primary-pressed: #22d3ee; --hue: 220; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+
+/* Light-mode neutrals — tinted toward --hue, never pure white/gray */
+:root.light, .light {
+  --bg:                oklch(0.985 var(--chroma-bg) var(--hue));
+  --bg-elev:           oklch(0.995 var(--chroma-bg) var(--hue));
+  --bg-sunk:           oklch(0.965 var(--chroma-bg) var(--hue));
+  --hairline:          oklch(0.905 calc(var(--chroma-bg) * 1.4) var(--hue));
+  --hairline-strong:   oklch(0.84  calc(var(--chroma-bg) * 1.6) var(--hue));
+  --fg-1:              oklch(0.205 var(--chroma-fg) var(--hue));
+  --fg-2:              oklch(0.40  var(--chroma-fg) var(--hue));
+  --fg-3:              oklch(0.55  var(--chroma-fg) var(--hue));
+  --fg-4:              oklch(0.68  var(--chroma-fg) var(--hue));
+  --fg-on-primary:     oklch(0.99 0 0);
+  --status-done:       var(--primary);
+  --status-empty:      oklch(0.78 var(--chroma-bg) var(--hue));
+  --status-skip:       oklch(0.62 var(--chroma-fg) var(--hue));
+  --status-overdue:    oklch(0.62 0.13 60);
+  --status-bad:        oklch(0.55 0.14 20);
+  --status-frozen:     oklch(0.62 0.09 235);
+  --selection-bg:      oklch(0.92 calc(var(--chroma-bg) * 1.6) var(--hue));
+}
+
+/* Dark-mode neutrals — Linear-leaning blue-cool near-black */
+:root.dark, .dark {
+  --bg:                oklch(0.16 0.012 var(--hue));
+  --bg-elev:           oklch(0.20 0.014 var(--hue));
+  --bg-sunk:           oklch(0.13 0.010 var(--hue));
+  --hairline:          oklch(0.27 0.014 var(--hue));
+  --hairline-strong:   oklch(0.34 0.016 var(--hue));
+  --fg-1:              oklch(0.965 0.014 var(--hue));
+  --fg-2:              oklch(0.74  0.014 var(--hue));
+  --fg-3:              oklch(0.58  0.014 var(--hue));
+  --fg-4:              oklch(0.42  0.012 var(--hue));
+  --fg-on-primary:     oklch(0.99 0 0);
+  --status-done:       var(--primary);
+  --status-empty:      oklch(0.42 0.012 var(--hue));
+  --status-skip:       oklch(0.58 0.014 var(--hue));
+  --status-overdue:    oklch(0.74 0.10 60);
+  --status-bad:        oklch(0.65 0.12 20);
+  --status-frozen:     oklch(0.72 0.07 235);
+  --selection-bg:      oklch(0.32 0.018 var(--hue));
+}
+
+/* ═══════════════════════════════════════════════════════
+   v2 semantic type classes — hierarchy through weight + color
+   not size jumps. Body line-height 1.55–1.65.
+   ═══════════════════════════════════════════════════════ */
+
+.t-eyebrow {
+  font-family: var(--font-family-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.t-display {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-hero {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-4xl);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-h1 {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-h2 {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-row {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-body {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+}
+.t-secondary {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--fg-2);
+}
+.t-meta {
+  font-family: var(--font-family-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--tracking-wide);
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.t-num {
+  font-family: var(--font-family-mono);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+.t-num-xl {
+  font-family: var(--font-family-mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-3xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--fg-1);
 }
 
 @layer base {
