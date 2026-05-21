@@ -1,132 +1,110 @@
-import { Check } from "lucide-react-native";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-
-export interface CalendarDayEntryColors {
-  textPrimary: string;
-  textSecondary: string;
-  borderDivider: string;
-  emerald400: string;
-}
+import {
+  StatusDot,
+  type StatusDotState,
+} from "@/components/ui/status-dot";
+import { createTokensV2 } from "@/lib/theme";
 
 interface CalendarDayEntryRowProps {
   entry: CalendarDayEntry;
-  colors: CalendarDayEntryColors;
-  badge: { text: string; bg: string };
-  icon: { bg: string; border: string; showCheck: boolean };
+  tokens: ReturnType<typeof createTokensV2>;
+  dotState: StatusDotState;
   statusText: string;
   displayTime: (time: string) => string;
   isLast: boolean;
 }
 
-function createStyles(colors: CalendarDayEntryColors) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    dayEntryRow: {
+    row: {
       flexDirection: "row",
       alignItems: "center",
-      paddingVertical: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 13,
       gap: 12,
     },
-    statusCircle: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    dayEntryContent: {
+    content: {
       flex: 1,
       minWidth: 0,
+      gap: 2,
     },
-    dayEntryTitleRow: {
+    titleRow: {
       flexDirection: "row",
       alignItems: "baseline",
       gap: 8,
     },
-    dayEntryTitle: {
-      fontSize: 14,
-      fontWeight: "500",
-      color: colors.textPrimary,
+    title: {
+      fontFamily: "Geist",
+      fontSize: 15,
+      color: tokens.fg1,
       flexShrink: 1,
     },
-    dayEntryTitleCompleted: {
-      opacity: 0.6,
+    titleCompleted: {
+      color: tokens.fg3,
+      textDecorationLine: "line-through",
+      textDecorationColor: tokens.hairlineStrong,
     },
-    dayEntryTime: {
-      fontSize: 11,
-      fontWeight: "600",
-      color: colors.textSecondary,
+    time: {
+      fontFamily: "GeistMono",
+      fontSize: 12,
+      color: tokens.fg3,
+      fontVariant: ["tabular-nums"],
     },
-    statusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 8,
-    },
-    statusBadgeText: {
-      fontSize: 10,
-      fontWeight: "700",
-      letterSpacing: 0.5,
+    statusText: {
+      fontFamily: "GeistMono",
+      fontSize: 10.5,
+      letterSpacing: 0.4,
+      color: tokens.fg3,
     },
     divider: {
-      height: 1,
-      backgroundColor: colors.borderDivider,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: tokens.hairline,
+      marginLeft: 20,
     },
   });
 }
 
 export function CalendarDayEntryRow({
   entry,
-  colors,
-  badge,
-  icon,
+  tokens,
+  dotState,
   statusText,
   displayTime,
   isLast,
 }: CalendarDayEntryRowProps) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
     <View>
-      <View style={styles.dayEntryRow}>
-        <View
-          style={[
-            styles.statusCircle,
-            {
-              backgroundColor: icon.bg,
-              borderColor: icon.border,
-            },
-          ]}
-        >
-          {icon.showCheck && <Check size={12} color={colors.emerald400} />}
-        </View>
-
-        <View style={styles.dayEntryContent}>
-          <View style={styles.dayEntryTitleRow}>
+      <View style={styles.row}>
+        <StatusDot
+          state={dotState}
+          size={9}
+          accessibilityLabel={statusText}
+        />
+        <View style={styles.content}>
+          <View style={styles.titleRow}>
             <Text
               style={[
-                styles.dayEntryTitle,
-                entry.status === "completed" && styles.dayEntryTitleCompleted,
+                styles.title,
+                entry.status === "completed" && styles.titleCompleted,
               ]}
               numberOfLines={1}
             >
               {entry.title}
             </Text>
-            {entry.dueTime && (
-              <Text style={styles.dayEntryTime}>{displayTime(entry.dueTime)}</Text>
-            )}
+            {entry.dueTime ? (
+              <Text style={styles.time}>{displayTime(entry.dueTime)}</Text>
+            ) : null}
           </View>
         </View>
-
-        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.statusBadgeText, { color: badge.text }]}>
-            {statusText}
-          </Text>
-        </View>
+        <Text style={styles.statusText}>{statusText}</Text>
       </View>
-
-      {!isLast && <View testID="calendar-day-entry-divider" style={styles.divider} />}
+      {!isLast ? (
+        <View testID="calendar-day-entry-divider" style={styles.divider} />
+      ) : null}
     </View>
   );
 }

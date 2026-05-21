@@ -1,94 +1,77 @@
-import { useMemo, type ReactNode } from 'react'
-import { Text, TouchableOpacity, StyleSheet, View } from 'react-native'
-import { createColors } from '@/lib/theme'
-
-type AppColors = ReturnType<typeof createColors>
+import { Pressable, StyleSheet, Text } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ProfileActionButtonProps {
-  colors: AppColors
-  icon: ReactNode
   label: string
   onPress: () => void
   tone?: 'default' | 'primary' | 'danger'
+  /** Render the label in a quieter, italic style (small destructive actions). */
   compact?: boolean
 }
 
+/**
+ * v8 hairline-row action button used at the bottom of the profile screen.
+ * Tone controls the label color; the row otherwise matches SettingsRow.
+ */
 export function ProfileActionButton({
-  colors,
-  icon,
   label,
   onPress,
   tone = 'default',
   compact = false,
-}: ProfileActionButtonProps) {
-  const styles = useMemo(() => createProfileActionButtonStyles(colors), [colors])
-  const toneStyle =
+}: Readonly<ProfileActionButtonProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  const labelColor =
     tone === 'danger'
-      ? compact
-        ? styles.dangerCompact
-        : styles.danger
+      ? tokens.statusBad
       : tone === 'primary'
-        ? styles.primary
-        : styles.default
+        ? tokens.fg1
+        : tokens.fg1
 
   return (
-    <TouchableOpacity
-      style={[styles.button, toneStyle]}
+    <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      activeOpacity={0.7}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          backgroundColor: pressed ? tokens.bgElev : 'transparent',
+          borderBottomColor: tokens.hairline,
+        },
+      ]}
     >
-      <View style={styles.icon}>{icon}</View>
-      <Text style={[styles.label, compact && styles.labelCompact]}>{label}</Text>
-    </TouchableOpacity>
+      <Text
+        style={[
+          compact ? styles.labelCompact : styles.label,
+          {
+            color: labelColor,
+            fontStyle: compact ? 'italic' : 'normal',
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
-function createProfileActionButtonStyles(colors: AppColors) {
-  return StyleSheet.create({
-    button: {
-      width: '100%',
-      borderRadius: 24,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    default: {
-      paddingVertical: 16,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surface,
-    },
-    primary: {
-      paddingVertical: 16,
-      borderWidth: 1,
-      borderColor: colors.primary_30,
-      backgroundColor: colors.primary_10,
-    },
-    danger: {
-      paddingVertical: 16,
-      borderWidth: 1,
-      borderColor: colors.red400_10,
-      backgroundColor: colors.surface,
-    },
-    dangerCompact: {
-      paddingVertical: 16,
-      backgroundColor: colors.surface,
-    },
-    icon: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    label: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.textPrimary,
-    },
-    labelCompact: {
-      fontSize: 12,
-      color: colors.red400,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  row: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  label: {
+    fontFamily: 'Geist',
+    fontSize: 15,
+    fontWeight: '400',
+  },
+  labelCompact: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontWeight: '400',
+  },
+})

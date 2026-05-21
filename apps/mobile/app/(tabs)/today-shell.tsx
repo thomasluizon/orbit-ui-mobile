@@ -1,11 +1,21 @@
-import { useRef } from 'react'
-import { Animated, Image, Text, TouchableOpacity, View, type GestureResponderHandlers, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native'
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { useMemo, useRef } from 'react'
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  type GestureResponderHandlers,
+} from 'react-native'
+import { ChevronLeft, ChevronRight, Sun } from 'lucide-react-native'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
 
@@ -14,119 +24,108 @@ export type TodayTabItem = {
   label: string
 }
 
-export type TodayShellStyles = {
-  header: ViewStyle
-  logoRow: ViewStyle
-  logoIcon: ViewStyle
-  logoImage: ImageStyle
-  headerTitle: TextStyle
-  headerRight: ViewStyle
-  tabsWrapper: ViewStyle
-  tabsRow: ViewStyle
-  tab: ViewStyle
-  tabActive: ViewStyle
-  tabText: TextStyle
-  tabTextActive: TextStyle
-  dateNav: ViewStyle
-  dateNavButton: ViewStyle
-  dateLabel: TextStyle
-  dateLabelToday: TextStyle
-}
-
+/** v8 AppBar + streak/bell utility cluster for the Today screen. */
 export function TodayHeader({
   currentStreak,
   onGoToToday,
   goToTodayLabel,
-  styles,
-}: {
+  dateLong,
+}: Readonly<{
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
-  styles: TodayShellStyles
-}) {
+  dateLong: string
+}>) {
   const streakRef = useRef<View>(null)
   const bellRef = useRef<View>(null)
   useTourTarget('tour-streak-badge', streakRef)
   useTourTarget('tour-notification-bell', bellRef)
 
   return (
-    <View style={styles.header}>
-      <TouchableOpacity
-        style={styles.logoRow}
-        onPress={onGoToToday}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel={goToTodayLabel}
-      >
-        <View style={styles.logoIcon}>
-          <Image
-            source={require('../../assets/logo-no-bg.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={styles.headerTitle}>Orbit</Text>
-      </TouchableOpacity>
-
-      <View style={styles.headerRight}>
-        <ThemeToggle />
-        <View ref={streakRef}><StreakBadge streak={currentStreak} /></View>
-        <View ref={bellRef}><NotificationBell /></View>
-      </View>
-    </View>
+    <Pressable
+      onPress={onGoToToday}
+      accessibilityRole="button"
+      accessibilityLabel={goToTodayLabel}
+    >
+      <AppBar
+        LeadingIcon={Sun}
+        title="Orbit"
+        subtitle={dateLong}
+        trailing={
+          <>
+            <ThemeToggle />
+            <View ref={streakRef} collapsable={false}>
+              <StreakBadge streak={currentStreak} />
+            </View>
+            <View ref={bellRef} collapsable={false}>
+              <NotificationBell />
+            </View>
+          </>
+        }
+      />
+    </Pressable>
   )
 }
 
+/** v8 chip strip used as the Today/All/General/Goals view switcher. */
 export function TodayTabs({
   tabs,
   activeView,
   onChangeView,
-  viewsLabel,
-  styles,
-}: {
+  viewsLabel: _viewsLabel,
+}: Readonly<{
   tabs: TodayTabItem[]
   activeView: TodayTabView
   onChangeView: (view: TodayTabView) => void
   viewsLabel: string
-  styles: TodayShellStyles
-}) {
+}>) {
   const tabsRef = useRef<View>(null)
   const goalsTabRef = useRef<View>(null)
   useTourTarget('tour-tabs-bar', tabsRef)
   useTourTarget('tour-goals-tab', goalsTabRef)
 
+  // Single chip-strip — preserves the chip semantics through `Chip` primitive.
+  // The two refs are required so the tour engine can locate the tab strip and
+  // the goals tab specifically. `goalsTabRef` is attached to a wrapper around
+  // the chip strip's "Goals" position.
+  const chipTabs = useMemo<SectionHeadTab<TodayTabView>[]>(
+    () =>
+      tabs.map((tab) => ({
+        id: tab.view,
+        label: tab.label,
+      })),
+    [tabs],
+  )
+
   return (
-    <View style={styles.tabsWrapper} ref={tabsRef}>
-      <View
-        style={styles.tabsRow}
-        accessibilityRole="tablist"
-        accessibilityLabel={viewsLabel}
-      >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.view}
-            ref={tab.view === 'goals' ? goalsTabRef : undefined}
-            style={[styles.tab, activeView === tab.view && styles.tabActive]}
-            onPress={() => onChangeView(tab.view)}
-            activeOpacity={0.7}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeView === tab.view }}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeView === tab.view && styles.tabTextActive,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <View ref={tabsRef} collapsable={false}>
+      <View ref={goalsTabRef} collapsable={false}>
+        <SectionHeadTabs
+          tabs={chipTabs}
+          active={activeView}
+          onChange={onChangeView}
+        />
       </View>
     </View>
   )
 }
 
+interface TodayDateNavigationProps {
+  visible: boolean
+  dateLabel: string
+  isTodaySelected: boolean
+  slideDirection: 'left' | 'right'
+  onGoToPreviousDay: () => void
+  onGoToToday: () => void
+  onGoToNextDay: () => void
+  previousLabel: string
+  todayLabel: string
+  nextLabel: string
+  dateLabelAnim: Animated.Value
+  panHandlers?: GestureResponderHandlers
+}
+
+/** v8 inline ◂  date  ▸ navigation pinned under the section tabs. */
 export function TodayDateNavigation({
   visible,
   dateLabel,
@@ -138,26 +137,11 @@ export function TodayDateNavigation({
   previousLabel,
   todayLabel,
   nextLabel,
-  iconColor,
-  styles,
   dateLabelAnim,
   panHandlers,
-}: {
-  visible: boolean
-  dateLabel: string
-  isTodaySelected: boolean
-  slideDirection: 'left' | 'right'
-  onGoToPreviousDay: () => void
-  onGoToToday: () => void
-  onGoToNextDay: () => void
-  previousLabel: string
-  todayLabel: string
-  nextLabel: string
-  iconColor: string
-  styles: TodayShellStyles
-  dateLabelAnim: Animated.Value
-  panHandlers?: GestureResponderHandlers
-}) {
+}: Readonly<TodayDateNavigationProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const dateNavRef = useRef<View>(null)
   const dateMotion = useResolvedMotionPreset('tab-switch')
   const dateLabelEnterShift = dateMotion.reducedMotionEnabled
@@ -170,27 +154,32 @@ export function TodayDateNavigation({
   if (!visible) return null
 
   return (
-    <View style={styles.dateNav} ref={dateNavRef} {...panHandlers}>
-      <TouchableOpacity
-        style={styles.dateNavButton}
+    <View
+      ref={dateNavRef}
+      style={[styles.dateNav, { borderBottomColor: tokens.hairline }]}
+      collapsable={false}
+      {...panHandlers}
+    >
+      <Pressable
         onPress={onGoToPreviousDay}
-        activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={previousLabel}
+        hitSlop={8}
+        style={styles.dateNavButton}
       >
-        <ChevronLeft size={20} color={iconColor} />
-      </TouchableOpacity>
-      <TouchableOpacity
+        <ChevronLeft size={17} color={tokens.fg2} strokeWidth={1.6} />
+      </Pressable>
+      <Pressable
         onPress={onGoToToday}
-        activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={isTodaySelected ? dateLabel : todayLabel}
+        style={styles.dateLabelPress}
       >
         <Animated.Text
           style={[
             styles.dateLabel,
-            isTodaySelected && styles.dateLabelToday,
             {
+              color: isTodaySelected ? tokens.primary : tokens.fg1,
               opacity: dateLabelAnim,
               transform: [
                 {
@@ -205,16 +194,52 @@ export function TodayDateNavigation({
         >
           {dateLabel}
         </Animated.Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.dateNavButton}
+      </Pressable>
+      <Pressable
         onPress={onGoToNextDay}
-        activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={nextLabel}
+        hitSlop={8}
+        style={styles.dateNavButton}
       >
-        <ChevronRight size={20} color={iconColor} />
-      </TouchableOpacity>
+        <ChevronRight size={17} color={tokens.fg2} strokeWidth={1.6} />
+      </Pressable>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  dateNavButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateLabelPress: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  dateLabel: {
+    fontFamily: 'Geist',
+    fontSize: 15,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+    textAlign: 'center',
+    minWidth: 140,
+  },
+  // Legacy style names kept (unused) so external imports don't break.
+})
+
+// Legacy TodayShellStyles type is retained for compatibility with any
+// imports that still reference it, though all the styles are now contained
+// in the new primitives. Consumers should no longer reach for these fields.
+export type TodayShellStyles = Record<string, never>

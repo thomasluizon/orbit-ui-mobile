@@ -56,11 +56,14 @@ vi.mock('@/hooks/use-offline', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
+    currentScheme: 'purple',
+    currentTheme: 'dark',
   }),
 }))
 
 vi.mock('@/lib/theme', () => ({
   createColors: () => new Proxy({}, { get: () => '#111111' }),
+  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
   spacing: {
     pageX: 20,
     pageBottom: 40,
@@ -68,6 +71,34 @@ vi.mock('@/lib/theme', () => ({
     cardPadding: 20,
     cardGap: 12,
     itemGap: 8,
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 20,
+    '2xl': 24,
+    full: 9999,
+  },
+  shadows: {
+    sm: {},
+    md: {},
+    lg: {},
+    cardParent: {},
+    cardParentHover: {},
+    cardChild: {},
+    glow: () => ({}),
+    glowSm: () => ({}),
+    glowLg: () => ({}),
+  },
+  shadowsV2: {
+    shadow1: {},
+    shadow2: {},
+    shadow3: {},
+  },
+  gradients: {
+    surfaceSheen: ['transparent', 'transparent'],
+    surfaceSheenLocations: [0, 0.4],
   },
 }))
 
@@ -139,6 +170,28 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
+vi.mock('@/components/gamification/streak-badge', () => ({
+  StreakBadge: () => null,
+}))
+
+vi.mock('@/components/navigation/notification-bell', () => ({
+  NotificationBell: () => null,
+}))
+
+vi.mock('@/components/ui/app-bar', () => ({
+  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => (
+    <>{trailing}</>
+  ),
+}))
+
+vi.mock('@/components/ui/section-label', () => ({
+  SectionLabel: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/ui/settings-row', () => ({
+  SettingsRow: () => null,
+}))
+
 vi.mock('lucide-react-native', () => {
   const createIcon = (name: string) => () => React.createElement(name)
   return {
@@ -152,6 +205,8 @@ vi.mock('lucide-react-native', () => {
     X: createIcon('X'),
     Check: createIcon('Check'),
     Compass: createIcon('Compass'),
+    User: createIcon('User'),
+    ChevronLeft: createIcon('ChevronLeft'),
   }
 })
 

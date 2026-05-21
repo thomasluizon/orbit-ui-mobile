@@ -7,6 +7,7 @@ import {
   type Theme as NavigationTheme,
 } from '@react-navigation/native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   Stack,
@@ -38,7 +39,8 @@ import { useUIStore } from '@/stores/ui-store'
 import { useTourStore } from '@/stores/tour-store'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
-import { BottomNav } from '@/components/navigation/bottom-nav'
+import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
@@ -278,7 +280,9 @@ function RootLayoutNav() {
           </Stack>
         </View>
 
-        {showBottomNav ? <BottomNav onCreate={handleCreate} /> : null}
+        {showBottomNav ? (
+          <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
+        ) : null}
       </View>
 
       {isAuthenticated ? (
@@ -401,6 +405,67 @@ function RootLayoutContent() {
     </NavigationThemeProvider>
   )
 }
+
+/**
+ * Wraps the v8 BottomTabBar primitive in a router-aware container. Lives in
+ * the root layout so the tab bar is shown over every (tabs) screen exactly
+ * like the previous BottomNav. Tab labels come from the i18n catalog so
+ * pt-BR users see localized strings.
+ */
+function AppBottomTabBar({
+  onCreate,
+  pathname,
+}: Readonly<{ onCreate: () => void; pathname: string }>) {
+  const router = useRouter()
+  const goToTodayDate = useUIStore((s) => s.goToToday)
+  const setActiveView = useUIStore((s) => s.setActiveView)
+  const fabRef = useRef<View>(null)
+  useTourTarget('tour-fab-button', fabRef)
+  const insets = useSafeAreaInsets()
+
+  const active: BottomTabId = useMemo(() => {
+    if (pathname.startsWith('/chat')) return 'chat'
+    if (pathname.startsWith('/calendar')) return 'calendar'
+    if (pathname.startsWith('/profile')) return 'profile'
+    return 'today'
+  }, [pathname])
+
+  const handleTab = (id: BottomTabId) => {
+    if (id === 'today') {
+      goToTodayDate()
+      setActiveView('today')
+      if (active !== 'today') router.navigate('/')
+      return
+    }
+    if (id === active) return
+    if (id === 'chat') router.navigate('/chat')
+    else if (id === 'calendar') router.navigate('/calendar')
+    else if (id === 'profile') router.navigate('/profile')
+  }
+
+  return (
+    <View
+      style={[
+        bottomTabStyles.container,
+        { paddingBottom: insets.bottom },
+      ]}
+    >
+      <View ref={fabRef} collapsable={false}>
+        <BottomTabBar
+          active={active}
+          onTab={handleTab}
+          onFab={onCreate}
+        />
+      </View>
+    </View>
+  )
+}
+
+const bottomTabStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+  },
+})
 
 const styles = StyleSheet.create({
   shellRoot: {

@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react-native";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react-native";
 import {
   StyleSheet,
   Text,
@@ -7,19 +7,8 @@ import {
   View,
 } from "react-native";
 import { useTourTarget } from "@/hooks/use-tour-target";
-
-interface AppColors {
-  background: string;
-  borderMuted: string;
-  surface: string;
-  surfaceElevated: string;
-  textPrimary: string;
-  textSecondary: string;
-  textFaded: string;
-  green500: string;
-  primary: string;
-  orange500: string;
-}
+import { AppBar } from "@/components/ui/app-bar";
+import { createTokensV2 } from "@/lib/theme";
 
 interface CalendarHeaderProps {
   title: string;
@@ -30,75 +19,36 @@ interface CalendarHeaderProps {
   onGoToToday: () => void;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
-  colors: AppColors;
+  tokens: ReturnType<typeof createTokensV2>;
 }
 
 interface CalendarLoadingSkeletonProps {
-  colors: AppColors;
+  tokens: ReturnType<typeof createTokensV2>;
 }
 
 interface CalendarLegendProps {
-  doneLabel: string;
-  upcomingLabel: string;
-  missedLabel: string;
-  colors: AppColors;
+  fullLabel: string;
+  partialLabel: string;
+  noneLabel: string;
+  tokens: ReturnType<typeof createTokensV2>;
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    header: {
-      paddingTop: 24,
-      paddingBottom: 10,
-      gap: 14,
+    headerWrap: {
+      // The AppBar handles its own padding; this wrapper is here so the
+      // tour engine can anchor the month nav to a stable parent.
     },
-    headerRow: {
+    monthNavRow: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-    },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: "700",
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
-    },
-    searchButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-    },
-    monthNav: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 4,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.18,
-      shadowRadius: 8,
-      elevation: 3,
     },
     monthNavButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 16,
+      width: 36,
+      height: 36,
+      borderRadius: 8,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
-    },
-    monthLabel: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: colors.textPrimary,
     },
     loadingContainer: {
       paddingVertical: 16,
@@ -106,40 +56,57 @@ function createStyles(colors: AppColors) {
     loadingGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 8,
+      gap: 6,
     },
     loadingCell: {
       width: "13.28%",
       aspectRatio: 1,
-      borderRadius: 16,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderRadius: 6,
+      backgroundColor: tokens.bgSunk,
     },
     legend: {
+      paddingHorizontal: 20,
+    },
+    legendRow: {
       flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 11,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
+    },
+    legendDotWrap: {
+      width: 14,
       alignItems: "center",
       justifyContent: "center",
-      gap: 24,
-      paddingVertical: 14,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceElevated,
+    },
+    legendDotFull: {
+      width: 5,
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: tokens.fg1,
+    },
+    legendDotPartial: {
+      width: 5,
+      height: 5,
+      borderRadius: 999,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.fg3,
     },
-    legendItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
+    legendDotNone: {
+      width: 9,
+      height: 1,
+      backgroundColor: tokens.fg3,
     },
-    legendDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+    legendLabel: {
+      fontFamily: "Geist",
+      fontSize: 14,
+      color: tokens.fg1,
     },
-    legendText: {
-      fontSize: 12,
-      color: colors.textSecondary,
+    legendDesc: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      color: tokens.fg3,
     },
   });
 }
@@ -153,55 +120,55 @@ export function CalendarHeader({
   onGoToToday,
   onPreviousMonth,
   onNextMonth,
-  colors,
+  tokens,
 }: CalendarHeaderProps) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   useTourTarget("tour-calendar-month-nav", monthNavRef);
 
   return (
-    <View style={styles.header}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <TouchableOpacity
-          accessibilityLabel={goToTodayLabel}
-          style={styles.searchButton}
-          onPress={onGoToToday}
-          activeOpacity={0.7}
-        >
-          <Search size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
-      <View ref={monthNavRef} style={styles.monthNav}>
-        <TouchableOpacity
-          accessibilityLabel={previousMonthLabel}
-          style={styles.monthNavButton}
-          onPress={onPreviousMonth}
-          activeOpacity={0.7}
-        >
-          <ChevronLeft size={12} color={colors.textFaded} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onGoToToday} activeOpacity={0.7}>
-          <Text style={styles.monthLabel}>{monthLabel}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityLabel={nextMonthLabel}
-          style={styles.monthNavButton}
-          onPress={onNextMonth}
-          activeOpacity={0.7}
-        >
-          <ChevronRight size={12} color={colors.textFaded} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.headerWrap}>
+      <AppBar
+        LeadingIcon={CalendarDays}
+        title={title}
+        subtitle={monthLabel}
+        trailing={
+          <View ref={monthNavRef} collapsable={false} style={styles.monthNavRow}>
+            <TouchableOpacity
+              accessibilityLabel={previousMonthLabel}
+              style={styles.monthNavButton}
+              onPress={onPreviousMonth}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={17} color={tokens.fg2} strokeWidth={1.6} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel={goToTodayLabel}
+              style={styles.monthNavButton}
+              onPress={onGoToToday}
+              activeOpacity={0.7}
+            >
+              <ChevronRight size={17} color={tokens.fg2} strokeWidth={1.6} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel={nextMonthLabel}
+              style={styles.monthNavButton}
+              onPress={onNextMonth}
+              activeOpacity={0.7}
+            >
+              <ChevronRight size={17} color={tokens.fg2} strokeWidth={1.6} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
     </View>
   );
 }
 
 export function CalendarLoadingSkeleton({
-  colors,
+  tokens,
 }: CalendarLoadingSkeletonProps) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
     <View style={styles.loadingContainer}>
@@ -215,30 +182,34 @@ export function CalendarLoadingSkeleton({
 }
 
 export function CalendarLegend({
-  doneLabel,
-  upcomingLabel,
-  missedLabel,
-  colors,
+  fullLabel,
+  partialLabel,
+  noneLabel,
+  tokens,
 }: CalendarLegendProps) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const legendRef = useRef<View>(null);
   useTourTarget("tour-calendar-legend", legendRef);
 
   return (
-    <View ref={legendRef} style={styles.legend}>
-      <View style={styles.legendItem}>
-        <View style={[styles.legendDot, { backgroundColor: colors.green500 }]} />
-        <Text style={styles.legendText}>{doneLabel}</Text>
+    <View ref={legendRef} collapsable={false} style={styles.legend}>
+      <View style={styles.legendRow}>
+        <View style={styles.legendDotWrap}>
+          <View style={styles.legendDotFull} />
+        </View>
+        <Text style={styles.legendLabel}>{fullLabel}</Text>
       </View>
-      <View style={styles.legendItem}>
-        <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-        <Text style={styles.legendText}>{upcomingLabel}</Text>
+      <View style={styles.legendRow}>
+        <View style={styles.legendDotWrap}>
+          <View style={styles.legendDotPartial} />
+        </View>
+        <Text style={styles.legendLabel}>{partialLabel}</Text>
       </View>
-      <View style={styles.legendItem}>
-        <View
-          style={[styles.legendDot, { backgroundColor: colors.orange500 }]}
-        />
-        <Text style={styles.legendText}>{missedLabel}</Text>
+      <View style={[styles.legendRow, { borderBottomWidth: 0 }]}>
+        <View style={styles.legendDotWrap}>
+          <View style={styles.legendDotNone} />
+        </View>
+        <Text style={styles.legendLabel}>{noneLabel}</Text>
       </View>
     </View>
   );

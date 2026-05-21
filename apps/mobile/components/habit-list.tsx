@@ -64,12 +64,32 @@ import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { HabitCard } from './habit-card'
+import { HabitRow } from '@/components/habits/habit-row'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import {
   HabitListDateGroupSection,
   HabitListEmptyState,
   type HabitListDateGroup,
 } from './habit-list-sections'
+
+/**
+ * Wraps a HabitRow in a measurable View that registers itself with the tour
+ * registry. v8's HabitRow has no internal tour-target prop so we anchor here
+ * from the parent. Renders no extra layout — the wrapping View is a sibling
+ * of the row, sized to fit content.
+ */
+function HabitRowTourAnchor({
+  targetId,
+  children,
+}: Readonly<{ targetId: string; children: ReactElement }>) {
+  const anchorRef = useRef<View>(null)
+  useTourTarget(targetId, anchorRef)
+  return (
+    <View ref={anchorRef} collapsable={false}>
+      {children}
+    </View>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -1244,22 +1264,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           ? getChildrenProgress(habit.id)
           : { done: 0, total: 0 }
 
-        return (
-          <HabitCard
+        const row = (
+          <HabitRow
             key={habit.id}
             habit={habit}
             selectedDate={selectedDate}
-            isDrillCard={options?.isDrillCard ?? false}
-            isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
             depth={depth}
             hasChildren={hasChildren}
-            hasSubHabits={hasSubHabits}
-            tourTargetId={options?.tourTargetId}
             isExpanded={!collapsedIds.has(habit.id)}
             childrenDone={progress.done}
             childrenTotal={progress.total}
-            showAddSubHabit
-            searchQuery={searchQuery}
             isSelectMode={isSelectMode}
             isSelected={selectedIds.has(habit.id)}
             actions={{
@@ -1319,13 +1333,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             }}
           />
         )
+
+        if (options?.tourTargetId) {
+          return (
+            <HabitRowTourAnchor
+              key={habit.id}
+              targetId={options.tourTargetId}
+            >
+              {row}
+            </HabitRowTourAnchor>
+          )
+        }
+
+        return row
       },
       [
         selectedDate,
         collapsedIds,
         getChildrenProgress,
-        recentlyCompletedIds,
-        searchQuery,
         isSelectMode,
         selectedIds,
         onLogHabit,
@@ -1427,22 +1452,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }
           onAction={onCreatePress}
           variant="primary"
-          styles={styles}
-          colors={{
-            textMuted: colors.textMuted,
-            primary: colors.primary,
-            textSecondary: colors.textSecondary,
-          }}
         />
       ),
-      [
-        colors.primary,
-        colors.textMuted,
-        colors.textSecondary,
-        onCreatePress,
-        styles,
-        t,
-      ],
+      [onCreatePress, t],
     )
 
     const listHeaderComponent = useMemo(
@@ -1469,7 +1481,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListDateGroupSection
           group={group}
           overdueLabel={t('habits.overdue')}
-          styles={styles}
           renderHabit={(habit) => {
             const children = getVisibleChildren(habit.id)
             return (
@@ -1486,7 +1497,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }}
         />
       ),
-      [getVisibleChildren, renderAllViewChildren, renderHabitCard, styles, t],
+      [getVisibleChildren, renderAllViewChildren, renderHabitCard, t],
     )
 
     const renderDrillItem = useCallback(
@@ -2041,10 +2052,9 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 8,
     },
 
-    // List
-    sectionInset: {
-      paddingHorizontal: 20,
-    },
+    // List — HabitRow already handles its own 20px horizontal padding; this
+    // wrapper exists only so we can attach a key/extra layout when needed.
+    sectionInset: {},
     listContent: {
       paddingBottom: 100,
     },

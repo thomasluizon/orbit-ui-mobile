@@ -86,7 +86,11 @@ const mocks = vi.hoisted(() => {
         params ? `${key}(${JSON.stringify(params)})` : key,
       i18n: { language: 'en' },
     })),
-    useAppTheme: vi.fn(() => ({ colors: colorProxy })),
+    useAppTheme: vi.fn(() => ({
+      colors: colorProxy,
+      currentScheme: 'purple',
+      currentTheme: 'dark',
+    })),
     asyncStorageGetItem: vi.fn(async (key: string) => storage.get(key) ?? null),
     asyncStorageSetItem: vi.fn(async (key: string, value: string) => {
       storage.set(key, value)
@@ -146,10 +150,61 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
+  useQuery: () => ({ data: undefined, isLoading: false, error: null }),
+  useMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: mocks.useAppTheme,
+}))
+
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
+  return {
+    ...actual,
+    createColors: () => colorProxy,
+    createTokensV2: () => colorProxy,
+  }
+})
+
+vi.mock('@/components/gamification/streak-badge', () => ({
+  StreakBadge: () => null,
+}))
+
+vi.mock('@/components/navigation/notification-bell', () => ({
+  NotificationBell: () => null,
+}))
+
+vi.mock('@/components/ui/theme-toggle', () => ({
+  ThemeToggle: () => null,
+}))
+
+vi.mock('@/components/ui/app-bar', () => ({
+  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => React.createElement(React.Fragment, null, trailing as React.ReactNode),
+}))
+
+vi.mock('@/components/ui/section-label', () => ({
+  SectionLabel: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+}))
+
+vi.mock('@/components/ui/settings-row', () => ({
+  SettingsRow: () => null,
+}))
+
+vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
+  ProfileNavCard: () => null,
+}))
+
+vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
+  ProfileNavIcon: () => null,
+}))
+
+vi.mock('@/components/ui/fresh-start-animation', () => ({
+  FreshStartAnimation: () => null,
+}))
+
+vi.mock('@/components/tour/tour-replay-modal', () => ({
+  TourReplayModal: () => null,
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -387,7 +442,8 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<ProfileScreen />)
 
     const deleteButton = tree.root.findAll((node: any) =>
-      node.type === 'TouchableOpacity' && flattenText(node.props.children).includes('profile.deleteAccount.button'),
+      typeof node.props?.onPress === 'function' &&
+      node.props?.accessibilityLabel === 'profile.deleteAccount.button',
     )[0]
 
     await TestRenderer.act(async () => {

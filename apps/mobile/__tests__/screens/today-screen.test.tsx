@@ -230,6 +230,34 @@ vi.mock("@/components/habits/edit-habit-modal", () => ({
   EditHabitModal: () => null,
 }));
 
+vi.mock("@/components/habits/today-ai-summary", () => ({
+  TodayAISummary: () => null,
+}));
+
+vi.mock("@/components/habits/bulk-action-bar-v2", () => ({
+  BulkActionBarV2: (props: Record<string, unknown>) =>
+    React.createElement("BulkActionBarV2", props),
+}));
+
+vi.mock("@/components/ui/chip", () => ({
+  Chip: (props: Record<string, unknown>) =>
+    React.createElement("Chip", props, props.children as React.ReactNode),
+}));
+
+vi.mock("@/components/ui/tag-chip", () => ({
+  TagChip: (props: Record<string, unknown>) =>
+    React.createElement("TagChip", props),
+}));
+
+vi.mock("@/components/ui/section-label", () => ({
+  SectionLabel: (props: Record<string, unknown>) =>
+    React.createElement(
+      "SectionLabel",
+      props,
+      props.children as React.ReactNode,
+    ),
+}));
+
 vi.mock("@/components/habits/habit-summary-card", () => ({
   HabitSummaryCard: () => null,
 }));
@@ -280,6 +308,7 @@ vi.mock("@/lib/habit-selection-state", () => ({
 
 vi.mock("@/lib/theme", () => ({
   createColors: () => colorProxy,
+  createTokensV2: () => colorProxy,
   radius: {
     full: 999,
     lg: 16,
@@ -297,12 +326,37 @@ vi.mock("@/lib/theme", () => ({
   shadows: {
     lg: {},
   },
+  shadowsV2: {
+    shadow1: {
+      shadowColor: "#111111",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      elevation: 0,
+    },
+    shadow2: {
+      shadowColor: "#111111",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      elevation: 0,
+    },
+    shadow3: {
+      shadowColor: "#111111",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      elevation: 0,
+    },
+  },
 }));
 
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({
     colors: colorProxy,
     surfaces: surfacesMock,
+    currentScheme: "purple",
+    currentTheme: "dark",
   }),
 }));
 
