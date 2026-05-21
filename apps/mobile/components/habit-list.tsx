@@ -93,6 +93,12 @@ interface HabitListProps {
     onSaved?: () => void | Promise<void>,
   ) => void
   onScrollBeginDrag?: () => void
+  /** Notified whenever the all-collapsed status changes. Parents can mirror
+   * this in render-time state (refs cannot be read during render). */
+  onAllCollapsedChange?: (allCollapsed: boolean) => void
+  /** Notified whenever the set of visible habit ids changes. Parents can
+   * mirror this in render-time state. */
+  onAllLoadedIdsChange?: (ids: Set<string>) => void
 }
 
 export interface HabitListHandle {
@@ -191,6 +197,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       onDetailHabit,
       onEditHabit,
       onScrollBeginDrag,
+      onAllCollapsedChange,
+      onAllLoadedIdsChange,
     },
     ref,
   ) {
@@ -241,8 +249,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const isFetching = habitsQuery.isFetching
     const refetch = habitsQuery.refetch
     const getChildren = habitsQuery.getChildren
-    const childrenByParent =
-      habitsQuery.data?.childrenByParent ?? new Map<string, string[]>()
+    const childrenByParent = useMemo(
+      () =>
+        habitsQuery.data?.childrenByParent ?? new Map<string, string[]>(),
+      [habitsQuery.data?.childrenByParent],
+    )
 
     const logMutation = useLogHabit()
     const skipMutation = useSkipHabit()
@@ -467,6 +478,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [collapsedIds, expandableIds],
     )
 
+    // Publish allCollapsed and allLoadedIds upward so parents can read them
+    // in render without ref-during-render violations.
+    useEffect(() => {
+      onAllCollapsedChange?.(allCollapsed)
+    }, [allCollapsed, onAllCollapsedChange])
+
+    useEffect(() => {
+      onAllLoadedIdsChange?.(allLoadedIds)
+    }, [allLoadedIds, onAllLoadedIdsChange])
+
     const collapseAll = useCallback(() => {
       setCollapsedIds(new Set(expandableIds))
     }, [expandableIds])
@@ -486,6 +507,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         return next
       })
     }, [])
+
+    const [isDraggingList, setIsDraggingList] = useState(false)
+    const [dragOverrideItems, setDragOverrideItems] = useState<
+      DragItem[] | null
+    >(null)
+    const autoCollapsedOnDragRef = useRef<string | null>(null)
 
     const restoreCollapsedStateAfterDrag = useCallback(() => {
       setIsDraggingList(false)
@@ -529,14 +556,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return items
     }, [visibleHabits, collapsedIds, getVisibleChildren])
 
-    const [isDraggingList, setIsDraggingList] = useState(false)
-    const [dragOverrideItems, setDragOverrideItems] = useState<
-      DragItem[] | null
-    >(null)
     const activeDragItems = dragOverrideItems ?? flatItems
     const activeDragItemsRef = useRef(activeDragItems)
-    activeDragItemsRef.current = activeDragItems
-    const autoCollapsedOnDragRef = useRef<string | null>(null)
+    // Update mutable drag-items ref inside an effect so the lint rule
+    // accepts it (refs may not be written during render).
+    useEffect(() => {
+      activeDragItemsRef.current = activeDragItems
+    }, [activeDragItems])
     const isDndEnabled = view !== 'all' && !isSelectMode
 
     const isListView = view === 'all' || view === 'general'
@@ -857,17 +883,21 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const getSubtreeMaxDepth = useCallback(
       (habitId: string, baseDepth: number): number => {
-        let maxDepth = baseDepth
-        const children = getChildren(habitId)
+        function walk(currentId: string, currentDepth: number): number {
+          let maxDepth = currentDepth
+          const children = getChildren(currentId)
 
-        for (const child of children) {
-          const childMaxDepth = getSubtreeMaxDepth(child.id, baseDepth + 1)
-          if (childMaxDepth > maxDepth) {
-            maxDepth = childMaxDepth
+          for (const child of children) {
+            const childMaxDepth = walk(child.id, currentDepth + 1)
+            if (childMaxDepth > maxDepth) {
+              maxDepth = childMaxDepth
+            }
           }
+
+          return maxDepth
         }
 
-        return maxDepth
+        return walk(habitId, baseDepth)
       },
       [getChildren],
     )
@@ -1302,12 +1332,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         logMutation,
         promptSkip,
         toggleExpand,
-        t,
         promptDelete,
         promptDuplicate,
         openMoveParentDialog,
         startAddSubHabit,
-        drill.drillInto,
+        drill,
+        handleDirectLog,
+        promptForceLogParent,
         toggleSelectMode,
         toggleSelectionCascade,
         getDescendantIds,
@@ -1319,26 +1350,44 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const renderAllViewChildren = useCallback(
       (parentId: string, depth: number) => {
-        if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
-        const children = getVisibleChildren(parentId)
-        if (children.length === 0) return null
+        function walk(
+          currentParentId: string,
+          currentDepth: number,
+        ): ReactElement[] | null {
+          if (
+            collapsedIds.has(currentParentId) ||
+            currentDepth >= maxHabitDepth
+          ) {
+            return null
+          }
+          const children = getVisibleChildren(currentParentId)
+          if (children.length === 0) return null
 
-        return children.map((child) => {
-          const visibleChildren = getVisibleChildren(child.id)
-          return (
-            <View key={child.id} style={styles.allViewChild}>
-              {renderHabitCard(
-                child,
-                depth,
-                visibleChildren.length > 0,
-                child.hasSubHabits,
-              )}
-              {renderAllViewChildren(child.id, depth + 1)}
-            </View>
-          )
-        })
+          return children.map((child) => {
+            const visibleChildren = getVisibleChildren(child.id)
+            return (
+              <View key={child.id} style={styles.allViewChild}>
+                {renderHabitCard(
+                  child,
+                  currentDepth,
+                  visibleChildren.length > 0,
+                  child.hasSubHabits,
+                )}
+                {walk(child.id, currentDepth + 1)}
+              </View>
+            )
+          })
+        }
+
+        return walk(parentId, depth)
       },
-      [collapsedIds, getVisibleChildren, maxHabitDepth, renderHabitCard, styles.allViewChild],
+      [
+        collapsedIds,
+        getVisibleChildren,
+        maxHabitDepth,
+        renderHabitCard,
+        styles.allViewChild,
+      ],
     )
 
     const renderItem = useCallback(

@@ -110,7 +110,6 @@ export function GoalDetailDrawer({
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
   const [showProgressDiscardDialog, setShowProgressDiscardDialog] = useState(false)
-  const initialProgressValueRef = useRef('')
   const pendingProgressDismissRef = useRef<ProgressDismissTarget | null>(null)
 
   const isUpdatingProgress = updateProgress.isPending
@@ -122,28 +121,30 @@ export function GoalDetailDrawer({
     return numVal > goal.targetValue
   }, [progressValue, goal])
 
+  const [initialProgressValue, setInitialProgressValue] = useState('')
+
   const isProgressDirty = useMemo(() => {
     if (!showProgressForm) return false
 
     return (
-      progressValue !== initialProgressValueRef.current ||
-      progressNote.trim().length > 0
+      progressValue !== initialProgressValue || progressNote.trim().length > 0
     )
-  }, [progressNote, progressValue, showProgressForm])
+  }, [initialProgressValue, progressNote, progressValue, showProgressForm])
 
   // Reset state when a new drawer session starts, not on every cache refresh.
   useEffect(() => {
     if (open) {
-      const initialProgressValue =
+      const nextInitial =
         goal?.currentValue !== undefined ? String(goal.currentValue) : ''
-      initialProgressValueRef.current = initialProgressValue
       pendingProgressDismissRef.current = null
-      setProgressValue(initialProgressValue)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form snapshot when drawer opens
+      setInitialProgressValue(nextInitial)
+      setProgressValue(nextInitial)
       setShowProgressForm(false)
       setProgressNote('')
       setShowProgressDiscardDialog(false)
     }
-  }, [open, goalId])
+  }, [open, goalId, goal?.currentValue])
 
   // Format date helper
   const formatDate = useCallback(
@@ -225,7 +226,7 @@ export function GoalDetailDrawer({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const markAbandoned = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -239,7 +240,7 @@ export function GoalDetailDrawer({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const reactivate = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -253,7 +254,7 @@ export function GoalDetailDrawer({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const confirmDelete = useCallback(() => {
     setShowDeleteConfirm(true)
@@ -269,10 +270,10 @@ export function GoalDetailDrawer({
   }, [deleteGoalMut, goalId, onClose, showError, translate])
 
   const closeProgressForm = useCallback(() => {
-    setProgressValue(initialProgressValueRef.current)
+    setProgressValue(initialProgressValue)
     setProgressNote('')
     setShowProgressForm(false)
-  }, [])
+  }, [initialProgressValue])
 
   const requestProgressDismiss = useCallback((target: ProgressDismissTarget) => {
     if (isProgressDirty) {
@@ -367,11 +368,12 @@ export function GoalDetailDrawer({
             {goal.status === 'Active' && !showProgressForm && (
               <TouchableOpacity
                 onPress={() => {
-                  initialProgressValueRef.current =
-                    goal.currentValue !== undefined ? String(goal.currentValue) : ''
-                  setProgressValue(
-                    goal.currentValue !== undefined ? String(goal.currentValue) : '',
-                  )
+                  const nextInitial =
+                    goal.currentValue !== undefined
+                      ? String(goal.currentValue)
+                      : ''
+                  setInitialProgressValue(nextInitial)
+                  setProgressValue(nextInitial)
                   setProgressNote('')
                   setShowProgressForm(true)
                 }}

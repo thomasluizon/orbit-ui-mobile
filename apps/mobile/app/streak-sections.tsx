@@ -13,7 +13,6 @@ import Svg, {
   Circle,
   Defs,
   LinearGradient,
-  Path,
   Stop,
 } from 'react-native-svg'
 import { Info, Shield, Snowflake, Sparkles, X } from 'lucide-react-native'

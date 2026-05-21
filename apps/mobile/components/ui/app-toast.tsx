@@ -25,9 +25,9 @@ export function AppToast() {
   const dismissToast = useAppToastStore((state) => state.dismissToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
-  const translateY = useRef(new Animated.Value(-48)).current
-  const opacity = useRef(new Animated.Value(0)).current
-  const scale = useRef(new Animated.Value(0.96)).current
+  const translateY = useMemo(() => new Animated.Value(-48), [])
+  const opacity = useMemo(() => new Animated.Value(0), [])
+  const scale = useMemo(() => new Animated.Value(0.96), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearTimer = useCallback(() => {

@@ -38,7 +38,7 @@ export function OnboardingComplete({
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
     return displayDate(parseISO(profile.trialEndsAt))
-  }, [profile?.trialEndsAt, displayDate])
+  }, [profile, displayDate])
 
   const recapItems = useMemo(() => {
     const items = [

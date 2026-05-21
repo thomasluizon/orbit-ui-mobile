@@ -4,7 +4,7 @@ declare module 'react-test-renderer' {
   export interface ReactTestRendererJSON {
     type: string
     props: Record<string, unknown>
-    children: Array<ReactTestRendererJSON | string> | string | null
+    children: (ReactTestRendererJSON | string)[] | string | null
   }
 
   export interface ReactTestRenderer {

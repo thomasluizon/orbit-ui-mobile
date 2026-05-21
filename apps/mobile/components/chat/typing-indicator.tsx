@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
 import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -7,7 +7,7 @@ import { useAppTheme } from "@/lib/use-app-theme";
 function AnimatedDot({ delay }: { delay: number }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity = useMemo(() => new Animated.Value(1), []);
 
   useEffect(() => {
     const animation = Animated.loop(

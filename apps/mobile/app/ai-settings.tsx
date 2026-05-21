@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -208,11 +208,11 @@ export default function AiSettingsScreen() {
     return facts.slice(start, start + USER_FACTS_PER_PAGE)
   }, [facts, factsPage])
 
-  useEffect(() => {
-    if (factsPage > totalFactsPages) {
-      setFactsPage(totalFactsPages)
-    }
-  }, [factsPage, totalFactsPages])
+  // Clamp factsPage when totalFactsPages shrinks. "Adjusting state when a prop
+  // changes" pattern (run during render, not in an effect).
+  if (factsPage > totalFactsPages && totalFactsPages >= 1) {
+    setFactsPage(totalFactsPages)
+  }
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false)

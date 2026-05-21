@@ -91,7 +91,11 @@ export function HabitDetailDrawer({
 
   const metrics = fullDetail?.metrics ?? null;
   const logs = fullDetail?.logs ?? null;
-  const liveChecklist = fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [];
+  const liveChecklist = useMemo(
+    () =>
+      fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [],
+    [fullDetail?.habit.checklistItems, habit?.checklistItems],
+  );
 
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false);
   const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] = useState(false);

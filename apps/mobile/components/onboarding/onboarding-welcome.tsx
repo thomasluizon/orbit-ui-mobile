@@ -8,7 +8,6 @@ import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils/onboarding'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { API } from '@orbit/shared/api'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { radius as themeRadius, shadows as themeShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------

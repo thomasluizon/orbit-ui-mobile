@@ -40,10 +40,10 @@ export function OnboardingCompleteHabit({
   const [showStreak, setShowStreak] = useState(false)
   const isAnimating = useRef(false)
 
-  const scaleAnim = useRef(new Animated.Value(1)).current
-  const glowAnim = useRef(new Animated.Value(0)).current
-  const streakOpacity = useRef(new Animated.Value(0)).current
-  const streakSlide = useRef(new Animated.Value(20)).current
+  const scaleAnim = useMemo(() => new Animated.Value(1), [])
+  const glowAnim = useMemo(() => new Animated.Value(0), [])
+  const streakOpacity = useMemo(() => new Animated.Value(0), [])
+  const streakSlide = useMemo(() => new Animated.Value(20), [])
 
   const logHabit = useLogHabit()
 

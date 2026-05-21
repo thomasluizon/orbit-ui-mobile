@@ -195,8 +195,8 @@ function statusLabel(
 
 function PerfectDayDot({ color }: { color: string }) {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const opacity = useRef(new Animated.Value(0.72)).current;
-  const scale = useRef(new Animated.Value(0.9)).current;
+  const opacity = useMemo(() => new Animated.Value(0.72), []);
+  const scale = useMemo(() => new Animated.Value(0.9), []);
 
   useEffect(() => {
     if (prefersReducedMotion) {

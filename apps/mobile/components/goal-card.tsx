@@ -35,7 +35,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
   const styles = useMemo(() => createStyles(colors), [colors])
   const cardRef = useRef<View>(null)
   const progressRef = useRef<View>(null)
-  const pressScale = useRef(new Animated.Value(1)).current
+  const pressScale = useMemo(() => new Animated.Value(1), [])
   useTourTarget(tourTargetId ?? '__noop__', cardRef)
   useTourTarget(tourTargetId ? 'tour-goal-progress' : '__noop__', progressRef)
 
@@ -64,7 +64,15 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     if (isStreak) return colors.amber500
     if (goal.progressPercentage >= 75) return colors.green500
     return colors.primary
-  }, [goal.status, goal.progressPercentage, isStreak])
+  }, [
+    goal.status,
+    goal.progressPercentage,
+    isStreak,
+    colors.amber500,
+    colors.green500,
+    colors.primary,
+    colors.textMuted,
+  ])
 
   // Deadline info (matches web deadlineInfo logic)
   const deadlineInfo = useMemo(() => {
@@ -94,7 +102,15 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
       textColor: colors.textMuted,
       bgColor: colors.surfaceElevated,
     }
-  }, [goal.deadline, goal.status, t])
+  }, [
+    goal.deadline,
+    goal.status,
+    t,
+    colors.amber400,
+    colors.red400,
+    colors.surfaceElevated,
+    colors.textMuted,
+  ])
 
   // Status badge (matches web statusBadge logic)
   const statusBadge = useMemo(() => {
@@ -113,7 +129,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
       }
     }
     return null
-  }, [goal.status, t])
+  }, [goal.status, t, colors.green400, colors.surfaceElevated, colors.textMuted])
 
   // Tracking status left border color (matches web trackingBorderClass)
   const trackingBorder = useMemo(() => {
@@ -127,7 +143,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
       default:
         return {}
     }
-  }, [goal.trackingStatus])
+  }, [goal.trackingStatus, colors.amber500, colors.green500, colors.red500])
 
   // Progress label: streak goals use "Day X of Y", standard use "X of Y unit"
   const progressLabel = isStreak

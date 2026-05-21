@@ -71,6 +71,7 @@ export default function SupportScreen() {
 
   useEffect(() => {
     if (profile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror profile into initial form fields
       setName((current) => current || profile.name || '')
       setEmail((current) => current || profile.email || '')
     }
@@ -90,7 +91,7 @@ export default function SupportScreen() {
     void AsyncStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
   }, [email, message, name, subject])
 
-  function validateForm(): boolean {
+  const validateForm = useCallback((): boolean => {
     setNameError(null)
     setEmailError(null)
     let valid = true
@@ -111,7 +112,7 @@ export default function SupportScreen() {
     }
 
     return valid
-  }
+  }, [email, name, profile?.email, profile?.name, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
@@ -148,7 +149,7 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [email, isOnline, message, name, profile, subject, t])
+  }, [email, isOnline, message, name, profile, subject, t, validateForm])
 
   return (
     <SafeAreaView style={styles.safeArea}>

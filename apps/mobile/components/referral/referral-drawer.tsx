@@ -38,6 +38,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset copied indicator each time drawer opens
       setCopied(false)
     }
   }, [open])

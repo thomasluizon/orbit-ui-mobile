@@ -40,7 +40,7 @@ import {
   Check,
   Compass,
 } from 'lucide-react-native'
-import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -317,7 +317,7 @@ export default function ProfileScreen() {
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<
     string | null
   >(null)
-  const deleteCodeRefs = useRef<Array<TextInput | null>>([])
+  const deleteCodeRefs = useRef<(TextInput | null)[]>([])
 
   function openDeleteModal() {
     setDeleteStep('confirm')

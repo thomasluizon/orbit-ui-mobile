@@ -62,7 +62,11 @@ export function BottomSheetModal({
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
   const overlayStateRef = useRef(createBottomSheetOverlayState())
-  const overlayIdRef = useRef(`sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  // Lazy useState keeps Date.now() / Math.random() out of render (purity rule).
+  const [overlayId] = useState(
+    () => `sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  )
+  const overlayIdRef = useRef(overlayId)
   const [isPresented, setIsPresented] = useState(false)
 
   const snapPointsKey = (snapPointsProp ?? ['50%', '80%']).join('|')

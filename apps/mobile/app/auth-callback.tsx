@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -60,36 +60,39 @@ export default function AuthCallbackScreen() {
   const processedRef = useRef(false)
   const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
 
-  function resolveCallbackError(err: unknown): AuthCallbackErrorState {
-    const status = err instanceof ApiClientError ? err.status : undefined
-    const payload = err instanceof ApiClientError ? err.data : err
-    const backendMessage = extractAuthBackendMessage(payload)
-    const requestId = extractBackendRequestId(payload)
-    const hasStructuredContext =
-      status !== undefined ||
-      backendMessage !== undefined ||
-      requestId !== undefined ||
-      err instanceof TypeError
+  const resolveCallbackError = useCallback(
+    (err: unknown): AuthCallbackErrorState => {
+      const status = err instanceof ApiClientError ? err.status : undefined
+      const payload = err instanceof ApiClientError ? err.data : err
+      const backendMessage = extractAuthBackendMessage(payload)
+      const requestId = extractBackendRequestId(payload)
+      const hasStructuredContext =
+        status !== undefined ||
+        backendMessage !== undefined ||
+        requestId !== undefined ||
+        err instanceof TypeError
 
-    if (!hasStructuredContext) {
+      if (!hasStructuredContext) {
+        return {
+          message: t('auth.callbackError'),
+          requestId,
+        }
+      }
+
+      const key = resolveAuthLoginErrorKey({
+        status,
+        backendMessage,
+        raw: err,
+        source: 'google',
+      })
+
       return {
-        message: t('auth.callbackError'),
+        message: t(key),
         requestId,
       }
-    }
-
-    const key = resolveAuthLoginErrorKey({
-      status,
-      backendMessage,
-      raw: err,
-      source: 'google',
-    })
-
-    return {
-      message: t(key),
-      requestId,
-    }
-  }
+    },
+    [t],
+  )
 
   const callbackUrl = useMemo(
     () =>
@@ -148,7 +151,7 @@ export default function AuthCallbackScreen() {
       const nextErrorState = resolveCallbackError(error)
       setErrorState(nextErrorState)
     })
-  }, [callbackUrl, i18n.language, login, router, t])
+  }, [callbackUrl, i18n.language, login, resolveCallbackError, router, t])
 
   useEffect(() => {
     if (processedRef.current || errorState || callbackUrl || isPendingGoogleAuthSession) return

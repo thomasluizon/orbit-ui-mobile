@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, Animated, Easing, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/stores/ui-store'
-import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -33,11 +32,11 @@ export function LevelUpOverlay({
   const [title, setTitle] = useState('')
   const [shouldRender, setShouldRender] = useState(false)
 
-  const overlayOpacity = useRef(new Animated.Value(0)).current
-  const contentScale = useRef(new Animated.Value(0.6)).current
-  const contentOpacity = useRef(new Animated.Value(0)).current
-  const outerRingRotation = useRef(new Animated.Value(0)).current
-  const innerRingRotation = useRef(new Animated.Value(0)).current
+  const overlayOpacity = useMemo(() => new Animated.Value(0), [])
+  const contentScale = useMemo(() => new Animated.Value(0.6), [])
+  const contentOpacity = useMemo(() => new Animated.Value(0), [])
+  const outerRingRotation = useMemo(() => new Animated.Value(0), [])
+  const innerRingRotation = useMemo(() => new Animated.Value(0), [])
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
     activeCelebration?.kind === 'level-up'
@@ -99,6 +98,7 @@ export function LevelUpOverlay({
   useEffect(() => {
     if (!activeLevelUp) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror level-up trigger into local presentation state
     setLevel(activeLevelUp.payload.level)
     setTitle(t(`gamification.levels.${activeLevelUp.payload.level}`))
     setShouldRender(true)
@@ -136,7 +136,7 @@ export function LevelUpOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [activeLevelUp, contentOpacity, contentScale, dismiss, overlayOpacity, t]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeLevelUp, contentOpacity, contentScale, dismiss, overlayOpacity, t])
 
   const styles = useMemo(() => createStyles(colors), [colors])
 

@@ -11,7 +11,6 @@ import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@/lib/plural'
 import { useUIStore } from '@/stores/ui-store'
-import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_W } = Dimensions.get('window')
@@ -29,15 +28,15 @@ export function StreakCelebration() {
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
   const [streakCount, setStreakCount] = useState(0)
 
-  const overlayOpacity = useRef(new Animated.Value(0)).current
-  const contentScale = useRef(new Animated.Value(0.7)).current
-  const contentOpacity = useRef(new Animated.Value(0)).current
-  const flamePulse = useRef(new Animated.Value(1)).current
-  const numberScale = useRef(new Animated.Value(0)).current
+  const overlayOpacity = useMemo(() => new Animated.Value(0), [])
+  const contentScale = useMemo(() => new Animated.Value(0.7), [])
+  const contentOpacity = useMemo(() => new Animated.Value(0), [])
+  const flamePulse = useMemo(() => new Animated.Value(1), [])
+  const numberScale = useMemo(() => new Animated.Value(0), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Ember particles (milestone only)
-  const emberAnims = useRef(
+  // Ember particles: lazy useState keeps Math.random / new Animated.Value out of render
+  const [emberAnims] = useState(() =>
     Array.from({ length: EMBER_COUNT }, (_, i) => ({
       translateX: new Animated.Value(0),
       translateY: new Animated.Value(0),
@@ -45,7 +44,7 @@ export function StreakCelebration() {
       angle: (i / EMBER_COUNT) * Math.PI * 2,
       distance: 60 + Math.random() * (SCREEN_W * 0.3),
     })),
-  ).current
+  )
   const styles = useMemo(() => createStyles(colors), [colors])
 
   const isMilestone = useMemo(
@@ -74,6 +73,7 @@ export function StreakCelebration() {
   useEffect(() => {
     if (!streakCelebration) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store-driven trigger into local presentation state
     setStreakCount(streakCelebration.streak)
 
     // Reset

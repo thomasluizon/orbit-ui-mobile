@@ -4,9 +4,8 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
 } from 'react-native'
-import { ChevronUp, ChevronDown, X, Copy, Check, Plus } from 'lucide-react-native'
+import { ChevronUp, ChevronDown, X, Copy, Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { createColors, radius } from '@/lib/theme'
@@ -64,10 +63,13 @@ function EditableChecklistItem({
 }: EditableChecklistItemProps) {
   const [localText, setLocalText] = useState(text)
 
-  // Sync from parent when items array changes externally (e.g. template load)
-  useEffect(() => {
+  // Sync from parent when items array changes externally (e.g. template load).
+  // "Adjusting state when a prop changes" pattern.
+  const [previousText, setPreviousText] = useState(text)
+  if (text !== previousText) {
+    setPreviousText(text)
     setLocalText(text)
-  }, [text])
+  }
 
   const flushLocalText = useCallback(() => {
     if (localText !== text) {
@@ -149,7 +151,7 @@ export function HabitChecklist({
   const { t } = useTranslation()
   const { colors } = useAppTheme()
   const [newItemText, setNewItemText] = useState('')
-  const [justCheckedIndex, setJustCheckedIndex] = useState(-1)
+  const [, setJustCheckedIndex] = useState(-1)
   const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const styles = useMemo(() => createStyles(colors), [colors])
 

@@ -514,17 +514,21 @@ export function HabitCard({
   }))
 
   const handlePressIn = useCallback(() => {
+    /* eslint-disable react-hooks/immutability -- Reanimated shared values intentionally mutate .value */
     pressScale.value = withTiming(mobileMotion.orbital.press.scale, {
       duration: mobileMotion.orbital.press.duration,
     })
     pressY.value = withTiming(mobileMotion.orbital.press.translateY, {
       duration: mobileMotion.orbital.press.duration,
     })
+    /* eslint-enable react-hooks/immutability */
   }, [pressScale, pressY])
 
   const handlePressOut = useCallback(() => {
+    /* eslint-disable react-hooks/immutability -- Reanimated shared values intentionally mutate .value */
     pressScale.value = withSpring(1, { stiffness: 220, damping: 18 })
     pressY.value = withSpring(0, { stiffness: 220, damping: 18 })
+    /* eslint-enable react-hooks/immutability */
   }, [pressScale, pressY])
 
   // ---------------------------------------------------------------------------
@@ -563,9 +567,11 @@ export function HabitCard({
     transform: [{ scale: interpolate(parentRingPulse.value, [0, 1], [0.88, 1.24]) }],
   }))
   const handleParentRingPressIn = useCallback(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values intentionally mutate .value
     parentRingPressScale.value = withTiming(0.965, { duration: 90 })
   }, [parentRingPressScale])
   const handleParentRingPressOut = useCallback(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values intentionally mutate .value
     parentRingPressScale.value = withSpring(1, { stiffness: 260, damping: 18 })
   }, [parentRingPressScale])
   const spark0Style = useAnimatedStyle(() => ({
@@ -616,6 +622,7 @@ export function HabitCard({
     const exitDuration = Math.max(80, successMotion.exitDuration)
     const peakScale = successMotion.reducedMotionEnabled ? 1.04 : 1.12
 
+    /* eslint-disable react-hooks/immutability -- Reanimated shared values intentionally mutate .value */
     // Pop the whole control so the optimistic completion state is visible.
     completePop.value = withSequence(
       withTiming(peakScale, {
@@ -684,6 +691,7 @@ export function HabitCard({
         }),
       )
     }
+    /* eslint-enable react-hooks/immutability */
 
     prevCompletionTriggerRef.current = completionTrigger
 
@@ -720,6 +728,7 @@ export function HabitCard({
 
   useEffect(() => {
     if (!isJustCreated) return
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values intentionally mutate .value
     creationGlow.value = withRepeat(
       withSequence(
         withTiming(0.4, { duration: 600, easing: Easing.bezier(...easings.out) }),
@@ -758,10 +767,13 @@ export function HabitCard({
     openActionsMenu()
   }, [closeActionsMenu, openActionsMenu, showActionsMenu])
 
-  // Close menu on select mode
-  useEffect(() => {
+  // Close menu when select mode is entered. "Adjusting state when a prop
+  // changes" pattern: react during render and track previous value.
+  const [previousIsSelectMode, setPreviousIsSelectMode] = useState(isSelectMode)
+  if (isSelectMode !== previousIsSelectMode) {
+    setPreviousIsSelectMode(isSelectMode)
     if (isSelectMode) setShowActionsMenu(false)
-  }, [isSelectMode])
+  }
 
   const handleEnterSelectModeFromMenu = useCallback(() => {
     closeActionsMenu()

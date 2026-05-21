@@ -23,9 +23,9 @@ export function AchievementToast() {
     id: string
     xpReward: number
   } | null>(null)
-  const translateY = useRef(new Animated.Value(-100)).current
-  const opacity = useRef(new Animated.Value(0)).current
-  const scale = useRef(new Animated.Value(0.95)).current
+  const translateY = useMemo(() => new Animated.Value(-100), [])
+  const opacity = useMemo(() => new Animated.Value(0), [])
+  const scale = useMemo(() => new Animated.Value(0.95), [])
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const activeAchievement =
@@ -78,6 +78,7 @@ export function AchievementToast() {
   useEffect(() => {
     if (!activeAchievement) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror celebration queue trigger into local presentation state
     setCurrentAchievement({
       id: activeAchievement.payload.achievementId,
       xpReward: activeAchievement.payload.xpReward,

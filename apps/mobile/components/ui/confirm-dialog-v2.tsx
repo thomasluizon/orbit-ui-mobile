@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Animated,
@@ -35,12 +35,6 @@ interface ConfirmDialogV2Props {
 /**
  * v8 ConfirmDialog (3 variants): standard (info), destructive italic, and info-only.
  * Uses React Native's Modal — matches the existing `confirm-dialog.tsx` pattern.
- *
- * Lint divergence: this file inherits the same `react-hooks/refs` lint
- * complaints as the legacy `confirm-dialog.tsx` because it follows the same
- * `useRef(new Animated.Value(0)).current` pattern used across the codebase
- * (~23 files). Fixing this is a codebase-wide refactor scoped for a later
- * cleanup phase, not Phase 2.
  */
 export function ConfirmDialogV2({
   open,
@@ -58,11 +52,12 @@ export function ConfirmDialogV2({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const dialogMotion = useResolvedMotionPreset('dialog')
-  const progress = useRef(new Animated.Value(0)).current
+  const progress = useMemo(() => new Animated.Value(0), [])
   const [visible, setVisible] = useState(open)
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- keep dialog mounted while exit animation runs
       setVisible(true)
       Animated.timing(progress, {
         toValue: 1,

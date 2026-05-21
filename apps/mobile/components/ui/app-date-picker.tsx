@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Modal,
   View,
@@ -48,9 +48,13 @@ export function AppDatePicker({
 
   const selectedDate = value ? parseISO(value) : null
 
-  useEffect(() => {
+  // Mirror controlled `value` prop into local view date.
+  // "Adjust state when prop changes" pattern.
+  const [previousValue, setPreviousValue] = useState(value)
+  if (value !== previousValue) {
+    setPreviousValue(value)
     if (value) setViewDate(parseISO(value))
-  }, [value])
+  }
 
   const monthLabel = formatLocaleDate(viewDate, locale, {
     month: 'long',

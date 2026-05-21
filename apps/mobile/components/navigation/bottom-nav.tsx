@@ -167,7 +167,9 @@ function NavLink({ active, icon: Icon, label, onPress }: Readonly<NavLinkProps>)
   const { colors, nav, radius } = useAppTheme()
   const tabMotion = useResolvedMotionPreset('tab-switch')
   const [focused, setFocused] = useState(false)
-  const progress = useRef(new Animated.Value(active ? 1 : 0)).current
+  // Initial value reads `active` once at mount; subsequent updates flow through the effect below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally captures initial `active` only
+  const progress = useMemo(() => new Animated.Value(active ? 1 : 0), [])
 
   useEffect(() => {
     const easing = active ? tabMotion.enterEasing : tabMotion.exitEasing

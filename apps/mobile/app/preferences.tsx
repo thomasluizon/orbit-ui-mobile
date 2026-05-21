@@ -63,10 +63,15 @@ export default function PreferencesScreen() {
   // --- Language ---
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
 
-  useEffect(() => {
-    const nextLanguage = profile?.language === 'pt-BR' ? 'pt-BR' : 'en'
-    setSelectedLanguage(nextLanguage)
-  }, [profile?.language])
+  // Mirror profile.language into local controlled state.
+  // "Adjust state when prop changes" pattern.
+  const [previousProfileLanguage, setPreviousProfileLanguage] = useState(
+    profile?.language,
+  )
+  if (profile?.language !== previousProfileLanguage) {
+    setPreviousProfileLanguage(profile?.language)
+    setSelectedLanguage(profile?.language === 'pt-BR' ? 'pt-BR' : 'en')
+  }
 
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {
     setSelectedLanguage(locale)
@@ -121,10 +126,10 @@ export default function PreferencesScreen() {
   }
 
   // --- Theme Mode (Dark / Light) ---
-  const themeModeOptions: ReadonlyArray<{
+  const themeModeOptions: readonly {
     value: ThemeMode
     labelKey: string
-  }> = [
+  }[] = [
     { value: 'light', labelKey: 'preferences.themeModeLight' },
     { value: 'dark', labelKey: 'preferences.themeModeDark' },
   ]

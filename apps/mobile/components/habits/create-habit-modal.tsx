@@ -107,10 +107,13 @@ export function CreateHabitModal({
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
   const reminderWasManuallyToggledRef = useRef(false);
   const flushBufferedInputsRef = useRef<() => void>(() => {});
-  const initialTagIdsRef = useRef("[]");
-  const initialGoalIdsRef = useRef("[]");
-  const initialSubHabitsRef = useRef("[]");
-  const initialReminderTimesRef = useRef("[0,15]");
+  // Initial snapshots used to compute dirty state. State (not refs) so they're
+  // readable during render without violating react-hooks/refs.
+  const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState("[]");
+  const [initialGoalIdsSnapshot, setInitialGoalIdsSnapshot] = useState("[]");
+  const [initialSubHabitsSnapshot, setInitialSubHabitsSnapshot] = useState("[]");
+  const [initialReminderTimesSnapshot, setInitialReminderTimesSnapshot] =
+    useState("[0,15]");
 
   const watchedDueTime = useWatch({
     control: formHelpers.form.control,
@@ -130,12 +133,13 @@ export function CreateHabitModal({
     formHelpers.form.formState.isDirty ||
     JSON.stringify(
       [...tags.selectedTagIds].sort((left, right) => left.localeCompare(right)),
-    ) !== initialTagIdsRef.current ||
+    ) !== initialTagIdsSnapshot ||
     JSON.stringify(
       [...selectedGoalIds].sort((left, right) => left.localeCompare(right)),
-    ) !== initialGoalIdsRef.current ||
-    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSubHabitsRef.current ||
-    JSON.stringify(reminderTimes) !== initialReminderTimesRef.current;
+    ) !== initialGoalIdsSnapshot ||
+    JSON.stringify(subHabits.map((entry) => entry.value)) !==
+      initialSubHabitsSnapshot ||
+    JSON.stringify(reminderTimes) !== initialReminderTimesSnapshot;
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: onClose,
@@ -161,6 +165,7 @@ export function CreateHabitModal({
     reminderWasManuallyToggledRef.current = false;
     formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate));
     tags.resetTags();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset form state when modal opens
     setSelectedGoalIds([]);
     setSubHabits([]);
     setReminderTimes([0, 15]);
@@ -178,19 +183,30 @@ export function CreateHabitModal({
       formHelpers.setGeneral();
     }
 
-    initialTagIdsRef.current = JSON.stringify(
-      [...(prefill?.selectedTagIds ?? [])].sort((left, right) => left.localeCompare(right)),
+    setInitialTagIdsSnapshot(
+      JSON.stringify(
+        [...(prefill?.selectedTagIds ?? [])].sort((left, right) =>
+          left.localeCompare(right),
+        ),
+      ),
     );
-    initialGoalIdsRef.current = JSON.stringify(
-      [...(prefill?.selectedGoalIds ?? [])].sort((left, right) => left.localeCompare(right)),
+    setInitialGoalIdsSnapshot(
+      JSON.stringify(
+        [...(prefill?.selectedGoalIds ?? [])].sort((left, right) =>
+          left.localeCompare(right),
+        ),
+      ),
     );
-    initialSubHabitsRef.current = JSON.stringify([]);
-    initialReminderTimesRef.current = JSON.stringify(prefill?.reminderTimes ?? [0, 15]);
+    setInitialSubHabitsSnapshot(JSON.stringify([]));
+    setInitialReminderTimesSnapshot(
+      JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
     if (hasProAccess || subHabits.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear sub-habits when pro access is lost
     setSubHabits([]);
   }, [hasProAccess, subHabits.length]);
 

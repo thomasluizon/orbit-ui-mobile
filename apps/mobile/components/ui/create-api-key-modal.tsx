@@ -56,6 +56,7 @@ export function CreateApiKeyModal({
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset modal form when closed
       setKeyName('')
       setSelectedScopes([])
       setIsReadOnly(false)
@@ -67,7 +68,7 @@ export function CreateApiKeyModal({
     }
   }, [open])
 
-  function validate(): boolean {
+  const validate = useCallback((): boolean => {
     setValidationError('')
     const trimmed = keyName.trim()
     if (!trimmed) {
@@ -86,7 +87,7 @@ export function CreateApiKeyModal({
       }
     }
     return true
-  }
+  }, [expiresAt, keyName, t])
 
   function toggleScope(scope: string) {
     setSelectedScopes((current) =>
@@ -114,7 +115,7 @@ export function CreateApiKeyModal({
     } finally {
       setIsSubmitting(false)
     }
-  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes])
+  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes, validate])
 
   async function copyKey() {
     if (!createdKey) return

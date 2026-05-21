@@ -436,7 +436,6 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 // ---------------------------------------------------------------------------
 
 function createStyles(colors: AppColors, bottomInset: number) {
-  const orange400 = colors.orange400 ?? '#fb923c'
   const orange500 = colors.orange500 ?? '#f97316'
 
   return StyleSheet.create({

@@ -73,12 +73,6 @@ export default function StreakScreen() {
     return ''
   }, [streak, t])
 
-  const tier = useMemo(() => {
-    if (streak >= 100) return 'legendary'
-    if (streak >= 30) return 'intense'
-    if (streak >= 7) return 'strong'
-    return 'normal'
-  }, [streak])
 
   // Build 7-day timeline
   const weekDays = useMemo(() => {

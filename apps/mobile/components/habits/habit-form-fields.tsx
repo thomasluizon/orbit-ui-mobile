@@ -792,11 +792,11 @@ interface ScheduledReminderSectionProps {
   colors: ThemeColors;
   reminderEnabled: boolean;
   scheduledReminders:
-    | Array<{ when: ScheduledReminderWhen; time: string }>
+    | { when: ScheduledReminderWhen; time: string }[]
     | undefined;
   onToggleReminder: () => void;
   onSetScheduledReminders: (
-    reminders: Array<{ when: ScheduledReminderWhen; time: string }>,
+    reminders: { when: ScheduledReminderWhen; time: string }[],
   ) => void;
   onValidationError: (message: string) => void;
 }
@@ -1164,10 +1164,14 @@ export function HabitFormFields({
     control: form.control,
     name: "slipAlertEnabled",
   }) ?? false;
-  const watchedChecklistItems = useWatch({
+  const rawWatchedChecklistItems = useWatch({
     control: form.control,
     name: "checklistItems",
-  }) ?? [];
+  });
+  const watchedChecklistItems = useMemo(
+    () => rawWatchedChecklistItems ?? [],
+    [rawWatchedChecklistItems],
+  );
   const watchedScheduledReminders = useWatch({
     control: form.control,
     name: "scheduledReminders",

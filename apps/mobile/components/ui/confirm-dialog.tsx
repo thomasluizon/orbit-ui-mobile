@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
   Easing,
@@ -43,7 +43,7 @@ export function ConfirmDialog({
   const theme = useAppTheme()
   const { colors } = theme
   const dialogMotion = useResolvedMotionPreset('dialog')
-  const progress = useRef(new Animated.Value(0)).current
+  const progress = useMemo(() => new Animated.Value(0), [])
   const [visible, setVisible] = useState(open)
 
   const config = useMemo(() => {
@@ -76,6 +76,7 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- keep dialog mounted while exit animation runs
       setVisible(true)
       Animated.timing(progress, {
         toValue: 1,

@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
@@ -425,7 +425,6 @@ function FeatureComparisonTable({
 }
 
 export default function UpgradeScreen() {
-  const router = useRouter()
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()

@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useEffect, useRef, useCallback, useState } from 'react'
 import {
   View,
   Text,
@@ -10,10 +10,9 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/stores/ui-store'
-import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
+const { width: SCREEN_W } = Dimensions.get('window')
 const CONFETTI_COUNT = 20
 const RING_COUNT = 3
 
@@ -31,10 +30,10 @@ export function AllDoneCelebration() {
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
 
-  const overlayOpacity = useRef(new Animated.Value(0)).current
-  const contentScale = useRef(new Animated.Value(0.7)).current
-  const contentOpacity = useRef(new Animated.Value(0)).current
-  const checkScale = useRef(new Animated.Value(0)).current
+  const overlayOpacity = useMemo(() => new Animated.Value(0), [])
+  const contentScale = useMemo(() => new Animated.Value(0.7), [])
+  const contentOpacity = useMemo(() => new Animated.Value(0), [])
+  const checkScale = useMemo(() => new Animated.Value(0), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const confettiColors = useMemo(
     () => [
@@ -48,8 +47,9 @@ export function AllDoneCelebration() {
     [colors],
   )
 
-  // Confetti animations
-  const confettiAnims = useRef(
+  // Confetti animations: lazy useState pattern keeps Math.random / new Animated.Value
+  // calls out of render (react-hooks/purity rule).
+  const [confettiAnims] = useState(() =>
     Array.from({ length: CONFETTI_COUNT }, () => ({
       translateX: new Animated.Value(0),
       translateY: new Animated.Value(0),
@@ -60,15 +60,15 @@ export function AllDoneCelebration() {
       distance: randomBetween(60, SCREEN_W * 0.45),
       size: randomBetween(4, 8),
     })),
-  ).current
+  )
 
-  // Ring animations
-  const ringAnims = useRef(
+  // Ring animations: lazy useState keeps new Animated.Value out of render
+  const [ringAnims] = useState(() =>
     Array.from({ length: RING_COUNT }, () => ({
       scale: new Animated.Value(0),
       opacity: new Animated.Value(0.6),
     })),
-  ).current
+  )
   const styles = useMemo(() => createStyles(colors), [colors])
 
   const dismiss = useCallback(() => {

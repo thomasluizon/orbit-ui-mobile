@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { View, Text, Image, StyleSheet, Animated } from "react-native";
 import { Sparkles, User } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -306,7 +306,7 @@ export function MessageBubble({
 function AnimatedDot({ delay }: { delay: number }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity = useMemo(() => new Animated.Value(1), []);
 
   useEffect(() => {
     const animation = Animated.loop(

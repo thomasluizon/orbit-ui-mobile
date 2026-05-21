@@ -10,7 +10,6 @@ import {
 import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/stores/ui-store'
-import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_W } = Dimensions.get('window')
@@ -33,10 +32,10 @@ export function GoalCompletedCelebration() {
   )
   const [goalName, setGoalName] = useState('')
 
-  const overlayOpacity = useRef(new Animated.Value(0)).current
-  const contentScale = useRef(new Animated.Value(0.7)).current
-  const contentOpacity = useRef(new Animated.Value(0)).current
-  const iconScale = useRef(new Animated.Value(0)).current
+  const overlayOpacity = useMemo(() => new Animated.Value(0), [])
+  const contentScale = useMemo(() => new Animated.Value(0.7), [])
+  const contentOpacity = useMemo(() => new Animated.Value(0), [])
+  const iconScale = useMemo(() => new Animated.Value(0), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const confettiColors = useMemo(
     () => [
@@ -50,8 +49,9 @@ export function GoalCompletedCelebration() {
     [colors],
   )
 
-  // Confetti
-  const confettiAnims = useRef(
+  // Confetti: lazy useState keeps Math.random / new Animated.Value out of render
+  // (react-hooks/purity rule).
+  const [confettiAnims] = useState(() =>
     Array.from({ length: CONFETTI_COUNT }, () => ({
       translateX: new Animated.Value(0),
       translateY: new Animated.Value(0),
@@ -62,15 +62,15 @@ export function GoalCompletedCelebration() {
       distance: randomBetween(60, SCREEN_W * 0.45),
       size: randomBetween(4, 8),
     })),
-  ).current
+  )
 
-  // Ring shockwaves
-  const ringAnims = useRef(
+  // Ring shockwaves: lazy useState keeps new Animated.Value out of render
+  const [ringAnims] = useState(() =>
     [0, 1].map(() => ({
       scale: new Animated.Value(0),
       opacity: new Animated.Value(0.5),
     })),
-  ).current
+  )
   const styles = useMemo(() => createStyles(colors), [colors])
 
   const dismiss = useCallback(() => {
@@ -87,6 +87,7 @@ export function GoalCompletedCelebration() {
   useEffect(() => {
     if (!goalCompletedCelebration) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store-driven trigger into local presentation state
     setGoalName(goalCompletedCelebration.name)
 
     // Reset values

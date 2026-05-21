@@ -125,6 +125,7 @@ export default function RetrospectiveScreen() {
 
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- signal cache load start before async fetch
     setIsCacheLoading(true);
 
     AsyncStorage.getItem(cacheKey)

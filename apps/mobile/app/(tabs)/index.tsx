@@ -21,7 +21,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { parseShowGeneralOnTodayPreference } from "@orbit/shared/utils";
 import {
   Search,
   X,
@@ -43,6 +42,7 @@ import {
   formatAPIDate,
   formatLocaleDate,
   isHabitVisibleInAllView,
+  parseShowGeneralOnTodayPreference,
 } from "@orbit/shared/utils";
 import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
@@ -76,7 +76,7 @@ import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import { useResolvedMotionPreset } from "@/lib/motion";
-import { radius, shadows, spacing } from "@/lib/theme";
+import { radius, spacing } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useDeviceLocale } from "@/hooks/use-device-locale";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
@@ -151,11 +151,16 @@ const TodaySearchBar = memo(function TodaySearchBar({
 }: Readonly<TodaySearchBarProps>) {
   const [draft, setDraft] = useState(initialValue);
   const focusMotion = useResolvedMotionPreset("selection");
-  const focusAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  // Initial value captured once at mount; subsequent updates flow through the effect below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-time capture
+  const focusAnim = useMemo(() => new Animated.Value(focused ? 1 : 0), []);
 
-  useEffect(() => {
+  // Mirror controlled `initialValue` prop into local draft.
+  const [previousInitialValue, setPreviousInitialValue] = useState(initialValue);
+  if (initialValue !== previousInitialValue) {
+    setPreviousInitialValue(initialValue);
     setDraft(initialValue);
-  }, [initialValue]);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -316,6 +321,12 @@ export default function TodayScreen() {
   );
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const habitListRef = useRef<HabitListHandle>(null);
+  // Mirror habit-list allCollapsed/allLoadedIds into local state so we can
+  // read them during render (refs cannot be read during render).
+  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false);
+  const [habitListAllLoadedIds, setHabitListAllLoadedIds] = useState<
+    Set<string>
+  >(() => new Set());
   const habitsTourRef = useRef<View>(null);
   useTourTarget("tour-habit-list", habitsTourRef);
   const goalsScrollRef = useRef<ScrollView>(null);
@@ -328,11 +339,13 @@ export default function TodayScreen() {
   );
   const controlsButtonRef = useRef<View>(null);
   const previousActiveViewRef = useRef(activeView);
-  const dateLabelAnim = useRef(new Animated.Value(0)).current;
-  const filtersTransitionAnim = useRef(new Animated.Value(1)).current;
-  const listTransitionAnim = useRef(new Animated.Value(1)).current;
-  const refetchTransitionAnim = useRef(new Animated.Value(0)).current;
-  const bulkBarAnim = useRef(new Animated.Value(isSelectMode ? 1 : 0)).current;
+  const dateLabelAnim = useMemo(() => new Animated.Value(0), []);
+  const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
+  const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
+  const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
+  // Initial value captures isSelectMode at mount; subsequent updates flow through the effect.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-time capture
+  const bulkBarAnim = useMemo(() => new Animated.Value(isSelectMode ? 1 : 0), []);
   const hasAnimatedFiltersRef = useRef(false);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
 
@@ -679,6 +692,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     if (isSelectMode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror prop edge into visibility state ahead of the entry animation
       setRenderBulkActionBar(true);
       bulkBarAnim.stopAnimation?.();
       bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
@@ -713,7 +727,8 @@ export default function TodayScreen() {
     selectionMotion.reducedMotionEnabled,
   ]);
 
-  const allLoadedIds = habitListRef.current?.allLoadedIds ?? visibleHabitIds;
+  const allLoadedIds =
+    habitListAllLoadedIds.size > 0 ? habitListAllLoadedIds : visibleHabitIds;
 
   const allSelected =
     allLoadedIds.size > 0 &&
@@ -810,7 +825,7 @@ export default function TodayScreen() {
         },
       ],
     }),
-    [bulkBarAnim, selectionMotion.scaleFrom, selectionMotion.shift],
+    [bulkBarAnim, selectionMotion],
   );
 
   useEffect(() => {
@@ -890,28 +905,18 @@ export default function TodayScreen() {
   const handleOpenBulkDelete = useCallback(() => {
     if (selectedCount === 0) return;
     setShowBulkDeleteConfirm(true);
-  }, [selectedCount]);
+  }, [selectedCount, setShowBulkDeleteConfirm]);
 
   const handleOpenBulkLog = useCallback(() => {
     if (selectedCount === 0) return;
     setShowBulkLogConfirm(true);
-  }, [selectedCount]);
+  }, [selectedCount, setShowBulkLogConfirm]);
 
   const handleOpenBulkSkip = useCallback(() => {
     if (selectedCount === 0) return;
     setShowBulkSkipConfirm(true);
-  }, [selectedCount]);
+  }, [selectedCount, setShowBulkSkipConfirm]);
 
-  const requestHabitDelete = useCallback(
-    (habitId: string) => {
-      const habit = detailHabit?.id === habitId ? detailHabit : null;
-      if (!habit) return;
-
-      setHabitPendingDelete(habit);
-      setShowHabitDeleteConfirm(true);
-    },
-    [detailHabit],
-  );
 
   const confirmHabitDelete = useCallback(async () => {
     if (!habitPendingDelete) return;
@@ -983,12 +988,11 @@ export default function TodayScreen() {
       </>
     ),
     [
-      activeView,
+      currentActiveView,
       currentStreak,
       goToToday,
-      reviewReminder.dismiss,
-      reviewReminder.requestReview,
-      reviewReminder.shouldShow,
+      handleChangeView,
+      reviewReminder,
       styles,
       tabItems,
       t,
@@ -1168,13 +1172,13 @@ export default function TodayScreen() {
               onPress={handleToggleCollapse}
               activeOpacity={0.75}
             >
-              {!!habitListRef.current?.allCollapsed ? (
+              {habitListAllCollapsed ? (
                 <ChevronsUpDown size={16} color={colors.textMuted} />
               ) : (
                 <ChevronsDownUp size={16} color={colors.textMuted} />
               )}
               <Text style={styles.controlsMenuLabel}>
-                {!!habitListRef.current?.allCollapsed
+                {habitListAllCollapsed
                   ? t("habits.expandAll")
                   : t("habits.collapseAll")}
               </Text>
@@ -1215,10 +1219,9 @@ export default function TodayScreen() {
     ),
     [
       activeView,
-      colors.primary,
-      colors.textMuted,
-      colors.textSecondary,
+      colors,
       controlsMenuAnchorRect,
+      currentActiveView,
       dateLabel,
       dateLabelAnim,
       dateStr,
@@ -1227,23 +1230,28 @@ export default function TodayScreen() {
       goToNextDay,
       goToPreviousDay,
       goToToday,
+      habitListAllCollapsed,
       habitsQuery.isFetching,
       handleRefresh,
       handleToggleCollapse,
       handleToggleCompleted,
       handleToggleControlsMenu,
       handleToggleSelectMode,
+      isSearchFocused,
       isSelectMode,
+      searchQueryStore,
       selectedDate,
       selectedFrequency,
       selectedTagIds,
       setSearchQueryStore,
+      setSelectedFrequency,
       sharedHeader,
       showCompleted,
       showControlsMenu,
       showSummary,
       slideDirection,
       styles,
+      swipePanResponder.panHandlers,
       t,
       tags,
       toggleTagFilter,
@@ -1294,6 +1302,8 @@ export default function TodayScreen() {
               onDetailHabit={setDetailHabit}
               onEditHabit={handleEditHabit}
               onScrollBeginDrag={handleListScrollBeginDrag}
+              onAllCollapsedChange={setHabitListAllCollapsed}
+              onAllLoadedIdsChange={setHabitListAllLoadedIds}
             />
           </Animated.View>
         </Animated.View>

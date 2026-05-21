@@ -128,13 +128,14 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   // Load goal data when modal opens
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form fields from goal on each open
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
     }
-  }, [open, goal.id])
+  }, [open, goal.deadline, goal.targetValue, goal.title, goal.unit])
 
   function validate(): string | null {
     return translateErrorKey(

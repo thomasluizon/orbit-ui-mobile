@@ -63,6 +63,7 @@ import {
   canAccessEntitlement,
   detectDefaultTimeFormat,
   getErrorMessage,
+  habitDetailToNormalized,
   resolveUpgradeEntitlementFromError,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
@@ -84,7 +85,6 @@ import { createColors } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
 import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
-import { habitDetailToNormalized } from "@orbit/shared/utils";
 
 // ---------------------------------------------------------------------------
 // Animated Sparkle Icon for empty state
@@ -170,9 +170,9 @@ function AnimatedSparkle({
   primaryColor: string;
   styles: ChatStyles;
 }>) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.7)).current;
-  const spin = useRef(new Animated.Value(0)).current;
+  const scale = useMemo(() => new Animated.Value(1), []);
+  const opacity = useMemo(() => new Animated.Value(0.7), []);
+  const spin = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -235,7 +235,7 @@ function AnimatedVisualizerBar({
   delay: number;
   styles: ChatStyles;
 }>) {
-  const scale = useRef(new Animated.Value(0.45)).current;
+  const scale = useMemo(() => new Animated.Value(0.45), []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -339,6 +339,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
   }, [isRecording, transcript]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear draft when parent triggers a new chat
     setDraft("");
     void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
   }, [resetSignal]);
@@ -528,6 +529,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (speechError) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- surface external speech error into transient banner
       setSendError(speechError);
       const timer = setTimeout(() => {
         setSendError((current) => (current === speechError ? null : current));
@@ -538,12 +540,14 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (isRecording) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- close lang picker when recording starts
       setShowLangPicker(false);
     }
   }, [isRecording]);
 
   useEffect(() => {
     if (!isOnline) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- close lang picker when going offline
       setShowLangPicker(false);
     }
   }, [isOnline]);
@@ -1001,6 +1005,7 @@ export default function ChatScreen() {
       handleActionChipClick,
       handleBreakdownConfirmed,
       preparePendingOperationStepUp,
+      router,
       verifyAndExecutePendingOperationStepUp,
     ],
   );

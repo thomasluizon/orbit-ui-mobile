@@ -49,7 +49,10 @@ export function HabitCalendar({
   const { displayTime } = useTimeFormat()
 
   const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId)
-  const logs = externalLogs ?? fetchedLogs ?? []
+  const logs = useMemo(
+    () => externalLogs ?? fetchedLogs ?? [],
+    [externalLogs, fetchedLogs],
+  )
   const { profile } = useProfile()
   const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
 

@@ -30,6 +30,14 @@ export function VersionUpdateDrawer() {
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
+  // Updated each render with current time; React Compiler considers Date.now()
+  // impure during render so we hold it as state and refresh in an interval.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -65,6 +73,7 @@ export function VersionUpdateDrawer() {
     void startAndroidUpdate({ immediate: forceUpdate })
     if (!forceUpdate) {
       const until = Date.now() + SNOOZE_DURATION_MS
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- persist snooze deadline alongside async storage write
       setSnoozedUntil(until)
       AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
     }
@@ -79,9 +88,20 @@ export function VersionUpdateDrawer() {
     if (!updateAvailable) return false
     if (!iosStoreUrl) return false
     if (!snoozeLoaded) return false
-    const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
+    // Snooze comparison: Date.now() is impure during render. Compare against
+    // an undefined-snoozed state (null) and otherwise use snoozedUntil itself
+    // — if the deadline is in the past, the next snooze storage load will
+    // reset it.
+    const isSnoozed = snoozedUntil !== null && snoozedUntil > nowMs
     return !isSnoozed && !dismissedForSession
-  }, [updateAvailable, iosStoreUrl, snoozeLoaded, snoozedUntil, dismissedForSession])
+  }, [
+    updateAvailable,
+    iosStoreUrl,
+    snoozeLoaded,
+    snoozedUntil,
+    dismissedForSession,
+    nowMs,
+  ])
 
   const handleIosUpdate = useCallback(() => {
     if (!iosStoreUrl) return

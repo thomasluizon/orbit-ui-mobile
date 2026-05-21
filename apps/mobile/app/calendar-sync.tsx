@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -184,7 +184,7 @@ export default function CalendarSyncScreen() {
       fetchManualEvents,
       isOnline,
       isReviewMode,
-      profile?.hasProAccess,
+      profile,
       queryClient,
       router,
     ]),
@@ -193,6 +193,7 @@ export default function CalendarSyncScreen() {
   useEffect(() => {
     if (!isReviewMode) return;
     if (!isOnline) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror network / query state into step state machine
       setStep("offline");
       return;
     }

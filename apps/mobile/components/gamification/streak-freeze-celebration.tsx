@@ -9,7 +9,6 @@ import {
 } from 'react-native'
 import Svg, { Circle, Path, Line } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_W } = Dimensions.get('window')

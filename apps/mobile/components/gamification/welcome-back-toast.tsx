@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -36,42 +36,11 @@ export function WelcomeBackToast() {
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
-  const translateY = useRef(new Animated.Value(-40)).current
-  const opacity = useRef(new Animated.Value(0)).current
-  const scale = useRef(new Animated.Value(0.95)).current
+  const translateY = useMemo(() => new Animated.Value(-40), [])
+  const opacity = useMemo(() => new Animated.Value(0), [])
+  const scale = useMemo(() => new Animated.Value(0.95), [])
 
-  function showToast(message: string, emoji = '\uD83D\uDC4B') {
-    setToastMessage(message)
-    setToastEmoji(emoji)
-    setShouldRender(true)
-
-    // Animate in
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        tension: 80,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: 1,
-        tension: 80,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-    ]).start()
-
-    // Auto-dismiss
-    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    dismissTimerRef.current = setTimeout(dismiss, 4000)
-  }
-
-  function dismiss() {
+  const dismiss = useCallback(() => {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     Animated.parallel([
       Animated.timing(translateY, {
@@ -92,7 +61,41 @@ export function WelcomeBackToast() {
     ]).start(() => {
       setShouldRender(false)
     })
-  }
+  }, [translateY, opacity, scale])
+
+  const showToast = useCallback(
+    (message: string, emoji = '\uD83D\uDC4B') => {
+      setToastMessage(message)
+      setToastEmoji(emoji)
+      setShouldRender(true)
+
+      // Animate in
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start()
+
+      // Auto-dismiss
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+      dismissTimerRef.current = setTimeout(dismiss, 4000)
+    },
+    [translateY, opacity, scale, dismiss],
+  )
 
   useEffect(() => {
     return () => {
@@ -142,7 +145,7 @@ export function WelcomeBackToast() {
     }
 
     checkVisit()
-  }, [profile, t])
+  }, [profile, t, showToast])
 
   if (!shouldRender) return null
 

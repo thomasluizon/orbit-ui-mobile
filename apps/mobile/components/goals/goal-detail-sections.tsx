@@ -2,9 +2,6 @@ import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Text, TouchableOpacity, View } from 'react-native'
 import type { Goal } from '@orbit/shared/types/goal'
-import type { ThemeContextValue } from '@/lib/theme-provider'
-
-type AppColors = ThemeContextValue['colors']
 
 const HISTORY_PREVIEW_COUNT = 3
 

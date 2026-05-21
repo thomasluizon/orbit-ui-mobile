@@ -1,15 +1,13 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   View,
   Text,
   Modal,
   Animated,
   StyleSheet,
-  Dimensions,
 } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -29,14 +27,14 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const { colors } = useAppTheme()
   const [visible, setVisible] = useState(true)
 
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const scaleAnim = useRef(new Animated.Value(0.3)).current
-  const ringScale1 = useRef(new Animated.Value(0.5)).current
-  const ringOpacity1 = useRef(new Animated.Value(0.6)).current
-  const ringScale2 = useRef(new Animated.Value(0.5)).current
-  const ringOpacity2 = useRef(new Animated.Value(0.4)).current
-  const textOpacity = useRef(new Animated.Value(0)).current
-  const textSlide = useRef(new Animated.Value(20)).current
+  const fadeAnim = useMemo(() => new Animated.Value(0), [])
+  const scaleAnim = useMemo(() => new Animated.Value(0.3), [])
+  const ringScale1 = useMemo(() => new Animated.Value(0.5), [])
+  const ringOpacity1 = useMemo(() => new Animated.Value(0.6), [])
+  const ringScale2 = useMemo(() => new Animated.Value(0.5), [])
+  const ringOpacity2 = useMemo(() => new Animated.Value(0.4), [])
+  const textOpacity = useMemo(() => new Animated.Value(0), [])
+  const textSlide = useMemo(() => new Animated.Value(20), [])
   const styles = useMemo(() => createStyles(colors), [colors])
 
   useEffect(() => {
@@ -219,8 +217,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   return StyleSheet.create({
