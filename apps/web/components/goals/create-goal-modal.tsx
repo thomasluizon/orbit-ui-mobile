@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Plus, X, Target, Flame } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { SectionLabel } from '@/components/ui/section-label'
+import { Chip } from '@/components/ui/chip'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -22,9 +24,7 @@ import {
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import type { GoalType } from '@orbit/shared/types/goal'
-import {
-  MAX_GOAL_DESCRIPTION_LENGTH,
-} from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -101,59 +101,6 @@ function buildCreateGoalRequest(
   }
 }
 
-interface GoalDeadlineFieldProps {
-  deadline: string
-  onDeadlineChange: (deadline: string) => void
-  t: ReturnType<typeof useTranslations>
-}
-
-function GoalDeadlineField({ deadline, onDeadlineChange, t }: Readonly<GoalDeadlineFieldProps>) {
-  if (!deadline) {
-    return (
-      <div>
-        <span className="form-label">
-          {t('goals.form.deadline')}
-          <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-        </span>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-1.5"
-          onClick={() => onDeadlineChange(formatAPIDate(new Date()))}
-        >
-          <Plus className="size-3.5" />
-          {t('goals.form.addDeadline')}
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <span className="form-label">
-        {t('goals.form.deadline')}
-        <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-      </span>
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <AppDatePicker value={deadline} onChange={onDeadlineChange} />
-        </div>
-        <button
-          type="button"
-          className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
-          onClick={() => onDeadlineChange('')}
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-      {isGoalDeadlinePast(deadline) && (
-        <p className="text-xs text-amber-400 font-medium">
-          {t('goals.form.deadlineInPast')}
-        </p>
-      )}
-    </div>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -191,7 +138,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     },
   })
 
-  // Per-field inline errors (shown after first submit attempt)
   const fieldErrors = useMemo(
     () =>
       buildGoalFieldErrors(
@@ -278,181 +224,192 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="space-y-5" onSubmit={onSubmit}>
-        {/* Goal Type Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Progress Card */}
-          <button
-            type="button"
-            onClick={() => handleTypeChange('Standard')}
-            className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
-              goalType === 'Standard'
-                ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
-                : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
-            }`}
-          >
-            <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
-              goalType === 'Standard'
-                ? 'bg-primary/15 text-primary'
-                : 'bg-surface-elevated text-text-muted'
-            }`}>
-              <Target className="size-[18px]" />
-            </div>
-            <p className={`text-sm font-bold mb-0.5 ${
-              goalType === 'Standard' ? 'text-text-primary' : 'text-text-secondary'
-            }`}>
+        <form id="create-goal-form" className="-mx-6" onSubmit={onSubmit}>
+          {/* Goal Type chips */}
+          <SectionLabel top={4}>{t('goals.form.type')}</SectionLabel>
+          <div className="flex" style={{ padding: '0 20px 12px', gap: 6 }}>
+            <Chip
+              active={goalType === 'Standard'}
+              onClick={() => handleTypeChange('Standard')}
+            >
               {t('goals.form.typeStandard')}
-            </p>
-            <p className="text-[11px] text-text-muted leading-snug">
-              {t('goals.form.typeStandardDescription')}
-            </p>
-            <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
-              {t('goals.form.typeStandardExample')}
-            </p>
-          </button>
-
-          {/* Streak Card */}
-          <button
-            type="button"
-            onClick={() => handleTypeChange('Streak')}
-            className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
-              goalType === 'Streak'
-                ? 'border-orange-500 bg-orange-500/8 shadow-[0_0_20px_rgba(249,115,22,0.1)]'
-                : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
-            }`}
-          >
-            <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
-              goalType === 'Streak'
-                ? 'bg-orange-500/15 text-orange-400'
-                : 'bg-surface-elevated text-text-muted'
-            }`}>
-              <Flame className="size-[18px]" />
-            </div>
-            <p className={`text-sm font-bold mb-0.5 ${
-              goalType === 'Streak' ? 'text-text-primary' : 'text-text-secondary'
-            }`}>
+            </Chip>
+            <Chip
+              active={goalType === 'Streak'}
+              onClick={() => handleTypeChange('Streak')}
+            >
               {t('goals.form.typeStreak')}
-            </p>
-            <p className="text-[11px] text-text-muted leading-snug">
-              {t('goals.form.typeStreakDescription')}
-            </p>
-            <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
-              {t('goals.form.typeStreakExample')}
-            </p>
-          </button>
-        </div>
+            </Chip>
+          </div>
 
-        {/* Streak how-it-works hints */}
-        {isStreak && (
-          <div className="space-y-2 -mt-1">
-            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-lg)] bg-green-500/8 border border-green-500/15">
-              <span className="text-xs mt-px shrink-0">+</span>
-              <p className="text-[11px] text-green-300/90 leading-relaxed">
+          {isStreak && (
+            <div
+              style={{
+                padding: '4px 20px 12px',
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontStyle: 'italic',
+                  color: 'var(--fg-3)',
+                  lineHeight: 1.5,
+                }}
+              >
                 {t('goals.form.typeStreakHintGood')}
               </p>
-            </div>
-            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-lg)] bg-red-500/8 border border-red-500/15">
-              <span className="text-xs mt-px shrink-0">!</span>
-              <p className="text-[11px] text-red-300/90 leading-relaxed">
+              <p
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontStyle: 'italic',
+                  color: 'var(--fg-3)',
+                  lineHeight: 1.5,
+                }}
+              >
                 {t('goals.form.typeStreakHintBad')}
               </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Form Fields */}
-        <div className="space-y-4">
-          {/* Quantity + Unit */}
-          <div className={isStreak ? '' : 'grid grid-cols-2 gap-3'}>
-            <div>
-              <label
-                htmlFor="create-goal-target"
-                className="form-label"
-              >
-                {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-              </label>
-              <input
-                id="create-goal-target"
-                type="number"
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
-                className="form-input"
-                min={0.01}
-                step="any"
-                placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
-                aria-invalid={!!fieldErrors.targetValue}
-                aria-describedby={fieldErrors.targetValue ? 'create-goal-target-error' : undefined}
-              />
-              {fieldErrors.targetValue && (
-                <p id="create-goal-target-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.targetValue}</p>
-              )}
-            </div>
+          {/* Target row */}
+          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 12px', gap: 14 }}>
+            <UnderlinedField
+              label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+              id="create-goal-target"
+              type="number"
+              mono
+              value={targetValue}
+              placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
+              error={fieldErrors.targetValue}
+              onChange={setTargetValue}
+            />
             {!isStreak && (
-              <div>
-                <label
-                  htmlFor="create-goal-unit"
-                  className="form-label"
-                >
-                  {t('goals.form.unit')}
-                </label>
-                <input
-                  id="create-goal-unit"
-                  type="text"
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  className="form-input"
-                  placeholder={t('goals.form.unitPlaceholder')}
-                  maxLength={50}
-                  aria-invalid={!!fieldErrors.unit}
-                  aria-describedby={fieldErrors.unit ? 'create-goal-unit-error' : undefined}
-                />
-                {fieldErrors.unit && (
-                  <p id="create-goal-unit-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.unit}</p>
-                )}
-              </div>
+              <UnderlinedField
+                label={t('goals.form.unit')}
+                id="create-goal-unit"
+                type="text"
+                value={unit}
+                placeholder={t('goals.form.unitPlaceholder')}
+                maxLength={50}
+                error={fieldErrors.unit}
+                onChange={setUnit}
+              />
             )}
           </div>
 
-          {/* Description (optional) */}
-          <div>
-            <label
-              htmlFor="create-goal-description"
-              className="form-label"
-            >
-              {t('goals.form.description')}
-              <span className="text-text-muted font-normal ml-1">({t('goals.form.descriptionOptional')})</span>
-            </label>
-            <input
+          {/* Description */}
+          <div style={{ padding: '16px 20px 12px' }}>
+            <UnderlinedField
+              label={t('goals.form.description')}
               id="create-goal-description"
               type="text"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="form-input"
-              placeholder={isStreak ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
+              placeholder={
+                isStreak
+                  ? t('goals.form.streakDescriptionPlaceholder')
+                  : t('goals.form.descriptionPlaceholder')
+              }
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
-              aria-invalid={!!fieldErrors.description}
-              aria-describedby={fieldErrors.description ? 'create-goal-description-error' : undefined}
+              error={fieldErrors.description}
+              onChange={setDescription}
             />
-            {fieldErrors.description && (
-              <p id="create-goal-description-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.description}</p>
+          </div>
+
+          {/* Deadline */}
+          <SectionLabel>{t('goals.form.deadline')}</SectionLabel>
+          <div style={{ padding: '0 20px 16px' }}>
+            {deadline ? (
+              <div className="flex items-center" style={{ gap: 8 }}>
+                <div className="flex-1">
+                  <AppDatePicker value={deadline} onChange={setDeadline} />
+                </div>
+                <button
+                  type="button"
+                  className="appearance-none border-0 bg-transparent cursor-pointer"
+                  style={{
+                    padding: 6,
+                    color: 'var(--fg-3)',
+                  }}
+                  aria-label={t('common.cancel')}
+                  onClick={() => setDeadline('')}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                  padding: 0,
+                  gap: 6,
+                }}
+                onClick={() => setDeadline(formatAPIDate(new Date()))}
+              >
+                <Plus size={14} />
+                {t('goals.form.addDeadline')}
+              </button>
+            )}
+            {deadline && isGoalDeadlinePast(deadline) && (
+              <p
+                style={{
+                  marginTop: 8,
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontStyle: 'italic',
+                  color: 'var(--status-overdue)',
+                }}
+              >
+                {t('goals.form.deadlineInPast')}
+              </p>
             )}
           </div>
 
-          <GoalDeadlineField deadline={deadline} onDeadlineChange={setDeadline} t={t} />
-        </div>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full py-3.5 rounded-[var(--radius-xl)] text-white font-bold text-sm text-center transition-all duration-150 active:scale-[0.98] disabled:opacity-50 ${
-            isStreak
-              ? 'bg-orange-500 hover:bg-orange-500/90 shadow-[0_0_20px_rgba(249,115,22,0.2)]'
-              : 'bg-primary hover:bg-primary/90 shadow-[var(--shadow-glow)]'
-          }`}
-        >
-          {isSubmitting ? '...' : t('goals.create')}
-        </button>
+          {/* Footer action row */}
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '12px 20px 16px',
+              borderTop: '1px solid var(--hairline)',
+            }}
+          >
+            <button
+              type="button"
+              className="appearance-none border-0 bg-transparent cursor-pointer"
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+                padding: 6,
+              }}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+              style={{
+                background: 'var(--primary)',
+                color: 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                padding: '10px 18px',
+                borderRadius: 8,
+              }}
+            >
+              {isSubmitting ? '...' : t('goals.create')}
+            </button>
+          </div>
         </form>
       </AppOverlay>
       <ConfirmDialog
@@ -469,5 +426,88 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         variant="warning"
       />
     </>
+  )
+}
+
+interface UnderlinedFieldProps {
+  label: string
+  id: string
+  type: 'text' | 'number'
+  mono?: boolean
+  value: string
+  placeholder?: string
+  maxLength?: number
+  hideLabel?: boolean
+  error?: string
+  onChange: (next: string) => void
+}
+
+function UnderlinedField({
+  label,
+  id,
+  type,
+  mono = false,
+  value,
+  placeholder,
+  maxLength,
+  hideLabel = false,
+  error,
+  onChange,
+}: Readonly<UnderlinedFieldProps>) {
+  return (
+    <div className="flex flex-col" style={{ gap: 4 }}>
+      {!hideLabel && (
+        <label
+          htmlFor={id}
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--fg-3)',
+          }}
+        >
+          {label}
+        </label>
+      )}
+      <input
+        id={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        min={type === 'number' ? 0.01 : undefined}
+        step={type === 'number' ? 'any' : undefined}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          appearance: 'none',
+          border: 0,
+          background: 'transparent',
+          outline: 'none',
+          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontSize: 14,
+          color: 'var(--fg-1)',
+          padding: '6px 0',
+          borderBottom: '1px solid var(--hairline-strong)',
+          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
+          width: '100%',
+        }}
+      />
+      {error && (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {error}
+        </p>
+      )}
+    </div>
   )
 }

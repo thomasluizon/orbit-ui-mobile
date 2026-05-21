@@ -353,11 +353,26 @@ export function CreateHabitModal({
           )}
         </HabitFormFields>
 
-        {/* Submit buttons */}
-        <div className="flex gap-3 pt-2">
+        {/* Submit buttons — v8 footer pattern */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            paddingTop: 12,
+            paddingBottom: 8,
+            borderTop: '1px solid var(--hairline)',
+            marginTop: 4,
+          }}
+        >
           <button
             type="button"
-            className="flex-1 py-3.5 rounded-xl border border-border text-text-secondary font-semibold text-sm hover:bg-surface-elevated/80 transition-all duration-150"
+            className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              padding: 6,
+            }}
             disabled={isPending}
             onClick={dismissGuard.requestDismiss}
           >
@@ -365,7 +380,17 @@ export function CreateHabitModal({
           </button>
           <button
             type="submit"
-            className="flex-[2] py-3.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50 flex items-center justify-center gap-2"
+            className="appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center"
+            style={{
+              background: 'var(--primary)',
+              color: 'var(--fg-on-primary)',
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 600,
+              padding: '10px 18px',
+              borderRadius: 8,
+              gap: 6,
+            }}
             disabled={isPending || !formHelpers.form.formState.isValid}
           >
             {isPending && <Loader2 className="size-4 animate-spin" />}

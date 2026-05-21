@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
+import { X, Plus, Bell, Check, ShieldAlert, PenSquare, ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useRouter } from 'next/navigation'
@@ -835,10 +835,10 @@ function SlipAlertSection({
 // ---------------------------------------------------------------------------
 
 const FREQUENCY_TYPE_CARDS = [
-  { key: 'one-time', icon: CalendarCheck, titleKey: 'habits.form.oneTimeTask', descKey: 'habits.form.oneTimeDescription', exampleKey: 'habits.form.oneTimeExample' },
-  { key: 'recurring', icon: Repeat, titleKey: 'habits.form.recurring', descKey: 'habits.form.recurringDescription', exampleKey: 'habits.form.recurringExample' },
-  { key: 'flexible', icon: Shuffle, titleKey: 'habits.form.flexible', descKey: 'habits.form.flexibleDescription2', exampleKey: 'habits.form.flexibleExample2' },
-  { key: 'general', icon: Infinity, titleKey: 'habits.form.general', descKey: 'habits.form.generalDescription', exampleKey: 'habits.form.generalExample' },
+  { key: 'one-time', titleKey: 'habits.form.oneTimeTask', descKey: 'habits.form.oneTimeDescription', exampleKey: 'habits.form.oneTimeExample' },
+  { key: 'recurring', titleKey: 'habits.form.recurring', descKey: 'habits.form.recurringDescription', exampleKey: 'habits.form.recurringExample' },
+  { key: 'flexible', titleKey: 'habits.form.flexible', descKey: 'habits.form.flexibleDescription2', exampleKey: 'habits.form.flexibleExample2' },
+  { key: 'general', titleKey: 'habits.form.general', descKey: 'habits.form.generalDescription', exampleKey: 'habits.form.generalExample' },
 ] as const
 
 export function HabitFormFields({
@@ -1016,48 +1016,56 @@ export function HabitFormFields({
         onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
       />
 
-      {/* Frequency type cards (2x2 grid) */}
+      {/* Frequency type — v8 hairline chip strip */}
       <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
         <span id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
         </span>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-wrap" style={{ gap: 6 }}>
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
-            const CardIcon = card.icon
             return (
               <button
                 key={card.key}
                 type="button"
+                aria-pressed={isActive}
                 onClick={frequencyHandlers[card.key]}
-                className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
-                  isActive
-                    ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
-                    : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
-                }`}
+                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0"
+                style={{
+                  height: 28,
+                  padding: '0 12px',
+                  borderRadius: 6,
+                  background: isActive ? 'var(--bg-elev)' : 'transparent',
+                  boxShadow: isActive
+                    ? 'inset 0 0 0 1px var(--fg-3)'
+                    : 'inset 0 0 0 1px var(--hairline-strong)',
+                  border: 0,
+                  color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 500,
+                }}
               >
-                <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
-                  isActive
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-surface-elevated text-text-muted'
-                }`}>
-                  <CardIcon className="size-[18px]" />
-                </div>
-                <p className={`text-sm font-bold mb-0.5 ${
-                  isActive ? 'text-text-primary' : 'text-text-secondary'
-                }`}>
-                  {t(card.titleKey as Parameters<typeof t>[0])}
-                </p>
-                <p className="text-[11px] text-text-muted leading-snug">
-                  {t(card.descKey as Parameters<typeof t>[0])}
-                </p>
-                <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
-                  {t(card.exampleKey as Parameters<typeof t>[0])}
-                </p>
+                {t(card.titleKey as Parameters<typeof t>[0])}
               </button>
             )
           })}
         </div>
+        <p
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            fontStyle: 'italic',
+            color: 'var(--fg-3)',
+            lineHeight: 1.5,
+            marginTop: 4,
+          }}
+        >
+          {t(
+            (FREQUENCY_TYPE_CARDS.find((c) => c.key === activeFrequencyKey)?.descKey ??
+              'habits.form.recurringDescription') as Parameters<typeof t>[0],
+          )}
+        </p>
       </div>
 
       {/* Type-adaptive frequency sub-fields */}

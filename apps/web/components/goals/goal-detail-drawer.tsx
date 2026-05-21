@@ -1,17 +1,13 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import {
-  PencilLine,
-  CheckCircle2,
-  ArchiveX,
-  RotateCw,
-  Trash2,
-} from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SectionLabel } from '@/components/ui/section-label'
+import { PullQuote } from '@/components/chat/pull-quote'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
@@ -80,7 +76,6 @@ export function GoalDetailDrawer({
   const updateStatus = useUpdateGoalStatus()
   const deleteGoalMut = useDeleteGoal()
 
-  // Prefer detail data once loaded so streak sync updates are reflected immediately.
   const detail = detailData?.goal ?? null
   const goal = detail ?? goalsData?.goalsById.get(goalId) ?? null
   const metrics = detailData?.metrics ?? null
@@ -94,12 +89,7 @@ export function GoalDetailDrawer({
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
   const [showProgressDiscardDialog, setShowProgressDiscardDialog] = useState(false)
-  // Initial progress value captured when the drawer session starts. State
-  // (not a ref) so the dirty-check can read it during render in a lint-safe
-  // way.
   const [initialProgressValue, setInitialProgressValue] = useState<number | null>(null)
-  // Which dismiss target requested confirmation; populated from event
-  // handlers, never during render.
   const [pendingProgressDismiss, setPendingProgressDismiss] = useState<ProgressDismissTarget | null>(null)
 
   const isUpdatingProgress = updateProgress.isPending
@@ -112,16 +102,12 @@ export function GoalDetailDrawer({
 
   const isProgressDirty = useMemo(() => {
     if (!showProgressForm) return false
-
     return (
       progressValue !== initialProgressValue ||
       progressNote.trim().length > 0
     )
   }, [progressNote, progressValue, showProgressForm, initialProgressValue])
 
-  // Reset state when a new drawer session starts, not on every cache refresh.
-  // "Adjusting state when a prop changes" pattern: track previous session in
-  // state, react in render.
   const [previousSession, setPreviousSession] = useState<{ open: boolean; goalId: string | null }>({
     open,
     goalId: open ? goalId : null,
@@ -139,7 +125,6 @@ export function GoalDetailDrawer({
     }
   }
 
-  // Format date helper
   const formatDate = useCallback(
     (dateStr: string) => {
       return formatLocaleDateTime(dateStr, locale, {
@@ -153,7 +138,6 @@ export function GoalDetailDrawer({
     [locale],
   )
 
-  // Handlers
   const submitProgress = useCallback(async () => {
     const validationError = translateErrorKey(
       translate,
@@ -282,84 +266,162 @@ export function GoalDetailDrawer({
         canDismiss={!isProgressDirty}
         isDirty={isProgressDirty}
         onAttemptDismiss={() => requestProgressDismiss('drawer')}
+        footer={
+          goal ? (
+            <div className="flex flex-col" style={{ gap: 16 }}>
+              <PullQuote
+                paddingX={0}
+                paddingY={0}
+                eyebrow={
+                  <>
+                    <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                    <span>{t('goals.detail.askAstraEyebrow')}</span>
+                  </>
+                }
+              >
+                {t('goals.detail.askAstraDefault')}
+              </PullQuote>
+              <div
+                className="flex items-center justify-center"
+                style={{ gap: 22 }}
+              >
+                {goal.status === 'Active' && (
+                  <>
+                    <GoalActionButton
+                      label={t('goals.detail.markCompleted')}
+                      onClick={markCompleted}
+                      disabled={isUpdatingStatus}
+                    />
+                    <GoalActionButton
+                      label={t('goals.detail.markAbandoned')}
+                      onClick={markAbandoned}
+                      disabled={isUpdatingStatus}
+                    />
+                  </>
+                )}
+                {goal.status !== 'Active' && (
+                  <GoalActionButton
+                    label={t('goals.detail.reactivate')}
+                    onClick={reactivate}
+                    disabled={isUpdatingStatus}
+                  />
+                )}
+                <GoalActionButton
+                  label={t('goals.detail.edit')}
+                  onClick={() => setShowEditModal(true)}
+                />
+                <GoalActionButton
+                  label={t('goals.detail.delete')}
+                  destructive
+                  onClick={() => setShowDeleteConfirm(true)}
+                />
+              </div>
+            </div>
+          ) : undefined
+        }
       >
         {goal && (
-          <div className="space-y-6">
+          <div className="-mx-6">
             {/* Streak badge */}
             {isStreak && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400">
-                  🔥 {t('goals.form.typeStreak')}
-                </span>
+              <div
+                style={{
+                  padding: '10px 20px',
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: 'var(--fg-3)',
+                  letterSpacing: '0.04em',
+                  fontVariantNumeric: 'tabular-nums',
+                  borderBottom: '1px solid var(--hairline)',
+                }}
+              >
+                {t('goals.form.typeStreak')}
               </div>
             )}
 
             {/* Progress section */}
-            <div>
-              <h4 className="form-label mb-2">
-                {t('goals.progress')}
-              </h4>
-
-              {/* Progress bar */}
-              <div className="h-3 bg-surface-elevated rounded-full overflow-hidden mb-2">
+            <SectionLabel>{t('goals.progress')}</SectionLabel>
+            <div style={{ padding: '10px 20px 16px' }}>
+              <div
+                className="relative rounded-full"
+                style={{ height: 5, background: 'var(--bg-sunk)' }}
+              >
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${isStreak ? 'bg-orange-500' : 'bg-primary'}`}
+                  className="absolute left-0 top-0 bottom-0 rounded-full"
                   style={{
                     width: `${Math.min(goal.progressPercentage, 100)}%`,
+                    background: 'var(--primary)',
                   }}
                 />
               </div>
-              <p className="text-sm text-text-secondary mb-4">
-                {isStreak
-                  ? t('goals.streak.ofTarget', {
-                      current: goal.currentValue,
-                      target: goal.targetValue,
-                    })
-                  : t('goals.progressOf', {
-                      current: goal.currentValue,
-                      target: goal.targetValue,
-                      unit: goal.unit,
-                    })}
-                <span className="text-text-muted ml-1">
-                  ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
+              <div
+                className="flex items-center justify-between"
+                style={{
+                  marginTop: 10,
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: 12,
+                  color: 'var(--fg-2)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                <span>
+                  {isStreak
+                    ? t('goals.streak.ofTarget', {
+                        current: goal.currentValue,
+                        target: goal.targetValue,
+                      })
+                    : t('goals.progressOf', {
+                        current: goal.currentValue,
+                        target: goal.targetValue,
+                        unit: goal.unit,
+                      })}
+                  <span style={{ color: 'var(--fg-3)', marginLeft: 4 }}>
+                    ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
+                  </span>
                 </span>
-              </p>
-
-              {/* Update progress toggle */}
-              {goal.status === 'Active' && !showProgressForm && (
-                <button
-                  className="text-sm text-primary font-semibold hover:text-primary/80 transition-colors"
-                  onClick={() => {
-                    setInitialProgressValue(goal.currentValue)
-                    setProgressValue(goal.currentValue)
-                    setProgressNote('')
-                    setShowProgressForm(true)
-                  }}
-                >
-                  {t('goals.updateProgress')}
-                </button>
-              )}
-
-              {/* Progress form */}
-              {showProgressForm && goal.status === 'Active' && (
-                <GoalProgressForm
-                  progressValue={progressValue}
-                  progressNote={progressNote}
-                  isUpdating={isUpdatingProgress}
-                  isStreak={isStreak}
-                  progressExceedsTarget={progressExceedsTarget}
-                  onProgressValueChange={setProgressValue}
-                  onProgressNoteChange={setProgressNote}
-                  onSubmit={submitProgress}
-                  onCancel={() => requestProgressDismiss('form')}
-                  labelValue={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-                  labelNote={t('goals.progressNote')}
-                  labelSave={t('common.save')}
-                  labelCancel={t('common.cancel')}
-                  labelExceedsTarget={t('goals.form.progressExceedsTarget')}
-                />
-              )}
+                {goal.status === 'Active' && !showProgressForm && (
+                  <button
+                    type="button"
+                    className="appearance-none border-0 bg-transparent cursor-pointer"
+                    style={{
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: 'var(--fg-1)',
+                      padding: 0,
+                    }}
+                    onClick={() => {
+                      setInitialProgressValue(goal.currentValue)
+                      setProgressValue(goal.currentValue)
+                      setProgressNote('')
+                      setShowProgressForm(true)
+                    }}
+                  >
+                    {t('goals.updateProgress')}
+                  </button>
+                )}
+              </div>
             </div>
+
+            {showProgressForm && goal.status === 'Active' && (
+              <GoalProgressForm
+                progressValue={progressValue}
+                progressNote={progressNote}
+                isUpdating={isUpdatingProgress}
+                isStreak={isStreak}
+                progressExceedsTarget={progressExceedsTarget}
+                onProgressValueChange={setProgressValue}
+                onProgressNoteChange={setProgressNote}
+                onSubmit={submitProgress}
+                onCancel={() => requestProgressDismiss('form')}
+                labelValue={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
+                labelNote={t('goals.progressNote')}
+                labelSave={t('common.save')}
+                labelCancel={t('common.cancel')}
+                labelExceedsTarget={t('goals.form.progressExceedsTarget')}
+              />
+            )}
 
             {/* Goal Metrics */}
             {goal.status === 'Active' && (
@@ -371,7 +433,7 @@ export function GoalDetailDrawer({
               />
             )}
 
-            {/* Linked Habits -- shown prominently for streak goals */}
+            {/* Linked Habits (streak goals first) */}
             {isStreak && (goal.linkedHabits ?? []).length > 0 && (
               <GoalLinkedHabitsSection
                 title={t('goals.linkedHabits')}
@@ -404,68 +466,19 @@ export function GoalDetailDrawer({
               />
             )}
 
-            {/* Load error (fallback to store data) */}
             {loadError && (
-              <p className="text-amber-400 text-xs">
+              <p
+                style={{
+                  padding: '10px 20px',
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontStyle: 'italic',
+                  color: 'var(--status-overdue)',
+                }}
+              >
                 {t('goals.detail.loadError')}
               </p>
             )}
-
-            {/* Actions */}
-            <div className="pt-2 border-t border-border">
-              {/* Status actions */}
-              <div className="space-y-2">
-                {goal.status === 'Active' && (
-                  <GoalActionButton
-                    disabled={isUpdatingStatus}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-green-400 hover:bg-green-500/10 transition-all duration-150 disabled:opacity-50"
-                    onClick={markCompleted}
-                    icon={<CheckCircle2 className="size-5" />}
-                    label={t('goals.detail.markCompleted')}
-                  />
-                )}
-
-                {goal.status === 'Active' && (
-                  <GoalActionButton
-                    disabled={isUpdatingStatus}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-amber-400 hover:bg-amber-500/10 transition-all duration-150 disabled:opacity-50"
-                    onClick={markAbandoned}
-                    icon={<ArchiveX className="size-5" />}
-                    label={t('goals.detail.markAbandoned')}
-                  />
-                )}
-
-                {goal.status !== 'Active' && (
-                  <GoalActionButton
-                    disabled={isUpdatingStatus}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-primary hover:bg-primary/10 transition-all duration-150 disabled:opacity-50"
-                    onClick={reactivate}
-                    icon={<RotateCw className="size-5" />}
-                    label={t('goals.detail.reactivate')}
-                  />
-                )}
-              </div>
-
-              {/* Divider between status and data actions */}
-              <div className="border-t border-border-muted my-2" />
-
-              {/* Data actions */}
-              <div className="space-y-2">
-                <GoalActionButton
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
-                  onClick={() => setShowEditModal(true)}
-                  icon={<PencilLine className="size-5 text-text-muted" />}
-                  label={t('goals.detail.edit')}
-                />
-
-                <GoalActionButton
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-[var(--radius-lg)] text-sm text-red-400 hover:bg-red-500/10 transition-all duration-150"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  icon={<Trash2 className="size-5" />}
-                  label={t('goals.detail.delete')}
-                />
-              </div>
-            </div>
           </div>
         )}
       </AppOverlay>

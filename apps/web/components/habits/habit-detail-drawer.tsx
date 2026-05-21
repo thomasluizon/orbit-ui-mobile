@@ -1,15 +1,19 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Clock, Bell, CalendarDays } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
   HabitDetailStatsGrid,
+  Last28Grid,
   type TranslationFn,
 } from './habit-detail-sections'
 import { DescriptionViewer } from './description-viewer'
@@ -97,6 +101,14 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
+  // Build the "Last 28 days" boolean array from logs. Caller's habitId is "now"
+  // and we walk back 28 days; missing logs render as empty cells.
+  const last28 = useMemo(() => buildLast28FromLogs(logs), [logs])
+
+  const askPrompt = habit?.checklistItems && habit.checklistItems.length > 0
+    ? t('habits.detail.askAstraSubHabits')
+    : t('habits.detail.askAstraDefault')
+
   return (
     <>
       {habit?.description && (
@@ -115,73 +127,99 @@ export function HabitDetailDrawer({
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
+        footer={
+          <PullQuote
+            paddingX={0}
+            paddingY={0}
+            eyebrow={
+              <>
+                <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                <span>{t('habits.detail.askAstraEyebrow')}</span>
+              </>
+            }
+          >
+            {askPrompt}
+          </PullQuote>
+        }
       >
         {habit && (
-          <div className="space-y-6">
+          <div className="-mx-6">
             {/* Due time */}
             {habit.dueTime && (
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <Clock className="size-4 text-primary" />
-                <span>{displayTime(habit.dueTime)}</span>
-              </div>
+              <SettingsRow
+                label={t('habits.form.dueTime')}
+                value={displayTime(habit.dueTime)}
+                mono
+                accessory="none"
+              />
             )}
 
             {/* Scheduled reminders */}
             {habit.scheduledReminders && habit.scheduledReminders.length > 0 && (
-              <div className="flex items-start gap-2 text-sm text-text-secondary">
-                <Bell className="size-4 text-primary mt-0.5" />
-                <div className="flex flex-wrap gap-1.5">
-                  {habit.scheduledReminders.map((sr, idx) => (
-                    <span
-                      key={`${sr.when}-${sr.time}-${idx}`}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                    >
-                      {sr.when === 'day_before'
+              <>
+                <SectionLabel>{t('habits.detail.reminders')}</SectionLabel>
+                {habit.scheduledReminders.map((sr, idx) => (
+                  <SettingsRow
+                    key={`${sr.when}-${sr.time}-${idx}`}
+                    label={
+                      sr.when === 'day_before'
                         ? t('habits.form.scheduledReminderDayBeforeAt', {
                             time: displayTime(sr.time),
                           })
                         : t('habits.form.scheduledReminderSameDayAt', {
                             time: displayTime(sr.time),
-                          })}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                          })
+                    }
+                    accessory="none"
+                  />
+                ))}
+              </>
             )}
 
             {/* End date */}
             {habit.endDate && (
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <CalendarDays className="size-4 text-primary" />
-                <span>
-                  {t('habits.detail.endsOn')}{' '}
-                  {formatLocaleDate(habit.endDate, locale, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
-            )}
-
-            {/* Checklist */}
-            {liveChecklist.length > 0 && (
-              <HabitChecklist
-                items={liveChecklist}
-                interactive
-                onToggle={handleChecklistToggle}
-                onReset={handleChecklistReset}
-                onClear={handleChecklistClear}
+              <SettingsRow
+                label={t('habits.detail.endsOn')}
+                value={formatLocaleDate(habit.endDate, locale, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                mono
+                accessory="none"
               />
             )}
 
-            <HabitDetailStatsGrid metrics={metrics} loading={metricsLoading} t={t as TranslationFn} />
+            {/* Last 28-day heatmap from logs (only when we have any logs). */}
+            {last28.length > 0 && (
+              <>
+                <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
+                <Last28Grid done={last28} />
+              </>
+            )}
 
-            {/* Calendar heatmap */}
-            <div>
-              <h3 className="text-sm font-bold text-text-primary mb-3">
-                {t('habits.detail.activity')}
-              </h3>
+            <HabitDetailStatsGrid
+              metrics={metrics}
+              loading={metricsLoading}
+              t={t as TranslationFn}
+            />
+
+            {/* Checklist */}
+            {liveChecklist.length > 0 && (
+              <div style={{ padding: '0 20px 12px' }}>
+                <HabitChecklist
+                  items={liveChecklist}
+                  interactive
+                  onToggle={handleChecklistToggle}
+                  onReset={handleChecklistReset}
+                  onClear={handleChecklistClear}
+                />
+              </div>
+            )}
+
+            {/* Calendar (kept for full-history detail) */}
+            <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
+            <div style={{ padding: '0 20px 12px' }}>
               <HabitCalendar habitId={habit.id} logs={logs} />
             </div>
           </div>
@@ -203,4 +241,25 @@ export function HabitDetailDrawer({
       />
     </>
   )
+}
+
+interface LogLike {
+  date?: string
+}
+
+function buildLast28FromLogs(logs: readonly LogLike[] | null): boolean[] {
+  if (!logs || logs.length === 0) return []
+  const dateSet = new Set<string>()
+  for (const log of logs) {
+    if (log.date) dateSet.add(log.date.slice(0, 10))
+  }
+  const today = new Date()
+  const result: boolean[] = []
+  for (let offset = 27; offset >= 0; offset -= 1) {
+    const d = new Date(today)
+    d.setDate(today.getDate() - offset)
+    const iso = d.toISOString().slice(0, 10)
+    result.push(dateSet.has(iso))
+  }
+  return result
 }

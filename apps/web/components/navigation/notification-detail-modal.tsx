@@ -1,7 +1,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Check, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
@@ -19,6 +18,8 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
+/** v8 chrome: flush body with mono timestamp eyebrow, and footer with quiet-link actions.
+ *  Destructive Delete uses italic style instead of red. */
 export function NotificationDetailModal({
   open,
   onOpenChange,
@@ -49,46 +50,78 @@ export function NotificationDetailModal({
       onOpenChange={onOpenChange}
       title={notification.title}
       footer={
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end" style={{ gap: 22 }}>
           {canView && (
-            <button
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-lg)] bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-colors"
-              onClick={handleView}
-            >
-              <ArrowRight className="size-4" />
-              {t('notifications.view')}
-            </button>
+            <QuietLink onClick={handleView}>{t('notifications.view')}</QuietLink>
           )}
           {canMarkAsRead && (
-            <button
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-lg)] bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-colors"
-              onClick={() => onMarkAsRead(notification.id)}
-            >
-              <Check className="size-4" />
+            <QuietLink onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
-            </button>
+            </QuietLink>
           )}
-          <button
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-lg)] bg-red-500/10 text-red-500 font-semibold text-sm hover:bg-red-500/15 transition-colors"
-            onClick={handleDelete}
-          >
-            <Trash2 className="size-4" />
+          <QuietLink destructive onClick={handleDelete}>
             {t('notifications.deleteNotification')}
-          </button>
+          </QuietLink>
         </div>
       }
     >
-      <div className="space-y-4">
-        {/* Timestamp */}
-        <p className="text-xs text-text-muted">
-          {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
-            t(`notifications.${key}`, values),
-          )}
-        </p>
-
-        {/* Body */}
-        <p className="text-sm text-text-secondary whitespace-pre-wrap">{notification.body}</p>
+      <div className="-mx-6">
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--hairline)' }}>
+          <p
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              letterSpacing: '0.04em',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
+              t(`notifications.${key}`, values),
+            )}
+          </p>
+        </div>
+        <div style={{ padding: '14px 20px' }}>
+          <p
+            className="whitespace-pre-wrap"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              color: 'var(--fg-2)',
+              lineHeight: 1.5,
+            }}
+          >
+            {notification.body}
+          </p>
+        </div>
       </div>
     </AppOverlay>
+  )
+}
+
+interface QuietLinkProps {
+  children: React.ReactNode
+  onClick: () => void
+  destructive?: boolean
+}
+
+function QuietLink({ children, onClick, destructive = false }: Readonly<QuietLinkProps>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="appearance-none border-0 bg-transparent cursor-pointer"
+      style={{
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        fontWeight: 500,
+        color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
+        fontStyle: destructive ? 'italic' : 'normal',
+        padding: 6,
+      }}
+    >
+      {children}
+    </button>
   )
 }

@@ -8,6 +8,8 @@ import {
   getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from '@orbit/shared/utils/goal-metrics'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -24,6 +26,8 @@ interface GoalMetricsPanelProps {
 // Component
 // ---------------------------------------------------------------------------
 
+/** v8 metrics: status row + flush SettingsRow strip + adherence rows.
+ *  No chrome cards — purely hairline-separated rows. */
 export function GoalMetricsPanel({
   metrics,
   unit,
@@ -37,37 +41,14 @@ export function GoalMetricsPanel({
     const presentation = getGoalMetricsStatusPresentation(metrics?.trackingStatus)
     if (!presentation) return null
 
-    switch (presentation.tone) {
-      case 'success':
-        return {
-          label: t(presentation.labelKey),
-          bg: 'bg-green-500/10',
-          text: 'text-green-400',
-          dot: 'bg-green-500',
-        }
-      case 'warning':
-        return {
-          label: t(presentation.labelKey),
-          bg: 'bg-amber-500/10',
-          text: 'text-amber-400',
-          dot: 'bg-amber-500',
-        }
-      case 'danger':
-        return {
-          label: t(presentation.labelKey),
-          bg: 'bg-red-500/10',
-          text: 'text-red-400',
-          dot: 'bg-red-500',
-        }
-      case 'muted':
-        return {
-          label: t(presentation.labelKey),
-          bg: 'bg-surface-elevated',
-          text: 'text-text-secondary',
-          dot: 'bg-text-muted',
-        }
-      default:
-        return null
+    let dotColor = 'var(--fg-3)'
+    if (presentation.tone === 'success') dotColor = 'var(--primary)'
+    else if (presentation.tone === 'warning') dotColor = 'var(--status-overdue)'
+    else if (presentation.tone === 'danger') dotColor = 'var(--status-bad)'
+
+    return {
+      label: t(presentation.labelKey),
+      dot: dotColor,
     }
   }, [metrics?.trackingStatus, t])
 
@@ -75,15 +56,24 @@ export function GoalMetricsPanel({
     return formatGoalMetricsDate(dateStr, locale)
   }
 
-  // Loading skeleton
   if (isLoading) {
     return (
-      <div className="space-y-3 py-4">
-        <div className="h-8 bg-surface-elevated rounded-xl animate-pulse" />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="h-16 bg-surface-elevated rounded-xl animate-pulse" />
-          <div className="h-16 bg-surface-elevated rounded-xl animate-pulse" />
-        </div>
+      <div>
+        <SectionLabel>{t('goals.metrics.title')}</SectionLabel>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            style={{
+              padding: '14px 20px',
+              borderBottom: '1px solid var(--hairline)',
+            }}
+          >
+            <div
+              className="animate-pulse rounded"
+              style={{ height: 14, width: 120, background: 'var(--bg-elev)' }}
+            />
+          </div>
+        ))}
       </div>
     )
   }
@@ -91,108 +81,122 @@ export function GoalMetricsPanel({
   if (!metrics) return null
 
   return (
-    <div className="space-y-4 py-4">
-      {/* Tracking Status Badge */}
+    <div>
+      <SectionLabel>{t('goals.metrics.title')}</SectionLabel>
+
+      {/* Status row with leading dot */}
       {statusConfig && (
-        <div
-          className={`${statusConfig.bg} flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-lg)] border border-border-muted`}
-        >
-          <div className={`${statusConfig.dot} w-2 h-2 rounded-full`} />
-          <span className={`${statusConfig.text} text-sm font-semibold`}>
-            {statusConfig.label}
-          </span>
-        </div>
+        <SettingsRow
+          label={t('goals.metrics.title')}
+          accessory="none"
+          leadingDot={statusConfig.dot}
+          value={statusConfig.label}
+          valueColor="var(--fg-1)"
+        />
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Projected Completion */}
-        <div className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
-          <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold">
-            {t('goals.metrics.projectedCompletion')}
-          </p>
-          <p className="text-sm font-semibold text-text-primary mt-1">
-            {metrics.projectedCompletionDate
-              ? formatMetricDate(metrics.projectedCompletionDate)
-              : t('goals.metrics.noData')}
-          </p>
-        </div>
+      {/* Projected completion */}
+      <SettingsRow
+        label={t('goals.metrics.projectedCompletion')}
+        mono
+        accessory="none"
+        value={
+          metrics.projectedCompletionDate
+            ? formatMetricDate(metrics.projectedCompletionDate)
+            : t('goals.metrics.noData')
+        }
+        valueColor="var(--fg-1)"
+      />
 
-        {/* Streak goals: show days remaining; standard goals: show velocity */}
-        {isStreak ? (
-          <div className="bg-orange-500/10 rounded-[var(--radius-lg)] px-4 py-3 border border-orange-500/20 shadow-[var(--shadow-sm)]">
-            <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">
-              {t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
-            </p>
-            <p className="text-sm font-semibold text-orange-300 mt-1">
-              {metrics.daysToDeadline ?? t('goals.metrics.noData')}
-            </p>
-          </div>
-        ) : (
-          <div className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 border border-border-muted shadow-[var(--shadow-sm)]">
-            <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold">
-              {t('goals.metrics.velocity')}
-            </p>
-            <p className="text-sm font-semibold text-text-primary mt-1">
-              {metrics.velocityPerDay > 0
-                ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
-                : t('goals.metrics.noData')}
-            </p>
-          </div>
-        )}
-      </div>
+      {/* Streak: days remaining. Standard: velocity. */}
+      {isStreak ? (
+        <SettingsRow
+          label={t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
+          mono
+          accessory="none"
+          value={metrics.daysToDeadline ?? t('goals.metrics.noData')}
+          valueColor="var(--fg-1)"
+        />
+      ) : (
+        <SettingsRow
+          label={t('goals.metrics.velocity')}
+          mono
+          accessory="none"
+          value={
+            metrics.velocityPerDay > 0
+              ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
+              : t('goals.metrics.noData')
+          }
+          valueColor="var(--fg-1)"
+        />
+      )}
 
-      {/* Linked Habit Adherence */}
+      {/* Linked habit adherence */}
       {metrics.habitAdherence.length > 0 && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-text-muted font-bold mb-2">
-            {t('goals.metrics.habitAdherence')}
-          </p>
-          <div className="space-y-2">
-            {metrics.habitAdherence.map((habit) => {
-              const adherenceTone = getGoalHabitAdherenceTone(
-                habit.weeklyCompletionRate,
-              )
-              let barColor = 'bg-amber-500'
-              if (adherenceTone === 'success') {
-                barColor = 'bg-green-500'
-              } else if (adherenceTone === 'primary') {
-                barColor = 'bg-primary'
-              }
+        <>
+          <SectionLabel>{t('goals.metrics.habitAdherence')}</SectionLabel>
+          {metrics.habitAdherence.map((habit) => {
+            const adherenceTone = getGoalHabitAdherenceTone(habit.weeklyCompletionRate)
+            let barColor = 'var(--status-overdue)'
+            if (adherenceTone === 'success') {
+              barColor = 'var(--primary)'
+            } else if (adherenceTone === 'primary') {
+              barColor = 'var(--primary)'
+            }
 
-              return (
-                <div
-                  key={habit.habitId}
-                  className="bg-surface-elevated rounded-[var(--radius-lg)] px-4 py-3 flex items-center justify-between border border-border-muted shadow-[var(--shadow-sm)]"
+            return (
+              <div
+                key={habit.habitId}
+                className="flex items-center"
+                style={{
+                  padding: '12px 20px',
+                  borderBottom: '1px solid var(--hairline)',
+                  gap: 12,
+                }}
+              >
+                <span
+                  className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
+                  style={{
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 14,
+                    color: 'var(--fg-1)',
+                  }}
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-text-primary truncate">
-                      {habit.habitTitle}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                          style={{
-                            width: `${Math.min(100, habit.weeklyCompletionRate)}%`,
-                          }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-text-muted font-semibold whitespace-nowrap">
-                        {Math.round(habit.weeklyCompletionRate)}%
-                      </span>
-                    </div>
-                  </div>
-                  {habit.currentStreak > 0 && (
-                    <div className="ml-3 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold whitespace-nowrap">
-                      {t('habits.detail.streakDays', { n: habit.currentStreak })}
-                    </div>
-                  )}
+                  {habit.habitTitle}
+                </span>
+                <div
+                  className="relative rounded-full"
+                  style={{
+                    width: 80,
+                    height: 3,
+                    background: 'var(--bg-sunk)',
+                  }}
+                >
+                  <div
+                    className="absolute left-0 top-0 bottom-0 rounded-full"
+                    style={{
+                      width: `${Math.min(100, habit.weeklyCompletionRate)}%`,
+                      background: barColor,
+                    }}
+                  />
                 </div>
-              )
-            })}
-          </div>
-        </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'var(--fg-1)',
+                    fontVariantNumeric: 'tabular-nums',
+                    minWidth: 28,
+                    textAlign: 'right',
+                  }}
+                >
+                  {Math.round(habit.weeklyCompletionRate)}%
+                </span>
+              </div>
+            )
+          })}
+        </>
       )}
     </div>
   )

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import type { Goal } from '@orbit/shared/types/goal'
+import { SectionLabel } from '@/components/ui/section-label'
 
 interface GoalProgressHistoryEntry {
   createdAtUtc: string
@@ -23,6 +24,8 @@ interface GoalProgressHistorySectionProps {
 
 const HISTORY_PREVIEW_COUNT = 3
 
+/** Flush list of progress history entries: mono date right-aligned, change label
+ *  in mono, optional italic note. Matches v8 GoalDetail history rows. */
 export function GoalProgressHistorySection({
   title,
   entries,
@@ -46,36 +49,73 @@ export function GoalProgressHistorySection({
 
   return (
     <div>
-      <h4 className="form-label mb-2">{title}</h4>
-      <div className="space-y-2">
-        {visibleEntries.map((entry) => (
-          <div
-            key={`${entry.createdAtUtc}-${entry.value}`}
-            className="flex items-center justify-between text-xs bg-surface-elevated rounded-xl px-3 py-2"
-          >
-            <div>
-              <span className="text-text-primary font-medium">
-                {renderEntryLabel(entry)}
-              </span>
-              {entry.note && (
-                <span className="text-text-muted ml-2">{entry.note}</span>
-              )}
-            </div>
-            <span className="text-text-muted shrink-0 ml-2">
+      <SectionLabel>{title}</SectionLabel>
+      {visibleEntries.map((entry) => (
+        <div
+          key={`${entry.createdAtUtc}-${entry.value}`}
+          className="flex flex-col"
+          style={{
+            padding: '10px 20px',
+            borderBottom: '1px solid var(--hairline)',
+            gap: 3,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 11,
+                color: 'var(--fg-3)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
               {formatDate(entry.createdAtUtc)}
             </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {renderEntryLabel(entry)}
+            </span>
           </div>
-        ))}
-      </div>
+          {entry.note && (
+            <div
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                fontStyle: 'italic',
+                color: 'var(--fg-2)',
+              }}
+            >
+              {entry.note}
+            </div>
+          )}
+        </div>
+      ))}
       {entries.length > HISTORY_PREVIEW_COUNT && (
-        <button
-          className="mt-2 text-xs text-primary font-semibold hover:text-primary/80 transition-colors"
-          onClick={() => setShowAllHistory((prev) => !prev)}
-        >
-          {showAllHistory
-            ? showLessLabel
-            : `${showAllLabel} (${entries.length})`}
-        </button>
+        <div style={{ padding: '10px 20px' }}>
+          <button
+            type="button"
+            className="appearance-none border-0 bg-transparent cursor-pointer"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
+              padding: 0,
+            }}
+            onClick={() => setShowAllHistory((prev) => !prev)}
+          >
+            {showAllHistory
+              ? showLessLabel
+              : `${showAllLabel} (${entries.length})`}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -102,6 +142,8 @@ interface GoalProgressFormProps {
   labelExceedsTarget: string
 }
 
+/** Inline progress-update form rendered in-place inside the GoalDetailDrawer.
+ *  Underlined inputs with mono numerals match v8 update flow. */
 export function GoalProgressForm({
   progressValue,
   progressNote,
@@ -119,60 +161,130 @@ export function GoalProgressForm({
   labelExceedsTarget,
 }: Readonly<GoalProgressFormProps>) {
   return (
-    <div className="space-y-3 bg-surface-elevated rounded-[var(--radius-lg)] p-4 border border-border-muted shadow-[var(--shadow-sm)]">
-      <div>
-        <label htmlFor="goal-progress-value" className="form-label">
-          {labelValue}
-        </label>
-        <input
-          id="goal-progress-value"
-          type="number"
-          value={progressValue ?? ''}
-          onChange={(e) =>
-            onProgressValueChange(
-              e.target.value === '' ? null : Number(e.target.value),
-            )
-          }
-          className="form-input"
-          min={0}
-          step="any"
-        />
-        {progressExceedsTarget && (
-          <p className="text-xs text-amber-400 font-medium mt-1">
-            {labelExceedsTarget}
-          </p>
-        )}
-      </div>
-      <div>
-        <label htmlFor="goal-progress-note" className="form-label">
-          {labelNote}
-        </label>
-        <input
-          id="goal-progress-note"
-          type="text"
-          value={progressNote}
-          onChange={(e) => onProgressNoteChange(e.target.value)}
-          className="form-input"
-          placeholder={labelNote}
-          maxLength={500}
-        />
-      </div>
-      <div className="flex gap-2">
-        <button
-          disabled={progressValue === null || isUpdating}
-          className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 disabled:opacity-50"
-          onClick={onSubmit}
+    <div
+      className="flex flex-col"
+      style={{
+        padding: '12px 20px',
+        borderBottom: '1px solid var(--hairline)',
+        gap: 10,
+      }}
+    >
+      <UnderlinedInputField
+        label={labelValue}
+        type="number"
+        mono
+        value={progressValue ?? ''}
+        onChange={(raw) =>
+          onProgressValueChange(raw === '' ? null : Number(raw))
+        }
+      />
+      {progressExceedsTarget && (
+        <p
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
         >
-          {isUpdating ? '...' : labelSave}
-        </button>
+          {labelExceedsTarget}
+        </p>
+      )}
+      <UnderlinedInputField
+        label={labelNote}
+        type="text"
+        value={progressNote}
+        onChange={onProgressNoteChange}
+        placeholder={labelNote}
+        maxLength={500}
+      />
+      <div className="flex items-center justify-end" style={{ gap: 14 }}>
         <button
-          className="py-2.5 px-4 rounded-[var(--radius-lg)] bg-surface text-text-secondary font-medium text-sm hover:bg-surface-elevated/80 transition-all duration-150"
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--fg-3)',
+            padding: 6,
+          }}
           onClick={onCancel}
         >
           {labelCancel}
         </button>
+        <button
+          type="button"
+          disabled={progressValue === null || isUpdating}
+          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            padding: 6,
+          }}
+          onClick={onSubmit}
+        >
+          {isUpdating ? '...' : labelSave}
+        </button>
       </div>
     </div>
+  )
+}
+
+interface UnderlinedInputFieldProps {
+  label: string
+  value: string | number
+  type?: 'text' | 'number'
+  placeholder?: string
+  maxLength?: number
+  mono?: boolean
+  onChange: (next: string) => void
+}
+
+/** v8 UnderlinedInput: tiny label, bare input with hairline underline. */
+function UnderlinedInputField({
+  label,
+  value,
+  type = 'text',
+  placeholder,
+  maxLength,
+  mono = false,
+  onChange,
+}: Readonly<UnderlinedInputFieldProps>) {
+  return (
+    <label className="flex flex-col" style={{ gap: 4 }}>
+      <span
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          appearance: 'none',
+          border: 0,
+          background: 'transparent',
+          outline: 'none',
+          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontSize: 14,
+          color: 'var(--fg-1)',
+          padding: '4px 0',
+          borderBottom: '1px solid var(--hairline-strong)',
+          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
+        }}
+      />
+    </label>
   )
 }
 
@@ -181,6 +293,7 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
+/** v8 linked-habits list: each habit is a single row with progress bar and percent. */
 export function GoalLinkedHabitsSection({
   title,
   linkedHabits,
@@ -190,44 +303,65 @@ export function GoalLinkedHabitsSection({
   }
 
   return (
-    <div className="mt-4" data-tour="tour-goal-link">
-      <h4 className="form-label mb-2">{title}</h4>
-      <div className="flex flex-wrap gap-2">
-        {linkedHabits.map((habit) => (
+    <div data-tour="tour-goal-link">
+      <SectionLabel>{title}</SectionLabel>
+      {linkedHabits.map((habit) => (
+        <div
+          key={habit.id}
+          className="flex items-center"
+          style={{
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--hairline)',
+            gap: 12,
+          }}
+        >
           <span
-            key={habit.id}
-            className="px-2.5 py-1 rounded-xl text-xs font-medium bg-surface border border-border text-text-secondary"
+            className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              color: 'var(--fg-1)',
+            }}
           >
             {habit.title}
           </span>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
 
 interface GoalActionButtonProps {
-  icon: ReactNode
+  icon?: ReactNode
   label: string
   onClick: () => void
-  className: string
+  className?: string
   disabled?: boolean
+  destructive?: boolean
 }
 
+/** v8 quiet-link footer action: italic when destructive, otherwise fg-1. */
 export function GoalActionButton({
-  icon,
   label,
   onClick,
-  className,
   disabled = false,
+  destructive = false,
 }: Readonly<GoalActionButtonProps>) {
   return (
     <button
-      className={className}
+      type="button"
       onClick={onClick}
       disabled={disabled}
+      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+      style={{
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        fontWeight: 500,
+        color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
+        fontStyle: destructive ? 'italic' : 'normal',
+        padding: 6,
+      }}
     >
-      {icon}
       {label}
     </button>
   )

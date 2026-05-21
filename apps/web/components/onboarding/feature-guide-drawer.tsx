@@ -108,36 +108,82 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
 
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('onboarding.featureGuide.title')}>
-      <div className="h-[65dvh]">
-        {/* Tab bar */}
-        <div role="tablist" className="flex flex-wrap gap-2 mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              role="tab"
-              aria-selected={activeSection === tab.key}
-              tabIndex={activeSection === tab.key ? 0 : -1}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 border ${
-                activeSection === tab.key
-                  ? 'bg-primary text-white border-primary/30 shadow-[var(--shadow-glow-sm)]'
-                  : 'bg-surface-elevated text-text-secondary hover:text-text-primary border-border-muted'
-              }`}
-              onClick={() => setActiveSection(tab.key)}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
+      <div className="-mx-6">
+        {/* Tab strip — overflow-x scroll, v8 hairline chips */}
+        <div
+          role="tablist"
+          className="flex"
+          style={{
+            gap: 6,
+            padding: '4px 20px 12px',
+            overflowX: 'auto',
+          }}
+        >
+          {tabs.map((tab) => {
+            const isActive = activeSection === tab.key
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                tabIndex={isActive ? 0 : -1}
+                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0"
+                style={{
+                  height: 26,
+                  padding: '0 9px',
+                  borderRadius: 6,
+                  background: isActive ? 'var(--bg-elev)' : 'transparent',
+                  boxShadow: isActive
+                    ? 'inset 0 0 0 1px var(--fg-3)'
+                    : 'inset 0 0 0 1px var(--hairline-strong)',
+                  border: 0,
+                  color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 500,
+                }}
+                onClick={() => setActiveSection(tab.key)}
+              >
+                {t(tab.labelKey)}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Section content */}
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div key={item.titleKey}>
-              <h3 className="text-sm font-bold text-text-primary mb-1">{t(item.titleKey)}</h3>
-              <p className="text-sm text-text-secondary leading-relaxed">{t(item.descKey)}</p>
-            </div>
-          ))}
-        </div>
+        {/* Section content — flush hairline rows */}
+        {items.map((item) => (
+          <div
+            key={item.titleKey}
+            className="flex flex-col"
+            style={{
+              padding: '12px 20px',
+              gap: 4,
+              borderBottom: '1px solid var(--hairline)',
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {t(item.titleKey)}
+            </h3>
+            <p
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+                lineHeight: 1.55,
+              }}
+            >
+              {t(item.descKey)}
+            </p>
+          </div>
+        ))}
       </div>
     </AppOverlay>
   )
