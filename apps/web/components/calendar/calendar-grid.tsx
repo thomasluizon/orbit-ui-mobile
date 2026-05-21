@@ -39,7 +39,7 @@ interface GridDay {
   completionRatio: number
 }
 
-type DayStatus = 'empty' | 'done' | 'missed' | 'upcoming'
+type DayStatus = 'empty' | 'full' | 'partial' | 'missed'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -47,57 +47,14 @@ type DayStatus = 'empty' | 'done' | 'missed' | 'upcoming'
 
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return 'empty'
-  if (cell.completedCount === cell.totalCount) return 'done'
+  if (cell.completedCount === cell.totalCount) return 'full'
   const hasMissed = cell.entries.some((e) => e.status === 'missed')
   if (hasMissed) return 'missed'
-  return 'upcoming'
-}
-
-function dayBgClass(cell: GridDay): string {
-  const status = dayStatus(cell)
-  switch (status) {
-    case 'done':
-      return cell.completionRatio >= 0.9 ? 'bg-green-500' : 'bg-green-500/60'
-    case 'missed':
-      return 'bg-orange-500/30'
-    case 'upcoming':
-      return 'bg-primary/20'
-    default:
-      return cell.isCurrentMonth ? 'bg-surface-ground' : ''
-  }
-}
-
-function dayTextClass(cell: GridDay): string {
-  if (!cell.isCurrentMonth) return 'text-text-faded/40'
-  const status = dayStatus(cell)
-  switch (status) {
-    case 'done':
-      return 'text-white font-bold'
-    case 'missed':
-      return 'text-orange-300 font-medium'
-    case 'upcoming':
-      return 'text-text-primary font-medium'
-    default:
-      return 'text-text-faded'
-  }
-}
-
-function dotClass(cell: GridDay): string {
-  const status = dayStatus(cell)
-  switch (status) {
-    case 'done':
-      return 'bg-green-400 animate-perfect-day'
-    case 'missed':
-      return 'bg-orange-400'
-    case 'upcoming':
-      return 'bg-primary-400'
-    default:
-      return ''
-  }
+  return 'partial'
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Component — v8 month grid: minimal, hairline-free cells, primary dot for today.
 // ---------------------------------------------------------------------------
 
 export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<CalendarGridProps>) {
@@ -152,41 +109,130 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
   }, [currentMonth, dayMap, weekStartsOn])
 
   return (
-    <div className="space-y-2" data-tour="tour-calendar-grid">
+    <div
+      data-tour="tour-calendar-grid"
+      style={{ padding: '16px 20px 8px' }}
+    >
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-2">
-        {weekdayHeaders.map((day) => (
-          <div key={day} className="text-center text-xs font-bold text-text-faded">
+      <div
+        className="grid"
+        style={{
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          marginBottom: 12,
+        }}
+      >
+        {weekdayHeaders.map((day, i) => (
+          <div
+            key={`${day}-${i}`}
+            className="text-center"
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              letterSpacing: '0.04em',
+            }}
+          >
             {day}
           </div>
         ))}
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-2">
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 6 }}
+      >
         {gridDays.map((cell, index) => {
           const canSelect = cell.isCurrentMonth
+          const status = dayStatus(cell)
 
           return (
             <button
+              type="button"
               key={cell.dateStr}
               data-tour={index === 0 ? 'tour-calendar-day' : undefined}
               aria-label={displayWeekdayDate(cell.date, true)}
               aria-current={cell.isToday ? 'date' : undefined}
               aria-disabled={!canSelect}
-              className={`aspect-square rounded-[var(--radius-xl)] flex flex-col items-center justify-center text-sm transition-all duration-150 relative gap-0.5 ${dayBgClass(cell)} ${dayTextClass(cell)} ${canSelect ? 'cursor-pointer hover:ring-2 hover:ring-primary/30' : ''} ${cell.isToday ? 'ring-2 ring-background ring-offset-2 ring-offset-primary' : ''}`}
               onClick={() => canSelect && onSelectDay(cell.dateStr)}
+              className="relative flex flex-col items-center justify-center"
+              style={{
+                appearance: 'none',
+                border: 0,
+                background: 'transparent',
+                height: 40,
+                gap: 3,
+                borderRadius: 6,
+                cursor: canSelect ? 'pointer' : 'default',
+                color: cell.isCurrentMonth ? 'var(--fg-1)' : 'var(--fg-4)',
+                opacity: cell.isCurrentMonth ? 1 : 0.5,
+              }}
             >
-              <span aria-hidden="true">{cell.day}</span>
-              {cell.isCurrentMonth && cell.totalCount > 0 && (
-                <span aria-hidden="true" className="flex gap-px">
-                  <span className={`size-1 rounded-full ${dotClass(cell)}`} />
-                </span>
-              )}
+              <span
+                aria-hidden="true"
+                style={{
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: 13,
+                  fontWeight: cell.isToday ? 600 : 400,
+                  color:
+                    cell.isCurrentMonth
+                      ? status === 'empty' && !cell.isToday
+                        ? 'var(--fg-3)'
+                        : 'var(--fg-1)'
+                      : 'var(--fg-4)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {cell.day}
+              </span>
+              <span aria-hidden="true" style={{ width: 5, height: 5 }}>
+                {renderDot(cell.isToday ? 'today' : status)}
+              </span>
             </button>
           )
         })}
       </div>
     </div>
   )
+}
+
+function renderDot(kind: 'today' | DayStatus): React.ReactNode {
+  if (kind === 'today') {
+    return (
+      <span
+        className="block rounded-full"
+        style={{ width: 5, height: 5, background: 'var(--primary)' }}
+      />
+    )
+  }
+  if (kind === 'full') {
+    return (
+      <span
+        className="block rounded-full"
+        style={{ width: 5, height: 5, background: 'var(--fg-1)' }}
+      />
+    )
+  }
+  if (kind === 'partial') {
+    return (
+      <span
+        className="block rounded-full"
+        style={{
+          width: 5,
+          height: 5,
+          boxShadow: 'inset 0 0 0 1px var(--fg-3)',
+        }}
+      />
+    )
+  }
+  if (kind === 'missed') {
+    return (
+      <span
+        className="block rounded-full"
+        style={{ width: 5, height: 5, background: 'var(--status-overdue)' }}
+      />
+    )
+  }
+  return null
 }

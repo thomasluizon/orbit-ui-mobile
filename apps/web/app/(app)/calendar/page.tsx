@@ -25,7 +25,10 @@ export default function CalendarPage() {
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
-  const monthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }), [currentMonth, dateFnsLocale])
+  const monthLabel = useMemo(
+    () => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }),
+    [currentMonth, dateFnsLocale],
+  )
 
   // Mini completion summary for the header
   const monthSummary = useMemo(() => {
@@ -106,12 +109,17 @@ export default function CalendarPage() {
 
       {/* Loading skeleton */}
       {isLoading && (
-        <div className="py-4">
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+        <div style={{ padding: '16px 20px' }}>
+          <div className="grid grid-cols-7" style={{ gap: 6 }}>
             {Array.from({ length: 35 }, (_, i) => (
               <div
                 key={i}
-                className="aspect-square bg-surface rounded-[var(--radius-xl)] animate-pulse"
+                className="animate-pulse"
+                style={{
+                  height: 40,
+                  background: 'var(--bg-sunk)',
+                  borderRadius: 6,
+                }}
               />
             ))}
           </div>
@@ -127,17 +135,11 @@ export default function CalendarPage() {
 
       {/* Calendar grid */}
       {!isLoading && (
-        <div
-          className={`py-2 transition-opacity duration-200 bg-surface rounded-[var(--radius-xl)] border border-border-muted p-3 shadow-[var(--shadow-sm)] ${
-            isFetching ? 'opacity-40 pointer-events-none' : ''
-          }`}
-        >
-          <CalendarGrid
-            currentMonth={currentMonth}
-            dayMap={dayMap}
-            onSelectDay={onSelectDay}
-          />
-        </div>
+        <CalendarGrid
+          currentMonth={currentMonth}
+          dayMap={dayMap}
+          onSelectDay={onSelectDay}
+        />
       )}
 
       <CalendarLegend

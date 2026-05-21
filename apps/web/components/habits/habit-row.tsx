@@ -40,6 +40,8 @@ interface HabitRowProps {
   childProgress?: { done: number; total: number }
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
+  /** Optional data attribute (`data-tour-target`) used by the feature tour. */
+  tourTargetId?: string
   actions?: HabitCardActions
 }
 
@@ -60,6 +62,7 @@ export function HabitRow({
   expanded = false,
   childProgress,
   showLinkedGoalDot = false,
+  tourTargetId,
   actions = {},
 }: Readonly<HabitRowProps>) {
   const {
@@ -113,6 +116,7 @@ export function HabitRow({
           handleRowClick()
         }
       }}
+      data-tour-target={tourTargetId}
       className="relative flex items-center cursor-pointer"
       style={{
         gap: 10,

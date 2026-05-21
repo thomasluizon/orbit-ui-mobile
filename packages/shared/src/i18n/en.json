@@ -121,6 +121,7 @@
     "no": "No",
     "all": "All",
     "select": "Select",
+    "upgrade": "Upgrade",
     "proBadge": "Pro",
     "yearlyBadge": "Yearly",
     "required": "is required",
@@ -255,6 +256,9 @@
     "viewToday": "Today",
     "viewAll": "All",
     "viewGeneral": "General",
+    "today": "Today",
+    "sectionLabel": "Habits",
+    "statOf": "of",
     "searchPlaceholder": "Search habits...",
     "showCompleted": "Show completed",
     "collapseAll": "Collapse all",
@@ -541,7 +545,8 @@
     "legend": {
       "done": "Done",
       "upcoming": "Upcoming",
-      "missed": "Missed"
+      "missed": "Missed",
+      "sectionTitle": "Legend"
     },
     "summary": {
       "days": "days completed"
@@ -625,8 +630,11 @@
     }
   },
   "chat": {
-    "title": "Chat with Orbit",
-    "placeholder": "Tell Orbit what you did...",
+    "title": "Astra",
+    "empty": {
+      "title": "How did the day land?"
+    },
+    "placeholder": "Ask Astra",
     "attachImage": "Attach image",
     "send": "Send message",
     "removeImage": "Remove image",
@@ -643,7 +651,7 @@
     "limitReachedError": "You've reached your monthly AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "suggestion": {
-      "prompt": "Ask me to create habits, log completions, or manage your routine",
+      "prompt": "I can recap, plan, or help you adjust a habit.",
       "meditated": "I meditated today",
       "exercise": "Create a habit to exercise every morning",
       "groceries": "I need to buy groceries tomorrow"
@@ -675,7 +683,7 @@
     "messagesUsed": "messages used this month",
     "imageFallback": "Image",
     "senderYou": "You",
-    "senderOrbit": "Orbit",
+    "senderOrbit": "Astra",
     "unknownEntity": "Unknown",
     "starterChips": {
       "logHabit": "Log a habit",
@@ -694,7 +702,8 @@
       "notifications": "Notifications",
       "aboutHelp": "About & Help",
       "advanced": "Advanced",
-      "accountActions": "Account",
+      "accountActions": "Account actions",
+      "subscription": "Subscription",
       "preferencesHint": "Language, colors, notifications",
       "aiFeaturesHint": "Memory, daily summary",
       "aboutHelpHint": "Feature guide, support, referral",
@@ -781,6 +790,7 @@
       "feature4": "Automatically shows tomorrow's habits when today is clear"
     },
     "subscription": {
+      "plan": "Plan",
       "pro": "Orbit Pro",
       "proHint": "Manage your subscription",
       "free": "Free Plan",
@@ -788,7 +798,8 @@
       "trial": "Pro Trial",
       "trialDaysLeft": "{days} day remaining | {days} days remaining",
       "trialEnded": "Trial Ended",
-      "trialEndedHint": "Upgrade to get Pro features back"
+      "trialEndedHint": "Upgrade to get Pro features back",
+      "manage": "Manage"
     },
     "freshStart": {
       "button": "Fresh Start",
@@ -948,7 +959,10 @@
     "title": "Your Day",
     "loading": "Checking in on your day...",
     "error": "Couldn't load your summary.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "askAstra": "Ask Astra",
+    "upgrade": "Upgrade",
+    "freePrompt": "Pro gets a daily summary about your habits."
   },
   "retrospective": {
     "title": "Retrospective",
@@ -1746,6 +1760,8 @@
     }
   },
   "streakDisplay": {
+    "title": "Streak",
+    "daysSuffix": "days",
     "celebration": {
       "title": "Streak!",
       "subtitle": "1 day streak | {count} day streak",

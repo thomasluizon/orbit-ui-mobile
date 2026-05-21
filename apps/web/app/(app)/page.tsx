@@ -23,14 +23,15 @@ import {
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
-import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
+import { TodayAISummary } from '@/components/habits/today-ai-summary'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ControlsMenu } from '@/components/habits/controls-menu'
-import { BulkActionBar } from '@/components/habits/bulk-action-bar'
-import { TodayFilters } from '@/components/habits/today-filters'
+import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { InfoRow } from '@/components/ui/info-row'
+import { SectionLabel } from '@/components/ui/section-label'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useStreakInfo } from '@/hooks/use-gamification'
@@ -45,6 +46,7 @@ import {
   TodayHeader,
   TodayTabs,
   TodayDateNavigation,
+  TodayUtilityRow,
   type TodayTabItem,
 } from './today-shell'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
@@ -137,6 +139,7 @@ export default function TodayPage() {
 
   // Local state
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [showControlsMenu, setShowControlsMenu] = useState(false)
   const [controlsMenuPosition, setControlsMenuPosition] = useState({ top: 0, left: 0 })
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
@@ -298,6 +301,24 @@ export default function TodayPage() {
     })
   }, [selectedDate, t, locale])
 
+  const headerSubtitle = useMemo(() => {
+    if (currentActiveView === 'all') return t('habits.viewAll')
+    if (currentActiveView === 'general') return t('habits.viewGeneral')
+    if (currentActiveView === 'goals') return t('goals.tab')
+    return formatLocaleDate(selectedDate, locale, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+  }, [currentActiveView, selectedDate, locale, t])
+
+  const headerTitle = useMemo(() => {
+    if (currentActiveView === 'all') return t('habits.viewAll')
+    if (currentActiveView === 'general') return t('habits.viewGeneral')
+    if (currentActiveView === 'goals') return t('goals.tab')
+    return t('habits.today')
+  }, [currentActiveView, t])
+
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
       TAB_VIEWS.map((view) => ({
@@ -342,6 +363,16 @@ export default function TodayPage() {
     setLocalSearchQuery(searchQueryStore)
   }
 
+  const toggleSearch = useCallback(() => {
+    setSearchOpen((open) => {
+      if (open && localSearchQuery) {
+        // closing — clear the input
+        setLocalSearchQuery('')
+      }
+      return !open
+    })
+  }, [localSearchQuery])
+
   // Build filters
   const filters = useMemo<HabitsFilter>(() => {
     if (currentActiveView === 'general') {
@@ -381,6 +412,17 @@ export default function TodayPage() {
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
+
+  // Top-level done/total for stat strip (Today view)
+  const topLevelHabits = useMemo(
+    () => habitsQuery.data?.topLevelHabits ?? [],
+    [habitsQuery.data],
+  )
+  const statTotal = topLevelHabits.length
+  const statDone = useMemo(
+    () => topLevelHabits.filter((h) => h.isCompleted).length,
+    [topLevelHabits],
+  )
 
   // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
   const getDescendantIds = useCallback(
@@ -488,30 +530,38 @@ export default function TodayPage() {
     onSuccess: clearSelection,
   })
 
+  const showStatStrip = currentActiveView === 'today' && hasFetched && statTotal > 0
+  const statPct = statTotal > 0 ? statDone / statTotal : 0
+
   return (
     <div className="relative">
       <TodayHeader
-        onGoToToday={goToToday}
+        title={headerTitle}
+        subtitle={headerSubtitle}
         streak={streakInfo?.currentStreak ?? 0}
-        goToTodayLabel={t('dates.goToToday')}
       />
+
+      {/* AI Summary block (Today view only) */}
+      {currentActiveView === 'today' && isToday(selectedDate) && (
+        <TodayAISummary date={formatAPIDate(selectedDate)} />
+      )}
+
+      {/* Stat strip below header */}
+      {showStatStrip && (
+        <InfoRow
+          label={`${statDone} ${t('habits.statOf')} ${statTotal} · ${Math.round(statPct * 100)}%`}
+          progress={statPct}
+        />
+      )}
 
       <TodayTabs
         tabs={tabItems}
         activeView={currentActiveView}
+        hasProAccess={hasProAccess}
         onChangeView={attemptViewChange}
         viewsLabel={t('habits.viewsLabel')}
         onKeyDown={handleTabKeydown}
       />
-
-      {/* Goals view */}
-      <div
-        id="tabpanel-goals"
-        role="tabpanel"
-        aria-labelledby="tab-goals"
-      >
-        {currentActiveView === 'goals' && <GoalsView />}
-      </div>
 
       <TodayDateNavigation
         visible={currentActiveView === 'today'}
@@ -526,15 +576,14 @@ export default function TodayPage() {
         nextLabel={t('dates.nextDay')}
       />
 
-      {/* AI Summary card (Today view only, when summary is enabled) */}
-      {currentActiveView === 'today' &&
-        isToday(selectedDate) &&
-        profile?.hasProAccess &&
-        profile?.aiSummaryEnabled && (
-          <div className="pb-2">
-            <HabitSummaryCard date={formatAPIDate(selectedDate)} />
-          </div>
-        )}
+      {/* Goals view */}
+      <div
+        id="tabpanel-goals"
+        role="tabpanel"
+        aria-labelledby="tab-goals"
+      >
+        {currentActiveView === 'goals' && <GoalsView />}
+      </div>
 
       {/* Habits content (hidden on goals tab) */}
       {currentActiveView !== 'goals' && (
@@ -543,15 +592,19 @@ export default function TodayPage() {
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
         >
+          <SectionLabel top={20} bottom={0}>{t('habits.sectionLabel')}</SectionLabel>
+
           <motion.div layout transition={listTransition}>
-            <TodayFilters
+            <TodayUtilityRow
               activeView={currentActiveView}
-              localSearchQuery={localSearchQuery}
+              searchOpen={searchOpen}
+              searchValue={localSearchQuery}
               selectedFrequency={selectedFrequency}
               selectedTagIds={selectedTagIds}
               tags={tags}
               frequencyOptions={frequencyOptions}
               controlsMenuRef={controlsMenuRef}
+              onSearchToggle={toggleSearch}
               onSearchChange={setLocalSearchQuery}
               onSearchClear={() => setLocalSearchQuery('')}
               onFrequencyChange={setSelectedFrequency}
@@ -585,17 +638,35 @@ export default function TodayPage() {
 
           {/* Loading skeleton (before first fetch) */}
           {!hasFetched && (
-            <div className="stagger-enter space-y-3 pt-2">
+            <div className="stagger-enter">
               {SKELETON_KEYS.map((key) => (
                 <div
                   key={key}
-                  className="flex items-center gap-4 rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground p-4 shadow-[var(--shadow-sm)]"
+                  className="flex items-center"
+                  style={{
+                    padding: '16px 20px',
+                    gap: 14,
+                    borderBottom: '1px solid var(--hairline)',
+                  }}
                 >
-                  <div className="size-10 rounded-full bg-surface-elevated animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-5 w-3/4 bg-surface-elevated rounded animate-pulse" />
-                    <div className="h-3 w-1/2 bg-surface-elevated rounded animate-pulse" />
+                  <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
+                    <div
+                      className="rounded-sm animate-pulse"
+                      style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
+                    />
+                    <div
+                      className="rounded-sm animate-pulse"
+                      style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
+                    />
                   </div>
+                  <div
+                    className="rounded-full shrink-0"
+                    style={{
+                      width: 9,
+                      height: 9,
+                      boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+                    }}
+                  />
                 </div>
               ))}
             </div>
@@ -629,7 +700,7 @@ export default function TodayPage() {
             <motion.div
               layout
               data-testid="today-list-shell"
-              className={`overflow-x-hidden overflow-y-visible pt-2 ${
+              className={`overflow-x-hidden overflow-y-visible ${
                 isSelectMode ? 'pb-20' : ''
               }`}
               animate={{
@@ -671,7 +742,7 @@ export default function TodayPage() {
       {/* Floating bulk action bar */}
       <AnimatePresence initial={false}>
         {isSelectMode && typeof document !== 'undefined' ? (
-          <BulkActionBar
+          <BulkActionBarV2
             selectedCount={selectedHabitIds.size}
             allSelected={allSelected}
             onSelectAll={selectAll}

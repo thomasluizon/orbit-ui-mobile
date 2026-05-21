@@ -9,24 +9,26 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { LogOut, RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { User } from 'lucide-react'
 import {
   useProfile,
   useTrialDaysLeft,
   useTrialExpired,
 } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
+import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { ProfileStreakCard } from '@/components/gamification/profile-streak-card'
-import { useGamificationProfile } from '@/hooks/use-gamification'
+import { StreakBadge } from '@/components/gamification/streak-badge'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { SubscriptionCard } from './_components/subscription-card'
 import { FreshStartModal } from './_components/fresh-start-modal'
 import { DeleteAccountModal } from './_components/delete-account-modal'
 import { ProfileNavCard } from './_components/profile-nav-card'
 import { ProfileActionButton } from './_components/profile-action-button'
-import { ProfileNavIcon } from './_components/profile-nav-icon'
-import { TourReplayCard } from './_components/tour-replay-card'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -40,6 +42,7 @@ export default function ProfilePage() {
   const { profile: gamificationProfile } = useGamificationProfile(
     profile?.hasProAccess ?? false,
   )
+  const { data: streakInfo } = useStreakInfo()
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
@@ -59,12 +62,12 @@ export default function ProfilePage() {
       profile?.hasProAccess &&
       gamificationProfile
     ) {
-      return `${t('gamification.profileCard.level', { level: gamificationProfile.level })} \u00B7 ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
+      return `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
     }
     return t(item.hintKey)
   }
 
-  // Handle subscription success redirect -- refresh profile to pick up new plan
+  // Handle subscription success redirect — refresh profile to pick up new plan
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
       queryClient.invalidateQueries({ queryKey: profileKeys.all })
@@ -83,186 +86,241 @@ export default function ProfilePage() {
     router.push(item.route)
   }
 
-  return (
-    <div className="pb-8">
-      {/* Header */}
-      <header className="pt-8 pb-6 flex items-center justify-between">
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('profile.title')}
-        </h1>
-        <ThemeToggle />
-      </header>
+  const userInitials = profile?.name
+    ? profile.name
+        .split(' ')
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+    : '?'
 
-      {/* Store error */}
+  return (
+    <div>
+      <AppBar
+        leadingIcon={<User size={17} strokeWidth={1.5} color="var(--fg-2)" />}
+        title={t('profile.title')}
+        trailing={
+          <>
+            <ThemeToggle />
+            <span data-tour="tour-streak-badge">
+              <StreakBadge streak={streakInfo?.currentStreak ?? 0} />
+            </span>
+            <NotificationBell />
+          </>
+        }
+      />
+
       {error && (
-        <p className="mb-4 text-sm text-red-400 text-center">
+        <p
+          style={{
+            margin: '12px 20px',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            color: 'var(--status-bad)',
+            textAlign: 'center',
+          }}
+        >
           {process.env.NODE_ENV === 'development' && error instanceof Error
             ? error.message
             : t('errors.loadProfile')}
         </p>
       )}
 
-      <div className="space-y-4">
-        {/* ==================== ACCOUNT ==================== */}
-        <section
-          className="space-y-4"
-          aria-labelledby="profile-account-heading"
-        >
-          <h2 id="profile-account-heading" className="form-label pt-2">
-            {t('profile.sections.account')}
-          </h2>
-
-          {/* User info card */}
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5">
-            {isLoading ? (
-              <div className="flex items-center gap-4">
-                <div className="size-14 rounded-full bg-surface-elevated skeleton-shimmer shrink-0" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-5 w-36 bg-surface-elevated rounded skeleton-shimmer" />
-                  <div className="h-4 w-52 bg-surface-elevated rounded skeleton-shimmer" />
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                {/* Initials avatar */}
-                <div className="size-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                  <span className="text-lg font-bold text-primary">
-                    {profile?.name
-                      ? profile.name
-                          .split(' ')
-                          .slice(0, 2)
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()
-                      : '?'}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-lg font-bold text-text-primary truncate">
-                    {profile?.name}
-                  </p>
-                  <p className="text-sm text-text-secondary truncate">
-                    {profile?.email}
-                  </p>
-                  {profile?.hasProAccess && (
-                    <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                      Pro
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Streak display */}
-          <div data-tour="tour-profile-streak">
-            <ProfileStreakCard />
-          </div>
-
-          {/* Subscription */}
-          <div data-tour="tour-profile-subscription">
-            <SubscriptionCard
-              profile={profile}
-              trialDaysLeft={trialDaysLeft}
-              trialExpired={trialExpired}
+      {/* User identity block */}
+      <div
+        className="flex items-center"
+        style={{
+          padding: '20px 20px 18px',
+          gap: 14,
+          borderBottom: '1px solid var(--hairline)',
+        }}
+      >
+        {isLoading ? (
+          <>
+            <div
+              className="animate-pulse rounded-full shrink-0"
+              style={{ width: 44, height: 44, background: 'var(--bg-elev)' }}
             />
-          </div>
-
-          {/* ==================== NAVIGATION CARDS ==================== */}
-          <nav aria-label={t('profile.sections.account')}>
-            <div className="space-y-4 stagger-enter">
-              {accountNavItems.map((item) => (
-                <ProfileNavCard
-                  key={item.id}
-                  href={item.route}
-                  onNavigate={(event) => {
-                    if (!shouldRedirectProfileNavItem(item, profile)) return
-                    event.preventDefault()
-                    handleNavClick(item)
-                  }}
-                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
-                  title={t(item.titleKey)}
-                  hint={getNavHint(item)}
-                  proBadgeLabel={t('common.proBadge')}
-                  dataTour={navTourMap[item.id]}
-                />
-              ))}
-            </div>
-          </nav>
-        </section>
-
-        {/* ==================== FEATURES ==================== */}
-        <section
-          className="space-y-4"
-          aria-labelledby="profile-features-heading"
-        >
-          <h2 id="profile-features-heading" className="form-label pt-2">
-            {t('profile.sections.features')}
-          </h2>
-
-          <div className="space-y-4 stagger-enter">
-            <TourReplayCard />
-            {featureNavItems.map((item) => (
-              <ProfileNavCard
-                key={item.id}
-                href={item.route}
-                onNavigate={(event) => {
-                  if (!shouldRedirectProfileNavItem(item, profile)) return
-                  event.preventDefault()
-                  handleNavClick(item)
-                }}
-                icon={<ProfileNavIcon iconKey={item.iconKey} />}
-                title={t(item.titleKey)}
-                hint={getNavHint(item)}
-                variant={item.variant}
-                proBadge={item.proBadge}
-                proBadgeLabel={t('common.proBadge')}
-                dataTour={navTourMap[item.id]}
+            <div className="flex-1 flex flex-col" style={{ gap: 6 }}>
+              <div
+                className="animate-pulse rounded-sm"
+                style={{ width: 140, height: 14, background: 'var(--bg-elev)' }}
               />
-            ))}
-          </div>
-        </section>
-
-        {/* ==================== ACCOUNT ACTIONS ==================== */}
-        <section
-          className="space-y-4"
-          aria-labelledby="profile-actions-heading"
-        >
-          <h2 id="profile-actions-heading" className="form-label pt-2">
-            {t('profile.sections.accountActions')}
-          </h2>
-
-          {/* Logout */}
-          <ProfileActionButton
-            onClick={() => logout()}
-            icon={<LogOut className="size-4" />}
-            label={t('profile.logout')}
-            tone="danger"
-          />
-
-          {/* Fresh Start */}
-          <ProfileActionButton
-            onClick={() => setShowResetModal(true)}
-            icon={<RotateCcw className="size-4" />}
-            label={t('profile.freshStart.button')}
-            tone="primary"
-          />
-
-          {/* Delete Account */}
-          <ProfileActionButton
-            onClick={() => setShowDeleteModal(true)}
-            icon={<Trash2 className="size-3.5" />}
-            label={t('profile.deleteAccount.button')}
-            tone="danger"
-            compact
-          />
-        </section>
+              <div
+                className="animate-pulse rounded-sm"
+                style={{ width: 200, height: 11, background: 'var(--bg-elev)' }}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              className="flex items-center justify-center rounded-full shrink-0"
+              style={{
+                width: 44,
+                height: 44,
+                background: 'var(--bg-elev)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 16,
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {userInitials}
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
+              <span
+                className="overflow-hidden whitespace-nowrap text-ellipsis"
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {profile?.name}
+              </span>
+              <span
+                className="overflow-hidden whitespace-nowrap text-ellipsis"
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  color: 'var(--fg-3)',
+                }}
+              >
+                {profile?.email}
+              </span>
+            </div>
+            {profile?.hasProAccess && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: 'var(--fg-on-primary)',
+                  background: 'var(--primary)',
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {t('common.proBadge')}
+              </span>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Fresh Start Modal */}
-      <FreshStartModal open={showResetModal} onOpenChange={setShowResetModal} />
+      {/* Streak row */}
+      <SettingsRow
+        label={t('streakDisplay.title')}
+        ariaLabel={t('streakDisplay.title')}
+        onClick={() => router.push('/streak')}
+        leadingDot={(streakInfo?.currentStreak ?? 0) > 0 ? 'var(--status-bad)' : undefined}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-family-mono)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {streakInfo?.currentStreak ?? 0}
+        </span>
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('streakDisplay.daysSuffix')}
+        </span>
+      </SettingsRow>
 
-      {/* Delete Account Modal */}
+      {/* Account section */}
+      <SectionLabel>{t('profile.sections.account')}</SectionLabel>
+      <nav aria-label={t('profile.sections.account')}>
+        {accountNavItems.map((item) => (
+          <ProfileNavCard
+            key={item.id}
+            href={item.route}
+            icon={null}
+            title={t(item.titleKey)}
+            hint={getNavHint(item)}
+            proBadgeLabel={t('common.proBadge')}
+            dataTour={navTourMap[item.id]}
+            onNavigate={(event) => {
+              if (!shouldRedirectProfileNavItem(item, profile)) return
+              event.preventDefault()
+              handleNavClick(item)
+            }}
+          />
+        ))}
+      </nav>
+
+      {/* Features section */}
+      <SectionLabel>{t('profile.sections.features')}</SectionLabel>
+      <div>
+        {featureNavItems.map((item) => (
+          <ProfileNavCard
+            key={item.id}
+            href={item.route}
+            icon={null}
+            title={t(item.titleKey)}
+            hint={getNavHint(item)}
+            variant={item.variant}
+            proBadge={item.proBadge}
+            proBadgeLabel={t('common.proBadge')}
+            dataTour={navTourMap[item.id]}
+            onNavigate={(event) => {
+              if (!shouldRedirectProfileNavItem(item, profile)) return
+              event.preventDefault()
+              handleNavClick(item)
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Subscription section */}
+      <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
+      <div data-tour="tour-profile-subscription">
+        <SubscriptionCard
+          profile={profile}
+          trialDaysLeft={trialDaysLeft}
+          trialExpired={trialExpired}
+        />
+      </div>
+
+      {/* Account actions */}
+      <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+      <ProfileActionButton
+        onClick={() => logout()}
+        icon={null}
+        label={t('profile.logout')}
+        tone="default"
+      />
+      <ProfileActionButton
+        onClick={() => setShowResetModal(true)}
+        icon={null}
+        label={t('profile.freshStart.button')}
+        tone="default"
+      />
+      <ProfileActionButton
+        onClick={() => setShowDeleteModal(true)}
+        icon={null}
+        label={t('profile.deleteAccount.button')}
+        tone="danger"
+        compact
+      />
+
+      <div style={{ height: 24 }} />
+
+      <FreshStartModal open={showResetModal} onOpenChange={setShowResetModal} />
       <DeleteAccountModal
         open={showDeleteModal}
         onOpenChange={setShowDeleteModal}

@@ -23,7 +23,7 @@ import {
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
 } from '@orbit/shared/utils'
-import { HabitCard } from './habit-card'
+import { HabitRow, type HabitRowMetaToken } from './habit-row'
 import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
@@ -32,6 +32,8 @@ import {
   HabitListEmptyState,
   type HabitListDateGroup,
 } from './habit-list-sections'
+import type { StatusDotState } from '@/components/ui/status-dot'
+import { computeHabitCardStatus, computeHabitFrequencyLabel } from '@orbit/shared/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import {
@@ -213,17 +215,35 @@ function buildDragItemsFlat(
 
 function HabitListSkeleton() {
   return (
-    <div className="space-y-3 pt-2">
+    <div>
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="habit-card-parent rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+          className="flex items-center"
+          style={{
+            padding: '16px 20px',
+            gap: 14,
+            borderBottom: '1px solid var(--hairline)',
+          }}
         >
-          <div className="size-10 sm:size-11 rounded-full bg-surface-elevated animate-pulse" />
-          <div className="flex-1 space-y-2.5">
-            <div className="h-4 w-3/4 bg-surface-elevated rounded-lg animate-pulse" />
-            <div className="h-3 w-2/5 bg-surface-elevated/60 rounded-lg animate-pulse" />
+          <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
+            <div
+              className="rounded-sm animate-pulse"
+              style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
+            />
+            <div
+              className="rounded-sm animate-pulse"
+              style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
+            />
           </div>
+          <div
+            className="rounded-full shrink-0"
+            style={{
+              width: 9,
+              height: 9,
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+            }}
+          />
         </div>
       ))}
     </div>
@@ -259,7 +279,7 @@ function SortableHabitItem({
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-2.5">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       {children}
     </div>
   )
@@ -1070,12 +1090,46 @@ const isPostponeAction = useMemo(() => {
     checkAndPromptParentLog,
   }))
 
-  // Render a single HabitCard with all handlers
+  // Derive HabitRow visual state from habit flags + status.
+  // `recentlyCompleted` flips immediately on optimistic log so the row reads as done
+  // before the server response lands.
+  function deriveRowState(
+    habit: NormalizedHabit,
+    isChild: boolean,
+    recentlyCompleted: boolean,
+  ): StatusDotState {
+    if (recentlyCompleted || habit.isCompleted || habit.isLoggedInRange) return 'done'
+    const status = computeHabitCardStatus(habit, view === 'today' ? cardSelectedDate : undefined)
+    if (status === 'overdue' && !isChild) return 'overdue'
+    if (habit.isBadHabit && !isChild) return 'bad'
+    return 'empty'
+  }
+
+  // Build inline meta tokens (frequency, dueTime, checklist, overdue/bad).
+  function buildMetaTokens(habit: NormalizedHabit, isChild: boolean): HabitRowMetaToken[] {
+    const tokens: HabitRowMetaToken[] = []
+    const freqLabel = computeHabitFrequencyLabel(habit, t)
+    if (freqLabel) tokens.push(freqLabel)
+    if (habit.dueTime) tokens.push(habit.dueTime)
+    if (habit.checklistItems.length > 0) {
+      const done = habit.checklistItems.filter((c) => c.isChecked).length
+      tokens.push(`${done}/${habit.checklistItems.length}`)
+    }
+    if (habit.isOverdue && !isChild && !habit.isCompleted) {
+      tokens.push({ kind: 'overdue', label: t('habits.overdue') })
+    }
+    if (habit.isBadHabit && !isChild) {
+      tokens.push({ kind: 'bad', label: t('habits.badHabit') })
+    }
+    return tokens
+  }
+
+  // Render a single HabitRow with all handlers
   function renderHabitCard(
     habit: NormalizedHabit,
     depth: number,
     hasChildren: boolean,
-    hasSubHabits: boolean,
+    _hasSubHabits: boolean,
     options?: {
       isDrillCard?: boolean
       isLastChild?: boolean
@@ -1083,31 +1137,31 @@ const isPostponeAction = useMemo(() => {
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
+    const isChild = depth > 0
+    const recentlyCompleted = recentlyCompletedIds.has(habit.id)
+    const state = deriveRowState(habit, isChild, recentlyCompleted)
+    const meta = buildMetaTokens(habit, isChild)
+    const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
       habit.id === TOUR_FEATURED_HABIT_ID ? 'tour-habit-card' : undefined
 
     return (
-        <HabitCard
-          key={habit.id}
-          habit={habit}
-          selectedDate={cardSelectedDate}
-          isDrillCard={options?.isDrillCard ?? false}
-          searchQuery={searchQuery}
-          isJustCreated={lastCreatedHabitId === habit.id}
-          isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
-          depth={depth}
-          hasChildren={hasChildren}
-          hasSubHabits={hasSubHabits}
-        isExpanded={!collapsedIds.has(habit.id)}
-        isLastChild={options?.isLastChild}
-        isDraggingList={options?.isDraggingList}
-        childrenDone={progress.done}
-        childrenTotal={progress.total}
+      <HabitRow
+        key={habit.id}
+        habit={habit}
         tourTargetId={tourTargetId}
-        isSelectMode={isSelectMode}
-        isSelected={selectedHabitIds?.has(habit.id) ?? false}
-        maxHabitDepth={maxHabitDepth}
-        showAddSubHabit
+        state={state}
+        meta={meta}
+        streak={habit.currentStreak}
+        child={isChild}
+        indent={isChild ? 16 * depth : 0}
+        isLastChild={options?.isLastChild ?? false}
+        selectMode={isSelectMode}
+        selected={selectedHabitIds?.has(habit.id) ?? false}
+        hasChildren={hasChildren}
+        expanded={!collapsedIds.has(habit.id)}
+        childProgress={hasChildren ? progress : undefined}
+        showLinkedGoalDot={hasLinkedGoal}
         actions={{
           onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
@@ -1149,7 +1203,7 @@ const isPostponeAction = useMemo(() => {
     if (children.length === 0) return null
 
     return children.map((child) => (
-      <div key={child.id} className="mb-1.5">
+      <div key={child.id}>
         {renderHabitCard(
           child,
           depth,
@@ -1169,18 +1223,24 @@ const isPostponeAction = useMemo(() => {
 
     if (drill.drillChildren.length > 0) {
       return (
-        <div className="space-y-2.5 pt-2">
+        <div>
           {drill.drillChildren.map((child) =>
             renderHabitCard(
               child,
               0,
               drill.getDrillChildren(child.id).length > 0,
               child.hasSubHabits || drill.getDrillChildren(child.id).length > 0,
-              { isDrillCard: true },
+              { isDrillCard: true, isLastChild: false },
             ),
           )}
           <button
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-[border-color,color,background-color,transform] duration-150"
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-3 text-text-muted text-sm hover:text-primary transition-[color] duration-150"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              borderTop: '1px solid var(--hairline)',
+            }}
             onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
           >
             <Plus className="size-4" />
@@ -1329,7 +1389,7 @@ const isPostponeAction = useMemo(() => {
     return (
       <div className="stagger-enter">
         {dragItems.map((item) => (
-          <div key={item.id} className="mb-2.5">
+          <div key={item.id}>
             {renderHabitCard(
               item.habit,
               item.depth,
@@ -1344,7 +1404,7 @@ const isPostponeAction = useMemo(() => {
   }
 
   return (
-    <div className="space-y-2.5" data-tour="tour-habit-list">
+    <div data-tour="tour-habit-list">
       {renderMainContent()}
 
       {/* Modals */}

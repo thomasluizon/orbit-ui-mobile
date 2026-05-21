@@ -1,6 +1,10 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+
 interface CalendarHeaderProps {
   title: string
   monthLabel: string
@@ -13,60 +17,44 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
 }
 
+/** Calendar AppBar — leading CalendarDays glyph, month subtitle, prev/next trailing. */
 export function CalendarHeader({
   title,
   monthLabel,
   subtitle,
-  goToTodayLabel,
   previousMonthLabel,
   nextMonthLabel,
-  onGoToToday,
   onPreviousMonth,
   onNextMonth,
 }: Readonly<CalendarHeaderProps>) {
   return (
-    <header className="pt-8 pb-2 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {title}
-        </h1>
-        <button
-          aria-label={goToTodayLabel}
-          className="p-2 rounded-full hover:bg-surface transition-colors"
-          onClick={onGoToToday}
-        >
-          <Search className="size-[18px] text-text-secondary" aria-hidden="true" />
-        </button>
-      </div>
-
-      <div data-tour="tour-calendar-month-nav" className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] flex items-center justify-between p-1">
-        <button
-          aria-label={previousMonthLabel}
-          className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-          onClick={onPreviousMonth}
-        >
-          <ChevronLeft className="size-3 text-text-faded" aria-hidden="true" />
-        </button>
-        <div className="flex flex-col items-center">
+    <AppBar
+      leadingIcon={<CalendarDays size={17} strokeWidth={1.5} color="var(--fg-2)" />}
+      title={title}
+      subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
+      trailing={
+        <>
           <button
-            className="text-base font-semibold text-text-primary hover:text-primary transition-colors"
-            onClick={onGoToToday}
+            type="button"
+            aria-label={previousMonthLabel}
+            onClick={onPreviousMonth}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+            style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-2)' }}
           >
-            {monthLabel}
+            <ChevronLeft size={17} strokeWidth={1.6} />
           </button>
-          {subtitle && (
-            <span className="text-[10px] text-text-muted font-medium mt-0.5">{subtitle}</span>
-          )}
-        </div>
-        <button
-          aria-label={nextMonthLabel}
-          className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-          onClick={onNextMonth}
-        >
-          <ChevronRight className="size-3 text-text-faded" aria-hidden="true" />
-        </button>
-      </div>
-    </header>
+          <button
+            type="button"
+            aria-label={nextMonthLabel}
+            onClick={onNextMonth}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+            style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-2)' }}
+          >
+            <ChevronRight size={17} strokeWidth={1.6} />
+          </button>
+        </>
+      }
+    />
   )
 }
 
@@ -76,25 +64,76 @@ interface CalendarLegendProps {
   missedLabel: string
 }
 
+/** v8 calendar legend — flush rows under SectionLabel. */
 export function CalendarLegend({
   doneLabel,
   upcomingLabel,
   missedLabel,
 }: Readonly<CalendarLegendProps>) {
+  const t = useTranslations()
   return (
-    <div data-tour="tour-calendar-legend" className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-green-500" />
-        <span>{doneLabel}</span>
+    <div data-tour="tour-calendar-legend">
+      <SectionLabel>{t('calendar.legend.sectionTitle')}</SectionLabel>
+      <div style={{ padding: '0 20px 12px' }}>
+        <LegendRow dot="full" label={doneLabel} />
+        <LegendRow dot="primary" label={upcomingLabel} />
+        <LegendRow dot="bad" label={missedLabel} />
       </div>
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-primary" />
-        <span>{upcomingLabel}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-orange-500" />
-        <span>{missedLabel}</span>
-      </div>
+    </div>
+  )
+}
+
+interface LegendRowProps {
+  dot: 'full' | 'primary' | 'bad'
+  label: string
+}
+
+function LegendRow({ dot, label }: Readonly<LegendRowProps>) {
+  let dotEl: React.ReactNode
+  if (dot === 'full') {
+    dotEl = (
+      <span
+        className="rounded-full"
+        style={{ width: 6, height: 6, background: 'var(--fg-1)' }}
+      />
+    )
+  } else if (dot === 'primary') {
+    dotEl = (
+      <span
+        className="rounded-full"
+        style={{ width: 6, height: 6, background: 'var(--primary)' }}
+      />
+    )
+  } else {
+    dotEl = (
+      <span
+        className="rounded-full"
+        style={{ width: 6, height: 6, background: 'var(--status-overdue)' }}
+      />
+    )
+  }
+
+  return (
+    <div
+      className="flex items-center"
+      style={{
+        padding: '11px 0',
+        gap: 12,
+        borderBottom: '1px solid var(--hairline)',
+      }}
+    >
+      <span className="inline-flex items-center justify-center shrink-0" style={{ width: 14 }}>
+        {dotEl}
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          color: 'var(--fg-1)',
+        }}
+      >
+        {label}
+      </span>
     </div>
   )
 }

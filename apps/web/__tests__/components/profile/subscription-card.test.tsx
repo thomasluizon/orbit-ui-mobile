@@ -57,7 +57,7 @@ const baseProfile = {
   trialEndsAt: null,
   planExpiresAt: null,
   aiMessagesUsed: 0,
-      aiMessagesLimit: 20,
+  aiMessagesLimit: 20,
   hasImportedCalendar: false,
   hasGoogleConnection: false,
   subscriptionInterval: null,
@@ -77,24 +77,26 @@ const baseProfile = {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Tests — v8 SubscriptionCard: flush row, "Plan" label + state line + trailing link
 // ---------------------------------------------------------------------------
 
 describe('SubscriptionCard', () => {
-  it('renders as a link to /upgrade', () => {
+  it('renders an upgrade link to /upgrade for free users', () => {
     render(
       <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
     )
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', '/upgrade')
+    expect(link).toHaveTextContent('common.upgrade')
   })
 
   it('renders free label and hint for free user', () => {
     render(
       <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
     )
-    expect(screen.getByText('profile.subscription.free')).toBeInTheDocument()
-    expect(screen.getByText('profile.subscription.freeHint')).toBeInTheDocument()
+    // Free state: "Free Plan · Upgrade to unlock..." appears in a single inline span
+    expect(document.body.textContent).toContain('profile.subscription.free')
+    expect(document.body.textContent).toContain('profile.subscription.freeHint')
   })
 
   it('renders trial label and trial days hint for active trial', () => {
@@ -105,12 +107,11 @@ describe('SubscriptionCard', () => {
     render(
       <SubscriptionCard profile={trialProfile} trialDaysLeft={5} trialExpired={false} />,
     )
-    expect(screen.getByText('profile.subscription.trial')).toBeInTheDocument()
-    // The hint text goes through the mock `plural`, which returns the raw key
+    expect(document.body.textContent).toContain('profile.subscription.trial')
     expect(document.body.textContent).toContain('profile.subscription.trialDaysLeft')
   })
 
-  it('renders pro label and hint for pro user', () => {
+  it('renders pro label and "Manage" link for pro user', () => {
     const proProfile = {
       ...baseProfile,
       plan: 'pro' as const,
@@ -120,89 +121,37 @@ describe('SubscriptionCard', () => {
     render(
       <SubscriptionCard profile={proProfile} trialDaysLeft={null} trialExpired={false} />,
     )
-    expect(screen.getByText('profile.subscription.pro')).toBeInTheDocument()
-    expect(screen.getByText('profile.subscription.proHint')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('profile.subscription.pro')
+    expect(screen.getByRole('link')).toHaveTextContent('profile.subscription.manage')
   })
 
-  it('renders trial ended label and hint when trial expired', () => {
+  it('renders trial-ended label and hint when trial expired', () => {
     render(
       <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={true} />,
     )
-    expect(screen.getByText('profile.subscription.trialEnded')).toBeInTheDocument()
-    expect(screen.getByText('profile.subscription.trialEndedHint')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('profile.subscription.trialEnded')
+    expect(document.body.textContent).toContain('profile.subscription.trialEndedHint')
   })
 
-  it('uses primary color styling for trial users', () => {
-    const trialProfile = {
-      ...baseProfile,
-      isTrialActive: true,
-    }
-    const { container } = render(
-      <SubscriptionCard profile={trialProfile} trialDaysLeft={3} trialExpired={false} />,
-    )
-    const link = container.querySelector('a')
-    expect(link?.className).toContain('bg-primary/10')
-  })
-
-  it('uses primary color styling for pro users', () => {
-    const proProfile = {
-      ...baseProfile,
-      hasProAccess: true,
-    }
-    const { container } = render(
-      <SubscriptionCard profile={proProfile} trialDaysLeft={null} trialExpired={false} />,
-    )
-    const link = container.querySelector('a')
-    expect(link?.className).toContain('bg-primary/10')
-  })
-
-  it('uses amber color styling for free users', () => {
-    const { container } = render(
-      <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
-    )
-    const link = container.querySelector('a')
-    expect(link?.className).toContain('bg-amber-500/10')
-  })
-
-  it('uses amber color styling for expired trial users', () => {
-    const { container } = render(
-      <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={true} />,
-    )
-    const link = container.querySelector('a')
-    expect(link?.className).toContain('bg-amber-500/10')
-  })
-
-  it('renders icon SVG', () => {
-    const { container } = render(
-      <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
-    )
-    const svgs = container.querySelectorAll('svg')
-    // At least the subscription icon + chevron
-    expect(svgs.length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('handles undefined profile gracefully', () => {
+  it('handles undefined profile gracefully (falls through to free)', () => {
     render(
       <SubscriptionCard profile={undefined} trialDaysLeft={null} trialExpired={false} />,
     )
-    // Falls through to free state
-    expect(screen.getByText('profile.subscription.free')).toBeInTheDocument()
-    expect(screen.getByText('profile.subscription.freeHint')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('profile.subscription.free')
+    expect(document.body.textContent).toContain('profile.subscription.freeHint')
   })
 
   it('handles undefined profile with trialExpired', () => {
     render(
       <SubscriptionCard profile={undefined} trialDaysLeft={null} trialExpired={true} />,
     )
-    expect(screen.getByText('profile.subscription.trialEnded')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('profile.subscription.trialEnded')
   })
 
-  it('renders ChevronRight icon for navigation', () => {
-    const { container } = render(
+  it('renders "Plan" header label', () => {
+    render(
       <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
     )
-    // The last SVG should be the ChevronRight
-    const svgs = container.querySelectorAll('svg')
-    expect(svgs.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('profile.subscription.plan')).toBeInTheDocument()
   })
 })

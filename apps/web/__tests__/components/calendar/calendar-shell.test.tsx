@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
 import {
   CalendarHeader,
   CalendarLegend,
@@ -25,14 +29,13 @@ describe('Calendar shell helpers', () => {
       />,
     )
 
+    // v8: title + month subtitle live inside AppBar; prev/next are trailing icon buttons.
     expect(screen.getByText('nav.calendar')).toBeInTheDocument()
     expect(screen.getByText('April 2026')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('dates.goToToday'))
     fireEvent.click(screen.getByLabelText('common.previousMonth'))
     fireEvent.click(screen.getByLabelText('common.nextMonth'))
 
-    expect(onGoToToday).toHaveBeenCalledTimes(1)
     expect(onPreviousMonth).toHaveBeenCalledTimes(1)
     expect(onNextMonth).toHaveBeenCalledTimes(1)
   })
@@ -49,5 +52,7 @@ describe('Calendar shell helpers', () => {
     expect(screen.getByText('Done')).toBeInTheDocument()
     expect(screen.getByText('Upcoming')).toBeInTheDocument()
     expect(screen.getByText('Missed')).toBeInTheDocument()
+    // v8: section title above legend
+    expect(screen.getByText('calendar.legend.sectionTitle')).toBeInTheDocument()
   })
 })

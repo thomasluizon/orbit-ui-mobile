@@ -149,6 +149,10 @@ vi.mock('@/components/habits/habit-summary-card', () => ({
   HabitSummaryCard: () => null,
 }))
 
+vi.mock('@/components/habits/today-ai-summary', () => ({
+  TodayAISummary: () => null,
+}))
+
 vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: () => null,
 }))

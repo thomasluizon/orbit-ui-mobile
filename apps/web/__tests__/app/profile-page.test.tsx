@@ -39,6 +39,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mockUseGamificationProfile,
+  useStreakInfo: () => ({ data: { currentStreak: 0 } }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -48,6 +49,14 @@ vi.mock('@/stores/auth-store', () => ({
 
 vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => null,
+}))
+
+vi.mock('@/components/gamification/streak-badge', () => ({
+  StreakBadge: () => null,
+}))
+
+vi.mock('@/components/navigation/notification-bell', () => ({
+  NotificationBell: () => null,
 }))
 
 vi.mock('@/components/gamification/profile-streak-card', () => ({

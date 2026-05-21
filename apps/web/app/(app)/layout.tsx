@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CalendarDays } from 'lucide-react'
 import { Providers } from '@/lib/providers'
-import { BottomNav } from '@/components/navigation/bottom-nav'
+import { WebNav } from '@/components/navigation/web-nav'
+import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { PushPrompt } from '@/components/ui/push-prompt'
@@ -46,9 +47,17 @@ export default function AppLayout({
   )
 }
 
+function pathnameToTab(pathname: string): BottomTab {
+  if (pathname.startsWith('/chat')) return 'chat'
+  if (pathname.startsWith('/calendar')) return 'calendar'
+  if (pathname.startsWith('/profile')) return 'profile'
+  return 'today'
+}
+
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
+  const pathname = usePathname()
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
   const hasProAccess = profile?.hasProAccess ?? false
@@ -179,8 +188,23 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         </RouteTransitionShell>
       </main>
 
-      {/* Bottom navigation */}
-      <BottomNav onCreate={handleCreate} />
+      {/* Mobile: bottom-fixed nav. Desktop: left sidebar. WebNav handles the branch. */}
+      <div
+        data-bottom-nav=""
+        className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-0 md:right-auto z-40 md:h-full"
+        style={{ paddingBottom: 'var(--safe-bottom)' }}
+      >
+        <div className="max-w-[var(--app-max-w)] mx-auto md:max-w-none md:h-full">
+          <WebNav
+            active={pathnameToTab(pathname ?? '/')}
+            onTab={(id) => {
+              if (id === 'today') router.push('/')
+              else router.push(`/${id}`)
+            }}
+            onFab={handleCreate}
+          />
+        </div>
+      </div>
 
       <GlobalOverlays
         profile={profile}

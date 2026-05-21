@@ -2,12 +2,6 @@
 
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import {
-  Sparkles,
-  Clock,
-  BadgeCheck,
-  ChevronRight,
-} from 'lucide-react'
 import { plural } from '@/lib/plural'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -17,26 +11,11 @@ interface SubscriptionCardProps {
   trialExpired: boolean
 }
 
-function getSubscriptionIcon(profile: Profile | undefined) {
-  const colorClass =
-    profile?.isTrialActive || profile?.hasProAccess
-      ? 'text-primary'
-      : 'text-amber-400'
-
-  if (profile?.isTrialActive) {
-    return <Clock className={`size-5 ${colorClass}`} />
-  }
-  if (profile?.hasProAccess) {
-    return <BadgeCheck className={`size-5 ${colorClass}`} />
-  }
-  return <Sparkles className={`size-5 ${colorClass}`} />
-}
-
 function getSubscriptionLabel(
   profile: Profile | undefined,
   trialExpired: boolean,
   t: ReturnType<typeof useTranslations>,
-) {
+): string {
   if (profile?.isTrialActive) return t('profile.subscription.trial')
   if (profile?.hasProAccess) return t('profile.subscription.pro')
   if (trialExpired) return t('profile.subscription.trialEnded')
@@ -60,42 +39,92 @@ function getSubscriptionHint(
   return t('profile.subscription.freeHint')
 }
 
+/** v8 SettingsRow-style "Plan" card.
+ *  - Free: shows "Free" + Pro pill, links to /upgrade
+ *  - Trial: shows "Trial · N days" + Upgrade link
+ *  - Pro: shows "Pro · Annual" + Manage link */
 export function SubscriptionCard({
   profile,
   trialDaysLeft,
   trialExpired,
 }: Readonly<SubscriptionCardProps>) {
   const t = useTranslations()
+  const isPro = profile?.hasProAccess ?? false
+  const isTrial = profile?.isTrialActive ?? false
+  const label = getSubscriptionLabel(profile, trialExpired, t)
+  const hint = getSubscriptionHint(profile, trialExpired, trialDaysLeft, t)
 
-  const isProOrTrial = profile?.isTrialActive || profile?.hasProAccess
+  let rightLink: React.ReactNode
+  if (isPro) {
+    rightLink = (
+      <Link
+        href="/upgrade"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 13,
+          fontWeight: 500,
+          color: 'var(--fg-1)',
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+          textDecorationColor: 'var(--hairline-strong)',
+          textDecorationThickness: 1,
+        }}
+      >
+        {t('profile.subscription.manage')}
+      </Link>
+    )
+  } else {
+    rightLink = (
+      <Link
+        href="/upgrade"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 13,
+          fontWeight: 500,
+          color: 'var(--fg-1)',
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+          textDecorationColor: 'var(--hairline-strong)',
+          textDecorationThickness: 1,
+        }}
+      >
+        {t('common.upgrade')}
+      </Link>
+    )
+  }
 
   return (
-    <Link
-      href="/upgrade"
-      className={`w-full rounded-[var(--radius-xl)] p-5 flex items-center gap-4 transition-all duration-200 group text-left shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] ${
-        isProOrTrial
-          ? 'bg-primary/10 border border-primary/20 hover:bg-primary/15 hover:border-primary/30'
-          : 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30'
-      }`}
+    <div
+      className="flex items-center"
+      style={{
+        padding: '14px 20px',
+        gap: 12,
+        borderBottom: '1px solid var(--hairline)',
+      }}
     >
-      <div
-        className={`shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors ${
-          isProOrTrial
-            ? 'bg-primary/20 group-hover:bg-primary/30'
-            : 'bg-amber-500/20 group-hover:bg-amber-500/30'
-        }`}
-      >
-        {getSubscriptionIcon(profile)}
+      <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
+        <span
+          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 15,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {t('profile.subscription.plan')}
+        </span>
+        <span
+          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            color: 'var(--fg-3)',
+          }}
+        >
+          {isTrial ? `${label} · ${hint}` : label}{!isTrial && hint ? ` · ${hint}` : ''}
+        </span>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-text-primary">
-          {getSubscriptionLabel(profile, trialExpired, t)}
-        </p>
-        <p className="text-xs text-text-secondary mt-0.5">
-          {getSubscriptionHint(profile, trialExpired, trialDaysLeft, t)}
-        </p>
-      </div>
-      <ChevronRight className="size-4 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-    </Link>
+      {rightLink}
+    </div>
   )
 }

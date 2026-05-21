@@ -1,8 +1,8 @@
 'use client'
 
-import { useId, type MouseEvent, type ReactNode } from 'react'
-import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronRight, Lock } from 'lucide-react'
+import { type ReactNode } from 'react'
 
 interface ProfileNavCardProps {
   href: string
@@ -13,12 +13,12 @@ interface ProfileNavCardProps {
   proBadge?: boolean
   proBadgeLabel?: string
   dataTour?: string
-  onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void
+  onNavigate?: (event: React.MouseEvent<HTMLButtonElement>) => void
 }
 
+/** v8 settings-row style profile nav: flush row with hairline bottom, label + hint stacked. */
 export function ProfileNavCard({
   href,
-  icon,
   title,
   hint,
   variant = 'default',
@@ -27,53 +27,78 @@ export function ProfileNavCard({
   dataTour,
   onNavigate,
 }: Readonly<ProfileNavCardProps>) {
+  const router = useRouter()
   const isPrimary = variant === 'primary'
-  const titleId = useId()
-  const hintId = useId()
+
+  function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+    onNavigate?.(event)
+    if (event.defaultPrevented) return
+    router.push(href)
+  }
 
   return (
-    <Link
-      href={href}
-      aria-labelledby={titleId}
-      aria-describedby={hintId}
+    <button
+      type="button"
+      onClick={handleClick}
       data-tour={dataTour}
       data-testid={isPrimary ? 'profile-primary-card' : undefined}
-      onClick={onNavigate}
-      className={`w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] surface-interactive group ${
-        isPrimary
-          ? 'bg-[var(--primary-tint-bg)] border-[var(--primary-tint-border)] hover:bg-[var(--primary-tint-bg-hover)] hover:border-[var(--primary-tint-border-hover)]'
-          : 'bg-surface border-border-muted hover:bg-surface-elevated hover:border-border'
-      }`}
+      className="w-full text-left flex items-center cursor-pointer"
+      style={{
+        padding: '14px 20px',
+        gap: 12,
+        background: 'transparent',
+        appearance: 'none',
+        border: 0,
+        borderBottom: '1px solid var(--hairline)',
+      }}
     >
-      <div
-        className={`shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors ${
-          isPrimary
-            ? 'bg-[var(--primary-tint-icon-bg)] group-hover:bg-[var(--primary-tint-icon-bg-hover)]'
-            : 'bg-primary/10'
-        }`}
-      >
-        {icon}
+      <div className="flex-1 min-w-0 flex items-center" style={{ gap: 10 }}>
+        <span
+          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 15,
+            fontWeight: 400,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {title}
+        </span>
+        {proBadge && (
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'var(--fg-on-primary)',
+              background: 'var(--primary)',
+              padding: '2px 6px',
+              borderRadius: 4,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {proBadgeLabel ?? 'Pro'}
+          </span>
+        )}
+        {isPrimary && !proBadge && (
+          <Lock size={12} strokeWidth={1.5} color="var(--fg-4)" />
+        )}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p id={titleId} className="text-sm font-bold text-text-primary">
-            {title}
-          </p>
-          {proBadge && (
-            <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-              {proBadgeLabel}
-            </span>
-          )}
-        </div>
-        <p id={hintId} className="text-xs text-text-secondary mt-0.5">
+      <div className="flex items-center shrink-0" style={{ gap: 8, color: 'var(--fg-3)' }}>
+        <span
+          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            color: 'var(--fg-3)',
+            maxWidth: 200,
+          }}
+        >
           {hint}
-        </p>
+        </span>
+        <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
       </div>
-      <ChevronRight
-        className={`size-4 text-text-muted shrink-0 transition-colors ${
-          isPrimary ? 'group-hover:text-primary' : 'group-hover:text-text-primary'
-        }`}
-      />
-    </Link>
+    </button>
   )
 }
