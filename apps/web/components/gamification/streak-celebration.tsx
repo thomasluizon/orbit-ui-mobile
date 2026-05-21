@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 import './streak-celebration.css'
 
@@ -14,20 +15,21 @@ export function StreakCelebration() {
   const streakCelebration = useUIStore((s) => s.streakCelebration)
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
   const [streakCount, setStreakCount] = useState(0)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    setMounted(true)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     }
   }, [])
 
+  // Mirror store-driven streak celebration into local presentation state.
   useEffect(() => {
     if (streakCelebration) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external store snapshot into local presentation state
       setStreakCount(streakCelebration.streak)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))

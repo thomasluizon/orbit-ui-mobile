@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 
 export function WelcomeBackToast() {
@@ -10,14 +11,13 @@ export function WelcomeBackToast() {
   const { profile } = useProfile()
   const [toastMessage, setToastMessage] = useState('')
   const [toastEmoji, setToastEmoji] = useState('\uD83D\uDC4B')
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const checkedRef = useRef(false)
 
   useEffect(() => {
-    setMounted(true)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     }

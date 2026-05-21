@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 import './level-up-overlay.css'
 
@@ -19,7 +20,7 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
   const [level, setLevel] = useState(0)
   const [title, setTitle] = useState('')
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -30,7 +31,6 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
       : null
 
   useEffect(() => {
-    setMounted(true)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
@@ -57,9 +57,11 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
     }, 400)
   }, [completeActiveCelebration, onClear])
 
+  // Mirror store-driven level-up trigger into local presentation state.
   useEffect(() => {
     if (!activeLevelUp) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external store snapshot into local presentation state
     setLevel(activeLevelUp.payload.level)
     setTitle(t(`gamification.levels.${activeLevelUp.payload.level}`))
     setShouldRender(true)

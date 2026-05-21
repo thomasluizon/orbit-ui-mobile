@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -67,11 +67,12 @@ export function EditGoalModal({
 
   const isStreak = isStreakGoal(goal.type)
 
-  // Form state
-  const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState('')
-  const [unit, setUnit] = useState('')
-  const [deadline, setDeadline] = useState('')
+  // Form state. Initialize from the incoming goal so the form is populated
+  // on first render when opened.
+  const [description, setDescription] = useState(() => goal.title)
+  const [targetValue, setTargetValue] = useState(() => String(goal.targetValue))
+  const [unit, setUnit] = useState(() => goal.unit)
+  const [deadline, setDeadline] = useState(() => goal.deadline ?? '')
   const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = updateGoal.isPending
@@ -102,16 +103,25 @@ export function EditGoalModal({
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  // Load goal data when modal opens
-  useEffect(() => {
-    if (open) {
+  // Repopulate form when the modal session restarts (open transitions to
+  // true, or the goal id changes while open). "Adjusting state when a prop
+  // changes" pattern: track previous prop in state, react in render. Initial
+  // values are populated by lazy useState above.
+  const [previousSession, setPreviousSession] = useState<{ open: boolean; id: string | null }>({
+    open,
+    id: open ? goal.id : null,
+  })
+  const nextSessionId = open ? goal.id : null
+  if (previousSession.open !== open || previousSession.id !== nextSessionId) {
+    setPreviousSession({ open, id: nextSessionId })
+    if (open && (!previousSession.open || previousSession.id !== goal.id)) {
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
     }
-  }, [open, goal.id])
+  }
 
   function validate(): string | null {
     return translateErrorKey(

@@ -144,6 +144,9 @@ export default function TodayPage() {
   const controlsMenuRef = useRef<HTMLDivElement>(null)
   const controlsMenuPanelRef = useRef<HTMLDivElement>(null)
   const habitListRef = useRef<HabitListHandle>(null)
+  // Mirrored from HabitList via onAllCollapsedChange so we can read it during
+  // render (refs cannot be read during render under react-hooks/refs).
+  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
 
   const CONTROLS_MENU_WIDTH_PX = 220
   const CONTROLS_MENU_MARGIN_PX = 8
@@ -330,9 +333,14 @@ export default function TodayPage() {
     }
   }, [localSearchQuery, setSearchQuery])
 
-  useEffect(() => {
+  // Mirror the store search query into local input state when it changes
+  // externally (e.g., cleared from another component). "Adjusting state when
+  // a prop changes" pattern.
+  const [previousStoreSearch, setPreviousStoreSearch] = useState(searchQueryStore)
+  if (searchQueryStore !== previousStoreSearch) {
+    setPreviousStoreSearch(searchQueryStore)
     setLocalSearchQuery(searchQueryStore)
-  }, [searchQueryStore])
+  }
 
   // Build filters
   const filters = useMemo<HabitsFilter>(() => {
@@ -388,10 +396,13 @@ export default function TodayPage() {
 
   const isAncestorSelected = useCallback(
     (habitId: string): boolean => {
-      const habit = habitsById.get(habitId)
-      if (!habit?.parentId) return false
-      if (selectedHabitIds.has(habit.parentId)) return true
-      return isAncestorSelected(habit.parentId)
+      function walk(currentId: string): boolean {
+        const habit = habitsById.get(currentId)
+        if (!habit?.parentId) return false
+        if (selectedHabitIds.has(habit.parentId)) return true
+        return walk(habit.parentId)
+      }
+      return walk(habitId)
     },
     [habitsById, selectedHabitIds],
   )
@@ -557,11 +568,11 @@ export default function TodayPage() {
               isSelectMode={isSelectMode}
               showCompleted={showCompleted}
               isFetching={habitsQuery.isFetching}
-              allCollapsed={!!habitListRef.current?.allCollapsed}
+              allCollapsed={habitListAllCollapsed}
               onToggleSelect={toggleSelectMode}
               onToggleCollapse={() => {
-                if (habitListRef.current?.allCollapsed) {
-                  habitListRef.current.expandAll()
+                if (habitListAllCollapsed) {
+                  habitListRef.current?.expandAll()
                 } else {
                   habitListRef.current?.collapseAll()
                 }
@@ -650,6 +661,7 @@ export default function TodayPage() {
                 }}
                 onCreate={() => setShowCreateModal(true)}
                 onSeeUpcoming={goToNextDay}
+                onAllCollapsedChange={setHabitListAllCollapsed}
               />
             </motion.div>
           )}

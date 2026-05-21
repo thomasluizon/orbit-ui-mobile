@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Sparkles, CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
 
@@ -24,11 +25,7 @@ export function TrialExpiredModal() {
   const pathname = usePathname()
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useIsClient()
 
   const isOpen =
     mounted &&

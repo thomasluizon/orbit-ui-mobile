@@ -152,7 +152,10 @@ export function useChatComposer() {
   const langPickerRef = useRef<HTMLDivElement>(null)
   const prevIsRecording = useRef(false)
 
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState<string>(() => {
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return ''
+    return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
+  })
   const [sendError, setSendError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -306,13 +309,6 @@ export function useChatComposer() {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
   }, [input])
 
-  useEffect(() => {
-    if (globalThis.localStorage === undefined) return
-    const storedDraft = globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)
-    if (storedDraft) {
-      setInput(storedDraft)
-    }
-  }, [])
 
   useEffect(() => {
     if (globalThis.localStorage === undefined) return
@@ -331,9 +327,13 @@ export function useChatComposer() {
     prevIsRecording.current = isRecording
   }, [isRecording, transcript])
 
+  // Mirror speech recognition errors into the chat send-error surface and
+  // auto-clear after 4s. This is responding to an external hook's state
+  // change, which is the documented allowed case for setState-in-effect.
   useEffect(() => {
     if (!speechError) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirroring external hook state into composer's error surface
     setSendError(speechError)
     const timer = globalThis.setTimeout(() => {
       setSendError((current) => (current === speechError ? null : current))
@@ -478,7 +478,6 @@ export function useChatComposer() {
     },
     [
       addMessage,
-      hasProAccess,
       imagePreview,
       input,
       handleFailedSend,

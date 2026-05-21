@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useId, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useCallback, useId, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
+import { useIsClient } from '@/hooks/use-is-client'
 import {
   isTopOverlay,
   registerOverlay,
@@ -89,13 +90,9 @@ export function AppOverlay({
   const pointerDownOnBackdrop = useRef(false)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
   const requestCloseRef = useRef<(reason: OverlayCloseReason) => void>(() => {})
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('dialog', Boolean(prefersReducedMotion))
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const lockBodyScroll = useCallback(() => {
     if (bodyScrollLockCount === 0) {

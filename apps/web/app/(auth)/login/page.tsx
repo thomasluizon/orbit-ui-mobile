@@ -352,8 +352,13 @@ export default function LoginPage() {
     }
   }, [searchParams])
 
-  // Deep link pre-fill: /login?email=...&code=123456
-  useEffect(() => {
+  // Deep link pre-fill: /login?email=...&code=123456. "Adjusting state when a
+  // prop changes" pattern: detect search params changing during render and
+  // sync into local form state.
+  const searchParamsKey = searchParams.toString()
+  const [previousSearchParamsKey, setPreviousSearchParamsKey] = useState<string | null>(null)
+  if (searchParamsKey !== previousSearchParamsKey) {
+    setPreviousSearchParamsKey(searchParamsKey)
     const emailFromQuery = searchParams.get('email')
     const codeFromQuery = searchParams.get('code')
     if (emailFromQuery && isValidVerificationCode(codeFromQuery)) {
@@ -361,7 +366,7 @@ export default function LoginPage() {
       setCodeDigits(codeFromQuery.split(''))
       setStep('code')
     }
-  }, [searchParams])
+  }
 
   const getReturnUrl = useCallback((): string => {
     const returnUrl = searchParams.get('returnUrl')

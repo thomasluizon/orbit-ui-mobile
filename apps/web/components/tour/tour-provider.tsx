@@ -151,7 +151,9 @@ export function TourProvider() {
 
   // Expose handleEndTour via store override
   const endTourRef = useRef(handleEndTour)
-  endTourRef.current = handleEndTour
+  useEffect(() => {
+    endTourRef.current = handleEndTour
+  }, [handleEndTour])
 
   // Execute pre-actions for a step
   const executePreAction = useCallback(

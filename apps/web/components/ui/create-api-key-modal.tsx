@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Clipboard, Check, AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
@@ -85,13 +85,16 @@ export function CreateApiKeyModal({
     setCopied(false)
   }
 
-  useEffect(() => {
-    if (!open) {
-      resetForm()
-    }
-  }, [open])
+  // Reset form fields when the modal transitions from open -> closed. This is
+  // the documented "adjusting state when a prop changes" pattern: track the
+  // previous prop value, compare in render, and reset state when it changes.
+  const [previousOpen, setPreviousOpen] = useState(open)
+  if (open !== previousOpen) {
+    setPreviousOpen(open)
+    if (!open) resetForm()
+  }
 
-  function validate(): boolean {
+  const validate = useCallback((): boolean => {
     setValidationError('')
     const trimmed = keyName.trim()
     if (!trimmed) {
@@ -109,7 +112,7 @@ export function CreateApiKeyModal({
       }
     }
     return true
-  }
+  }, [keyName, expiresAt, t])
 
   function toggleScope(scope: string) {
     setSelectedScopes((current) =>
@@ -142,7 +145,7 @@ export function CreateApiKeyModal({
     } finally {
       setIsSubmitting(false)
     }
-  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes])
+  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes, validate])
 
   async function copyKey() {
     if (!createdKey) return

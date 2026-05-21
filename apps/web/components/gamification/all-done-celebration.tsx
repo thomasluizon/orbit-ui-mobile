@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 import './all-done-celebration.css'
 
@@ -10,21 +11,22 @@ export function AllDoneCelebration() {
   const t = useTranslations()
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    setMounted(true)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     }
   }, [])
 
+  // Mirror store-driven celebration trigger into local animation state.
   useEffect(() => {
     if (allDoneCelebration) {
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external store trigger into local animation state
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)

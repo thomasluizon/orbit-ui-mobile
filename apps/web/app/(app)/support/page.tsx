@@ -19,40 +19,50 @@ export default function SupportPage() {
   const { profile } = useProfile()
   const { isOnline } = useOffline()
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
+  // Initial state: hydrate from saved draft via lazy useState so we don't
+  // trigger setState-in-effect.
+  const initialDraft = (() => {
+    if (typeof globalThis === 'undefined' || globalThis.localStorage === undefined) {
+      return { name: '', email: '', subject: '', message: '' }
+    }
+    const stored = globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+    if (!stored) return { name: '', email: '', subject: '', message: '' }
+    try {
+      const draft = JSON.parse(stored) as Partial<Record<'name' | 'email' | 'subject' | 'message', string>>
+      return {
+        name: draft.name ?? '',
+        email: draft.email ?? '',
+        subject: draft.subject ?? '',
+        message: draft.message ?? '',
+      }
+    } catch {
+      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      return { name: '', email: '', subject: '', message: '' }
+    }
+  })()
+  const [name, setName] = useState(initialDraft.name)
+  const [email, setEmail] = useState(initialDraft.email)
+  const [subject, setSubject] = useState(initialDraft.subject)
+  const [message, setMessage] = useState(initialDraft.message)
   const [isSending, setIsSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (globalThis.localStorage === undefined) return
-
-    const storedDraft = globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
-    if (!storedDraft) return
-
-    try {
-      const draft = JSON.parse(storedDraft) as Partial<Record<'name' | 'email' | 'subject' | 'message', string>>
-      setName(draft.name ?? '')
-      setEmail(draft.email ?? '')
-      setSubject(draft.subject ?? '')
-      setMessage(draft.message ?? '')
-    } catch {
-      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-    }
-  }, [])
-
-  // Pre-fill from profile
-  useEffect(() => {
+  // Pre-fill from profile when it loads and the field is still empty.
+  // "Adjusting state when a prop changes" pattern: detect profile becoming
+  // available during render. Profile has no id; use email as the identity
+  // key since it is unique per user.
+  const profileKey = profile?.email ?? null
+  const [previousProfileKey, setPreviousProfileKey] = useState<string | null>(profileKey)
+  if (profileKey !== previousProfileKey) {
+    setPreviousProfileKey(profileKey)
     if (profile) {
-      setName((current) => current || profile.name || '')
-      setEmail((current) => current || profile.email || '')
+      if (!name) setName(profile.name ?? '')
+      if (!email) setEmail(profile.email ?? '')
     }
-  }, [profile])
+  }
 
   useEffect(() => {
     if (globalThis.localStorage === undefined) return
@@ -73,7 +83,7 @@ export default function SupportPage() {
     globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
   }, [email, message, name, subject])
 
-  function validateForm(): boolean {
+  const validateForm = useCallback((): boolean => {
     setNameError(null)
     setEmailError(null)
     let valid = true
@@ -94,7 +104,7 @@ export default function SupportPage() {
     }
 
     return valid
-  }
+  }, [name, email, profile?.name, profile?.email, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
@@ -128,7 +138,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [email, isOnline, message, name, profile, subject, t])
+  }, [email, isOnline, message, name, profile, subject, t, validateForm])
 
   return (
     <div className="pb-8">

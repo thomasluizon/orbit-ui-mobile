@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
@@ -12,6 +12,7 @@ import {
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import {
@@ -47,24 +48,28 @@ export default function PreferencesPage() {
 
   // Hydration guard: cookie/localStorage reads differ between server and client.
   // Defer client-only state until after mount to prevent aria-pressed mismatches.
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
+
+  // One-time legacy preference cleanup (orbit_time_format was removed). Run
+  // as an effect so the DOM/storage mutation happens after hydration.
   useEffect(() => {
-    setMounted(true)
     localStorage.removeItem('orbit_time_format')
     document.cookie = 'orbit_time_format=;max-age=0;path=/;samesite=strict'
   }, [])
 
-  // --- Language ---
-  const [selectedLanguage, setSelectedLanguage] = useState('en')
-
-  useEffect(() => {
+  // --- Language --- read the current locale from the cookie at mount via
+  // lazy initial state so we don't trigger setState-in-effect.
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
+    if (typeof document === 'undefined') return 'en'
     const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
-    if (match?.[1]) setSelectedLanguage(decodeURIComponent(match[1]))
-  }, [])
+    return match?.[1] ? decodeURIComponent(match[1]) : 'en'
+  })
 
-  async function handleLanguageChange(locale: SupportedLocale) {
+  const handleLanguageChange = useCallback(async (locale: SupportedLocale) => {
     setSelectedLanguage(locale)
-    document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
+    if (typeof document !== 'undefined') {
+      document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
+    }
     if (isAuthenticated) {
       try {
         await updateLanguage({ language: locale })
@@ -75,7 +80,7 @@ export default function PreferencesPage() {
     // Hard reload to re-trigger next-intl proxy with the new locale cookie
     // (router.refresh() alone does not re-evaluate proxy)
     globalThis.location.reload()
-  }
+  }, [isAuthenticated])
 
   // --- Week Start Day ---
   const weekStartOptions = buildWeekStartOptions(t)
@@ -122,11 +127,11 @@ export default function PreferencesPage() {
   }
 
   // --- Home Screen Toggle (local-only preference) ---
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
-
-  useEffect(() => {
-    setShowGeneralOnToday(parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today')))
-  }, [])
+  // Lazy initial state reads from localStorage on the client only.
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
+    if (typeof localStorage === 'undefined') return false
+    return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
+  })
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday

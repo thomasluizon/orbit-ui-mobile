@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
+import { useIsClient } from '@/hooks/use-is-client'
 import { usePopoverMenu, type UsePopoverMenuOptions } from '@/hooks/use-popover-menu'
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 
@@ -50,26 +51,33 @@ export function Popover({
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('menu', Boolean(prefersReducedMotion))
 
-  const hook = usePopoverMenu({ placement, offset, margin })
+  const {
+    isOpen: hookIsOpen,
+    open: hookOpen,
+    close: hookClose,
+    triggerRef,
+    panelRef,
+    position,
+  } = usePopoverMenu({ placement, offset, margin })
   const wasOpenRef = useRef(false)
 
   // Resolve effective open state and close function based on mode.
-  const isOpen = isControlled ? controlledOpen : hook.isOpen
+  const isOpen = isControlled ? controlledOpen : hookIsOpen
 
   const close = isControlled
     ? () => onOpenChange?.(false)
-    : hook.close
+    : hookClose
 
   // When in controlled mode, sync the internal hook whenever `controlledOpen`
   // changes so position is computed on open.
   useEffect(() => {
     if (!isControlled) return
     if (controlledOpen) {
-      hook.open()
+      hookOpen()
     } else {
-      hook.close()
+      hookClose()
     }
-  // hook.open/close are stable callbacks -- safe to list.
+  // hookOpen/hookClose are stable callbacks -- safe to list.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isControlled, controlledOpen])
 
@@ -78,23 +86,20 @@ export function Popover({
   // hook's internal state and the panel stays open.
   useEffect(() => {
     if (!isControlled) return
-    if (!hook.isOpen && controlledOpen) {
+    if (!hookIsOpen && controlledOpen) {
       onOpenChange?.(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hook.isOpen])
+  }, [hookIsOpen])
 
   // For SSR safety, delay portal rendering until mounted.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useIsClient()
 
   useEffect(() => {
     if (!isOpen) return
 
     const rafId = requestAnimationFrame(() => {
-      const panel = hook.panelRef.current
+      const panel = panelRef.current
       if (!panel) return
 
       const [firstFocusable] = getFocusableElements(panel)
@@ -102,7 +107,7 @@ export function Popover({
     })
 
     return () => cancelAnimationFrame(rafId)
-  }, [hook.panelRef, isOpen])
+  }, [panelRef, isOpen])
 
   useEffect(() => {
     if (!wasOpenRef.current || isOpen) {
@@ -111,7 +116,7 @@ export function Popover({
     }
 
     const rafId = requestAnimationFrame(() => {
-      const triggerContainer = hook.triggerRef.current
+      const triggerContainer = triggerRef.current
       if (!triggerContainer) return
 
       const triggerTarget =
@@ -123,7 +128,7 @@ export function Popover({
 
     wasOpenRef.current = isOpen
     return () => cancelAnimationFrame(rafId)
-  }, [hook.triggerRef, isOpen])
+  }, [triggerRef, isOpen])
 
   // Wrap the trigger so we can forward the triggerRef.
   // We render it inside a span that gets the ref forwarded via a hidden button
@@ -145,7 +150,7 @@ export function Popover({
   function handlePanelKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
 
-    const panel = hook.panelRef.current
+    const panel = panelRef.current
     if (!panel) return
 
     const focusableElements = getFocusableElements(panel)
@@ -182,7 +187,7 @@ export function Popover({
           display:inline-flex preserves layout flow while giving a measurable rect
           (display:contents returns a zero rect from getBoundingClientRect). */}
       <div
-        ref={hook.triggerRef as unknown as React.RefObject<HTMLDivElement>}
+        ref={triggerRef as unknown as React.RefObject<HTMLDivElement>}
         style={{ display: 'inline-flex' }}
       >
         {trigger}
@@ -193,7 +198,7 @@ export function Popover({
           <AnimatePresence>
             {isOpen ? (
               <motion.div
-                ref={hook.panelRef}
+                ref={panelRef}
                 role="dialog"
                 aria-modal="false"
                 className={[
@@ -208,8 +213,8 @@ export function Popover({
                   .filter(Boolean)
                   .join(' ')}
                 style={{
-                  top: `${hook.position.top}px`,
-                  left: `${hook.position.left}px`,
+                  top: `${position.top}px`,
+                  left: `${position.left}px`,
                 }}
                 tabIndex={-1}
                 onKeyDown={handlePanelKeyDown}

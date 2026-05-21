@@ -84,16 +84,20 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
   }, [profile])
 
-  useEffect(() => {
-    if (
-      profile &&
-      profile.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
-      !profile.hasImportedCalendar
-    ) {
-      setShowCalendarPrompt(true)
-    }
-  }, [profile])
+  // Show the calendar import prompt once the profile meets the criteria.
+  // "Adjusting state when a prop changes" pattern: detect the criteria
+  // transitioning from false -> true during render.
+  const calendarPromptCriteriaMet = !!(
+    profile &&
+    profile.hasCompletedOnboarding &&
+    profile.hasCompletedTour &&
+    !profile.hasImportedCalendar
+  )
+  const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
+  if (calendarPromptCriteriaMet !== previousCriteriaMet) {
+    setPreviousCriteriaMet(calendarPromptCriteriaMet)
+    if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
+  }
 
   // ---------------------------------------------------------------------------
   // handleCreate -- mirrors Nuxt default.vue logic

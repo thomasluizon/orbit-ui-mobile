@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 import './goal-completed-celebration.css'
 
@@ -11,20 +12,21 @@ export function GoalCompletedCelebration() {
   const goalCompletedCelebration = useUIStore((s) => s.goalCompletedCelebration)
   const setGoalCompletedCelebration = useUIStore((s) => s.setGoalCompletedCelebration)
   const [goalName, setGoalName] = useState('')
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    setMounted(true)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     }
   }, [])
 
+  // Mirror store-driven celebration trigger into local animation state.
   useEffect(() => {
     if (goalCompletedCelebration) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external store trigger into local animation state
       setGoalName(goalCompletedCelebration.name)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))

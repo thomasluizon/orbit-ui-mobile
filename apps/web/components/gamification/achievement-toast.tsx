@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useGamificationProfile } from '@/hooks/use-gamification'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 
 export function AchievementToast() {
@@ -12,7 +13,7 @@ export function AchievementToast() {
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [currentAchievement, setCurrentAchievement] = useState<{
     id: string
     achievementId: string
@@ -26,10 +27,6 @@ export function AchievementToast() {
     activeCelebration?.kind === 'achievement'
       ? activeCelebration
       : null
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     if (newAchievements.length === 0) return
@@ -58,9 +55,15 @@ export function AchievementToast() {
     }, 400)
   }, [completeActiveCelebration])
 
+  // When an achievement enters the active celebration slot of the store, mirror
+  // it into local presentation state (the local state outlives the store entry
+  // through the dismiss animation). This is the documented allowed case for
+  // setState-in-effect: subscribing to an external store and surfacing it for
+  // rendering.
   useEffect(() => {
     if (!activeAchievement) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external store snapshot into local presentation state
     setCurrentAchievement({
       id: activeAchievement.id,
       achievementId: activeAchievement.payload.achievementId,

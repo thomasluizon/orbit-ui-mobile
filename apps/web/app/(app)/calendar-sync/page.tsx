@@ -257,13 +257,17 @@ export default function CalendarSyncPage() {
   useEffect(() => {
     if (!profile || !hasProAccess) return
     if (isReviewMode) return
-    fetchEvents()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; setState happens in awaited resolutions (external subscription)
+    void fetchEvents()
   }, [profile, hasProAccess, fetchEvents, isReviewMode])
 
-  // Review mode: sync suggestions into local selection state
+  // Review mode: mirror suggestions query state into local wizard steps and
+  // selection state. setState-in-effect is acceptable because we are
+  // subscribing to an external TanStack Query state and deriving UI from it.
   useEffect(() => {
     if (!isReviewMode) return
     if (suggestionsQuery.isLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror query loading state into local wizard step
       setStep('loading')
       return
     }

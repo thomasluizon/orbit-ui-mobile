@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Clipboard, Check, Share2, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
@@ -15,17 +15,19 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
   const t = useTranslations()
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const [canShare, setCanShare] = useState(false)
+  // navigator.share is only defined on the client; lazy-init defers the read
+  // until after hydration.
+  const [canShare] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' && !!navigator.share,
+  )
 
-  useEffect(() => {
-    setCanShare(typeof navigator !== 'undefined' && !!navigator.share)
-  }, [])
-
-  useEffect(() => {
-    if (open) {
-      setCopied(false)
-    }
-  }, [open])
+  // Reset copied state when modal re-opens. "Adjusting state when a prop
+  // changes" pattern.
+  const [previousOpen, setPreviousOpen] = useState(open)
+  if (previousOpen !== open) {
+    setPreviousOpen(open)
+    if (open) setCopied(false)
+  }
 
   const discountPercent = stats?.discountPercent ?? 10
 

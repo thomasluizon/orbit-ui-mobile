@@ -112,8 +112,12 @@ export function MessageBubble({
               : 'bg-surface-elevated text-text-primary rounded-2xl rounded-bl-md shadow-[var(--shadow-sm)]'
           }`}
         >
-          {/* User-attached image */}
+          {/* User-attached image. blob: URLs from local uploads cannot be
+              processed by next/image's optimization pipeline; using a plain
+              <img> avoids the runtime cost and stays compatible with the
+              dynamic source. */}
           {message.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- blob: URLs cannot be optimized by next/image
             <img
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}

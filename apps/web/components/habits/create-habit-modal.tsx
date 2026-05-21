@@ -88,10 +88,14 @@ export function CreateHabitModal({
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const reminderWasManuallyToggledRef = useRef(false)
-  const initialTagIdsRef = useRef('[]')
-  const initialGoalIdsRef = useRef('[]')
-  const initialSubHabitsRef = useRef('[]')
-  const initialReminderTimesRef = useRef('[0,15]')
+  // Initial snapshot strings captured on open so the dirty-check can read them
+  // during render. State (not refs) so render-time reads are lint-safe.
+  const [initialSnapshot, setInitialSnapshot] = useState({
+    tagIds: '[]',
+    goalIds: '[]',
+    subHabits: '[]',
+    reminderTimes: '[0,15]',
+  })
 
   const watchedDueTime = formHelpers.form.watch('dueTime') ?? ''
   const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
@@ -100,10 +104,10 @@ export function CreateHabitModal({
   const atGoalLimit = selectedGoalIds.length >= 10
   const isDirty =
     formHelpers.form.formState.isDirty ||
-    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIdsRef.current ||
-    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIdsRef.current ||
-    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSubHabitsRef.current ||
-    JSON.stringify(reminderTimes) !== initialReminderTimesRef.current
+    JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.tagIds ||
+    JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.goalIds ||
+    JSON.stringify(subHabits.map((entry) => entry.value)) !== initialSnapshot.subHabits ||
+    JSON.stringify(reminderTimes) !== initialSnapshot.reminderTimes
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => onOpenChange(false),
@@ -120,7 +124,10 @@ export function CreateHabitModal({
     router.push('/upgrade')
   }, [isSubHabitMode, onOpenChange, open, profile, router])
 
-  // Reset form when modal opens/closes
+  // Reset form when modal opens. This effect runs in response to the `open`
+  // prop transitioning to true; the setState calls reset the form to its
+  // empty (or parent-prefilled) state. setState-in-effect is acceptable here
+  // because it mirrors an external prop transition into local form state.
   useEffect(() => {
     if (!open) return
 
@@ -129,6 +136,7 @@ export function CreateHabitModal({
     reminderWasManuallyToggledRef.current = false
     formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
     tags.resetTags()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- modal-open prop transition resets form state
     setSelectedGoalIds([])
     setSubHabits([])
     setReminderTimes([0, 15])
@@ -146,21 +154,26 @@ export function CreateHabitModal({
       formHelpers.setGeneral()
     }
 
-    initialTagIdsRef.current = JSON.stringify(
-      [...(prefill?.selectedTagIds ?? [])].sort((left, right) => left.localeCompare(right)),
-    )
-    initialGoalIdsRef.current = JSON.stringify(
-      [...(prefill?.selectedGoalIds ?? [])].sort((left, right) => left.localeCompare(right)),
-    )
-    initialSubHabitsRef.current = JSON.stringify([])
-    initialReminderTimesRef.current = JSON.stringify(prefill?.reminderTimes ?? [0, 15])
+    setInitialSnapshot({
+      tagIds: JSON.stringify(
+        [...(prefill?.selectedTagIds ?? [])].sort((left, right) => left.localeCompare(right)),
+      ),
+      goalIds: JSON.stringify(
+        [...(prefill?.selectedGoalIds ?? [])].sort((left, right) => left.localeCompare(right)),
+      ),
+      subHabits: JSON.stringify([]),
+      reminderTimes: JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  useEffect(() => {
-    if (hasProAccess || subHabits.length === 0) return
-    setSubHabits([])
-  }, [hasProAccess, subHabits.length])
+  // Drop sub-habit entries if the user loses pro access. "Adjusting state when
+  // a prop changes" pattern: track previous prop, react in render.
+  const [previousHasProAccess, setPreviousHasProAccess] = useState(hasProAccess)
+  if (hasProAccess !== previousHasProAccess) {
+    setPreviousHasProAccess(hasProAccess)
+    if (!hasProAccess && subHabits.length > 0) setSubHabits([])
+  }
 
   useEffect(() => {
     if (!open) return

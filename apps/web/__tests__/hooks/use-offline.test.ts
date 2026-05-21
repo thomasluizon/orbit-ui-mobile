@@ -34,6 +34,7 @@ describe('useOffline', () => {
   it('updates to offline on offline event', () => {
     const { result } = renderHook(() => useOffline())
     act(() => {
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
       offlineHandlers.forEach((h) => h())
     })
     expect(result.current.isOnline).toBe(false)
@@ -43,6 +44,7 @@ describe('useOffline', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     const { result } = renderHook(() => useOffline())
     act(() => {
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
       onlineHandlers.forEach((h) => h())
     })
     expect(result.current.isOnline).toBe(true)

@@ -19,10 +19,11 @@ export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: Read
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
 
+  const trialEndsAt = profile?.trialEndsAt
   const formattedTrialEnd = useMemo(() => {
-    if (!profile?.trialEndsAt) return ''
-    return displayDate(parseISO(profile.trialEndsAt))
-  }, [profile?.trialEndsAt, displayDate])
+    if (!trialEndsAt) return ''
+    return displayDate(parseISO(trialEndsAt))
+  }, [trialEndsAt, displayDate])
 
   const recapItems = useMemo(() => {
     const items = [
@@ -31,7 +32,7 @@ export function OnboardingComplete({ createdHabit, createdGoal, onFinish }: Read
       { key: 'theme', label: t('onboarding.flow.complete.recap.theme'), show: hasProAccess },
     ]
     return items.filter((item) => item.show)
-  }, [createdHabit, createdGoal, hasProAccess])
+  }, [createdHabit, createdGoal, hasProAccess, t])
 
   return (
     <div className="text-center">

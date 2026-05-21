@@ -98,14 +98,16 @@ export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<Del
     }
   }
 
+  const hasProAccess = profile?.hasProAccess
+  const planExpiresAt = profile?.planExpiresAt
   const warningMessage = useMemo(() => {
-    if (profile?.hasProAccess && profile?.planExpiresAt) {
+    if (hasProAccess && planExpiresAt) {
       return t('profile.deleteAccount.warningPro', {
-        date: displayDate(parseISO(profile.planExpiresAt)),
+        date: displayDate(parseISO(planExpiresAt)),
       })
     }
     return t('profile.deleteAccount.warningFree')
-  }, [profile?.hasProAccess, profile?.planExpiresAt, displayDate, t])
+  }, [hasProAccess, planExpiresAt, displayDate, t])
 
   const formattedDeletionDate = useMemo(() => {
     if (!scheduledDeletionDate) return ''

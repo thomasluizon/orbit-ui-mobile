@@ -135,13 +135,18 @@ export function useDrillNavigation(
     [drillChildrenMap],
   )
 
-  // Auto-refresh drill children when store data updates
+  // Auto-refresh drill children when store data updates. This effect is
+  // intentionally subscribing to an external store (the habits Zustand store)
+  // — the setState calls happen asynchronously inside the fetched promise,
+  // not synchronously in the effect body. The rule cannot statically prove
+  // this, so it is disabled with justification.
   const lastUpdatedRef = useRef(lastUpdated)
   useEffect(() => {
     if (lastUpdated !== lastUpdatedRef.current) {
       lastUpdatedRef.current = lastUpdated
       if (currentParentId) {
-        fetchDrillChildren(currentParentId, true)
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch, setState happens in .then callback (external subscription pattern)
+        void fetchDrillChildren(currentParentId, true)
       }
     }
   }, [lastUpdated, currentParentId, fetchDrillChildren])

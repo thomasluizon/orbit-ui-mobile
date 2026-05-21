@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Clock, Bell, CalendarDays } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
@@ -52,7 +52,10 @@ export function HabitDetailDrawer({
 
   const metrics = fullDetail?.metrics ?? null
   const logs = fullDetail?.logs ?? null
-  const liveChecklist = fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? []
+  const liveChecklist = useMemo(
+    () => fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [],
+    [fullDetail?.habit.checklistItems, habit?.checklistItems],
+  )
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)

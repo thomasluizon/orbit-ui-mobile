@@ -17,8 +17,12 @@ export function ProfileStreakCard() {
   const [displayStreak, setDisplayStreak] = useState(0)
   const frameRef = useRef<number>(undefined)
 
+  // Animate the streak count from 0 up to the current streak whenever the
+  // streak changes. When the streak is zero we snap immediately rather than
+  // animate down to zero.
   useEffect(() => {
     if (streak <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- snap-to-zero when external streak resets; rAF path handles animated case
       setDisplayStreak(0)
       return
     }

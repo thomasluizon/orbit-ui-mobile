@@ -227,7 +227,6 @@ export function TourTooltip({
   }, [targetRect, step.placement])
 
   useEffect(() => {
-    layout()
     window.addEventListener('resize', layout)
     return () => window.removeEventListener('resize', layout)
   }, [layout])

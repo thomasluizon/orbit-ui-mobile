@@ -249,10 +249,12 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Image preview */}
+          {/* Image preview. blob: URL from local upload; next/image cannot
+              process these, so a plain <img> is used. */}
           {imagePreview && (
             <div className="pb-2">
               <div className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element -- blob: URLs cannot be optimized by next/image */}
                 <img
                   src={imagePreview}
                   alt=""

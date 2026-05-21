@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
   useQuery,
   useMutation,
@@ -47,20 +47,33 @@ export function useGamificationProfile(enabled = true) {
     achievementsByCategory,
   } = useMemo(() => deriveGamificationProfileState(profile), [profile])
 
-  // Detect level-ups and new achievements
-  const { leveledUp, newLevel, newAchievements } = useMemo(() => {
-    const nextMilestones = detectGamificationMilestones(
+  // Detect level-ups and new achievements by comparing against the previous
+  // render's snapshot. Reading and writing refs is forbidden during render,
+  // so we perform the comparison and ref update inside an effect and surface
+  // the result via state.
+  const [milestones, setMilestones] = useState<{
+    leveledUp: boolean
+    newLevel: number | null
+    newAchievements: ReturnType<typeof detectGamificationMilestones>['newAchievements']
+  }>({ leveledUp: false, newLevel: null, newAchievements: [] })
+
+  useEffect(() => {
+    const result = detectGamificationMilestones(
       profile,
       previousLevelRef.current,
       previousAchievementIdsRef.current,
       acknowledgedLevel,
     )
-
     previousLevelRef.current = profile?.level ?? null
-    previousAchievementIdsRef.current = nextMilestones.currentEarnedAchievementIds
-
-    return nextMilestones
+    previousAchievementIdsRef.current = result.currentEarnedAchievementIds
+    setMilestones({
+      leveledUp: result.leveledUp,
+      newLevel: result.newLevel,
+      newAchievements: result.newAchievements,
+    })
   }, [profile, acknowledgedLevel])
+
+  const { leveledUp, newLevel, newAchievements } = milestones
 
   // Clear level-up after overlay dismisses
   const clearLevelUp = useCallback(() => {

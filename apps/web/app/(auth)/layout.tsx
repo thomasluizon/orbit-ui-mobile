@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 
@@ -24,12 +25,13 @@ export default function AuthLayout({
       </a>
       <div className="text-center mb-8 animate-slide-up">
         <div className="flex items-center justify-center gap-2 mb-3">
-          <img
+          <Image
             src="/logo-no-bg.png"
             alt="Orbit"
             className="size-12 drop-shadow-[0_0_12px_rgba(var(--primary-shadow),0.3)]"
             width={48}
             height={48}
+            priority
           />
           <h1 className="text-[length:var(--text-fluid-xl)] font-extrabold text-text-primary tracking-tight">
             Orbit

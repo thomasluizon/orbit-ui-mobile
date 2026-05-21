@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
 import {
   isToday as isDateToday,
   isTomorrow,
@@ -85,6 +85,9 @@ interface HabitListProps {
   onEnterSelectMode?: (habitId: string) => void
   onCreate?: () => void
   onSeeUpcoming?: () => void
+  /** Notified whenever the all-collapsed status changes. Used by parent
+   * components that need to surface this in render (e.g., a controls menu). */
+  onAllCollapsedChange?: (allCollapsed: boolean) => void
 }
 
 export interface HabitListHandle {
@@ -278,6 +281,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   onEnterSelectMode,
   onCreate,
   onSeeUpcoming,
+  onAllCollapsedChange,
 }, ref) {
   const t = useTranslations()
   const router = useRouter()
@@ -325,7 +329,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         return next
       })
     }, 1400)
-  }, [])
+  }, [recentlyCompletedPromptIdsRef])
 
   const clearRecentlyCompleted = useCallback((habitId: string) => {
     recentlyCompletedPromptIdsRef.current.delete(habitId)
@@ -335,7 +339,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       next.delete(habitId)
       return next
     })
-  }, [])
+  }, [recentlyCompletedPromptIdsRef])
 
   // Visibility helpers
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
@@ -385,6 +389,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [habitsById, childrenByParent])
 
   const allCollapsed = expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id))
+
+  useEffect(() => {
+    onAllCollapsedChange?.(allCollapsed)
+  }, [allCollapsed, onAllCollapsedChange])
 
   const collapseAll = useCallback(() => {
     setCollapsedIds(new Set(expandableIds))
@@ -542,7 +550,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
       return compute(habitId)
     },
-    [getChildren, isListView, visibility],
+    [getChildren, isListView, visibility, recentlyCompletedPromptIdsRef],
   )
 
   // Date groups for "all" view
@@ -609,7 +617,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // Mutable ref for drag items so onDragEnd always sees latest after collapse
   const dragItemsRef = useReactRef<DragItem[]>(dragItems)
-  dragItemsRef.current = dragItems
+  useEffect(() => {
+    dragItemsRef.current = dragItems
+  }, [dragItems, dragItemsRef])
 
   // Override drag items during active drag (collapsed descendants removed)
   const [dragOverrideItems, setDragOverrideItems] = useState<DragItem[] | null>(null)

@@ -1,24 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
+
+function subscribe(callback: () => void) {
+  globalThis.addEventListener('online', callback)
+  globalThis.addEventListener('offline', callback)
+  return () => {
+    globalThis.removeEventListener('online', callback)
+    globalThis.removeEventListener('offline', callback)
+  }
+}
+
+function getSnapshot() {
+  return navigator.onLine
+}
+
+function getServerSnapshot() {
+  return true
+}
 
 export function useOffline() {
-  const [isOnline, setIsOnline] = useState(true)
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine)
-
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
-
-    globalThis.addEventListener('online', handleOnline)
-    globalThis.addEventListener('offline', handleOffline)
-
-    return () => {
-      globalThis.removeEventListener('online', handleOnline)
-      globalThis.removeEventListener('offline', handleOffline)
-    }
-  }, [])
-
+  const isOnline = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
   return { isOnline }
 }

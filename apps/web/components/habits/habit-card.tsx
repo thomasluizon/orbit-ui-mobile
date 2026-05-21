@@ -925,10 +925,13 @@ function useActionsMenu(
     }
   }, [showActionsMenu, actionsMenuRef, actionsMenuPanelRef])
 
-  // Close menu on select mode
-  useEffect(() => {
+  // Close menu when select mode is entered. "Adjusting state when a prop
+  // changes" pattern: track previous prop in state, react in render.
+  const [previousIsSelectMode, setPreviousIsSelectMode] = useState(isSelectMode)
+  if (isSelectMode !== previousIsSelectMode) {
+    setPreviousIsSelectMode(isSelectMode)
     if (isSelectMode) setShowActionsMenu(false)
-  }, [isSelectMode])
+  }
 
   return { showActionsMenu, menuPosition, menuOpensUp, closeActionsMenu, toggleActionsMenu }
 }
@@ -990,8 +993,12 @@ export const HabitCard = React.memo(function HabitCard({
   const [justCreated, setJustCreated] = useState(false)
   const creationTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  // Trigger creation glow when isJustCreated transitions to true.
+  // setState-in-effect is acceptable: we mirror an external prop edge into
+  // local animation state and schedule its cleanup.
   useEffect(() => {
     if (isJustCreated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror prop edge into transient animation state
       setJustCreated(true)
       if (creationTimer.current) clearTimeout(creationTimer.current)
       creationTimer.current = setTimeout(() => setJustCreated(false), 1200)

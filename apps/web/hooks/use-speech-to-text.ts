@@ -49,9 +49,7 @@ interface SpeechRecognitionInstance extends EventTarget {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance
 
 declare global {
-  // eslint-disable-next-line no-var
   var SpeechRecognition: SpeechRecognitionConstructor | undefined
-  // eslint-disable-next-line no-var
   var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined
 }
 
@@ -64,7 +62,10 @@ export function useSpeechToText() {
   const t = useTranslations()
 
   const [isRecording, setIsRecording] = useState(false)
-  const [isSupported, setIsSupported] = useState(false)
+  const [isSupported] = useState(() => {
+    if (typeof globalThis === 'undefined') return false
+    return !!(globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition)
+  })
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [selectedLanguage, setSelectedLanguageRaw] = useState(() => { // NOSONAR - setter wrapped by useCallback below
@@ -77,11 +78,9 @@ export function useSpeechToText() {
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Check browser support and create recognition instance
+  // Create recognition instance on mount
   useEffect(() => {
     const Ctor = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition
-    setIsSupported(!!Ctor)
-
     if (Ctor) {
       const recognition = new Ctor()
       recognition.continuous = true
@@ -94,7 +93,7 @@ export function useSpeechToText() {
       recognitionRef.current?.abort()
       recognitionRef.current = null
     }
-    // Only run once on mount
+    // Only run once on mount; selectedLanguage is applied per-start in startRecording
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

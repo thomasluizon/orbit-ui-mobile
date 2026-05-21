@@ -225,7 +225,10 @@ export default function AiSettingsPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const facts = hasProAccess ? (factsQuery.data ?? []) : []
+  const facts = useMemo(
+    () => (hasProAccess ? (factsQuery.data ?? []) : []),
+    [hasProAccess, factsQuery.data],
+  )
 
   const deleteMutation = useMutation({
     mutationFn: deleteUserFact,
@@ -254,12 +257,12 @@ export default function AiSettingsPage() {
     return facts.slice(start, start + USER_FACTS_PER_PAGE)
   }, [facts, factsPage])
 
-  // Keep page in bounds when facts change
-  useEffect(() => {
-    if (factsPage > totalFactsPages) {
-      setFactsPage(totalFactsPages)
-    }
-  }, [factsPage, totalFactsPages])
+  // Keep page in bounds when facts change. Clamp during render via the
+  // "Adjusting state when a prop changes" pattern, comparing against the
+  // computed total.
+  if (factsPage > totalFactsPages) {
+    setFactsPage(totalFactsPages)
+  }
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false)

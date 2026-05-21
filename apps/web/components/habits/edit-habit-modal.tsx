@@ -90,11 +90,14 @@ export function EditHabitModal({
 
   // Populate form when the modal session starts and once detail loads.
   // Avoid rehydrating on every background refetch while the user is typing.
+  // setState-in-effect is acceptable here: we are mirroring server-fetched
+  // habit detail into local form fields on session start.
   useEffect(() => {
     if (!open || !habit) return
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
     formHelpers.form.reset(prefill.formValues)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror server-fetched detail into local form state on session start
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
     tags.resetTags(prefill.selectedTagIds)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useId, useRef, useCallback, useMemo } from 'react'
+import { useState, useId, useRef, useCallback, useMemo, useEffect } from 'react'
 import {
   addMonths,
   subMonths,
@@ -36,15 +36,18 @@ export function AppDatePicker({
   const { profile } = useProfile()
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const [isOpen, setIsOpen] = useState(false)
-  const [viewDate, setViewDate] = useState(new Date())
+  const [viewDate, setViewDate] = useState(() => (value ? parseISO(value) : new Date()))
+  // Re-sync viewDate when the externally-controlled `value` prop changes.
+  // This is the documented "adjusting some state when a prop changes" pattern.
+  const [lastSyncedValue, setLastSyncedValue] = useState(value)
+  if (value !== lastSyncedValue) {
+    setLastSyncedValue(value)
+    if (value) setViewDate(parseISO(value))
+  }
   const dialogLabelId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
 
   const selectedDate = value ? parseISO(value) : null
-
-  useEffect(() => {
-    if (value) setViewDate(parseISO(value))
-  }, [value])
 
   const monthLabel = formatLocaleDate(viewDate, locale, {
     month: 'long',

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 
 interface DescriptionViewerProps {
   open: boolean
@@ -21,23 +22,15 @@ export function DescriptionViewer({
   description,
 }: Readonly<DescriptionViewerProps>) {
   const t = useTranslations()
-  const [mounted, setMounted] = useState(false)
-  const [renderedHtml, setRenderedHtml] = useState('')
+  const mounted = useIsClient()
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!open || !description) {
-      setRenderedHtml('')
-      return
-    }
+  const renderedHtml = useMemo(() => {
+    if (!open || !description) return ''
     const raw = marked.parse(description, { async: false }) as string // NOSONAR - marked.parse with async:false returns string but typed as string | Promise<string>
-    setRenderedHtml(DOMPurify.sanitize(raw, {
+    return DOMPurify.sanitize(raw, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'a'],
       ALLOWED_ATTR: ['href', 'target', 'rel'],
-    }))
+    })
   }, [open, description])
 
   if (!mounted || !open) return null

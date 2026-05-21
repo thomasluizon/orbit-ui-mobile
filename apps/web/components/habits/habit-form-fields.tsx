@@ -896,7 +896,8 @@ export function HabitFormFields({
   const watchedIsBadHabit = watch('isBadHabit') ?? false
   const watchedReminderEnabled = watch('reminderEnabled') ?? false
   const watchedSlipAlertEnabled = watch('slipAlertEnabled') ?? false
-  const watchedChecklistItems = watch('checklistItems') ?? []
+  const watchedChecklistItemsRaw = watch('checklistItems')
+  const watchedChecklistItems = useMemo(() => watchedChecklistItemsRaw ?? [], [watchedChecklistItemsRaw])
   const watchedScheduledReminders = watch('scheduledReminders') ?? []
   const { tags: availableTags = [] } = useTags()
   const createTag = useCreateTag()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   PencilLine,
   CheckCircle2,
@@ -94,8 +94,13 @@ export function GoalDetailDrawer({
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
   const [showProgressDiscardDialog, setShowProgressDiscardDialog] = useState(false)
-  const initialProgressValueRef = useRef<number | null>(null)
-  const pendingProgressDismissRef = useRef<ProgressDismissTarget | null>(null)
+  // Initial progress value captured when the drawer session starts. State
+  // (not a ref) so the dirty-check can read it during render in a lint-safe
+  // way.
+  const [initialProgressValue, setInitialProgressValue] = useState<number | null>(null)
+  // Which dismiss target requested confirmation; populated from event
+  // handlers, never during render.
+  const [pendingProgressDismiss, setPendingProgressDismiss] = useState<ProgressDismissTarget | null>(null)
 
   const isUpdatingProgress = updateProgress.isPending
   const isUpdatingStatus = updateStatus.isPending
@@ -109,23 +114,30 @@ export function GoalDetailDrawer({
     if (!showProgressForm) return false
 
     return (
-      progressValue !== initialProgressValueRef.current ||
+      progressValue !== initialProgressValue ||
       progressNote.trim().length > 0
     )
-  }, [progressNote, progressValue, showProgressForm])
+  }, [progressNote, progressValue, showProgressForm, initialProgressValue])
 
   // Reset state when a new drawer session starts, not on every cache refresh.
-  useEffect(() => {
+  // "Adjusting state when a prop changes" pattern: track previous session in
+  // state, react in render.
+  const [previousSession, setPreviousSession] = useState<{ open: boolean; goalId: string | null }>({
+    open,
+    goalId: open ? goalId : null,
+  })
+  if (previousSession.open !== open || previousSession.goalId !== (open ? goalId : null)) {
+    setPreviousSession({ open, goalId: open ? goalId : null })
     if (open) {
-      const initialProgressValue = goal?.currentValue ?? null
-      initialProgressValueRef.current = initialProgressValue
-      pendingProgressDismissRef.current = null
-      setProgressValue(initialProgressValue)
+      const nextInitial = goal?.currentValue ?? null
+      setInitialProgressValue(nextInitial)
+      setPendingProgressDismiss(null)
+      setProgressValue(nextInitial)
       setShowProgressForm(false)
       setProgressNote('')
       setShowProgressDiscardDialog(false)
     }
-  }, [open, goalId])
+  }
 
   // Format date helper
   const formatDate = useCallback(
@@ -182,7 +194,7 @@ export function GoalDetailDrawer({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const markAbandoned = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -196,7 +208,7 @@ export function GoalDetailDrawer({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const reactivate = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -210,7 +222,7 @@ export function GoalDetailDrawer({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goal?.title, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
 
   const confirmDelete = useCallback(async () => {
     try {
@@ -223,14 +235,14 @@ export function GoalDetailDrawer({
   }, [deleteGoalMut, goalId, onOpenChange, showError, translate])
 
   const closeProgressForm = useCallback(() => {
-    setProgressValue(initialProgressValueRef.current)
+    setProgressValue(initialProgressValue)
     setProgressNote('')
     setShowProgressForm(false)
-  }, [])
+  }, [initialProgressValue])
 
   const requestProgressDismiss = useCallback((target: ProgressDismissTarget) => {
     if (isProgressDirty) {
-      pendingProgressDismissRef.current = target
+      setPendingProgressDismiss(target)
       setShowProgressDiscardDialog(true)
       return
     }
@@ -244,8 +256,8 @@ export function GoalDetailDrawer({
   }, [closeProgressForm, isProgressDirty, onOpenChange])
 
   const confirmProgressDismiss = useCallback(() => {
-    const target = pendingProgressDismissRef.current
-    pendingProgressDismissRef.current = null
+    const target = pendingProgressDismiss
+    setPendingProgressDismiss(null)
     setShowProgressDiscardDialog(false)
 
     if (target === 'drawer') {
@@ -254,10 +266,10 @@ export function GoalDetailDrawer({
     }
 
     closeProgressForm()
-  }, [closeProgressForm, onOpenChange])
+  }, [closeProgressForm, onOpenChange, pendingProgressDismiss])
 
   const cancelProgressDismiss = useCallback(() => {
-    pendingProgressDismissRef.current = null
+    setPendingProgressDismiss(null)
     setShowProgressDiscardDialog(false)
   }, [])
 
@@ -318,7 +330,7 @@ export function GoalDetailDrawer({
                 <button
                   className="text-sm text-primary font-semibold hover:text-primary/80 transition-colors"
                   onClick={() => {
-                    initialProgressValueRef.current = goal.currentValue
+                    setInitialProgressValue(goal.currentValue)
                     setProgressValue(goal.currentValue)
                     setProgressNote('')
                     setShowProgressForm(true)
