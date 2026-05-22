@@ -127,7 +127,6 @@ export function FreezeSection({
   t,
   tokens,
   streak,
-  freezesAvailable,
   freezesUsedThisMonth,
   maxFreezesPerMonth,
   streakFreezesAccumulated,

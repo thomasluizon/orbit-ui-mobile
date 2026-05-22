@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  clearAllTokens,
+  clearRefreshToken,
+  clearToken,
+  getRefreshToken,
+  getToken,
+  setRefreshToken,
+  setToken,
+} from '@/lib/secure-store'
+
 const { getItemAsyncMock, setItemAsyncMock, deleteItemAsyncMock } = vi.hoisted(() => ({
   getItemAsyncMock: vi.fn(),
   setItemAsyncMock: vi.fn(),
@@ -11,16 +21,6 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: setItemAsyncMock,
   deleteItemAsync: deleteItemAsyncMock,
 }))
-
-import {
-  clearAllTokens,
-  clearRefreshToken,
-  clearToken,
-  getRefreshToken,
-  getToken,
-  setRefreshToken,
-  setToken,
-} from '@/lib/secure-store'
 
 describe('mobile secure store helpers', () => {
   beforeEach(() => {

@@ -33,7 +33,7 @@ export function snapshotHabitLists(queryClient: QueryClient) {
 
 export function restoreHabitLists(
   queryClient: QueryClient,
-  snapshots: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>,
+  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
 ): void {
   for (const [key, data] of snapshots) {
     if (data) {
@@ -374,7 +374,7 @@ export function optimisticMoveHabitParent(
 function findCachedGoals(
   queryClient: QueryClient,
   goalIds: string[] | undefined,
-): Array<{ id: string; title: string }> {
+): { id: string; title: string }[] {
   if (!goalIds?.length) return []
 
   const goals = queryClient
@@ -631,7 +631,7 @@ export function buildOptimisticHabitPatch(
   return patch
 }
 
-function runBackgroundInvalidations(tasks: Array<Promise<unknown>>) {
+function runBackgroundInvalidations(tasks: Promise<unknown>[]) {
   void Promise.allSettled(tasks)
 }
 
@@ -644,7 +644,7 @@ export function invalidateHabitMutationQueries(
     includeProfile?: boolean
   },
 ): void {
-  const invalidations: Array<Promise<unknown>> = [
+  const invalidations: Promise<unknown>[] = [
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
   ]

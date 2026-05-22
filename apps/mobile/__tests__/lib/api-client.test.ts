@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { apiClient } from '@/lib/api-client'
+
 const {
   getTokenMock,
   clearAllTokensMock,
@@ -25,8 +27,6 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 
 vi.stubGlobal('fetch', fetchMock)
-
-import { apiClient } from '@/lib/api-client'
 
 describe('mobile apiClient', () => {
   beforeEach(() => {

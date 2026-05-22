@@ -35,7 +35,7 @@ export function CalendarImportPrompt() {
 
   useEffect(() => {
     if (profile?.hasImportedCalendar) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- hide prompt when remote profile reports calendar imported
+       
       setDismissed(true)
     }
   }, [profile?.hasImportedCalendar])

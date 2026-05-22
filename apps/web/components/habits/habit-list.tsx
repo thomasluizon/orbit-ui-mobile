@@ -67,7 +67,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 // ---------------------------------------------------------------------------
@@ -327,9 +326,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   // Get children helper
   const getChildren = habitsQuery.getChildren
-
-  // UI store
-  const lastCreatedHabitId = useUIStore((s) => s.lastCreatedHabitId)
 
   // Recently completed for exit animation
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState(
@@ -891,7 +887,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
 
     return options
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- addOption is defined inline and only references the listed deps; recreating it on every render would invalidate the memo unnecessarily
   }, [movingHabitId, topLevelHabits, habitsById, t, maxHabitDepth])
 
   const selectedMoveOption = moveParentOptions.find(

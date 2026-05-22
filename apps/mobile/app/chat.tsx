@@ -341,7 +341,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
   }, [isRecording, transcript]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear draft when parent triggers a new chat
+     
     setDraft("");
     void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
   }, [resetSignal]);
@@ -536,7 +536,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (speechError) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- surface external speech error into transient banner
+       
       setSendError(speechError);
       const timer = setTimeout(() => {
         setSendError((current) => (current === speechError ? null : current));
@@ -547,14 +547,14 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (isRecording) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- close lang picker when recording starts
+       
       setShowLangPicker(false);
     }
   }, [isRecording]);
 
   useEffect(() => {
     if (!isOnline) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- close lang picker when going offline
+       
       setShowLangPicker(false);
     }
   }, [isOnline]);

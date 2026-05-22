@@ -139,7 +139,7 @@ export default function SupportScreen() {
 
   useEffect(() => {
     if (profile) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror profile into initial form fields
+       
       setName((current) => current || profile.name || '')
       setEmail((current) => current || profile.email || '')
     }

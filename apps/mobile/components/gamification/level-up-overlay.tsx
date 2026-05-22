@@ -88,7 +88,7 @@ export function LevelUpOverlay({
   useEffect(() => {
     if (!activeLevelUp) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror level-up trigger into local presentation state
+     
     setLevel(activeLevelUp.payload.level)
     setShouldRender(true)
     overlayOpacity.setValue(0)

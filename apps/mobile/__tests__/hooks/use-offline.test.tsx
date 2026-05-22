@@ -1,6 +1,8 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useOffline } from '@/hooks/use-offline'
+
 const TestRenderer = require('react-test-renderer')
 
 type NetInfoState = {
@@ -81,8 +83,6 @@ vi.mock('@/lib/offline-queue', () => ({
 vi.mock('@/lib/offline-mutations', () => ({
   flushQueuedMutations: mocks.flushQueuedMutations,
 }))
-
-import { useOffline } from '@/hooks/use-offline'
 
 function HookHarness() {
   useOffline()

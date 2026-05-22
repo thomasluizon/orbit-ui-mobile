@@ -133,7 +133,7 @@ export function GoalDetailDrawer({
       const nextInitial =
         goal?.currentValue !== undefined ? String(goal.currentValue) : ''
       pendingProgressDismissRef.current = null
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form snapshot when drawer opens
+       
       setInitialProgressValue(nextInitial)
       setProgressValue(nextInitial)
       setShowProgressForm(false)

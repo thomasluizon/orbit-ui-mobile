@@ -1,6 +1,8 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+
 const TestRenderer = require('react-test-renderer')
 
 const colorProxy: any = new Proxy(
@@ -24,8 +26,6 @@ vi.mock('lucide-react-native', () => {
     WifiOff: createIcon('WifiOff'),
   }
 })
-
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 describe('OfflineUnavailableState', () => {
   it('exposes the offline alert label and button accessibility state', () => {

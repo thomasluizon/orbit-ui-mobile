@@ -76,7 +76,7 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- keep dialog mounted while exit animation runs
+       
       setVisible(true)
       Animated.timing(progress, {
         toValue: 1,

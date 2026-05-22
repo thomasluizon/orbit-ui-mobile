@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
+import { useProfile } from '@/hooks/use-profile'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -52,8 +54,6 @@ vi.mock('i18next', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
-
-import { useProfile } from '@/hooks/use-profile'
 
 function renderHookHarness() {
   function Harness() {

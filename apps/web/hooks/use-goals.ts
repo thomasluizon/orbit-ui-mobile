@@ -127,7 +127,6 @@ export function useUpdateGoalStatus() {
     mutationFn: ({
       goalId,
       data,
-      goalName,
     }: {
       goalId: string
       data: UpdateGoalStatusRequest

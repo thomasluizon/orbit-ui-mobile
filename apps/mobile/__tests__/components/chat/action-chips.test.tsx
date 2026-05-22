@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ActionResult } from '@orbit/shared/types/chat'
 
+import { ActionChips } from '@/components/chat/action-chips'
+
 const TestRenderer = require('react-test-renderer')
 
 const colorProxy: any = new Proxy(
@@ -52,8 +54,6 @@ vi.mock('lucide-react-native', () => {
     Info: createIcon('Info'),
   }
 })
-
-import { ActionChips } from '@/components/chat/action-chips'
 
 function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
   return {

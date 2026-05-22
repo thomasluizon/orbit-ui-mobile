@@ -2,6 +2,8 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 
+import { useTimeFormat } from '@/hooks/use-time-format'
+
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('react-i18next', () => ({
@@ -9,8 +11,6 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'en' },
   }),
 }))
-
-import { useTimeFormat } from '@/hooks/use-time-format'
 
 async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> {
   let latestValue: ReturnType<typeof useTimeFormat> | null = null

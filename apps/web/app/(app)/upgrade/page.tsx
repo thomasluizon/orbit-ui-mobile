@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
-import type { Locale } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
 import {
   Loader2, BadgeCheck, Sparkles, CreditCard,
   Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
@@ -121,7 +119,7 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   )
 }
 
-function formatBillingDate(isoDate: string, locale: string, dateFnsLocale: Locale): string {
+function formatBillingDate(isoDate: string, locale: string): string {
   return formatLocaleDate(isoDate, locale, {
     month: 'short',
     day: 'numeric',
@@ -404,7 +402,6 @@ interface BillingDashboardProps {
   isBillingError: boolean
   profile: { aiMessagesUsed: number; aiMessagesLimit: number; isLifetimePro?: boolean } | null
   locale: string
-  dateFnsLocale: Locale
   usagePercent: number
   usageUrgent: boolean
   portalError: string
@@ -414,7 +411,7 @@ interface BillingDashboardProps {
 }
 
 function BillingDashboard({
-  billing, isBillingLoading, isBillingError, profile, locale, dateFnsLocale,
+  billing, isBillingLoading, isBillingError, profile, locale,
   usagePercent, usageUrgent, portalError, onOpenPortal, onRetryBilling, t,
 }: Readonly<BillingDashboardProps>) {
   return (
@@ -482,8 +479,8 @@ function BillingDashboard({
                 </div>
                 <p className="text-sm text-text-secondary mt-0.5">
                   {billing.cancelAtPeriodEnd
-                    ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })
-                    : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale, dateFnsLocale) })}
+                    ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale) })
+                    : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale) })}
                   {billing.amountPerPeriod > 0 && (
                     <span className="text-text-muted">
                       {' '}&middot;{' '}{formatPrice(billing.amountPerPeriod, billing.currency)}
@@ -540,7 +537,7 @@ function BillingDashboard({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm text-text-primary font-medium">
-                          {formatBillingDate(invoice.date, locale, dateFnsLocale)}
+                          {formatBillingDate(invoice.date, locale)}
                         </span>
                         <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded-full bg-surface-elevated text-text-muted border border-border-muted">
                           {invoiceReasonLabelFn(invoice.billingReason, t)}
@@ -744,7 +741,6 @@ export default function UpgradePage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
   const locale = useLocale()
-  const dateFnsLocale = locale.startsWith('pt') ? ptBR : enUS
 
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
@@ -813,7 +809,6 @@ export default function UpgradePage() {
           isBillingError={isBillingError}
           profile={profile ?? null}
           locale={locale}
-          dateFnsLocale={dateFnsLocale}
           usagePercent={usagePercent}
           usageUrgent={usageUrgent}
           portalError={portalError}

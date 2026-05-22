@@ -39,7 +39,7 @@ export function GoalCompletedCelebration() {
   useEffect(() => {
     if (!goalCompletedCelebration) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store-driven trigger into local presentation state
+     
     setGoalName(goalCompletedCelebration.name)
     overlayOpacity.setValue(0)
 

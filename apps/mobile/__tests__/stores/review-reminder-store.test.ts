@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useReviewReminderStore } from '@/stores/review-reminder-store'
+
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
 }))
@@ -15,8 +17,6 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     }),
   },
 }))
-
-import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
 describe('review reminder store', () => {
   beforeEach(() => {

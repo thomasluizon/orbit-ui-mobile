@@ -181,7 +181,7 @@ export default function CalendarSyncScreen() {
   useEffect(() => {
     if (!isReviewMode) return
     if (!isOnline) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror network / query state into step state machine
+       
       setStep('offline')
       return
     }

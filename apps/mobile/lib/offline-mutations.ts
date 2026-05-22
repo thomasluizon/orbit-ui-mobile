@@ -30,7 +30,7 @@ import { persistQueryCache, queryClient } from './query-client'
 
 type InvalidationQueryKey = readonly unknown[]
 
-const SCOPE_QUERY_KEYS: Record<MutationScope, ReadonlyArray<InvalidationQueryKey>> = {
+const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> = {
   habits: [habitKeys.all, goalKeys.all, profileKeys.all, gamificationKeys.all],
   goals: [goalKeys.all, habitKeys.lists()],
   tags: [tagKeys.all, habitKeys.lists()],

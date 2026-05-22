@@ -1,5 +1,9 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+
+import {
+  HabitDetailStatsGrid,
+} from '@/components/habits/habit-detail-sections'
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('lucide-react-native', () => ({
@@ -7,10 +11,6 @@ vi.mock('lucide-react-native', () => ({
   Flame: () => null,
   Trophy: () => null,
 }))
-
-import {
-  HabitDetailStatsGrid,
-} from '@/components/habits/habit-detail-sections'
 
 function findTextNodes(tree: ReturnType<typeof TestRenderer.create>, text: string) {
   return tree.root.findAll((node: { props: { children?: unknown } }) => {

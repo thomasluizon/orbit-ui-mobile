@@ -16,7 +16,7 @@ export {
 
 export function restoreGoalLists(
   queryClient: QueryClient,
-  previousLists: ReadonlyArray<readonly [readonly unknown[], Goal[] | undefined]>,
+  previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[],
 ): void {
   for (const [key, value] of previousLists) {
     if (value) queryClient.setQueryData(key, value)

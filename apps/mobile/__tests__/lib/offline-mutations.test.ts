@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
+import {
+  buildQueuedMutation,
+  flushQueuedMutations,
+  queueOrExecute,
+  runQueuedMutation,
+} from '@/lib/offline-mutations'
+
 const mocks = vi.hoisted(() => {
   const queued: QueuedMutation[] = []
   const resolvedIds = new Map<string, string>()
@@ -143,13 +150,6 @@ vi.mock('@/lib/query-client', () => ({
     invalidateQueries: mocks.invalidateQueries,
   },
 }))
-
-import {
-  buildQueuedMutation,
-  flushQueuedMutations,
-  queueOrExecute,
-  runQueuedMutation,
-} from '@/lib/offline-mutations'
 
 describe('offline mutations', () => {
   beforeEach(() => {

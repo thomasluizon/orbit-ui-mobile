@@ -2,6 +2,9 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 
+import AchievementsScreen from "@/app/achievements";
+import RetrospectiveScreen from "@/app/retrospective";
+
 const TestRenderer = require("react-test-renderer");
 
 const colorProxy: any = new Proxy(
@@ -162,9 +165,6 @@ vi.mock("@/components/ui/section-head-tabs", () => ({
 vi.mock("@/components/chat/pull-quote", () => ({
   PullQuote: () => null,
 }));
-
-import AchievementsScreen from "@/app/achievements";
-import RetrospectiveScreen from "@/app/retrospective";
 
 describe("mobile upgrade guard redirects", () => {
   beforeEach(() => {

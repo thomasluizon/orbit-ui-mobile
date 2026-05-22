@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 
+import { useReferral } from '@/hooks/use-referral'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -27,8 +29,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
-
-import { useReferral } from '@/hooks/use-referral'
 
 async function renderUseReferral(): Promise<ReturnType<typeof useReferral>> {
   let latestValue: ReturnType<typeof useReferral> | null = null

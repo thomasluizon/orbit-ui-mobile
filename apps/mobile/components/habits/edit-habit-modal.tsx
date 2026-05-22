@@ -124,7 +124,7 @@ export function EditHabitModal({
 
     const prefill = buildEditHabitFormState(habit, habitDetail)
     formHelpers.form.reset(prefill.formValues)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when modal opens
+     
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
     tags.resetTags(prefill.selectedTagIds)

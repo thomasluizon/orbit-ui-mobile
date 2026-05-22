@@ -690,7 +690,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     if (isSelectMode) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror prop edge into visibility state ahead of the entry animation
+       
       setRenderBulkActionBar(true);
       bulkBarAnim.stopAnimation?.();
       bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);

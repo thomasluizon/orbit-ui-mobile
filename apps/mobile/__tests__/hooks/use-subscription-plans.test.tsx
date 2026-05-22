@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
+import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -27,8 +29,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
-
-import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
 async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscriptionPlans>> {
   let latestValue: ReturnType<typeof useSubscriptionPlans> | null = null

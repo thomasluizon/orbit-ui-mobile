@@ -14,7 +14,6 @@ import type {
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
 import { z } from 'zod'
-import { extractBackendError } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import {
   dismissCalendarSuggestion as dismissCalendarSuggestionAction,
@@ -24,48 +23,6 @@ import {
 
 interface CalendarQueryOptions {
   enabled?: boolean
-}
-
-// ---------------------------------------------------------------------------
-// Local helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Sends a write request (PUT/POST) that may return an empty body.
- * Throws an Error with a backend-extracted message on non-2xx responses.
- */
-async function sendWriteRequest(url: string, method: 'PUT' | 'POST'): Promise<unknown> {
-  const res = await fetch(url, { method })
-  if (!res.ok) {
-    const body: unknown = await res.json().catch(() => null)
-    const message = extractBackendError({ data: body }) || `Request failed with status ${res.status}`
-    throw new Error(message)
-  }
-  if (res.status === 204) return null
-  const text = await res.text()
-  if (!text) return null
-  return JSON.parse(text) as unknown
-}
-
-async function sendJsonRequest<TBody>(
-  url: string,
-  method: 'PUT' | 'POST',
-  payload: TBody,
-): Promise<unknown> {
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!res.ok) {
-    const body: unknown = await res.json().catch(() => null)
-    const message = extractBackendError({ data: body }) || `Request failed with status ${res.status}`
-    throw new Error(message)
-  }
-  if (res.status === 204) return null
-  const text = await res.text()
-  if (!text) return null
-  return JSON.parse(text) as unknown
 }
 
 // ---------------------------------------------------------------------------

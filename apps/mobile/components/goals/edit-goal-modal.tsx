@@ -124,7 +124,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form fields from goal on each open
+       
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)

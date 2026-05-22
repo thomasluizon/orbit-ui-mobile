@@ -58,9 +58,6 @@ export function OnboardingFlow() {
   const sharedDisplayTotal = getOnboardingDisplayTotal(hasProAccess)
   // Web adds the Astra step on top of the shared total.
   const displayTotal = sharedDisplayTotal + WEB_ASTRA_OFFSET
-  // viewStep: true when on the Astra interstitial; otherwise we're on a shared
-  // step. The progress indicator uses (shared display step + offset_if_passed).
-  const onAstraStep = sharedStep === 0 && astraStepShown === false && createdHabitTitle === ''
   // We deliberately drive the Astra view via a parallel boolean so progressing
   // back lands cleanly on Welcome.
   const [viewingAstra, setViewingAstra] = useState(false)

@@ -7,6 +7,13 @@ import {
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { formatAPIDate } from "@orbit/shared/utils";
 
+import TodayScreen, {
+  resolveBulkActionBarEnterShift,
+  resolveTodayView,
+  shouldRedirectGoalsTab,
+} from "@/app/(tabs)/index";
+
+
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedNode = {
   props: Record<string, unknown>;
@@ -381,13 +388,6 @@ vi.mock("lucide-react-native", () => {
     X: createIcon("X"),
   };
 });
-
-import TodayScreen from "@/app/(tabs)/index";
-import {
-  resolveBulkActionBarEnterShift,
-  resolveTodayView,
-  shouldRedirectGoalsTab,
-} from "@/app/(tabs)/index";
 
 async function renderTodayScreen(): Promise<RenderedTree> {
   let tree: unknown = null;

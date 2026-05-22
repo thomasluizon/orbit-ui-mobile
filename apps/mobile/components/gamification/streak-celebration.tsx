@@ -52,7 +52,7 @@ export function StreakCelebration() {
   useEffect(() => {
     if (!streakCelebration) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store-driven trigger into local presentation state
+     
     setStreakCount(streakCelebration.streak)
     overlayOpacity.setValue(0)
 

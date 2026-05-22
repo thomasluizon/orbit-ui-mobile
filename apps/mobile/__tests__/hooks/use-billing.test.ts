@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 
+import { useBilling } from '@/hooks/use-billing'
+
 const mocks = vi.hoisted(() => {
   const state = {
     data: undefined as BillingDetails | null | undefined,
@@ -32,8 +34,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-import { useBilling } from '@/hooks/use-billing'
 
 describe('mobile useBilling', () => {
   beforeEach(() => {

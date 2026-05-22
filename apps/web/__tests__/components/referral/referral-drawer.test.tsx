@@ -13,7 +13,7 @@ vi.mock('dompurify', () => ({
 }))
 
 let mockStats: { successfulReferrals: number; maxReferrals: number; pendingReferrals: number; discountPercent: number } | null = null
-let mockReferralUrl = 'https://app.useorbit.org/ref/abc123'
+const mockReferralUrl = 'https://app.useorbit.org/ref/abc123'
 let mockIsLoading = false
 let mockIsError = false
 let mockError: { message: string } | null = null

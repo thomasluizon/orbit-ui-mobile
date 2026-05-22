@@ -182,7 +182,6 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
     streakFreezesAccumulated,
     maxStreakFreezesAccumulated,
     daysUntilNextFreeze,
-    freezesAvailable,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
     isFrozenToday,

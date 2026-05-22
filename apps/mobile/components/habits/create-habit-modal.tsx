@@ -166,7 +166,7 @@ export function CreateHabitModal({
     reminderWasManuallyToggledRef.current = false
     formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
     tags.resetTags()
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset form state when modal opens
+     
     setSelectedGoalIds([])
     setSubHabits([])
     setReminderTimes([0, 15])

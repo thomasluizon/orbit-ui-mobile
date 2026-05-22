@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
+import ProfileScreen from '@/app/(tabs)/profile'
+
 const TestRenderer = require('react-test-renderer')
 
 const { mockUseGamificationProfile } = vi.hoisted(() => ({
@@ -219,8 +221,6 @@ vi.mock('react-native-svg', () => ({
   Stop: () => null,
   Rect: () => null,
 }))
-
-import ProfileScreen from '@/app/(tabs)/profile'
 
 describe('ProfileScreen', () => {
   beforeEach(() => {

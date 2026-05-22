@@ -21,7 +21,7 @@ export async function getAppStoreLookup(bundleId: string): Promise<AppStoreLooku
     if (!response.ok) return null
     const data = (await response.json()) as {
       resultCount?: number
-      results?: Array<{ version?: string; trackViewUrl?: string }>
+      results?: { version?: string; trackViewUrl?: string }[]
     } | null
     const entry = data?.results?.[0]
     const version = entry?.version

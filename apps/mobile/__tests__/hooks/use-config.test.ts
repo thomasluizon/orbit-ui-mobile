@@ -4,6 +4,8 @@ import { API } from '@orbit/shared/api'
 import { configKeys } from '@orbit/shared/query'
 import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
 
+import { useConfig } from '@/hooks/use-config'
+
 const mocks = vi.hoisted(() => {
   const state = {
     data: undefined as AppConfig | undefined,
@@ -35,8 +37,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-import { useConfig } from '@/hooks/use-config'
 
 describe('mobile useConfig', () => {
   beforeEach(() => {

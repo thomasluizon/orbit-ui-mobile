@@ -905,7 +905,7 @@ export default function ProfileScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(tokens: Tokens) {
+function createStyles(_tokens: Tokens) {
   return StyleSheet.create({
     safeArea: { flex: 1 },
     container: { flex: 1 },

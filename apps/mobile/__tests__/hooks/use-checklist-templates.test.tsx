@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { checklistTemplateKeys } from '@orbit/shared/query'
 
+import {
+  useChecklistTemplates,
+  useCreateChecklistTemplate,
+  useDeleteChecklistTemplate,
+} from '@/hooks/use-checklist-templates'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -41,12 +47,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-import {
-  useChecklistTemplates,
-  useCreateChecklistTemplate,
-  useDeleteChecklistTemplate,
-} from '@/hooks/use-checklist-templates'
 
 function renderHook(hook: () => unknown) {
   function Harness() {

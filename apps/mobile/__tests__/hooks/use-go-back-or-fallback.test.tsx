@@ -1,6 +1,8 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -24,8 +26,6 @@ vi.mock('expo-router', () => ({
 vi.mock('@/lib/overlay-stack', () => ({
   dismissTopOverlay: mocks.dismissTopOverlay,
 }))
-
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type GoBackOrFallback = (
   fallbackRoute: string,

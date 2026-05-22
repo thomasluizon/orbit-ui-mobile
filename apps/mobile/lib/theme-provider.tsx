@@ -38,15 +38,6 @@ import {
 } from '@/lib/theme'
 import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 
-const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
-  'purple',
-  'blue',
-  'green',
-  'rose',
-  'orange',
-  'cyan',
-])
-
 export interface ThemeContextValue {
   currentScheme: ColorScheme
   currentTheme: ThemeMode
@@ -65,16 +56,6 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 interface TransitionSnapshot {
   background: string
   accent: string
-}
-
-function normalizeColorScheme(value: string | null | undefined): ColorScheme {
-  return value && VALID_COLOR_SCHEMES.has(value as ColorScheme)
-    ? (value as ColorScheme)
-    : 'purple'
-}
-
-function isValidColorScheme(value: string | null | undefined): value is ColorScheme {
-  return !!value && VALID_COLOR_SCHEMES.has(value as ColorScheme)
 }
 
 function persistColorScheme(scheme: ColorScheme): Promise<unknown> {

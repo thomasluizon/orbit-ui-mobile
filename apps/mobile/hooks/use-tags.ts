@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { habitKeys, tagKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, tagKeys , QUERY_STALE_TIMES } from '@orbit/shared/query'
+
 import { API } from '@orbit/shared/api'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import {
@@ -29,8 +29,8 @@ export interface Tag {
 
 type TagQueryClient = ReturnType<typeof useQueryClient>
 type TagMutationContext = {
-  previousLists?: ReadonlyArray<readonly [readonly unknown[], Tag[] | undefined]>
-  previousHabitLists?: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>
+  previousLists?: readonly (readonly [readonly unknown[], Tag[] | undefined])[]
+  previousHabitLists?: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
   tempId?: string
   request?: { name: string; color: string }
 }
@@ -39,7 +39,7 @@ const pendingCreateTagIds = new WeakMap<{ name: string; color: string }, string>
 
 function restoreQueryLists<TData>(
   queryClient: TagQueryClient,
-  previousLists: ReadonlyArray<readonly [readonly unknown[], TData | undefined]>,
+  previousLists: readonly (readonly [readonly unknown[], TData | undefined])[],
 ): void {
   for (const [key, value] of previousLists) {
     if (value) queryClient.setQueryData(key, value)

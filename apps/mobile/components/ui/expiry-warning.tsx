@@ -29,7 +29,7 @@ export function ExpiryWarning() {
 
   useEffect(() => {
     if (!expiresAt) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear countdown state when no session expiry is known
+       
       setMinutesLeft(null)
       setIsExpired(false)
       return

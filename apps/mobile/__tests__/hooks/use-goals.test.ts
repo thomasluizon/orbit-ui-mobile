@@ -4,11 +4,14 @@ import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type { CreateGoalRequest, Goal, GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
+import { useCreateGoal , useLinkHabitsToGoal, useUpdateGoalProgress } from '@/hooks/use-goals'
+
+
 const mocks = vi.hoisted(() => {
   const state = {
-    lists: [] as Array<{ key: readonly unknown[]; value: Goal[] }>,
+    lists: [] as { key: readonly unknown[]; value: Goal[] }[],
     details: new Map<string, GoalDetailWithMetrics | undefined>(),
-    habits: [] as Array<{ key: readonly unknown[]; value: HabitScheduleItem[] }>,
+    habits: [] as { key: readonly unknown[]; value: HabitScheduleItem[] }[],
   }
 
   const queryClient = {
@@ -141,9 +144,6 @@ vi.mock('@/lib/goal-mutation-helpers', async () => {
   }
 })
 
-import { useCreateGoal } from '@/hooks/use-goals'
-import { useLinkHabitsToGoal, useUpdateGoalProgress } from '@/hooks/use-goals'
-
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
   onMutate?: (variables: TVariables) => Promise<TContext> | TContext
@@ -245,7 +245,7 @@ describe('mobile goal hooks', () => {
     const mutation = useCreateGoal() as unknown as MutationConfig<
       { id: string; queued: true; queuedMutationId: string },
       CreateGoalRequest,
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], Goal[] | undefined]>; tempId: string; request: CreateGoalRequest }
+      { previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]; tempId: string; request: CreateGoalRequest }
     >
     const request: CreateGoalRequest = {
       title: 'Workout',
@@ -274,7 +274,7 @@ describe('mobile goal hooks', () => {
     const mutation = useCreateGoal() as unknown as MutationConfig<
       { id: string },
       CreateGoalRequest,
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], Goal[] | undefined]>; tempId: string; request: CreateGoalRequest }
+      { previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]; tempId: string; request: CreateGoalRequest }
     >
     const request: CreateGoalRequest = {
       title: 'Workout',
@@ -301,7 +301,7 @@ describe('mobile goal hooks', () => {
       { queued: true; queuedMutationId: string },
       { goalId: string; data: { currentValue: number } },
       {
-        previousLists: ReadonlyArray<readonly [readonly unknown[], Goal[] | undefined]>
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
         previousDetail: GoalDetailWithMetrics | undefined
       }
     >
@@ -326,7 +326,7 @@ describe('mobile goal hooks', () => {
       { queued: true; queuedMutationId: string },
       { goalId: string; habitIds: string[] },
       {
-        previousLists: ReadonlyArray<readonly [readonly unknown[], Goal[] | undefined]>
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
         previousDetail: GoalDetailWithMetrics | undefined
       }
     >

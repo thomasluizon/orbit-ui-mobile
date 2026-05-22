@@ -83,7 +83,7 @@ export function AchievementToast() {
   useEffect(() => {
     if (!activeAchievement) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror celebration queue trigger into local presentation state
+     
     setCurrentAchievement({
       achievementId: activeAchievement.payload.achievementId,
       xpReward: activeAchievement.payload.xpReward,

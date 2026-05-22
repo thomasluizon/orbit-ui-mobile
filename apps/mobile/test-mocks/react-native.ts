@@ -57,11 +57,11 @@ export const Animated = {
   },
   View: AnimatedView,
   timing: () => ({ start: () => {}, stop: () => {} }),
-  sequence: (animations: Array<{ start?: () => void; stop?: () => void }>) => ({
+  sequence: (animations: { start?: () => void; stop?: () => void }[]) => ({
     start: () => animations.forEach((animation) => animation.start?.()),
     stop: () => animations.forEach((animation) => animation.stop?.()),
   }),
-  parallel: (animations: Array<{ start?: () => void; stop?: () => void }>) => ({
+  parallel: (animations: { start?: () => void; stop?: () => void }[]) => ({
     start: () => animations.forEach((animation) => animation.start?.()),
     stop: () => animations.forEach((animation) => animation.stop?.()),
   }),

@@ -27,7 +27,7 @@ const listGoal = {
   linkedHabits: [],
 }
 
-let detailGoal = { ...listGoal, progressHistory: [] as Array<unknown> }
+let detailGoal = { ...listGoal, progressHistory: [] as unknown[] }
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

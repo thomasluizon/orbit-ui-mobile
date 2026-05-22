@@ -15,7 +15,7 @@ export {
 
 interface SpeechResultEvent {
   isFinal?: boolean
-  results: Array<{ transcript: string }>
+  results: { transcript: string }[]
 }
 
 interface SpeechErrorEvent {
@@ -48,6 +48,9 @@ function getSpeechModule(): SpeechRecognitionModule | null {
   if (Constants.appOwnership === AppOwnership.Expo) return null
 
   try {
+    // Dynamic require — the native module isn't bundled in Expo Go, so static
+    // import would fail at module-load time on managed builds (see line above).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-speech-recognition') as SpeechRecognitionModule
   } catch {
     return null
@@ -86,9 +89,9 @@ export function useSpeechToText() {
     getDefaultChatSpeechLanguage(i18n.language),
   )
   const [recordingDuration, setRecordingDuration] = useState(0)
-  // Timer id lives in state, not a ref, so the helpers passed to
-  // useSpeechRecognitionEvent don't capture ref reads at render time.
-  const [timerId, setTimerId] = useState<ReturnType<typeof setInterval> | null>(null)
+  // Timer id lives in state (read only via the setter callback) so the helpers
+  // passed to useSpeechRecognitionEvent don't capture ref reads at render time.
+  const [_timerId, setTimerId] = useState<ReturnType<typeof setInterval> | null>(null)
 
   const clearTimer = useCallback(() => {
     setTimerId((current) => {

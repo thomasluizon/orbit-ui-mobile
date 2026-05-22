@@ -2,9 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys, goalKeys, tagKeys } from '@orbit/shared/query'
 import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem } from '@orbit/shared/types/habit'
 
+import {
+  useCreateHabit,
+  useCreateSubHabit,
+  useLogHabit,
+  useMoveHabitParent,
+  useSkipHabit,
+  useUpdateChecklist,
+} from '@/hooks/use-habits'
+
 const mocks = vi.hoisted(() => {
   const state = {
-    entries: [] as Array<{ key: readonly unknown[]; value: unknown }>,
+    entries: [] as { key: readonly unknown[]; value: unknown }[],
     tempIds: [] as string[],
   }
 
@@ -164,15 +173,6 @@ vi.mock('@/lib/habit-mutation-helpers', async () => {
   }
 })
 
-import {
-  useCreateHabit,
-  useCreateSubHabit,
-  useLogHabit,
-  useMoveHabitParent,
-  useSkipHabit,
-  useUpdateChecklist,
-} from '@/hooks/use-habits'
-
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
   onMutate?: (variables: TVariables) => Promise<TContext> | TContext
@@ -305,7 +305,7 @@ describe('mobile habit hooks', () => {
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
       { habitId: string; date?: string },
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
     void mutation.onMutate?.({ habitId: 'habit-1' })
@@ -329,7 +329,7 @@ describe('mobile habit hooks', () => {
     const mutation = useSkipHabit() as unknown as MutationConfig<
       unknown,
       { habitId: string; date?: string },
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
     await mutation.onMutate?.({ habitId: 'child-1' })
@@ -360,7 +360,7 @@ describe('mobile habit hooks', () => {
     const mutation = useCreateHabit() as unknown as MutationConfig<
       { id: string; queued: true; queuedMutationId: string },
       CreateHabitRequest & { __offlineTempId?: string },
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>; tempId: string }
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]; tempId: string }
     >
     const request: CreateHabitRequest & { __offlineTempId?: string } = {
       title: 'Workout',
@@ -410,7 +410,7 @@ describe('mobile habit hooks', () => {
       const mutation = useCreateHabit() as unknown as MutationConfig<
         { id: string; queued: true; queuedMutationId: string },
         CreateHabitRequest & { __offlineTempId?: string },
-        { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>; tempId: string }
+        { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]; tempId: string }
       >
       const request: CreateHabitRequest & { __offlineTempId?: string } = {
         title: 'Offline workout',
@@ -448,7 +448,7 @@ describe('mobile habit hooks', () => {
         data: { title: string; dueDate?: string }
         __offlineTempId?: string
       },
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
     mocks.state.tempIds = ['offline-habit-child-1']
 
@@ -495,7 +495,7 @@ describe('mobile habit hooks', () => {
     const mutation = useUpdateChecklist() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
       { habitId: string; items: ChecklistItem[] },
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
     const variables = {
@@ -539,7 +539,7 @@ describe('mobile habit hooks', () => {
       { queued: true; queuedMutationId: string },
       { habitId: string; items: ChecklistItem[] },
       {
-        previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>
+        previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
         previousDetail: { checklistItems: ChecklistItem[] } | undefined
         previousFullDetail: { habit: { checklistItems: ChecklistItem[] } } | undefined
       }
@@ -580,7 +580,7 @@ describe('mobile habit hooks', () => {
     const mutation = useMoveHabitParent() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
       { habitId: string; data: { parentId: string | null } },
-      { previousLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
     const variables = {

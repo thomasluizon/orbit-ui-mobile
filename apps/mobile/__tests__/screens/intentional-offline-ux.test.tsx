@@ -2,6 +2,11 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
+import UpgradeScreen from '@/app/upgrade'
+import RetrospectiveScreen from '@/app/retrospective'
+import SupportScreen from '@/app/support'
+import ProfileScreen from '@/app/(tabs)/profile'
+
 const TestRenderer = require('react-test-renderer')
 
 vi.hoisted(() => {
@@ -344,11 +349,6 @@ vi.mock('react-native-svg', () => {
     Stop: createSvg('Stop'),
   }
 })
-
-import UpgradeScreen from '@/app/upgrade'
-import RetrospectiveScreen from '@/app/retrospective'
-import SupportScreen from '@/app/support'
-import ProfileScreen from '@/app/(tabs)/profile'
 
 function flattenText(node: any): string {
   if (node == null) return ''

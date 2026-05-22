@@ -24,7 +24,7 @@ vi.mock('react-native-draggable-flatlist', () => {
   }
 
   function renderDraggableItems(
-    data: Array<unknown>,
+    data: unknown[],
     renderItem?: (params: {
       item: unknown
       index: number
@@ -53,7 +53,7 @@ vi.mock('react-native-draggable-flatlist', () => {
     children,
     ...props
   }: Readonly<{
-    data?: Array<unknown>
+    data?: unknown[]
     renderItem?: (params: {
       item: unknown
       index: number

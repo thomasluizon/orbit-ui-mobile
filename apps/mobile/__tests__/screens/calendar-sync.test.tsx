@@ -2,6 +2,8 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 
+import CalendarSyncScreen from "@/app/calendar-sync";
+
 const TestRenderer = require("react-test-renderer");
 
 const colorProxy: any = new Proxy(
@@ -185,8 +187,6 @@ vi.mock("react-native", async (importOriginal) => {
       React.createElement("Switch", props),
   };
 });
-
-import CalendarSyncScreen from "@/app/calendar-sync";
 
 describe("CalendarSyncScreen", () => {
   beforeEach(() => {

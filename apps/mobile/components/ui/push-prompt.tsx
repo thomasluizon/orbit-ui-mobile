@@ -61,7 +61,7 @@ export function PushPrompt() {
     })
 
     if (!shouldShow) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror prompt eligibility into visibility state
+       
       setShow(false)
       return
     }

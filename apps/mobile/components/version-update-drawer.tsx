@@ -75,7 +75,7 @@ export function VersionUpdateDrawer() {
     void startAndroidUpdate({ immediate: forceUpdate })
     if (!forceUpdate) {
       const until = Date.now() + SNOOZE_DURATION_MS
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- persist snooze deadline alongside async storage write
+       
       setSnoozedUntil(until)
       AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
     }

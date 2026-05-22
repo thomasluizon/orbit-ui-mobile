@@ -226,7 +226,7 @@ function reorderChildHabit(
 /** Optimistically apply position updates from a reorder request */
 export function optimisticReorderHabits(
   items: HabitScheduleItem[],
-  positions: Array<{ habitId: string; position: number }>,
+  positions: { habitId: string; position: number }[],
 ): HabitScheduleItem[] {
   const positionMap = new Map(positions.map((item) => [item.habitId, item.position]))
 

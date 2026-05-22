@@ -46,7 +46,7 @@ export function AnchoredMenu({
 
   useEffect(() => {
     if (visible) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset height when menu opens or estimated height changes
+       
       setMenuHeight(estimatedHeight)
     }
   }, [estimatedHeight, visible])
@@ -62,7 +62,7 @@ export function AnchoredMenu({
 
   useEffect(() => {
     if (visible) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- keep menu mounted during exit animation
+       
       setShouldRender(true)
       Animated.timing(progress, {
         toValue: 1,

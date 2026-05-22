@@ -72,7 +72,7 @@ export function CreateApiKeyModal({
 
   useEffect(() => {
     if (!open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset modal form when closed
+       
       setKeyName('')
       setSelectedScopes([])
       setIsReadOnly(false)

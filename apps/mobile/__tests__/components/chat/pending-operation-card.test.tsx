@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { PendingAgentOperation } from '@orbit/shared/types'
 
+import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+
 const TestRenderer = require('react-test-renderer')
 
 const colorProxy: any = new Proxy(
@@ -32,8 +34,6 @@ vi.mock('lucide-react-native', () => {
     ShieldAlert: (props: any) => React.createElement('ShieldAlert', props),
   }
 })
-
-import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 
 function makePendingOperation(
   overrides: Partial<PendingAgentOperation> = {},

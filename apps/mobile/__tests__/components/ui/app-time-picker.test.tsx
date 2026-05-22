@@ -6,6 +6,8 @@ import {
   resetDateTimePickerMock,
 } from '@/test-mocks/react-native-datetimepicker'
 
+import { AppTimePicker } from '@/components/ui/app-time-picker'
+
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('react-i18next', () => ({
@@ -15,8 +17,6 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'pt-BR' },
   }),
 }))
-
-import { AppTimePicker } from '@/components/ui/app-time-picker'
 
 describe('AppTimePicker', () => {
   beforeEach(() => {

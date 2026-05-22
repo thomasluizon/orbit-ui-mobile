@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { refreshSessionToken, useAuthStore } from '@/stores/auth-store'
+
 const {
   replaceMock,
   getTokenMock,
@@ -78,8 +80,6 @@ vi.mock('@/stores/chat-store', () => ({
 }))
 
 vi.stubGlobal('fetch', fetchMock)
-
-import { refreshSessionToken, useAuthStore } from '@/stores/auth-store'
 
 function makeJwt(expirySeconds: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' }), 'utf8').toString('base64')

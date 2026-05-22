@@ -13,6 +13,9 @@ function getOrbitWidgetModule(): OrbitWidgetModuleType | null {
   }
 
   try {
+    // Dynamic require — the orbit-widget native module is Android-only (gated
+    // by Platform.OS check above) and importing statically would fail on iOS.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cachedModule = require('../modules/orbit-widget').default as OrbitWidgetModuleType
   } catch {
     cachedModule = null
