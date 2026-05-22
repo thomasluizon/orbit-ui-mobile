@@ -8,6 +8,7 @@ import {
   Sparkles,
   User,
 } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -28,17 +29,17 @@ interface BottomTabBarProps {
 
 interface TabDef {
   id: BottomTabId
-  label: string
+  labelKey: string
   Icon: LucideIcon
   /** When true the icon turns primary while active (v8 Astra emphasis). */
   emphasize?: boolean
 }
 
 const TABS: readonly TabDef[] = [
-  { id: 'today', label: 'Home', Icon: Home },
-  { id: 'chat', label: 'Astra', Icon: Sparkles, emphasize: true },
-  { id: 'calendar', label: 'Calendar', Icon: CalendarDays },
-  { id: 'profile', label: 'You', Icon: User },
+  { id: 'today', labelKey: 'nav.home', Icon: Home },
+  { id: 'chat', labelKey: 'nav.astra', Icon: Sparkles, emphasize: true },
+  { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
+  { id: 'profile', labelKey: 'nav.you', Icon: User },
 ]
 
 /**
@@ -57,6 +58,7 @@ export function BottomTabBar({
 }: Readonly<BottomTabBarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
 
   const fabVisible = showFab && active !== 'chat' && active !== 'profile'
 
@@ -74,7 +76,7 @@ export function BottomTabBar({
         <Pressable
           onPress={onFab}
           accessibilityRole="button"
-          accessibilityLabel="Create"
+          accessibilityLabel={t('nav.create')}
           style={[
             styles.fab,
             {
@@ -113,6 +115,7 @@ export function BottomTabBar({
             <View key={tab.id} style={styles.tabSlot}>
               <TabButton
                 tab={tab}
+                label={t(tab.labelKey)}
                 isActive={isActive}
                 tokens={tokens}
                 onPress={() => onTab(tab.id)}
@@ -129,12 +132,14 @@ export function BottomTabBar({
 
 function TabButton({
   tab,
+  label,
   isActive,
   tokens,
   onPress,
   showUnread,
 }: Readonly<{
   tab: TabDef
+  label: string
   isActive: boolean
   tokens: ReturnType<typeof createTokensV2>
   onPress: () => void
@@ -147,7 +152,7 @@ function TabButton({
     <Pressable
       onPress={onPress}
       accessibilityRole="tab"
-      accessibilityLabel={tab.label}
+      accessibilityLabel={label}
       accessibilityState={{ selected: isActive }}
       style={styles.tabBtn}
     >
@@ -182,7 +187,7 @@ function TabButton({
           },
         ]}
       >
-        {tab.label}
+        {label}
       </Text>
     </Pressable>
   )

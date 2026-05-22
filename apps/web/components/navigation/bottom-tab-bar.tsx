@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Home, Sparkles, CalendarDays, User, Plus, type LucideIcon } from 'lucide-react'
 
 /** Mobile-style 4-tab bar (Home / Astra / Calendar / You) + centered Plus FAB with U-notch.
@@ -8,7 +9,7 @@ export type BottomTab = 'today' | 'chat' | 'calendar' | 'profile'
 
 interface TabDef {
   id: BottomTab
-  label: string
+  labelKey: string
   icon: LucideIcon
   emphasize?: boolean
 }
@@ -23,10 +24,10 @@ interface BottomTabBarProps {
 }
 
 const DEFAULT_TABS: TabDef[] = [
-  { id: 'today', label: 'Home', icon: Home },
-  { id: 'chat', label: 'Astra', icon: Sparkles, emphasize: true },
-  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
-  { id: 'profile', label: 'You', icon: User },
+  { id: 'today', labelKey: 'home', icon: Home },
+  { id: 'chat', labelKey: 'astra', icon: Sparkles, emphasize: true },
+  { id: 'calendar', labelKey: 'calendar', icon: CalendarDays },
+  { id: 'profile', labelKey: 'you', icon: User },
 ]
 
 export function BottomTabBar({
@@ -37,6 +38,7 @@ export function BottomTabBar({
   showFab = true,
   tabs = DEFAULT_TABS,
 }: Readonly<BottomTabBarProps>) {
+  const t = useTranslations('nav')
   const fabVisible = showFab && active !== 'chat' && active !== 'profile'
 
   return (
@@ -51,7 +53,7 @@ export function BottomTabBar({
         <button
           type="button"
           onClick={onFab}
-          aria-label="Create"
+          aria-label={t('create')}
           className="absolute appearance-none border-0 cursor-pointer flex items-center justify-center"
           style={{
             left: '50%',
@@ -77,22 +79,24 @@ export function BottomTabBar({
           padding: '8px 0 10px',
         }}
       >
-        {tabs.slice(0, 2).map((t) => (
+        {tabs.slice(0, 2).map((tab) => (
           <TabBtn
-            key={t.id}
-            tab={t}
-            active={active === t.id}
-            onClick={() => onTab?.(t.id)}
-            unread={t.id === 'chat' && astraUnread}
+            key={tab.id}
+            tab={tab}
+            label={t(tab.labelKey)}
+            active={active === tab.id}
+            onClick={() => onTab?.(tab.id)}
+            unread={tab.id === 'chat' && astraUnread}
           />
         ))}
         <div aria-hidden="true" />
-        {tabs.slice(2, 4).map((t) => (
+        {tabs.slice(2, 4).map((tab) => (
           <TabBtn
-            key={t.id}
-            tab={t}
-            active={active === t.id}
-            onClick={() => onTab?.(t.id)}
+            key={tab.id}
+            tab={tab}
+            label={t(tab.labelKey)}
+            active={active === tab.id}
+            onClick={() => onTab?.(tab.id)}
           />
         ))}
       </div>
@@ -102,12 +106,13 @@ export function BottomTabBar({
 
 interface TabBtnProps {
   tab: TabDef
+  label: string
   active: boolean
   onClick?: () => void
   unread?: boolean
 }
 
-function TabBtn({ tab, active, onClick, unread = false }: Readonly<TabBtnProps>) {
+function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtnProps>) {
   const Icon = tab.icon
   const iconColor = tab.emphasize && active ? 'var(--primary)' : 'currentColor'
 
@@ -163,7 +168,7 @@ function TabBtn({ tab, active, onClick, unread = false }: Readonly<TabBtnProps>)
           letterSpacing: '0.01em',
         }}
       >
-        {tab.label}
+        {label}
       </span>
     </button>
   )

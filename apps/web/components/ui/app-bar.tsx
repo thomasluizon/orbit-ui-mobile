@@ -1,9 +1,13 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { ChevronLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 /** Compact 52px app bar: back/leading icon, title (+ optional subtitle), trailing cluster. */
 interface AppBarProps {
   back?: boolean
+  /** Accessibility label for the back/leading button. Defaults to t('common.back'). */
   backLabel?: string
   onBack?: () => void
   leadingIcon?: ReactNode
@@ -15,7 +19,7 @@ interface AppBarProps {
 
 export function AppBar({
   back = false,
-  backLabel = 'Back',
+  backLabel,
   onBack,
   leadingIcon,
   title,
@@ -23,6 +27,8 @@ export function AppBar({
   trailing,
   hairline = true,
 }: Readonly<AppBarProps>) {
+  const t = useTranslations('common')
+  const resolvedBackLabel = backLabel ?? t('back')
   const leading = back ? (
     <ChevronLeft size={18} strokeWidth={1.7} color="var(--fg-2)" />
   ) : (
@@ -41,7 +47,7 @@ export function AppBar({
     >
       <button
         type="button"
-        aria-label={backLabel}
+        aria-label={resolvedBackLabel}
         onClick={onBack}
         className="appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center"
         style={{

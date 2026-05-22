@@ -151,7 +151,11 @@
     "chat": "Chat",
     "createHabit": "Criar hábito",
     "profile": "Perfil",
-    "skipToContent": "Pular para o conteúdo principal"
+    "skipToContent": "Pular para o conteúdo principal",
+    "home": "Início",
+    "astra": "Astra",
+    "you": "Você",
+    "create": "Criar"
   },
   "reviewPrompt": {
     "title": "Está curtindo o Orbit?",

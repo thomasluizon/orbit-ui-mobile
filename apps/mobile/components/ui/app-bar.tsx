@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronLeft, type LucideProps } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -19,7 +20,7 @@ interface AppBarProps {
   trailing?: ReactNode
   /** Bottom hairline divider (default true). */
   hairline?: boolean
-  /** Accessibility label for the leading button. */
+  /** Accessibility label for the leading button. Defaults to t('common.back'). */
   backLabel?: string
 }
 
@@ -32,10 +33,12 @@ export function AppBar({
   subtitle,
   trailing,
   hairline = true,
-  backLabel = 'Back',
+  backLabel,
 }: Readonly<AppBarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
+  const resolvedBackLabel = backLabel ?? t('common.back')
 
   return (
     <View
@@ -51,7 +54,7 @@ export function AppBar({
         onPress={onBack}
         disabled={!back && !LeadingIcon}
         accessibilityRole={back || LeadingIcon ? 'button' : 'none'}
-        accessibilityLabel={backLabel}
+        accessibilityLabel={resolvedBackLabel}
         style={styles.iconBtn}
       >
         {back ? (
