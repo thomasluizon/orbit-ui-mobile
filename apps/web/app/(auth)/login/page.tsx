@@ -20,6 +20,9 @@ import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { getSupabaseClient } from '@/lib/supabase'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
+import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { CodeInput } from '@/components/ui/code-input'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 function getCookieValue(name: string): string | undefined {
@@ -96,7 +99,7 @@ function resolveLoginErrorState(
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components (S3776: extracted to reduce cognitive complexity)
+// Sub-components
 // ---------------------------------------------------------------------------
 
 function Spinner({ size = 4 }: Readonly<{ size?: number }>) {
@@ -110,12 +113,121 @@ function Spinner({ size = 4 }: Readonly<{ size?: number }>) {
 
 function GoogleIcon() {
   return (
-    <svg className="size-5" viewBox="0 0 24 24">
+    <svg className="size-5" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
     </svg>
+  )
+}
+
+function PrimaryButton({
+  children,
+  disabled = false,
+  loading = false,
+  type = 'button',
+  onClick,
+}: Readonly<{
+  children: React.ReactNode
+  disabled?: boolean
+  loading?: boolean
+  type?: 'button' | 'submit'
+  onClick?: () => void
+}>) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={loading}
+      className="w-full appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center"
+      style={{
+        padding: '12px 18px',
+        background: 'var(--primary)',
+        color: 'var(--fg-on-primary)',
+        borderRadius: 10,
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 14,
+        fontWeight: 600,
+        gap: 8,
+      }}
+    >
+      {loading && <Spinner />}
+      {children}
+    </button>
+  )
+}
+
+function SecondaryButton({
+  children,
+  disabled = false,
+  loading = false,
+  onClick,
+  leading,
+}: Readonly<{
+  children: React.ReactNode
+  disabled?: boolean
+  loading?: boolean
+  onClick?: () => void
+  leading?: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={loading}
+      className="w-full appearance-none cursor-pointer disabled:opacity-50 inline-flex items-center justify-center"
+      style={{
+        padding: '11px 18px',
+        background: 'transparent',
+        color: 'var(--fg-1)',
+        border: 0,
+        boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+        borderRadius: 10,
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 14,
+        fontWeight: 500,
+        gap: 8,
+      }}
+    >
+      {loading ? <Spinner size={5} /> : leading}
+      {children}
+    </button>
+  )
+}
+
+function QuietLink({
+  children,
+  onClick,
+  emphasized = false,
+  disabled = false,
+  type = 'button',
+}: Readonly<{
+  children: React.ReactNode
+  onClick?: () => void
+  emphasized?: boolean
+  disabled?: boolean
+  type?: 'button' | 'submit'
+}>) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+      style={{
+        padding: 6,
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        color: emphasized ? 'var(--fg-1)' : 'var(--fg-3)',
+        textDecoration: emphasized ? 'underline' : 'none',
+        textUnderlineOffset: 4,
+      }}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -129,49 +241,95 @@ interface EmailStepProps {
   t: ReturnType<typeof useTranslations>
 }
 
-function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, onSendCode, onSignInWithGoogle, t }: Readonly<EmailStepProps>) {
+function EmailStep({
+  email,
+  onEmailChange,
+  isSubmitting,
+  isGoogleLoading,
+  onSendCode,
+  onSignInWithGoogle,
+  t,
+}: Readonly<EmailStepProps>) {
   return (
-    <div data-testid="login-email-step-stack" className="space-y-4">
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSendCode() }}>
-        <div className="space-y-1.5">
-          <label htmlFor="login-email" className="form-label">{t('auth.email')}</label>
-          <input
-            id="login-email"
-            type="email"
-            value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
-            placeholder={t('auth.emailPlaceholder')}
-            autoComplete="email"
-            className="form-input"
-          />
-        </div>
-        <button
+    <div
+      data-testid="login-email-step-stack"
+      className="space-y-4 flex flex-col"
+      style={{ gap: 16 }}
+    >
+      <form
+        className="flex flex-col"
+        style={{ gap: 16 }}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSendCode()
+        }}
+      >
+        <UnderlinedInput
+          id="login-email"
+          name="email"
+          label={t('auth.email')}
+          mono
+          value={email}
+          onChange={onEmailChange}
+          type="email"
+          autoComplete="email"
+          placeholder={t('auth.emailPlaceholder')}
+        />
+        <PrimaryButton
           type="submit"
+          loading={isSubmitting}
           disabled={isSubmitting || !email.trim()}
-          aria-busy={isSubmitting}
-          className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-[var(--radius-xl)] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[var(--shadow-glow)] flex items-center justify-center gap-2"
         >
-          {isSubmitting && <Spinner />}
           {t('auth.sendCode')}
-        </button>
+        </PrimaryButton>
       </form>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-border-emphasis" />
-        <span className="text-xs text-text-muted uppercase tracking-wider font-semibold">{t('auth.orContinueWith')}</span>
-        <div className="flex-1 h-px bg-border-emphasis" />
+      <div className="flex items-center" style={{ gap: 14, padding: '8px 0' }}>
+        <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
+        <span
+          style={{
+            fontFamily: 'var(--font-family-mono)',
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--fg-3)',
+            letterSpacing: '0.06em',
+          }}
+        >
+          {t('auth.orContinueWith')}
+        </span>
+        <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
       </div>
 
-      <button
-        type="button"
+      <SecondaryButton
+        loading={isGoogleLoading}
         disabled={isGoogleLoading}
         onClick={onSignInWithGoogle}
-        aria-busy={isGoogleLoading}
-        className="w-full bg-white hover:bg-gray-50 text-gray-800 font-medium py-3.5 rounded-[var(--radius-xl)] border border-border-emphasis transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+        leading={<GoogleIcon />}
       >
-        {isGoogleLoading ? <Spinner size={5} /> : <GoogleIcon />}
         {t('auth.signInWithGoogle')}
-      </button>
+      </SecondaryButton>
+
+      <p
+        className="text-center"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 12,
+          lineHeight: 1.5,
+          color: 'var(--fg-3)',
+          fontStyle: 'italic',
+          marginTop: 16,
+        }}
+      >
+        {t('auth.legalPrefix')}{' '}
+        <Link href="/about" className="underline">
+          {t('auth.terms')}
+        </Link>{' '}
+        {t('auth.legalConjunction')}{' '}
+        <Link href="/privacy" className="underline">
+          {t('auth.privacy')}
+        </Link>
+        .
+      </p>
     </div>
   )
 }
@@ -193,71 +351,91 @@ interface CodeStepProps {
 }
 
 function CodeStep({
-  email, codeDigits, isSubmitting, canResend, resendCountdown,
-  codeInputRefs, onVerifyCode, onCodeInput, onCodeKeydown, onCodePaste,
-  onBackToEmail, onResendCode, t,
+  email,
+  codeDigits,
+  isSubmitting,
+  canResend,
+  resendCountdown,
+  codeInputRefs,
+  onVerifyCode,
+  onCodeInput,
+  onCodeKeydown,
+  onCodePaste,
+  onBackToEmail,
+  onResendCode,
+  t,
 }: Readonly<CodeStepProps>) {
   return (
-    <>
-      <p id="code-sent-to" className="text-sm text-text-secondary">
-        {t('auth.codeSentTo')}{' '}
-        <span className="text-text-primary font-medium">{email}</span>
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p
+        id="code-sent-to"
+        className="text-center"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          lineHeight: 1.5,
+          color: 'var(--fg-3)',
+          fontStyle: 'italic',
+        }}
+      >
+        {t('auth.codeSentTo')} <span style={{ color: 'var(--fg-1)' }}>{email}</span>.
       </p>
 
-      <form className="flex flex-col gap-6" onSubmit={(e) => { e.preventDefault(); onVerifyCode() }}>
-        <fieldset
-          className="flex justify-center gap-1.5 sm:gap-2 border-0 p-0 m-0"
-          aria-labelledby="code-sent-to"
-        >
-          {codeDigits.map((digit, index) => (
-            <input
-              key={`code-digit-${index}`} // NOSONAR - fixed-length array where position is identity
-              ref={(el) => { codeInputRefs.current[index] = el }}
-              value={digit}
-              data-code-index={index}
-              aria-label={t('auth.codeDigit', { n: index + 1 })}
-              type="text"
-              inputMode="numeric"
-              maxLength={20}
-              autoComplete={index === 0 ? 'one-time-code' : 'off'}
-              onChange={(e) => onCodeInput(index, e.target.value)}
-              onKeyDown={(e) => onCodeKeydown(index, e)}
-              onPaste={onCodePaste}
-              className="size-11 sm:w-12 sm:h-14 bg-surface-ground text-text-primary text-center text-lg sm:text-xl font-bold rounded-[var(--radius-md)] sm:rounded-[var(--radius-lg)] border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all"
-            />
-          ))}
-        </fieldset>
+      <form
+        className="flex flex-col"
+        style={{ gap: 18 }}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onVerifyCode()
+        }}
+      >
+        <CodeInput
+          digits={codeDigits}
+          inputRefs={codeInputRefs}
+          onChange={onCodeInput}
+          onKeyDown={onCodeKeydown}
+          onPaste={onCodePaste}
+          ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+          ariaLabelledBy="code-sent-to"
+        />
 
-        <button
+        <PrimaryButton
           type="submit"
+          loading={isSubmitting}
           disabled={isSubmitting || codeDigits.join('').length !== 6}
-          aria-busy={isSubmitting}
-          className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-[var(--radius-xl)] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[var(--shadow-glow)] flex items-center justify-center gap-2"
         >
-          {isSubmitting && <Spinner />}
           {t('auth.verify')}
-        </button>
+        </PrimaryButton>
       </form>
 
-      <div className="flex items-center justify-between">
-        <button type="button" onClick={onBackToEmail} className="text-sm text-text-muted hover:text-text-secondary transition-colors">
-          {t('auth.changeEmail')}
-        </button>
-        <button
-          type="button"
-          disabled={!canResend}
-          onClick={onResendCode}
-          className="text-sm text-primary hover:underline font-semibold disabled:opacity-50 disabled:no-underline"
-        >
-          {canResend ? t('auth.resendCode') : `${t('auth.resendCode')} (${resendCountdown}s)`}
-        </button>
+      <div
+        className="flex justify-center"
+        style={{
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {canResend ? (
+          <QuietLink emphasized onClick={onResendCode}>
+            {t('auth.resendCode')}
+          </QuietLink>
+        ) : (
+          <span style={{ padding: 6 }}>{t('auth.resendIn', { seconds: resendCountdown })}</span>
+        )}
       </div>
-    </>
+
+      <div className="flex justify-center">
+        <QuietLink onClick={onBackToEmail}>{t('auth.changeEmail')}</QuietLink>
+      </div>
+    </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// API helpers (S3776: extracted to reduce cognitive complexity)
+// API helpers
 // ---------------------------------------------------------------------------
 
 async function fetchAuthEndpoint(
@@ -323,6 +501,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const {
     codeDigits,
@@ -352,9 +531,7 @@ export default function LoginPage() {
     }
   }, [searchParams])
 
-  // Deep link pre-fill: /login?email=...&code=123456. "Adjusting state when a
-  // prop changes" pattern: detect search params changing during render and
-  // sync into local form state.
+  // Deep link pre-fill
   const searchParamsKey = searchParams.toString()
   const [previousSearchParamsKey, setPreviousSearchParamsKey] = useState<string | null>(null)
   if (searchParamsKey !== previousSearchParamsKey) {
@@ -376,17 +553,23 @@ export default function LoginPage() {
     return '/'
   }, [searchParams])
 
+  function reportError(message: string) {
+    setErrorMessage(message)
+    showError(message)
+  }
+
   async function sendCode() {
     if (!email.trim()) return
     if (!isValidEmail(email)) {
-      showError(t('auth.errors.invalidEmail'))
+      reportError(t('auth.errors.invalidEmail'))
       return
     }
     if (isOfflinePreflight()) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
     setIsSubmitting(true)
+    setErrorMessage(null)
 
     try {
       await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
@@ -394,7 +577,7 @@ export default function LoginPage() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err, t).message)
+      reportError(resolveLoginErrorState(err, t).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -404,19 +587,20 @@ export default function LoginPage() {
     const code = codeOverride ?? codeDigits.join('')
     if (code.length !== 6) return
     if (isOfflinePreflight()) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
     setIsSubmitting(true)
     setSuccessMessage(null)
+    setErrorMessage(null)
 
     try {
-      const loginResponse = await fetchAuthEndpoint('/api/auth/verify-code', {
+      const loginResponse = (await fetchAuthEndpoint('/api/auth/verify-code', {
         email,
         code,
         language: locale,
         ...(referralCode ? { referralCode } : {}),
-      }) as LoginResponse
+      })) as LoginResponse
       await handleVerifySuccess(
         loginResponse,
         referralCode,
@@ -427,7 +611,7 @@ export default function LoginPage() {
         getReturnUrl,
       )
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err, t).message)
+      reportError(resolveLoginErrorState(err, t).message)
       resetCodeDigits()
       codeInputRefs.current[0]?.focus()
     } finally {
@@ -438,18 +622,19 @@ export default function LoginPage() {
   async function resendCode() {
     if (!canResend) return
     if (isOfflinePreflight()) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
     setIsSubmitting(true)
     setSuccessMessage(null)
+    setErrorMessage(null)
 
     try {
       await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err, t).message)
+      reportError(resolveLoginErrorState(err, t).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -458,15 +643,17 @@ export default function LoginPage() {
   function backToEmail() {
     setStep('email')
     setSuccessMessage(null)
+    setErrorMessage(null)
     resetCodeDigits()
   }
 
   async function signInWithGoogle() {
     if (isOfflinePreflight()) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
     setIsGoogleLoading(true)
+    setErrorMessage(null)
 
     try {
       const supabase = getSupabaseClient()
@@ -478,20 +665,58 @@ export default function LoginPage() {
       })
 
       if (error) {
-        showError(t('auth.errors.googleError'))
+        reportError(t('auth.errors.googleError'))
         setIsGoogleLoading(false)
       }
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err, t, 'google').message)
+      reportError(resolveLoginErrorState(err, t, 'google').message)
       setIsGoogleLoading(false)
     }
   }
 
   return (
     <div className="w-full max-w-[26rem] min-[480px]:min-w-[22rem]">
-      <div className="bg-surface-overlay shadow-[var(--shadow-lg)] border border-border-muted rounded-[var(--radius-2xl)] p-6 space-y-6">
-        <h2 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary">
-          {t('auth.welcomeBack')}
+      <div
+        className="flex flex-col"
+        style={{ padding: '40px 28px 24px', gap: 18 }}
+      >
+        {/* Saturn dropcap + Orbit wordmark + step subtitle */}
+        <div
+          className="flex flex-col items-center"
+          style={{ gap: 14, paddingBottom: 12 }}
+        >
+          <div style={{ color: 'var(--fg-1)' }}>
+            <SaturnDropcap size={32} />
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 28,
+              fontWeight: 600,
+              letterSpacing: '-0.025em',
+              lineHeight: 1,
+              color: 'var(--fg-1)',
+            }}
+          >
+            Orbit
+          </div>
+          <div
+            aria-hidden="true"
+            style={{ width: 60, height: 1, background: 'var(--hairline-strong)', marginTop: 6 }}
+          />
+        </div>
+
+        <h2
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--fg-3)',
+            margin: 0,
+          }}
+        >
+          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
         </h2>
 
         {/* Referral banner */}
@@ -500,7 +725,12 @@ export default function LoginPage() {
             role="status"
             aria-live="polite"
             aria-atomic="true"
-            className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400 flex items-center gap-2"
+            className="flex items-center justify-center"
+            style={{
+              padding: '8px 14px',
+              borderTop: '1px solid var(--hairline)',
+              borderBottom: '1px solid var(--hairline)',
+            }}
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{
               opacity: 1,
@@ -512,11 +742,36 @@ export default function LoginPage() {
               },
             }}
           >
-            <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-            </svg>
-            {t('referral.loginBanner')}
+            <span
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+                letterSpacing: '0.06em',
+              }}
+            >
+              {t('referral.loginBanner')}
+            </span>
           </motion.div>
+        )}
+
+        {/* Error message (per v8: centered italic in overdue color) */}
+        {errorMessage && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            className="text-center"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontStyle: 'italic',
+              color: 'var(--status-overdue)',
+            }}
+          >
+            {errorMessage}
+          </div>
         )}
 
         {/* Success alert */}
@@ -527,7 +782,13 @@ export default function LoginPage() {
               role="status"
               aria-live="polite"
               aria-atomic="true"
-              className="bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--radius-lg)] px-4 py-3 text-sm text-emerald-400"
+              className="text-center"
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                fontStyle: 'italic',
+                color: 'var(--fg-2)',
+              }}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{
                 opacity: 1,
@@ -556,7 +817,11 @@ export default function LoginPage() {
         <AnimatePresence initial={false} mode="wait">
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: step === 'email' ? -authStepMotion.shift : authStepMotion.shift, scale: authStepMotion.scaleFrom }}
+            initial={{
+              opacity: 0,
+              x: step === 'email' ? -authStepMotion.shift : authStepMotion.shift,
+              scale: authStepMotion.scaleFrom,
+            }}
             animate={{
               opacity: 1,
               x: 0,
@@ -568,7 +833,10 @@ export default function LoginPage() {
             }}
             exit={{
               opacity: 0,
-              x: step === 'email' ? authStepMotion.shift * 0.4 : -authStepMotion.shift * 0.4,
+              x:
+                step === 'email'
+                  ? authStepMotion.shift * 0.4
+                  : -authStepMotion.shift * 0.4,
               scale: 0.99,
               transition: {
                 duration: authStepMotion.exitDuration / 1000,
@@ -605,13 +873,6 @@ export default function LoginPage() {
             )}
           </motion.div>
         </AnimatePresence>
-
-        {/* Privacy & Terms */}
-        <p className="text-[10px] text-text-muted text-center pt-2">
-          <Link href="/privacy" className="hover:underline">
-            {t('privacy.title')}
-          </Link>
-        </p>
       </div>
     </div>
   )

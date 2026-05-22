@@ -15,9 +15,10 @@ describe('UpdatePrompt', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders title and description when shown', () => {
+  it('renders eyebrow and description when shown', () => {
     render(<UpdatePrompt show={true} onUpdate={vi.fn()} onDismiss={vi.fn()} />)
-    expect(screen.getByText('updatePrompt.title')).toBeInTheDocument()
+    // Without version props the title falls back to the eyebrow label.
+    expect(screen.getAllByText('updatePrompt.eyebrow').length).toBeGreaterThan(0)
     expect(screen.getByText('updatePrompt.description')).toBeInTheDocument()
   })
 

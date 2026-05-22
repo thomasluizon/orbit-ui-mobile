@@ -3,7 +3,9 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import './streak-freeze-celebration.css'
+import { useProfile } from '@/hooks/use-profile'
+import { useDateFormat } from '@/hooks/use-date-format'
+import { RingMotif } from './ring-motif'
 
 export interface StreakFreezeCelebrationHandle {
   show: () => void
@@ -12,6 +14,8 @@ export interface StreakFreezeCelebrationHandle {
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
   function StreakFreezeCelebration(_props, ref) {
     const t = useTranslations()
+    const { profile } = useProfile()
+    const { displayDate } = useDateFormat()
     const [mounted, setMounted] = useState(false)
     const [shouldRender, setShouldRender] = useState(false)
     const [isVisible, setIsVisible] = useState(false)
@@ -44,59 +48,48 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
 
     if (!mounted || !shouldRender) return null
 
+    const streak = profile?.currentStreak ?? 0
+    const today = displayDate(new Date())
+
     return createPortal(
       <div role="status" aria-live="polite">
         <button
           type="button"
           aria-label={t('streakDisplay.freeze.celebrationTitle')}
-          className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer appearance-none bg-transparent border-none p-0 w-full"
+          className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer appearance-none border-none p-0 w-full"
           style={{
-            transition: 'opacity 0.3s ease-out',
+            background: 'rgba(0,0,0,0.85)',
+            transition: 'opacity 300ms ease-out',
             opacity: isVisible ? 1 : 0,
           }}
           onClick={dismiss}
         >
-        {/* Backdrop */}
-        <div className="absolute inset-0 bg-black/80" />
-
-        {/* Blue radial glow */}
-        <div className="freeze-glow" />
-
-        {/* Frost particles */}
-        {Array.from({ length: 12 }, (_, i) => (
-          <div
-            key={`frost-${i}`}
-            className="frost-particle"
-            style={{ '--i': i + 1 } as React.CSSProperties}
+          <RingMotif
+            ringCount={3}
+            ringSize={220}
+            dashed
+            ringColor="var(--status-frozen)"
+            eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
+            eyebrowColor="var(--status-frozen)"
+            anchor={
+              <span
+                style={{
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: 64,
+                  fontWeight: 500,
+                  color: 'white',
+                  fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '-0.03em',
+                }}
+              >
+                {streak}
+              </span>
+            }
+            body={t('streakDisplay.freeze.celebrationSubtitle')}
           />
-        ))}
-
-        {/* Core content */}
-        <div className="relative text-center freeze-content">
-          {/* Shield/snowflake icon */}
-          <div className="freeze-icon mx-auto mb-4">
-            <svg viewBox="0 0 80 80" fill="none" className="size-20 mx-auto" style={{ filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.5))' }}>
-              <circle cx="40" cy="40" r="38" fill="rgba(56, 189, 248, 0.1)" stroke="rgba(56, 189, 248, 0.4)" strokeWidth="1.5" />
-              <path d="M40 18L56 26V42C56 52 48 60 40 64C32 60 24 52 24 42V26L40 18Z" fill="rgba(56, 189, 248, 0.15)" stroke="rgba(56, 189, 248, 0.6)" strokeWidth="1.5" strokeLinejoin="round" />
-              <line x1="40" y1="30" x2="40" y2="50" stroke="rgba(56, 189, 248, 0.8)" strokeWidth="2" strokeLinecap="round" />
-              <line x1="30" y1="35" x2="50" y2="45" stroke="rgba(56, 189, 248, 0.6)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="50" y1="35" x2="30" y2="45" stroke="rgba(56, 189, 248, 0.6)" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          {/* Title */}
-          <p className="freeze-title text-3xl font-extrabold tracking-tight">
-            {t('streakDisplay.freeze.celebrationTitle')}
-          </p>
-
-          {/* Subtitle */}
-          <p className="freeze-subtitle text-sm text-text-secondary mt-2 font-medium">
-            {t('streakDisplay.freeze.celebrationSubtitle')}
-          </p>
-        </div>
         </button>
       </div>,
-      document.body
+      document.body,
     )
-  }
+  },
 )

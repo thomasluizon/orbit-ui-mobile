@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { parseISO } from 'date-fns'
-import { Clock } from 'lucide-react'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { CodeInput } from '@/components/ui/code-input'
 import { useAuthStore } from '@/stores/auth-store'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { requestDeletion, confirmDeletion } from '@/app/actions/auth'
@@ -17,13 +17,18 @@ interface DeleteAccountModalProps {
   profile: Profile | undefined
 }
 
-export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<DeleteAccountModalProps>) {
+export function DeleteAccountModal({
+  open,
+  onOpenChange,
+  profile,
+}: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
   const { displayDate } = useDateFormat()
   const logout = useAuthStore((s) => s.logout)
 
   const [step, setStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
-  const [code, setCode] = useState(['', '', '', '', '', ''])
+  const [code, setCode] = useState<string[]>(['', '', '', '', '', ''])
+  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
@@ -68,25 +73,26 @@ export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<Del
     }
   }
 
-  function handleCodeInput(index: number, event: React.ChangeEvent<HTMLInputElement>) {
-    const value = event.target.value.replaceAll(/\D/g, '')
+  function handleCodeInput(index: number, value: string) {
+    const sanitized = value.replaceAll(/\D/g, '')
     const next = [...code]
-    next[index] = value.slice(-1)
+    next[index] = sanitized.slice(-1)
     setCode(next)
-    if (value && index < 5) {
-      const nextInput = event.target.parentElement?.children[index + 1] as HTMLInputElement
-      nextInput?.focus()
+    if (sanitized && index < 5) {
+      codeInputRefs.current[index + 1]?.focus()
     }
   }
 
-  function handleCodeKeydown(index: number, event: React.KeyboardEvent<HTMLInputElement>) {
+  function handleCodeKeydown(
+    index: number,
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) {
     if (event.key === 'Backspace' && !code[index] && index > 0) {
-      const prev = (event.target as HTMLElement).parentElement?.children[index - 1] as HTMLInputElement
-      prev?.focus()
+      codeInputRefs.current[index - 1]?.focus()
     }
   }
 
-  function handleCodePaste(event: React.ClipboardEvent) {
+  function handleCodePaste(event: React.ClipboardEvent<HTMLInputElement>) {
     const paste = event.clipboardData?.getData('text')?.replaceAll(/\D/g, '')?.slice(0, 6)
     if (paste) {
       const next = [...code]
@@ -130,6 +136,7 @@ export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<Del
       return (
         <DeleteCodeStep
           code={code}
+          inputRefs={codeInputRefs}
           error={error}
           loading={loading}
           onCodeInput={handleCodeInput}
@@ -148,20 +155,20 @@ export function DeleteAccountModal({ open, onOpenChange, profile }: Readonly<Del
     )
   }
 
+  const heading = (() => {
+    if (step === 'confirm') return t('profile.deleteAccount.headingAreYouSure')
+    if (step === 'code') return t('profile.deleteAccount.headingConfirmCode')
+    return t('profile.deleteAccount.headingDeactivated')
+  })()
+
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={t('profile.deleteAccount.title')}
-    >
+    <AppOverlay open={open} onOpenChange={handleOpenChange} title={heading}>
       {renderStep()}
     </AppOverlay>
   )
 }
 
-// --- Sub-components for each step ---
-
-const CODE_DIGIT_INDICES = [0, 1, 2, 3, 4, 5] as const
+// --- Sub-components ---
 
 function DeleteConfirmStep({
   warningMessage,
@@ -177,29 +184,81 @@ function DeleteConfirmStep({
   const t = useTranslations()
 
   return (
-    <div className="space-y-4">
-      <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
-        <p className="text-sm text-red-400 font-bold mb-2">{warningMessage}</p>
-        <p className="text-xs text-text-secondary leading-relaxed">
-          {t('profile.deleteAccount.warningDetail')}
-        </p>
-      </div>
-      {error && (
-        <p className="text-xs text-red-400 text-center">{error}</p>
-      )}
-      <button
-        className="w-full py-3 rounded-2xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
-        disabled={loading}
-        onClick={onRequestDeletion}
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: 'var(--fg-2)',
+          lineHeight: 1.55,
+        }}
       >
-        {loading ? t('profile.deleteAccount.sending') : t('profile.deleteAccount.sendCode')}
-      </button>
+        {warningMessage}
+      </p>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 13,
+          fontStyle: 'italic',
+          color: 'var(--fg-3)',
+          lineHeight: 1.55,
+        }}
+      >
+        {t('profile.deleteAccount.warningDetail')}
+      </p>
+      {error && (
+        <p
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {error}
+        </p>
+      )}
+      <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-3)',
+            padding: 6,
+          }}
+          disabled={loading}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+          disabled={loading}
+          onClick={onRequestDeletion}
+          style={{
+            padding: '10px 18px',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            borderRadius: 10,
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {loading ? t('profile.deleteAccount.sending') : t('common.continue')}
+        </button>
+      </div>
     </div>
   )
 }
 
 function DeleteCodeStep({
   code,
+  inputRefs,
   error,
   loading,
   onCodeInput,
@@ -208,45 +267,81 @@ function DeleteCodeStep({
   onConfirmDeletion,
 }: Readonly<{
   code: string[]
+  inputRefs: React.RefObject<(HTMLInputElement | null)[]>
   error: string
   loading: boolean
-  onCodeInput: (index: number, event: React.ChangeEvent<HTMLInputElement>) => void
+  onCodeInput: (index: number, value: string) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
-  onCodePaste: (event: React.ClipboardEvent) => void
+  onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
   onConfirmDeletion: () => void
 }>) {
   const t = useTranslations()
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-text-secondary text-center">
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: 'var(--fg-3)',
+          lineHeight: 1.55,
+        }}
+      >
         {t('profile.deleteAccount.codeInstructions')}
       </p>
-      <div className="flex justify-center gap-2" onPaste={onCodePaste}>
-        {CODE_DIGIT_INDICES.map((i) => (
-          <input
-            key={`digit-${i}`}
-            aria-label={t('auth.codeDigit', { n: i + 1 })}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            className="w-11 h-13 text-center text-xl font-bold bg-surface-elevated border border-border rounded-xl text-text-primary focus:border-red-500 focus:outline-none transition-colors"
-            value={code[i]}
-            onChange={(e) => onCodeInput(i, e)}
-            onKeyDown={(e) => onCodeKeydown(i, e)}
-          />
-        ))}
-      </div>
+      <CodeInput
+        digits={code}
+        inputRefs={inputRefs}
+        onChange={onCodeInput}
+        onKeyDown={onCodeKeydown}
+        onPaste={onCodePaste}
+        ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+      />
       {error && (
-        <p className="text-xs text-red-400 text-center">{error}</p>
+        <p
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {error}
+        </p>
       )}
-      <button
-        className="w-full py-3 rounded-2xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
-        disabled={loading || code.join('').length !== 6}
-        onClick={onConfirmDeletion}
-      >
-        {loading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}
-      </button>
+      <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-3)',
+            padding: 6,
+          }}
+          disabled={loading}
+        >
+          {t('common.back')}
+        </button>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+          disabled={loading || code.join('').length !== 6}
+          onClick={onConfirmDeletion}
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            fontStyle: 'italic',
+            padding: 6,
+          }}
+        >
+          {loading ? t('profile.deleteAccount.deleting') : t('auth.verify')}
+        </button>
+      </div>
     </div>
   )
 }
@@ -261,24 +356,36 @@ function DeleteDeactivatedStep({
   const t = useTranslations()
 
   return (
-    <div className="space-y-4">
-      <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="size-5 text-amber-400" />
-          <p className="text-sm text-amber-400 font-bold">
-            {t('profile.deleteAccount.title')}
-          </p>
-        </div>
-        <p className="text-sm text-text-secondary leading-relaxed">
-          {t('profile.deleteAccount.deactivated', { date: formattedDeletionDate })}
-        </p>
-      </div>
-      <button
-        className="w-full py-3 rounded-2xl bg-surface-elevated text-text-primary font-bold text-sm hover:bg-border transition-colors"
-        onClick={onLogout}
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: 'var(--fg-2)',
+          lineHeight: 1.55,
+        }}
       >
-        {t('profile.logout')}
-      </button>
+        {t('profile.deleteAccount.deactivated', { date: formattedDeletionDate })}
+      </p>
+      <div className="flex items-center justify-end" style={{ paddingTop: 8 }}>
+        <button
+          type="button"
+          className="appearance-none border-0 cursor-pointer"
+          onClick={onLogout}
+          style={{
+            padding: '10px 18px',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            borderRadius: 10,
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {t('profile.logout')}
+        </button>
+      </div>
     </div>
   )
 }

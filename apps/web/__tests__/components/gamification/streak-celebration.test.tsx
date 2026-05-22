@@ -61,24 +61,17 @@ describe('StreakCelebration', () => {
     expect(document.body.textContent).toContain('streakDisplay.celebration.milestone')
   })
 
-  it('shows keepGoing encouragement for non-milestone streaks', () => {
-    mockStreakCelebration = { streak: 5 }
-    render(<StreakCelebration />)
-    expect(document.body.textContent).toContain('streakDisplay.celebration.keepGoing')
-  })
-
-  it('renders ember particles for milestone streaks', () => {
+  it('renders Saturn-ring concentric rings via RingMotif', () => {
     mockStreakCelebration = { streak: 7 }
     render(<StreakCelebration />)
-    const embers = document.querySelectorAll('.streak-ember')
-    expect(embers.length).toBe(12)
+    const aria = document.querySelector('[aria-hidden="true"]')
+    expect(aria?.querySelectorAll('span').length).toBe(4)
   })
 
-  it('does not render ember particles for non-milestone streaks', () => {
+  it('renders the Streak eyebrow label', () => {
     mockStreakCelebration = { streak: 3 }
     render(<StreakCelebration />)
-    const embers = document.querySelectorAll('.streak-ember')
-    expect(embers.length).toBe(0)
+    expect(document.body.textContent).toContain('streakDisplay.celebration.eyebrow')
   })
 
   it('dismisses on click', () => {

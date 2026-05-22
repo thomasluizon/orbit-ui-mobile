@@ -85,7 +85,8 @@
     "daysAgo": "{n}d atrás"
   },
   "welcome": {
-    "backMessage": "Bem-vindo de volta! Sua sequência está em {streak} dias."
+    "backMessage": "Sua sequência de {streak} dias continua viva.",
+    "eyebrow": "Bem-vindo de volta"
   },
   "common": {
     "save": "Salvar",
@@ -122,6 +123,8 @@
     "no": "Não",
     "all": "Todos",
     "select": "Selecionar",
+    "previous": "Anterior",
+    "next": "Próximo",
     "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
     "yearlyBadge": "Anual",
@@ -752,10 +755,11 @@
     },
     "facts": {
       "title": "O que a Astra sabe",
-      "empty": "Converse com a Astra para construir seu perfil",
+      "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar.",
       "add": "Adicionar Fato",
       "save": "Salvar",
       "cancel": "Cancelar",
+      "delete": "Excluir",
       "factPlaceholder": "Digite um fato sobre você...",
       "category": "Categoria",
       "preference": "Preferência",
@@ -763,12 +767,15 @@
       "context": "Contexto",
       "none": "Nenhuma",
       "select": "Selecionar",
-      "selectAll": "Selecionar Tudo",
-      "deselectAll": "Desmarcar Tudo",
+      "selectAll": "Selecionar tudo",
+      "deselectAll": "Limpar",
+      "selectedCount": "{n} selecionado(s)",
       "deleteSelected": "Excluir ({n})",
+      "deleteSelectedShort": "Excluir selecionados",
       "confirmBulkDelete": "Excluir {n} fatos?",
       "count": "{n} / {max}",
-      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos."
+      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos.",
+      "lockedHint": "Faça upgrade para Pro para a Astra lembrar dos fatos que você compartilha no chat."
     },
     "support": {
       "title": "Suporte",
@@ -857,7 +864,8 @@
     }
   },
   "referral": {
-    "applied": "Indicação aplicada! Vocês dois ganham desconto.",
+    "applied": "Indicação aplicada. Vocês dois ganharam desconto.",
+    "eyebrow": "Indicação aplicada",
     "card": {
       "title": "Convidar Amigos",
       "hint": "Ganhe cupons de desconto para você e seus amigos",
@@ -989,6 +997,7 @@
     "empty": "Escolha um período e gere uma retrospectiva para ver os insights da Astra sobre seus hábitos.",
     "cached": "Carregado do cache",
     "astraEyebrow": "Astra",
+    "regenerate": "Regenerar",
     "periods": {
       "week": "Semana",
       "month": "Mês",
@@ -1251,6 +1260,9 @@
     "feature": "Recurso",
     "free": "Grátis",
     "subscribe": "Assinar Pro",
+    "plan": "Plano",
+    "currentPlan": "Plano atual",
+    "restorePurchase": "Restaurar compra",
     "categories": {
       "habits": "Hábitos",
       "ai": "Recursos de IA",
@@ -1488,6 +1500,8 @@
   "goals": {
     "completedCelebrationTitle": "Meta alcançada!",
     "completedCelebrationSubtitle": "Você concluiu {name}",
+    "completedCelebrationLabel": "Meta · {name}",
+    "completedCelebrationFiled": "Arquivada.",
     "title": "Metas",
     "tab": "Metas",
     "empty": "Nenhuma meta ainda",
@@ -1602,6 +1616,7 @@
   "gamification": {
     "xpReward": "+{n} XP",
     "title": "Conquistas & Nível",
+    "locked": "Bloqueada",
     "profileCard": {
       "title": "Conquistas & Nível",
       "hint": "Acompanhe seu progresso e desbloqueie conquistas",
@@ -1757,12 +1772,14 @@
     },
     "toast": {
       "achievementUnlocked": "Conquista Desbloqueada!",
-      "xpEarned": "+{xp} XP"
+      "xpEarned": "+{xp} XP",
+      "achievementEyebrow": "Conquista · +{xp} XP"
     },
     "levelUp": {
-      "title": "Subiu de Nível!",
+      "title": "Subiu de nível",
       "newLevel": "Nível {level}",
-      "subtitle": "Você agora é um {title}"
+      "subtitle": "Você agora é um {title}",
+      "steadyHand": "Mão firme."
     }
   },
   "toast": {
@@ -1782,7 +1799,8 @@
     "daysSuffix": "dias",
     "celebration": {
       "title": "Sequência!",
-      "subtitle": "Sequência de {count} dia | Sequência de {count} dias",
+      "eyebrow": "Sequência",
+      "subtitle": "{count} dia. | {count} dias.",
       "milestone": "Marco incrível!",
       "keepGoing": "Continue assim!"
     },
@@ -1813,7 +1831,8 @@
       "recentLabel": "Usados recentemente",
       "completedToday": "Você já completou um hábito hoje. Não precisa congelar!",
       "celebrationTitle": "Sequência salva!",
-      "celebrationSubtitle": "Seu congelamento protegeu sua sequência.",
+      "celebrationSubtitle": "Sua sequência continua.",
+      "eyebrow": "Congelado · {date}",
       "progressTitle": "Ganhe seu próximo congelamento",
       "progressSubtitle": "Mais 1 dia de atividade libera seu próximo congelamento | Mais {days} dias de atividade liberam seu próximo congelamento",
       "progressReady": "Seu próximo congelamento está pronto!",

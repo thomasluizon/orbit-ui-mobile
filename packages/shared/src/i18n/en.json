@@ -85,7 +85,8 @@
     "daysAgo": "{n}d ago"
   },
   "welcome": {
-    "backMessage": "Welcome back! Your streak is at {streak} days."
+    "backMessage": "Your {streak}-day streak is still alive.",
+    "eyebrow": "Welcome back"
   },
   "common": {
     "save": "Save",
@@ -122,6 +123,8 @@
     "no": "No",
     "all": "All",
     "select": "Select",
+    "previous": "Previous",
+    "next": "Next",
     "upgrade": "Upgrade",
     "proBadge": "Pro",
     "yearlyBadge": "Yearly",
@@ -752,10 +755,11 @@
     },
     "facts": {
       "title": "What Astra knows",
-      "empty": "Chat with Astra to build your profile",
+      "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
       "add": "Add Fact",
       "save": "Save",
       "cancel": "Cancel",
+      "delete": "Delete",
       "factPlaceholder": "Enter a fact about yourself...",
       "category": "Category",
       "preference": "Preference",
@@ -763,12 +767,15 @@
       "context": "Context",
       "none": "None",
       "select": "Select",
-      "selectAll": "Select All",
-      "deselectAll": "Deselect All",
+      "selectAll": "Select all",
+      "deselectAll": "Clear",
+      "selectedCount": "{n} selected",
       "deleteSelected": "Delete ({n})",
+      "deleteSelectedShort": "Delete selected",
       "confirmBulkDelete": "Delete {n} facts?",
       "count": "{n} / {max}",
-      "limitReached": "Fact limit reached. Delete some to add new ones."
+      "limitReached": "Fact limit reached. Delete some to add new ones.",
+      "lockedHint": "Upgrade to Pro to let Astra remember the facts you share in chat."
     },
     "support": {
       "title": "Support",
@@ -857,7 +864,8 @@
     }
   },
   "referral": {
-    "applied": "Referral applied! You both get a discount.",
+    "applied": "Referral applied. You both got a discount.",
+    "eyebrow": "Referral applied",
     "card": {
       "title": "Invite Friends",
       "hint": "Earn discount coupons for you and your friends",
@@ -989,6 +997,7 @@
     "empty": "Choose a time period and generate a retrospective to see Astra's insights on your habits.",
     "cached": "Loaded from cache",
     "astraEyebrow": "Astra",
+    "regenerate": "Regenerate",
     "periods": {
       "week": "Week",
       "month": "Month",
@@ -1251,6 +1260,9 @@
     "feature": "Feature",
     "free": "Free",
     "subscribe": "Subscribe to Pro",
+    "plan": "Plan",
+    "currentPlan": "Current plan",
+    "restorePurchase": "Restore purchase",
     "categories": {
       "habits": "Habits",
       "ai": "AI Features",
@@ -1488,6 +1500,8 @@
   "goals": {
     "completedCelebrationTitle": "Goal achieved!",
     "completedCelebrationSubtitle": "You've completed {name}",
+    "completedCelebrationLabel": "Goal · {name}",
+    "completedCelebrationFiled": "Filed.",
     "title": "Goals",
     "tab": "Goals",
     "empty": "No goals yet",
@@ -1602,6 +1616,7 @@
   "gamification": {
     "xpReward": "+{n} XP",
     "title": "Achievements & Level",
+    "locked": "Locked",
     "profileCard": {
       "title": "Achievements & Level",
       "hint": "Track your progress and unlock achievements",
@@ -1757,12 +1772,14 @@
     },
     "toast": {
       "achievementUnlocked": "Achievement Unlocked!",
-      "xpEarned": "+{xp} XP"
+      "xpEarned": "+{xp} XP",
+      "achievementEyebrow": "Achievement · +{xp} XP"
     },
     "levelUp": {
-      "title": "Level Up!",
+      "title": "Level up",
       "newLevel": "Level {level}",
-      "subtitle": "You are now a {title}"
+      "subtitle": "You are now a {title}",
+      "steadyHand": "Steady hand."
     }
   },
   "toast": {
@@ -1782,7 +1799,8 @@
     "daysSuffix": "days",
     "celebration": {
       "title": "Streak!",
-      "subtitle": "1 day streak | {count} day streak",
+      "eyebrow": "Streak",
+      "subtitle": "1 day. | {count} days.",
       "milestone": "Amazing milestone!",
       "keepGoing": "Keep it going!"
     },
@@ -1813,7 +1831,8 @@
       "recentLabel": "Recently used",
       "completedToday": "You already completed a habit today. No freeze needed!",
       "celebrationTitle": "Streak saved!",
-      "celebrationSubtitle": "Your freeze protected your streak.",
+      "celebrationSubtitle": "Your streak holds.",
+      "eyebrow": "Frozen · {date}",
       "progressTitle": "Earn your next freeze",
       "progressSubtitle": "1 more day of activity unlocks your next freeze | {days} more days of activity unlock your next freeze",
       "progressReady": "Your next freeze is ready!",

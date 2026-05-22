@@ -8,9 +8,6 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-// Mock CSS import
-vi.mock('@/components/gamification/goal-completed-celebration.css', () => ({}))
-
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({

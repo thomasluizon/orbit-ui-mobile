@@ -1,17 +1,24 @@
 'use client'
 
-import { MessageSquare, CalendarDays, Trophy, BellRing } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import {
+  Sparkles,
+  ListTree,
+  CalendarDays,
+  Trophy,
+  BellRing,
+  type LucideIcon,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-interface FeatureItem {
+interface FeatureRow {
   Icon: LucideIcon
   titleKey: string
   descKey: string
 }
 
-const features: FeatureItem[] = [
-  { Icon: MessageSquare, titleKey: 'onboarding.flow.features.chat.title', descKey: 'onboarding.flow.features.chat.desc' },
+const FEATURE_ROWS: FeatureRow[] = [
+  { Icon: Sparkles, titleKey: 'onboarding.flow.features.chat.title', descKey: 'onboarding.flow.features.chat.desc' },
+  { Icon: ListTree, titleKey: 'onboarding.flow.features.subHabits.title', descKey: 'onboarding.flow.features.subHabits.desc' },
   { Icon: CalendarDays, titleKey: 'onboarding.flow.features.calendar.title', descKey: 'onboarding.flow.features.calendar.desc' },
   { Icon: Trophy, titleKey: 'onboarding.flow.features.achievements.title', descKey: 'onboarding.flow.features.achievements.desc' },
   { Icon: BellRing, titleKey: 'onboarding.flow.features.notifications.title', descKey: 'onboarding.flow.features.notifications.desc' },
@@ -21,34 +28,57 @@ export function OnboardingFeatures() {
   const t = useTranslations()
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-text-primary text-center mb-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0' }}>
+      <div
+        className="text-center"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 22,
+          fontWeight: 600,
+          letterSpacing: '-0.015em',
+          lineHeight: 1.15,
+          color: 'var(--fg-1)',
+          marginBottom: 14,
+        }}
+      >
         {t('onboarding.flow.features.title')}
-      </h1>
-      <p className="text-sm text-text-secondary text-center mb-6">
-        {t('onboarding.flow.features.subtitle')}
-      </p>
-
-      {/* Feature cards */}
-      <div className="flex flex-col gap-3">
-        {features.map((feature, i) => (
-          <div
-            key={feature.titleKey}
-            className="flex items-start gap-4 p-4 rounded-[var(--radius-xl)] bg-surface border border-border hover:border-border-emphasis hover:bg-surface-elevated/50 transition-all duration-200"
-            style={{
-              animation: `slide-up-fade 400ms cubic-bezier(0.16, 1, 0.3, 1) ${i * 80}ms both`,
-            }}
-          >
-            <div className="size-10 rounded-[var(--radius-lg)] bg-primary/10 flex items-center justify-center shrink-0">
-              <feature.Icon className="size-5 text-primary" />
+      </div>
+      {FEATURE_ROWS.map(({ Icon, titleKey, descKey }) => (
+        <div
+          key={titleKey}
+          className="flex items-start"
+          style={{
+            padding: '12px 0',
+            borderBottom: '1px solid var(--hairline)',
+            gap: 12,
+          }}
+        >
+          <Icon size={18} strokeWidth={1.5} color="var(--fg-2)" />
+          <div className="flex-1 min-w-0">
+            <div
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 15,
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {t(titleKey)}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-text-primary">{t(feature.titleKey)}</p>
-              <p className="text-xs text-text-secondary leading-relaxed mt-0.5">{t(feature.descKey)}</p>
+            <div
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+                fontStyle: 'italic',
+                marginTop: 2,
+              }}
+            >
+              {t(descKey)}
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }

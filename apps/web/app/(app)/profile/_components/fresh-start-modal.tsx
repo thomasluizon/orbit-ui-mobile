@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { X, Check } from 'lucide-react'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
@@ -11,6 +10,7 @@ import {
 } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
+import { UnderlinedInput } from '@/components/ui/underlined-input'
 import { resetAccount } from '@/app/actions/profile'
 
 interface FreshStartModalProps {
@@ -30,15 +30,18 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
 
-  const handleOpenChange = useCallback((value: boolean) => {
-    if (value) {
-      setStep('info')
-      setConfirmText('')
-      setError('')
-      setLoading(false)
-    }
-    onOpenChange(value)
-  }, [onOpenChange])
+  const handleOpenChange = useCallback(
+    (value: boolean) => {
+      if (value) {
+        setStep('info')
+        setConfirmText('')
+        setError('')
+        setLoading(false)
+      }
+      onOpenChange(value)
+    },
+    [onOpenChange],
+  )
 
   async function handleReset() {
     if (!isConfirmed) return
@@ -72,7 +75,11 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       <AppOverlay
         open={open}
         onOpenChange={handleOpenChange}
-        title={t('profile.freshStart.title')}
+        title={
+          step === 'info'
+            ? t('profile.freshStart.heading')
+            : t('profile.freshStart.confirmHeading')
+        }
       >
         {step === 'info' ? (
           <FreshStartInfoStep
@@ -92,14 +99,43 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
         )}
       </AppOverlay>
 
-      {showAnimation && (
-        <FreshStartAnimation onComplete={handleAnimationComplete} />
-      )}
+      {showAnimation && <FreshStartAnimation onComplete={handleAnimationComplete} />}
     </>
   )
 }
 
-// --- Sub-components for each step ---
+// --- Sub-components ---
+
+function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }>) {
+  return (
+    <div className="flex flex-col" style={{ gap: 6 }}>
+      <div
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {title}
+      </div>
+      <div className="flex flex-col" style={{ gap: 3 }}>
+        {items.map((item) => (
+          <span
+            key={item}
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 12,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function FreshStartInfoStep({
   deletedItems,
@@ -113,45 +149,56 @@ function FreshStartInfoStep({
   const t = useTranslations()
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-text-secondary">
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: 'var(--fg-2)',
+          lineHeight: 1.55,
+        }}
+      >
         {t('profile.freshStart.description')}
       </p>
-
-      <div className="border border-primary/20 rounded-2xl p-4">
-        <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
-          {t('profile.freshStart.whatDeleted')}
-        </p>
-        <ul className="space-y-1.5">
-          {deletedItems.map((item) => (
-            <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
-              <X className="size-3.5 text-red-400 shrink-0 mt-0.5" />
-              {item}
-            </li>
-          ))}
-        </ul>
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <ListBlock title={t('profile.freshStart.willDelete')} items={deletedItems} />
+        <ListBlock title={t('profile.freshStart.willKeep')} items={preservedItems} />
       </div>
-
-      <div className="bg-success/10 border border-success/20 rounded-2xl p-4">
-        <p className="text-xs font-bold text-success uppercase tracking-wider mb-2">
-          {t('profile.freshStart.whatPreserved')}
-        </p>
-        <ul className="space-y-1.5">
-          {preservedItems.map((item) => (
-            <li key={item} className="text-xs text-text-secondary flex items-start gap-2">
-              <Check className="size-3.5 text-success shrink-0 mt-0.5" />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <button
-        className="w-full py-3 rounded-2xl bg-primary text-text-inverse font-bold text-sm hover:bg-primary/90 transition-colors"
-        onClick={onContinue}
+      <div
+        className="flex items-center justify-end"
+        style={{ gap: 12, paddingTop: 8 }}
       >
-        {t('common.continue')}
-      </button>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-3)',
+            padding: 6,
+          }}
+          onClick={() => globalThis.history.back()}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className="appearance-none border-0 cursor-pointer"
+          onClick={onContinue}
+          style={{
+            padding: '10px 18px',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            borderRadius: 10,
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {t('common.continue')}
+        </button>
+      </div>
     </div>
   )
 }
@@ -174,28 +221,73 @@ function FreshStartConfirmStep({
   const t = useTranslations()
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-text-secondary text-center">
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: 'var(--fg-3)',
+        }}
+      >
         {t('profile.freshStart.confirmInstruction')}
       </p>
-      <input
-        type="text"
+      <UnderlinedInput
+        large
+        mono
         value={confirmText}
-        onChange={(e) => onConfirmTextChange(e.target.value)}
-        className="form-input text-center"
+        onChange={onConfirmTextChange}
         placeholder={t('profile.freshStart.confirmPlaceholder')}
         autoComplete="off"
+        ariaLabel={t('profile.freshStart.confirmInstruction')}
       />
       {error && (
-        <p className="text-xs text-red-400 text-center">{error}</p>
+        <p
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {error}
+        </p>
       )}
-      <button
-        className="w-full py-3 rounded-2xl bg-primary text-text-inverse font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
-        disabled={!isConfirmed || loading}
-        onClick={onReset}
+      <div
+        className="flex items-center justify-end"
+        style={{ gap: 12, paddingTop: 8 }}
       >
-        {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
-      </button>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-3)',
+            padding: 6,
+          }}
+          disabled={loading}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+          disabled={!isConfirmed || loading}
+          onClick={onReset}
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            fontStyle: 'italic',
+            padding: 6,
+          }}
+        >
+          {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
+        </button>
+      </div>
     </div>
   )
 }

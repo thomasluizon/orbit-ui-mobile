@@ -3,11 +3,19 @@ import { render } from '@testing-library/react'
 import React from 'react'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (params) return `${key}:${JSON.stringify(params)}`
+    return key
+  },
 }))
 
-// Mock CSS import
-vi.mock('@/components/gamification/streak-freeze-celebration.css', () => ({}))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { currentStreak: 47 } }),
+}))
+
+vi.mock('@/hooks/use-date-format', () => ({
+  useDateFormat: () => ({ displayDate: () => 'May 21' }),
+}))
 
 import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
 import type { StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'

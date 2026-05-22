@@ -145,10 +145,15 @@ export default async function RootLayout({
             theme="dark"
             position="top-center"
             toastOptions={{
+              // v8 toast chrome: flat bg-elev, hairline inset shadow, no corner glow.
               style: {
-                background: 'var(--color-surface-elevated)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text-primary)',
+                background: 'var(--bg-elev)',
+                boxShadow:
+                  '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
+                border: 'none',
+                color: 'var(--fg-1)',
+                borderRadius: 10,
+                fontFamily: 'var(--font-family-sans)',
               },
             }}
           />

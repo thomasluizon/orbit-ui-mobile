@@ -70,32 +70,17 @@ describe('ProfileStreakCard', () => {
     expect(document.body.textContent).toContain('streakDisplay.profile.encouragement365')
   })
 
-  it('applies normal tier class for low streak', () => {
-    mockProfile = { currentStreak: 3 }
+  it('renders the streak count when streak > 0', () => {
+    mockProfile = { currentStreak: 47 }
     render(<ProfileStreakCard />)
-    const link = document.querySelector('.streak-card--normal')
-    expect(link).toBeInTheDocument()
+    // count-up animation may show 0 initially; assert the streak count area renders.
+    expect(document.body.textContent).toContain('streakDisplay.profile.currentStreak')
   })
 
-  it('applies legendary tier class for high streak', () => {
-    mockProfile = { currentStreak: 100 }
-    render(<ProfileStreakCard />)
-    const link = document.querySelector('.streak-card--legendary')
-    expect(link).toBeInTheDocument()
-  })
-
-  it('shows flame graphic when streak > 0', () => {
-    mockProfile = { currentStreak: 5 }
-    render(<ProfileStreakCard />)
-    const flame = document.querySelector('.streak-card__flame')
-    expect(flame).toBeInTheDocument()
-  })
-
-  it('shows placeholder flame when streak is 0', () => {
+  it('omits the streak count when streak is 0', () => {
     mockProfile = { currentStreak: 0 }
     render(<ProfileStreakCard />)
-    const flame = document.querySelector('.streak-card__flame')
-    expect(flame).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('streakDisplay.profile.currentStreak')
   })
 
   it('renders chevron icon', () => {

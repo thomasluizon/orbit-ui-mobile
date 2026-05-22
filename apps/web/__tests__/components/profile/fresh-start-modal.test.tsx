@@ -83,10 +83,10 @@ describe('FreshStartModal', () => {
     expect(container.querySelector('[data-testid="overlay"]')).not.toBeInTheDocument()
   })
 
-  it('renders overlay with title when open', () => {
+  it('renders overlay with the reset heading when open', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
-    expect(screen.getByText('profile.freshStart.title')).toBeInTheDocument()
+    expect(screen.getByText('profile.freshStart.heading')).toBeInTheDocument()
   })
 
   it('shows info step by default with description', () => {
@@ -96,7 +96,7 @@ describe('FreshStartModal', () => {
 
   it('shows deleted items list in info step', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('profile.freshStart.whatDeleted')).toBeInTheDocument()
+    expect(screen.getByText('profile.freshStart.willDelete')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteHabits')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteGoals')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.deleteChat')).toBeInTheDocument()
@@ -109,7 +109,7 @@ describe('FreshStartModal', () => {
 
   it('shows preserved items list in info step', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('profile.freshStart.whatPreserved')).toBeInTheDocument()
+    expect(screen.getByText('profile.freshStart.willKeep')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.preserveAccount')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.preserveSubscription')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.preservePreferences')).toBeInTheDocument()

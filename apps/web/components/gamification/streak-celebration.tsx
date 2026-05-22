@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
-import './streak-celebration.css'
+import { RingMotif } from './ring-motif'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
 
@@ -26,10 +26,9 @@ export function StreakCelebration() {
     }
   }, [])
 
-  // Mirror store-driven streak celebration into local presentation state.
   useEffect(() => {
     if (streakCelebration) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external store snapshot into local presentation state
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store snapshot into local state
       setStreakCount(streakCelebration.streak)
       setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
@@ -44,15 +43,15 @@ export function StreakCelebration() {
 
   const isMilestone = useMemo(
     () => (MILESTONE_VALUES as readonly number[]).includes(streakCount),
-    [streakCount]
+    [streakCount],
   )
 
   const encouragement = useMemo(() => {
-    if ((MILESTONE_VALUES as readonly number[]).includes(streakCount)) {
+    if (isMilestone) {
       return t('streakDisplay.celebration.milestone')
     }
     return t('streakDisplay.celebration.keepGoing')
-  }, [streakCount, t])
+  }, [isMilestone, t])
 
   function dismiss() {
     setIsVisible(false)
@@ -67,70 +66,50 @@ export function StreakCelebration() {
       <button
         type="button"
         aria-label={t('streakDisplay.celebration.subtitle', { count: streakCount })}
-        className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer appearance-none bg-transparent border-none p-0 w-full"
+        className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer appearance-none border-none p-0 w-full"
         style={{
-          transition: 'opacity 0.3s ease-out',
+          background: 'rgba(0,0,0,0.85)',
+          transition: 'opacity 300ms ease-out',
           opacity: isVisible ? 1 : 0,
         }}
         onClick={dismiss}
       >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/75" />
-
-      {/* Ember particles (milestone only) */}
-      {isMilestone &&
-        Array.from({ length: 12 }, (_, i) => (
-          <div
-            key={i}
-            className="streak-ember"
-            style={{ '--i': i + 1 } as React.CSSProperties}
-          />
-        ))}
-
-      {/* Core content */}
-      <div className="relative text-center streak-celebration-content">
-        {/* Radial glow behind flame */}
-        <div
-          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-48 rounded-full blur-3xl opacity-40 ${
-            isMilestone ? 'streak-glow-pulse-strong' : 'streak-glow-pulse'
-          }`}
-          style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.6), rgba(249,115,22,0.3), transparent 70%)' }}
+        <RingMotif
+          ringCount={4}
+          ringSize={180}
+          eyebrow={t('streakDisplay.celebration.eyebrow')}
+          anchor={
+            <span
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 96,
+                fontWeight: 500,
+                color: 'white',
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '-0.03em',
+                lineHeight: 0.9,
+              }}
+            >
+              {streakCount}
+            </span>
+          }
+          body={
+            <span>
+              {plural(
+                t('streakDisplay.celebration.subtitle', { count: streakCount }),
+                streakCount,
+              )}
+              {isMilestone && (
+                <>
+                  {' '}
+                  <span style={{ opacity: 0.7 }}>· {encouragement}</span>
+                </>
+              )}
+            </span>
+          }
         />
-
-        {/* Flame icon */}
-        <div className={`relative mx-auto mb-3 ${isMilestone ? 'streak-flame-dance-big' : 'streak-flame-dance'}`}>
-          <svg viewBox="0 0 64 80" fill="none" className="size-20 mx-auto" aria-hidden="true" style={{ filter: 'drop-shadow(0 0 20px rgba(249,115,22,0.6))' }}>
-            <path
-              d="M32 0C32 0 8 26 8 48a24 24 0 0 0 48 0C56 26 32 0 32 0Zm0 68a12 12 0 0 1-12-12c0-8 12-22 12-22s12 14 12 22a12 12 0 0 1-12 12Z"
-              fill="url(#celebFlameGrad)"
-            />
-            <defs>
-              <linearGradient id="celebFlameGrad" x1="32" y1="0" x2="32" y2="80" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stopColor="#fbbf24" />
-                <stop offset="0.45" stopColor="#f97316" />
-                <stop offset="1" stopColor="#ef4444" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        {/* Streak number */}
-        <p className="text-5xl font-extrabold tracking-tight streak-number">
-          {streakCount}
-        </p>
-
-        {/* Subtitle */}
-        <p className="text-sm font-bold uppercase tracking-widest mt-1.5" style={{ color: '#fdba74' }}>
-          {plural(t('streakDisplay.celebration.subtitle', { count: streakCount }), streakCount)}
-        </p>
-
-        {/* Encouragement */}
-        <p className="text-xs text-text-secondary mt-2.5 font-medium">
-          {encouragement}
-        </p>
-      </div>
       </button>
     </div>,
-    document.body
+    document.body,
   )
 }

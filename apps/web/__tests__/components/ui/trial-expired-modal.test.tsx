@@ -31,15 +31,17 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, titleContent, footer }: {
+  AppOverlay: ({ open, children, title, titleContent, footer }: {
     open: boolean
     children: React.ReactNode
+    title?: string
     titleContent?: React.ReactNode
     footer?: React.ReactNode
   }) => {
     if (!open) return null
     return (
       <div data-testid="overlay">
+        {title && <h2>{title}</h2>}
         {titleContent}
         {children}
         {footer}
@@ -81,30 +83,23 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.title')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.heading')).toBeInTheDocument()
   })
 
-  it('renders all feature list items', () => {
+  it('renders the paused feature rows', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    expect(screen.getByText('trial.expired.unlimitedHabits')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.aiChat')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.allColors')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.aiSummary')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.subHabits')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.goals')).toBeInTheDocument()
   })
 
-  it('renders the subtitle with days parameter', () => {
+  it('renders the quiet subtitle copy', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    // The plural mock returns the text as-is
-    expect(screen.getByText(/trial.expired.subtitle/)).toBeInTheDocument()
-  })
-
-  it('renders the dontLose message', () => {
-    mockTrialExpired = true
-    render(<TrialExpiredModal />)
-    expect(screen.getByText('trial.expired.dontLose')).toBeInTheDocument()
+    expect(screen.getByText('trial.expired.subtitleQuiet')).toBeInTheDocument()
   })
 
   it('renders the subscribe/upgrade link', () => {

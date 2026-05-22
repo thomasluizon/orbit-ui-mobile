@@ -3,22 +3,20 @@
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Sparkles, CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
-const features = [
-  'trial.expired.unlimitedHabits',
-  'trial.expired.aiChat',
-  'trial.expired.allColors',
-  'trial.expired.aiSummary',
+const PAUSED_FEATURES = [
   'trial.expired.subHabits',
-]
+  'trial.expired.aiChat',
+  'trial.expired.goals',
+  'trial.expired.aiSummary',
+  'trial.expired.allColors',
+] as const
 
 export function TrialExpiredModal() {
   const t = useTranslations()
@@ -47,48 +45,97 @@ export function TrialExpiredModal() {
       onOpenChange={(open) => {
         if (!open) dismiss()
       }}
-      titleContent={
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Sparkles className="size-5 text-primary" />
-          </div>
-          <span>{t('trial.expired.title')}</span>
-        </div>
-      }
+      title={t('trial.expired.heading')}
       footer={
-        <div className="space-y-3">
+        <div className="flex flex-col" style={{ gap: 10 }}>
           <Link
             href="/upgrade"
-            className="block w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)]"
+            className="appearance-none cursor-pointer text-center"
+            style={{
+              padding: '12px 18px',
+              background: 'var(--primary)',
+              color: 'var(--fg-on-primary)',
+              borderRadius: 10,
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 600,
+            }}
             onClick={dismiss}
           >
             {t('trial.expired.subscribe')}
           </Link>
           <button
-            className="w-full py-2 text-text-secondary text-sm font-medium"
+            type="button"
+            className="appearance-none border-0 bg-transparent cursor-pointer text-center"
             onClick={dismiss}
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+              padding: 6,
+            }}
           >
             {t('trial.expired.continueFree')}
           </button>
         </div>
       }
     >
-      <p className="text-text-secondary text-sm mb-4">
-        {plural(t('trial.expired.subtitle', { days: 7 }), 7)}
-      </p>
-
-      <p className="form-label mb-3">
-        {t('trial.expired.dontLose')}
-      </p>
-
-      <ul className="space-y-2.5">
-        {features.map((feature) => (
-          <li key={feature} className="flex items-center gap-2.5">
-            <CheckCircle2 className="size-4 text-primary shrink-0" />
-            <span className="text-sm text-text-secondary">{t(feature)}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col" style={{ gap: 14 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('trial.expired.eyebrow')}
+        </div>
+        <p
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontStyle: 'italic',
+            color: 'var(--fg-2)',
+            lineHeight: 1.55,
+            margin: 0,
+          }}
+        >
+          {t('trial.expired.subtitleQuiet')}
+        </p>
+        <div>
+          {PAUSED_FEATURES.map((featureKey) => (
+            <div
+              key={featureKey}
+              className="flex items-baseline justify-between"
+              style={{
+                padding: '11px 0',
+                borderBottom: '1px solid var(--hairline)',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 15,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {t(featureKey)}
+              </span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: 11,
+                  fontStyle: 'italic',
+                  color: 'var(--fg-3)',
+                }}
+              >
+                {t('trial.expired.paused')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </AppOverlay>
   )
 }

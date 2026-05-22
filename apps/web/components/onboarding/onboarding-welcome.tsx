@@ -1,20 +1,22 @@
 'use client'
 
-import Image from 'next/image'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
-import {
-  colorSchemeOptions,
-  type ColorScheme,
-} from '@orbit/shared/theme'
-import {
-  ONBOARDING_WEEK_START_OPTIONS,
-} from '@orbit/shared/utils'
+import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
+import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import { updateWeekStartDay, updateColorScheme as updateColorSchemeAction } from '@/app/actions/profile'
+import {
+  updateWeekStartDay,
+  updateColorScheme as updateColorSchemeAction,
+} from '@/app/actions/profile'
+import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { SectionLabel } from '@/components/ui/section-label'
+import { Chip } from '@/components/ui/chip'
+
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const
 
 export function OnboardingWelcome() {
   const t = useTranslations()
@@ -57,79 +59,103 @@ export function OnboardingWelcome() {
   }
 
   const weekStartDay = profile?.weekStartDay ?? 1
+  // Maps weekStartDay (0=Sun, 1=Mon) to chip index in DAY_LABELS (Sun-first).
+  const activeDayIndex = weekStartDay % 7
+  const monday = ONBOARDING_WEEK_START_OPTIONS[0]
+  const sunday = ONBOARDING_WEEK_START_OPTIONS[1]
 
   return (
-    <div className="text-center">
-      {/* Logo with ambient glow */}
-      <div className="mb-6 flex justify-center">
-        <div className="relative">
-          <div
-            className="absolute inset-0 -m-6 rounded-full opacity-60"
-            style={{ background: 'radial-gradient(circle, rgba(var(--primary-shadow), 0.15), transparent 60%)' }}
-          />
-          <Image
-            src="/logo-no-bg.png"
-            alt="Orbit"
-            className="relative size-20 animate-[scale-in_400ms_cubic-bezier(0.16,1,0.3,1)_100ms_both]"
-            width={80}
-            height={80}
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
+      {/* Saturn dropcap + title block */}
+      <div
+        className="flex flex-col items-center"
+        style={{ gap: 14, paddingTop: 14 }}
+      >
+        <div style={{ color: 'var(--fg-1)' }}>
+          <SaturnDropcap size={48} />
         </div>
+        <h1
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.15,
+            color: 'var(--fg-1)',
+            margin: 0,
+          }}
+        >
+          {t('onboarding.flow.welcome.title')}
+        </h1>
       </div>
 
-      {/* Title */}
-      <h1 className="text-2xl font-bold text-text-primary mb-3 animate-[slide-up-fade_400ms_cubic-bezier(0.16,1,0.3,1)_150ms_both]">
-        {t('onboarding.flow.welcome.title')}
-      </h1>
-      <p className="text-base text-text-secondary leading-relaxed mb-8 animate-[slide-up-fade_400ms_cubic-bezier(0.16,1,0.3,1)_250ms_both]">
-        {t('onboarding.flow.welcome.subtitle')}
-      </p>
-
-      {/* Week start day */}
-      <div className="mb-8 animate-[slide-up-fade_400ms_cubic-bezier(0.16,1,0.3,1)_350ms_both]">
-        <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
+      {/* Week starts on */}
+      <div>
+        <SectionLabel top={12} bottom={10}>
           {t('onboarding.flow.welcome.weekStart')}
-        </p>
-        <div className="flex gap-3 justify-center">
-          {ONBOARDING_WEEK_START_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              className={`px-6 py-3 rounded-[var(--radius-xl)] text-sm font-bold transition-all ${
-                weekStartDay === option.value
-                  ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                  : 'bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-border-emphasis'
-              }`}
-              onClick={() => handleWeekStartDaySelect(option.value)}
-            >
-              {t(option.labelKey)}
-            </button>
-          ))}
+        </SectionLabel>
+        <div className="flex" style={{ justifyContent: 'space-between', padding: '0 4px' }}>
+          {DAY_LABELS.map((label, i) => {
+            const isMondayChip = i === 1
+            const isSundayChip = i === 0
+            const onClick = isMondayChip
+              ? () => handleWeekStartDaySelect(monday.value)
+              : isSundayChip
+                ? () => handleWeekStartDaySelect(sunday.value)
+                : undefined
+            return (
+              <Chip
+                // NOSONAR -- fixed day initials, index is identity
+                key={`day-${i}`}
+                active={i === activeDayIndex}
+                onClick={onClick}
+                ariaLabel={
+                  isMondayChip
+                    ? t(monday.labelKey)
+                    : isSundayChip
+                      ? t(sunday.labelKey)
+                      : label
+                }
+              >
+                {label}
+              </Chip>
+            )
+          })}
         </div>
       </div>
 
       {/* Color scheme (Pro/trial only) */}
       {hasProAccess && (
-        <div className="animate-[slide-up-fade_400ms_cubic-bezier(0.16,1,0.3,1)_450ms_both]">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
+        <div>
+          <SectionLabel top={12} bottom={10}>
             {t('onboarding.flow.welcome.colorScheme')}
-          </p>
-          <div className="flex gap-3 justify-center">
-            {colorSchemeOptions.map((option) => (
-              <button
-                key={option.value}
-                className={`size-10 rounded-full cursor-pointer transition-all duration-200 ${
-                  currentScheme === option.value
-                    ? 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110'
-                    : 'ring-1 ring-white/10 hover:ring-white/20 hover:scale-105'
-                }`}
-                style={{
-                  backgroundColor: option.color,
-                  boxShadow: currentScheme === option.value ? `0 0 12px ${option.color}66` : 'none',
-                }}
-                aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
-                onClick={() => handleSchemeSelect(option.value)}
-              />
-            ))}
+          </SectionLabel>
+          <div className="flex justify-center" style={{ gap: 12 }}>
+            {colorSchemeOptions.map((option) => {
+              const isActive = currentScheme === option.value
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  className="appearance-none border-0 cursor-pointer"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 999,
+                    background: option.color,
+                    boxShadow: isActive
+                      ? 'inset 0 0 0 2px var(--bg-base), 0 0 0 2px var(--fg-1)'
+                      : 'inset 0 0 0 1px var(--hairline-strong)',
+                  }}
+                  aria-label={t(
+                    `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0], // NOSONAR -- dynamic i18n key
+                  )}
+                  aria-pressed={isActive}
+                  onClick={() => handleSchemeSelect(option.value)}
+                />
+              )
+            })}
           </div>
         </div>
       )}
