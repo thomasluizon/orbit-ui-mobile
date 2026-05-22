@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/forbid-ts-antipatterns.mjs" },
+          { "type": "command", "command": "node .claude/hooks/flag-new-todos.mjs" },
+          { "type": "command", "command": "node .claude/hooks/parity-nudge.mjs" },
+          { "type": "command", "command": "node .claude/hooks/csharp-authz.mjs" },
+          { "type": "command", "command": "node .claude/hooks/csharp-tz.mjs" },
+          { "type": "command", "command": "node .claude/hooks/csharp-fluentconfig.mjs" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "_comment": "Copy this file to .mcp.json (gitignored) and fill in the env vars. The csharp-lsp entry gives Claude symbol-precise navigation across orbit-api even when this session is launched from orbit-ui-mobile. Falls back to .claude/scripts/csharp-lsp.mjs if the generic mcp-language-server package can't be installed.",
+  "mcpServers": {
+    "postgres-local": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "${LOCAL_POSTGRES_URL}"],
+      "env": {},
+      "timeout": 45000
+    },
+    "postgres": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "${SUPABASE_POSTGRES_URL}"],
+      "env": {},
+      "timeout": 45000
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
+    },
+    "render": {
+      "type": "http",
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${RENDER_MCP_TOKEN}"
+      }
+    },
+    "stripe": {
+      "type": "http",
+      "url": "https://mcp.stripe.com"
+    },
+    "sonarqube": {
+      "command": "docker",
+      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "env": {
+        "SONARQUBE_TOKEN": "${SONARQUBE_TOKEN}",
+        "SONARQUBE_ORG": "${SONARQUBE_ORG}"
+      },
+      "timeout": 120000
+    },
+    "stitch": {
+      "type": "http",
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "${STITCH_API_KEY}"
+      }
+    },
+    "csharp-lsp": {
+      "command": "node",
+      "args": [".claude/scripts/csharp-lsp.mjs"],
+      "env": {
+        "ORBIT_API_ROOT": "C:/Users/thoma/Documents/Programming/Projects/orbit-api"
+      },
+      "timeout": 60000
+    }
+  }
+}

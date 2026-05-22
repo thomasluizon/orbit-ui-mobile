@@ -17,6 +17,11 @@ dist/
 .vscode/
 .idea/
 .claude/worktrees/
+.claude/plans/
+.claude/PRDs/
+.claude/stories/
+.claude/reviews/
+.claude/reports/
 .mcp.json
 .codex/config.toml
 *.swp
