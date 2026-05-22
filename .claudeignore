@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+.expo/
+.turbo/
+dist/
+build/
+*.tsbuildinfo
+
+# Native build outputs (mobile)
+apps/mobile/android/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/.kotlin/
+apps/mobile/android/.cxx/
+apps/mobile/android/app/build/
+apps/mobile/modules/*/android/build/
+apps/mobile/modules/*/android/.gradle/
+apps/mobile/modules/*/android/.cxx/
+apps/mobile/ios/
+
+# Test outputs
+coverage/
+playwright-report/
+test-results/
+
+# Lockfiles (Claude doesn't need to read these)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+.tmp/
+temporary screenshots/
+
+# Claude scratch (worktrees, plans, reports — local work artifacts)
+.claude/worktrees/
+.claude/plans/
+.claude/PRDs/
+.claude/stories/
+.claude/reviews/
+.claude/reports/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Secrets / env
+.env
+.env.*
+google-services.json
+apps/mobile/play-service-account.json
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
