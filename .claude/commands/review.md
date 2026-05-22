@@ -10,7 +10,7 @@ argument-hint: <pr-number|pr-url|file|folder|blank>
 ## Mission
 
 1. **Understand** what you're reviewing and its purpose
-2. **Check** against project patterns (`AGENTS.md` in each repo)
+2. **Check** against project patterns (`CLAUDE.md` in each repo)
 3. **Run** validation (lint, type-check, tests)
 4. **Identify** issues by severity
 5. **Report** findings — and post to GitHub if a PR
@@ -62,9 +62,9 @@ git diff
 
 ### Read Project Rules
 
-- `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile\AGENTS.md` for frontend conventions
-- `C:\Users\thoma\Documents\Programming\Projects\orbit-api\AGENTS.md` for backend conventions
-- Plan file in `.agents/plans/completed/` if the PR references one
+- `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile\CLAUDE.md` for frontend conventions
+- `C:\Users\thoma\Documents\Programming\Projects\orbit-api\CLAUDE.md` for backend conventions
+- Plan file in `.claude/plans/completed/` if the PR references one
 
 ### Understand Intent
 
@@ -82,7 +82,7 @@ git diff
 |----------|-------|
 | **Correctness** | Does it work as intended? Cross-boundary behavior right? |
 | **Type Safety** | Zero `any` in TS; no implicit conversions in C#. Use `unknown` with narrowing in TS. |
-| **Patterns** | Matches existing patterns from AGENTS.md? CQRS used for new endpoints? Server Action for new mutations? |
+| **Patterns** | Matches existing patterns from CLAUDE.md? CQRS used for new endpoints? Server Action for new mutations? |
 | **Parity** | If frontend hook/component touched, is the parallel one in the other app updated? |
 | **i18n** | New user-facing strings added to both `en.json` and `pt-BR.json`? |
 | **Shared types** | New API shapes live in `packages/shared/src/types/`, not duplicated? |
@@ -118,10 +118,10 @@ dotnet build && dotnet test tests/Orbit.IntegrationTests
 
 ## Phase 5: REPORT
 
-**Output path**: `.agents/reviews/{scope-name}-review.md`
+**Output path**: `.claude/reviews/{scope-name}-review.md`
 
 ```bash
-mkdir -p .agents/reviews
+mkdir -p .claude/reviews
 ```
 
 ```markdown
@@ -169,7 +169,7 @@ mkdir -p .agents/reviews
 ### Post to GitHub (if PR)
 
 ```bash
-gh pr review {N} --repo {OWNER/REPO} --comment --body-file .agents/reviews/{scope-name}-review.md
+gh pr review {N} --repo {OWNER/REPO} --comment --body-file .claude/reviews/{scope-name}-review.md
 ```
 
 Or for inline comments on specific files/lines, use the GitHub REST API via `gh api` (the project's CI already supports inline comments per recent commits).
@@ -203,5 +203,5 @@ Or for inline comments on specific files/lines, use the GitHub REST API via `gh 
 
 ### Report
 
-`.agents/reviews/{scope-name}-review.md`
+`.claude/reviews/{scope-name}-review.md`
 ```

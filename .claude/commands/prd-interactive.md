@@ -56,7 +56,7 @@ Wait for responses.
 ### Phase 4: ORBIT-SPECIFIC SCOPE
 
 > 1. **Which repos?** Frontend only (`orbit-ui-mobile`), backend only (`orbit-api`), or both?
-> 2. **Which platforms?** Web only, mobile only, or both? (Reminder: parity is the default per `AGENTS.md` — confirm if a platform should be skipped.)
+> 2. **Which platforms?** Web only, mobile only, or both? (Reminder: parity is the default per `CLAUDE.md` — confirm if a platform should be skipped.)
 > 3. **API surface changes?** New endpoints? Modified shapes? Auth changes?
 > 4. **Data model changes?** New tables, columns, migrations?
 > 5. **i18n strings?** Any new user-facing text? (Both `en.json` and `pt-BR.json` must be updated.)
@@ -65,7 +65,7 @@ Wait for responses.
 
 ### Phase 5: GENERATE
 
-**Output path**: `.agents/PRDs/{kebab-case-name}.prd.md`
+**Output path**: `.claude/PRDs/{kebab-case-name}.prd.md`
 
 ```markdown
 # {Feature Name}
@@ -143,7 +143,7 @@ We'll know we're right when {measurable outcome}.
 ```markdown
 ## PRD Created
 
-**File**: `.agents/PRDs/{name}.prd.md`
+**File**: `.claude/PRDs/{name}.prd.md`
 
 **Problem**: {one line}
 **Solution**: {one line}
@@ -154,5 +154,5 @@ We'll know we're right when {measurable outcome}.
 {list}
 
 ### Recommended Next Step
-- Run `/create-stories .agents/PRDs/{name}.prd.md` once open questions are resolved.
+- Run `/create-stories .claude/PRDs/{name}.prd.md` once open questions are resolved.
 ```

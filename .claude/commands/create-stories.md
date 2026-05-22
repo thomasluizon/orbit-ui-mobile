@@ -5,7 +5,7 @@ argument-hint: <path-to-prd> [--milestone "MVP"] [--no-create]
 
 # Create Stories from PRD (GitHub Issues)
 
-Break a Product Requirements Document into independently shippable stories. Mirror them to `.agents/stories/` and create GitHub issues in `thomasluizon/orbit-ui-mobile` (the single backlog hub).
+Break a Product Requirements Document into independently shippable stories. Mirror them to `.claude/stories/` and create GitHub issues in `thomasluizon/orbit-ui-mobile` (the single backlog hub).
 
 **Input**: $ARGUMENTS
 
@@ -39,7 +39,7 @@ Optional labels: `area:auth`, `area:habits`, `area:notifications`, `priority:hig
 ## Phase 1: LOAD
 
 Read the PRD from `$ARGUMENTS`. If no path, look for:
-1. `.agents/PRDs/*.prd.md`
+1. `.claude/PRDs/*.prd.md`
 2. `PRD.md` at project root
 3. Ask the user which PRD to use
 
@@ -51,7 +51,7 @@ Extract:
 
 Parse optional flags:
 - `--milestone <name>` — assign all issues to this milestone (created if missing)
-- `--no-create` — write `.agents/stories/` only, skip `gh issue create`
+- `--no-create` — write `.claude/stories/` only, skip `gh issue create`
 
 ---
 
@@ -96,7 +96,7 @@ As a {user type}, I want to {action}, so that {benefit}.
 ### Technical Notes
 
 - Files likely to change: {paths}
-- Patterns to follow: {reference AGENTS.md sections, e.g. "Add a new API endpoint"}
+- Patterns to follow: {reference CLAUDE.md sections, e.g. "Add a new API endpoint"}
 - Validation: lint, type-check, unit tests; integration tests if backend
 - For `repo:both`: backend changes first, then shared types, then frontend
 - For `parity-required: yes`: update both `apps/web` and `apps/mobile`
@@ -131,10 +131,10 @@ Before writing or creating issues:
 ## Phase 5: WRITE LOCAL STORIES FILE
 
 ```bash
-mkdir -p .agents/stories
+mkdir -p .claude/stories
 ```
 
-Save to `.agents/stories/{prd-name}.md` with:
+Save to `.claude/stories/{prd-name}.md` with:
 - A summary table of all stories (number, title, repos, complexity, depends-on)
 - Each story's full markdown block from Phase 3
 
@@ -214,8 +214,8 @@ gh issue comment {N} --repo thomasluizon/orbit-ui-mobile --body "Blocked by #{B}
 ```markdown
 ## Stories Created
 
-**PRD**: `.agents/PRDs/{name}`
-**Local file**: `.agents/stories/{name}.md`
+**PRD**: `.claude/PRDs/{name}`
+**Local file**: `.claude/stories/{name}.md`
 **Repo**: `thomasluizon/orbit-ui-mobile`
 **Milestone**: {name or "none"}
 

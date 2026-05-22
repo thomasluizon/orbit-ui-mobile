@@ -1,6 +1,6 @@
 ---
 description: Create implementation plan with cross-repo codebase analysis
-argument-hint: <issue-number | feature description | path/to/prd.md>
+argument-hint: <issue-number | feature description | path/to/prd.md> [issue-number ...]
 ---
 
 # Implementation Plan Generator
@@ -14,14 +14,25 @@ Transform input into a context-rich, battle-tested implementation plan.
 **Core Principle**: PLAN ONLY — no code written.
 **Order**: CODEBASE FIRST. Solutions must fit existing patterns in both `orbit-ui-mobile` and `orbit-api`.
 
+## Mode detection (do this first)
+
+Parse `$ARGUMENTS`. Count numeric tokens (`123`, `#123`) — split on whitespace OR commas.
+
+| Numeric arg count | Mode |
+|---|---|
+| 0 or 1 (or any non-numeric input) | **Single-plan** — continue with the phases below. |
+| ≥ 2 | **Multi-plan** — jump to the "Multi-plan mode" section. |
+
 ---
+
+## Single-plan mode
 
 ## Phase 1: PARSE
 
 ### Determine Input Type
 
 | Input | Action |
-|-------|--------|
+|---|---|
 | Numeric (`123`) or `#123` | Fetch issue from `orbit-ui-mobile` via `gh issue view` |
 | `.prd.md` file | Read PRD, extract next pending phase |
 | Other `.md` file | Extract feature description |
@@ -55,7 +66,7 @@ Extract:
 
 ### Study the Codebase
 
-Use the Explore agent. Search areas based on `Repos`:
+Use the Explore subagent for breadth. Search areas based on `Repos`:
 
 **If frontend (or both):**
 - Similar pages: `apps/web/app/(app)/` and `apps/mobile/app/`
@@ -77,7 +88,7 @@ Use the Explore agent. Search areas based on `Repos`:
 ### Document Patterns
 
 | Category | Repo | File:Lines | Pattern |
-|----------|------|------------|---------|
+|---|---|---|---|
 | FRONTEND_NAMING | ui-mobile | `apps/web/...` | ... |
 | FRONTEND_HOOK | ui-mobile | `apps/mobile/hooks/...` | ... |
 | BACKEND_CQRS | api | `src/Orbit.Application/...` | ... |
@@ -100,23 +111,23 @@ Use the Explore agent. Search areas based on `Repos`:
 If touching `apps/web`, you almost always also touch `apps/mobile`. List the parallel files:
 
 | Web | Mobile | Same logic? |
-|-----|--------|-------------|
+|---|---|---|
 | `apps/web/hooks/use-foo.ts` | `apps/mobile/hooks/use-foo.ts` | yes/no |
 
 ### Identify Risks
 
 | Risk | Mitigation |
-|------|------------|
+|---|---|
 | {issue} | {handling} |
 
 ---
 
 ## Phase 4: GENERATE
 
-**Output path**: `.agents/plans/{kebab-case-name}.plan.md`
+**Output path**: `.claude/plans/{kebab-case-name}.plan.md`
 
 ```bash
-mkdir -p .agents/plans
+mkdir -p .claude/plans
 ```
 
 ```markdown
@@ -135,7 +146,7 @@ So that {benefit}
 ## Metadata
 
 | Field | Value |
-|-------|-------|
+|---|---|
 | Type | NEW_CAPABILITY / ENHANCEMENT / REFACTOR / BUG_FIX |
 | Complexity | LOW / MEDIUM / HIGH |
 | Repos | frontend / backend / both |
@@ -144,133 +155,10 @@ So that {benefit}
 | Web Affected | yes / no |
 | Mobile Affected | yes / no |
 
----
-
-## Patterns to Follow
-
-### Frontend (skip if backend-only)
-
-#### Naming
-```
-// SOURCE: apps/web/.../file.ts:lines
-{actual snippet}
+(rest of plan body — see Phase 4 template details below.)
 ```
 
-#### Hooks
-```
-// SOURCE: apps/mobile/hooks/use-X.ts:lines
-{actual snippet}
-```
-
-#### Server Action / API call
-```
-// SOURCE: apps/web/app/actions/X.ts:lines
-{actual snippet}
-```
-
-### Backend (skip if frontend-only)
-
-#### Command / Query
-```csharp
-// SOURCE: orbit-api/src/Orbit.Application/Habits/Commands/CreateHabit.cs:lines
-{actual snippet}
-```
-
-#### Validator
-```csharp
-// SOURCE: orbit-api/src/Orbit.Application/Habits/Validators/CreateHabitValidator.cs:lines
-{actual snippet}
-```
-
-#### Controller
-```csharp
-// SOURCE: orbit-api/src/Orbit.Api/Controllers/HabitsController.cs:lines
-{actual snippet}
-```
-
-### Tests
-
-```
-// SOURCE: tests/Orbit.IntegrationTests/.../X.cs:lines
-{actual snippet}
-```
-
----
-
-## Files to Change
-
-| Repo | File | Action | Purpose |
-|------|------|--------|---------|
-| ui-mobile | `packages/shared/src/types/X.ts` | CREATE | Zod type |
-| ui-mobile | `packages/shared/src/api/endpoints.ts` | UPDATE | Add endpoint |
-| ui-mobile | `apps/web/app/actions/X.ts` | CREATE | Server action |
-| ui-mobile | `apps/web/hooks/use-X.ts` | CREATE | TanStack hook |
-| ui-mobile | `apps/mobile/hooks/use-X.ts` | CREATE | Mobile hook (parity) |
-| api | `src/Orbit.Application/X/Commands/CreateX.cs` | CREATE | CQRS command |
-| api | `src/Orbit.Api/Controllers/XController.cs` | UPDATE | Add endpoint |
-| api | `src/Orbit.Infrastructure/Migrations/AddX.cs` | CREATE | EF migration |
-
----
-
-## Tasks
-
-Execute in order. Each task is atomic and verifiable. Group by repo for clarity, but list cross-repo dependencies.
-
-### Task 1: {Description}
-
-- **Repo**: ui-mobile / api
-- **File**: `path/to/file`
-- **Action**: CREATE / UPDATE
-- **Implement**: {what to do}
-- **Mirror**: `path/to/example:lines` — follow this pattern
-- **Validate**: `npm run type-check` (ui-mobile) / `dotnet build` (api)
-
-### Task 2: {Description}
-
-- ...
-
-{Continue for each task.}
-
----
-
-## Validation Commands
-
-### orbit-ui-mobile (run from repo root)
-
-```bash
-npm run lint
-npm run type-check
-npm test
-```
-
-### orbit-api (run from repo root)
-
-```bash
-dotnet build
-dotnet test tests/Orbit.IntegrationTests
-```
-
-### End-to-End Tests
-
-List concrete E2E steps `/implement` must execute. Examples:
-
-- [ ] Start API: `dotnet run --project src/Orbit.Api` in `orbit-api`
-- [ ] Start web: `npm run web` in `orbit-ui-mobile`
-- [ ] Log in as test user, navigate to {route}
-- [ ] Trigger {action} — expect {observable result}
-- [ ] Repeat on mobile if `parity-required: yes`
-
----
-
-## Acceptance Criteria
-
-- [ ] All tasks completed
-- [ ] Validation passes in every affected repo
-- [ ] Parity verified if `Parity Required: yes` (both web and mobile updated and behave the same)
-- [ ] Tests written for new code
-- [ ] E2E checklist passes
-- [ ] Follows existing patterns
-```
+The full plan template (Patterns / Files to Change / Tasks / Validation Commands / E2E / Acceptance Criteria) is unchanged from the earlier version of this command — preserve its structure.
 
 ---
 
@@ -279,7 +167,7 @@ List concrete E2E steps `/implement` must execute. Examples:
 ```markdown
 ## Plan Created
 
-**File**: `.agents/plans/{name}.plan.md`
+**File**: `.claude/plans/{name}.plan.md`
 **Repos**: frontend / backend / both
 **Issue**: #{N} (or "N/A")
 
@@ -295,5 +183,44 @@ List concrete E2E steps `/implement` must execute. Examples:
 - {Pattern 1 with file:line}
 - {Pattern 2 with file:line}
 
-**Next Step**: Review the plan, then `/implement .agents/plans/{name}.plan.md`
+**Next Step**: Review the plan, then `/implement .claude/plans/{name}.plan.md`
 ```
+
+---
+
+## Multi-plan mode
+
+User passed 2+ issue numbers. Generate one plan per issue, in parallel via subagents in their paired worktrees.
+
+### Step 1: Verify worktrees exist
+
+For each issue `N`, check that the paired worktrees exist:
+
+- `C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/.claude/worktrees/issue-<N>`
+- `C:/Users/thoma/Documents/Programming/Projects/orbit-api/.claude/worktrees/issue-<N>` (if applicable)
+
+If a worktree is missing, run `/prime <N1> <N2> ...` first (or surface the error and ask the user to do so).
+
+### Step 2: Spawn planning subagents
+
+Use the Agent tool to spawn ONE subagent per issue, in parallel. Each subagent:
+
+- Has `cwd` set to the orbit-ui-mobile worktree for that issue.
+- Runs the full single-plan flow (Phases 1–5) inside its worktree.
+- Writes its plan to `.claude/plans/issue-<N>.plan.md` inside the worktree.
+- Reports back: plan file path, scope summary, complexity rating.
+
+**Concurrency cap: 3 subagents at a time.** Queue the rest.
+
+### Step 3: Aggregate
+
+Print one row per issue showing plan path + scope + complexity. Surface any subagent failures with the error message and the worktree path so the user can iterate manually.
+
+```
+Issue   Plan                                                  Files  Tasks  Complexity
+#100    .claude/worktrees/issue-100/.claude/plans/...         12     8      MEDIUM
+#101    .claude/worktrees/issue-101/.claude/plans/...         4      3      LOW
+#102    .claude/worktrees/issue-102/.claude/plans/...         FAILED ...
+```
+
+Suggested next step: `/implement <N1> <N2> <N3>` (continues the parallel flow).

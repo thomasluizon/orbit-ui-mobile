@@ -39,29 +39,62 @@ jobs:
             ## Step 2 — Find ONLY high-signal issues
 
             A high-signal issue is ONE of:
+
             1. **Correctness bug** — code will produce wrong runtime behavior.
+
             2. **Security vulnerability** — auth bypass, injection, data leak, race condition, missing audit on a mutating endpoint, missing input validation at a trust boundary.
-            3. **API contract break** — request/response shape changes that break the web or mobile client; missing cross-platform parity per AGENTS.md.
+
+            3. **API contract break** — request/response shape changes that break the web or mobile client; missing cross-platform parity per the root `CLAUDE.md` parity rule.
+
             4. **Missing test for new code that mutates state** — not "more tests would be nice", but "this codepath has zero coverage and changes user data".
-            5. **Hard-rule violation** of CLAUDE.md / AGENTS.md — `any`, `console.log` in production, hardcoded user-facing strings, missing parity between apps/web and apps/mobile, type imports from non-shared paths.
+
+            5. **Hard-rule violation** of `CLAUDE.md` (root or any scoped `apps/web/CLAUDE.md`, `apps/mobile/CLAUDE.md`, `packages/shared/CLAUDE.md`) — `any`, `console.log` in production, hardcoded user-facing strings, missing parity between `apps/web` and `apps/mobile`, type imports from non-shared paths.
+
+            6. **Stale / dead code introduced or left by this PR.** Flag when this PR adds or keeps:
+               - Functions / components / hooks / types / constants exported (or defined) but with zero references in the repo.
+               - Imports, variables, or parameters that are never used.
+               - i18n keys added with no caller; i18n keys deleted but still referenced.
+               - Env vars added to `.env*` with no reader; env vars removed but still read.
+               - Conditional branches that are statically unreachable.
+               Do **not** flag pre-existing dead code outside the diff — that's separate cleanup.
+
+            7. **Workarounds instead of root-cause fixes.** Flag any of these introduced or left by this PR:
+               - `TODO` / `FIXME` / `HACK` / `XXX` comments in the diff.
+               - Commented-out code.
+               - `try` / `catch` that swallows errors silently (empty catch, or catch that only logs without re-throwing / surfacing).
+               - Defensive branches for cases the type system already guarantees can't happen (e.g., null-checks on non-nullable types).
+               - `as any`, `as unknown as X`, `// @ts-ignore`, `// @ts-expect-error`, `// eslint-disable*` — unless paired with a comment explaining why no other option exists.
+               - Hardcoded fallback values that mask a config bug (e.g., `process.env.X ?? 'default-that-shouldnt-be-used'`).
+               - The same logic copy-pasted across `apps/web` and `apps/mobile` when it could live in `packages/shared`.
+               For each: post the file:line, the workaround, and what the root-cause fix would be.
+
+            8. **Useless comments.** Flag comments that:
+               - Restate what the code does (`// increment counter` above `counter++`).
+               - Reference the current task / fix / PR / ticket (`// added for issue #123`, `// fixes the timezone bug`) — that belongs in commit messages and PR descriptions, not code.
+               - Reference the caller (`// used by X`).
+               - Are TODOs without a tracked issue.
+               Keep: comments that document **public APIs** (exported functions, hooks, types) and comments that explain **non-obvious WHY** (hidden constraint, workaround for a third-party bug, subtle invariant).
 
             **EXPLICITLY NOT high-signal — do NOT post:**
             - Style preferences (verbose vs concise, optional chaining vs typeof guard, named function vs inline arrow).
-            - Comment wording, doc-string polish, EventId ordering, naming nits.
+            - Comment wording polish on comments that ARE allowed by category 8 (public API docs, WHY comments).
             - "Consider hoisting / extracting / future-proofing" suggestions for code that isn't currently broken.
             - Zod modifier purity (`.nullable().optional()` vs `.nullable()`) when the behavior is correct.
             - Re-flagging issues addressed in earlier commits or already-resolved threads, even if your preferred fix differs.
             - Magic-number-to-constant migrations when the value is obvious from context.
+            - Pre-existing dead code, pre-existing workarounds, or pre-existing useless comments OUTSIDE the diff — those are separate cleanup, not this PR's problem.
             - Anything where the author's choice is defensible and you'd just prefer it done differently.
 
-            **A finding that isn't a bug, a security gap, a contract break, a missing test, or a hard-rule violation is NOISE. Don't post it.**
+            **A finding that isn't a bug, a security gap, a contract break, a missing test, a hard-rule violation, stale/dead code, a workaround, or a useless comment introduced by THIS PR is NOISE. Don't post it.**
+
+            Every finding MUST include: file:line, the exact problem, and a concrete root-cause fix the author can apply.
 
             ## Step 3 — Pick exactly one outcome
 
             - **APPROVE** (this is the expected outcome for most PRs): zero high-signal issues. Run:
               gh pr review ${{ github.event.pull_request.number }} --approve --body "<one-paragraph summary of what landed and why it's solid>"
 
-            - **REQUEST_CHANGES**: one or more correctness / security / contract issues. Post inline comments via `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`), then:
+            - **REQUEST_CHANGES**: one or more correctness / security / contract / stale-code / workaround / useless-comment issues. Post inline comments via `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`), then:
               gh pr review ${{ github.event.pull_request.number }} --request-changes --body "<short summary listing the high-signal issues>"
 
             - **COMMENT**: ONLY when you have a genuine clarifying question for the author. Rare.
@@ -72,10 +105,11 @@ jobs:
 
             ## Repo-specific focus areas
 
-            - Cross-platform parity: any change touching apps/web must also touch apps/mobile (and vice versa). Missing parity IS high-signal.
+            - Cross-platform parity: any change touching `apps/web` must also touch `apps/mobile` (and vice versa). Missing parity IS high-signal.
             - Hardcoded user-facing strings (must go through i18n).
             - Use of `any` (banned) and `console.log` in production code (banned).
             - Type imports from `@orbit/shared/types` (barrel) and query keys from `@orbit/shared/query`.
+            - Server Components by default in `apps/web`; `"use client"` only when justified.
 
             The PR branch is checked out in the current working directory.
           claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr review:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*)"'

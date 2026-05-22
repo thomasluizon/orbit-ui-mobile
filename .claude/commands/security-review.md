@@ -39,7 +39,7 @@ Review against these categories. Focus on what's actually relevant to the change
 - Missing `[Authorize]` on new API endpoints
 - Missing auth checks on Server Actions / BFF routes
 - Hardcoded credentials, JWT secrets, API keys
-- Insecure session management (`AGENTS.md` says httpOnly + sameSite strict + secure always)
+- Insecure session management (`CLAUDE.md` says httpOnly + sameSite strict + secure always)
 - CORS configuration changes — should stay restrictive (explicit methods and headers, no `AllowAnyHeader()` / `AllowAnyMethod()`)
 - Stripe API key — must be set globally in `Program.cs`, never per-request
 
@@ -70,7 +70,7 @@ Review against these categories. Focus on what's actually relevant to the change
 - Verbose error messages exposing internals
 - Unhandled promise rejections / unobserved tasks
 - Catch blocks that swallow errors silently
-- Result<T> not propagated correctly (`PropagateError<T>()` / `ToPayGateAwareResult()` per `orbit-api/AGENTS.md`)
+- Result<T> not propagated correctly (`PropagateError<T>()` / `ToPayGateAwareResult()` per `orbit-api/CLAUDE.md`)
 
 ### 7. Validation (Orbit-specific)
 
@@ -100,7 +100,7 @@ For each finding:
 {suggested fix}
 ```
 
-**Reference**: {OWASP / Orbit AGENTS.md / .NET docs}
+**Reference**: {OWASP / Orbit CLAUDE.md / .NET docs}
 ```
 
 ### Severity Definitions

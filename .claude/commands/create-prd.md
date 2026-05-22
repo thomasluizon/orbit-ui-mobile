@@ -10,7 +10,7 @@ argument-hint: [output-filename]
 Generate a comprehensive Product Requirements Document (PRD) for Orbit based on the current conversation context. Use the structure below.
 
 **Output file name**: $ARGUMENTS (default: `PRD.md`)
-**Output directory**: `.agents/PRDs/`
+**Output directory**: `.claude/PRDs/`
 
 ## Orbit-Specific Notes
 
@@ -19,7 +19,7 @@ Orbit ships from two repositories that move together. Every PRD section that tou
 - **Frontend** (`apps/web`, `apps/mobile`, `packages/shared`) in `thomasluizon/orbit-ui-mobile`
 - **Backend** (`.NET 10` API) in `thomasluizon/orbit-api`
 
-Cross-platform parity (`apps/web` ↔ `apps/mobile`) is mandatory per `AGENTS.md`. Call out any web-or-mobile-only intent explicitly.
+Cross-platform parity (`apps/web` ↔ `apps/mobile`) is mandatory per `CLAUDE.md`. Call out any web-or-mobile-only intent explicitly.
 
 ---
 
@@ -128,7 +128,7 @@ Write the PRD. Use markdown. Concrete examples over abstractions. Include code s
 ```markdown
 ## PRD Created
 
-**File**: `.agents/PRDs/{name}`
+**File**: `.claude/PRDs/{name}`
 
 **Product**: {name}
 **Problem**: {one line}
@@ -146,7 +146,7 @@ Write the PRD. Use markdown. Concrete examples over abstractions. Include code s
 ### Recommended Next Steps
 1. Review with stakeholders
 2. Resolve open questions
-3. Run `/create-stories .agents/PRDs/{name}` to break into issues
+3. Run `/create-stories .claude/PRDs/{name}` to break into issues
 ```
 
 ---
