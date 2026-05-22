@@ -186,6 +186,8 @@
   },
   "auth": {
     "welcomeBack": "Bem-vindo",
+    "signIn": "Entrar",
+    "enterCode": "Digite o código",
     "email": "E-mail",
     "emailPlaceholder": "você@exemplo.com",
     "sendCode": "Enviar Código",
@@ -193,6 +195,7 @@
     "codeSentTo": "Enviamos um código de 6 dígitos para",
     "verify": "Verificar",
     "resendCode": "Reenviar código",
+    "resendIn": "Reenviar em {seconds}s",
     "changeEmail": "Alterar e-mail",
     "genericError": "Ocorreu um erro. Tente novamente.",
     "orContinueWith": "ou continue com",
@@ -208,6 +211,10 @@
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
     "tagline": "Acompanhe seus hábitos, construa suas sequências",
+    "legalPrefix": "Ao entrar, você concorda com os",
+    "legalConjunction": "e a",
+    "terms": "Termos",
+    "privacy": "Privacidade",
     "errors": {
       "invalidEmail": "Esse e-mail não parece válido. Verifique e tente de novo.",
       "emailNotFound": "Não encontramos uma conta com esse e-mail.",
@@ -1015,8 +1022,14 @@
     "flow": {
       "step": "{current} de {total}",
       "skip": "Pular",
-      "next": "Próximo",
+      "next": "Continuar",
+      "begin": "Começar",
       "back": "Voltar",
+      "finish": "Concluir",
+      "meetAstra": {
+        "title": "Conheça a Astra.",
+        "subtitle": "A assistente do Orbit. Cria hábitos, resume o seu dia, planeja o futuro e reflete sobre o que está fora do eixo. Pergunte com naturalidade. Ela escuta."
+      },
       "welcome": {
         "title": "Bem-vindo ao Orbit",
         "subtitle": "Vamos configurar sua experiência e criar seu primeiro hábito.",

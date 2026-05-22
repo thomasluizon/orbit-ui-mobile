@@ -1,42 +1,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  View,
-  Text,
-  Pressable,
   Animated,
-  StyleSheet,
   Dimensions,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native'
+import Svg, { Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useProfile } from '@/hooks/use-profile'
-import { radius } from '@/lib/theme'
+import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
-
 const STORAGE_LAST_VISIT = 'orbit_last_visit'
 const STORAGE_REFERRAL_APPLIED = 'orbit_referral_applied'
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+type ToastVariant = 'welcome' | 'referral'
 
+/**
+ * v8 Welcome-back toast: hairline-ringed orbit dot + uppercase eyebrow + italic body.
+ * Preserves the AsyncStorage gating + lifecycle.
+ */
 export function WelcomeBackToast() {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { profile } = useProfile()
-  const { colors, shadows } = useAppTheme()
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastEmoji, setToastEmoji] = useState('\uD83D\uDC4B')
+  const [variant, setVariant] = useState<ToastVariant>('welcome')
+  const [message, setMessage] = useState('')
   const [shouldRender, setShouldRender] = useState(false)
   const checkedRef = useRef(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
-  const translateY = useMemo(() => new Animated.Value(-40), [])
+  const translateY = useMemo(() => new Animated.Value(-20), [])
   const opacity = useMemo(() => new Animated.Value(0), [])
   const scale = useMemo(() => new Animated.Value(0.95), [])
 
@@ -44,7 +49,7 @@ export function WelcomeBackToast() {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -40,
+        toValue: -20,
         duration: 300,
         useNativeDriver: true,
       }),
@@ -64,12 +69,11 @@ export function WelcomeBackToast() {
   }, [translateY, opacity, scale])
 
   const showToast = useCallback(
-    (message: string, emoji = '\uD83D\uDC4B') => {
-      setToastMessage(message)
-      setToastEmoji(emoji)
+    (nextMessage: string, kind: ToastVariant) => {
+      setMessage(nextMessage)
+      setVariant(kind)
       setShouldRender(true)
 
-      // Animate in
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -90,7 +94,6 @@ export function WelcomeBackToast() {
         }),
       ]).start()
 
-      // Auto-dismiss
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(dismiss, 4000)
     },
@@ -109,14 +112,11 @@ export function WelcomeBackToast() {
 
     async function checkVisit() {
       try {
-        // Check referral applied flag
-        const referralApplied = await AsyncStorage.getItem(
-          STORAGE_REFERRAL_APPLIED,
-        )
+        const referralApplied = await AsyncStorage.getItem(STORAGE_REFERRAL_APPLIED)
         if (referralApplied) {
           await AsyncStorage.removeItem(STORAGE_REFERRAL_APPLIED)
           setTimeout(() => {
-            showToast(t('referral.applied'), '\uD83C\uDF81')
+            showToast(t('referral.applied'), 'referral')
           }, 800)
           return
         }
@@ -126,7 +126,6 @@ export function WelcomeBackToast() {
         const lastVisit = Number(lastVisitRaw ?? '0')
         await AsyncStorage.setItem(STORAGE_LAST_VISIT, String(now))
 
-        // Show if >24h since last visit and user has an active streak
         const twentyFourHours = 24 * 60 * 60 * 1000
         if (
           lastVisit > 0 &&
@@ -136,6 +135,7 @@ export function WelcomeBackToast() {
           setTimeout(() => {
             showToast(
               t('welcome.backMessage', { streak: profile?.currentStreak }),
+              'welcome',
             )
           }, 800)
         }
@@ -149,6 +149,9 @@ export function WelcomeBackToast() {
 
   if (!shouldRender) return null
 
+  const eyebrow =
+    variant === 'welcome' ? t('welcome.eyebrow') : t('referral.eyebrow')
+
   return (
     <Animated.View
       style={[
@@ -160,50 +163,79 @@ export function WelcomeBackToast() {
         },
       ]}
     >
-      <Pressable style={styles.toast} onPress={dismiss}>
+      <Pressable
+        style={[
+          styles.toast,
+          {
+            backgroundColor: tokens.bgElev,
+            borderColor: tokens.hairline,
+          },
+        ]}
+        onPress={dismiss}
+        accessibilityLabel={message}
+      >
         <View style={styles.row}>
-          <Text style={styles.emoji}>{toastEmoji}</Text>
-          <Text style={styles.message}>{toastMessage}</Text>
+          <View style={styles.textCol}>
+            <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+              {eyebrow}
+            </Text>
+            <Text style={[styles.message, { color: tokens.fg2 }]}>
+              {message}
+            </Text>
+          </View>
+          <Svg width={24} height={24} style={styles.dot}>
+            <Circle
+              cx={12}
+              cy={12}
+              r={10.5}
+              fill="none"
+              stroke={tokens.primary}
+              strokeWidth={1}
+            />
+          </Svg>
         </View>
       </Pressable>
     </Animated.View>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows: ReturnType<typeof useAppTheme>['shadows']) {
-  return StyleSheet.create({
-    container: {
-      position: 'absolute',
-      left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-      width: TOAST_WIDTH,
-      zIndex: 10000,
-    },
-    toast: {
-      backgroundColor: colors.surfaceOverlay,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      borderRadius: radius.xl,
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      ...shadows.lg,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    emoji: {
-      fontSize: 24,
-    },
-    message: {
-      flex: 1,
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textPrimary,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
+    width: TOAST_WIDTH,
+    zIndex: 10000,
+  },
+  toast: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    ...shadowsV2.shadow2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  textCol: {
+    flex: 1,
+    gap: 4,
+  },
+  eyebrow: {
+    fontFamily: 'Geist',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  message: {
+    fontFamily: 'Geist',
+    fontSize: 14,
+    fontStyle: 'italic',
+    lineHeight: 21,
+  },
+  dot: {
+    flexShrink: 0,
+  },
+})

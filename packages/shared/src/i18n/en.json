@@ -186,6 +186,8 @@
   },
   "auth": {
     "welcomeBack": "Welcome",
+    "signIn": "Sign in",
+    "enterCode": "Enter code",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
     "sendCode": "Send Code",
@@ -193,6 +195,7 @@
     "codeSentTo": "We sent a 6-digit code to",
     "verify": "Verify",
     "resendCode": "Resend code",
+    "resendIn": "Resend in {seconds}s",
     "changeEmail": "Change email",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or continue with",
@@ -208,6 +211,10 @@
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
     "tagline": "Track your habits, build your streaks",
+    "legalPrefix": "By signing in you agree to the",
+    "legalConjunction": "and",
+    "terms": "Terms",
+    "privacy": "Privacy",
     "errors": {
       "invalidEmail": "That email doesn't look right. Check for typos and try again.",
       "emailNotFound": "We couldn't find an account for that email.",
@@ -1015,8 +1022,14 @@
     "flow": {
       "step": "{current} of {total}",
       "skip": "Skip",
-      "next": "Next",
+      "next": "Continue",
+      "begin": "Begin",
       "back": "Back",
+      "finish": "Finish",
+      "meetAstra": {
+        "title": "Meet Astra.",
+        "subtitle": "Orbit's assistant. It can create habits, recap your day, plan ahead, and reflect on what's drifting. Ask plainly. It listens."
+      },
       "welcome": {
         "title": "Welcome to Orbit",
         "subtitle": "Let's set up your experience and create your first habit.",

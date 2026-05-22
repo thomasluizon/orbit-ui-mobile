@@ -1,12 +1,16 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import { View, Text, Animated, Easing, StyleSheet } from 'react-native'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
+import Svg, { Ellipse } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { useUIStore } from '@/stores/ui-store'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import { useUIStore } from '@/stores/ui-store'
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -14,62 +18,48 @@ interface LevelUpOverlayProps {
   onClear: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * v8 Level-up overlay: rotating orbit ellipse + mono level number.
+ * Preserves queue contract (enqueueCelebration / completeActiveCelebration).
+ */
 export function LevelUpOverlay({
   leveledUp,
   newLevel,
   onClear,
 }: Readonly<LevelUpOverlayProps>) {
   const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
-  const { colors } = useAppTheme()
   const [level, setLevel] = useState(0)
-  const [title, setTitle] = useState('')
   const [shouldRender, setShouldRender] = useState(false)
 
   const overlayOpacity = useMemo(() => new Animated.Value(0), [])
-  const contentScale = useMemo(() => new Animated.Value(0.6), [])
-  const contentOpacity = useMemo(() => new Animated.Value(0), [])
-  const outerRingRotation = useMemo(() => new Animated.Value(0), [])
-  const innerRingRotation = useMemo(() => new Animated.Value(0), [])
+  const ringRotation = useMemo(() => new Animated.Value(0), [])
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
-    activeCelebration?.kind === 'level-up'
-      ? activeCelebration
-      : null
+    activeCelebration?.kind === 'level-up' ? activeCelebration : null
 
-  // Continuous ring spin animations
+  // Continuous orbit ring spin
   useEffect(() => {
-    const outerSpin = Animated.loop(
-      Animated.timing(outerRingRotation, {
+    const spin = Animated.loop(
+      Animated.timing(ringRotation, {
         toValue: 1,
         duration: 8000,
         easing: Easing.linear,
         useNativeDriver: true,
       }),
     )
-    const innerSpin = Animated.loop(
-      Animated.timing(innerRingRotation, {
-        toValue: -1,
-        duration: 6000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    )
-
-    outerSpin.start()
-    innerSpin.start()
-
+    spin.start()
     return () => {
-      outerSpin.stop()
-      innerSpin.stop()
+      spin.stop()
     }
-  }, [outerRingRotation, innerRingRotation])
+  }, [ringRotation])
 
   useEffect(() => {
     if (leveledUp && newLevel) {
@@ -100,35 +90,15 @@ export function LevelUpOverlay({
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror level-up trigger into local presentation state
     setLevel(activeLevelUp.payload.level)
-    setTitle(t(`gamification.levels.${activeLevelUp.payload.level}`))
     setShouldRender(true)
-
-    // Reset
     overlayOpacity.setValue(0)
-    contentScale.setValue(0.6)
-    contentOpacity.setValue(0)
 
-    // Animate in
-    Animated.parallel([
-      Animated.timing(overlayOpacity, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(contentScale, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(contentOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start()
+    Animated.timing(overlayOpacity, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start()
 
-    // Auto-dismiss
     timerRef.current = setTimeout(() => {
       dismiss(activeLevelUp.id)
     }, 3000)
@@ -136,18 +106,11 @@ export function LevelUpOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [activeLevelUp, contentOpacity, contentScale, dismiss, overlayOpacity, t])
+  }, [activeLevelUp, dismiss, overlayOpacity])
 
-  const styles = useMemo(() => createStyles(colors), [colors])
-
-  const outerSpin = outerRingRotation.interpolate({
+  const spin = ringRotation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  })
-
-  const innerSpin = innerRingRotation.interpolate({
-    inputRange: [-1, 0],
-    outputRange: ['-360deg', '0deg'],
+    outputRange: ['-18deg', '342deg'],
   })
 
   if (!shouldRender) return null
@@ -158,122 +121,84 @@ export function LevelUpOverlay({
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
     >
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: contentOpacity,
-            transform: [{ scale: contentScale }],
-          },
-        ]}
-      >
-        {/* Orbital ring animation */}
-        <View style={styles.ringContainer}>
-          {/* Outer ring */}
+      <View style={styles.content}>
+        <Text style={styles.eyebrow}>{t('gamification.levelUp.title')}</Text>
+
+        <View style={styles.ringWrapper}>
           <Animated.View
             style={[
-              styles.outerRing,
-              { transform: [{ rotate: outerSpin }] },
+              styles.ringContainer,
+              { transform: [{ rotate: spin }] },
             ]}
-          />
-          {/* Inner ring */}
-          <Animated.View
-            style={[
-              styles.innerRing,
-              { transform: [{ rotate: innerSpin }] },
-            ]}
-          />
-          {/* Level number */}
-          <View style={styles.levelCenter}>
-            <Text style={styles.levelNumber}>{level}</Text>
-          </View>
+            pointerEvents="none"
+          >
+            <Svg width={130} height={130}>
+              <Ellipse
+                cx={65}
+                cy={65}
+                rx={62}
+                ry={22}
+                fill="none"
+                stroke={tokens.primary}
+                strokeWidth={1.5}
+              />
+            </Svg>
+          </Animated.View>
+          <Text style={styles.levelNumber}>
+            {String(level).padStart(2, '0')}
+          </Text>
         </View>
 
-        {/* Text */}
-        <View style={styles.textContainer}>
-          <Text style={styles.labelText}>
-            {t('gamification.levelUp.title')}
-          </Text>
-          <Text style={styles.titleText}>
-            {t('gamification.levelUp.newLevel', { level })}
-          </Text>
-          <Text style={styles.subtitleText}>
-            {t('gamification.levelUp.subtitle', { title })}
-          </Text>
-        </View>
-      </Animated.View>
+        <Text style={styles.subtitle}>
+          {t('gamification.levelUp.steadyHand')}
+        </Text>
+      </View>
     </Animated.View>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
-  return StyleSheet.create({
-    overlay: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 10001,
-      backgroundColor: 'rgba(0, 0, 0, 0.70)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    content: {
-      alignItems: 'center',
-      gap: 16,
-    },
-    ringContainer: {
-      width: 128,
-      height: 128,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    outerRing: {
-      position: 'absolute',
-      width: 128,
-      height: 128,
-      borderRadius: 64,
-      borderWidth: 2,
-      borderColor: colors.primary_30,
-    },
-    innerRing: {
-      position: 'absolute',
-      width: 112,
-      height: 112,
-      borderRadius: 56,
-      borderWidth: 2,
-      borderColor: colors.primary_80,
-    },
-    levelCenter: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    levelNumber: {
-      fontSize: 48,
-      fontWeight: '800',
-      color: colors.primary,
-    },
-    textContainer: {
-      alignItems: 'center',
-    },
-    labelText: {
-      fontSize: 14,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 3,
-      color: colors.primary,
-    },
-    titleText: {
-      fontSize: 24,
-      fontWeight: '800',
-      color: colors.textPrimary,
-      marginTop: 4,
-    },
-    subtitleText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginTop: 4,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10001,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    alignItems: 'center',
+    gap: 14,
+  },
+  eyebrow: {
+    fontFamily: 'GeistMono',
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1.98,
+    textTransform: 'uppercase',
+  },
+  ringWrapper: {
+    width: 130,
+    height: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringContainer: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+  },
+  levelNumber: {
+    fontFamily: 'GeistMono',
+    fontSize: 80,
+    fontWeight: '500',
+    color: '#fff',
+    letterSpacing: -3.2,
+  },
+  subtitle: {
+    fontFamily: 'Geist',
+    fontSize: 16,
+    fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.85)',
+  },
+})

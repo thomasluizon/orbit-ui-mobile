@@ -1,16 +1,18 @@
 import { useState, useMemo, useCallback } from 'react'
 import {
-  View,
-  Text,
-  TouchableOpacity,
   ActivityIndicator,
+  Pressable,
   StyleSheet,
+  Text,
+  View,
 } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { AppTextInput } from '@/components/ui/app-text-input'
+import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { Chip } from '@/components/ui/chip'
+import { ProBadge } from '@/components/ui/pro-badge'
 import {
   getFriendlyErrorMessage,
   ONBOARDING_GOAL_SUGGESTIONS,
@@ -18,12 +20,8 @@ import {
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
-import { radius, shadows } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface GoalSuggestion {
   key: string
@@ -37,12 +35,10 @@ interface OnboardingCreateGoalProps {
   onSkip: () => void
 }
 
-type AppColors = ReturnType<typeof useAppTheme>['colors']
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * v8 step 5: "Add a longer arc." Pro badge, underlined inputs, suggestion
+ * chips, primary CTA. Pure visual rewrite -- preserves goal-creation flow.
+ */
 export function OnboardingCreateGoal({
   onCreated,
   onSkip,
@@ -52,13 +48,19 @@ export function OnboardingCreateGoal({
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
   )
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [isCreated, setIsCreated] = useState(false)
-  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
+  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
+    null,
+  )
   const { showError } = useAppToast()
 
   const createGoal = useCreateGoal()
@@ -83,7 +85,8 @@ export function OnboardingCreateGoal({
   }
 
   const parsedTargetValue = parseGoalTargetValue(targetValue)
-  const canCreate = !!parsedTargetValue && parsedTargetValue > 0 && unit.trim().length > 0
+  const canCreate =
+    !!parsedTargetValue && parsedTargetValue > 0 && unit.trim().length > 0
 
   const handleCreate = useCallback(() => {
     if (!canCreate || isCreating) return
@@ -114,22 +117,31 @@ export function OnboardingCreateGoal({
           }, 1500)
         },
         onError: (err: unknown) => {
-          showError(getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'))
+          showError(
+            getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'),
+          )
         },
       },
     )
-  }, [canCreate, createGoal, description, isCreating, onCreated, parsedTargetValue, showError, targetValue, translate, unit])
-
-  // ---------------------------------------------------------------------------
-  // Success state
-  // ---------------------------------------------------------------------------
+  }, [
+    canCreate,
+    createGoal,
+    description,
+    isCreating,
+    onCreated,
+    parsedTargetValue,
+    showError,
+    targetValue,
+    translate,
+    unit,
+  ])
 
   if (isCreated) {
     return (
       <View style={styles.container}>
         <View style={styles.successCard}>
           <View style={styles.successIcon}>
-            <Check size={28} color={colors.success} />
+            <Check size={22} color={tokens.primary} strokeWidth={2} />
           </View>
           <Text style={styles.successTitle}>
             {targetValue} {unit}
@@ -145,266 +157,205 @@ export function OnboardingCreateGoal({
     )
   }
 
-  // ---------------------------------------------------------------------------
-  // Form state
-  // ---------------------------------------------------------------------------
-
   return (
     <View style={styles.container}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>
-          {t('onboarding.flow.createGoal.title')}
-        </Text>
-        <View style={styles.optionalBadge}>
-          <Text style={styles.optionalText}>
-            {t('onboarding.flow.createGoal.optional')}
-          </Text>
-        </View>
+      <View style={styles.proBadgeRow}>
+        <ProBadge />
       </View>
+
+      <Text style={styles.title}>
+        {t('onboarding.flow.createGoal.title')}
+      </Text>
       <Text style={styles.subtitle}>
         {t('onboarding.flow.createGoal.subtitle')}
       </Text>
 
-      {/* Suggestion chips */}
-      <View style={styles.suggestionsRow}>
-        {suggestions.map((suggestion) => (
-          <TouchableOpacity
-            key={suggestion.key}
-            style={[
-              styles.suggestionChip,
-              selectedSuggestion === suggestion.key && styles.suggestionChipActive,
-            ]}
-            activeOpacity={0.7}
-            onPress={() => selectSuggestion(suggestion)}
-          >
-            <Text
-              style={[
-                styles.suggestionText,
-                selectedSuggestion === suggestion.key && styles.suggestionTextActive,
-              ]}
-            >
-              {suggestion.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Form */}
-      <View style={styles.formRow}>
-        <AppTextInput
-          style={[styles.input, styles.halfInput]}
-          value={targetValue}
-          onChangeText={setTargetValue}
-          placeholder={t('onboarding.flow.createGoal.targetPlaceholder')}
-          placeholderTextColor={colors.textMuted}
-          keyboardType="numeric"
-          editable={!isCreating}
-        />
-        <AppTextInput
-          style={[styles.input, styles.halfInput]}
-          value={unit}
-          onChangeText={setUnit}
-          placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
-          placeholderTextColor={colors.textMuted}
-          maxLength={50}
-          editable={!isCreating}
-        />
-      </View>
-      <AppTextInput
-        style={[styles.input, styles.fullInput]}
+      <UnderlinedInput
+        large
         value={description}
         onChangeText={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
-        placeholderTextColor={colors.textMuted}
         maxLength={200}
         editable={!isCreating}
       />
 
-      {/* Create button */}
-      <TouchableOpacity
-        style={[
+      <View style={styles.formRow}>
+        <View style={styles.formCol}>
+          <UnderlinedInput
+            mono
+            value={targetValue}
+            onChangeText={setTargetValue}
+            placeholder={t('onboarding.flow.createGoal.targetPlaceholder')}
+            keyboardType="numeric"
+            editable={!isCreating}
+          />
+        </View>
+        <View style={styles.formCol}>
+          <UnderlinedInput
+            value={unit}
+            onChangeText={setUnit}
+            placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
+            maxLength={50}
+            editable={!isCreating}
+          />
+        </View>
+      </View>
+
+      <Text style={styles.sectionLabel}>
+        {t('onboarding.flow.createHabit.title')}
+      </Text>
+      <View style={styles.chipsRow}>
+        {suggestions.map((suggestion) => (
+          <Chip
+            key={suggestion.key}
+            active={selectedSuggestion === suggestion.key}
+            onPress={() => selectSuggestion(suggestion)}
+          >
+            {suggestion.title}
+          </Chip>
+        ))}
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
           styles.createBtn,
+          {
+            backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+          },
           !canCreate && styles.createBtnDisabled,
         ]}
-        activeOpacity={0.8}
         disabled={!canCreate || isCreating}
         onPress={handleCreate}
       >
         {isCreating ? (
-          <ActivityIndicator size="small" color={colors.white} />
+          <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
         ) : (
-          <Text style={styles.createBtnText}>
+          <Text style={[styles.createBtnText, { color: tokens.fgOnPrimary }]}>
             {t('onboarding.flow.createGoal.create')}
           </Text>
         )}
-      </TouchableOpacity>
+      </Pressable>
 
-      {/* Skip button */}
-      <TouchableOpacity
-        style={styles.skipBtn}
-        activeOpacity={0.7}
+      <Pressable
         disabled={isCreating}
         onPress={onSkip}
+        style={styles.skipBtn}
       >
         <Text style={styles.skipBtnText}>
           {t('onboarding.flow.createGoal.skipStep')}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: AppColors) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  optionalBadge: {
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-  },
-  optionalText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  suggestionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  suggestionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  suggestionChipActive: {
-    backgroundColor: colors.primary_10,
-    borderColor: colors.primary_30,
-  },
-  suggestionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  suggestionTextActive: {
-    color: colors.primary,
-  },
-  formRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-    marginBottom: 12,
-  },
-  input: {
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  halfInput: {
-    flex: 1,
-  },
-  fullInput: {
-    width: '100%',
-  },
-  createBtn: {
-    width: '100%',
-    marginTop: 24,
-    paddingVertical: 14,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    ...shadows.sm,
-    elevation: 3,
-  },
-  createBtnDisabled: {
-    backgroundColor: colors.primary_80,
-    opacity: 0.5,
-  },
-  createBtnText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  skipBtn: {
-    width: '100%',
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  skipBtnText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  // Success
-  successCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
-    alignItems: 'center',
-  },
-  successIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(52, 211, 153, 0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  successDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  successMessage: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.success,
-    marginTop: 12,
-  },
+    container: {
+      gap: 16,
+      paddingTop: 16,
+      paddingBottom: 12,
+    },
+    proBadgeRow: {
+      alignItems: 'center',
+      paddingTop: 4,
+    },
+    title: {
+      fontFamily: 'Geist',
+      fontSize: 22,
+      fontWeight: '600',
+      letterSpacing: -0.33,
+      lineHeight: 25,
+      color: tokens.fg1,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      lineHeight: 21,
+      color: tokens.fg2,
+      textAlign: 'center',
+    },
+    formRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    formCol: {
+      flex: 1,
+    },
+    sectionLabel: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.fg3,
+      marginTop: 4,
+    },
+    chipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    createBtn: {
+      marginTop: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 18,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    createBtnDisabled: {
+      opacity: 0.5,
+    },
+    createBtnText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    skipBtn: {
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    skipBtnText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
+    },
+    // Success state
+    successCard: {
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: tokens.hairline,
+      paddingVertical: 24,
+      alignItems: 'center',
+      gap: 6,
+    },
+    successIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: tokens.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    successTitle: {
+      fontFamily: 'Geist',
+      fontSize: 17,
+      fontWeight: '600',
+      color: tokens.fg1,
+    },
+    successDesc: {
+      fontFamily: 'Geist',
+      fontSize: 12,
+      color: tokens.fg3,
+    },
+    successMessage: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg2,
+      marginTop: 8,
+    },
   })
 }

@@ -1,37 +1,42 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
+import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native'
+import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { gradients, radius } from '@/lib/theme'
+import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
 
+/**
+ * v8 Achievement toast: hairline-ringed diamond glyph + mono eyebrow.
+ * Preserves the queue contract (enqueue + completeActiveCelebration).
+ */
 export function AchievementToast() {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { newAchievements, invalidate } = useGamificationProfile()
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
-  const { colors, shadows } = useAppTheme()
   const [currentAchievement, setCurrentAchievement] = useState<{
-    id: string
+    achievementId: string
     xpReward: number
   } | null>(null)
   const translateY = useMemo(() => new Animated.Value(-100), [])
   const opacity = useMemo(() => new Animated.Value(0), [])
-  const scale = useMemo(() => new Animated.Value(0.95), [])
+  const scale = useMemo(() => new Animated.Value(0.96), [])
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const activeAchievement =
-    activeCelebration?.kind === 'achievement'
-      ? activeCelebration
-      : null
+    activeCelebration?.kind === 'achievement' ? activeCelebration : null
 
   const dismiss = useCallback(
     (id?: string) => {
@@ -50,7 +55,7 @@ export function AchievementToast() {
           useNativeDriver: true,
         }),
         Animated.timing(scale, {
-          toValue: 0.95,
+          toValue: 0.96,
           duration: 400,
           useNativeDriver: true,
         }),
@@ -80,13 +85,13 @@ export function AchievementToast() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror celebration queue trigger into local presentation state
     setCurrentAchievement({
-      id: activeAchievement.payload.achievementId,
+      achievementId: activeAchievement.payload.achievementId,
       xpReward: activeAchievement.payload.xpReward,
     })
 
     translateY.setValue(-100)
     opacity.setValue(0)
-    scale.setValue(0.95)
+    scale.setValue(0.96)
 
     Animated.parallel([
       Animated.spring(translateY, {
@@ -140,35 +145,49 @@ export function AchievementToast() {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <View style={styles.inner}>
-        {/* Gradient sheen overlay */}
-        <LinearGradient
-          colors={gradients.surfaceSheen}
-          locations={gradients.surfaceSheenLocations}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.25, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-          pointerEvents="none"
-        />
-        {/* Inset top highlight */}
-        <View style={styles.insetHighlight} pointerEvents="none" />
-        <Text style={styles.starIcon}>{'\u2B50'}</Text>
-        <View style={styles.textContainer}>
-          <Text style={styles.label}>
-            {t('gamification.toast.achievementUnlocked')}
-          </Text>
-          <Text style={styles.name} numberOfLines={1}>
-            {t(`gamification.achievements.${currentAchievement.id}.name`)}
-          </Text>
-          <Text style={styles.description} numberOfLines={1}>
-            {t(`gamification.achievements.${currentAchievement.id}.description`)}
-          </Text>
+      <View
+        style={[
+          styles.inner,
+          {
+            backgroundColor: tokens.bgElev,
+            borderColor: tokens.hairline,
+          },
+        ]}
+      >
+        <View style={styles.glyphWrap}>
+          <Svg width={32} height={32} style={StyleSheet.absoluteFillObject}>
+            <Circle
+              cx={16}
+              cy={16}
+              r={14}
+              fill="none"
+              stroke={tokens.primary}
+              strokeWidth={1}
+            />
+          </Svg>
+          <Text style={[styles.glyph, { color: tokens.fg1 }]}>{'◆'}</Text>
         </View>
-        <View style={styles.xpBadge}>
-          <Text style={styles.xpText}>
-            {t('gamification.toast.xpEarned', {
+        <View style={styles.textCol}>
+          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+            {t('gamification.toast.achievementEyebrow', {
               xp: currentAchievement.xpReward,
             })}
+          </Text>
+          <Text
+            style={[styles.name, { color: tokens.fg1 }]}
+            numberOfLines={1}
+          >
+            {t(
+              `gamification.achievements.${currentAchievement.achievementId}.name`,
+            )}
+          </Text>
+          <Text
+            style={[styles.description, { color: tokens.fg3 }]}
+            numberOfLines={2}
+          >
+            {t(
+              `gamification.achievements.${currentAchievement.achievementId}.description`,
+            )}
           </Text>
         </View>
       </View>
@@ -176,72 +195,53 @@ export function AchievementToast() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows: ReturnType<typeof useAppTheme>['shadows']) {
-  return StyleSheet.create({
-    container: {
-      position: 'absolute',
-      left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-      width: TOAST_WIDTH,
-      zIndex: 10000,
-    },
-    inner: {
-      backgroundColor: colors.surfaceOverlay,
-      borderWidth: 1,
-      borderColor: colors.primary_30,
-      borderRadius: radius.lg,
-      padding: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      overflow: 'hidden',
-      ...shadows.cardParent,
-      elevation: 5,
-    },
-    insetHighlight: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 1,
-      backgroundColor: 'rgba(255,255,255,0.05)',
-    },
-    starIcon: {
-      fontSize: 30,
-    },
-    textContainer: {
-      flex: 1,
-      minWidth: 0,
-    },
-    label: {
-      fontSize: 10,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 1.2,
-      color: colors.primary,
-    },
-    name: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.textPrimary,
-    },
-    description: {
-      fontSize: 12,
-      color: colors.textSecondary,
-    },
-    xpBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: radius.xl,
-      backgroundColor: colors.primary_15,
-    },
-    xpText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.primary,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
+    width: TOAST_WIDTH,
+    zIndex: 10000,
+  },
+  inner: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    ...shadowsV2.shadow2,
+  },
+  glyphWrap: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  glyph: {
+    fontFamily: 'GeistMono',
+    fontSize: 16,
+  },
+  textCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  eyebrow: {
+    fontFamily: 'Geist',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  name: {
+    fontFamily: 'Geist',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  description: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+  },
+})

@@ -1,15 +1,16 @@
 import { useMemo } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { MessageSquare, CalendarDays, Trophy, BellRing } from 'lucide-react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import {
+  BellRing,
+  CalendarDays,
+  ListTree,
+  Sparkles,
+  Trophy,
+} from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { radius } from '@/lib/theme'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Feature list
-// ---------------------------------------------------------------------------
 
 interface FeatureItem {
   Icon: LucideIcon
@@ -19,9 +20,14 @@ interface FeatureItem {
 
 const features: FeatureItem[] = [
   {
-    Icon: MessageSquare,
+    Icon: Sparkles,
     titleKey: 'onboarding.flow.features.chat.title',
     descKey: 'onboarding.flow.features.chat.desc',
+  },
+  {
+    Icon: ListTree,
+    titleKey: 'features.subHabits',
+    descKey: 'features.subHabits',
   },
   {
     Icon: CalendarDays,
@@ -40,36 +46,35 @@ const features: FeatureItem[] = [
   },
 ]
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * v8 step 6: "What else Orbit does." Hairline-divided rows; each row is
+ * Icon + bold title + italic muted description.
+ */
 export function OnboardingFeatures() {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   return (
-    <View>
+    <View style={styles.container}>
       <Text style={styles.title}>
         {t('onboarding.flow.features.title')}
       </Text>
-      <Text style={styles.subtitle}>
-        {t('onboarding.flow.features.subtitle')}
-      </Text>
 
-      <View style={styles.featureList}>
+      <View style={styles.list}>
         {features.map((feature) => (
-          <View key={feature.titleKey} style={styles.featureCard}>
-            <View style={styles.iconContainer}>
-              <feature.Icon size={20} color={colors.primary} />
-            </View>
-            <View style={styles.featureText}>
+          <View key={feature.titleKey} style={styles.row}>
+            <feature.Icon size={18} color={tokens.fg2} strokeWidth={1.5} />
+            <View style={styles.text}>
               <Text style={styles.featureTitle}>
-                {t(feature.titleKey)}
+                {t(feature.titleKey, { defaultValue: feature.titleKey })}
               </Text>
               <Text style={styles.featureDesc}>
-                {t(feature.descKey)}
+                {t(feature.descKey, { defaultValue: feature.descKey })}
               </Text>
             </View>
           </View>
@@ -79,59 +84,48 @@ export function OnboardingFeatures() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ThemeContextValue['colors']) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
+    container: {
+      paddingTop: 12,
+      paddingBottom: 12,
+    },
     title: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.textPrimary,
+      fontFamily: 'Geist',
+      fontSize: 22,
+      fontWeight: '600',
+      letterSpacing: -0.33,
+      lineHeight: 25,
+      color: tokens.fg1,
       textAlign: 'center',
-      marginBottom: 8,
+      marginBottom: 14,
     },
-    subtitle: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: 24,
+    list: {
+      gap: 0,
     },
-    featureList: {
-      gap: 12,
-    },
-    featureCard: {
+    row: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 16,
-      padding: 16,
-      borderRadius: radius.xl,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.hairline,
     },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.lg,
-      backgroundColor: colors.primary_10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    featureText: {
+    text: {
       flex: 1,
+      gap: 2,
     },
     featureTitle: {
-      fontSize: 14,
+      fontFamily: 'Geist',
+      fontSize: 15,
       fontWeight: '600',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     featureDesc: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      lineHeight: 18,
-      marginTop: 2,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg3,
     },
   })
 }

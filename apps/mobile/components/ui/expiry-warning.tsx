@@ -1,31 +1,31 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { AlertTriangle } from 'lucide-react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
-import { radius } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const WARN_AT_MINUTES = 5
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * v8 expiry warning edge banner: hairline-divided strip with mono countdown
+ * and "Refresh" / "Log in" link. Preserves the auth-store driven session
+ * expiry watcher.
+ */
 export function ExpiryWarning() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { colors, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const expiresAt = useAuthStore((s) => s.expiresAt)
   const logout = useAuthStore((s) => s.logout)
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
 
   useEffect(() => {
     if (!expiresAt) {
@@ -65,46 +65,35 @@ export function ExpiryWarning() {
 
   if (minutesLeft === null && !isExpired) return null
 
-  const isExpiredState = isExpired
-  const accentColor = isExpiredState ? colors.red400 : colors.amber400
-  const bgColor = isExpiredState ? colors.red500_10 : 'rgba(245,158,11,0.10)'
-  const borderColor = isExpiredState ? colors.red500_30 : 'rgba(245,158,11,0.20)'
-
   return (
-    <View
-      style={styles.wrapper}
-      accessibilityRole="alert"
-    >
-      <View
-        style={[
-          styles.banner,
-          { backgroundColor: bgColor, borderColor },
-        ]}
-      >
-        <AlertTriangle size={16} color={accentColor} />
-        <Text style={[styles.text, { color: accentColor }]}>
-          {isExpiredState
-            ? t('auth.sessionExpired')
-            : t('auth.sessionExpiring', { minutes: minutesLeft ?? 0 })}
+    <View style={styles.wrapper} accessibilityRole="alert">
+      <View style={styles.banner}>
+        <Text style={styles.text}>
+          {isExpired ? (
+            t('auth.sessionExpired')
+          ) : (
+            <>
+              {t('auth.sessionExpiring', { minutes: '' }).replace(
+                /\s*\.\s*$/,
+                '',
+              )}{' '}
+              <Text style={styles.monoCount}>
+                {`${minutesLeft ?? 0} min`}
+              </Text>
+            </>
+          )}
         </Text>
-        <TouchableOpacity activeOpacity={0.7} onPress={handleLogin}>
-          <Text style={[styles.actionText, { color: accentColor }]}>
-            {isExpiredState ? t('auth.login') : t('auth.refresh')}
+        <Pressable onPress={handleLogin} hitSlop={6}>
+          <Text style={styles.actionText}>
+            {isExpired ? t('auth.login') : t('auth.refresh')}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     wrapper: {
       position: 'absolute',
@@ -112,28 +101,36 @@ function createStyles(
       left: 0,
       right: 0,
       zIndex: 9998,
-      paddingHorizontal: 16,
       paddingTop: 50, // account for safe area
+      backgroundColor: tokens.bg,
     },
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      ...shadows.lg,
-      elevation: 8,
+      justifyContent: 'space-between',
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: tokens.hairline,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      gap: 12,
     },
     text: {
       flex: 1,
-      fontSize: 14,
-      fontWeight: '500',
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg2,
+    },
+    monoCount: {
+      fontFamily: 'GeistMono',
+      color: tokens.fg1,
     },
     actionText: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg1,
+      textDecorationLine: 'underline',
+      paddingVertical: 4,
     },
   })
 }
