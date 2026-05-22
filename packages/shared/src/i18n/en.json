@@ -1525,7 +1525,8 @@
       "streakTarget": "Target days",
       "streakTargetPlaceholder": "e.g. 30, 60, 90",
       "streakUnit": "consecutive days",
-      "streakRequiresHabit": "Streak goals require a linked habit"
+      "streakRequiresHabit": "Streak goals require a linked habit",
+      "target": "Target"
     },
     "streak": {
       "dayCount": "{count} day streak",
@@ -1559,7 +1560,8 @@
       "showAllHistory": "Show all",
       "showLessHistory": "Show less",
       "askAstraDefault": "Want a weekly check-in plan for this?",
-      "askAstraEyebrow": "ASK ASTRA"
+      "askAstraEyebrow": "ASK ASTRA",
+      "statusLabel": "Status"
     },
     "filters": {
       "all": "All",

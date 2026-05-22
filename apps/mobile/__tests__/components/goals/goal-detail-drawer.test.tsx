@@ -59,6 +59,8 @@ vi.mock('@/hooks/use-device-locale', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    currentScheme: 'purple',
+    currentTheme: 'dark',
   }),
 }))
 
@@ -94,9 +96,11 @@ vi.mock('lucide-react-native', () => {
   return {
     ArchiveX: createIcon('ArchiveX'),
     CheckCircle2: createIcon('CheckCircle2'),
+    ChevronRight: createIcon('ChevronRight'),
     Flame: createIcon('Flame'),
     PencilLine: createIcon('PencilLine'),
     RotateCw: createIcon('RotateCw'),
+    Sparkles: createIcon('Sparkles'),
     Trash2: createIcon('Trash2'),
   }
 })

@@ -1525,7 +1525,8 @@
       "streakTarget": "Meta de dias",
       "streakTargetPlaceholder": "ex. 30, 60, 90",
       "streakUnit": "dias consecutivos",
-      "streakRequiresHabit": "Metas de sequência precisam de um hábito vinculado"
+      "streakRequiresHabit": "Metas de sequência precisam de um hábito vinculado",
+      "target": "Meta"
     },
     "streak": {
       "dayCount": "sequência de {count} dia",
@@ -1559,7 +1560,8 @@
       "showAllHistory": "Ver todos",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isto?",
-      "askAstraEyebrow": "PERGUNTE AO ASTRA"
+      "askAstraEyebrow": "PERGUNTE AO ASTRA",
+      "statusLabel": "Status"
     },
     "filters": {
       "all": "Todas",

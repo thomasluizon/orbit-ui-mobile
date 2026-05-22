@@ -1,27 +1,27 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  View,
-  Text,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { useWatch } from "react-hook-form";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Trash2, Plus } from "lucide-react-native";
-import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
-import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { KeyboardAwareBottomSheetScrollView } from "@/components/ui/keyboard-aware-scroll-view";
-import { HabitFormFields } from "./habit-form-fields";
-import { useAppToast } from "@/hooks/use-app-toast";
-import { useDismissGuard } from "@/hooks/use-dismiss-guard";
-import { useHabitForm } from "@/hooks/use-habit-form";
-import { useProfile } from "@/hooks/use-profile";
-import { useTagSelection } from "@/hooks/use-tag-selection";
-import { useCreateHabit, useCreateSubHabit } from "@/hooks/use-habits";
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import { useRouter } from 'expo-router'
+import { useWatch } from 'react-hook-form'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Trash2, Plus } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { HabitFormFields } from './habit-form-fields'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useHabitForm } from '@/hooks/use-habit-form'
+import { useProfile } from '@/hooks/use-profile'
+import { useTagSelection } from '@/hooks/use-tag-selection'
+import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
@@ -30,31 +30,31 @@ import {
   getFriendlyErrorMessage,
   resolveAutoManagedReminderEnabled,
   toggleSelectedId,
-} from "@orbit/shared/utils";
-import { useUIStore } from "@/stores/ui-store";
-import type { NormalizedHabit } from "@orbit/shared/types/habit";
+} from '@orbit/shared/utils'
+import { useUIStore } from '@/stores/ui-store'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
   type HabitFormData,
-} from "@/lib/habit-request-builders";
-import { radius } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
-import { ProBadge } from "@/components/ui/pro-badge";
+} from '@/lib/habit-request-builders'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 interface SubHabitEntry {
-  id: string;
-  value: string;
+  id: string
+  value: string
 }
 
-let subHabitCounter = 0;
-function createSubHabitEntry(value = ""): SubHabitEntry {
-  subHabitCounter += 1;
-  return { id: `sub-${subHabitCounter}-${Date.now()}`, value };
+let subHabitCounter = 0
+function createSubHabitEntry(value = ''): SubHabitEntry {
+  subHabitCounter += 1
+  return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
 }
 
 // ---------------------------------------------------------------------------
@@ -62,10 +62,10 @@ function createSubHabitEntry(value = ""): SubHabitEntry {
 // ---------------------------------------------------------------------------
 
 interface CreateHabitModalProps {
-  open: boolean;
-  onClose: () => void;
-  initialDate?: string | null;
-  parentHabit?: NormalizedHabit | null;
+  open: boolean
+  onClose: () => void
+  initialDate?: string | null
+  parentHabit?: NormalizedHabit | null
 }
 
 // ---------------------------------------------------------------------------
@@ -78,57 +78,59 @@ export function CreateHabitModal({
   initialDate,
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
-  const { t } = useTranslation();
-  const router = useRouter();
+  const { t } = useTranslation()
+  const router = useRouter()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
-  );
-  const insets = useSafeAreaInsets();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
-  const { profile } = useProfile();
-  const createHabit = useCreateHabit();
-  const createSubHabit = useCreateSubHabit();
-  const { showError } = useAppToast();
-  const isSubHabitMode = !!parentHabit;
-  const hasProAccess = profile?.hasProAccess ?? false;
-  const activeView = useUIStore((s) => s.activeView);
+  )
+  const insets = useSafeAreaInsets()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = useMemo(
+    () => createStyles(tokens, insets.bottom),
+    [tokens, insets.bottom],
+  )
+  const { profile } = useProfile()
+  const createHabit = useCreateHabit()
+  const createSubHabit = useCreateSubHabit()
+  const { showError } = useAppToast()
+  const isSubHabitMode = !!parentHabit
+  const hasProAccess = profile?.hasProAccess ?? false
+  const activeView = useUIStore((s) => s.activeView)
 
   const formHelpers = useHabitForm({
     initialData: {
       dueDate: initialDate ?? formatAPIDate(new Date()),
     },
-  });
+  })
 
-  const tags = useTagSelection();
-  const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
-  const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([]);
-  const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15]);
-  const reminderWasManuallyToggledRef = useRef(false);
-  const flushBufferedInputsRef = useRef<() => void>(() => {});
-  // Initial snapshots used to compute dirty state. State (not refs) so they're
-  // readable during render without violating react-hooks/refs.
-  const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState("[]");
-  const [initialGoalIdsSnapshot, setInitialGoalIdsSnapshot] = useState("[]");
-  const [initialSubHabitsSnapshot, setInitialSubHabitsSnapshot] = useState("[]");
+  const tags = useTagSelection()
+  const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
+  const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
+  const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const reminderWasManuallyToggledRef = useRef(false)
+  const flushBufferedInputsRef = useRef<() => void>(() => {})
+  const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState('[]')
+  const [initialGoalIdsSnapshot, setInitialGoalIdsSnapshot] = useState('[]')
+  const [initialSubHabitsSnapshot, setInitialSubHabitsSnapshot] = useState('[]')
   const [initialReminderTimesSnapshot, setInitialReminderTimesSnapshot] =
-    useState("[0,15]");
+    useState('[0,15]')
 
-  const watchedDueTime = useWatch({
-    control: formHelpers.form.control,
-    name: "dueTime",
-  }) ?? "";
-  const watchedReminderEnabled = useWatch({
-    control: formHelpers.form.control,
-    name: "reminderEnabled",
-  }) ?? false;
-  const watchedScheduledReminders = useWatch({
-    control: formHelpers.form.control,
-    name: "scheduledReminders",
-  }) ?? [];
+  const watchedDueTime =
+    useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
+  const watchedReminderEnabled =
+    useWatch({
+      control: formHelpers.form.control,
+      name: 'reminderEnabled',
+    }) ?? false
+  const watchedScheduledReminders =
+    useWatch({
+      control: formHelpers.form.control,
+      name: 'scheduledReminders',
+    }) ?? []
 
-  const atGoalLimit = selectedGoalIds.length >= 10;
+  const atGoalLimit = selectedGoalIds.length >= 10
   const isDirty =
     formHelpers.form.formState.isDirty ||
     JSON.stringify(
@@ -139,48 +141,47 @@ export function CreateHabitModal({
     ) !== initialGoalIdsSnapshot ||
     JSON.stringify(subHabits.map((entry) => entry.value)) !==
       initialSubHabitsSnapshot ||
-    JSON.stringify(reminderTimes) !== initialReminderTimesSnapshot;
+    JSON.stringify(reminderTimes) !== initialReminderTimesSnapshot
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: onClose,
-  });
+  })
 
   const toggleGoal = useCallback((goalId: string) => {
-    setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId));
-  }, []);
+    setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
+  }, [])
 
   useEffect(() => {
-    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return;
-
-    onClose();
-    router.push("/upgrade");
-  }, [isSubHabitMode, onClose, open, profile, router]);
+    if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
+    onClose()
+    router.push('/upgrade')
+  }, [isSubHabitMode, onClose, open, profile, router])
 
   // Reset form when modal opens/closes
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
 
-    const fallbackDate = initialDate ?? formatAPIDate(new Date());
+    const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
-    reminderWasManuallyToggledRef.current = false;
-    formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate));
-    tags.resetTags();
+    reminderWasManuallyToggledRef.current = false
+    formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
+    tags.resetTags()
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset form state when modal opens
-    setSelectedGoalIds([]);
-    setSubHabits([]);
-    setReminderTimes([0, 15]);
+    setSelectedGoalIds([])
+    setSubHabits([])
+    setReminderTimes([0, 15])
 
-    let prefill: ReturnType<typeof buildParentHabitFormState> | null = null;
+    let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
 
     if (parentHabit) {
-      prefill = buildParentHabitFormState(parentHabit, fallbackDate);
-      formHelpers.form.reset(prefill.formValues);
-      applyHabitFormMode(prefill.mode, formHelpers);
-      tags.resetTags(prefill.selectedTagIds);
-      setSelectedGoalIds(prefill.selectedGoalIds);
-      setReminderTimes(prefill.reminderTimes);
-    } else if (activeView === "general") {
-      formHelpers.setGeneral();
+      prefill = buildParentHabitFormState(parentHabit, fallbackDate)
+      formHelpers.form.reset(prefill.formValues)
+      applyHabitFormMode(prefill.mode, formHelpers)
+      tags.resetTags(prefill.selectedTagIds)
+      setSelectedGoalIds(prefill.selectedGoalIds)
+      setReminderTimes(prefill.reminderTimes)
+    } else if (activeView === 'general') {
+      formHelpers.setGeneral()
     }
 
     setInitialTagIdsSnapshot(
@@ -189,86 +190,104 @@ export function CreateHabitModal({
           left.localeCompare(right),
         ),
       ),
-    );
+    )
     setInitialGoalIdsSnapshot(
       JSON.stringify(
         [...(prefill?.selectedGoalIds ?? [])].sort((left, right) =>
           left.localeCompare(right),
         ),
       ),
-    );
-    setInitialSubHabitsSnapshot(JSON.stringify([]));
+    )
+    setInitialSubHabitsSnapshot(JSON.stringify([]))
     setInitialReminderTimesSnapshot(
       JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
-    );
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open])
+
+  // Sub-habit inputs stay editable for everyone per PRD §2 ("Sub-habits are
+  // first-class"). The Pro gate runs on submit, which routes to /upgrade when
+  // a non-Pro user tries to create with sub-habits. We don't clear sub-habit
+  // entries when pro access changes — the user keeps typing, the gate fires
+  // only at submit.
 
   useEffect(() => {
-    if (hasProAccess || subHabits.length === 0) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear sub-habits when pro access is lost
-    setSubHabits([]);
-  }, [hasProAccess, subHabits.length]);
-
-  useEffect(() => {
-    if (!open) return;
+    if (!open) return
 
     const nextReminderEnabled = resolveAutoManagedReminderEnabled({
       dueTime: watchedDueTime,
       scheduledReminderCount: watchedScheduledReminders.length,
       reminderEnabled: watchedReminderEnabled,
       reminderWasManuallyToggled: reminderWasManuallyToggledRef.current,
-    });
+    })
 
-    if (nextReminderEnabled === null || nextReminderEnabled === watchedReminderEnabled) {
-      return;
+    if (
+      nextReminderEnabled === null ||
+      nextReminderEnabled === watchedReminderEnabled
+    ) {
+      return
     }
 
-    formHelpers.form.setValue("reminderEnabled", nextReminderEnabled, {
+    formHelpers.form.setValue('reminderEnabled', nextReminderEnabled, {
       shouldDirty: true,
-    });
+    })
   }, [
     formHelpers.form,
     open,
     watchedDueTime,
     watchedReminderEnabled,
     watchedScheduledReminders.length,
-  ]);
+  ])
 
-  const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
-    reminderWasManuallyToggledRef.current = true;
-    formHelpers.form.setValue("reminderEnabled", nextEnabled, {
-      shouldDirty: true,
-    });
-  }, [formHelpers.form]);
+  const handleReminderEnabledChange = useCallback(
+    (nextEnabled: boolean) => {
+      reminderWasManuallyToggledRef.current = true
+      formHelpers.form.setValue('reminderEnabled', nextEnabled, {
+        shouldDirty: true,
+      })
+    },
+    [formHelpers.form],
+  )
 
   const handleBufferedInputsReady = useCallback((flush: () => void) => {
-    flushBufferedInputsRef.current = flush;
-  }, []);
+    flushBufferedInputsRef.current = flush
+  }, [])
 
   const handleSubmit = useCallback(async () => {
-    flushBufferedInputsRef.current();
+    flushBufferedInputsRef.current()
 
     if (isSubHabitMode && !hasProAccess) {
-      onClose();
-      router.push("/upgrade");
-      return;
+      onClose()
+      router.push('/upgrade')
+      return
     }
 
-    const data = formHelpers.form.getValues() as unknown as HabitFormData;
-    const permittedGoalIds = hasProAccess ? selectedGoalIds : [];
+    // Pro gate (PRD §2): inputs stayed editable for non-Pro users; if they
+    // typed any sub-habits, route to /upgrade at submit time instead of
+    // silently dropping the work.
+    const hasTypedSubHabits = subHabits.some(
+      (entry) => entry.value.trim().length > 0,
+    )
+    if (!hasProAccess && hasTypedSubHabits) {
+      onClose()
+      router.push('/upgrade')
+      return
+    }
+
+    const data = formHelpers.form.getValues() as unknown as HabitFormData
+    const permittedGoalIds = hasProAccess ? selectedGoalIds : []
     const subHabitValues = hasProAccess
       ? subHabits.map((entry) => entry.value)
-      : [];
+      : []
     const error = formHelpers.validateAll({
       reminderTimes,
       selectedGoalIds: permittedGoalIds,
       selectedTagIds: tags.selectedTagIds,
       subHabits: subHabitValues,
-    });
+    })
     if (error) {
-      showError(error);
-      return;
+      showError(error)
+      return
     }
 
     try {
@@ -277,11 +296,11 @@ export function CreateHabitModal({
           data,
           reminderTimes,
           tags.selectedTagIds,
-        );
+        )
         await createSubHabit.mutateAsync({
           parentId: parentHabit.id,
           data: subRequest,
-        });
+        })
       } else {
         const request = buildCreateHabitRequest(
           data,
@@ -289,19 +308,19 @@ export function CreateHabitModal({
           tags.selectedTagIds,
           permittedGoalIds,
           subHabitValues,
-        );
-        await createHabit.mutateAsync(request);
+        )
+        await createHabit.mutateAsync(request)
       }
-      onClose();
+      onClose()
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
           error,
           translate,
-          isSubHabitMode ? "errors.createSubHabit" : "errors.createHabit",
-          isSubHabitMode ? "subHabit" : "habit",
+          isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
+          isSubHabitMode ? 'subHabit' : 'habit',
         ),
-      );
+      )
     }
   }, [
     formHelpers,
@@ -318,19 +337,19 @@ export function CreateHabitModal({
     router,
     showError,
     translate,
-  ]);
+  ])
 
-  const isPending = createHabit.isPending || createSubHabit.isPending;
+  const isPending = createHabit.isPending || createSubHabit.isPending
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     setSubHabits((prev) =>
       prev.map((s) => (s.id === id ? { ...s, value } : s)),
-    );
-  }, []);
+    )
+  }, [])
 
   const removeSubHabit = useCallback((id: string) => {
-    setSubHabits((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+    setSubHabits((prev) => prev.filter((s) => s.id !== id))
+  }, [])
 
   return (
     <>
@@ -338,9 +357,9 @@ export function CreateHabitModal({
         open={open}
         onClose={onClose}
         title={
-          isSubHabitMode ? t("habits.createSubHabit") : t("habits.createHabit")
+          isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')
         }
-        snapPoints={["80%", "95%"]}
+        snapPoints={['80%', '95%']}
         formMode
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
@@ -352,47 +371,67 @@ export function CreateHabitModal({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-        <HabitFormFields
-          formHelpers={formHelpers}
-          tags={tags}
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={toggleGoal}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={setReminderTimes}
-          onReminderEnabledChange={handleReminderEnabledChange}
-          onFlushBufferedInputsReady={handleBufferedInputsReady}
-        >
-          {/* Sub-habits (create-only, not in sub-habit mode) */}
-          {!isSubHabitMode && (
-            hasProAccess ? (
+          <HabitFormFields
+            formHelpers={formHelpers}
+            tags={tags}
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={toggleGoal}
+            reminderTimes={reminderTimes}
+            onReminderTimesChange={setReminderTimes}
+            onReminderEnabledChange={handleReminderEnabledChange}
+            onFlushBufferedInputsReady={handleBufferedInputsReady}
+          >
+            {/* Sub-habits (create-only, not in sub-habit mode).
+                Per v8 PRD: inputs are visually active (not locked); Pro gate
+                runs on submit. We show the locked block for free users to
+                keep the upgrade path visible. */}
+            {!isSubHabitMode ? (
               <View style={styles.subHabitsSection}>
-                <Text style={styles.label}>{t("habits.form.subHabits")}</Text>
-                {subHabits.length > 0 && (
+                <View style={styles.subHabitsHeader}>
+                  <Text style={styles.fieldLabel}>
+                    {t('habits.form.subHabits')}
+                  </Text>
+                  {!hasProAccess ? <ProBadge alwaysVisible /> : null}
+                </View>
+                {!hasProAccess ? (
+                  <Text style={styles.subHabitsHint}>
+                    {t('upgrade.comparison.subHabits.tooltip')}
+                  </Text>
+                ) : null}
+                {subHabits.length > 0 ? (
                   <View style={styles.subHabitsList}>
-                    {subHabits.map((entry) => (
+                    {subHabits.map((entry, index) => (
                       <View key={entry.id} style={styles.subHabitRow}>
+                        <Text style={styles.subHabitIndex}>{index + 1}</Text>
                         <BottomSheetAppTextInput
                           value={entry.value}
                           maxLength={200}
-                          placeholder={t("habits.form.subHabitPlaceholder")}
-                          placeholderTextColor={colors.textMuted}
-                          style={[styles.input, { flex: 1 }]}
+                          placeholder={t('habits.form.subHabitPlaceholder')}
+                          placeholderTextColor={tokens.fg4}
+                          style={styles.subHabitInput}
                           onChangeText={(val: string) =>
                             updateSubHabitValue(entry.id, val)
                           }
                         />
                         <TouchableOpacity
-                          style={styles.removeSubHabit}
                           onPress={() => removeSubHabit(entry.id)}
                           activeOpacity={0.7}
+                          hitSlop={{
+                            top: 6,
+                            bottom: 6,
+                            left: 6,
+                            right: 6,
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('common.clear')}
                         >
-                          <Trash2 size={16} color={colors.textMuted} />
+                          <Trash2 size={14} color={tokens.fg4} strokeWidth={1.6} />
                         </TouchableOpacity>
                       </View>
                     ))}
                   </View>
-                )}
+                ) : null}
                 <TouchableOpacity
                   style={styles.addSubHabitButton}
                   disabled={subHabits.length >= 20}
@@ -400,77 +439,69 @@ export function CreateHabitModal({
                     setSubHabits((prev) => [...prev, createSubHabitEntry()])
                   }
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('habits.form.addSubHabit')}
                 >
-                  <Plus size={14} color={colors.primary} />
+                  <Plus size={14} color={tokens.fg1} strokeWidth={1.6} />
                   <Text style={styles.addSubHabitText}>
-                    {t("habits.form.addSubHabit")}
+                    {t('habits.form.addSubHabit')}
                   </Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.lockedSubHabitsCard}
-                onPress={() => router.push("/upgrade")}
-                activeOpacity={0.8}
-              >
-                <View style={styles.lockedSubHabitsHeader}>
-                  <Text style={styles.label}>{t("habits.form.subHabits")}</Text>
-                  <ProBadge alwaysVisible />
-                </View>
-                <Text style={styles.lockedSubHabitsDescription}>
-                  {t("upgrade.comparison.subHabits.tooltip")}
-                </Text>
-                <Text style={styles.lockedSubHabitsAction}>
-                  {t("upgrade.subscribe")}
-                </Text>
-              </TouchableOpacity>
-            )
-          )}
-        </HabitFormFields>
+            ) : null}
+          </HabitFormFields>
 
-        {/* Submit buttons */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            disabled={isPending}
-            onPress={dismissGuard.requestDismiss}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.submitButton, isPending && styles.disabled]}
-            disabled={isPending}
-            onPress={handleSubmit}
-            activeOpacity={0.7}
-          >
-            {isPending && (
-              <ActivityIndicator size="small" color={colors.white} />
-            )}
-            <Text style={styles.submitButtonText}>
-              {isSubHabitMode
-                ? t("habits.createSubHabit")
-                : t("habits.createHabit")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAwareBottomSheetScrollView>
-    </BottomSheetModal>
+          {/* Submit buttons: v8 footer = QuietLink + PrimaryButton */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              disabled={isPending}
+              onPress={dismissGuard.requestDismiss}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+            >
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.submitButton, isPending && styles.disabled]}
+              disabled={isPending}
+              onPress={handleSubmit}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isSubHabitMode
+                  ? t('habits.createSubHabit')
+                  : t('habits.createHabit')
+              }
+            >
+              {isPending ? (
+                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+              ) : null}
+              <Text style={styles.submitButtonText}>
+                {isSubHabitMode
+                  ? t('habits.createSubHabit')
+                  : t('habits.createHabit')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAwareBottomSheetScrollView>
+      </BottomSheetModal>
       <ConfirmDialog
         open={dismissGuard.showDiscardDialog}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen) dismissGuard.cancelDismiss();
+          if (!nextOpen) dismissGuard.cancelDismiss()
         }}
-        title={t("common.discardChangesTitle")}
-        description={t("common.discardChangesDescription")}
-        confirmLabel={t("common.discard")}
-        cancelLabel={t("common.keepEditing")}
+        title={t('common.discardChangesTitle')}
+        description={t('common.discardChangesDescription')}
+        confirmLabel={t('common.discard')}
+        cancelLabel={t('common.keepEditing')}
         onConfirm={dismissGuard.confirmDismiss}
         onCancel={dismissGuard.cancelDismiss}
         variant="warning"
       />
     </>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -478,7 +509,7 @@ export function CreateHabitModal({
 // ---------------------------------------------------------------------------
 
 function createStyles(
-  colors: ReturnType<typeof useAppTheme>["colors"],
+  tokens: ReturnType<typeof createTokensV2>,
   bottomInset: number,
 ) {
   return StyleSheet.create({
@@ -486,112 +517,109 @@ function createStyles(
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 24,
+      paddingHorizontal: 20,
       paddingBottom: Math.max(bottomInset, 16) + 20,
       gap: 22,
     },
-    label: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.textSecondary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
-    input: {
-      backgroundColor: colors.surface,
-      color: colors.textPrimary,
-      borderRadius: radius.lg,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      fontSize: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
+    fieldLabel: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.fg3,
     },
     subHabitsSection: {
       gap: 10,
     },
-    subHabitsList: {
+    subHabitsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 8,
+    },
+    subHabitsHint: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg3,
+      lineHeight: 19,
+    },
+    subHabitsList: {
+      gap: 0,
     },
     subHabitRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
-    removeSubHabit: {
-      padding: 8,
-      borderRadius: radius.full,
+    subHabitIndex: {
+      width: 16,
+      textAlign: 'right',
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      color: tokens.fg4,
+    },
+    subHabitInput: {
+      flex: 1,
+      backgroundColor: 'transparent',
+      color: tokens.fg1,
+      fontFamily: 'Geist',
+      fontSize: 14,
+      borderWidth: 0,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
     },
     addSubHabitButton: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 8,
+      paddingVertical: 8,
     },
     addSubHabitText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.primary,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+      color: tokens.fg1,
     },
-    buttonRow: {
-      flexDirection: "row",
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
       gap: 12,
       paddingTop: 16,
-    },
-    lockedSubHabitsCard: {
-      gap: 10,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surfaceGround,
-      padding: 16,
-    },
-    lockedSubHabitsHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    lockedSubHabitsDescription: {
-      fontSize: 12,
-      lineHeight: 18,
-      color: colors.textMuted,
-    },
-    lockedSubHabitsAction: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.primary,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: tokens.hairline,
+      marginTop: 4,
     },
     cancelButton: {
-      flex: 1,
-      paddingVertical: 14,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
+      paddingVertical: 10,
+      paddingHorizontal: 6,
     },
     cancelButtonText: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg3,
     },
     submitButton: {
-      flex: 2,
-      paddingVertical: 14,
-      borderRadius: radius.xl,
-      backgroundColor: colors.primary,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
+      backgroundColor: tokens.primary,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
       gap: 8,
+      minWidth: 132,
     },
     submitButtonText: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      fontWeight: "700",
-      color: colors.white,
+      fontWeight: '600',
+      color: tokens.fgOnPrimary,
     },
     disabled: {
       opacity: 0.5,
     },
-  });
+  })
 }

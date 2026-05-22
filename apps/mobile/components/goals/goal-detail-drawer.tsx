@@ -1,30 +1,24 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  View,
+  ActivityIndicator,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
+  View,
 } from 'react-native'
-import {
-  Flame,
-  PencilLine,
-  CheckCircle2,
-  ArchiveX,
-  RotateCw,
-  Trash2,
-} from 'lucide-react-native'
+import { Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
-  GoalActionButton,
   GoalLinkedHabitsSection,
   GoalProgressHistorySection,
 } from './goal-detail-sections'
@@ -43,8 +37,7 @@ import {
   useDeleteGoal,
 } from '@/hooks/use-goals'
 import { useAdMob } from '@/hooks/use-ad-mob'
-import { radius } from '@/lib/theme'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useDeviceLocale } from '@/hooks/use-device-locale'
 
@@ -58,13 +51,18 @@ interface GoalDetailDrawerProps {
   goalId: string
 }
 
-type AppColors = ThemeContextValue['colors']
 type ProgressDismissTarget = 'drawer' | 'form'
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
+/**
+ * v8 Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
+ * at-risk, behind, completed, abandoned, streak, update (active progress
+ * form). Preserves: streak vs standard handling, progress mutation,
+ * status mutation, delete mutation, edit modal, dismiss guard.
+ */
 export function GoalDetailDrawer({
   open,
   onClose,
@@ -76,13 +74,16 @@ export function GoalDetailDrawer({
     [t],
   )
   const { showError } = useAppToast()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const { showInterstitialIfDue } = useAdMob()
   const insets = useSafeAreaInsets()
   const locale = useDeviceLocale()
-  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom])
+  const styles = useMemo(
+    () => createStyles(tokens, insets.bottom),
+    [tokens, insets.bottom],
+  )
 
-  // Queries
   const { data: goalsData } = useGoals()
   const {
     data: detailData,
@@ -91,25 +92,23 @@ export function GoalDetailDrawer({
     refetch: refetchDetail,
   } = useGoalDetail(open ? goalId : null)
 
-  // Mutations
   const updateProgress = useUpdateGoalProgress()
   const updateStatus = useUpdateGoalStatus()
   const deleteGoalMut = useDeleteGoal()
 
-  // Prefer detail data once loaded so streak sync updates are reflected immediately.
   const detail = detailData?.goal ?? null
   const goal = detail ?? goalsData?.goalsById.get(goalId) ?? null
   const metrics = detailData?.metrics ?? null
 
   const isStreak = isStreakGoal(goal?.type)
 
-  // Local state
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [progressValue, setProgressValue] = useState('')
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
-  const [showProgressDiscardDialog, setShowProgressDiscardDialog] = useState(false)
+  const [showProgressDiscardDialog, setShowProgressDiscardDialog] =
+    useState(false)
   const pendingProgressDismissRef = useRef<ProgressDismissTarget | null>(null)
 
   const isUpdatingProgress = updateProgress.isPending
@@ -125,13 +124,11 @@ export function GoalDetailDrawer({
 
   const isProgressDirty = useMemo(() => {
     if (!showProgressForm) return false
-
     return (
       progressValue !== initialProgressValue || progressNote.trim().length > 0
     )
   }, [initialProgressValue, progressNote, progressValue, showProgressForm])
 
-  // Reset state when a new drawer session starts, not on every cache refresh.
   useEffect(() => {
     if (open) {
       const nextInitial =
@@ -146,21 +143,18 @@ export function GoalDetailDrawer({
     }
   }, [open, goalId, goal?.currentValue])
 
-  // Format date helper
   const formatDate = useCallback(
-    (dateStr: string) => {
-      return formatLocaleDateTime(dateStr, locale, {
+    (dateStr: string) =>
+      formatLocaleDateTime(dateStr, locale, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: 'numeric',
         minute: '2-digit',
-      })
-    },
+      }),
     [locale],
   )
 
-  // Progress text: streak goals use "Day X of Y", standard use "X of Y unit"
   const progressText = goal
     ? isStreak
       ? t('goals.streak.ofTarget', {
@@ -174,7 +168,6 @@ export function GoalDetailDrawer({
         })
     : ''
 
-  // Handlers
   const submitProgress = useCallback(async () => {
     const validationError = translateErrorKey(
       translate,
@@ -184,7 +177,6 @@ export function GoalDetailDrawer({
       showError(validationError)
       return
     }
-
     const numVal = Number(progressValue)
     if (!progressValue || isNaN(numVal)) return
     try {
@@ -201,7 +193,14 @@ export function GoalDetailDrawer({
       await refetchDetail()
       void showInterstitialIfDue()
     } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.progress', 'goalProgress'))
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          translate,
+          'goals.errors.progress',
+          'goalProgress',
+        ),
+      )
     }
   }, [
     goalId,
@@ -224,9 +223,19 @@ export function GoalDetailDrawer({
       })
       refetchDetail()
     } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
+      showError(
+        getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
+      )
     }
-  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [
+    goalId,
+    goal,
+    isUpdatingStatus,
+    refetchDetail,
+    showError,
+    translate,
+    updateStatus,
+  ])
 
   const markAbandoned = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -238,9 +247,19 @@ export function GoalDetailDrawer({
       })
       refetchDetail()
     } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
+      showError(
+        getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
+      )
     }
-  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [
+    goalId,
+    goal,
+    isUpdatingStatus,
+    refetchDetail,
+    showError,
+    translate,
+    updateStatus,
+  ])
 
   const reactivate = useCallback(async () => {
     if (isUpdatingStatus) return
@@ -252,9 +271,19 @@ export function GoalDetailDrawer({
       })
       refetchDetail()
     } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
+      showError(
+        getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
+      )
     }
-  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [
+    goalId,
+    goal,
+    isUpdatingStatus,
+    refetchDetail,
+    showError,
+    translate,
+    updateStatus,
+  ])
 
   const confirmDelete = useCallback(() => {
     setShowDeleteConfirm(true)
@@ -265,7 +294,9 @@ export function GoalDetailDrawer({
       await deleteGoalMut.mutateAsync(goalId)
       onClose()
     } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
+      showError(
+        getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'),
+      )
     }
   }, [deleteGoalMut, goalId, onClose, showError, translate])
 
@@ -275,31 +306,30 @@ export function GoalDetailDrawer({
     setShowProgressForm(false)
   }, [initialProgressValue])
 
-  const requestProgressDismiss = useCallback((target: ProgressDismissTarget) => {
-    if (isProgressDirty) {
-      pendingProgressDismissRef.current = target
-      setShowProgressDiscardDialog(true)
-      return
-    }
-
-    if (target === 'drawer') {
-      onClose()
-      return
-    }
-
-    closeProgressForm()
-  }, [closeProgressForm, isProgressDirty, onClose])
+  const requestProgressDismiss = useCallback(
+    (target: ProgressDismissTarget) => {
+      if (isProgressDirty) {
+        pendingProgressDismissRef.current = target
+        setShowProgressDiscardDialog(true)
+        return
+      }
+      if (target === 'drawer') {
+        onClose()
+        return
+      }
+      closeProgressForm()
+    },
+    [closeProgressForm, isProgressDirty, onClose],
+  )
 
   const confirmProgressDismiss = useCallback(() => {
     const target = pendingProgressDismissRef.current
     pendingProgressDismissRef.current = null
     setShowProgressDiscardDialog(false)
-
     if (target === 'drawer') {
       onClose()
       return
     }
-
     closeProgressForm()
   }, [closeProgressForm, onClose])
 
@@ -309,6 +339,27 @@ export function GoalDetailDrawer({
   }, [])
 
   if (!goal) return null
+
+  const isCompleted = goal.status === 'Completed'
+  const isAbandoned = goal.status === 'Abandoned'
+  const isActive = goal.status === 'Active'
+
+  const statusLabel = isCompleted
+    ? t('goals.status.completed')
+    : isAbandoned
+      ? t('goals.status.abandoned')
+      : t('goals.status.active')
+  const statusColor = isCompleted
+    ? tokens.primary
+    : isAbandoned
+      ? tokens.fg3
+      : tokens.statusDone
+
+  const progressFillColor = isStreak ? tokens.statusOverdue : tokens.primary
+  const progressPct = Math.min(goal.progressPercentage, 100)
+  const headerLine = isStreak
+    ? t('goals.form.typeStreak')
+    : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`
 
   return (
     <>
@@ -328,256 +379,282 @@ export function GoalDetailDrawer({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="always"
         >
-          {/* Streak type badge near title */}
-          {isStreak && (
-            <View style={styles.streakBadgeRow}>
-              <View style={styles.streakBadge}>
-                <Flame size={12} color={colors.amber400} />
-                <Text style={styles.streakBadgeText}>
-                  {t('goals.form.typeStreak')}
-                </Text>
-              </View>
-            </View>
-          )}
+          <Text style={styles.headerLine}>{headerLine}</Text>
 
-          {/* Progress section */}
           <View>
-            <Text style={styles.sectionTitle}>{t('goals.progress')}</Text>
-
-            {/* Progress bar */}
-            <View style={styles.progressBar}>
+            <SectionLabel top={4} bottom={8}>
+              {t('goals.progress')}
+            </SectionLabel>
+            <View style={styles.progressBlock}>
               <View
                 style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(goal.progressPercentage, 100)}%`,
-                    backgroundColor: isStreak ? colors.amber500 : colors.primary,
-                  },
+                  styles.progressTrack,
+                  { backgroundColor: tokens.bgSunk },
                 ]}
+              >
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${progressPct}%`,
+                      backgroundColor: progressFillColor,
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.progressRow}>
+                <Text style={styles.progressText}>
+                  {progressText}
+                  {'  '}
+                  <Text style={styles.progressPercent}>
+                    ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
+                  </Text>
+                </Text>
+                {isActive && !showProgressForm ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const nextInitial =
+                        goal.currentValue !== undefined
+                          ? String(goal.currentValue)
+                          : ''
+                      setInitialProgressValue(nextInitial)
+                      setProgressValue(nextInitial)
+                      setProgressNote('')
+                      setShowProgressForm(true)
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('goals.updateProgress')}
+                  >
+                    <Text style={styles.linkAction}>
+                      {t('goals.updateProgress')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
+          {showProgressForm && isActive ? (
+            <View style={styles.progressForm}>
+              <View>
+                <Text style={styles.formLabel}>
+                  {isStreak
+                    ? t('goals.form.streakTarget')
+                    : t('goals.form.targetValue')}
+                </Text>
+                <BottomSheetAppTextInput
+                  style={styles.formInput}
+                  value={progressValue}
+                  onChangeText={setProgressValue}
+                  keyboardType="decimal-pad"
+                  accessibilityLabel={
+                    isStreak
+                      ? t('goals.form.streakTarget')
+                      : t('goals.form.targetValue')
+                  }
+                  accessibilityHint={t('goals.updateProgress')}
+                />
+                {progressExceedsTarget ? (
+                  <Text style={styles.warningText}>
+                    {t('goals.form.progressExceedsTarget')}
+                  </Text>
+                ) : null}
+              </View>
+              <View>
+                <Text style={styles.formLabel}>{t('goals.progressNote')}</Text>
+                <BottomSheetAppTextInput
+                  style={styles.formInput}
+                  value={progressNote}
+                  onChangeText={setProgressNote}
+                  placeholder={t('goals.progressNote')}
+                  placeholderTextColor={tokens.fg4}
+                  accessibilityLabel={t('goals.progressNote')}
+                  accessibilityHint={t('goals.updateProgress')}
+                />
+              </View>
+              <View style={styles.progressFormActions}>
+                <TouchableOpacity
+                  onPress={() => requestProgressDismiss('form')}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.cancel')}
+                  accessibilityHint={t('common.discardChangesDescription')}
+                  style={styles.formCancelBtn}
+                >
+                  <Text style={styles.formCancelText}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={submitProgress}
+                  disabled={!progressValue || isUpdatingProgress}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.save')}
+                  style={[
+                    styles.formSaveBtn,
+                    (!progressValue || isUpdatingProgress) && styles.disabled,
+                  ]}
+                >
+                  {isUpdatingProgress ? (
+                    <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+                  ) : (
+                    <Text style={styles.formSaveText}>{t('common.save')}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
+          {isActive ? (
+            <View>
+              <SectionLabel top={8} bottom={0}>
+                {t('goals.metrics.title')}
+              </SectionLabel>
+              <SettingsRow
+                label={t('goals.detail.statusLabel')}
+                accessory="none"
+                leadingDot={statusColor}
+                value={statusLabel}
+              />
+              <GoalMetricsPanel
+                metrics={metrics}
+                unit={goal.unit}
+                isLoading={isLoadingDetail}
+                isStreak={isStreak}
               />
             </View>
-            <Text style={styles.progressText}>
-              {progressText}
-              {'  '}
-              <Text style={styles.progressPercent}>
-                ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
-              </Text>
-            </Text>
+          ) : null}
 
-            {/* Update progress toggle */}
-            {goal.status === 'Active' && !showProgressForm && (
+          {(goal.linkedHabits ?? []).length > 0 ? (
+            <View>
+              <SectionLabel top={8} bottom={0}>
+                {t('goals.linkedHabits')}
+              </SectionLabel>
+              <GoalLinkedHabitsSection
+                title={t('goals.linkedHabits')}
+                linkedHabits={goal.linkedHabits ?? []}
+              />
+            </View>
+          ) : null}
+
+          {(detail?.progressHistory ?? []).length > 0 ? (
+            <View>
+              <SectionLabel top={8} bottom={0}>
+                {t('goals.progressHistory')}
+              </SectionLabel>
+              <GoalProgressHistorySection
+                entries={detail?.progressHistory ?? []}
+                formatDate={formatDate}
+                renderEntryLabel={(entry) =>
+                  t('goals.progressEntry', {
+                    previous: entry.previousValue,
+                    value: entry.value,
+                    unit: goal.unit,
+                  })
+                }
+                showAllLabel={t('goals.detail.showAllHistory')}
+                showLessLabel={t('goals.detail.showLessHistory')}
+              />
+            </View>
+          ) : null}
+
+          {loadError ? (
+            <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
+          ) : null}
+
+          <View style={styles.askAstra}>
+            <View
+              style={[
+                styles.askAstraRule,
+                { backgroundColor: tokens.primary },
+              ]}
+            />
+            <View style={styles.askAstraEyebrow}>
+              <Sparkles size={12} color={tokens.primary} strokeWidth={1.7} />
+              <Text style={styles.askAstraEyebrowText}>
+                {t('goals.detail.askAstraEyebrow')}
+              </Text>
+            </View>
+            <Text style={styles.askAstraBody}>
+              {t('goals.detail.askAstraDefault')}
+            </Text>
+          </View>
+
+          <View style={styles.actionsRow}>
+            {isActive ? (
+              <>
+                <TouchableOpacity
+                  onPress={markCompleted}
+                  disabled={isUpdatingStatus}
+                  activeOpacity={0.7}
+                  style={styles.actionLink}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('goals.detail.markCompleted')}
+                >
+                  <Text style={styles.actionLinkText}>
+                    {t('goals.detail.markCompleted')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={markAbandoned}
+                  disabled={isUpdatingStatus}
+                  activeOpacity={0.7}
+                  style={styles.actionLink}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('goals.detail.markAbandoned')}
+                >
+                  <Text style={styles.actionLinkTextMuted}>
+                    {t('goals.detail.markAbandoned')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
               <TouchableOpacity
-                onPress={() => {
-                  const nextInitial =
-                    goal.currentValue !== undefined
-                      ? String(goal.currentValue)
-                      : ''
-                  setInitialProgressValue(nextInitial)
-                  setProgressValue(nextInitial)
-                  setProgressNote('')
-                  setShowProgressForm(true)
-                }}
+                onPress={reactivate}
+                disabled={isUpdatingStatus}
                 activeOpacity={0.7}
-                style={styles.updateProgressLink}
+                style={styles.actionLink}
+                accessibilityRole="button"
+                accessibilityLabel={t('goals.detail.reactivate')}
               >
-                <Text style={styles.updateProgressLinkText}>
-                  {t('goals.updateProgress')}
+                <Text style={styles.actionLinkText}>
+                  {t('goals.detail.reactivate')}
                 </Text>
               </TouchableOpacity>
             )}
-
-            {/* Progress form */}
-            {showProgressForm && goal.status === 'Active' && (
-              <View style={styles.progressForm}>
-                <View>
-                  <Text style={styles.formLabel}>
-                    {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-                  </Text>
-                  <BottomSheetAppTextInput
-                    style={styles.formInput}
-                    value={progressValue}
-                    onChangeText={setProgressValue}
-                    keyboardType="decimal-pad"
-                    accessibilityLabel={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-                    accessibilityHint={t('goals.updateProgress')}
-                  />
-                  {progressExceedsTarget && (
-                    <Text style={styles.warningText}>
-                      {t('goals.form.progressExceedsTarget')}
-                    </Text>
-                  )}
-                </View>
-                <View>
-                  <Text style={styles.formLabel}>
-                    {t('goals.progressNote')}
-                  </Text>
-                  <BottomSheetAppTextInput
-                    style={styles.formInput}
-                    value={progressNote}
-                    onChangeText={setProgressNote}
-                    placeholder={t('goals.progressNote')}
-                    placeholderTextColor={colors.textMuted}
-                    accessibilityLabel={t('goals.progressNote')}
-                    accessibilityHint={t('goals.updateProgress')}
-                  />
-                </View>
-                <View style={styles.progressFormActions}>
-                  <TouchableOpacity
-                    style={[
-                      styles.progressSaveButton,
-                      (!progressValue || isUpdatingProgress) &&
-                        styles.buttonDisabled,
-                    ]}
-                    onPress={submitProgress}
-                    disabled={!progressValue || isUpdatingProgress}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.save')}
-                  >
-                    {isUpdatingProgress ? (
-                      <ActivityIndicator size="small" color={colors.white} />
-                    ) : (
-                      <Text style={styles.progressSaveText}>
-                        {t('common.save')}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.progressCancelButton}
-                    onPress={() => requestProgressDismiss('form')}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.cancel')}
-                    accessibilityHint={t('common.discardChangesDescription')}
-                  >
-                    <Text style={styles.progressCancelText}>
-                      {t('common.cancel')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Goal Metrics */}
-          {goal.status === 'Active' && (
-            <GoalMetricsPanel
-              metrics={metrics}
-              unit={goal.unit}
-              isLoading={isLoadingDetail}
-              isStreak={isStreak}
-            />
-          )}
-
-          {/* Linked Habits -- shown prominently for streak goals */}
-          {isStreak && (goal.linkedHabits ?? []).length > 0 && (
-            <GoalLinkedHabitsSection
-              title={t('goals.linkedHabits')}
-              linkedHabits={goal.linkedHabits ?? []}
-              styles={styles}
-            />
-          )}
-
-          {/* Progress history */}
-          <GoalProgressHistorySection
-            title={t('goals.progressHistory')}
-            entries={detail?.progressHistory ?? []}
-            formatDate={formatDate}
-            renderEntryLabel={(entry) =>
-              t('goals.progressEntry', {
-                previous: entry.previousValue,
-                value: entry.value,
-                unit: goal.unit,
-              })
-            }
-            showAllLabel={t('goals.detail.showAllHistory')}
-            showLessLabel={t('goals.detail.showLessHistory')}
-            primaryColor={colors.primary}
-            styles={styles}
-          />
-
-          {/* Linked Habits (standard goals) */}
-          {!isStreak && (
-            <GoalLinkedHabitsSection
-              title={t('goals.linkedHabits')}
-              linkedHabits={goal.linkedHabits ?? []}
-              styles={styles}
-            />
-          )}
-
-          {/* Load error (fallback to store data) */}
-          {loadError && (
-            <Text style={styles.warningText}>
-              {t('goals.detail.loadError')}
-            </Text>
-          )}
-
-          {/* Actions */}
-          <View style={styles.actionsSection}>
-            {/* Status actions */}
-            {goal.status === 'Active' && (
-              <GoalActionButton
-                styles={styles}
-                onPress={markCompleted}
-                disabled={isUpdatingStatus}
-                icon={<CheckCircle2 size={20} color={colors.green400} />}
-                color={colors.green400}
-                label={t('goals.detail.markCompleted')}
-              />
-            )}
-
-            {goal.status === 'Active' && (
-              <GoalActionButton
-                styles={styles}
-                onPress={markAbandoned}
-                disabled={isUpdatingStatus}
-                icon={<ArchiveX size={20} color={colors.amber400} />}
-                color={colors.amber400}
-                label={t('goals.detail.markAbandoned')}
-              />
-            )}
-
-            {goal.status !== 'Active' && (
-              <GoalActionButton
-                styles={styles}
-                onPress={reactivate}
-                disabled={isUpdatingStatus}
-                icon={<RotateCw size={20} color={colors.primary} />}
-                color={colors.primary}
-                label={t('goals.detail.reactivate')}
-              />
-            )}
-
-            {/* Separator between status and data actions */}
-            <View style={styles.actionsDivider} />
-
-            {/* Data actions */}
-            <GoalActionButton
-              styles={styles}
+            <TouchableOpacity
               onPress={() => setShowEditModal(true)}
-              icon={<PencilLine size={20} color={colors.textMuted} />}
-              color={colors.textPrimary}
-              label={t('goals.detail.edit')}
-            />
-
-            <GoalActionButton
-              styles={styles}
+              activeOpacity={0.7}
+              style={styles.actionLink}
+              accessibilityRole="button"
+              accessibilityLabel={t('goals.detail.edit')}
+            >
+              <Text style={styles.actionLinkTextMuted}>
+                {t('goals.detail.edit')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={confirmDelete}
-              icon={<Trash2 size={20} color={colors.red400} />}
-              color={colors.red400}
-              label={t('goals.detail.delete')}
-            />
+              activeOpacity={0.7}
+              style={styles.actionLink}
+              accessibilityRole="button"
+              accessibilityLabel={t('goals.detail.delete')}
+            >
+              <Text style={styles.actionLinkTextDelete}>
+                {t('goals.detail.delete')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
 
-      {goal && (
+      {goal ? (
         <EditGoalModal
           open={showEditModal}
           onClose={() => setShowEditModal(false)}
           goal={goal}
         />
-      )}
+      ) : null}
 
       <ConfirmDialog
         open={showProgressDiscardDialog}
@@ -611,236 +688,203 @@ export function GoalDetailDrawer({
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: AppColors, bottomInset: number) {
+function createStyles(
+  tokens: ReturnType<typeof createTokensV2>,
+  bottomInset: number,
+) {
   return StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 12,
-    paddingHorizontal: 24,
-    paddingBottom: Math.max(bottomInset, 16) + 24,
-    gap: 24,
-  },
-
-  // Streak badge
-  streakBadgeRow: {
-    flexDirection: 'row',
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-  },
-  streakBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.amber400,
-  },
-
-  // Section titles
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-
-  // Progress
-  progressBar: {
-    height: 12,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 9999,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 9999,
-  },
-  progressText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 21,
-    marginBottom: 20,
-  },
-  progressPercent: {
-    color: colors.textMuted,
-  },
-  updateProgressLink: {
-    paddingVertical: 4,
-  },
-  updateProgressLinkText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-
-  // Progress form
-  progressForm: {
-    gap: 12,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  formLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  formInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  progressFormActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  progressSaveButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressSaveText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  progressCancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressCancelText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-
-  // Progress history
-  historyList: {
-    gap: 8,
-    maxHeight: 192,
-  },
-  historyEntry: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.xl,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  historyEntryLeft: {
-    flex: 1,
-    minWidth: 0,
-  },
-  historyEntryValue: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  historyEntryNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  historyEntryDate: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginLeft: 8,
-    flexShrink: 0,
-  },
-
-  // Linked habits
-  linkedHabitsSection: {
-    gap: 12,
-  },
-  linkedHabitsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  linkedHabitChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  linkedHabitText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-
-  // Warnings / errors
-  warningText: {
-    fontSize: 12,
-    color: colors.amber400,
-    fontWeight: '500',
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.red400,
-  },
-
-  // Actions
-  actionsSection: {
-    gap: 4,
-    marginTop: 4,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  actionsDivider: {
-    height: 1,
-    backgroundColor: colors.borderMuted,
-    marginVertical: 4,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 0,
-    paddingVertical: 12,
-    borderRadius: radius.lg,
-  },
-  actionText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: Math.max(bottomInset, 16) + 24,
+    },
+    headerLine: {
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 14,
+      fontFamily: 'GeistMono',
+      fontSize: 12,
+      fontWeight: '500',
+      color: tokens.fg3,
+      letterSpacing: 0.48,
+      fontVariant: ['tabular-nums'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
+    },
+    progressBlock: {
+      paddingHorizontal: 20,
+      paddingBottom: 14,
+      gap: 10,
+    },
+    progressTrack: {
+      height: 5,
+      borderRadius: 999,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 999,
+    },
+    progressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    progressText: {
+      fontFamily: 'GeistMono',
+      fontSize: 12,
+      color: tokens.fg2,
+      fontVariant: ['tabular-nums'],
+      flexShrink: 1,
+    },
+    progressPercent: {
+      color: tokens.fg3,
+    },
+    linkAction: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+      color: tokens.fg1,
+    },
+    progressForm: {
+      marginHorizontal: 20,
+      marginBottom: 12,
+      gap: 12,
+      backgroundColor: tokens.bgElev,
+      borderRadius: 10,
+      padding: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairline,
+    },
+    formLabel: {
+      fontFamily: 'Geist',
+      fontSize: 11,
+      fontWeight: '600',
+      color: tokens.fg3,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    formInput: {
+      backgroundColor: tokens.bg,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairlineStrong,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      color: tokens.fg1,
+      fontFamily: 'Geist',
+    },
+    progressFormActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 14,
+      paddingTop: 4,
+    },
+    formCancelBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+    },
+    formCancelText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      color: tokens.fg3,
+    },
+    formSaveBtn: {
+      backgroundColor: tokens.primary,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      minWidth: 64,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    formSaveText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.fgOnPrimary,
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+    warningText: {
+      paddingHorizontal: 20,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.statusOverdue,
+    },
+    askAstra: {
+      position: 'relative',
+      paddingLeft: 34,
+      paddingRight: 20,
+      paddingVertical: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: tokens.hairline,
+      marginTop: 8,
+    },
+    askAstraRule: {
+      position: 'absolute',
+      left: 20,
+      top: 20,
+      bottom: 20,
+      width: 2,
+      borderRadius: 1,
+    },
+    askAstraEyebrow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
+    askAstraEyebrowText: {
+      fontFamily: 'GeistMono',
+      fontSize: 10.5,
+      fontWeight: '500',
+      letterSpacing: 0.63,
+      color: tokens.fg3,
+    },
+    askAstraBody: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontStyle: 'italic',
+      lineHeight: 20,
+      color: tokens.fg2,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 22,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: tokens.hairline,
+    },
+    actionLink: {
+      paddingVertical: 4,
+    },
+    actionLinkText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+      color: tokens.fg1,
+    },
+    actionLinkTextMuted: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
+    },
+    actionLinkTextDelete: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg3,
+    },
   })
 }

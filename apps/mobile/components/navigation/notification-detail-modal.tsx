@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { ArrowRight, Check, Trash2 } from 'lucide-react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -10,7 +9,8 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { radius } from '@/lib/theme'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -38,9 +38,12 @@ export function NotificationDetailModal({
 }: Readonly<NotificationDetailModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
-  const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(
+    notification,
+  )
 
   function handleView() {
     const url = notification.url
@@ -63,52 +66,35 @@ export function NotificationDetailModal({
       snapPoints={['78%', '92%']}
     >
       <View style={styles.container}>
-        <View style={styles.body}>
-          <Text style={styles.timestamp}>
-            {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
-              t(`notifications.${key}`, values),
-            )}
-          </Text>
-          <Text style={styles.bodyText}>{notification.body}</Text>
-        </View>
+        <Text style={styles.timestamp}>
+          {formatNotificationRelativeTime(
+            notification.createdAtUtc,
+            (key, values) => t(`notifications.${key}`, values),
+          )}
+        </Text>
+        <Text style={styles.bodyText}>{notification.body}</Text>
 
-        <View style={styles.footer}>
-          <View style={styles.actions}>
-            {canView && (
-              <TouchableOpacity
-                style={styles.actionBtn}
-                activeOpacity={0.7}
-                onPress={handleView}
-              >
-                <ArrowRight size={16} color={colors.primary} />
-                <Text style={styles.actionText}>{t('notifications.view')}</Text>
-              </TouchableOpacity>
-            )}
-
-            {canMarkAsRead && (
-              <TouchableOpacity
-                style={styles.actionBtn}
-                activeOpacity={0.7}
-                onPress={() => onMarkAsRead(notification.id)}
-              >
-                <Check size={16} color={colors.primary} />
-                <Text style={styles.actionText}>
-                  {t('notifications.markAsRead')}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.deleteActionBtn]}
-              activeOpacity={0.7}
-              onPress={handleDelete}
-            >
-              <Trash2 size={16} color={colors.red400} />
-              <Text style={styles.deleteActionText}>
-                {t('notifications.deleteNotification')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.actions}>
+          {canView ? (
+            <SettingsRow
+              label={t('notifications.view')}
+              onPress={handleView}
+              accessory="chevron"
+            />
+          ) : null}
+          {canMarkAsRead ? (
+            <SettingsRow
+              label={t('notifications.markAsRead')}
+              onPress={() => onMarkAsRead(notification.id)}
+              accessory="none"
+            />
+          ) : null}
+          <SettingsRow
+            label={t('notifications.deleteNotification')}
+            onPress={handleDelete}
+            accessory="none"
+            valueColor={tokens.fg3}
+          />
         </View>
       </View>
     </BottomSheetModal>
@@ -119,74 +105,34 @@ export function NotificationDetailModal({
 // Styles
 // ---------------------------------------------------------------------------
 
-type NotificationDetailColors = {
-  primary: string
-  red400: string
-  surface: string
-  surfaceElevated: string
-  borderMuted: string
-  textMuted: string
-  textSecondary: string
-  textPrimary: string
-  red500_10: string
-  primary_10: string
-}
-
-function createStyles(colors: NotificationDetailColors) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      justifyContent: 'space-between',
       paddingBottom: 24,
     },
-    body: {
-      paddingHorizontal: 20,
-      gap: 16,
-      paddingTop: 4,
-    },
     timestamp: {
-      fontSize: 12,
-      color: colors.textMuted,
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 10,
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      color: tokens.fg3,
+      letterSpacing: 0.44,
+      fontVariant: ['tabular-nums'],
     },
     bodyText: {
+      paddingHorizontal: 20,
+      paddingBottom: 16,
+      fontFamily: 'Geist',
       fontSize: 14,
-      color: colors.textSecondary,
-      lineHeight: 20,
+      color: tokens.fg2,
+      lineHeight: 21,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
     actions: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 10,
-    },
-    footer: {
-      marginTop: 20,
-      paddingTop: 16,
-      paddingHorizontal: 20,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderMuted,
-    },
-    actionBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 10,
-      borderRadius: radius.lg,
-      backgroundColor: colors.primary_10,
-    },
-    actionText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.primary,
-    },
-    deleteActionBtn: {
-      backgroundColor: colors.red500_10,
-    },
-    deleteActionText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.red400,
+      paddingTop: 8,
     },
   })
 }

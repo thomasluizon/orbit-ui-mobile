@@ -1,24 +1,29 @@
 import { useMemo, useState } from 'react'
 import {
-  View,
-  Text,
-  TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Text,
+  View,
 } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
-import { radius } from '@/lib/theme'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { Chip } from '@/components/ui/chip'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
 // Section types
 // ---------------------------------------------------------------------------
 
-type SectionKey = 'habits' | 'goals' | 'chat' | 'calendar' | 'settings' | 'notifications'
+type SectionKey =
+  | 'habits'
+  | 'goals'
+  | 'chat'
+  | 'calendar'
+  | 'settings'
+  | 'notifications'
 
 const tabs: { key: SectionKey; labelKey: string }[] = [
   { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
@@ -122,10 +127,14 @@ interface FeatureGuideDrawerProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawerProps>) {
+export function FeatureGuideDrawer({
+  open,
+  onClose,
+}: Readonly<FeatureGuideDrawerProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 
   const items = sectionItems[activeSection]
@@ -137,37 +146,24 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
       title={t('onboarding.featureGuide.title')}
       snapPoints={['70%', '90%']}
     >
-      {/* Tab bar */}
-      <View style={styles.tabBar}>
+      <View style={styles.tabBarWrap}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabBarContent}
         >
           {tabs.map((tab) => (
-            <TouchableOpacity
+            <Chip
               key={tab.key}
-              style={[
-                styles.tab,
-                activeSection === tab.key && styles.tabActive,
-              ]}
-              activeOpacity={0.7}
+              active={activeSection === tab.key}
               onPress={() => setActiveSection(tab.key)}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeSection === tab.key && styles.tabTextActive,
-                ]}
-              >
-                {t(tab.labelKey)}
-              </Text>
-            </TouchableOpacity>
+              {t(tab.labelKey)}
+            </Chip>
           ))}
         </ScrollView>
       </View>
 
-      {/* Section content */}
       <BottomSheetScrollView
         style={styles.sectionScroll}
         showsVerticalScrollIndicator={false}
@@ -188,56 +184,42 @@ export function FeatureGuideDrawer({ open, onClose }: Readonly<FeatureGuideDrawe
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(colors: ThemeContextValue['colors']) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    tabBar: {
+    tabBarWrap: {
       paddingHorizontal: 20,
-      marginBottom: 16,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
     tabBarContent: {
-      gap: 8,
-      paddingRight: 8,
-    },
-    tab: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: radius.full,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-    },
-    tabActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary_30,
-    },
-    tabText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    tabTextActive: {
-      color: colors.white,
+      gap: 6,
+      paddingRight: 12,
     },
     sectionScroll: {
       flex: 1,
     },
     sectionContent: {
       paddingHorizontal: 20,
-      gap: 16,
+      paddingTop: 16,
+      gap: 18,
       paddingBottom: 24,
     },
     sectionItem: {
       gap: 4,
     },
     sectionTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.textPrimary,
+      fontFamily: 'Geist',
+      fontSize: 15,
+      fontWeight: '600',
+      color: tokens.fg1,
+      letterSpacing: -0.15,
     },
     sectionDesc: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      lineHeight: 20,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg2,
+      lineHeight: 19,
     },
   })
 }

@@ -1,11 +1,11 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
-  View,
+  ActivityIndicator,
+  Share,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  Share,
-  ActivityIndicator,
-  StyleSheet,
+  View,
 } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Check, Sparkles } from 'lucide-react-native'
@@ -13,7 +13,9 @@ import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
-import { radius } from '@/lib/theme'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 // ---------------------------------------------------------------------------
@@ -31,10 +33,11 @@ interface ReferralDrawerProps {
 
 export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
   const { t } = useTranslation()
-  const { colors, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
     if (open) {
@@ -59,13 +62,10 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
 
   const copyLink = useCallback(() => {
     if (!referralUrl) return
-    // On mobile, "copy" triggers the share sheet which includes a copy option
     doShare()
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }, [referralUrl, doShare])
-
-  const shareLink = doShare
 
   return (
     <BottomSheetModal
@@ -79,128 +79,136 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
         contentContainerStyle={withDrawerContentInset(styles.content)}
         showsVerticalScrollIndicator={false}
       >
-        {/* Loading */}
-        {isLoading && (
+        {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={tokens.primary} />
           </View>
-        )}
+        ) : null}
 
-        {/* Error */}
-        {isError && !isLoading && (
+        {isError && !isLoading ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>
               {error?.message ?? t('errors.loadReferral')}
             </Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Loaded */}
-        {!isLoading && !isError && (
+        {!isLoading && !isError ? (
           <>
-            {/* Referral link */}
-            <View>
-              <Text style={styles.label}>{t('referral.drawer.yourLink')}</Text>
-              <View style={styles.linkRow}>
-                <View style={styles.linkBox}>
-                  <Text style={styles.linkText} numberOfLines={1}>
-                    {referralUrl}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.copyBtn}
-                  activeOpacity={0.8}
-                  onPress={copyLink}
-                >
-                  {copied ? (
-                    <Check size={16} color={colors.white} />
-                  ) : (
-                    <Text style={styles.copyBtnText}>
-                      {t('referral.drawer.copy')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+            <View style={styles.linkRow}>
+              <View style={styles.linkBox}>
+                <Text style={styles.linkText} numberOfLines={1}>
+                  {referralUrl}
+                </Text>
               </View>
+              <TouchableOpacity
+                style={styles.copyBtn}
+                activeOpacity={0.7}
+                onPress={copyLink}
+                accessibilityRole="button"
+                accessibilityLabel={t('referral.drawer.copy')}
+              >
+                {copied ? (
+                  <Check size={16} color={tokens.fgOnPrimary} strokeWidth={1.6} />
+                ) : (
+                  <Text style={styles.copyBtnText}>
+                    {t('referral.drawer.copy')}
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
 
-            {/* Share button */}
             <TouchableOpacity
               style={styles.shareBtn}
               activeOpacity={0.7}
-              onPress={shareLink}
+              onPress={doShare}
+              accessibilityRole="button"
+              accessibilityLabel={t('referral.drawer.share')}
             >
               <Text style={styles.shareBtnText}>
                 {t('referral.drawer.share')}
               </Text>
             </TouchableOpacity>
 
-            {/* Stats */}
-            {stats && (
-              <View style={styles.statsCard}>
-                <View style={styles.statRow}>
-                  <Text style={styles.statLabel}>
-                    {t('referral.drawer.completed')}
-                  </Text>
-                  <Text style={styles.statValue}>
-                    {stats.successfulReferrals} / {stats.maxReferrals}
-                  </Text>
-                </View>
-                {stats.pendingReferrals > 0 && (
-                  <View style={styles.statRow}>
-                    <Text style={styles.statLabel}>
-                      {t('referral.drawer.pending')}
-                    </Text>
-                    <Text style={[styles.statValue, { color: colors.amber400 }]}>
-                      {stats.pendingReferrals}
-                    </Text>
-                  </View>
-                )}
-                {stats.successfulReferrals > 0 && (
-                  <View style={styles.statRow}>
-                    <Text style={styles.statLabel}>
-                      {t('referral.drawer.couponsEarned')}
-                    </Text>
-                    <Text style={[styles.statValue, { color: colors.emerald400 }]}>
-                      {stats.successfulReferrals}
-                    </Text>
-                  </View>
-                )}
-                {/* Progress bar */}
-                <View style={styles.progressTrack}>
+            {stats ? (
+              <View>
+                <SectionLabel top={4} bottom={0}>
+                  {t('referral.drawer.completed')}
+                </SectionLabel>
+                <SettingsRow
+                  label={t('referral.drawer.completed')}
+                  value={`${stats.successfulReferrals} / ${stats.maxReferrals}`}
+                  mono
+                  accessory="none"
+                />
+                {stats.pendingReferrals > 0 ? (
+                  <SettingsRow
+                    label={t('referral.drawer.pending')}
+                    value={String(stats.pendingReferrals)}
+                    mono
+                    accessory="none"
+                    valueColor={tokens.statusOverdue}
+                  />
+                ) : null}
+                {stats.successfulReferrals > 0 ? (
+                  <SettingsRow
+                    label={t('referral.drawer.couponsEarned')}
+                    value={String(stats.successfulReferrals)}
+                    mono
+                    accessory="none"
+                    valueColor={tokens.statusDone}
+                  />
+                ) : null}
+                <View style={styles.progressBlock}>
                   <View
                     style={[
-                      styles.progressFill,
-                      {
-                        width: `${Math.min(
-                          (stats.successfulReferrals / stats.maxReferrals) * 100,
-                          100,
-                        )}%`,
-                      },
+                      styles.progressTrack,
+                      { backgroundColor: tokens.bgSunk },
                     ]}
-                  />
+                  >
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${Math.min(
+                            (stats.successfulReferrals / stats.maxReferrals) *
+                              100,
+                            100,
+                          )}%`,
+                          backgroundColor: tokens.primary,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
               </View>
-            )}
+            ) : null}
 
-            {/* How it works */}
             <View style={styles.howItWorks}>
-              <Sparkles size={20} color={colors.primary} />
+              <View style={styles.howItWorksIcon}>
+                <Sparkles
+                  size={14}
+                  color={tokens.primary}
+                  strokeWidth={1.6}
+                />
+              </View>
               <View style={styles.howItWorksText}>
                 <Text style={styles.howItWorksTitle}>
                   {t('referral.drawer.howItWorks')}
                 </Text>
                 <Text style={styles.howItWorksDesc}>
-                  {t('referral.drawer.explanation', { discount: discountPercent })}
+                  {t('referral.drawer.explanation', {
+                    discount: discountPercent,
+                  })}
                 </Text>
               </View>
             </View>
 
-            {/* Disclaimer */}
             <Text style={styles.disclaimer}>
               {t('referral.drawer.disclaimer', { discount: discountPercent })}
             </Text>
           </>
-        )}
+        ) : null}
       </BottomSheetScrollView>
     </BottomSheetModal>
   )
@@ -210,10 +218,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
 // Styles
 // ---------------------------------------------------------------------------
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     scroll: {
       flex: 1,
@@ -228,130 +233,112 @@ function createStyles(
       alignItems: 'center',
     },
     errorContainer: {
-      backgroundColor: colors.red500_10,
-      borderWidth: 1,
-      borderColor: colors.red500_30,
-      borderRadius: radius.lg,
-      padding: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairlineStrong,
+      borderRadius: 10,
+      padding: 14,
     },
     errorText: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      color: colors.red400,
-    },
-    label: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 6,
+      fontStyle: 'italic',
+      color: tokens.statusOverdue,
     },
     linkRow: {
       flexDirection: 'row',
       gap: 8,
+      paddingTop: 4,
     },
     linkBox: {
       flex: 1,
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairlineStrong,
+      backgroundColor: tokens.bgElev,
+      paddingHorizontal: 14,
       paddingVertical: 12,
+      justifyContent: 'center',
     },
     linkText: {
-      fontSize: 14,
-      color: colors.textPrimary,
-      fontFamily: 'monospace',
+      fontFamily: 'GeistMono',
+      fontSize: 13,
+      color: tokens.fg1,
     },
     copyBtn: {
-      backgroundColor: colors.primary,
-      borderRadius: radius.lg,
+      backgroundColor: tokens.primary,
+      borderRadius: 8,
       paddingHorizontal: 16,
       paddingVertical: 12,
       alignItems: 'center',
       justifyContent: 'center',
+      minWidth: 72,
     },
     copyBtnText: {
-      color: colors.white,
-      fontSize: 14,
-      fontWeight: '700',
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.fgOnPrimary,
     },
     shareBtn: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: radius.lg,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairlineStrong,
       paddingVertical: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
     shareBtnText: {
-      color: colors.textPrimary,
-      fontSize: 14,
-      fontWeight: '700',
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+      color: tokens.fg1,
     },
-    statsCard: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 16,
-      gap: 12,
-      ...shadows.sm,
-      elevation: 2,
-    },
-    statRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    statLabel: {
-      fontSize: 14,
-      color: colors.textSecondary,
-    },
-    statValue: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.textPrimary,
+    progressBlock: {
+      paddingHorizontal: 20,
+      paddingVertical: 14,
     },
     progressTrack: {
-      height: 8,
-      backgroundColor: colors.background,
-      borderRadius: radius.full,
+      height: 5,
+      borderRadius: 999,
       overflow: 'hidden',
     },
     progressFill: {
       height: '100%',
-      backgroundColor: colors.primary,
-      borderRadius: radius.full,
+      borderRadius: 999,
     },
     howItWorks: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 12,
-      backgroundColor: colors.primary_10,
-      borderWidth: 1,
-      borderColor: colors.primary_15,
-      borderRadius: radius.lg,
-      padding: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: tokens.hairline,
+      paddingTop: 14,
+    },
+    howItWorksIcon: {
+      marginTop: 2,
     },
     howItWorksText: {
       flex: 1,
+      gap: 4,
     },
     howItWorksTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.textPrimary,
-      marginBottom: 4,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.fg1,
     },
     howItWorksDesc: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      lineHeight: 18,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg2,
+      lineHeight: 19,
     },
     disclaimer: {
-      fontSize: 10,
-      color: colors.textMuted,
-      lineHeight: 14,
+      fontFamily: 'Geist',
+      fontSize: 11,
+      color: tokens.fg4,
+      lineHeight: 15,
+      fontStyle: 'italic',
     },
   })
 }
