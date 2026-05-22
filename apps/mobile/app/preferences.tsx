@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
-  Switch,
   Linking,
   AppState,
 } from 'react-native'
@@ -13,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Check, Lock } from 'lucide-react-native'
+import { Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -29,15 +28,74 @@ import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { createColors, spacing } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ProBadge } from '@/components/ui/pro-badge'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Chip } from '@/components/ui/chip'
+import { MonoToggle } from '@/components/ui/mono-toggle'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
-type AppColors = ReturnType<typeof createColors>
+type Tokens = ReturnType<typeof createTokensV2>
 
 // ---------------------------------------------------------------------------
-// Preferences Screen
+// Scheme Swatches — v8 strip of 6 colored dots, active has fg-1 inset ring.
+// ---------------------------------------------------------------------------
+
+interface SchemeSwatchesProps {
+  active: ColorScheme
+  hasProAccess: boolean
+  tokens: Tokens
+  onSelect: (scheme: ColorScheme) => void
+}
+
+function SchemeSwatches({
+  active,
+  hasProAccess,
+  tokens,
+  onSelect,
+}: Readonly<SchemeSwatchesProps>) {
+  return (
+    <View style={styles.swatchRow}>
+      {colorSchemeOptions.map((option) => {
+        const isActive = option.value === active
+        const locked = !hasProAccess && option.value !== 'purple'
+        return (
+          <Pressable
+            key={option.value}
+            onPress={() => onSelect(option.value)}
+            accessibilityRole="button"
+            accessibilityLabel={option.value}
+            accessibilityState={{ selected: isActive }}
+            style={({ pressed }) => [
+              styles.swatchPress,
+              pressed && !locked && { opacity: 0.7 },
+            ]}
+          >
+            <View
+              style={[
+                styles.swatchDot,
+                {
+                  backgroundColor: option.color,
+                  borderColor: isActive ? tokens.fg1 : 'transparent',
+                  borderWidth: isActive ? 2 : 0,
+                },
+              ]}
+            >
+              {locked ? (
+                <Lock size={9} color="rgba(255,255,255,0.85)" strokeWidth={2} />
+              ) : null}
+            </View>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Preferences Screen — v8 chrome
 // ---------------------------------------------------------------------------
 
 export default function PreferencesScreen() {
@@ -45,8 +103,16 @@ export default function PreferencesScreen() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
-  const { colors, applyScheme, applyTheme, currentTheme, currentScheme } =
-    useAppTheme()
+  const {
+    applyScheme,
+    applyTheme,
+    currentTheme,
+    currentScheme,
+  } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const {
     isEnabled: pushEnabled,
     isRegistered: pushRegistered,
@@ -58,13 +124,9 @@ export default function PreferencesScreen() {
     requestPermission,
     refreshPermissionStatus,
   } = usePushNotifications()
-  const styles = useMemo(() => createStyles(colors), [colors])
 
   // --- Language ---
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
-
-  // Mirror profile.language into local controlled state.
-  // "Adjust state when prop changes" pattern.
   const [previousProfileLanguage, setPreviousProfileLanguage] = useState(
     profile?.language,
   )
@@ -91,9 +153,8 @@ export default function PreferencesScreen() {
     }
   }
 
-  // --- Week Start Day ---
+  // --- Week Start ---
   const weekStartOptions = buildWeekStartOptions(t)
-
   const weekStartMutation = useMutation({
     mutationFn: (day: number) =>
       performQueuedApiMutation({
@@ -125,21 +186,13 @@ export default function PreferencesScreen() {
     applyScheme(scheme)
   }
 
-  // --- Theme Mode (Dark / Light) ---
-  const themeModeOptions: readonly {
-    value: ThemeMode
-    labelKey: string
-  }[] = [
-    { value: 'light', labelKey: 'preferences.themeModeLight' },
-    { value: 'dark', labelKey: 'preferences.themeModeDark' },
-  ]
-
+  // --- Theme Mode ---
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
     applyTheme(mode)
   }
 
-  // --- Home Screen Toggle ---
+  // --- Home Screen ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
@@ -155,16 +208,12 @@ export default function PreferencesScreen() {
 
   useEffect(() => {
     if (!pushSupported) return
-
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         void refreshPermissionStatus()
       }
     })
-
-    return () => {
-      subscription.remove()
-    }
+    return () => subscription.remove()
   }, [pushSupported, refreshPermissionStatus])
 
   async function handleShowGeneralToggle(nextValue: boolean) {
@@ -175,11 +224,12 @@ export default function PreferencesScreen() {
         String(nextValue),
       )
     } catch {
-      // Best-effort local preference persistence
+      // Best-effort persistence
     }
   }
 
-  async function handlePushToggle(nextValue: boolean) {
+  async function handlePushToggle() {
+    const nextValue = !pushEnabled
     if (nextValue) {
       if (permissionStatus === 'denied') {
         await Linking.openSettings().catch(() => {})
@@ -188,7 +238,6 @@ export default function PreferencesScreen() {
       await requestPermission()
       return
     }
-
     await disablePushNotifications()
   }
 
@@ -201,370 +250,263 @@ export default function PreferencesScreen() {
   const pushStatusText = t(pushStatusPresentation.messageKey)
   const pushStatusColor =
     pushStatusPresentation.tone === 'critical'
-      ? colors.red400
+      ? tokens.statusBad
       : pushStatusPresentation.tone === 'accent'
-        ? colors.primary
-        : colors.textMuted
-  const pushToggleValue = pushEnabled
+        ? tokens.primary
+        : tokens.fg3
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
+      edges={['top']}
+    >
+      <AppBar
+        back
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('preferences.title')}
+        backLabel={t('common.goBack')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBackOrFallback('/profile')}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('preferences.title')}</Text>
-        </View>
-
         <TrialBanner />
 
         {/* Language */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('profile.language.title')}</Text>
-          <Text style={styles.cardDescription}>
-            {t('profile.language.description')}
+        <SectionLabel>{t('profile.language.title')}</SectionLabel>
+        <View
+          style={[styles.chipsRow, { borderBottomColor: tokens.hairline }]}
+        >
+          {LANGUAGE_OPTIONS.map((lang) => (
+            <Chip
+              key={lang.value}
+              active={selectedLanguage === lang.value}
+              onPress={() => handleLanguageChange(lang.value)}
+            >
+              {lang.label}
+            </Chip>
+          ))}
+        </View>
+
+        {/* Appearance — Theme */}
+        <SectionLabel>{t('preferences.themeMode')}</SectionLabel>
+        <View
+          style={[styles.themeRow, { borderBottomColor: tokens.hairline }]}
+        >
+          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
+            {t('preferences.themeMode')}
           </Text>
-          <View style={styles.optionRow}>
-            {LANGUAGE_OPTIONS.map((lang) => (
-              <TouchableOpacity
-                key={lang.value}
-                style={[
-                  styles.optionButton,
-                  selectedLanguage === lang.value && styles.optionButtonActive,
-                ]}
-                onPress={() => handleLanguageChange(lang.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    selectedLanguage === lang.value && styles.optionTextActive,
-                  ]}
-                >
-                  {lang.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <MonoToggle
+            on={currentTheme === 'dark'}
+            onLabel={t('preferences.themeModeDark').toUpperCase()}
+            offLabel={t('preferences.themeModeLight').toUpperCase()}
+            onPress={() => {
+              handleThemeModeChange(currentTheme === 'dark' ? 'light' : 'dark')
+            }}
+            accessibilityLabel={t('preferences.themeMode')}
+          />
         </View>
 
-        {/* Color Scheme */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>
-              {t('profile.colorScheme.title')}
-            </Text>
-            <ProBadge alwaysVisible />
-          </View>
-          <Text style={styles.cardDescription}>
-            {t('profile.colorScheme.description')}
+        {/* Scheme */}
+        <View
+          style={[styles.schemeRow, { borderBottomColor: tokens.hairline }]}
+        >
+          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
+            {t('profile.colorScheme.title')}
           </Text>
-          <View style={styles.schemeRow}>
-            {colorSchemeOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.schemeDot,
-                  { backgroundColor: option.color },
-                  currentScheme === option.value && styles.schemeDotActive,
-                  currentScheme === option.value && {
-                    borderColor: option.color,
-                  },
-                ]}
-                onPress={() => handleSchemeChange(option.value)}
-                activeOpacity={0.7}
-              >
-                {currentScheme === option.value && (
-                  <Check size={16} color="#fff" />
-                )}
-                {!profile?.hasProAccess &&
-                  option.value !== 'purple' &&
-                  currentScheme !== option.value && (
-                    <Lock size={12} color="rgba(255,255,255,0.7)" />
-                  )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <SchemeSwatches
+            active={currentScheme}
+            hasProAccess={profile?.hasProAccess ?? false}
+            tokens={tokens}
+            onSelect={handleSchemeChange}
+          />
         </View>
 
-        {/* Theme Mode */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('preferences.themeMode')}</Text>
-          <View style={styles.optionRow}>
-            {themeModeOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  styles.optionButton,
-                  currentTheme === opt.value && styles.optionButtonActive,
-                ]}
-                onPress={() => handleThemeModeChange(opt.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    currentTheme === opt.value && styles.optionTextActive,
-                  ]}
-                >
-                  {t(opt.labelKey)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Week Start Day */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>
+        {/* Schedule */}
+        <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
+        <View
+          style={[styles.weekRow, { borderBottomColor: tokens.hairline }]}
+        >
+          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
             {t('settings.weekStartDay.title')}
           </Text>
-          <Text style={styles.cardDescription}>
-            {t('settings.weekStartDay.description')}
-          </Text>
-          <View style={styles.optionRow}>
+          <View style={styles.weekChips}>
             {weekStartOptions.map((opt) => (
-              <TouchableOpacity
+              <Chip
                 key={opt.value}
-                style={[
-                  styles.optionButton,
-                  profile?.weekStartDay === opt.value &&
-                    styles.optionButtonActive,
-                ]}
+                active={profile?.weekStartDay === opt.value}
                 onPress={() => weekStartMutation.mutate(opt.value)}
-                activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.optionText,
-                    profile?.weekStartDay === opt.value &&
-                      styles.optionTextActive,
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
+                {opt.label}
+              </Chip>
             ))}
           </View>
         </View>
 
-        {/* Home Screen */}
-        <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardLabel}>
-                {t('settings.homeScreen.title')}
-              </Text>
-              <Text style={[styles.cardHint, { marginTop: 4 }]}>
-                {t('settings.homeScreen.showGeneralDesc')}
-              </Text>
-            </View>
-            <Switch
-              value={showGeneralOnToday}
-              onValueChange={handleShowGeneralToggle}
-              trackColor={{
-                false: colors.surfaceElevated,
-                true: colors.primary,
-              }}
-              thumbColor="#fff"
-            />
-          </View>
-        </View>
-
-        {/* Push Notifications */}
-        {pushSupported && (
-          <View style={styles.card}>
-            <View style={styles.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardLabel}>
-                  {t('settings.notifications.title')}
-                </Text>
-                <Text style={[styles.cardDescription, { marginTop: 4 }]}>
-                  {t('settings.notifications.description')}
-                </Text>
-              </View>
-              <Switch
-                value={pushToggleValue}
-                onValueChange={handlePushToggle}
-                disabled={pushLoading}
-                trackColor={{
-                  false: colors.surfaceElevated,
-                  true: colors.primary,
-                }}
-                thumbColor="#fff"
-              />
-            </View>
-            <Text
-              style={[
-                styles.statusText,
-                {
-                  color: pushStatusColor,
-                },
-              ]}
+        {/* Notifications */}
+        <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+        {pushSupported ? (
+          <>
+            <SettingsRow
+              label={t('settings.notifications.title')}
+              accessory="none"
             >
-              {pushStatusText}
-            </Text>
-            {permissionStatus === 'denied' && (
-              <TouchableOpacity
-                style={styles.inlineActionButton}
+              <MonoToggle
+                on={pushEnabled}
                 onPress={() => {
-                  void Linking.openSettings().catch(() => {})
+                  void handlePushToggle()
                 }}
-                activeOpacity={0.75}
+                disabled={pushLoading}
+                accessibilityLabel={t('settings.notifications.title')}
+              />
+            </SettingsRow>
+            <View
+              style={[styles.statusBlock, { borderBottomColor: tokens.hairline }]}
+            >
+              <Text
+                style={[styles.statusText, { color: pushStatusColor }]}
               >
-                <Text style={styles.inlineActionText}>
-                  {t('settings.notifications.openSettings')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-        {!pushSupported && (
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>
-              {t('settings.notifications.title')}
-            </Text>
-            <Text style={styles.statusText}>
+                {pushStatusText}
+              </Text>
+            </View>
+            {permissionStatus === 'denied' ? (
+              <View
+                style={[
+                  styles.actionBlock,
+                  { borderBottomColor: tokens.hairline },
+                ]}
+              >
+                <Pressable
+                  onPress={() => {
+                    void Linking.openSettings().catch(() => {})
+                  }}
+                  accessibilityRole="button"
+                  style={styles.linkPress}
+                >
+                  <Text style={[styles.linkText, { color: tokens.fg1 }]}>
+                    {t('settings.notifications.openSettings')}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View
+            style={[styles.statusBlock, { borderBottomColor: tokens.hairline }]}
+          >
+            <Text style={[styles.statusText, { color: tokens.fg3 }]}>
               {t('settings.notifications.unsupportedNative')}
             </Text>
           </View>
         )}
+
+        {/* Home */}
+        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
+        <SettingsRow
+          label={t('settings.homeScreen.showGeneralDesc')}
+          accessory="none"
+        >
+          <MonoToggle
+            on={showGeneralOnToday}
+            onPress={() => {
+              void handleShowGeneralToggle(!showGeneralOnToday)
+            }}
+            accessibilityLabel={t('settings.homeScreen.showGeneralDesc')}
+          />
+        </SettingsRow>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: AppColors) {
-  return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: colors.background },
-    container: { flex: 1 },
-    scrollContent: {
-      paddingHorizontal: spacing.pageX,
-      paddingBottom: spacing.pageBottom,
-    },
-
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.cardGap,
-      paddingTop: spacing.sectionGap * 2,
-      paddingBottom: spacing.cardGap * 2,
-    },
-    backButton: { padding: 8, marginLeft: -8 },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
-    },
-
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: spacing.cardPadding,
-      marginBottom: spacing.cardGap,
-      gap: spacing.cardGap,
-    },
-    cardHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    cardLabel: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      color: colors.textMuted,
-    },
-    cardDescription: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      lineHeight: 20,
-    },
-    cardHint: {
-      fontSize: 12,
-      color: colors.textMuted,
-    },
-
-    schemeRow: {
-      flexDirection: 'row',
-      gap: 12,
-      paddingTop: 4,
-    },
-    schemeDot: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      opacity: 0.7,
-    },
-    schemeDotActive: {
-      opacity: 1,
-      borderWidth: 3,
-      transform: [{ scale: 1.1 }],
-    },
-
-    optionRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    optionButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 16,
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    optionButtonActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    optionText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    optionTextActive: {
-      color: '#fff',
-    },
-
-    toggleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-
-    statusText: {
-      fontSize: 12,
-      fontWeight: '500',
-    },
-    inlineActionButton: {
-      alignSelf: 'flex-start',
-      marginTop: 2,
-      paddingVertical: 4,
-    },
-    inlineActionText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.primary,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 40 },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  themeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  schemeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  weekRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  weekChips: {
+    flexDirection: 'row',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  themeLabel: {
+    fontFamily: 'Geist',
+    fontSize: 15,
+    flexShrink: 1,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  swatchPress: {
+    padding: 2,
+  },
+  swatchDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBlock: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  statusText: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  actionBlock: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  linkPress: { padding: 4, alignSelf: 'flex-start' },
+  linkText: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+})
