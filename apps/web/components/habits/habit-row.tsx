@@ -6,7 +6,25 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
 import { SelectCheck } from '@/components/ui/select-check'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
-import type { HabitCardActions } from './habit-card'
+
+/** Action callbacks consumed by HabitRow. Mirrors the mobile shape so that
+ *  cross-platform call sites can pass the same handler bag. */
+export interface HabitRowActions {
+  onLog?: () => void
+  onUnlog?: () => void
+  onSkip?: () => void
+  onDelete?: () => void
+  onDuplicate?: () => void
+  onEdit?: () => void
+  onMoveParent?: () => void
+  onDetail?: () => void
+  onDrillInto?: () => void
+  onToggleSelection?: () => void
+  onAddSubHabit?: () => void
+  onToggleExpand?: () => void
+  onForceLogParent?: () => void
+  onEnterSelectMode?: () => void
+}
 
 /** Inline meta token rendered between dots in the row's meta strip.
  *  String tokens render in fg-3; tagged tokens get status color. */
@@ -42,7 +60,7 @@ interface HabitRowProps {
   showLinkedGoalDot?: boolean
   /** Optional data attribute (`data-tour-target`) used by the feature tour. */
   tourTargetId?: string
-  actions?: HabitCardActions
+  actions?: HabitRowActions
 }
 
 const TREE_LINE_OFFSET_PX = 12

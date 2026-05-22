@@ -24,7 +24,10 @@ Personal habit tracker. Turborepo monorepo: Next.js 15 (web) + Expo/React Native
 
 | What | Where |
 |------|-------|
-| Design system (CSS tokens) | `apps/web/app/globals.css` |
+| Design tokens (OKLCH neutrals, 6 schemes, semantic vars) | `apps/web/app/globals.css` (Tailwind v4 CSS-first; web), `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/color-schemes.ts` (mobile + shared) |
+| Web app shell + nav | `apps/web/app/(app)/layout.tsx` + `apps/web/components/navigation/web-nav.tsx` |
+| Mobile app shell + nav | `apps/mobile/app/_layout.tsx` + `apps/mobile/components/navigation/bottom-tab-bar.tsx` |
+| Primitives (AppBar, SectionLabel, HabitRow, StatusDot, ParentRing, Chip, SettingsRow, InfoRow, PullQuote, ConfirmDialog, RingMotif) | `apps/web/components/ui/*` + `apps/web/components/habits/habit-row.tsx` + `apps/web/components/chat/pull-quote.tsx` + `apps/web/components/gamification/ring-motif.tsx` (mirrored on mobile under `apps/mobile/components/`) |
 | Auth middleware | `apps/web/middleware.ts` |
 | BFF catch-all proxy | `apps/web/app/api/[...path]/route.ts` |
 | Server Actions (mutations) | `apps/web/app/actions/*.ts` |
