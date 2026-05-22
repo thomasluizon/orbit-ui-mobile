@@ -285,7 +285,7 @@ export default function AdvancedPage() {
 
                 {/* Max keys warning */}
                 {!canCreateKey && (
-                  <p className="text-xs text-amber-400 font-medium">
+                  <p className="text-xs text-[var(--status-overdue)] font-medium">
                     {t('orbitMcp.maxKeysReached')}
                   </p>
                 )}
@@ -300,11 +300,11 @@ export default function AdvancedPage() {
 
                 {/* Error */}
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
-                  <p className="text-xs text-red-400">{t('orbitMcp.apiKeysError')}</p>
+                  <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.apiKeysError')}</p>
                 )}
 
                 {capabilitiesQuery.error && !capabilitiesQuery.isLoading && (
-                  <p className="text-xs text-red-400">{t('orbitMcp.apiKeysError')}</p>
+                  <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.apiKeysError')}</p>
                 )}
 
                 {/* Empty state */}
@@ -352,8 +352,8 @@ export default function AdvancedPage() {
                         {/* Revoke */}
                         {revokingKeyId === key.id ? (
                           /* Revoke: confirmation state */
-                          <div className="flex items-center justify-between rounded-xl bg-red-500/5 border border-red-500/20 px-3 py-2">
-                            <p className="text-xs text-red-400">{t('orbitMcp.revokeConfirm')}</p>
+                          <div className="flex items-center justify-between rounded-xl bg-[var(--status-bad)]/5 border border-[var(--status-bad)]/20 px-3 py-2">
+                            <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.revokeConfirm')}</p>
                             <div className="flex items-center gap-2 shrink-0 ml-3">
                               <button
                                 className="text-xs font-semibold text-text-muted hover:text-text-primary transition-colors"
@@ -362,7 +362,7 @@ export default function AdvancedPage() {
                                 {t('orbitMcp.cancel')}
                               </button>
                               <button
-                                className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors"
+                                className="text-xs font-semibold text-[var(--status-bad)] hover:text-[var(--status-bad)]/80 transition-colors"
                                 onClick={() => revokeKeyMutation.mutate(key.id)}
                               >
                                 {t('orbitMcp.confirm')}
@@ -373,7 +373,7 @@ export default function AdvancedPage() {
                           /* Revoke: normal state */
                           <div className="flex justify-end">
                             <button
-                              className="text-xs font-semibold text-text-muted hover:text-red-500 transition-colors"
+                              className="text-xs font-semibold text-text-muted hover:text-[var(--status-bad)] transition-colors"
                               onClick={() => setRevokingKeyId(key.id)}
                             >
                               {t('orbitMcp.revoke')}
@@ -421,7 +421,7 @@ export default function AdvancedPage() {
                           return (
                             <button
                               key={tab}
-                              className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-all ${
+                              className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-[background-color,border-color,color] ${
                                 activeConfigTab === tab
                                   ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
                                   : 'bg-background border border-border text-text-secondary hover:text-text-primary'
@@ -448,7 +448,7 @@ export default function AdvancedPage() {
                         <div className="relative">
                           <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{MCP_ENDPOINT_URL}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                             onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
                           >
                             <Clipboard className="size-4" />
@@ -465,11 +465,11 @@ export default function AdvancedPage() {
                         <div className="relative">
                           <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                             onClick={copyConfig}
                           >
                             {configCopied ? (
-                              <Check className="size-4 text-emerald-400" />
+                              <Check className="size-4 text-[var(--status-done)]" />
                             ) : (
                               <Clipboard className="size-4" />
                             )}

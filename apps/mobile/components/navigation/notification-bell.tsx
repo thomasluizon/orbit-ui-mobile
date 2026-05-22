@@ -169,7 +169,7 @@ export function NotificationBell() {
 
   return (
     <View>
-      {/* Bell button */}
+      {/* v8 bell button: 36x36 flat icon, primary unread dot ringed by --bg. */}
       <TouchableOpacity
         style={styles.bellButton}
         activeOpacity={0.7}
@@ -180,14 +180,8 @@ export function NotificationBell() {
             : t('notifications.bell')
         }
       >
-        <Bell size={16} color={colors.textSecondary} />
-        {visibleUnreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {visibleUnreadCount > 9 ? '9+' : visibleUnreadCount}
-            </Text>
-          </View>
-        )}
+        <Bell size={17} color={colors.textSecondary} strokeWidth={1.5} />
+        {visibleUnreadCount > 0 && <View style={styles.bellUnreadDot} />}
       </TouchableOpacity>
 
       {/* Notification list sheet */}
@@ -271,29 +265,20 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], shadows:
     bellButton: {
       width: 36,
       height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    badge: {
+    bellUnreadDot: {
       position: 'absolute',
-      top: -2,
-      right: -2,
-      minWidth: 18,
-      height: 18,
-      borderRadius: 9,
+      top: 8,
+      right: 8,
+      width: 6,
+      height: 6,
+      borderRadius: 999,
       backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 4,
-    },
-    badgeText: {
-      color: colors.white,
-      fontSize: 10,
-      fontWeight: '700',
+      borderWidth: 2,
+      borderColor: colors.background,
     },
     actionsRow: {
       flexDirection: 'row',

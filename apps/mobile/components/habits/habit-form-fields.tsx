@@ -71,7 +71,6 @@ import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-i
 import { ProBadge } from "@/components/ui/pro-badge";
 import { radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { useDeviceLocale } from "@/hooks/use-device-locale";
 
 type ThemeColors = ReturnType<typeof useAppTheme>["colors"];
 
@@ -809,8 +808,8 @@ function ScheduledReminderSection({
   onSetScheduledReminders,
   onValidationError,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const { t } = useTranslation();
-  const deviceLocale = useDeviceLocale();
+  const { t, i18n } = useTranslation();
+  const deviceLocale = i18n.language;
   const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
   const MAX_SCHEDULED_REMINDERS = 5;
   const [showForm, setShowForm] = useState(false);

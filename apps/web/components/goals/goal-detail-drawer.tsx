@@ -2,8 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -59,7 +58,7 @@ export function GoalDetailDrawer({
       t(key, values),
     [t],
   )
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const { showError } = useAppToast()
 
   // Queries

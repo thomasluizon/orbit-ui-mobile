@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Sparkles } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useRouter } from 'next/navigation'
+import { Sparkles, ChevronRight } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -44,7 +44,7 @@ export function HabitDetailDrawer({
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const { displayTime } = useTimeFormat()
   const habitId = habit?.id ?? ''
 
@@ -109,6 +109,16 @@ export function HabitDetailDrawer({
     ? t('habits.detail.askAstraSubHabits')
     : t('habits.detail.askAstraDefault')
 
+  const router = useRouter()
+  function handleAskAstra() {
+    const seed = habit?.title ? `${askPrompt} (${habit.title})` : askPrompt
+    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem('orbit-chat-draft', seed)
+    }
+    onOpenChange(false)
+    router.push('/chat')
+  }
+
   return (
     <>
       {habit?.description && (
@@ -128,18 +138,37 @@ export function HabitDetailDrawer({
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
         footer={
-          <PullQuote
-            paddingX={0}
-            paddingY={0}
-            eyebrow={
-              <>
-                <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
-                <span>{t('habits.detail.askAstraEyebrow')}</span>
-              </>
-            }
+          <button
+            type="button"
+            onClick={handleAskAstra}
+            aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
+            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-surface-elevated/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+            style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
           >
-            {askPrompt}
-          </PullQuote>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <PullQuote
+                  paddingX={0}
+                  paddingY={0}
+                  eyebrow={
+                    <>
+                      <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                      <span>{t('habits.detail.askAstraEyebrow')}</span>
+                    </>
+                  }
+                >
+                  {askPrompt}
+                </PullQuote>
+              </div>
+              <ChevronRight
+                size={16}
+                strokeWidth={1.7}
+                color="var(--fg-3)"
+                aria-hidden="true"
+                className="shrink-0"
+              />
+            </div>
+          </button>
         }
       >
         {habit && (

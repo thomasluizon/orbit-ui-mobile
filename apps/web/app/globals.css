@@ -6,31 +6,31 @@
      5-level surface hierarchy, semantic tokens, spring animations
      ═══════════════════════════════════════════════════════ */
 
-  /* Surface hierarchy (5 levels of depth) */
-  --color-background: #07060e;
-  --color-surface-ground: #0d0b16;
-  --color-surface: #13111f;
-  --color-surface-elevated: #1a1829;
-  --color-surface-overlay: #211f33;
+  /* Surfaces — aliased to v8 OKLCH tokens (defined per-scheme on :root.dark/.light).
+     Old Tailwind classes (bg-background, bg-surface, bg-surface-elevated, ...) now
+     resolve to v8 colors so the whole codebase migrates at once. */
+  --color-background:       var(--bg);
+  --color-surface-ground:   var(--bg-sunk);
+  --color-surface:          var(--bg-elev);
+  --color-surface-elevated: var(--bg-elev);
+  --color-surface-overlay:  var(--bg-elev);
+  --color-card:             var(--bg-elev);
+  --color-card-border:      var(--hairline);
 
-  /* Legacy aliases (keep for backward compat with Nuxt UI internals) */
-  --color-card: #13111f;
-  --color-card-border: #1a1829;
+  /* Primary accent — aliased to scheme-driven v8 token */
+  --color-primary: var(--primary);
 
-  /* Primary accent (default: purple) */
-  --color-primary: #8b5cf6;
+  /* Text hierarchy — aliased to v8 fg tokens */
+  --color-text-primary:   var(--fg-1);
+  --color-text-secondary: var(--fg-2);
+  --color-text-muted:     var(--fg-3);
+  --color-text-faded:     var(--fg-3);
+  --color-text-inverse:   var(--fg-on-primary);
 
-  /* Text hierarchy */
-  --color-text-primary: #f0eef6;
-  --color-text-secondary: #9b95ad;
-  --color-text-muted: #7a7490;
-  --color-text-faded: #a59cba;
-  --color-text-inverse: #07060e;
-
-  /* Border hierarchy (3 levels) */
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-muted: rgba(255, 255, 255, 0.04);
-  --color-border-emphasis: rgba(255, 255, 255, 0.12);
+  /* Borders — aliased to v8 hairline tokens */
+  --color-border:          var(--hairline);
+  --color-border-muted:    var(--hairline);
+  --color-border-emphasis: var(--hairline-strong);
 
   /* Semantic feedback */
   --color-success: #34d399;

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection } from './_components/achievement-category-section'
@@ -14,6 +14,8 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 export default function AchievementsPage() {
   const t = useTranslations()
+  const locale = useLocale()
+  const formatNum = (n: number) => new Intl.NumberFormat(locale).format(n)
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile: accountProfile, isLoading: profileLoading } = useProfile()
@@ -143,8 +145,8 @@ export default function AchievementsPage() {
                         }}
                       >
                         {t('gamification.profileCard.xp', {
-                          current: profile.totalXp.toLocaleString(),
-                          next: profile.xpForNextLevel.toLocaleString(),
+                          current: formatNum(profile.totalXp),
+                          next: formatNum(profile.xpForNextLevel),
                         })}
                       </div>
                     </div>
@@ -182,7 +184,7 @@ export default function AchievementsPage() {
                   >
                     <span>
                       {t('gamification.profileCard.totalXp', {
-                        total: profile.totalXp.toLocaleString(),
+                        total: formatNum(profile.totalXp),
                       })}
                     </span>
                     <span>

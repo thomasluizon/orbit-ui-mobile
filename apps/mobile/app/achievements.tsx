@@ -30,7 +30,8 @@ type Tokens = ReturnType<typeof createTokensV2>
 // ---------------------------------------------------------------------------
 
 export default function AchievementsScreen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const formatNum = (n: number) => new Intl.NumberFormat(i18n.language).format(n)
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -161,8 +162,8 @@ export default function AchievementsScreen() {
                   </Text>
                   <Text style={[styles.levelMeta, { color: tokens.fg3 }]}>
                     {t('gamification.profileCard.xp', {
-                      current: profile.totalXp.toLocaleString(),
-                      next: profile.xpForNextLevel.toLocaleString(),
+                      current: formatNum(profile.totalXp),
+                      next: formatNum(profile.xpForNextLevel),
                     })}
                   </Text>
                 </View>

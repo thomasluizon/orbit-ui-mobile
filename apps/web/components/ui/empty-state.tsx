@@ -17,7 +17,7 @@ interface EmptyStateProps {
 
 const iconVariantClasses: Record<NonNullable<EmptyStateProps['iconVariant']>, string> = {
   default: 'bg-surface-ground border border-border-muted text-text-muted',
-  success: 'bg-green-500/10 border border-green-500/20 text-green-400',
+  success: 'bg-[var(--status-done)]/10 border border-[var(--status-done)]/20 text-[var(--status-done)]',
 }
 
 export function EmptyState({

@@ -839,6 +839,10 @@
     "freshStart": {
       "button": "Fresh Start",
       "title": "Fresh Start",
+      "heading": "Fresh Start",
+      "confirmHeading": "Are you sure?",
+      "willDelete": "What will be deleted",
+      "willKeep": "What stays",
       "description": "Start your journey over with a clean slate. This will permanently delete all your data.",
       "whatDeleted": "What will be deleted:",
       "deleteHabits": "All habits, sub-habits, and completion history",
@@ -865,6 +869,9 @@
     "deleteAccount": {
       "button": "Delete account",
       "title": "Delete Account",
+      "headingAreYouSure": "Are you sure?",
+      "headingConfirmCode": "Confirm with code",
+      "headingDeactivated": "Account deactivated",
       "warning": "This action is irreversible.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
       "warningPro": "Your account will be deactivated and permanently deleted 7 days after your plan expires on {date}. Log back in anytime before then to cancel.",

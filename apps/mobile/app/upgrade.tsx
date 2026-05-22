@@ -55,7 +55,6 @@ import {
 import { plural } from '@/lib/plural'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -400,14 +399,14 @@ function FeatureComparisonTable({
 export default function UpgradeScreen() {
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
   const goBackOrFallback = useGoBackOrFallback()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
   const { isOnline } = useOffline()
-  const locale = useDeviceLocale()
+  const locale = i18n.language
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()

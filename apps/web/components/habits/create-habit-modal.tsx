@@ -302,12 +302,12 @@ export function CreateHabitModal({
                           type="text"
                           maxLength={200}
                           placeholder={t('habits.form.subHabitPlaceholder')}
-                          className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                          className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-[border-color,box-shadow]"
                           onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
                         />
                         <button
                           type="button"
-                          className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 rounded-full"
+                          className="shrink-0 p-2 text-text-muted hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors duration-150 rounded-full"
                           onClick={() => removeSubHabit(entry.id)}
                         >
                           <Trash2 className="size-4" />

@@ -170,7 +170,7 @@ function AutoSyncSettingsCard() {
       )}
 
       {showReconnect && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 dark:text-yellow-400 rounded-2xl p-4 space-y-3">
+        <div className="bg-[var(--status-overdue)]/10 border border-[var(--status-overdue)]/30 text-[var(--status-overdue)] rounded-2xl p-4 space-y-3">
           <div className="flex items-start gap-2">
             <AlertTriangle className="size-4 mt-0.5 shrink-0" aria-hidden />
             <div className="flex-1 min-w-0">
@@ -181,7 +181,7 @@ function AutoSyncSettingsCard() {
           <button
             type="button"
             onClick={connectGoogle}
-            className="w-full rounded-[var(--radius-lg)] bg-yellow-500 text-white font-bold py-2 text-xs hover:bg-yellow-500/90 transition-colors"
+            className="w-full rounded-[var(--radius-lg)] bg-[var(--status-overdue)] text-white font-bold py-2 text-xs hover:bg-[var(--status-overdue)]/90 transition-colors"
           >
             {t('calendar.autoSync.reconnectCta')}
           </button>
@@ -419,7 +419,7 @@ export default function CalendarSyncPage() {
             <p className="text-sm text-text-secondary">{t('calendar.notConnectedDesc')}</p>
           </div>
           <button
-            className="bg-primary text-white font-bold py-3 px-8 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-all"
+            className="bg-primary text-white font-bold py-3 px-8 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-colors"
             onClick={connectGoogle}
           >
             {t('auth.signInWithGoogle')}
@@ -455,7 +455,7 @@ export default function CalendarSyncPage() {
                   return (
                     <div
                       key={event.id}
-                      className={`w-full rounded-2xl p-4 transition-all border ${
+                      className={`w-full rounded-2xl p-4 transition-[background-color,border-color] border ${
                         selectedIds.has(event.id)
                           ? 'bg-primary/10 border-primary/30'
                           : 'bg-surface border-border'
@@ -533,7 +533,7 @@ export default function CalendarSyncPage() {
               {/* Import button */}
               <div className="pt-2">
                 <button
-                  className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
+                  className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-[background-color,transform,opacity] active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
                   disabled={selectedIds.size === 0}
                   onClick={importSelected}
                 >
@@ -556,8 +556,8 @@ export default function CalendarSyncPage() {
       {/* Done */}
       {step === 'done' && (
         <div className="flex flex-col items-center justify-center gap-6 pt-12" role="status" aria-live="polite">
-          <div className="size-16 rounded-full bg-green-500/15 flex items-center justify-center">
-            <Check className="size-8 text-green-400" />
+          <div className="size-16 rounded-full bg-[var(--status-done)]/15 flex items-center justify-center">
+            <Check className="size-8 text-[var(--status-done)]" />
           </div>
           <div className="text-center">
             <h2 className="text-lg font-bold text-text-primary mb-2">{t('calendar.importDone')}</h2>
@@ -567,7 +567,7 @@ export default function CalendarSyncPage() {
           </div>
           <Link
             href="/"
-            className="bg-primary text-white font-bold py-3 px-8 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-all"
+            className="bg-primary text-white font-bold py-3 px-8 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-colors"
           >
             {t('calendar.goToHabits')}
           </Link>
@@ -577,8 +577,8 @@ export default function CalendarSyncPage() {
       {/* Error */}
       {step === 'error' && (
         <div className="flex flex-col items-center justify-center gap-6 pt-12" role="alert" aria-live="assertive">
-          <div className="size-16 rounded-full bg-red-500/15 flex items-center justify-center">
-            <AlertTriangle className="size-8 text-red-400" />
+          <div className="size-16 rounded-full bg-[var(--status-bad)]/15 flex items-center justify-center">
+            <AlertTriangle className="size-8 text-[var(--status-bad)]" />
           </div>
           <div className="text-center">
             <h2 className="text-lg font-bold text-text-primary mb-2">{t('calendar.errorTitle')}</h2>
@@ -586,14 +586,14 @@ export default function CalendarSyncPage() {
           </div>
           <div className="flex gap-3">
             <button
-              className="bg-primary text-white font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-all"
+              className="bg-primary text-white font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-primary/90 transition-colors"
               onClick={isReviewMode ? () => suggestionsQuery.refetch() : fetchEvents}
             >
               {t('calendar.retry')}
             </button>
             <button
               type="button"
-              className="border border-border text-text-secondary font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-surface transition-all"
+              className="border border-border text-text-secondary font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-surface transition-colors"
               onClick={() => goBackOrFallback('/profile')}
             >
               {t('common.goBack')}

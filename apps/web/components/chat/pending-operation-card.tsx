@@ -142,9 +142,9 @@ export function PendingOperationCard({
   }
 
   return (
-    <div className="rounded-[var(--radius-xl)] border border-amber-500/25 bg-amber-500/8 p-4 shadow-[var(--shadow-sm)]">
+    <div className="rounded-[var(--radius-xl)] border border-[var(--status-overdue)]/25 bg-[var(--status-overdue)]/8 p-4 shadow-[var(--shadow-sm)]">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 rounded-full bg-amber-500/15 p-2 text-amber-300">
+        <div className="mt-0.5 rounded-full bg-[var(--status-overdue)]/15 p-2 text-[var(--status-overdue)]">
           <ShieldAlert className="size-4" />
         </div>
         <div className="flex-1 min-w-0 space-y-2">
@@ -152,7 +152,7 @@ export function PendingOperationCard({
             <p className="text-sm font-semibold text-text-primary">
               {pendingOperation.displayName}
             </p>
-            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            <span className="rounded-full border border-[var(--status-overdue)]/20 bg-[var(--status-overdue)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--status-overdue)]">
               {riskLabel}
             </span>
           </div>
@@ -207,11 +207,11 @@ export function PendingOperationCard({
           )}
 
           {error && (
-            <p className="text-xs text-red-400">{error}</p>
+            <p className="text-xs text-[var(--status-bad)]">{error}</p>
           )}
 
           {successMessage && (
-            <p className="text-xs font-medium text-emerald-400">{successMessage}</p>
+            <p className="text-xs font-medium text-[var(--status-done)]">{successMessage}</p>
           )}
         </div>
       </div>

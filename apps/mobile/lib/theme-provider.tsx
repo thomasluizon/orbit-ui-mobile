@@ -109,7 +109,10 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     systemScheme === 'light' ? 'light' : 'dark',
   )
   const [transitionSnapshot, setTransitionSnapshot] = useState<TransitionSnapshot | null>(null)
-  const transitionOpacity = useRef(new Animated.Value(0)).current
+  // useMemo (not useRef) for the Animated.Value so we don't read .current during
+  // render — React 19's react-hooks/refs forbids that. The instance is created
+  // once on mount and is referentially stable for the lifetime of the provider.
+  const transitionOpacity = useMemo(() => new Animated.Value(0), [])
   const transitionFrameRef = useRef<number | null>(null)
   const hasMountedRef = useRef(false)
   const previousThemeRef = useRef<{ scheme: ColorScheme; theme: ThemeMode }>({
@@ -172,32 +175,34 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
   }, [currentScheme, currentTheme, runThemeTransition])
 
-  // Hydrate theme state from profile and auto-detect-and-save on first login.
+  // Sync local state from profile via the "Adjusting state when a prop changes"
+  // pattern (compare prev-snapshot during render, setState only on transitions).
+  // React 19 forbids setState in effects when the cause is a prop change.
+  const targetScheme = profile
+    ? resolveAccessibleColorScheme(profile.colorScheme, profile.hasProAccess)
+    : null
+  const [previousTargetScheme, setPreviousTargetScheme] = useState<ColorScheme | null>(targetScheme)
+  if (targetScheme !== null && targetScheme !== previousTargetScheme) {
+    setPreviousTargetScheme(targetScheme)
+    setCurrentScheme(targetScheme)
+  }
+
+  const targetTheme =
+    profile?.themePreference === 'dark' || profile?.themePreference === 'light'
+      ? profile.themePreference
+      : null
+  const [previousTargetTheme, setPreviousTargetTheme] = useState<ThemeMode | null>(targetTheme)
+  if (targetTheme !== null && targetTheme !== previousTargetTheme) {
+    setPreviousTargetTheme(targetTheme)
+    setCurrentTheme(targetTheme)
+  }
+
+  // Side-effect-only: on first profile load, if the DB has no scheme/theme yet,
+  // detect from system and persist. The setRuntimeTheme module mutation is
+  // handled by the dedicated effect above (line 145) once state has updated.
   useEffect(() => {
     if (!profile) return
 
-    // syncSchemeFromProfile: DB -> state (no mutation).
-    const accessibleScheme = resolveAccessibleColorScheme(
-      profile.colorScheme,
-      profile.hasProAccess,
-    )
-    if (accessibleScheme !== currentScheme) {
-      const next = accessibleScheme
-      setCurrentScheme(next)
-      setRuntimeTheme({ scheme: next, themeMode: getRuntimeTheme().themeMode })
-    }
-
-    // syncThemeFromProfile: DB -> state (no mutation).
-    if (
-      (profile.themePreference === 'dark' || profile.themePreference === 'light') &&
-      profile.themePreference !== currentTheme
-    ) {
-      const next = profile.themePreference
-      setCurrentTheme(next)
-      setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: next })
-    }
-
-    // detectAndSaveSchemeIfNeeded: DB is null -> save default 'purple'.
     if (profile.colorScheme == null) {
       const defaultScheme: ColorScheme = 'purple'
       patchProfile({ colorScheme: defaultScheme })
@@ -206,18 +211,16 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       })
     }
 
-    // detectAndSaveThemeIfNeeded: DB is null -> detect from system and save.
     if (profile.themePreference == null) {
       const detectedSystem = Appearance.getColorScheme()
       const detected: ThemeMode = detectedSystem === 'light' ? 'light' : 'dark'
-      setCurrentTheme(detected)
-      setRuntimeTheme({ scheme: getRuntimeTheme().scheme, themeMode: detected })
+      void Promise.resolve().then(() => setCurrentTheme(detected))
       patchProfile({ themePreference: detected })
       persistThemePreference(detected).catch(() => {
         // Best-effort fire-and-forget
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts only to profile.colorScheme / profile.themePreference
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts only to whether the profile rows are null
   }, [profile?.colorScheme, profile?.themePreference])
 
   const applyScheme = useCallback((scheme: ColorScheme) => {

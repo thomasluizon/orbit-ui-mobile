@@ -15,10 +15,9 @@ import {
   parseISO,
 } from 'date-fns'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 
 interface AppDatePickerProps {
   value: string
@@ -32,7 +31,7 @@ export function AppDatePicker({
   placeholder,
 }: Readonly<AppDatePickerProps>) {
   const t = useTranslations()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const { profile } = useProfile()
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const [isOpen, setIsOpen] = useState(false)

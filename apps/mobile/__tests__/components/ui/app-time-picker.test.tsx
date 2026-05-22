@@ -16,10 +16,6 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-device-locale', () => ({
-  useDeviceLocale: () => 'pt-BR',
-}))
-
 import { AppTimePicker } from '@/components/ui/app-time-picker'
 
 describe('AppTimePicker', () => {

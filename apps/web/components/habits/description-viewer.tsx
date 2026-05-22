@@ -41,7 +41,7 @@ export function DescriptionViewer({
       <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-border-muted shrink-0">
         <button
           aria-label={t('common.back')}
-          className="size-9 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-all duration-150"
+          className="size-9 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors duration-150"
           onClick={() => onOpenChange(false)}
         >
           <ArrowLeft className="size-4" />

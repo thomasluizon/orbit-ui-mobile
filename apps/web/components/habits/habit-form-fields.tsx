@@ -2,8 +2,7 @@
 
 import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
 import { X, Plus, Bell, Check, ShieldAlert, PenSquare, ChevronDown } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
@@ -111,7 +110,7 @@ function ColorSwatches({
           type="button"
           aria-label={ariaLabel(color)}
           aria-pressed={activeColor === color}
-          className={`size-5 rounded-full transition-all ${
+          className={`size-5 rounded-full transition-transform ${
             activeColor === color
               ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
               : 'hover:scale-110'
@@ -167,7 +166,7 @@ function TagEditorRow({
       />
       <button
         type="button"
-        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-50"
+        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-[background-color,opacity] duration-150 disabled:opacity-50"
         disabled={disabled}
         onClick={onCommit}
       >
@@ -374,7 +373,7 @@ function HabitTagChip({
 }: Readonly<HabitTagChipProps>) {
   return (
     <div
-      className={`flex items-center rounded-full text-xs font-semibold transition-all ${
+      className={`flex items-center rounded-full text-xs font-semibold transition-[background-color,border-color,color,opacity] ${
         selected
           ? 'text-white'
           : 'bg-surface border border-border text-text-secondary'
@@ -539,7 +538,7 @@ function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
+                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-colors duration-150"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -565,7 +564,7 @@ function ReminderSection({
                     />
                     <button
                       type="button"
-                      className="shrink-0 p-1.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-all duration-150"
+                      className="shrink-0 p-1.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors duration-150"
                       onClick={addCustomReminder}
                     >
                       <Plus className="size-3.5" />
@@ -574,7 +573,7 @@ function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-primary font-medium hover:bg-surface-elevated/80 transition-all duration-150"
+                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-primary font-medium hover:bg-surface-elevated/80 transition-colors duration-150"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}
@@ -606,7 +605,7 @@ function ScheduledReminderSection({
   scheduledReminderLabelId, reminderEnabled, scheduledReminders,
   onToggleReminder, onSetScheduledReminders, onValidationError, t,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const MAX_SCHEDULED_REMINDERS = 5
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
@@ -704,7 +703,7 @@ function ScheduledReminderSection({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-[background-color,border-color,color] ${
                       when === 'day_before'
                         ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
                         : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
@@ -715,7 +714,7 @@ function ScheduledReminderSection({
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-[background-color,border-color,color] ${
                       when === 'same_day'
                         ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
                         : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
@@ -731,12 +730,12 @@ function ScheduledReminderSection({
                     value={time}
                     ariaLabel={t('habits.form.scheduledReminderTimePlaceholder')}
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                    className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                    className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-[border-color,box-shadow]"
                     onChange={setTime}
                   />
                   <button
                     type="button"
-                    className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
+                    className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-[background-color,opacity] duration-150 disabled:opacity-40"
                     disabled={!time}
                     onClick={addScheduledReminder}
                   >
@@ -1126,7 +1125,7 @@ export function HabitFormFields({
           </span>
           <PillToggleRow
             containerClassName="flex flex-wrap gap-2"
-            buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+            buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-[background-color,border-color,color]"
             activeClassName="bg-primary text-white"
             inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
             options={daysList.map((day) => ({
@@ -1201,7 +1200,7 @@ export function HabitFormFields({
           {!tags.showNewTag && !tags.atTagLimit && (
             <button
               type="button"
-              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface border border-dashed border-border text-text-muted hover:text-text-primary hover:border-primary/50 transition-all"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface border border-dashed border-border text-text-muted hover:text-text-primary hover:border-primary/50 transition-[background-color,border-color,color]"
               disabled={isTagMutationPending}
               onClick={() => tags.setShowNewTag(true)}
             >
@@ -1376,7 +1375,7 @@ export function HabitFormFields({
                     <button
                       type="button"
                       aria-label={t('habits.form.removeEndDate')}
-                      className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
+                      className="shrink-0 p-2 text-text-muted hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors rounded-full"
                       onClick={() => setValue('endDate', '', { shouldDirty: true })}
                     >
                       <X className="size-4" />
@@ -1440,7 +1439,7 @@ export function HabitFormFields({
           {!isGeneral && (
             <label className="flex items-center gap-3 cursor-pointer py-2">
               <div
-                className={`size-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+                className={`size-5 rounded-lg border-2 flex items-center justify-center transition-[background-color,border-color] ${
                   watchedIsBadHabit ? 'bg-primary border-primary' : 'border-border'
                 }`}
               >

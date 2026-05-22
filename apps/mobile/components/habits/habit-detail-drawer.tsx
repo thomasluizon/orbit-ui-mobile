@@ -2,8 +2,10 @@ import { useState, useCallback, useMemo } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
-import { Sparkles } from 'lucide-react-native'
+import { ChevronRight, Sparkles } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { habitKeys } from '@orbit/shared/query'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -16,7 +18,6 @@ import { HabitCalendar } from './habit-calendar'
 import { HabitDetailStatsRow } from './habit-detail-sections'
 import { HabitRow } from './habit-row'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import {
   useHabitFullDetail,
   useUpdateChecklist,
@@ -59,8 +60,8 @@ export function HabitDetailDrawer({
   habit,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
-  const { t } = useTranslation()
-  const locale = useDeviceLocale()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const { displayTime } = useTimeFormat()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -104,6 +105,22 @@ export function HabitDetailDrawer({
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
   const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] =
     useState(false)
+
+  const router = useRouter()
+  const askPrompt = useMemo(() => {
+    if (!habit) return ''
+    return habit.hasSubHabits
+      ? t('habits.detail.askAstraSubHabits')
+      : t('habits.detail.askAstraDefault')
+  }, [habit, t])
+
+  const handleAskAstra = useCallback(() => {
+    if (!habit) return
+    const seed = `${askPrompt} (${habit.title})`
+    void AsyncStorage.setItem('orbit-chat-draft', seed)
+    onClose()
+    router.push('/chat')
+  }, [askPrompt, habit, onClose, router])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -322,34 +339,45 @@ export function HabitDetailDrawer({
               </View>
             </View>
 
-            <View style={styles.askAstra}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleAskAstra}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
+              style={styles.askAstra}
+            >
               <View
                 style={[
                   styles.askAstraRule,
                   { backgroundColor: tokens.primary },
                 ]}
               />
-              <View style={styles.askAstraEyebrow}>
-                <Sparkles
-                  size={12}
-                  color={tokens.primary}
-                  strokeWidth={1.7}
-                />
-                <Text
-                  style={[
-                    styles.askAstraEyebrowText,
-                    { color: tokens.fg3 },
-                  ]}
-                >
-                  {t('habits.detail.askAstraEyebrow')}
+              <View style={styles.askAstraContent}>
+                <View style={styles.askAstraEyebrow}>
+                  <Sparkles
+                    size={12}
+                    color={tokens.primary}
+                    strokeWidth={1.7}
+                  />
+                  <Text
+                    style={[
+                      styles.askAstraEyebrowText,
+                      { color: tokens.fg3 },
+                    ]}
+                  >
+                    {t('habits.detail.askAstraEyebrow')}
+                  </Text>
+                </View>
+                <Text style={[styles.askAstraBody, { color: tokens.fg2 }]}>
+                  {askPrompt}
                 </Text>
               </View>
-              <Text style={[styles.askAstraBody, { color: tokens.fg2 }]}>
-                {habit.hasSubHabits
-                  ? t('habits.detail.askAstraSubHabits')
-                  : t('habits.detail.askAstraDefault')}
-              </Text>
-            </View>
+              <ChevronRight
+                size={16}
+                color={tokens.fg3}
+                strokeWidth={1.7}
+              />
+            </TouchableOpacity>
           </BottomSheetScrollView>
         ) : null}
       </BottomSheetModal>
@@ -399,6 +427,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     askAstra: {
       position: 'relative',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
       paddingLeft: 34,
       paddingRight: 20,
       paddingTop: 16,
@@ -414,6 +445,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       bottom: 28,
       width: 2,
       borderRadius: 1,
+    },
+    askAstraContent: {
+      flex: 1,
     },
     askAstraEyebrow: {
       flexDirection: 'row',

@@ -76,36 +76,40 @@ function getSpeechErrorMessageFromCode(error: string, t: (key: string, options?:
 
 export function useSpeechToText() {
   const { t, i18n } = useTranslation()
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isMountedRef = useRef(true)
 
   const [isRecording, setIsRecording] = useState(false)
-  const [isSupported, setIsSupported] = useState(() => getSpeechRecognitionAvailability())
+  const [isSupported] = useState(() => getSpeechRecognitionAvailability())
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [selectedLanguage, setSelectedLanguageState] = useState(() =>
     getDefaultChatSpeechLanguage(i18n.language),
   )
   const [recordingDuration, setRecordingDuration] = useState(0)
+  // Timer id lives in state, not a ref, so the helpers passed to
+  // useSpeechRecognitionEvent don't capture ref reads at render time.
+  const [timerId, setTimerId] = useState<ReturnType<typeof setInterval> | null>(null)
 
   const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
+    setTimerId((current) => {
+      if (current) clearInterval(current)
+      return null
+    })
   }, [])
 
   const startTimer = useCallback(() => {
     clearTimer()
     setRecordingDuration(0)
-    timerRef.current = setInterval(() => {
+    const id = setInterval(() => {
       setRecordingDuration((current) => current + 1)
     }, 1000)
+    setTimerId(id)
   }, [clearTimer])
 
+  // `isSupported` is seeded by the lazy useState above and never changes after
+  // mount (the speech module is statically required), so we don't re-probe here.
   useEffect(() => {
     isMountedRef.current = true
-    setIsSupported(getSpeechRecognitionAvailability())
 
     AsyncStorage.getItem(CHAT_SPEECH_LANG_KEY)
       .then((storedLanguage) => {

@@ -2,12 +2,11 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { getErrorMessage } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
 import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppBar } from '@/components/ui/app-bar'
@@ -19,7 +18,7 @@ import './streak.css'
 export default function StreakPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0

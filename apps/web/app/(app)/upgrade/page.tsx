@@ -9,8 +9,7 @@ import {
   AlertTriangle, Download, CheckCircle2, Clock, Check, X as XIcon,
   Megaphone, Tag, Info,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useTranslations, useLocale } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
@@ -44,8 +43,8 @@ function formatCardBrand(brand: string): string {
 }
 
 function invoiceStatusClassName(status: string): string {
-  if (status === 'paid') return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-  if (status === 'open') return 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+  if (status === 'paid') return 'bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20'
+  if (status === 'open') return 'bg-[var(--status-overdue)]/15 text-[var(--status-overdue)] border border-[var(--status-overdue)]/20'
   return 'bg-surface-elevated text-text-muted border border-border-muted'
 }
 
@@ -66,7 +65,7 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-text-primary">{t('upgrade.billing.usage.aiMessages')}</span>
-          <span className={`text-sm font-semibold ${usageUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+          <span className={`text-sm font-semibold ${usageUrgent ? 'text-[var(--status-overdue)]' : 'text-text-primary'}`}>
             {t('upgrade.billing.usage.aiMessagesOf', {
               used: profile?.aiMessagesUsed ?? 0,
               limit: profile?.aiMessagesLimit ?? 0,
@@ -75,7 +74,7 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
         </div>
         <div className="w-full h-1.5 rounded-full bg-surface-elevated">
           <div
-            className={`h-1.5 rounded-full transition-all duration-500 ${usageUrgent ? 'bg-amber-400' : 'bg-primary'}`}
+            className={`h-1.5 rounded-full transition-[width,background-color] duration-500 ${usageUrgent ? 'bg-[var(--status-overdue)]' : 'bg-primary'}`}
             style={{ width: `${usagePercent}%` }}
           />
         </div>
@@ -251,8 +250,8 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
             <span className="text-xs text-text-muted">{t('upgrade.plans.free.features.theme')}</span>
           </li>
           <li className="flex items-center gap-2.5">
-            <Megaphone className="size-3.5 text-amber-400/80 shrink-0" />
-            <span className="text-xs text-amber-400/80 font-medium">{t('upgrade.plans.free.features.ads')}</span>
+            <Megaphone className="size-3.5 text-[var(--status-overdue)]/80 shrink-0" />
+            <span className="text-xs text-[var(--status-overdue)]/80 font-medium">{t('upgrade.plans.free.features.ads')}</span>
           </li>
         </ul>
         {!hasProAccess && (
@@ -282,7 +281,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
               <span className="text-sm text-text-muted line-through">
                 {formatPrice(plans.monthly.unitAmount, plans.currency)}
               </span>
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20">
                 {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
               </span>
             </div>
@@ -308,7 +307,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
           })}
         </ul>
         <button
-          className="w-full py-3 rounded-[var(--radius-lg)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-[var(--radius-lg)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
           disabled={!!checkoutLoading}
           onClick={() => onCheckout('monthly')}
         >
@@ -323,7 +322,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
           <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/20">
             {t('upgrade.plans.yearly.recommended')}
           </span>
-          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20">
             {t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
           </span>
         </div>
@@ -340,7 +339,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
               <span className="text-sm text-text-muted line-through">
                 {formatPrice(plans.yearly.unitAmount, plans.currency)}
               </span>
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20">
                 {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
               </span>
             </div>
@@ -377,13 +376,13 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
           </ul>
         </div>
         {plans.couponPercentOff && (
-          <p className="text-[10px] text-emerald-400/70 mb-3 flex items-center gap-1.5">
+          <p className="text-[10px] text-[var(--status-done)]/70 mb-3 flex items-center gap-1.5">
             <Tag className="size-3 shrink-0" />
             {t('upgrade.plans.coupon.appliedNote')}
           </p>
         )}
         <button
-          className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2"
           disabled={!!checkoutLoading}
           onClick={() => onCheckout('yearly')}
         >
@@ -471,12 +470,12 @@ function BillingDashboard({
                     {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
                   </h2>
                   {billing.cancelAtPeriodEnd && (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--status-overdue)]/15 text-[var(--status-overdue)] border border-[var(--status-overdue)]/20">
                       {t('upgrade.billing.plan.canceledBadge')}
                     </span>
                   )}
                   {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--status-bad)]/15 text-[var(--status-bad)] border border-[var(--status-bad)]/20">
                       {t('upgrade.billing.plan.pastDue')}
                     </span>
                   )}
@@ -578,13 +577,13 @@ function BillingDashboard({
           {/* Manage subscription */}
           <div className="space-y-2 pt-1">
             <button
-              className="w-full py-3 rounded-[var(--radius-xl)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-all duration-200 active:scale-[0.98]"
+              className="w-full py-3 rounded-[var(--radius-xl)] bg-surface-elevated text-text-primary text-sm font-semibold border border-border hover:bg-surface-overlay transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98]"
               onClick={onOpenPortal}
             >
               {t('upgrade.billing.actions.manage')}
             </button>
             <p className="text-xs text-text-muted text-center">{t('upgrade.billing.actions.manageHint')}</p>
-            {portalError && <p className="text-xs text-red-400 text-center">{portalError}</p>}
+            {portalError && <p className="text-xs text-[var(--status-bad)] text-center">{portalError}</p>}
           </div>
         </>
       )}
@@ -648,12 +647,12 @@ function PricingSection({
         <div
           className={`rounded-[var(--radius-xl)] p-4 mb-4 flex items-center gap-3 border ${
             trialUrgent
-              ? 'bg-amber-500/10 border-amber-500/20'
+              ? 'bg-[var(--status-overdue)]/10 border-[var(--status-overdue)]/20'
               : 'bg-primary/10 border-primary/20'
           }`}
         >
-          <Clock className={`size-5 shrink-0 ${trialUrgent ? 'text-amber-400' : 'text-primary'}`} />
-          <p className={`text-sm font-medium ${trialUrgent ? 'text-amber-400' : 'text-text-primary'}`}>
+          <Clock className={`size-5 shrink-0 ${trialUrgent ? 'text-[var(--status-overdue)]' : 'text-primary'}`} />
+          <p className={`text-sm font-medium ${trialUrgent ? 'text-[var(--status-overdue)]' : 'text-text-primary'}`}>
             {trialDaysLeft === 0
               ? t('trial.banner.lastDay')
               : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
@@ -728,7 +727,7 @@ function PricingSection({
       )}
 
       {checkoutError && (
-        <p className="text-xs text-red-400 text-center">{checkoutError}</p>
+        <p className="text-xs text-[var(--status-bad)] text-center">{checkoutError}</p>
       )}
 
       {/* Feature comparison */}
@@ -744,7 +743,7 @@ function PricingSection({
 export default function UpgradePage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const dateFnsLocale = locale.startsWith('pt') ? ptBR : enUS
 
   const { profile } = useProfile()

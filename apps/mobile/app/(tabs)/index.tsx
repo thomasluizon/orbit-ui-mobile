@@ -77,7 +77,6 @@ import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import { useResolvedMotionPreset } from "@/lib/motion";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { useDeviceLocale } from "@/hooks/use-device-locale";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
@@ -253,7 +252,8 @@ function createAnimatedTimingConfig(
 // ---------------------------------------------------------------------------
 
 export default function TodayScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const theme = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(theme.currentScheme, theme.currentTheme),
@@ -262,7 +262,6 @@ export default function TodayScreen() {
   const listMotion = useResolvedMotionPreset("list-enter");
   const selectionMotion = useResolvedMotionPreset("selection");
   const router = useRouter();
-  const locale = useDeviceLocale();
   const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
   const styles = useMemo(() => createStyles(tokens), [tokens]);

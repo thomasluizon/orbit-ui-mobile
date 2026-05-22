@@ -220,10 +220,10 @@ export default function AuthCallbackPage() {
       <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 space-y-6 border border-border text-center">
         {errorState ? (
           <>
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 text-sm text-red-400">
+            <div className="bg-[var(--status-bad)]/10 border border-[var(--status-bad)]/30 rounded-2xl px-4 py-3 text-sm text-[var(--status-bad)]">
               <p>{errorState.message}</p>
               {errorState.requestId ? (
-                <p className="mt-2 text-xs text-red-300">
+                <p className="mt-2 text-xs text-[var(--status-bad)]">
                   {t('auth.errorReference', { requestId: errorState.requestId })}
                 </p>
               ) : null}

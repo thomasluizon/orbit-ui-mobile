@@ -28,17 +28,17 @@ interface CalendarDayDetailProps {
 
 function statusBadgeClass(entry: CalendarDayEntry): string {
   if (entry.isBadHabit) {
-    if (entry.status === 'completed') return 'text-red-400 bg-red-400/10'
-    if (entry.status === 'missed') return 'text-emerald-400 bg-emerald-400/10'
+    if (entry.status === 'completed') return 'text-[var(--status-bad)] bg-[var(--status-bad)]/10'
+    if (entry.status === 'missed') return 'text-[var(--status-done)] bg-[var(--status-done)]/10'
     return 'text-primary bg-primary/10'
   }
-  if (entry.status === 'completed') return 'text-emerald-400 bg-emerald-400/10'
-  if (entry.status === 'missed') return 'text-orange-400 bg-orange-400/10'
+  if (entry.status === 'completed') return 'text-[var(--status-done)] bg-[var(--status-done)]/10'
+  if (entry.status === 'missed') return 'text-[var(--status-overdue)] bg-[var(--status-overdue)]/10'
   return 'text-primary bg-primary/10'
 }
 
 function statusIconBg(entry: CalendarDayEntry): string {
-  if (entry.status === 'completed') return 'bg-emerald-500/20 border-emerald-500/30'
+  if (entry.status === 'completed') return 'bg-[var(--status-done)]/20 border-[var(--status-done)]/30'
   return 'border-text-faded/30'
 }
 
@@ -91,7 +91,7 @@ export function CalendarDayDetail({
       footer={
         <Link
           href={`/?date=${dateStr ?? ''}`}
-          className="w-full py-3 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)]"
+          className="w-full py-3 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)]"
           onClick={() => onOpenChange(false)}
         >
           <ArrowRight className="size-4" />
@@ -137,7 +137,7 @@ export function CalendarDayDetail({
                   className={`shrink-0 size-6 rounded-full border flex items-center justify-center ${statusIconBg(entry)}`}
                 >
                   {entry.status === 'completed' && (
-                    <Check className="size-3 text-emerald-400" />
+                    <Check className="size-3 text-[var(--status-done)]" />
                   )}
                 </div>
 

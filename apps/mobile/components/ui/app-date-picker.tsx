@@ -23,7 +23,6 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { radius, type AppColors, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -38,11 +37,11 @@ export function AppDatePicker({
   onChange,
   placeholder,
 }: Readonly<AppDatePickerProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { profile } = useProfile()
   const { colors, shadows } = useAppTheme()
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
-  const locale = useDeviceLocale()
+  const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
   const [viewDate, setViewDate] = useState(new Date())
 

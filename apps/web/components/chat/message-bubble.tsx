@@ -190,10 +190,10 @@ export function MessageBubble({
               return (
                 <div
                   key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  className="rounded-[var(--radius-xl)] border border-red-500/20 bg-red-500/8 px-3 py-2"
+                  className="rounded-[var(--radius-xl)] border border-[var(--status-bad)]/20 bg-[var(--status-bad)]/8 px-3 py-2"
                 >
-                  <p className="text-xs font-medium text-red-300">{denial.sourceName}</p>
-                  <p className="mt-1 text-[11px] text-red-200/90">{denial.reason}</p>
+                  <p className="text-xs font-medium text-[var(--status-bad)]">{denial.sourceName}</p>
+                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">{denial.reason}</p>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick && (
                     <button
                       type="button"

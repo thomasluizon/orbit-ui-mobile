@@ -58,7 +58,6 @@ import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
@@ -222,8 +221,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     },
     ref,
   ) {
-    const { t } = useTranslation()
-    const deviceLocale = useDeviceLocale()
+    const { t, i18n } = useTranslation()
+    const deviceLocale = i18n.language
     const router = useRouter()
     const pathname = usePathname()
     const { profile } = useProfile()

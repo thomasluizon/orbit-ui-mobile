@@ -33,6 +33,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: 'en-US' },
   }),
 }))
 
@@ -50,10 +51,6 @@ vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({
     showInterstitialIfDue: vi.fn(),
   }),
-}))
-
-vi.mock('@/hooks/use-device-locale', () => ({
-  useDeviceLocale: () => 'en-US',
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({

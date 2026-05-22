@@ -42,13 +42,9 @@ export function BottomTabBar({
   const fabVisible = showFab && active !== 'chat' && active !== 'profile'
 
   return (
-    <div
-      className="relative shrink-0"
-      style={{
-        background: 'var(--bg)',
-        borderTop: '1px solid var(--hairline)',
-      }}
-    >
+    // bg + hairline live on the parent fixed wrapper (full-width strip);
+    // the tab row itself is transparent so it inherits that bezel.
+    <div className="relative shrink-0">
       {fabVisible && (
         <button
           type="button"

@@ -123,15 +123,17 @@ export function useDrillNavigation(
     [drillChildrenMap],
   )
 
-  // Auto-refresh drill children when store data updates
+  // Auto-refresh drill children when store data updates. Defer to a microtask
+  // so the synchronous portion of fetchDrillChildren (the optimistic loading
+  // setState) doesn't fire inside the effect body — React 19 forbids cascading
+  // setState calls in effects. The fetch still happens promptly (next tick).
   const lastUpdatedRef = useRef(lastUpdated)
   useEffect(() => {
-    if (lastUpdated !== lastUpdatedRef.current) {
-      lastUpdatedRef.current = lastUpdated
-      if (currentParentId) {
-        fetchDrillChildren(currentParentId, true)
-      }
-    }
+    if (lastUpdated === lastUpdatedRef.current) return
+    lastUpdatedRef.current = lastUpdated
+    if (!currentParentId) return
+    const parentId = currentParentId
+    void Promise.resolve().then(() => fetchDrillChildren(parentId, true))
   }, [lastUpdated, currentParentId, fetchDrillChildren])
 
   useEffect(() => {

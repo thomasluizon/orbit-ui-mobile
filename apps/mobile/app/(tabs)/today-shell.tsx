@@ -6,8 +6,9 @@ import {
   View,
   type GestureResponderHandlers,
 } from 'react-native'
-import { ChevronLeft, ChevronRight, Sun } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { AppBar } from '@/components/ui/app-bar'
+import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -48,7 +49,7 @@ export function TodayHeader({
       accessibilityLabel={goToTodayLabel}
     >
       <AppBar
-        LeadingIcon={Sun}
+        LeadingIcon={SaturnDropcap}
         title="Orbit"
         subtitle={dateLong}
         trailing={

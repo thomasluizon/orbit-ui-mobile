@@ -69,7 +69,9 @@ describe('NotificationBell', () => {
     expect(screen.getByLabelText('notifications.bell')).toBeInTheDocument()
   })
 
-  it('shows unread count badge when there are unread notifications', () => {
+  it('shows unread indicator when there are unread notifications', () => {
+    // v8 uses a 6x6 primary dot (no numeric badge). The aria-label disambiguates the
+    // count for assistive tech.
     mockNotifications = Array.from({ length: 3 }, (_, index) => ({
       id: `${index + 1}`,
       title: `Notification ${index + 1}`,
@@ -80,10 +82,10 @@ describe('NotificationBell', () => {
       habitId: null,
     }))
     render(<NotificationBell />)
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByLabelText(/notifications.bellWithCount/)).toBeInTheDocument()
   })
 
-  it('shows 9+ for more than 9 unread', () => {
+  it('keeps the count out of the visible glyph regardless of how many unread', () => {
     mockNotifications = Array.from({ length: 15 }, (_, index) => ({
       id: `${index + 1}`,
       title: `Notification ${index + 1}`,
@@ -94,14 +96,15 @@ describe('NotificationBell', () => {
       habitId: null,
     }))
     render(<NotificationBell />)
-    expect(screen.getByText('9+')).toBeInTheDocument()
+    expect(screen.queryByText('15')).not.toBeInTheDocument()
+    expect(screen.queryByText('9+')).not.toBeInTheDocument()
   })
 
-  it('does not show badge when unread count is 0', () => {
+  it('does not show unread indicator when unread count is 0', () => {
     mockUnreadCount = 0
-    const { container } = render(<NotificationBell />)
-    const badge = container.querySelector('.animate-gentle-pulse')
-    expect(badge).not.toBeInTheDocument()
+    render(<NotificationBell />)
+    expect(screen.getByLabelText('notifications.bell')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/notifications.bellWithCount/)).not.toBeInTheDocument()
   })
 
   it('opens dropdown on click', () => {

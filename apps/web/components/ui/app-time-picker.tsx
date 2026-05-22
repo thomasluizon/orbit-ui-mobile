@@ -1,9 +1,8 @@
 'use client'
 
 import { useId } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleTime } from '@orbit/shared/utils'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 
 interface AppTimePickerProps {
   id?: string
@@ -25,7 +24,7 @@ export function AppTimePicker({
   className = 'form-input',
 }: Readonly<AppTimePickerProps>) {
   const t = useTranslations()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const generatedId = useId()
   const inputId = id ?? generatedId
   const displayValue = value ? formatLocaleTime(value, locale) : ''

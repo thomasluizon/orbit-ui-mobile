@@ -1,10 +1,12 @@
+import type { ColorValue } from 'react-native'
 import Svg, { Circle, Ellipse } from 'react-native-svg'
 
+// Props match `LucideProps` shape so SaturnDropcap is interchangeable with
+// lucide icons at component slots like `AppBar.LeadingIcon`.
 interface SaturnDropcapProps {
-  size?: number
-  strokeWidth?: number
-  /** Override the stroke color. Defaults to `currentColor` semantics via `color`. */
-  color?: string
+  size?: number | string
+  strokeWidth?: number | string
+  color?: ColorValue
 }
 
 /** v8 Saturn glyph: outlined planet + tilted ring. */

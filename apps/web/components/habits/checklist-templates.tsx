@@ -91,7 +91,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                 >
                   <button
                     type="button"
-                    className="px-2 py-0.5 text-text-secondary hover:text-text-primary transition-all duration-150"
+                    className="px-2 py-0.5 text-text-secondary hover:text-text-primary transition-colors duration-150"
                     onClick={() => handleLoad(tmpl.id)}
                     aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
                   >
@@ -100,7 +100,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                   <button
                     type="button"
                     aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="px-1 py-0.5 text-text-muted hover:text-red-500 transition-colors disabled:opacity-50"
+                    className="px-1 py-0.5 text-text-muted hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
                     onClick={() => handleDelete(tmpl.id)}
                     disabled={deleteTemplate.isPending && deleteTemplate.variables === tmpl.id}
                   >
@@ -130,7 +130,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-all duration-150"
+            className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-[background-color,opacity] duration-150"
             disabled={!templateName.trim() || createTemplate.isPending}
             onClick={handleSave}
             aria-label={t('common.save')}
@@ -139,7 +139,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-all duration-150"
+            className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors duration-150"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >

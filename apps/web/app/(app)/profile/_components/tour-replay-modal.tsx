@@ -146,7 +146,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                   </p>
                 </div>
                 {completed ? (
-                  <CheckCircle className="size-4 text-green-500 shrink-0" />
+                  <CheckCircle className="size-4 text-[var(--status-done)] shrink-0" />
                 ) : (
                   <Play className="size-4 text-text-muted shrink-0" />
                 )}

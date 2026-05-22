@@ -181,10 +181,10 @@ export function BreakdownSuggestion({
     return (
       <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2 py-2">
-          <div className="size-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-            <Check className="size-3.5 text-emerald-400" />
+          <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
+            <Check className="size-3.5 text-[var(--status-done)]" />
           </div>
-          <p className="text-sm font-semibold text-emerald-400">
+          <p className="text-sm font-semibold text-[var(--status-done)]">
             {createAsParent
               ? plural(t('habits.breakdown.createAsParentSuccess', { name: parentName, n: createdCount }), createdCount)
               : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
@@ -266,7 +266,7 @@ export function BreakdownSuggestion({
               </div>
             </div>
             <button
-              className="shrink-0 p-1.5 rounded-full text-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+              className="shrink-0 p-1.5 rounded-full text-text-muted hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors"
               onClick={() => removeHabit(index)}
             >
               <X className="size-3.5" />
@@ -305,12 +305,12 @@ export function BreakdownSuggestion({
       </label>
 
       {/* Create error */}
-      {createError && <p className="text-xs text-red-400">{createError}</p>}
+      {createError && <p className="text-xs text-[var(--status-bad)]">{createError}</p>}
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
-          className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-primary text-white font-bold text-xs hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50 flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-primary text-white font-bold text-xs hover:bg-primary/90 transition-[background-color,transform,opacity] duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50 flex items-center justify-center gap-1.5"
           disabled={validHabits.length === 0 || isSubmitting}
           onClick={handleConfirm}
         >
@@ -318,7 +318,7 @@ export function BreakdownSuggestion({
           {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
         </button>
         <button
-          className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-border text-text-secondary text-xs font-medium hover:bg-surface-elevated/80 transition-all duration-150"
+          className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-border text-text-secondary text-xs font-medium hover:bg-surface-elevated/80 transition-colors duration-150"
           disabled={isSubmitting}
           onClick={onCancelled}
         >

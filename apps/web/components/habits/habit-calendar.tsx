@@ -94,7 +94,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
     <div className="bg-surface-ground border border-border-muted rounded-xl p-4 shadow-[var(--shadow-sm)]">
       <div className="flex items-center justify-between mb-4">
         <button
-          className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
+          className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-colors duration-150 text-text-muted hover:text-text-primary"
           onClick={prevMonth}
         >
           <ChevronLeft className="size-4" />
@@ -106,7 +106,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           {monthLabel}
         </button>
         <button
-          className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
+          className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-colors duration-150 text-text-muted hover:text-text-primary"
           onClick={nextMonth}
         >
           <ChevronRight className="size-4" />
@@ -132,7 +132,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           >
             {day.isCurrentMonth && day.isCompleted ? (
               <button
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-all cursor-pointer bg-primary text-white hover:brightness-110 ${
+                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-[filter,box-shadow] cursor-pointer bg-primary text-white hover:brightness-110 ${
                   selectedDate === day.dateStr
                     ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-background'
                     : ''
@@ -143,7 +143,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               </button>
             ) : (
               <div
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
+                className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-[opacity,box-shadow,color] ${
                   day.isCurrentMonth ? '' : 'opacity-0'
                 } ${
                   day.isCurrentMonth && day.isToday
@@ -165,7 +165,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               {displayDate(parseISO(selectedDate))}
             </span>
             <button
-              className="p-0.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
+              className="p-0.5 rounded-full hover:bg-surface-elevated/80 transition-colors duration-150 text-text-muted hover:text-text-primary"
               onClick={() => setSelectedDate(null)}
             >
               <X className="size-3.5" />

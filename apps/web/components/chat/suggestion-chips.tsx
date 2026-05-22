@@ -30,7 +30,7 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
         <button
           type="button"
           key={suggestion}
-          className="px-4 py-2 rounded-full text-xs font-medium bg-surface-elevated border border-border-muted text-text-primary hover:border-border hover:scale-[1.02] transition-all duration-150 active:scale-95"
+          className="px-4 py-2 rounded-full text-xs font-medium bg-surface-elevated border border-border-muted text-text-primary hover:border-border hover:scale-[1.02] transition-[border-color,transform] duration-150 active:scale-95"
           onClick={() => onSelect(suggestion)}
         >
           {suggestion}

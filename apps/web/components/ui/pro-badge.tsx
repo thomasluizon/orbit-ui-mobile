@@ -16,7 +16,7 @@ export function ProBadge() {
   const badgeLabel = isTrialActive ? t('trial.proBadge') : t('common.proBadge')
 
   return (
-    <span className="pro-badge-shimmer bg-primary/15 text-primary text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-all duration-150">
+    <span className="pro-badge-shimmer bg-primary/15 text-primary text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors duration-150">
       {badgeLabel}
     </span>
   )

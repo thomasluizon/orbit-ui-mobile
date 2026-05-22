@@ -237,6 +237,11 @@ export function createColors(
 ): AppColors {
   const definition = schemes[colorScheme]
   const theme = definition[themeMode]
+  // v8 migration: legacy color tokens (background, surface*, text*, border*)
+  // now resolve to v8 OKLCH values so the whole codebase picks up Linear-tactical
+  // neutrals without a file-by-file rewrite. v2 callers (createTokensV2) get the
+  // same values directly. Keep this path until consumers are removed.
+  const v8 = createTokensV2(colorScheme, themeMode)
   const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
   const isLight = themeMode === 'light'
   const primary =
@@ -245,11 +250,11 @@ export function createColors(
     blendRgbOverHex(definition.shadowRgb, opacity, theme.background, fallback)
 
   return {
-    background: theme.background,
-    surfaceGround: theme.surfaceGround,
-    surface: theme.surface,
-    surfaceElevated: theme.surfaceElevated,
-    surfaceOverlay: theme.surfaceOverlay,
+    background: v8.bg,
+    surfaceGround: v8.bgSunk,
+    surface: v8.bgElev,
+    surfaceElevated: v8.bgElev,
+    surfaceOverlay: v8.bgElev,
     primary,
     primary400: definition.scale[400] ?? primary,
     primaryLight: alpha(0.2),
@@ -272,19 +277,19 @@ export function createColors(
       ? flattenedTint(0.42, 'rgb(202, 181, 251)')
       : alpha(0.2),
     primaryRing: alpha(0.3),
-    textPrimary: theme.textPrimary,
-    textSecondary: theme.textSecondary,
-    textMuted: theme.textMuted,
-    textFaded: theme.textFaded,
+    textPrimary: v8.fg1,
+    textSecondary: v8.fg2,
+    textMuted: v8.fg3,
+    textFaded: v8.fg3,
     textFaded40: withAlpha(
-      theme.textFaded,
+      v8.fg3,
       0.4,
       isLight ? 'rgba(122, 116, 144, 0.40)' : 'rgba(165, 156, 186, 0.40)',
     ),
-    textInverse: theme.textInverse,
-    border: theme.border,
-    borderMuted: theme.borderMuted,
-    borderEmphasis: theme.borderEmphasis,
+    textInverse: v8.fgOnPrimary,
+    border: v8.hairline,
+    borderMuted: v8.hairline,
+    borderEmphasis: v8.hairlineStrong,
     border50: withAlpha(
       theme.textPrimary,
       isLight ? 0.06 : 0.035,

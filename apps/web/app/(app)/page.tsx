@@ -9,9 +9,8 @@ import {
   isTomorrow,
 } from 'date-fns'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { habitKeys } from '@orbit/shared/query'
@@ -87,7 +86,7 @@ function getTodayTabLabel(
 
 export default function TodayPage() {
   const t = useTranslations()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const prefersReducedMotion = useReducedMotion()
   const router = useRouter()
   const searchParams = useSearchParams()

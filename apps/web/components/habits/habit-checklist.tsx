@@ -153,7 +153,7 @@ export function HabitChecklist({
               aria-hidden="true"
             >
               <div
-                className="h-full bg-primary rounded-full transition-all duration-300"
+                className="h-full bg-primary rounded-full transition-[width] duration-300"
                 style={{
                   width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%`,
                 }}
@@ -175,7 +175,7 @@ export function HabitChecklist({
           {interactive && (
             <button
               type="button"
-              className="text-[10px] font-semibold text-red-400 hover:text-red-500 transition-colors"
+              className="text-[10px] font-semibold text-[var(--status-bad)] hover:text-[var(--status-bad)] transition-colors"
               onClick={onClear}
             >
               {t('habits.form.clearChecklist')}
@@ -223,7 +223,7 @@ export function HabitChecklist({
                   />
                   <span
                     aria-hidden="true"
-                    className={`size-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                    className={`size-5 rounded-md border-2 flex items-center justify-center transition-[background-color,border-color] ${
                       item.isChecked
                         ? 'bg-primary border-primary'
                         : 'border-border hover:border-primary/60'
@@ -236,7 +236,7 @@ export function HabitChecklist({
 
               {/* Text */}
               <span
-                className={`flex-1 min-w-0 text-sm transition-all ${
+                className={`flex-1 min-w-0 text-sm transition-colors ${
                   item.isChecked
                     ? 'text-text-muted line-through'
                     : 'text-text-primary'
@@ -254,7 +254,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="text-[10px] font-semibold text-red-400 hover:text-red-500 transition-colors"
+            className="text-[10px] font-semibold text-[var(--status-bad)] hover:text-[var(--status-bad)] transition-colors"
             onClick={clearAll}
           >
             {t('habits.form.clearChecklist')}
@@ -284,7 +284,7 @@ export function HabitChecklist({
           />
           <button
             type="button"
-            className="shrink-0 px-4 py-2 rounded-r-xl bg-primary text-white text-xs font-bold disabled:opacity-40 hover:bg-primary/90 transition-all duration-150"
+            className="shrink-0 px-4 py-2 rounded-r-xl bg-primary text-white text-xs font-bold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,opacity] duration-150"
             disabled={!newItemText.trim()}
             onClick={addItem}
           >
@@ -365,7 +365,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="shrink-0 p-1 text-text-muted hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+        className="shrink-0 p-1 text-text-muted hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
         onClick={() => onDuplicate(index)}
       >
         <Copy className="size-3.5" aria-hidden="true" />
@@ -375,7 +375,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="shrink-0 p-1 text-text-muted hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+        className="shrink-0 p-1 text-text-muted hover:text-[var(--status-bad)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
         onClick={() => onRemove(index)}
       >
         <X className="size-3.5" aria-hidden="true" />

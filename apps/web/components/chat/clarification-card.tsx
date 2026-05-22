@@ -70,10 +70,10 @@ export function ClarificationCard({
     return (
       <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2 py-1">
-          <div className="size-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-            <Check className="size-3.5 text-emerald-400" />
+          <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
+            <Check className="size-3.5 text-[var(--status-done)]" />
           </div>
-          <p className="text-sm font-semibold text-emerald-400">
+          <p className="text-sm font-semibold text-[var(--status-done)]">
             {t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel ?? '' })}
           </p>
         </div>
@@ -108,7 +108,7 @@ export function ClarificationCard({
       </div>
 
       {errorKey && (
-        <p className="text-xs text-red-400" role="alert">
+        <p className="text-xs text-[var(--status-bad)]" role="alert">
           {t(errorKey as IntlKey)}
         </p>
       )}

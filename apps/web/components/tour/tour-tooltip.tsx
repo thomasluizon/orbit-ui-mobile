@@ -315,7 +315,7 @@ export function TourTooltip({
           return (
             <div
               key={`progress-dot-${sectionProgress.section}-${i}`}
-              className={`h-1.5 rounded-full transition-all duration-200 ${dotClass}`}
+              className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ${dotClass}`}
             />
           )
         })}

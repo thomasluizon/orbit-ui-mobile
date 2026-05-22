@@ -16,6 +16,7 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarSyncRecurrenceLabel,
+  formatLocaleDate,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   type CalendarSyncEvent,
@@ -81,7 +82,7 @@ export default function CalendarSyncScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const params = useLocalSearchParams<{ mode?: string }>()
   const isReviewMode = params.mode === 'review'
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { profile, isLoading: isProfileLoading } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -445,7 +446,7 @@ export default function CalendarSyncScreen() {
   }
 
   const subtitle = autoSyncState?.lastSyncedAt
-    ? `Google · ${new Date(autoSyncState.lastSyncedAt).toLocaleDateString()}`
+    ? `Google · ${formatLocaleDate(autoSyncState.lastSyncedAt, i18n.language, { day: 'numeric', month: 'short' })}`
     : 'Google'
 
   return (

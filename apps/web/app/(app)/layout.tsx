@@ -188,13 +188,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         </RouteTransitionShell>
       </main>
 
-      {/* Mobile: bottom-fixed nav. Desktop: left sidebar. WebNav handles the branch. */}
+      {/* Bottom-fixed nav. Bar bg + hairline extend full-width so the bar reads as a system bezel,
+          while the tabs/FAB stay phone-width centered via the inner max-w wrapper. */}
       <div
         data-bottom-nav=""
-        className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-0 md:right-auto z-40 md:h-full"
-        style={{ paddingBottom: 'var(--safe-bottom)' }}
+        className="fixed bottom-0 left-0 right-0 z-40"
+        style={{
+          paddingBottom: 'var(--safe-bottom)',
+          background: 'var(--bg)',
+          borderTop: '1px solid var(--hairline)',
+        }}
       >
-        <div className="max-w-[var(--app-max-w)] mx-auto md:max-w-none md:h-full">
+        <div className="max-w-[var(--app-max-w)] mx-auto">
           <WebNav
             active={pathnameToTab(pathname ?? '/')}
             onTab={(id) => {

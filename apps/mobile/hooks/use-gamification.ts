@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
   useQuery,
   useMutation,
@@ -44,20 +44,27 @@ export function useGamificationProfile(enabled = true) {
     achievementsByCategory,
   } = useMemo(() => deriveGamificationProfileState(profile), [profile])
 
-  // Detect level-ups and new achievements
-  const { leveledUp, newLevel, newAchievements } = useMemo(() => {
-    const nextMilestones = detectGamificationMilestones(
+  // Detect level-ups + new achievements. Refs hold the previous-render snapshot
+  // and are mutated inside an effect — React 19 forbids reading or writing refs
+  // during render. We keep the milestone output in state so consumers see a
+  // stable value across renders until the next effect tick advances it.
+  const [milestones, setMilestones] = useState(() =>
+    detectGamificationMilestones(profile, null, new Set<string>(), acknowledgedLevel),
+  )
+
+  useEffect(() => {
+    const next = detectGamificationMilestones(
       profile,
       previousLevelRef.current,
       previousAchievementIdsRef.current,
       acknowledgedLevel,
     )
-
     previousLevelRef.current = profile?.level ?? null
-    previousAchievementIdsRef.current = nextMilestones.currentEarnedAchievementIds
-
-    return nextMilestones
+    previousAchievementIdsRef.current = next.currentEarnedAchievementIds
+    setMilestones(next)
   }, [profile, acknowledgedLevel])
+
+  const { leveledUp, newLevel, newAchievements } = milestones
 
   // Clear level-up after overlay dismisses
   const clearLevelUp = useCallback(() => {

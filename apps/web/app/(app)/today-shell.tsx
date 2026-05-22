@@ -1,8 +1,9 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Sun, Search, X, MoreHorizontal } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
+import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { Chip } from '@/components/ui/chip'
 import { TagChip } from '@/components/ui/tag-chip'
@@ -39,7 +40,11 @@ export function TodayHeader({
 }: Readonly<TodayHeaderProps>) {
   return (
     <AppBar
-      leadingIcon={<Sun size={17} strokeWidth={1.5} color="var(--fg-2)" />}
+      leadingIcon={
+        <span style={{ color: 'var(--fg-2)' }}>
+          <SaturnDropcap size={20} strokeWidth={1.4} />
+        </span>
+      }
       title={title}
       subtitle={subtitle}
       trailing={

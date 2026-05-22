@@ -502,13 +502,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [expoPushToken, isAuthenticated, isSupported, permissionStatus, writeDisabledPreference])
 
+  // Defer sync calls to a microtask so the synchronous setState calls inside
+  // syncGrantedPermission (the unsupported-module short-circuit at the top of
+  // the function) don't fire inside the effect body.
   useEffect(() => {
-    void syncGrantedPermission()
+    void Promise.resolve().then(() => syncGrantedPermission())
   }, [syncGrantedPermission])
 
   useEffect(() => {
     if (isAuthenticated && isGrantedStatus(permissionStatus ?? '') && !isRegistered) {
-      void syncGrantedPermission()
+      void Promise.resolve().then(() => syncGrantedPermission())
     }
   }, [isAuthenticated, isRegistered, permissionStatus, syncGrantedPermission])
 

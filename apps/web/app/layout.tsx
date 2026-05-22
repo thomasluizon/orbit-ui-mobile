@@ -71,24 +71,11 @@ export default async function RootLayout({
       const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
       root.classList.add('scheme-' + activeScheme)
 
-      const primary = themeName === 'light' ? def.primaryLight : def.primary
+      // v8 migration: --color-* tokens are aliased to v8 vars (--bg, --fg-1, ...) in
+      // globals.css @theme, so we no longer overwrite them here. Per-scheme --primary
+      // is driven by the .scheme-{name} class added above. We still inject the shadow
+      // and nav-glass tokens since those are not yet aliased to v8.
       root.style.setProperty('color-scheme', themeName)
-      root.style.setProperty('--color-primary', primary)
-      root.style.setProperty('--color-background', colors.background)
-      root.style.setProperty('--color-surface-ground', colors.surfaceGround)
-      root.style.setProperty('--color-surface', colors.surface)
-      root.style.setProperty('--color-surface-elevated', colors.surfaceElevated)
-      root.style.setProperty('--color-surface-overlay', colors.surfaceOverlay)
-      root.style.setProperty('--color-card', colors.surface)
-      root.style.setProperty('--color-card-border', colors.surfaceElevated)
-      root.style.setProperty('--color-border', colors.border)
-      root.style.setProperty('--color-border-muted', colors.borderMuted)
-      root.style.setProperty('--color-border-emphasis', colors.borderEmphasis)
-      root.style.setProperty('--color-text-primary', colors.textPrimary)
-      root.style.setProperty('--color-text-secondary', colors.textSecondary)
-      root.style.setProperty('--color-text-muted', colors.textMuted)
-      root.style.setProperty('--color-text-faded', colors.textFaded)
-      root.style.setProperty('--color-text-inverse', colors.textInverse)
       root.style.setProperty('--shadow-sm', colors.shadowSm)
       root.style.setProperty('--shadow-md', colors.shadowMd)
       root.style.setProperty('--shadow-lg', colors.shadowLg)
