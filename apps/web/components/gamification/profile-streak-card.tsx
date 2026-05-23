@@ -12,16 +12,19 @@ export function ProfileStreakCard() {
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
 
-  // Count-up animation
   const [displayStreak, setDisplayStreak] = useState(0)
   const frameRef = useRef<number>(undefined)
+  const [previousStreak, setPreviousStreak] = useState(streak)
+
+  if (streak !== previousStreak) {
+    setPreviousStreak(streak)
+    if (streak <= 0) {
+      setDisplayStreak(0)
+    }
+  }
 
   useEffect(() => {
-    if (streak <= 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- snap-to-zero on reset; rAF path handles animated case
-      setDisplayStreak(0)
-      return
-    }
+    if (streak <= 0) return
 
     const start = performance.now()
     const duration = 800

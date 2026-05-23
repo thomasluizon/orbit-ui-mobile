@@ -25,10 +25,6 @@ interface CalendarQueryOptions {
   enabled?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Read hooks
-// ---------------------------------------------------------------------------
-
 export function useCalendarAutoSyncState(options?: CalendarQueryOptions) {
   return useQuery<CalendarAutoSyncState>({
     queryKey: calendarKeys.autoSyncState(),
@@ -58,10 +54,6 @@ export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
     refetchOnWindowFocus: true,
   })
 }
-
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
 
 /**
  * Toggles auto-sync on/off.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -182,12 +182,16 @@ export default function LoginScreen() {
     }
   }, [])
 
+  const verifyCodeRef = useRef(() => {})
+  useEffect(() => {
+    verifyCodeRef.current = verifyCode
+  })
+
   useEffect(() => {
     if (step !== 'code' || isSubmitting) return
     if (isVerificationCodeComplete(codeDigits)) {
-      void verifyCode()
+      verifyCodeRef.current()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeDigits, step, isSubmitting])
 
   function resolveLoginErrorState(

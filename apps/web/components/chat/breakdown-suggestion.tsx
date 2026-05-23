@@ -9,10 +9,6 @@ import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface EditableHabit {
   title: string
   description: string
@@ -31,17 +27,11 @@ interface BreakdownSuggestionProps {
   onCancelled: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Rich text renderer (S6478: extracted outside component to avoid re-creation)
-// ---------------------------------------------------------------------------
-
+// Extracted outside the component to avoid re-creating the renderer on every
+// render.
 function RichBoldPrimary(chunks: React.ReactNode): React.ReactNode {
-  return <span className="text-primary font-bold">{chunks}</span>
+  return <span className="text-[var(--primary)] font-bold">{chunks}</span>
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function BreakdownSuggestion({
   parentName,
@@ -173,13 +163,9 @@ export function BreakdownSuggestion({
 
   const isSubmitting = bulkCreate.isPending
 
-  // -------------------------------------------------------------------------
-  // Success state
-  // -------------------------------------------------------------------------
-
   if (isCreated) {
     return (
-      <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2 py-2">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
@@ -194,13 +180,9 @@ export function BreakdownSuggestion({
     )
   }
 
-  // -------------------------------------------------------------------------
-  // Editable state
-  // -------------------------------------------------------------------------
-
   return (
-    <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-text-primary">
+    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
+      <p className="text-sm font-medium text-[var(--fg-1)]">
         {t.rich('habits.breakdown.breakInto', {
           name: RichBoldPrimary,
         })}
@@ -210,7 +192,7 @@ export function BreakdownSuggestion({
         {habits.map((habit, index) => (
           <div
             key={`${habit.title}-${index}`}
-            className="bg-surface-elevated border border-border-muted rounded-[var(--radius-lg)] p-3 flex items-center justify-between gap-3"
+            className="bg-[var(--bg-elev)] border border-[var(--hairline)] rounded-[var(--radius-lg)] p-3 flex items-center justify-between gap-3"
           >
             <div className="flex-1 min-w-0 space-y-1">
               <input
@@ -218,7 +200,7 @@ export function BreakdownSuggestion({
                 value={habit.title}
                 onChange={(e) => updateHabit(index, { title: e.target.value })}
                 placeholder={t('habits.breakdown.habitNamePlaceholder')}
-                className="w-full bg-transparent text-sm font-medium text-text-primary placeholder-text-muted outline-none"
+                className="w-full bg-transparent text-sm font-medium text-[var(--fg-1)] placeholder:text-[var(--fg-3)] outline-none"
               />
               <div className="flex items-center gap-2">
                 <select
@@ -232,13 +214,13 @@ export function BreakdownSuggestion({
                       frequencyQuantity: val ? habit.frequencyQuantity : null,
                     })
                   }}
-                  className="bg-transparent text-[11px] text-text-secondary outline-none cursor-pointer"
+                  className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer"
                 >
                   {frequencyOptions.map((opt) => (
                     <option
                       key={opt.value}
                       value={opt.value}
-                      className="bg-surface text-text-primary"
+                      className="bg-[var(--bg-elev)] text-[var(--fg-1)]"
                     >
                       {opt.label}
                     </option>
@@ -246,7 +228,7 @@ export function BreakdownSuggestion({
                 </select>
                 {habit.frequencyUnit && (
                   <>
-                    <span className="text-[11px] text-text-muted">{t('habits.breakdown.every')}</span>
+                    <span className="text-[11px] text-[var(--fg-3)]">{t('habits.breakdown.every')}</span>
                     <input
                       type="number"
                       min={1}
@@ -256,9 +238,9 @@ export function BreakdownSuggestion({
                           frequencyQuantity: Number(e.target.value) || 1,
                         })
                       }
-                      className="w-8 bg-transparent text-[11px] text-text-secondary text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <span className="text-[11px] text-text-muted">
+                    <span className="text-[11px] text-[var(--fg-3)]">
                       {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {/* NOSONAR - dynamic i18n key requires assertion */}
                     </span>
                   </>
@@ -266,7 +248,7 @@ export function BreakdownSuggestion({
               </div>
             </div>
             <button
-              className="shrink-0 p-1.5 rounded-full text-text-muted hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors"
+              className="shrink-0 p-1.5 rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors"
               onClick={() => removeHabit(index)}
             >
               <X className="size-3.5" />
@@ -275,16 +257,14 @@ export function BreakdownSuggestion({
         ))}
       </div>
 
-      {/* Add habit */}
       <button
-        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+        className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
         onClick={addHabit}
       >
         <Plus className="size-3.5" />
         {t('habits.breakdown.addHabit')}
       </button>
 
-      {/* Group as parent checkbox */}
       <label htmlFor="breakdown-create-as-parent" className="flex items-center gap-2 cursor-pointer select-none w-fit">
         <input
           id="breakdown-create-as-parent"
@@ -295,22 +275,20 @@ export function BreakdownSuggestion({
         />
         <div
           aria-hidden="true"
-          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-primary border-primary' : 'border-border'}`}
+          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--hairline)]'}`}
         >
           {createAsParent && <Check className="size-2.5 text-white" />}
         </div>
-        <span className="text-xs text-text-secondary">
+        <span className="text-xs text-[var(--fg-2)]">
           {t('habits.breakdown.createAsParent')}
         </span>
       </label>
 
-      {/* Create error */}
       {createError && <p className="text-xs text-[var(--status-bad)]">{createError}</p>}
 
-      {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
-          className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-primary text-white font-bold text-xs hover:bg-primary/90 transition-[background-color,transform,opacity] duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50 flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-[var(--primary)] text-white font-bold text-xs hover:bg-[var(--primary-pressed)] transition-[background-color,transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
           disabled={validHabits.length === 0 || isSubmitting}
           onClick={handleConfirm}
         >
@@ -318,7 +296,7 @@ export function BreakdownSuggestion({
           {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
         </button>
         <button
-          className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-border text-text-secondary text-xs font-medium hover:bg-surface-elevated/80 transition-colors duration-150"
+          className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-[var(--hairline)] text-[var(--fg-2)] text-xs font-medium hover:bg-[var(--bg-elev)]/80 transition-colors duration-150"
           disabled={isSubmitting}
           onClick={onCancelled}
         >

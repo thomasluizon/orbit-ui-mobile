@@ -21,10 +21,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface HabitChecklistProps {
   items: ChecklistItem[]
   /** Interactive mode: user can toggle checkboxes */
@@ -36,10 +32,6 @@ interface HabitChecklistProps {
   onReset?: () => void
   onClear?: () => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitChecklist({
   items,
@@ -58,7 +50,6 @@ export function HabitChecklist({
 
   const checkedCount = items.filter((i) => i.isChecked).length
 
-  // -- Drag-to-reorder (editable mode) --
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -78,8 +69,6 @@ export function HabitChecklist({
     },
     [items, sortableIds, onItemsChange],
   )
-
-  // -- Editable actions --
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
@@ -121,11 +110,8 @@ export function HabitChecklist({
     onItemsChange?.([])
   }, [onItemsChange])
 
-  // -- Interactive actions --
-
   const handleToggle = useCallback(
     (index: number) => {
-      // Trigger pop animation when checking (not unchecking)
       if (!items[index]?.isChecked) {
         if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
         setJustCheckedIndex(index)
@@ -138,7 +124,6 @@ export function HabitChecklist({
 
   return (
     <div className="space-y-2">
-      {/* Progress + actions */}
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
@@ -149,24 +134,24 @@ export function HabitChecklist({
               aria-label={`${checkedCount}/${items.length}`}
             />
             <div
-              className="h-1.5 bg-surface-elevated rounded-full overflow-hidden"
+              className="h-1.5 bg-[var(--bg-elev)] rounded-full overflow-hidden"
               aria-hidden="true"
             >
               <div
-                className="h-full bg-primary rounded-full transition-[width] duration-300"
+                className="h-full bg-[var(--primary)] rounded-full transition-[width] duration-300"
                 style={{
                   width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%`,
                 }}
               />
             </div>
           </div>
-          <span className="text-[10px] font-bold text-text-muted tabular-nums" aria-hidden="true">
+          <span className="text-[10px] font-bold text-[var(--fg-3)] tabular-nums" aria-hidden="true">
             {checkedCount}/{items.length}
           </span>
           {interactive && checkedCount > 0 && (
             <button
               type="button"
-              className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors"
+              className="text-[10px] font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
               onClick={onReset}
             >
               {t('habits.form.resetChecklist')}
@@ -184,7 +169,6 @@ export function HabitChecklist({
         </div>
       )}
 
-      {/* Items list (editable) with drag-to-reorder */}
       {editable ? (
         <DndContext
           sensors={sensors}
@@ -208,7 +192,6 @@ export function HabitChecklist({
           </SortableContext>
         </DndContext>
       ) : (
-        /* Items list (interactive / read-only) */
         <div className="space-y-1">
           {items.map((item, index) => (
             <div key={`${item.text}-${index}`} className="flex items-center gap-2 group py-1">
@@ -225,8 +208,8 @@ export function HabitChecklist({
                     aria-hidden="true"
                     className={`size-5 rounded-md border-2 flex items-center justify-center transition-[background-color,border-color] ${
                       item.isChecked
-                        ? 'bg-primary border-primary'
-                        : 'border-border hover:border-primary/60'
+                        ? 'bg-[var(--primary)] border-[var(--primary)]'
+                        : 'border-[var(--hairline)] hover:border-[var(--primary)]'
                     } ${justCheckedIndex === index ? 'animate-check-pop' : ''}`}
                   >
                     {item.isChecked && <Check className="size-3 text-white" />}
@@ -234,12 +217,11 @@ export function HabitChecklist({
                 </label>
               ) : null}
 
-              {/* Text */}
               <span
                 className={`flex-1 min-w-0 text-sm transition-colors ${
                   item.isChecked
-                    ? 'text-text-muted line-through'
-                    : 'text-text-primary'
+                    ? 'text-[var(--fg-3)] line-through'
+                    : 'text-[var(--fg-1)]'
                 }`}
               >
                 {item.text}
@@ -249,7 +231,6 @@ export function HabitChecklist({
         </div>
       )}
 
-      {/* Clear all (editable mode only) */}
       {editable && items.length > 0 && (
         <div className="flex justify-end">
           <button
@@ -262,7 +243,6 @@ export function HabitChecklist({
         </div>
       )}
 
-      {/* Add item (editable mode only) */}
       {editable && (
         <div className="flex">
           <label htmlFor={newItemInputId} className="sr-only">
@@ -273,7 +253,7 @@ export function HabitChecklist({
             value={newItemText}
             type="text"
             placeholder={t('habits.form.checklistPlaceholder')}
-            className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted py-2 px-3 text-sm border border-border rounded-l-xl border-r-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="flex-1 min-w-0 bg-[var(--bg-elev)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm border border-[var(--hairline)] rounded-l-xl border-r-0 focus:outline-none focus:border-[var(--primary)]"
             onChange={(e) => setNewItemText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -284,7 +264,7 @@ export function HabitChecklist({
           />
           <button
             type="button"
-            className="shrink-0 px-4 py-2 rounded-r-xl bg-primary text-white text-xs font-bold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,opacity] duration-150"
+            className="shrink-0 px-4 py-2 rounded-r-xl bg-[var(--primary)] text-white text-xs font-bold disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
             disabled={!newItemText.trim()}
             onClick={addItem}
           >
@@ -295,10 +275,6 @@ export function HabitChecklist({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Sortable checklist item (editable mode)
-// ---------------------------------------------------------------------------
 
 function SortableChecklistItem({
   id,
@@ -339,43 +315,38 @@ function SortableChecklistItem({
       className="flex items-center gap-2 group py-0.5"
       {...attributes}
     >
-      {/* Drag handle */}
       <div
         ref={setActivatorNodeRef}
         {...listeners}
         aria-hidden="true"
-        className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary transition-colors touch-none"
+        className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] transition-colors touch-none"
       >
         <GripHorizontal className="size-3.5" />
       </div>
 
-      {/* Static checkbox indicator */}
-      <div aria-hidden="true" className="shrink-0 size-4 rounded border-2 border-border" />
+      <div aria-hidden="true" className="shrink-0 size-4 rounded border-2 border-[var(--hairline)]" />
 
-      {/* Text input */}
       <input
         value={item.text}
         type="text"
         aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
-        className="flex-1 min-w-0 bg-transparent text-sm text-text-primary py-1 px-0 border-0 border-b border-transparent focus:border-border focus:outline-none"
+        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-0 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none"
         onChange={(e) => onUpdateText(index, e.target.value)}
       />
 
-      {/* Duplicate button */}
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="shrink-0 p-1 text-text-muted hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
+        className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--primary-pressed)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
         onClick={() => onDuplicate(index)}
       >
         <Copy className="size-3.5" aria-hidden="true" />
       </button>
 
-      {/* Delete button */}
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="shrink-0 p-1 text-text-muted hover:text-[var(--status-bad)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
+        className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--status-bad)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
         onClick={() => onRemove(index)}
       >
         <X className="size-3.5" aria-hidden="true" />

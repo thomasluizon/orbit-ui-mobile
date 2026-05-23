@@ -9,11 +9,6 @@ import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 
-// ---------------------------------------------------------------------------
-// Privacy Screen — v8 chrome
-// SectionLabel + paragraph for each section.
-// ---------------------------------------------------------------------------
-
 export default function PrivacyScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()

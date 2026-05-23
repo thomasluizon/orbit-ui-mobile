@@ -9,10 +9,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useGoals } from '@/hooks/use-goals'
 import type { GoalStatus } from '@orbit/shared/types/goal'
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 interface StatusFilter {
   key: GoalStatus | null
   label: string
@@ -46,15 +42,15 @@ export function GoalsView() {
 
   return (
     <div className="pt-4">
-      {/* Filter tabs */}
       <div className="flex gap-2 pb-4 overflow-x-auto">
         {statusFilters.map((filter) => (
           <button
             key={filter.key ?? 'all'}
+            aria-pressed={activeFilter === filter.key}
             className={`min-h-11 shrink-0 rounded-[var(--radius-lg)] border px-4 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[var(--orbit-press-scale)] ${
               activeFilter === filter.key
-                ? 'border-primary/20 bg-primary/10 text-primary shadow-[inset_0_1px_0_var(--surface-top-highlight)]'
-                : 'border-border-muted bg-surface-ground text-text-faded hover:border-border-emphasis hover:bg-surface hover:text-text-primary'
+                ? 'border-[var(--hairline-strong)] bg-[var(--bg-sunk)] text-[var(--primary)] shadow-[inset_0_1px_0_var(--surface-top-highlight)]'
+                : 'border-[var(--hairline)] bg-[var(--bg-sunk)] text-[var(--fg-3)] hover:border-[var(--hairline-strong)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]'
             }`}
             onClick={() => handleFilterChange(filter.key)}
           >
@@ -63,16 +59,14 @@ export function GoalsView() {
         ))}
       </div>
 
-      {/* Loading state */}
       {!isFetched && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <SkeletonCard key={`skeleton-${i}`} lines={3} className="bg-surface-ground shadow-[var(--shadow-sm)]" />
+            <SkeletonCard key={`skeleton-${i}`} lines={3} className="bg-[var(--bg-sunk)] shadow-[var(--shadow-sm)]" />
           ))}
         </div>
       )}
 
-      {/* Goal list */}
       {isFetched && (
         <>
           {filteredGoals.length > 0 ? (
@@ -82,7 +76,7 @@ export function GoalsView() {
               icon={Flag}
               title={t('goals.empty')}
               description={t('goals.emptyHint')}
-              className="rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground shadow-[var(--shadow-sm)]"
+              className="rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-[var(--bg-sunk)] shadow-[var(--shadow-sm)]"
             />
           )}
         </>

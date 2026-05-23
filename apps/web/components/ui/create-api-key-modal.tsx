@@ -208,8 +208,6 @@ export function CreateApiKeyModal({
   )
 }
 
-// --- Sub-components ---
-
 interface CreateStepProps {
   keyName: string
   onKeyNameChange: (value: string) => void
@@ -341,7 +339,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           type="checkbox"
           checked={isReadOnly}
           onChange={(event) => onIsReadOnlyChange(event.target.checked)}
-          className="accent-primary"
+          className="accent-[var(--primary)]"
         />
       </label>
 

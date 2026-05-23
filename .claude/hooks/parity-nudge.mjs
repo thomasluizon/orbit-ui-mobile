@@ -30,7 +30,8 @@ try {
 
   if (!scope) process.exit(0)
 
-  const stateDir = join(".tmp", "sessions", String(sessionId))
+  const projectRoot = process.env.CLAUDE_PROJECT_DIR || process.cwd()
+  const stateDir = join(projectRoot, ".tmp", "sessions", String(sessionId))
   const statePath = join(stateDir, "parity-state.json")
 
   let state = { web: 0, mobile: 0, shared: 0, api: 0 }

@@ -70,7 +70,6 @@ const surfacesMock = {
   card: createSurfaceLayer(),
   elevated: createSurfaceLayer(),
   overlay: createSurfaceLayer(),
-  primaryTint: createSurfaceLayer(),
   glow: {
     subtle: shadowStub,
     base: shadowStub,

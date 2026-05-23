@@ -124,7 +124,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className="bg-background text-text-primary font-sans antialiased">
+      <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <NavigationHistoryTracker />
           {children}

@@ -57,7 +57,6 @@ export function OnboardingComplete({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '12px 0' }}>
-      {/* Filled primary disc + check */}
       <div
         className="flex flex-col items-center"
         style={{ gap: 14, paddingTop: 14 }}
@@ -100,7 +99,6 @@ export function OnboardingComplete({
         </p>
       </div>
 
-      {/* Recap list (hairline-divided flush rows) */}
       <div>
         {recapItems.map((item) => (
           <div
@@ -122,7 +120,6 @@ export function OnboardingComplete({
         ))}
       </div>
 
-      {/* Trial info -- compact italic copy */}
       {profile?.isTrialActive && (
         <div
           style={{

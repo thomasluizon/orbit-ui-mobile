@@ -236,10 +236,8 @@ export function TourTooltip({
     return () => cancelAnimationFrame(frame)
   }, [layout])
 
-  // Auto-focus "Next" button on step change
   const nextButtonRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    // Delay focus to allow layout to settle
     const timer = setTimeout(() => nextButtonRef.current?.focus(), 100)
     return () => clearTimeout(timer)
   }, [step])
@@ -249,9 +247,9 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-2xl border border-border bg-surface p-5 shadow-2xl'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-2xl border-b border-border bg-surface p-5 pt-3 shadow-2xl'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-border bg-surface p-5 pb-8 shadow-2xl'
+    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-2xl border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 shadow-2xl'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-2xl border-b border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pt-3 shadow-2xl'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pb-8 shadow-2xl'
   })()
 
   const floatStyle = (() => {
@@ -269,46 +267,41 @@ export function TourTooltip({
       aria-modal="true"
       aria-label={t(step.titleKey)}
     >
-      {/* Drag handle on mobile */}
       {mode !== 'float' && (
         <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-border" />
       )}
 
-      {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        {SectionIcon && <SectionIcon className="size-4 text-primary" />}
-        <span className="text-xs font-medium text-text-secondary">{sectionName}</span>
-        <span className="text-xs text-text-muted">
+        {SectionIcon && <SectionIcon className="size-4 text-[var(--primary)]" />}
+        <span className="text-xs font-medium text-[var(--fg-2)]">{sectionName}</span>
+        <span className="text-xs text-[var(--fg-3)]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,
           })}
         </span>
         {step.proBadge && (
-          <span className="ml-auto rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+          <span className="ml-auto rounded-full bg-[var(--bg-elev)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--primary)]">
             {t('tour.ui.pro')}
           </span>
         )}
       </div>
 
-      {/* Title */}
-      <h3 className="mb-1.5 text-base font-semibold text-text-primary">
+      <h3 className="mb-1.5 text-base font-semibold text-[var(--fg-1)]">
         {t(step.titleKey)}
       </h3>
 
-      {/* Description */}
-      <p className="mb-4 text-sm leading-relaxed text-text-secondary">
+      <p className="mb-4 text-sm leading-relaxed text-[var(--fg-2)]">
         {t(step.descriptionKey)}
       </p>
 
-      {/* Progress dots */}
       <div className="mb-4 flex items-center justify-center gap-1">
         {Array.from({ length: sectionProgress.total }).map((_, i) => {
           let dotClass: string
           if (i === sectionProgress.current - 1) {
-            dotClass = 'w-4 bg-primary'
+            dotClass = 'w-4 bg-[var(--primary)]'
           } else if (i < sectionProgress.current - 1) {
-            dotClass = 'w-1.5 bg-primary/40'
+            dotClass = 'w-1.5 bg-[var(--primary)]/40'
           } else {
             dotClass = 'w-1.5 bg-border'
           }
@@ -321,7 +314,6 @@ export function TourTooltip({
         })}
       </div>
 
-      {/* Navigation */}
       <div className="flex items-center gap-2">
         {isFirstStep ? (
           <div />
@@ -329,7 +321,7 @@ export function TourTooltip({
           <button
             type="button"
             onClick={onPrev}
-            className="flex items-center gap-1 rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary"
+            className="flex items-center gap-1 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--fg-2)] transition-colors hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
           >
             <ChevronLeft className="size-4" />
             {t('tour.ui.back')}
@@ -340,18 +332,17 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex items-center gap-1 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+          className="flex items-center gap-1 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--primary-pressed)]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" />}
         </button>
       </div>
 
-      {/* Skip */}
       <button
         type="button"
         onClick={onSkip}
-        className="mt-2 w-full text-center text-xs text-text-muted transition-colors hover:text-text-secondary"
+        className="mt-2 w-full text-center text-xs text-[var(--fg-3)] transition-colors hover:text-[var(--fg-2)]"
       >
         {t('tour.ui.skip')}
       </button>

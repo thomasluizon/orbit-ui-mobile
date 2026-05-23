@@ -4,12 +4,10 @@ import { CheckCircle, XCircle, Info } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ActionResult } from "@orbit/shared/types/chat";
 import { ConflictWarning } from "./conflict-warning";
-import { radius } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
+import { createTokensV2, radius } from '@/lib/theme';
+import { useAppTheme } from "@/lib/use-app-theme"
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 const ACTION_LABELS: Record<string, string> = {
   log_habit: "chat.action.logged",
@@ -58,10 +56,6 @@ type ChipStyleEntry = {
   Icon: typeof CheckCircle;
 };
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 interface ActionChipsProps {
   actions: ActionResult[];
   onChipClick?: (entityId: string, actionType: string) => void;
@@ -78,8 +72,12 @@ function isNavigable(action: ActionResult, hasHandler: boolean): boolean {
 
 export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   function actionLabel(action: ActionResult): string {
     const name = action.entityName || t("chat.unknownEntity");
@@ -93,7 +91,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
     <View style={styles.container}>
       {actions.map((action, index) => {
         if (action.status === "Suggestion") return null;
-        const style = chipStyle(action, colors);
+        const style = chipStyle(action, tokens);
         const IconComponent = style.Icon;
         const navigable = isNavigable(action, !!onChipClick);
         const label = actionLabel(action);
@@ -146,32 +144,28 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 function chipStyle(
   action: ActionResult,
-  colors: ReturnType<typeof useAppTheme>["colors"],
+  tokens: AppTokens,
 ): ChipStyleEntry {
   switch (action.status) {
     case "Success":
       return {
-        text: colors.emerald400,
-        bg: colors.emerald500_10,
-        border: colors.emerald500_30,
+        text: tokens.statusDone,
+        bg: tokens.bgElev,
+        border: tokens.hairlineStrong,
         Icon: CheckCircle,
       };
     case "Failed":
       return {
-        text: colors.red400,
-        bg: colors.red500_10,
-        border: colors.red500_30,
+        text: tokens.statusBad,
+        bg: tokens.statusBad,
+        border: tokens.statusBad,
         Icon: XCircle,
       };
     default:
       return {
-        text: colors.blue400,
+        text: tokens.primary,
         bg: "rgba(59,130,246,0.10)",
         border: "rgba(59,130,246,0.30)",
         Icon: Info,
@@ -179,7 +173,7 @@ function chipStyle(
   }
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       gap: 8,
@@ -201,7 +195,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
     },
     errorText: {
       fontSize: 12,
-      color: colors.red400,
+      color: tokens.statusBad,
       marginTop: 4,
       paddingLeft: 4,
     },

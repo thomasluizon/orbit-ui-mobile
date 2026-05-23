@@ -70,7 +70,7 @@ export function applyThemeTokensToDOM(
   root.style.setProperty('--color-border', colors.border)
   root.style.setProperty('--color-border-muted', colors.borderMuted)
   root.style.setProperty('--color-border-emphasis', colors.borderEmphasis)
-  root.style.setProperty('--color-text-primary', colors.textPrimary)
+  root.style.setProperty('--color-text-[var(--primary)]', colors.textPrimary)
   root.style.setProperty('--color-text-secondary', colors.textSecondary)
   root.style.setProperty('--color-text-muted', colors.textMuted)
   root.style.setProperty('--color-text-faded', colors.textFaded)

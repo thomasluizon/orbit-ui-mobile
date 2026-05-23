@@ -1,17 +1,16 @@
+import { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ConflictWarning as ConflictWarningType } from "@orbit/shared/types/chat";
-import { radius } from "@/lib/theme";
+import { createTokensV2, radius } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 function severityColors(
   severity: ConflictWarningType["severity"],
-  colors: ReturnType<typeof useAppTheme>["colors"],
+  tokens: AppTokens,
 ): {
   text: string;
   bg: string;
@@ -20,34 +19,30 @@ function severityColors(
   switch (severity) {
     case "HIGH":
       return {
-        text: colors.red400,
-        bg: colors.red500_10,
-        border: colors.red500_30,
+        text: tokens.statusBad,
+        bg: tokens.statusBad,
+        border: tokens.statusBad,
       };
     case "MEDIUM":
       return {
-        text: colors.amber400,
+        text: tokens.statusOverdue,
         bg: "rgba(245,158,11,0.10)",
         border: "rgba(245,158,11,0.30)",
       };
     case "LOW":
       return {
-        text: colors.blue400,
+        text: tokens.primary,
         bg: "rgba(59,130,246,0.10)",
         border: "rgba(59,130,246,0.30)",
       };
     default:
       return {
-        text: colors.textSecondary,
-        bg: colors.surface,
-        border: colors.border,
+        text: tokens.fg2,
+        bg: tokens.bgElev,
+        border: tokens.hairline,
       };
   }
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface ConflictWarningProps {
   warning: ConflictWarningType;
@@ -55,8 +50,12 @@ interface ConflictWarningProps {
 
 export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const sColors = severityColors(warning.severity, colors);
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const sColors = severityColors(warning.severity, tokens);
 
   return (
     <View
@@ -98,10 +97,6 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
     </View>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   container: {

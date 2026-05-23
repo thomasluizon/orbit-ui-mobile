@@ -100,7 +100,6 @@ export default function AchievementsPage() {
 
             {profile && (
               <>
-                {/* Level card */}
                 <div
                   style={{
                     padding: '20px',
@@ -151,7 +150,6 @@ export default function AchievementsPage() {
                     </div>
                   </div>
 
-                  {/* XP progress bar */}
                   <div
                     className="relative w-full"
                     style={{
@@ -195,7 +193,6 @@ export default function AchievementsPage() {
                   </div>
                 </div>
 
-                {/* Achievements by category */}
                 {achievementsByCategory.map((category) => (
                   <AchievementCategorySection
                     key={category.key}

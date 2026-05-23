@@ -178,13 +178,14 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     setCurrentTheme(targetTheme)
   }
 
-  // Side-effect-only: on first profile load, if the DB has no scheme/theme yet,
-  // detect from system and persist. The setRuntimeTheme module mutation is
-  // handled by the dedicated effect above (line 145) once state has updated.
+  const hasSeededSchemeRef = useRef(false)
+  const hasSeededThemeRef = useRef(false)
+
   useEffect(() => {
     if (!profile) return
 
-    if (profile.colorScheme == null) {
+    if (profile.colorScheme == null && !hasSeededSchemeRef.current) {
+      hasSeededSchemeRef.current = true
       const defaultScheme: ColorScheme = 'purple'
       patchProfile({ colorScheme: defaultScheme })
       persistColorScheme(defaultScheme).catch(() => {
@@ -192,7 +193,8 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       })
     }
 
-    if (profile.themePreference == null) {
+    if (profile.themePreference == null && !hasSeededThemeRef.current) {
+      hasSeededThemeRef.current = true
       const detectedSystem = Appearance.getColorScheme()
       const detected: ThemeMode = detectedSystem === 'light' ? 'light' : 'dark'
       void Promise.resolve().then(() => setCurrentTheme(detected))
@@ -201,8 +203,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
         // Best-effort fire-and-forget
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts only to whether the profile rows are null
-  }, [profile?.colorScheme, profile?.themePreference])
+  }, [profile, patchProfile])
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     const prev = currentScheme

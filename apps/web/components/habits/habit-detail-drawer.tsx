@@ -13,7 +13,6 @@ import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
   HabitDetailStatsGrid,
-  Last28Grid,
   type TranslationFn,
 } from './habit-detail-sections'
 import { DescriptionViewer } from './description-viewer'
@@ -22,20 +21,12 @@ import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { formatLocaleDate } from '@orbit/shared/utils'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface HabitDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
   onLogged?: (habitId: string) => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitDetailDrawer({
   open,
@@ -101,10 +92,6 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
-  // Build the "Last 28 days" boolean array from logs. Caller's habitId is "now"
-  // and we walk back 28 days; missing logs render as empty cells.
-  const last28 = useMemo(() => buildLast28FromLogs(logs), [logs])
-
   const askPrompt = habit?.checklistItems && habit.checklistItems.length > 0
     ? t('habits.detail.askAstraSubHabits')
     : t('habits.detail.askAstraDefault')
@@ -142,7 +129,7 @@ export function HabitDetailDrawer({
             type="button"
             onClick={handleAskAstra}
             aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-surface-elevated/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev)]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
             style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
           >
             <div className="flex items-center gap-3">
@@ -173,7 +160,6 @@ export function HabitDetailDrawer({
       >
         {habit && (
           <div className="-mx-6">
-            {/* Due time */}
             {habit.dueTime && (
               <SettingsRow
                 label={t('habits.form.dueTime')}
@@ -183,7 +169,6 @@ export function HabitDetailDrawer({
               />
             )}
 
-            {/* Scheduled reminders */}
             {habit.scheduledReminders && habit.scheduledReminders.length > 0 && (
               <>
                 <SectionLabel>{t('habits.detail.reminders')}</SectionLabel>
@@ -205,7 +190,6 @@ export function HabitDetailDrawer({
               </>
             )}
 
-            {/* End date */}
             {habit.endDate && (
               <SettingsRow
                 label={t('habits.detail.endsOn')}
@@ -219,21 +203,12 @@ export function HabitDetailDrawer({
               />
             )}
 
-            {/* Last 28-day heatmap from logs (only when we have any logs). */}
-            {last28.length > 0 && (
-              <>
-                <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
-                <Last28Grid done={last28} />
-              </>
-            )}
-
             <HabitDetailStatsGrid
               metrics={metrics}
               loading={metricsLoading}
               t={t as TranslationFn}
             />
 
-            {/* Checklist */}
             {liveChecklist.length > 0 && (
               <div style={{ padding: '0 20px 12px' }}>
                 <HabitChecklist
@@ -246,7 +221,6 @@ export function HabitDetailDrawer({
               </div>
             )}
 
-            {/* Calendar (kept for full-history detail) */}
             <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
             <div style={{ padding: '0 20px 12px' }}>
               <HabitCalendar habitId={habit.id} logs={logs} />
@@ -272,23 +246,3 @@ export function HabitDetailDrawer({
   )
 }
 
-interface LogLike {
-  date?: string
-}
-
-function buildLast28FromLogs(logs: readonly LogLike[] | null): boolean[] {
-  if (!logs || logs.length === 0) return []
-  const dateSet = new Set<string>()
-  for (const log of logs) {
-    if (log.date) dateSet.add(log.date.slice(0, 10))
-  }
-  const today = new Date()
-  const result: boolean[] = []
-  for (let offset = 27; offset >= 0; offset -= 1) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - offset)
-    const iso = d.toISOString().slice(0, 10)
-    result.push(dateSet.has(iso))
-  }
-  return result
-}

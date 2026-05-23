@@ -14,7 +14,9 @@ try {
     { pattern: /\bas\s+unknown\s+as\s+\w+/g, label: "as unknown as X" },
     { pattern: /\/\/\s*@ts-ignore/g, label: "@ts-ignore" },
     { pattern: /\/\/\s*@ts-expect-error/g, label: "@ts-expect-error" },
-    { pattern: /\/\/\s*eslint-disable(-next-line)?(?!\s+--\s+\S)/g, label: "unjustified eslint-disable" },
+    // Negative lookahead scans the rest of the same line for ` -- reason ` so
+    // the standard ESLint syntax `eslint-disable-next-line rule -- why` passes.
+    { pattern: /\/\/\s*eslint-disable(-next-line)?(?![^\n]*\s--\s+\S)/g, label: "unjustified eslint-disable" },
   ]
 
   let input

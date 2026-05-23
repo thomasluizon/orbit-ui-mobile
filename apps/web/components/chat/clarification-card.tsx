@@ -68,7 +68,7 @@ export function ClarificationCard({
 
   if (resolved) {
     return (
-      <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2 py-1">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
@@ -82,8 +82,8 @@ export function ClarificationCard({
   }
 
   return (
-    <div className="bg-surface-elevated/50 border border-border-muted rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-text-primary">
+    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
+      <p className="text-sm font-medium text-[var(--fg-1)]">
         {safeT(t, clarificationRequest.question)}
       </p>
 
@@ -98,7 +98,7 @@ export function ClarificationCard({
               type="button"
               disabled={disabled}
               onClick={() => handleSelect(label, action.value)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border-muted bg-surface-elevated px-3 py-1.5 text-xs font-medium text-text-primary transition-transform duration-150 hover:bg-primary/10 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] bg-[var(--bg-elev)] px-3 py-1.5 text-xs font-medium text-[var(--fg-1)] transition-transform duration-150 hover:bg-[var(--bg-sunk)] hover:border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isActive && <Loader2 className="size-3 animate-spin" />}
               {label}

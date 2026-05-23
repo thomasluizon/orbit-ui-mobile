@@ -92,11 +92,6 @@ function formatBillingDate(isoDate: string, locale: string) {
 
 type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
 
-// ---------------------------------------------------------------------------
-// PlanRow — v8 linear-tactical plan card
-// Hairline ring, "Current plan" badge, optional save% pill.
-// ---------------------------------------------------------------------------
-
 function PlanRow({
   tokens,
   label,
@@ -166,10 +161,6 @@ function PlanRow({
     </Pressable>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Body sub-blocks
-// ---------------------------------------------------------------------------
 
 function UsageBlock({
   usagePercent,
@@ -391,10 +382,6 @@ function FeatureComparisonTable({
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
 
 export default function UpgradeScreen() {
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
@@ -955,7 +942,6 @@ export default function UpgradeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Plan row (shared static styles)
   planRow: {
     marginHorizontal: 20,
     marginVertical: 6,
@@ -1061,7 +1047,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
   },
-  // Edge banner
   edgeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1076,7 +1061,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
   },
-  // Usage
   usagePad: {
     paddingHorizontal: 20,
     paddingVertical: 8,
@@ -1091,7 +1075,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
-  // Expired
   expiredBlock: {
     paddingHorizontal: 20,
     paddingTop: 24,
@@ -1120,7 +1103,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  // Invoice
   invoiceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1147,7 +1129,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
-  // Action / button
   actionPad: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -1191,7 +1172,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
   },
-  // Misc
   safe: { flex: 1 },
   container: { flex: 1 },
   scrollContent: {

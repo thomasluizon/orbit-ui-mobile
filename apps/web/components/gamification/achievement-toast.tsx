@@ -25,6 +25,21 @@ export function AchievementToast() {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeAchievement =
     activeCelebration?.kind === 'achievement' ? activeCelebration : null
+  const [previousActiveAchievement, setPreviousActiveAchievement] = useState<
+    typeof activeAchievement | undefined
+  >(undefined)
+
+  if (activeAchievement !== previousActiveAchievement) {
+    setPreviousActiveAchievement(activeAchievement)
+    if (activeAchievement) {
+      setCurrentAchievement({
+        id: activeAchievement.id,
+        achievementId: activeAchievement.payload.achievementId,
+        xpReward: activeAchievement.payload.xpReward,
+      })
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
     if (newAchievements.length === 0) return
@@ -59,13 +74,6 @@ export function AchievementToast() {
   useEffect(() => {
     if (!activeAchievement) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store snapshot into local state
-    setCurrentAchievement({
-      id: activeAchievement.id,
-      achievementId: activeAchievement.payload.achievementId,
-      xpReward: activeAchievement.payload.xpReward,
-    })
-    setShouldRender(true)
     requestAnimationFrame(() => setIsVisible(true))
 
     if (showTimerRef.current) clearTimeout(showTimerRef.current)

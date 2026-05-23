@@ -25,11 +25,8 @@ import {
 } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { buildSubHabitRequest, buildCreateHabitRequest, type HabitFormData } from '@/lib/habit-request-builders'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
+import { habitFormSchema } from '@orbit/shared/validation'
 
 interface SubHabitEntry {
   id: string
@@ -40,20 +37,12 @@ function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: crypto.randomUUID(), value }
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface CreateHabitModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function CreateHabitModal({
   open,
@@ -87,7 +76,7 @@ export function CreateHabitModal({
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
-  const reminderWasManuallyToggledRef = useRef(false)
+  const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   // Initial snapshot strings captured on open so the dirty-check can read them
   // during render. State (not refs) so render-time reads are lint-safe.
   const [initialSnapshot, setInitialSnapshot] = useState({
@@ -124,48 +113,44 @@ export function CreateHabitModal({
     router.push('/upgrade')
   }, [isSubHabitMode, onOpenChange, open, profile, router])
 
-  // Reset form when modal opens. This effect runs in response to the `open`
-  // prop transitioning to true; the setState calls reset the form to its
-  // empty (or parent-prefilled) state. setState-in-effect is acceptable here
-  // because it mirrors an external prop transition into local form state.
-  useEffect(() => {
-    if (!open) return
+  const [previousOpen, setPreviousOpen] = useState(false)
+  if (open !== previousOpen) {
+    setPreviousOpen(open)
+    if (open) {
+      const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
-    const fallbackDate = initialDate ?? formatAPIDate(new Date())
+      setReminderWasManuallyToggled(false)
+      formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
+      tags.resetTags()
+      setSelectedGoalIds([])
+      setSubHabits([])
+      setReminderTimes([0, 15])
 
-    reminderWasManuallyToggledRef.current = false
-    formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
-    tags.resetTags()
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- modal-open prop transition resets form state
-    setSelectedGoalIds([])
-    setSubHabits([])
-    setReminderTimes([0, 15])
+      let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
 
-    let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
+      if (parentHabit) {
+        prefill = buildParentHabitFormState(parentHabit, fallbackDate)
+        formHelpers.form.reset(prefill.formValues)
+        applyHabitFormMode(prefill.mode, formHelpers)
+        tags.resetTags(prefill.selectedTagIds)
+        setSelectedGoalIds(prefill.selectedGoalIds)
+        setReminderTimes(prefill.reminderTimes)
+      } else if (activeView === 'general') {
+        formHelpers.setGeneral()
+      }
 
-    if (parentHabit) {
-      prefill = buildParentHabitFormState(parentHabit, fallbackDate)
-      formHelpers.form.reset(prefill.formValues)
-      applyHabitFormMode(prefill.mode, formHelpers)
-      tags.resetTags(prefill.selectedTagIds)
-      setSelectedGoalIds(prefill.selectedGoalIds)
-      setReminderTimes(prefill.reminderTimes)
-    } else if (activeView === 'general') {
-      formHelpers.setGeneral()
+      setInitialSnapshot({
+        tagIds: JSON.stringify(
+          [...(prefill?.selectedTagIds ?? [])].sort((left, right) => left.localeCompare(right)),
+        ),
+        goalIds: JSON.stringify(
+          [...(prefill?.selectedGoalIds ?? [])].sort((left, right) => left.localeCompare(right)),
+        ),
+        subHabits: JSON.stringify([]),
+        reminderTimes: JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
+      })
     }
-
-    setInitialSnapshot({
-      tagIds: JSON.stringify(
-        [...(prefill?.selectedTagIds ?? [])].sort((left, right) => left.localeCompare(right)),
-      ),
-      goalIds: JSON.stringify(
-        [...(prefill?.selectedGoalIds ?? [])].sort((left, right) => left.localeCompare(right)),
-      ),
-      subHabits: JSON.stringify([]),
-      reminderTimes: JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }
 
   // Drop sub-habit entries if the user loses pro access. "Adjusting state when
   // a prop changes" pattern: track previous prop, react in render.
@@ -182,7 +167,7 @@ export function CreateHabitModal({
       dueTime: watchedDueTime,
       scheduledReminderCount: watchedScheduledReminders.length,
       reminderEnabled: watchedReminderEnabled,
-      reminderWasManuallyToggled: reminderWasManuallyToggledRef.current,
+      reminderWasManuallyToggled,
     })
 
     if (nextReminderEnabled === null || nextReminderEnabled === watchedReminderEnabled) {
@@ -192,10 +177,10 @@ export function CreateHabitModal({
     formHelpers.form.setValue('reminderEnabled', nextReminderEnabled, {
       shouldDirty: true,
     })
-  }, [formHelpers.form, open, watchedDueTime, watchedReminderEnabled, watchedScheduledReminders.length])
+  }, [formHelpers.form, open, reminderWasManuallyToggled, watchedDueTime, watchedReminderEnabled, watchedScheduledReminders.length])
 
   const handleReminderEnabledChange = useCallback((nextEnabled: boolean) => {
-    reminderWasManuallyToggledRef.current = true
+    setReminderWasManuallyToggled(true)
     formHelpers.form.setValue('reminderEnabled', nextEnabled, {
       shouldDirty: true,
     })
@@ -211,7 +196,6 @@ export function CreateHabitModal({
         return
       }
 
-      const data = formHelpers.form.getValues() as unknown as HabitFormData
       const permittedGoalIds = hasProAccess ? selectedGoalIds : []
       const subHabitValues = hasProAccess ? subHabits.map((entry) => entry.value) : []
       const error = formHelpers.validateAll({
@@ -224,6 +208,7 @@ export function CreateHabitModal({
         showError(error)
         return
       }
+      const data = habitFormSchema.parse(formHelpers.form.getValues())
 
       try {
         if (isSubHabitMode && parentHabit) {
@@ -286,7 +271,6 @@ export function CreateHabitModal({
           onReminderTimesChange={setReminderTimes}
           onReminderEnabledChange={handleReminderEnabledChange}
         >
-          {/* Sub-habits (create-only, not in sub-habit mode) */}
           {!isSubHabitMode && (
             hasProAccess ? (
               <div className="space-y-2.5 pt-1">
@@ -302,12 +286,12 @@ export function CreateHabitModal({
                           type="text"
                           maxLength={200}
                           placeholder={t('habits.form.subHabitPlaceholder')}
-                          className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-lg py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-[border-color,box-shadow]"
+                          className="flex-1 bg-[var(--bg-sunk)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-lg py-3 px-4 text-sm border border-[var(--hairline)] focus:outline-none focus:border-[var(--primary)] transition-[border-color]"
                           onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
                         />
                         <button
                           type="button"
-                          className="shrink-0 p-2 text-text-muted hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors duration-150 rounded-full"
+                          className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-150 rounded-full"
                           onClick={() => removeSubHabit(entry.id)}
                         >
                           <Trash2 className="size-4" />
@@ -318,7 +302,7 @@ export function CreateHabitModal({
                 )}
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
                   disabled={subHabits.length >= 20}
                   onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
                 >
@@ -327,7 +311,7 @@ export function CreateHabitModal({
                 </button>
               </div>
             ) : (
-              <div className="rounded-[var(--radius-xl)] border border-border-muted bg-surface-ground p-4 space-y-3">
+              <div className="rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-[var(--bg-sunk)] p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -336,13 +320,13 @@ export function CreateHabitModal({
                       </span>
                       <ProBadge />
                     </div>
-                    <p className="text-xs text-text-muted leading-relaxed">
+                    <p className="text-xs text-[var(--fg-3)] leading-relaxed">
                       {t('upgrade.comparison.subHabits.tooltip')}
                     </p>
                   </div>
                   <button
                     type="button"
-                    className="shrink-0 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                    className="shrink-0 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
                     onClick={() => router.push('/upgrade')}
                   >
                     {t('upgrade.subscribe')}
@@ -353,7 +337,6 @@ export function CreateHabitModal({
           )}
         </HabitFormFields>
 
-        {/* Submit buttons — v8 footer pattern */}
         <div
           className="flex items-center justify-between"
           style={{

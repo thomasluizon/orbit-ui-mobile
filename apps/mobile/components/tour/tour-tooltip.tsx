@@ -15,10 +15,10 @@ import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createColors } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
-type AppColors = ReturnType<typeof createColors>
+type AppTokens = ReturnType<typeof createTokensV2>
 
 const SECTION_ICON_MAP = {
   'check-circle': CheckCircle,
@@ -50,9 +50,13 @@ export function TourTooltip({
   onSkip,
 }: TourTooltipProps) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const insets = useSafeAreaInsets()
-  const styles = useMemo(() => createTooltipStyles(colors), [colors])
+  const styles = useMemo(() => createTooltipStyles(tokens), [tokens])
 
   const iconKey = step.section ? TOUR_SECTION_ICONS[step.section] : undefined
   const SectionIcon = iconKey
@@ -76,12 +80,10 @@ export function TourTooltip({
   return (
     <View style={containerStyle}>
       <View style={tooltipStyle}>
-        {/* Handle */}
         <View style={styles.handle} />
 
-        {/* Header */}
         <View style={styles.header}>
-          {SectionIcon && <SectionIcon size={16} color={colors.primary} />}
+          {SectionIcon && <SectionIcon size={16} color={tokens.primary} />}
           <Text style={styles.sectionName}>{sectionName}</Text>
           <Text style={styles.stepCount}>
             {t('tour.ui.stepOf', {
@@ -94,13 +96,10 @@ export function TourTooltip({
           )}
         </View>
 
-        {/* Title */}
         <Text style={styles.title}>{t(step.titleKey)}</Text>
 
-        {/* Description */}
         <Text style={styles.description}>{t(step.descriptionKey)}</Text>
 
-        {/* Progress dots */}
         <View style={styles.dotsContainer}>
           {Array.from({ length: sectionProgress.total }).map((_, i) => (
             <View
@@ -117,11 +116,10 @@ export function TourTooltip({
           ))}
         </View>
 
-        {/* Navigation */}
         <View style={styles.navRow}>
           {!isFirstStep ? (
             <Pressable style={styles.backButton} onPress={onPrev}>
-              <ChevronLeft size={16} color={colors.textSecondary} />
+              <ChevronLeft size={16} color={tokens.fg2} />
               <Text style={styles.backButtonText}>{t('tour.ui.back')}</Text>
             </Pressable>
           ) : (
@@ -134,11 +132,10 @@ export function TourTooltip({
             <Text style={styles.nextButtonText}>
               {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
             </Text>
-            {!isLastStep && <ChevronRight size={16} color={colors.white} />}
+            {!isLastStep && <ChevronRight size={16} color={tokens.fgOnPrimary} />}
           </Pressable>
         </View>
 
-        {/* Skip */}
         <Pressable style={styles.skipButton} onPress={onSkip}>
           <Text style={styles.skipButtonText}>{t('tour.ui.skip')}</Text>
         </Pressable>
@@ -147,7 +144,7 @@ export function TourTooltip({
   )
 }
 
-function createTooltipStyles(colors: AppColors) {
+function createTooltipStyles(tokens: AppTokens) {
   return StyleSheet.create({
     containerBottom: {
       position: 'absolute',
@@ -164,7 +161,7 @@ function createTooltipStyles(colors: AppColors) {
       zIndex: 9999,
     },
     tooltip: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       paddingHorizontal: 20,
       shadowColor: '#000',
       shadowOpacity: 0.15,
@@ -172,19 +169,19 @@ function createTooltipStyles(colors: AppColors) {
       elevation: 10,
     },
     tooltipBottom: {
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
       borderTopWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       paddingTop: 12,
       paddingBottom: 32,
       shadowOffset: { width: 0, height: -4 },
     },
     tooltipTop: {
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       borderBottomWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       paddingBottom: 16,
       shadowOffset: { width: 0, height: 4 },
     },
@@ -192,7 +189,7 @@ function createTooltipStyles(colors: AppColors) {
       width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: colors.borderMuted,
+      backgroundColor: tokens.hairline,
       alignSelf: 'center',
       marginBottom: 16,
     },
@@ -205,11 +202,11 @@ function createTooltipStyles(colors: AppColors) {
     sectionName: {
       fontSize: 12,
       fontWeight: '500',
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     stepCount: {
       fontSize: 12,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     proBadgeSpacing: {
       marginLeft: 'auto' as const,
@@ -217,13 +214,13 @@ function createTooltipStyles(colors: AppColors) {
     title: {
       fontSize: 16,
       fontWeight: '600',
-      color: colors.textPrimary,
+      color: tokens.fg1,
       marginBottom: 6,
     },
     description: {
       fontSize: 14,
       lineHeight: 22,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginBottom: 16,
     },
     dotsContainer: {
@@ -239,15 +236,15 @@ function createTooltipStyles(colors: AppColors) {
     },
     dotActive: {
       width: 16,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
     },
     dotCompleted: {
       width: 6,
-      backgroundColor: colors.primary_30,
+      backgroundColor: tokens.hairlineStrong,
     },
     dotInactive: {
       width: 6,
-      backgroundColor: colors.borderMuted,
+      backgroundColor: tokens.hairline,
     },
     navRow: {
       flexDirection: 'row',
@@ -260,12 +257,12 @@ function createTooltipStyles(colors: AppColors) {
       gap: 4,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      borderRadius: 12,
+      borderRadius: 10,
     },
     backButtonText: {
       fontSize: 14,
       fontWeight: '500',
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     nextButton: {
       flexDirection: 'row',
@@ -273,13 +270,13 @@ function createTooltipStyles(colors: AppColors) {
       gap: 4,
       paddingHorizontal: 16,
       paddingVertical: 10,
-      borderRadius: 12,
-      backgroundColor: colors.primary,
+      borderRadius: 10,
+      backgroundColor: tokens.primary,
     },
     nextButtonText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     skipButton: {
       alignItems: 'center',
@@ -288,7 +285,7 @@ function createTooltipStyles(colors: AppColors) {
     },
     skipButtonText: {
       fontSize: 12,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
   })
 }

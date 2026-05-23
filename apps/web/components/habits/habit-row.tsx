@@ -1,9 +1,11 @@
 'use client'
 
 import { Fragment, type MouseEvent, type ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, MoreVertical, Pencil, Copy, FolderInput, Plus, SkipForward, Trash2, type LucideIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
+import { Popover } from '@/components/ui/popover'
 import { SelectCheck } from '@/components/ui/select-check'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 
@@ -83,13 +85,21 @@ export function HabitRow({
   tourTargetId,
   actions = {},
 }: Readonly<HabitRowProps>) {
+  const t = useTranslations()
   const {
     onDetail,
     onToggleSelection,
     onLog,
     onUnlog,
     onToggleExpand,
+    onEdit,
+    onDuplicate,
+    onMoveParent,
+    onAddSubHabit,
+    onSkip,
+    onDelete,
   } = actions
+  const hasMenuActions = !!(onEdit || onDuplicate || onMoveParent || onAddSubHabit || onSkip || onDelete)
 
   const isDone = state === 'done'
   const isSkip = state === 'skip'
@@ -182,7 +192,7 @@ export function HabitRow({
         <button
           type="button"
           onClick={handleExpand}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
+          aria-label={expanded ? t('common.collapse') : t('common.expand')}
           aria-expanded={expanded}
           className="appearance-none border-0 bg-transparent cursor-pointer p-0 flex shrink-0"
           style={{
@@ -223,7 +233,7 @@ export function HabitRow({
       <div className="flex items-center shrink-0" style={{ gap: 10 }}>
         {showLinkedGoalDot && (
           <span
-            aria-label="Linked goal"
+            aria-label={t('habits.detail.linkedGoal')}
             className="rounded-full"
             style={{
               width: 5,
@@ -238,14 +248,14 @@ export function HabitRow({
               done={childProgress.done}
               total={childProgress.total}
               size={14}
-              ariaLabel="Progress"
+              ariaLabel={t('goals.progress')}
             />
           ) : (
             <StatusDot
               state={state}
               size={9}
               onToggle={handleToggleStatus}
-              ariaLabel={state}
+              ariaLabel={t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}
             />
           )
         )}
@@ -264,8 +274,113 @@ export function HabitRow({
             {streak}
           </span>
         )}
+        {!selectMode && hasMenuActions && (
+          <Popover
+            placement="bottom-end"
+            className="min-w-[180px] py-1 bg-[var(--bg-elev)] border border-[var(--hairline)] rounded-[var(--radius-md)] shadow-[var(--shadow-3)]"
+            trigger={
+              <button
+                type="button"
+                aria-label={t('habits.actions.more')}
+                onClick={(event) => event.stopPropagation()}
+                className="appearance-none border-0 bg-transparent flex items-center justify-center"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  color: 'var(--fg-3)',
+                  cursor: 'pointer',
+                }}
+              >
+                <MoreVertical size={16} />
+              </button>
+            }
+          >
+            {(close) => (
+              <HabitRowMenu
+                close={close}
+                onEdit={onEdit}
+                onDuplicate={onDuplicate}
+                onAddSubHabit={onAddSubHabit}
+                onMoveParent={onMoveParent}
+                onSkip={onSkip}
+                onDelete={onDelete}
+                t={t}
+              />
+            )}
+          </Popover>
+        )}
       </div>
     </div>
+  )
+}
+
+interface HabitRowMenuProps {
+  close: () => void
+  onEdit?: () => void
+  onDuplicate?: () => void
+  onAddSubHabit?: () => void
+  onMoveParent?: () => void
+  onSkip?: () => void
+  onDelete?: () => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function HabitRowMenu({
+  close,
+  onEdit,
+  onDuplicate,
+  onAddSubHabit,
+  onMoveParent,
+  onSkip,
+  onDelete,
+  t,
+}: Readonly<HabitRowMenuProps>) {
+  function run(handler?: () => void) {
+    return () => {
+      handler?.()
+      close()
+    }
+  }
+
+  return (
+    <div role="menu">
+      {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} />}
+      {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} />}
+      {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
+      {onMoveParent && <MenuItem icon={FolderInput} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
+      {onSkip && <MenuItem icon={SkipForward} label={t('habits.actions.skip')} onClick={run(onSkip)} />}
+      {onDelete && <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} destructive />}
+    </div>
+  )
+}
+
+interface MenuItemProps {
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+  destructive?: boolean
+}
+
+function MenuItem({ icon: Icon, label, onClick, destructive = false }: Readonly<MenuItemProps>) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)]"
+      style={{
+        gap: 10,
+        padding: '8px 12px',
+        color: destructive ? 'var(--status-bad)' : 'var(--fg-1)',
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 14,
+        cursor: 'pointer',
+      }}
+    >
+      <Icon size={14} strokeWidth={1.6} />
+      <span>{label}</span>
+    </button>
   )
 }
 

@@ -30,15 +30,7 @@ export interface AppColors {
   primary400: string
   primaryLight: string
   primaryShadow: string
-  primary_10: string
-  primary_15: string
-  primary_20: string
-  primary_30: string
   primary_80: string
-  primaryTintBg: string
-  primaryTintBorder: string
-  primaryTintIconBg: string
-  primaryRing: string
   textFaded40: string
   border50: string
   borderFaded30: string
@@ -147,7 +139,6 @@ export interface AppSurfaces {
   card: AppSurfaceLayer
   elevated: AppSurfaceLayer
   overlay: AppSurfaceLayer
-  primaryTint: AppSurfaceLayer
   glow: {
     subtle: ShadowValue
     base: ShadowValue
@@ -227,20 +218,17 @@ function blendRgbOverHex(
   return `rgb(${blendChannel(foregroundRed, backgroundRed)}, ${blendChannel(foregroundGreen, backgroundGreen)}, ${blendChannel(foregroundBlue, backgroundBlue)})`
 }
 
-// ---------------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------------
-
 export function createColors(
   colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
 ): AppColors {
   const definition = schemes[colorScheme]
   const theme = definition[themeMode]
-  // v8 migration: legacy color tokens (background, surface*, text*, border*)
-  // now resolve to v8 OKLCH values so the whole codebase picks up Linear-tactical
-  // neutrals without a file-by-file rewrite. v2 callers (createTokensV2) get the
-  // same values directly. Keep this path until consumers are removed.
+  // Legacy color tokens (background, surface*, text*, border*) resolve to the
+  // canonical OKLCH values via createTokensV2 so the whole codebase picks up the
+  // shared neutrals without a file-by-file rewrite. Direct callers of
+  // createTokensV2 get the same values. Keep this path until consumers are
+  // removed.
   const v8 = createTokensV2(colorScheme, themeMode)
   const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
   const isLight = themeMode === 'light'
@@ -259,24 +247,7 @@ export function createColors(
     primary400: definition.scale[400] ?? primary,
     primaryLight: alpha(0.2),
     primaryShadow: `rgba(${definition.shadowRgb},`,
-    primary_10: alpha(0.1),
-    primary_15: alpha(0.15),
-    primary_20: alpha(0.2),
-    primary_30: alpha(0.3),
     primary_80: alpha(0.8),
-    // Android renders semi-transparent elevated cards inconsistently in light
-    // mode, so flatten the tint over the page background while keeping the
-    // same visual result as the web overlay tokens.
-    primaryTintBg: isLight
-      ? flattenedTint(0.3, 'rgb(215, 200, 252)')
-      : alpha(0.1),
-    primaryTintBorder: isLight
-      ? flattenedTint(0.5, 'rgb(194, 169, 251)')
-      : alpha(0.2),
-    primaryTintIconBg: isLight
-      ? flattenedTint(0.42, 'rgb(202, 181, 251)')
-      : alpha(0.2),
-    primaryRing: alpha(0.3),
     textPrimary: v8.fg1,
     textSecondary: v8.fg2,
     textMuted: v8.fg3,
@@ -305,36 +276,40 @@ export function createColors(
       isLight ? 0.05 : 0.02,
       isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.02)',
     ),
-    success: '#34d399',
-    warning: '#fbbf24',
-    danger: '#f87171',
+    // Status colors map to status tokens (DESIGN.md ban: no decorative
+    // red/amber/green fills — use hairline + status text instead). Tinted/
+    // backgrounded variants collapse to a neutral surface so existing fill
+    // call sites stop emitting saturated rectangles.
+    success: v8.statusDone,
+    warning: v8.statusOverdue,
+    danger: v8.statusBad,
     white: '#ffffff',
-    red: '#ef4444',
-    red400: '#f87171',
-    red500: '#ef4444',
-    redLight: '#f87171',
-    redBg: 'rgba(248, 113, 113, 0.1)',
-    redBorder: 'rgba(248, 113, 113, 0.3)',
-    red400_10: 'rgba(248, 113, 113, 0.10)',
-    red500_10: 'rgba(248, 113, 113, 0.10)',
-    red500_30: 'rgba(248, 113, 113, 0.30)',
-    amber: '#f59e0b',
-    amber400: '#fbbf24',
-    amber500: '#f59e0b',
-    amberDark: '#d97706',
-    green: '#22c55e',
-    green400: '#4ade80',
-    green500: '#22c55e',
-    green500bg: 'rgba(34, 197, 94, 1)',
-    green500_60: 'rgba(34, 197, 94, 0.60)',
-    emerald: '#34d399',
-    emerald400: '#34d399',
-    emeraldBg: 'rgba(52, 211, 153, 0.1)',
-    emeraldBorder: 'rgba(52, 211, 153, 0.3)',
-    emerald400_10: 'rgba(52, 211, 153, 0.10)',
-    emerald500_10: 'rgba(52, 211, 153, 0.10)',
-    emerald500_20: 'rgba(52, 211, 153, 0.20)',
-    emerald500_30: 'rgba(52, 211, 153, 0.30)',
+    red: v8.statusBad,
+    red400: v8.statusBad,
+    red500: v8.statusBad,
+    redLight: v8.statusBad,
+    redBg: v8.bgElev,
+    redBorder: v8.hairlineStrong,
+    red400_10: v8.bgElev,
+    red500_10: v8.bgElev,
+    red500_30: v8.hairlineStrong,
+    amber: v8.statusOverdue,
+    amber400: v8.statusOverdue,
+    amber500: v8.statusOverdue,
+    amberDark: v8.statusOverdue,
+    green: v8.statusDone,
+    green400: v8.statusDone,
+    green500: v8.statusDone,
+    green500bg: v8.bgElev,
+    green500_60: v8.statusDone,
+    emerald: v8.statusDone,
+    emerald400: v8.statusDone,
+    emeraldBg: v8.bgElev,
+    emeraldBorder: v8.hairlineStrong,
+    emerald400_10: v8.bgElev,
+    emerald500_10: v8.bgElev,
+    emerald500_20: v8.bgElev,
+    emerald500_30: v8.hairlineStrong,
     blue: '#3b82f6',
     blue400: '#60a5fa',
     blue500: '#3b82f6',
@@ -376,10 +351,6 @@ export const nav = new Proxy({} as AppNav, {
   get: (_target, prop) => createNav()[prop as keyof AppNav],
 })
 
-// ---------------------------------------------------------------------------
-// Radius presets
-// ---------------------------------------------------------------------------
-
 export const radius: AppRadius = {
   sm: 8,
   md: 12,
@@ -398,10 +369,6 @@ export const spacing: AppSpacing = {
   itemGap: 8,
 } as const
 
-// ---------------------------------------------------------------------------
-// Animation tokens
-// ---------------------------------------------------------------------------
-
 /** Raw bezier control points for use with Easing.bezier(...) */
 export const easings = {
   spring: motionEasings.emphasize,
@@ -419,10 +386,6 @@ export const durations = {
   completeGlow: motionDurations.completeGlow,
   completeSpark: motionDurations.completeSpark,
 }
-
-// ---------------------------------------------------------------------------
-// Shadow presets (iOS shadows -- use elevation on Android)
-// ---------------------------------------------------------------------------
 
 export const shadows: AppShadows = {
   sm: {
@@ -461,29 +424,27 @@ export const shadows: AppShadows = {
     shadowOpacity: 0.16,
     shadowRadius: 8,
   },
-  glow: (color: string) => ({
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
+  // DESIGN.md bans glow shadows. The glow* signatures stay (callers pass a
+  // color arg) but resolve to subtle neutral lifts.
+  glow: (_color: string) => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
   }),
-  glowSm: (color: string) => ({
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+  glowSm: (_color: string) => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
   }),
-  glowLg: (color: string) => ({
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 30,
+  glowLg: (_color: string) => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
   }),
 }
-
-// ---------------------------------------------------------------------------
-// Semantic surface presets
-// ---------------------------------------------------------------------------
 
 function createLightShadow(radiusValue: number, opacity: number): ShadowValue {
   return {
@@ -541,13 +502,6 @@ export function createSurfaces(
       shadow: isLight ? createLightShadow(18, 0.1) : shadows.lg,
       elevation: isLight ? 8 : 16,
     },
-    primaryTint: {
-      backgroundColor: colors.primaryTintBg,
-      borderColor: colors.primaryTintBorder,
-      topHighlight,
-      shadow: isLight ? createLightShadow(12, 0.08) : shadows.glow(colors.primary),
-      elevation: isLight ? 2 : 8,
-    },
     glow: {
       subtle: shadows.glowSm(colors.primary),
       base: shadows.glow(colors.primary),
@@ -559,10 +513,6 @@ export function createSurfaces(
 export const surfaces = new Proxy({} as AppSurfaces, {
   get: (_target, prop) => createSurfaces()[prop as keyof AppSurfaces],
 })
-
-// ---------------------------------------------------------------------------
-// Gradient helpers (for use with expo-linear-gradient)
-// ---------------------------------------------------------------------------
 
 export const gradients = {
   surfaceSheen: ['rgba(255,255,255,0.035)', 'transparent'] as const,
@@ -580,20 +530,10 @@ export const gradients = {
   statusOverdue: ['rgba(239,68,68,0.12)', 'transparent'] as const,
 }
 
-// ---------------------------------------------------------------------------
-// Color helpers
-// ---------------------------------------------------------------------------
-
 /** Returns an rgba string using the given rgb components (defaults to purple 139,92,246) */
 export function primaryRgba(alpha: number, rgb?: string): string {
   return `rgba(${rgb ?? '139,92,246'},${alpha})`
 }
-
-// ---------------------------------------------------------------------------
-// v2 tokens (redesign/v2 — Linear-tactical OKLCH system)
-// Old `colors`/`surfaces`/`shadows`/`gradients` exports stay until Phase 7
-// removes them after the last consumer migrates.
-// ---------------------------------------------------------------------------
 
 export interface AppTokensV2 {
   bg: string
@@ -692,7 +632,7 @@ export const tokens = new Proxy({} as AppTokensV2, {
   get: (_target, prop) => createTokensV2()[prop as keyof AppTokensV2],
 })
 
-// v2 shadows: 3 cool hairline-layered tiers (no glows, no color).
+// Three cool hairline-layered shadow tiers (no glows, no color).
 // Mobile picks the dominant layer; elevation gives Android the same depth.
 export const shadowsV2: AppShadowsV2 = {
   shadow1: {

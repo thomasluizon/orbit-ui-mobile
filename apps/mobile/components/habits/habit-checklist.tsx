@@ -8,13 +8,9 @@ import {
 import { ChevronUp, ChevronDown, X, Copy, Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import { createColors, radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -28,11 +24,7 @@ interface HabitChecklistProps {
   onClear?: () => void
 }
 
-type AppColors = ReturnType<typeof createColors>
-
-// ---------------------------------------------------------------------------
-// EditableChecklistItem -- local state avoids parent re-render per keystroke
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface EditableChecklistItemProps {
   text: string
@@ -45,7 +37,7 @@ interface EditableChecklistItemProps {
   isFirst: boolean
   isLast: boolean
   styles: ReturnType<typeof createStyles>
-  colors: AppColors
+  tokens: AppTokens
 }
 
 function EditableChecklistItem({
@@ -59,7 +51,7 @@ function EditableChecklistItem({
   isFirst,
   isLast,
   styles,
-  colors,
+  tokens,
 }: EditableChecklistItemProps) {
   const [localText, setLocalText] = useState(text)
 
@@ -97,7 +89,7 @@ function EditableChecklistItem({
           activeOpacity={0.7}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
-          <ChevronUp size={14} color={colors.textMuted} style={{ opacity: isFirst ? 0.3 : 1 }} />
+          <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.moveButton}
@@ -106,14 +98,14 @@ function EditableChecklistItem({
           activeOpacity={0.7}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
-          <ChevronDown size={14} color={colors.textMuted} style={{ opacity: isLast ? 0.3 : 1 }} />
+          <ChevronDown size={14} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </TouchableOpacity>
       </View>
       <View style={styles.uncheckedBox} />
       <BottomSheetAppTextInput
         value={localText}
         style={styles.itemTextInput}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={tokens.fg3}
         onChangeText={setLocalText}
         onBlur={flushLocalText}
       />
@@ -122,22 +114,18 @@ function EditableChecklistItem({
         onPress={handleDuplicate}
         activeOpacity={0.7}
       >
-        <Copy size={14} color={colors.textMuted} />
+        <Copy size={14} color={tokens.fg3} />
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.itemAction}
         onPress={handleRemove}
         activeOpacity={0.7}
       >
-        <X size={14} color={colors.textMuted} />
+        <X size={14} color={tokens.fg3} />
       </TouchableOpacity>
     </View>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitChecklist({
   items,
@@ -149,11 +137,15 @@ export function HabitChecklist({
   onClear,
 }: Readonly<HabitChecklistProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const [newItemText, setNewItemText] = useState('')
   const [, setJustCheckedIndex] = useState(-1)
   const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const progressPercent = items.length > 0 ? (checkedCount / items.length) * 100 : 0
@@ -163,8 +155,6 @@ export function HabitChecklist({
       if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
     }
   }, [])
-
-  // -- Editable actions --
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
@@ -219,8 +209,6 @@ export function HabitChecklist({
     onItemsChange?.([])
   }, [onItemsChange])
 
-  // -- Interactive actions --
-
   const handleToggle = useCallback(
     (index: number) => {
       if (!items[index]?.isChecked) {
@@ -235,7 +223,6 @@ export function HabitChecklist({
 
   return (
     <View style={styles.container}>
-      {/* Progress + actions */}
       {items.length > 0 && !editable && (
         <View style={styles.progressRow}>
           <View style={styles.progressBarOuter}>
@@ -259,7 +246,6 @@ export function HabitChecklist({
         </View>
       )}
 
-      {/* Items list (editable) */}
       {editable ? (
         <View style={styles.itemsList}>
           {items.map((item, index) => (
@@ -275,12 +261,11 @@ export function HabitChecklist({
               isFirst={index === 0}
               isLast={index === items.length - 1}
               styles={styles}
-              colors={colors}
+              tokens={tokens}
             />
           ))}
         </View>
       ) : (
-        /* Items list (interactive / read-only) */
         <View style={styles.itemsList}>
           {items.map((item, index) => (
             <View key={`${item.text}-${index}`} style={styles.interactiveItem}>
@@ -297,7 +282,7 @@ export function HabitChecklist({
                         : styles.checkboxUnchecked,
                     ]}
                   >
-                    {item.isChecked && <Check size={12} color={colors.white} />}
+                    {item.isChecked && <Check size={12} color={tokens.fgOnPrimary} />}
                   </View>
                 </TouchableOpacity>
               )}
@@ -315,7 +300,6 @@ export function HabitChecklist({
         </View>
       )}
 
-      {/* Clear all (editable mode only) */}
       {editable && items.length > 0 && (
         <View style={styles.clearRow}>
           <TouchableOpacity onPress={clearAll} activeOpacity={0.7}>
@@ -324,13 +308,12 @@ export function HabitChecklist({
         </View>
       )}
 
-      {/* Add item (editable mode only) */}
       {editable && (
         <View style={styles.addItemRow}>
           <BottomSheetAppTextInput
             value={newItemText}
             placeholder={t('habits.form.checklistPlaceholder')}
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={tokens.fg3}
             style={styles.addItemInput}
             onChangeText={setNewItemText}
             onSubmitEditing={addItem}
@@ -353,11 +336,7 @@ export function HabitChecklist({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: AppColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
   container: {
     gap: 8,
@@ -370,30 +349,30 @@ function createStyles(colors: AppColors) {
   progressBarOuter: {
     flex: 1,
     height: 6,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: tokens.bgElev,
     borderRadius: radius.full,
     overflow: 'hidden',
   },
   progressBarInner: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: tokens.primary,
     borderRadius: radius.full,
   },
   progressText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: tokens.fg3,
     fontVariant: ['tabular-nums'],
   },
   resetText: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.primary,
+    color: tokens.primary,
   },
   clearText: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.red400,
+    color: tokens.statusBad,
   },
   clearRow: {
     alignItems: 'flex-end',
@@ -424,12 +403,12 @@ function createStyles(colors: AppColors) {
     height: 16,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: tokens.hairline,
   },
   itemTextInput: {
     flex: 1,
     fontSize: 14,
-    color: colors.textPrimary,
+    color: tokens.fg1,
     paddingVertical: 4,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
@@ -453,19 +432,19 @@ function createStyles(colors: AppColors) {
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: tokens.primary,
+    borderColor: tokens.primary,
   },
   checkboxUnchecked: {
-    borderColor: colors.border,
+    borderColor: tokens.hairline,
   },
   itemText: {
     flex: 1,
     fontSize: 14,
-    color: colors.textPrimary,
+    color: tokens.fg1,
   },
   itemTextChecked: {
-    color: colors.textMuted,
+    color: tokens.fg3,
     textDecorationLine: 'line-through',
   },
   addItemRow: {
@@ -473,13 +452,13 @@ function createStyles(colors: AppColors) {
   },
   addItemInput: {
     flex: 1,
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
+    backgroundColor: tokens.bgElev,
+    color: tokens.fg1,
     paddingVertical: 8,
     paddingHorizontal: 12,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: tokens.hairline,
     borderTopLeftRadius: radius.xl,
     borderBottomLeftRadius: radius.xl,
     borderRightWidth: 0,
@@ -489,14 +468,14 @@ function createStyles(colors: AppColors) {
     paddingVertical: 8,
     borderTopRightRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
-    backgroundColor: colors.primary,
+    backgroundColor: tokens.primary,
     justifyContent: 'center',
   },
   addItemButtonDisabled: {
     opacity: 0.4,
   },
   addItemButtonText: {
-    color: colors.white,
+    color: tokens.fgOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },

@@ -104,7 +104,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
         <button
           type="button"
           onClick={handleReplayAll}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[var(--primary-pressed)]"
         >
           <RotateCcw className="size-4" />
           {t('tour.replay.replayAll')}
@@ -113,7 +113,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
         {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-text-muted">
+          <span className="text-xs text-[var(--fg-3)]">
             {t('tour.sections.habits').charAt(0).toUpperCase()}
           </span>
           <div className="h-px flex-1 bg-border" />
@@ -132,23 +132,23 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                 key={section}
                 type="button"
                 onClick={() => handleReplaySection(section)}
-                className="w-full flex items-center gap-3 rounded-xl border border-border-muted bg-surface p-4 text-left transition-colors hover:bg-surface-elevated hover:border-border"
+                className="w-full flex items-center gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--bg-elev)] p-4 text-left transition-colors hover:bg-[var(--bg-elev)] hover:border-[var(--hairline)]"
               >
-                <div className="shrink-0 flex items-center justify-center rounded-lg bg-primary/10 p-2.5">
-                  {Icon && <Icon className="size-4 text-primary" />}
+                <div className="shrink-0 flex items-center justify-center rounded-lg bg-[var(--bg-sunk)] p-2.5">
+                  {Icon && <Icon className="size-4 text-[var(--primary)]" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary">
+                  <p className="text-sm font-semibold text-[var(--fg-1)]">
                     {t(`tour.sections.${section}`)}
                   </p>
-                  <p className="text-xs text-text-secondary">
+                  <p className="text-xs text-[var(--fg-2)]">
                     {t('tour.replay.steps', { count: stepCount })}
                   </p>
                 </div>
                 {completed ? (
                   <CheckCircle className="size-4 text-[var(--status-done)] shrink-0" />
                 ) : (
-                  <Play className="size-4 text-text-muted shrink-0" />
+                  <Play className="size-4 text-[var(--fg-3)] shrink-0" />
                 )}
               </button>
             )

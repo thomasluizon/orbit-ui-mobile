@@ -13,13 +13,11 @@ import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { AppTextInput } from '@/components/ui/app-text-input'
-import { radius, shadows } from '@/lib/theme'
+import { createTokensV2, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { plural } from '@/lib/plural'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface EditableHabit {
   id: string
@@ -44,10 +42,6 @@ function createEditableHabitId() {
   return `editable-habit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-// ---------------------------------------------------------------------------
-// Frequency options
-// ---------------------------------------------------------------------------
-
 const FREQUENCY_OPTIONS: { value: string; labelKey: string }[] = [
   { value: '', labelKey: 'habits.filter.oneTime' },
   { value: 'Day', labelKey: 'habits.filter.daily' },
@@ -56,10 +50,6 @@ const FREQUENCY_OPTIONS: { value: string; labelKey: string }[] = [
   { value: 'Year', labelKey: 'habits.filter.yearly' },
 ]
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function BreakdownSuggestion({
   parentName,
   subHabits,
@@ -67,9 +57,13 @@ export function BreakdownSuggestion({
   onCancelled,
 }: Readonly<BreakdownSuggestionProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const bulkCreate = useBulkCreateHabits()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const [habits, setHabits] = useState<EditableHabit[]>(
     subHabits.map((h) => ({
@@ -184,16 +178,12 @@ export function BreakdownSuggestion({
 
   const isSubmitting = bulkCreate.isPending
 
-  // ---------------------------------------------------------------------------
-  // Success state
-  // ---------------------------------------------------------------------------
-
   if (isCreated) {
     return (
       <View style={styles.card}>
         <View style={styles.successRow}>
           <View style={styles.successIcon}>
-            <Check size={14} color={colors.emerald400} />
+            <Check size={14} color={tokens.statusDone} />
           </View>
           <Text style={styles.successText}>
             {createAsParent
@@ -211,17 +201,12 @@ export function BreakdownSuggestion({
     )
   }
 
-  // ---------------------------------------------------------------------------
-  // Editable state
-  // ---------------------------------------------------------------------------
-
   return (
     <View style={styles.card}>
       <Text style={styles.headerText}>
         {t('habits.breakdown.breakInto', { name: parentName })}
       </Text>
 
-      {/* Habit list */}
       <View style={styles.habitsList}>
         {habits.map((habit, index) => (
           <View key={habit.id} style={styles.habitRow}>
@@ -231,7 +216,7 @@ export function BreakdownSuggestion({
                 value={habit.title}
                 onChangeText={(text) => updateHabit(index, { title: text })}
                 placeholder={t('habits.breakdown.habitNamePlaceholder')}
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={tokens.fg3}
               />
               <View style={styles.freqRow}>
                 {FREQUENCY_OPTIONS.map((opt) => {
@@ -272,23 +257,21 @@ export function BreakdownSuggestion({
               activeOpacity={0.7}
               onPress={() => removeHabit(index)}
             >
-              <X size={14} color={colors.textMuted} />
+              <X size={14} color={tokens.fg3} />
             </TouchableOpacity>
           </View>
         ))}
       </View>
 
-      {/* Add habit */}
       <TouchableOpacity
         style={styles.addBtn}
         activeOpacity={0.7}
         onPress={addHabit}
       >
-        <Plus size={14} color={colors.primary} />
+        <Plus size={14} color={tokens.primary} />
         <Text style={styles.addBtnText}>{t('habits.breakdown.addHabit')}</Text>
       </TouchableOpacity>
 
-      {/* Group as parent checkbox */}
       <TouchableOpacity
         style={styles.checkboxRow}
         activeOpacity={0.7}
@@ -300,19 +283,17 @@ export function BreakdownSuggestion({
             createAsParent && styles.checkboxActive,
           ]}
         >
-          {createAsParent && <Check size={10} color={colors.white} />}
+          {createAsParent && <Check size={10} color={tokens.fgOnPrimary} />}
         </View>
         <Text style={styles.checkboxLabel}>
           {t('habits.breakdown.createAsParent')}
         </Text>
       </TouchableOpacity>
 
-      {/* Error */}
       {createError !== '' && (
         <Text style={styles.errorText}>{createError}</Text>
       )}
 
-      {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity
           style={[
@@ -323,7 +304,7 @@ export function BreakdownSuggestion({
           disabled={validHabits.length === 0 || isSubmitting}
           onPress={handleConfirm}
         >
-          {isSubmitting && <ActivityIndicator size="small" color={colors.white} />}
+          {isSubmitting && <ActivityIndicator size="small" color={tokens.fgOnPrimary} />}
           <Text style={styles.confirmBtnText}>
             {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
           </Text>
@@ -341,16 +322,12 @@ export function BreakdownSuggestion({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
   card: {
-    backgroundColor: colors.surfaceOverlay,
+    backgroundColor: tokens.bgElev,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: tokens.hairline,
     borderRadius: radius.xl,
     padding: 16,
     gap: 12,
@@ -360,7 +337,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   headerText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textPrimary,
+    color: tokens.fg1,
   },
   habitsList: {
     gap: 12,
@@ -369,9 +346,9 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: tokens.bgElev,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: tokens.hairline,
     borderRadius: radius.lg,
     padding: 12,
   },
@@ -382,7 +359,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   habitInput: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textPrimary,
+    color: tokens.fg1,
     padding: 0,
   },
   freqRow: {
@@ -394,20 +371,20 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: tokens.bgElev,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: tokens.hairline,
   },
   freqChipActive: {
-    backgroundColor: colors.primary_20,
-    borderColor: colors.primary_30,
+    backgroundColor: tokens.bgElev,
+    borderColor: tokens.hairlineStrong,
   },
   freqChipText: {
     fontSize: 10,
-    color: colors.textSecondary,
+    color: tokens.fg2,
   },
   freqChipTextActive: {
-    color: colors.primary,
+    color: tokens.primary,
     fontWeight: '600',
   },
   removeBtn: {
@@ -422,7 +399,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
   addBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
+    color: tokens.primary,
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -434,21 +411,21 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     height: 16,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: tokens.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: tokens.primary,
+    borderColor: tokens.primary,
   },
   checkboxLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: tokens.fg2,
   },
   errorText: {
     fontSize: 12,
-    color: colors.red400,
+    color: tokens.statusBad,
   },
   actions: {
     flexDirection: 'row',
@@ -463,10 +440,10 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     gap: 6,
     paddingVertical: 10,
     borderRadius: radius.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: tokens.primary,
   },
   confirmBtnText: {
-    color: colors.white,
+    color: tokens.fgOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -475,12 +452,12 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     paddingVertical: 10,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: tokens.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelBtnText: {
-    color: colors.textSecondary,
+    color: tokens.fg2,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -497,14 +474,14 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.emerald500_20,
+    backgroundColor: tokens.bgElev,
     alignItems: 'center',
     justifyContent: 'center',
   },
   successText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.emerald400,
+    color: tokens.statusDone,
   },
   })
 }

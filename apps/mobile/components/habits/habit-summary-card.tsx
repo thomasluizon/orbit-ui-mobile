@@ -6,8 +6,10 @@ import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/use-profile";
 import { useSummary } from "@/hooks/use-habits";
 import { ProBadge } from "@/components/ui/pro-badge";
-import { gradients, radius, shadows } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
+import { createTokensV2, gradients, radius, shadows } from '@/lib/theme';
+import { useAppTheme } from "@/lib/use-app-theme"
+
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface HabitSummaryCardProps {
   date: string;
@@ -16,8 +18,12 @@ interface HabitSummaryCardProps {
 export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   const { t, i18n } = useTranslation();
   const { profile } = useProfile();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false;
@@ -53,7 +59,7 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
         />
         <View style={styles.insetHighlight} pointerEvents="none" />
         <View style={styles.header}>
-          <Sparkles size={18} color={colors.primary} />
+          <Sparkles size={18} color={tokens.primary} />
           <Text style={styles.title}>{t("summary.title")}</Text>
           <ProBadge />
         </View>
@@ -91,7 +97,7 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
       />
       <View style={styles.insetHighlight} pointerEvents="none" />
       <View style={styles.header}>
-        <Sparkles size={18} color={colors.primary} />
+        <Sparkles size={18} color={tokens.primary} />
         <Text style={styles.title}>{t("summary.title")}</Text>
         <ProBadge />
       </View>
@@ -100,13 +106,13 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     card: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderRadius: radius["2xl"],
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 20,
       gap: 14,
       overflow: "hidden",
@@ -114,7 +120,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       elevation: 6,
     },
     loadingCard: {
-      borderColor: colors.primaryTintBorder,
+      borderColor: tokens.hairlineStrong,
     },
     insetHighlight: {
       position: "absolute",
@@ -125,10 +131,10 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       backgroundColor: "rgba(255,255,255,0.06)",
     },
     errorCard: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderRadius: radius["2xl"],
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 20,
       gap: 10,
     },
@@ -140,7 +146,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
     title: {
       fontSize: 15,
       fontWeight: "800",
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     loadingRow: {
       flexDirection: "row",
@@ -150,7 +156,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
     loadingText: {
       fontSize: 15,
       lineHeight: 22,
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     loadingSkeleton: {
       gap: 10,
@@ -159,28 +165,28 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       height: 14,
       width: "100%",
       borderRadius: radius.full,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     loadingLineShort: {
       height: 14,
       width: "72%",
       borderRadius: radius.full,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     errorText: {
       fontSize: 15,
       lineHeight: 22,
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     retryText: {
       fontSize: 14,
       fontWeight: "700",
-      color: colors.primary,
+      color: tokens.primary,
     },
     summary: {
       fontSize: 15,
       lineHeight: 29,
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
   });
 }

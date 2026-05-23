@@ -89,12 +89,20 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
 import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
 
-// ---------------------------------------------------------------------------
-// Animated Sparkle Icon for empty state
-// ---------------------------------------------------------------------------
-
 type Tokens = ReturnType<typeof createTokensV2>;
 type ChatStyles = ReturnType<typeof createStyles>;
+
+interface RNFileUpload {
+  uri: string;
+  type: string;
+  name: string;
+}
+
+declare global {
+  interface FormData {
+    append(name: string, value: RNFileUpload): void;
+  }
+}
 
 interface AdRewardResponse {
   bonusMessagesGranted: number;
@@ -629,7 +637,7 @@ export default function ChatScreen() {
     setImagePreview(null);
   }, []);
 
-  function buildImageUpload(asset: ImagePicker.ImagePickerAsset): Blob {
+  function buildImageUpload(asset: ImagePicker.ImagePickerAsset): RNFileUpload {
     const mimeType =
       resolveChatImageMimeType({
         mimeType: asset.mimeType,
@@ -643,7 +651,7 @@ export default function ChatScreen() {
       uri: asset.uri,
       type: mimeType,
       name: asset.fileName ?? `orbit-chat-image.${extension}`,
-    } as unknown as Blob;
+    };
   }
 
   const sendMessage = useCallback(
@@ -1364,10 +1372,6 @@ export default function ChatScreen() {
     </SafeAreaView>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({

@@ -24,10 +24,6 @@ async function fetchCalendarMonth(
   return res.json()
 }
 
-// ---------------------------------------------------------------------------
-// useCalendarData
-// ---------------------------------------------------------------------------
-
 export function useCalendarData(currentMonth: Date) {
   const monthStart = formatAPIDate(startOfMonth(currentMonth))
   const monthEnd = formatAPIDate(endOfMonth(currentMonth))

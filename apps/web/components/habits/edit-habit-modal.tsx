@@ -19,11 +19,8 @@ import {
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { buildUpdateHabitRequest, type HabitFormData } from '@/lib/habit-request-builders'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
+import { habitFormSchema } from '@orbit/shared/validation'
 
 interface EditHabitModalProps {
   open: boolean
@@ -31,10 +28,6 @@ interface EditHabitModalProps {
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function EditHabitModal({
   open,
@@ -72,14 +65,12 @@ export function EditHabitModal({
     onDismiss: () => onOpenChange(false),
   })
 
-  // Fetch detail to get dueDate, dueTime, endDate etc.
   const { data: habitDetail, error: detailError } = useHabitDetail(open && habit ? habit.id : null)
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  // Show detail fetch error
   useEffect(() => {
     if (detailError) {
       showError(
@@ -88,37 +79,40 @@ export function EditHabitModal({
     }
   }, [detailError, showError, translate])
 
-  // Populate form when the modal session starts and once detail loads.
-  // Avoid rehydrating on every background refetch while the user is typing.
-  // setState-in-effect is acceptable here: we are mirroring server-fetched
-  // habit detail into local form fields on session start.
-  useEffect(() => {
-    if (!open || !habit) return
-
-    const prefill = buildEditHabitFormState(habit, habitDetail)
-    formHelpers.form.reset(prefill.formValues)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror server-fetched detail into local form state on session start
-    setOriginalEndDate(prefill.originalEndDate)
-    setReminderTimes(prefill.reminderTimes)
-    tags.resetTags(prefill.selectedTagIds)
-    setSelectedGoalIds(prefill.selectedGoalIds)
-    setInitialTagIds(
-      JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
-    )
-    setInitialGoalIds(
-      JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
-    )
-    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-    applyHabitFormMode(prefill.mode, formHelpers)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, habit?.id, habitDetail?.id])
+  const sessionHabitId = open && habit ? habit.id : null
+  const sessionDetailId = habitDetail?.id ?? null
+  const [previousSession, setPreviousSession] = useState<{
+    habitId: string | null
+    detailId: string | null
+  }>({ habitId: null, detailId: null })
+  if (
+    sessionHabitId !== previousSession.habitId ||
+    sessionDetailId !== previousSession.detailId
+  ) {
+    setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
+    if (open && habit) {
+      const prefill = buildEditHabitFormState(habit, habitDetail)
+      formHelpers.form.reset(prefill.formValues)
+      setOriginalEndDate(prefill.originalEndDate)
+      setReminderTimes(prefill.reminderTimes)
+      tags.resetTags(prefill.selectedTagIds)
+      setSelectedGoalIds(prefill.selectedGoalIds)
+      setInitialTagIds(
+        JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
+      )
+      setInitialGoalIds(
+        JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
+      )
+      setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+      applyHabitFormMode(prefill.mode, formHelpers)
+    }
+  }
 
   const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
       if (!habit) return
 
-      const data = formHelpers.form.getValues() as unknown as HabitFormData
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
@@ -128,6 +122,7 @@ export function EditHabitModal({
         showError(error)
         return
       }
+      const data = habitFormSchema.parse(formHelpers.form.getValues())
 
       const request = buildUpdateHabitRequest(data, formHelpers.isOneTime, originalEndDate, reminderTimes, selectedGoalIds)
 
@@ -166,7 +161,6 @@ export function EditHabitModal({
           defaultExpanded
         />
 
-        {/* Submit buttons — v8 footer pattern */}
         <div
           className="flex items-center justify-between"
           style={{

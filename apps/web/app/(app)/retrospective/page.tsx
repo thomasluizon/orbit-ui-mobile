@@ -105,7 +105,6 @@ export default function RetrospectivePage() {
         title={t('retrospective.title')}
       />
 
-      {/* Locked state for non-Pro users */}
       {isLoaded && !hasProAccess && (
         <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
           <span
@@ -148,7 +147,6 @@ export default function RetrospectivePage() {
         </div>
       )}
 
-      {/* Locked state for non-yearly Pro users */}
       {isLoaded && hasProAccess && !isYearlyPro && (
         <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
           <span
@@ -216,10 +214,8 @@ export default function RetrospectivePage() {
         </div>
       )}
 
-      {/* Yearly Pro user content */}
       {isLoaded && isYearlyPro && (
         <>
-          {/* Period chips */}
           <div
             className="flex items-center"
             style={{
@@ -242,7 +238,6 @@ export default function RetrospectivePage() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {/* Loading state */}
             {isLoading && (
               <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <span
@@ -262,7 +257,6 @@ export default function RetrospectivePage() {
               </div>
             )}
 
-            {/* Result */}
             {!isLoading && retrospective && (
               <div style={{ padding: '14px 0' }}>
                 <div
@@ -327,7 +321,6 @@ export default function RetrospectivePage() {
               </div>
             )}
 
-            {/* Error */}
             {!isLoading && error && (
               <div style={{ padding: '20px', textAlign: 'center' }}>
                 <p style={{ fontFamily: 'var(--font-family-sans)', fontSize: 14, color: 'var(--status-overdue)' }}>
@@ -353,7 +346,6 @@ export default function RetrospectivePage() {
               </div>
             )}
 
-            {/* Empty state: generate prompt with Astra pull-quote eyebrow */}
             {!isLoading && !retrospective && !error && (
               <div style={{ padding: '20px 0 0' }}>
                 <PullQuote

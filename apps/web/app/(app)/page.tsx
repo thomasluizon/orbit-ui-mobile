@@ -23,8 +23,6 @@ import {
 import { plural } from '@/lib/plural'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
-import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ControlsMenu } from '@/components/habits/controls-menu'
@@ -49,10 +47,6 @@ import {
   type TodayTabItem,
 } from './today-shell'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
@@ -80,10 +74,6 @@ function getTodayTabLabel(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Page Component
-// ---------------------------------------------------------------------------
-
 export default function TodayPage() {
   const t = useTranslations()
   const locale = useLocale()
@@ -100,13 +90,11 @@ export default function TodayPage() {
     ease: listMotionPreset.enterEasing,
   } as const
 
-  // Show general on today preference (local storage, read-only)
   const showGeneralOnToday = useMemo(() => {
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false // NOSONAR - SSR guard
     return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
   }, [])
 
-  // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate)
   const setSelectedDate = useUIStore((s) => s.setSelectedDate)
   const goToTodayDate = useUIStore((s) => s.goToToday)
@@ -130,13 +118,8 @@ export default function TodayPage() {
   const hasProAccess = profile?.hasProAccess ?? false
   const currentActiveView = !hasProAccess && activeView === 'goals' ? 'today' : activeView
 
-  // Create modals (shared with layout's BottomNav via store)
-  const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
-  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
 
-  // Local state
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [searchOpen, setSearchOpen] = useState(false)
   const [showControlsMenu, setShowControlsMenu] = useState(false)
@@ -153,22 +136,20 @@ export default function TodayPage() {
   const CONTROLS_MENU_WIDTH_PX = 220
   const CONTROLS_MENU_MARGIN_PX = 8
 
-  // ?date= query parameter handling
   const dateParam = searchParams.get('date')
   const initialDateStr = useMemo(() => {
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
     return null
   }, [dateParam])
 
-  // Initialize selectedDate from URL ?date= param on mount
-  useEffect(() => {
+  const [previousInitialDateStr, setPreviousInitialDateStr] = useState<string | null>(null)
+  if (initialDateStr !== previousInitialDateStr) {
+    setPreviousInitialDateStr(initialDateStr)
     if (initialDateStr) {
       setSelectedDate(initialDateStr)
       setActiveView('today')
     }
-  // Only run on mount / when dateParam changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialDateStr])
+  }
 
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
@@ -187,7 +168,6 @@ export default function TodayPage() {
     [t],
   )
 
-  // Date navigation
   const goToPreviousDay = useCallback(() => {
     setSlideDirection('left')
     setSelectedDate(formatAPIDate(subDays(selectedDate, 1)))
@@ -249,7 +229,6 @@ export default function TodayPage() {
     }
   }, [syncSelectedDateWithToday])
 
-  // Controls menu
   const toggleControlsMenu = useCallback(() => {
     if (!showControlsMenu) {
       const rect = controlsMenuRef.current?.getBoundingClientRect()
@@ -340,7 +319,6 @@ export default function TodayPage() {
     [hasProAccess, router, setActiveView],
   )
 
-  // Search debounce
   useEffect(() => {
     if (searchDebounceTimer.current)
       clearTimeout(searchDebounceTimer.current)
@@ -365,14 +343,12 @@ export default function TodayPage() {
   const toggleSearch = useCallback(() => {
     setSearchOpen((open) => {
       if (open && localSearchQuery) {
-        // closing — clear the input
         setLocalSearchQuery('')
       }
       return !open
     })
   }, [localSearchQuery])
 
-  // Build filters
   const filters = useMemo<HabitsFilter>(() => {
     if (currentActiveView === 'general') {
       const f: HabitsFilter = { isGeneral: true }
@@ -396,7 +372,6 @@ export default function TodayPage() {
       return f
     }
 
-    // 'all' view
     const f: HabitsFilter = {}
     if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
@@ -404,7 +379,6 @@ export default function TodayPage() {
     return f
   }, [currentActiveView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
-  // Query habits for selection cascade helpers and count
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
@@ -412,7 +386,6 @@ export default function TodayPage() {
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
 
-  // Top-level done/total for stat strip (Today view)
   const topLevelHabits = useMemo(
     () => habitsQuery.data?.topLevelHabits ?? [],
     [habitsQuery.data],
@@ -423,7 +396,6 @@ export default function TodayPage() {
     [topLevelHabits],
   )
 
-  // Selection cascade helpers (matches Nuxt getDescendantIds / isAncestorSelected)
   const getDescendantIds = useCallback(
     (parentId: string): string[] => {
       return collectSelectableDescendantIds(
@@ -455,7 +427,6 @@ export default function TodayPage() {
     [toggleSelectionCascade, getDescendantIds, isAncestorSelected],
   )
 
-  // Tab keyboard navigation
   const handleTabKeydown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
@@ -483,13 +454,12 @@ export default function TodayPage() {
     }
   }, [activeView, hasProAccess, setActiveView])
 
-  // Clear select mode when view changes
-  useEffect(() => {
+  const [previousActiveView, setPreviousActiveView] = useState(activeView)
+  if (activeView !== previousActiveView) {
+    setPreviousActiveView(activeView)
     if (isSelectMode) clearSelection()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView])
+  }
 
-  // Tag filter toggle
   const toggleTagFilter = useCallback((tagId: string) => {
     const idx = selectedTagIds.indexOf(tagId)
     if (idx >= 0) {
@@ -500,7 +470,6 @@ export default function TodayPage() {
     setSelectedTagIds([...selectedTagIds, tagId])
   }, [selectedTagIds, setSelectedTagIds])
 
-  // Select all / deselect all
   const allSelected = habitsCount > 0 && selectedHabitIds.size === habitsCount
   const selectAll = useCallback(() => {
     const loaded = habitListRef.current?.allLoadedIds
@@ -511,7 +480,6 @@ export default function TodayPage() {
     clearSelection()
   }, [clearSelection])
 
-  // Bulk actions
   const {
     showBulkDeleteConfirm,
     showBulkLogConfirm,
@@ -540,12 +508,10 @@ export default function TodayPage() {
         streak={streakInfo?.currentStreak ?? 0}
       />
 
-      {/* AI Summary block (Today view only) */}
       {currentActiveView === 'today' && isToday(selectedDate) && (
         <TodayAISummary date={formatAPIDate(selectedDate)} />
       )}
 
-      {/* Stat strip below header */}
       {showStatStrip && (
         <InfoRow
           label={`${statDone} ${t('habits.statOf')} ${statTotal} · ${Math.round(statPct * 100)}%`}
@@ -575,7 +541,6 @@ export default function TodayPage() {
         nextLabel={t('dates.nextDay')}
       />
 
-      {/* Goals view */}
       <div
         id="tabpanel-goals"
         role="tabpanel"
@@ -584,7 +549,6 @@ export default function TodayPage() {
         {currentActiveView === 'goals' && <GoalsView />}
       </div>
 
-      {/* Habits content (hidden on goals tab) */}
       {currentActiveView !== 'goals' && (
         <div
           id="tabpanel-habits"
@@ -612,7 +576,6 @@ export default function TodayPage() {
             />
           </motion.div>
 
-          {/* Controls dropdown menu (portal) */}
           {showControlsMenu && typeof document !== 'undefined' && (
             <ControlsMenu
               menuPanelRef={controlsMenuPanelRef}
@@ -635,7 +598,6 @@ export default function TodayPage() {
             />
           )}
 
-          {/* Loading skeleton (before first fetch) */}
           {!hasFetched && (
             <div className="stagger-enter">
               {SKELETON_KEYS.map((key) => (
@@ -671,7 +633,6 @@ export default function TodayPage() {
             </div>
           )}
 
-          {/* Refetch loading bar */}
           <AnimatePresence initial={false}>
             {isRefetching ? (
               <motion.div
@@ -694,7 +655,6 @@ export default function TodayPage() {
             ) : null}
           </AnimatePresence>
 
-          {/* Habit list */}
           {hasFetched && (
             <motion.div
               layout
@@ -738,7 +698,6 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* Floating bulk action bar */}
       <AnimatePresence initial={false}>
         {isSelectMode && typeof document !== 'undefined' ? (
           <BulkActionBarV2
@@ -754,7 +713,6 @@ export default function TodayPage() {
         ) : null}
       </AnimatePresence>
 
-      {/* Bulk delete confirmation */}
       <ConfirmDialog
         open={showBulkDeleteConfirm}
         onOpenChange={setShowBulkDeleteConfirm}
@@ -767,7 +725,6 @@ export default function TodayPage() {
         onCancel={() => setShowBulkDeleteConfirm(false)}
       />
 
-      {/* Bulk log confirmation */}
       <ConfirmDialog
         open={showBulkLogConfirm}
         onOpenChange={setShowBulkLogConfirm}
@@ -780,7 +737,6 @@ export default function TodayPage() {
         onCancel={() => setShowBulkLogConfirm(false)}
       />
 
-      {/* Bulk skip confirmation */}
       <ConfirmDialog
         open={showBulkSkipConfirm}
         onOpenChange={setShowBulkSkipConfirm}
@@ -793,24 +749,6 @@ export default function TodayPage() {
         onCancel={() => setShowBulkSkipConfirm(false)}
       />
 
-      {/* Create habit modal (triggered from HabitList empty state) */}
-      {showCreateModal && (
-        <CreateHabitModal
-          open={showCreateModal}
-          onOpenChange={setShowCreateModal}
-          initialDate={
-            currentActiveView === 'today' ? formatAPIDate(selectedDate) : null
-          }
-        />
-      )}
-
-      {/* Create goal modal (triggered from FAB on goals tab) */}
-      {showCreateGoalModal && (
-        <CreateGoalModal
-          open={showCreateGoalModal}
-          onOpenChange={setShowCreateGoalModal}
-        />
-      )}
     </div>
   )
 }

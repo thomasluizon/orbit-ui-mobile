@@ -16,6 +16,16 @@ export function GoalCompletedCelebration() {
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [previousGoalCompletedCelebration, setPreviousGoalCompletedCelebration] =
+    useState<typeof goalCompletedCelebration | undefined>(undefined)
+
+  if (goalCompletedCelebration !== previousGoalCompletedCelebration) {
+    setPreviousGoalCompletedCelebration(goalCompletedCelebration)
+    if (goalCompletedCelebration) {
+      setGoalName(goalCompletedCelebration.name)
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -25,9 +35,6 @@ export function GoalCompletedCelebration() {
 
   useEffect(() => {
     if (goalCompletedCelebration) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store snapshot into local state
-      setGoalName(goalCompletedCelebration.name)
-      setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {

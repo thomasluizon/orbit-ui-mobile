@@ -19,7 +19,7 @@ export default function AuthLayout({
       className="flex flex-col items-center justify-center"
       style={{
         minHeight: '100dvh',
-        background: 'var(--bg-base)',
+        background: 'var(--bg)',
         padding: '24px 16px',
         paddingTop: 'calc(24px + var(--safe-top))',
       }}

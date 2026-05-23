@@ -17,10 +17,6 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useProfile } from '@/hooks/use-profile'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface CalendarGridProps {
   currentMonth: Date
   dayMap: Map<string, CalendarDayEntry[]>
@@ -41,10 +37,6 @@ interface GridDay {
 
 type DayStatus = 'empty' | 'full' | 'partial' | 'missed'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return 'empty'
   if (cell.completedCount === cell.totalCount) return 'full'
@@ -52,10 +44,6 @@ function dayStatus(cell: GridDay): DayStatus {
   if (hasMissed) return 'missed'
   return 'partial'
 }
-
-// ---------------------------------------------------------------------------
-// Component — v8 month grid: minimal, hairline-free cells, primary dot for today.
-// ---------------------------------------------------------------------------
 
 export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
@@ -113,7 +101,6 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
       data-tour="tour-calendar-grid"
       style={{ padding: '16px 20px 8px' }}
     >
-      {/* Weekday headers */}
       <div
         className="grid"
         style={{
@@ -138,7 +125,6 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
         ))}
       </div>
 
-      {/* Day grid */}
       <div
         className="grid"
         style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 6 }}

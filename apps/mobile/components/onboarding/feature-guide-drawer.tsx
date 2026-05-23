@@ -13,10 +13,6 @@ import { Chip } from '@/components/ui/chip'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Section types
-// ---------------------------------------------------------------------------
-
 type SectionKey =
   | 'habits'
   | 'goals'
@@ -114,18 +110,10 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
   ],
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface FeatureGuideDrawerProps {
   open: boolean
   onClose: () => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function FeatureGuideDrawer({
   open,
@@ -179,10 +167,6 @@ export function FeatureGuideDrawer({
     </BottomSheetModal>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({

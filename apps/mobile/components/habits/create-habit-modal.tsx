@@ -36,15 +36,11 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
-  type HabitFormData,
 } from '@/lib/habit-request-builders'
+import { habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface SubHabitEntry {
   id: string
@@ -57,20 +53,12 @@ function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface CreateHabitModalProps {
   open: boolean
   onClose: () => void
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function CreateHabitModal({
   open,
@@ -109,7 +97,7 @@ export function CreateHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
-  const reminderWasManuallyToggledRef = useRef(false)
+  const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const flushBufferedInputsRef = useRef<() => void>(() => {})
   const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState('[]')
   const [initialGoalIdsSnapshot, setInitialGoalIdsSnapshot] = useState('[]')
@@ -157,59 +145,52 @@ export function CreateHabitModal({
     router.push('/upgrade')
   }, [isSubHabitMode, onClose, open, profile, router])
 
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (!open) return
+  const [previousOpen, setPreviousOpen] = useState(false)
+  if (open !== previousOpen) {
+    setPreviousOpen(open)
+    if (open) {
+      const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
-    const fallbackDate = initialDate ?? formatAPIDate(new Date())
+      setReminderWasManuallyToggled(false)
+      formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
+      tags.resetTags()
+      setSelectedGoalIds([])
+      setSubHabits([])
+      setReminderTimes([0, 15])
 
-    reminderWasManuallyToggledRef.current = false
-    formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
-    tags.resetTags()
-     
-    setSelectedGoalIds([])
-    setSubHabits([])
-    setReminderTimes([0, 15])
+      let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
 
-    let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
+      if (parentHabit) {
+        prefill = buildParentHabitFormState(parentHabit, fallbackDate)
+        formHelpers.form.reset(prefill.formValues)
+        applyHabitFormMode(prefill.mode, formHelpers)
+        tags.resetTags(prefill.selectedTagIds)
+        setSelectedGoalIds(prefill.selectedGoalIds)
+        setReminderTimes(prefill.reminderTimes)
+      } else if (activeView === 'general') {
+        formHelpers.setGeneral()
+      }
 
-    if (parentHabit) {
-      prefill = buildParentHabitFormState(parentHabit, fallbackDate)
-      formHelpers.form.reset(prefill.formValues)
-      applyHabitFormMode(prefill.mode, formHelpers)
-      tags.resetTags(prefill.selectedTagIds)
-      setSelectedGoalIds(prefill.selectedGoalIds)
-      setReminderTimes(prefill.reminderTimes)
-    } else if (activeView === 'general') {
-      formHelpers.setGeneral()
+      setInitialTagIdsSnapshot(
+        JSON.stringify(
+          [...(prefill?.selectedTagIds ?? [])].sort((left, right) =>
+            left.localeCompare(right),
+          ),
+        ),
+      )
+      setInitialGoalIdsSnapshot(
+        JSON.stringify(
+          [...(prefill?.selectedGoalIds ?? [])].sort((left, right) =>
+            left.localeCompare(right),
+          ),
+        ),
+      )
+      setInitialSubHabitsSnapshot(JSON.stringify([]))
+      setInitialReminderTimesSnapshot(
+        JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
+      )
     }
-
-    setInitialTagIdsSnapshot(
-      JSON.stringify(
-        [...(prefill?.selectedTagIds ?? [])].sort((left, right) =>
-          left.localeCompare(right),
-        ),
-      ),
-    )
-    setInitialGoalIdsSnapshot(
-      JSON.stringify(
-        [...(prefill?.selectedGoalIds ?? [])].sort((left, right) =>
-          left.localeCompare(right),
-        ),
-      ),
-    )
-    setInitialSubHabitsSnapshot(JSON.stringify([]))
-    setInitialReminderTimesSnapshot(
-      JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
-    )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
-  // Sub-habit inputs stay editable for everyone per PRD §2 ("Sub-habits are
-  // first-class"). The Pro gate runs on submit, which routes to /upgrade when
-  // a non-Pro user tries to create with sub-habits. We don't clear sub-habit
-  // entries when pro access changes — the user keeps typing, the gate fires
-  // only at submit.
+  }
 
   useEffect(() => {
     if (!open) return
@@ -218,7 +199,7 @@ export function CreateHabitModal({
       dueTime: watchedDueTime,
       scheduledReminderCount: watchedScheduledReminders.length,
       reminderEnabled: watchedReminderEnabled,
-      reminderWasManuallyToggled: reminderWasManuallyToggledRef.current,
+      reminderWasManuallyToggled,
     })
 
     if (
@@ -234,6 +215,7 @@ export function CreateHabitModal({
   }, [
     formHelpers.form,
     open,
+    reminderWasManuallyToggled,
     watchedDueTime,
     watchedReminderEnabled,
     watchedScheduledReminders.length,
@@ -241,7 +223,7 @@ export function CreateHabitModal({
 
   const handleReminderEnabledChange = useCallback(
     (nextEnabled: boolean) => {
-      reminderWasManuallyToggledRef.current = true
+      setReminderWasManuallyToggled(true)
       formHelpers.form.setValue('reminderEnabled', nextEnabled, {
         shouldDirty: true,
       })
@@ -262,9 +244,6 @@ export function CreateHabitModal({
       return
     }
 
-    // Pro gate (PRD §2): inputs stayed editable for non-Pro users; if they
-    // typed any sub-habits, route to /upgrade at submit time instead of
-    // silently dropping the work.
     const hasTypedSubHabits = subHabits.some(
       (entry) => entry.value.trim().length > 0,
     )
@@ -274,7 +253,6 @@ export function CreateHabitModal({
       return
     }
 
-    const data = formHelpers.form.getValues() as unknown as HabitFormData
     const permittedGoalIds = hasProAccess ? selectedGoalIds : []
     const subHabitValues = hasProAccess
       ? subHabits.map((entry) => entry.value)
@@ -289,6 +267,7 @@ export function CreateHabitModal({
       showError(error)
       return
     }
+    const data = habitFormSchema.parse(formHelpers.form.getValues())
 
     try {
       if (isSubHabitMode && parentHabit) {
@@ -382,10 +361,6 @@ export function CreateHabitModal({
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
           >
-            {/* Sub-habits (create-only, not in sub-habit mode).
-                Per v8 PRD: inputs are visually active (not locked); Pro gate
-                runs on submit. We show the locked block for free users to
-                keep the upgrade path visible. */}
             {!isSubHabitMode ? (
               <View style={styles.subHabitsSection}>
                 <View style={styles.subHabitsHeader}>
@@ -451,7 +426,6 @@ export function CreateHabitModal({
             ) : null}
           </HabitFormFields>
 
-          {/* Submit buttons: v8 footer = QuietLink + PrimaryButton */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -503,10 +477,6 @@ export function CreateHabitModal({
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(
   tokens: ReturnType<typeof createTokensV2>,

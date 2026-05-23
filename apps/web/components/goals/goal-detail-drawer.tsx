@@ -31,10 +31,6 @@ import {
   useDeleteGoal,
 } from '@/hooks/use-goals'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface GoalDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,10 +38,6 @@ interface GoalDetailDrawerProps {
 }
 
 type ProgressDismissTarget = 'drawer' | 'form'
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function GoalDetailDrawer({
   open,
@@ -61,7 +53,6 @@ export function GoalDetailDrawer({
   const locale = useLocale()
   const { showError } = useAppToast()
 
-  // Queries
   const { data: goalsData } = useGoals()
   const {
     data: detailData,
@@ -70,7 +61,6 @@ export function GoalDetailDrawer({
     refetch: refetchDetail,
   } = useGoalDetail(open ? goalId : null)
 
-  // Mutations
   const updateProgress = useUpdateGoalProgress()
   const updateStatus = useUpdateGoalStatus()
   const deleteGoalMut = useDeleteGoal()
@@ -81,7 +71,6 @@ export function GoalDetailDrawer({
 
   const isStreak = isStreakGoal(goal?.type)
 
-  // Local state
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [progressValue, setProgressValue] = useState<number | null>(null)
@@ -321,7 +310,6 @@ export function GoalDetailDrawer({
       >
         {goal && (
           <div className="-mx-6">
-            {/* Streak badge */}
             {isStreak && (
               <div
                 style={{
@@ -339,7 +327,6 @@ export function GoalDetailDrawer({
               </div>
             )}
 
-            {/* Progress section */}
             <SectionLabel>{t('goals.progress')}</SectionLabel>
             <div style={{ padding: '10px 20px 16px' }}>
               <div
@@ -422,7 +409,6 @@ export function GoalDetailDrawer({
               />
             )}
 
-            {/* Goal Metrics */}
             {goal.status === 'Active' && (
               <GoalMetricsPanel
                 metrics={metrics}
@@ -432,7 +418,6 @@ export function GoalDetailDrawer({
               />
             )}
 
-            {/* Linked Habits (streak goals first) */}
             {isStreak && (goal.linkedHabits ?? []).length > 0 && (
               <GoalLinkedHabitsSection
                 title={t('goals.linkedHabits')}
@@ -440,7 +425,6 @@ export function GoalDetailDrawer({
               />
             )}
 
-            {/* Progress history */}
             <GoalProgressHistorySection
               title={t('goals.progressHistory')}
               entries={detail?.progressHistory ?? []}
@@ -457,7 +441,6 @@ export function GoalDetailDrawer({
               showLessLabel={t('goals.detail.showLessHistory')}
             />
 
-            {/* Linked Habits (standard goals) */}
             {!isStreak && (
               <GoalLinkedHabitsSection
                 title={t('goals.linkedHabits')}

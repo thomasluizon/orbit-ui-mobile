@@ -3,8 +3,8 @@
 import { useTranslations } from 'next-intl'
 import { Home, Sparkles, CalendarDays, User, Plus, type LucideIcon } from 'lucide-react'
 
-/** Mobile-style 4-tab bar (Home / Astra / Calendar / You) + centered Plus FAB with U-notch.
- *  FAB hidden on Astra and Profile tabs. */
+/** Mobile-style 4-tab bar (Home / Astra / Calendar / You) + centered Plus FAB.
+ *  FAB hidden on Astra (has its own composer); rendered disabled on Profile. */
 export type BottomTab = 'today' | 'chat' | 'calendar' | 'profile'
 
 interface TabDef {
@@ -39,7 +39,8 @@ export function BottomTabBar({
   tabs = DEFAULT_TABS,
 }: Readonly<BottomTabBarProps>) {
   const t = useTranslations('nav')
-  const fabVisible = showFab && active !== 'chat' && active !== 'profile'
+  const fabVisible = showFab && active !== 'chat'
+  const fabDisabled = active !== 'today'
 
   return (
     // bg + hairline live on the parent fixed wrapper (full-width strip);
@@ -48,9 +49,11 @@ export function BottomTabBar({
       {fabVisible && (
         <button
           type="button"
-          onClick={onFab}
+          onClick={fabDisabled ? undefined : onFab}
           aria-label={t('create')}
-          className="absolute appearance-none border-0 cursor-pointer flex items-center justify-center"
+          aria-disabled={fabDisabled}
+          disabled={fabDisabled}
+          className="absolute appearance-none border-0 flex items-center justify-center transition-[background-color,opacity] duration-150"
           style={{
             left: '50%',
             top: -28,
@@ -58,14 +61,16 @@ export function BottomTabBar({
             width: 56,
             height: 56,
             borderRadius: 999,
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            boxShadow:
-              '0 0 0 5px var(--bg), 0 4px 14px rgba(0,0,0,0.35)',
+            background: fabDisabled ? 'var(--bg-elev)' : 'var(--primary)',
+            color: fabDisabled ? 'var(--fg-3)' : 'var(--fg-on-primary)',
+            boxShadow: fabDisabled
+              ? '0 0 0 5px var(--bg), inset 0 0 0 1px var(--hairline)'
+              : '0 0 0 5px var(--bg), 0 4px 14px rgba(0,0,0,0.35)',
+            cursor: fabDisabled ? 'not-allowed' : 'pointer',
             zIndex: 2,
           }}
         >
-          <Plus size={24} strokeWidth={1.7} color="var(--fg-on-primary)" />
+          <Plus size={24} strokeWidth={1.7} color={fabDisabled ? 'var(--fg-3)' : 'var(--fg-on-primary)'} />
         </button>
       )}
       <div

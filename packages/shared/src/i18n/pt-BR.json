@@ -52,6 +52,7 @@
     }
   },
   "pushPrompt": {
+    "eyebrow": "Notificações",
     "title": "Mantenha o foco",
     "description": "Ative notificações para receber lembretes dos seus hábitos",
     "enable": "Ativar",
@@ -59,6 +60,7 @@
     "retryHint": "Falha ao configurar notificações. Toque em Ativar para tentar novamente."
   },
   "updatePrompt": {
+    "eyebrow": "Atualização disponível",
     "title": "Atualização disponível",
     "description": "Uma nova versão do Orbit está disponível com melhorias e correções",
     "update": "Atualizar",
@@ -124,7 +126,10 @@
     "all": "Todos",
     "select": "Selecionar",
     "previous": "Anterior",
+    "previousPage": "Página anterior",
     "next": "Próximo",
+    "nextPage": "Próxima página",
+    "codePlaceholder": "123456",
     "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
     "yearlyBadge": "Anual",
@@ -210,6 +215,7 @@
     "errorReference": "Código de referência: {requestId}",
     "backToLogin": "Voltar ao login",
     "sessionExpiring": "Sua sessão expira em {minutes} minutos. Salve seu trabalho.",
+    "sessionExpiringPrefix": "Sessão expira em",
     "sessionExpired": "Sua sessão expirou. Faça login novamente.",
     "refresh": "Atualizar",
     "login": "Entrar",
@@ -239,6 +245,7 @@
   },
   "habits": {
     "title": "Meus Hábitos",
+    "emptyState": "Nenhum hábito ainda",
     "count": "nenhum hábito | um hábito | {n} hábitos",
     "dueToday": "Vence hoje",
     "overdue": "Atrasado",
@@ -590,6 +597,14 @@
       "resisted": "Resistiu",
       "scheduled": "Agendado"
     },
+    "statusDot": {
+      "done": "Feito",
+      "empty": "Não feito",
+      "skip": "Pulado",
+      "overdue": "Atrasado",
+      "bad": "Deslize",
+      "frozen": "Congelado"
+    },
     "completionHistory": "Histórico de Conclusão",
     "noCompletions": "Sem conclusões",
     "less": "Menos",
@@ -657,6 +672,13 @@
   },
   "chat": {
     "title": "Astra",
+    "pendingOp": {
+      "risk": {
+        "high": "Risco alto",
+        "destructive": "Destrutivo",
+        "low": "Risco baixo"
+      }
+    },
     "empty": {
       "title": "Como o dia foi?"
     },
@@ -967,11 +989,16 @@
   "trial": {
     "proBadge": "Período de teste",
     "banner": {
+      "trialEyebrow": "Teste Pro",
       "daysLeft": "Teste Pro - {days} dia restante | Teste Pro - {days} dias restantes",
       "lastDay": "O teste acaba hoje!",
       "upgrade": "Upgrade"
     },
     "expired": {
+      "eyebrow": "Teste encerrado",
+      "heading": "Seu Teste Pro Acabou",
+      "paused": "Pausado",
+      "subtitleQuiet": "Estes recursos Pro pausarão a não ser que você assine.",
       "title": "Seu Teste Pro Acabou",
       "subtitle": "Você teve {days} dia de acesso Pro completo. Não perca o que construiu. | Você teve {days} dias de acesso Pro completo. Não perca o que construiu.",
       "dontLose": "Não perca acesso a:",
@@ -1054,6 +1081,8 @@
         "create": "Criar Hábito",
         "creating": "Criando...",
         "success": "Hábito criado!",
+        "useForm": "Usar formulário",
+        "starters": "Ou experimente",
         "frequency": {
           "daily": "Diário",
           "weekly": "Semanal",
@@ -1075,6 +1104,8 @@
       "createGoal": {
         "title": "Defina uma meta",
         "optional": "Opcional",
+        "proTag": "PRO",
+        "starters": "Ou experimente",
         "subtitle": "Metas dão um propósito maior aos seus hábitos.",
         "descriptionPlaceholder": "ex: Ler 12 livros este ano",
         "targetPlaceholder": "Quantidade",
@@ -1117,7 +1148,8 @@
         "recap": {
           "habit": "Hábito criado",
           "goal": "Meta criada",
-          "theme": "Tema personalizado"
+          "theme": "Tema personalizado",
+          "astra": "Assistente de IA"
         },
         "trialTitle": "Seu Teste Pro está Ativo",
         "trialDesc": "Aproveite o acesso Pro completo até {date}."
@@ -1893,10 +1925,13 @@
   },
   "orbitMcp": {
     "title": "Para Desenvolvedores",
+    "copy": "Copiar",
     "description": "Conecte ferramentas de IA como Claude a sua conta Orbit via MCP",
     "apiKeys": "Chaves de API",
     "apiKeysDescription": "Chaves de API permitem que ferramentas externas acessem seus dados do Orbit",
     "createKey": "Criar Chave de API",
+    "createHeading": "Criar Chave de API",
+    "revealHeading": "Chave de API Criada",
     "noKeys": "Nenhuma chave de API ainda",
     "keyName": "Nome da Chave",
     "keyNamePlaceholder": "ex. Claude Desktop",

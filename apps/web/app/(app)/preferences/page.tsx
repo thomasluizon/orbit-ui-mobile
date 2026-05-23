@@ -24,56 +24,16 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
+import { MonoToggle } from '@/components/ui/mono-toggle'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
   updateLanguage,
 } from '@/app/actions/profile'
-
-interface MonoToggleProps {
-  on: boolean
-  onToggle: () => void
-  ariaLabel: string
-  disabled?: boolean
-}
-
-function MonoToggle({ on, onToggle, ariaLabel, disabled }: Readonly<MonoToggleProps>) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onToggle}
-      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 relative"
-      style={{
-        width: 36,
-        height: 20,
-        borderRadius: 999,
-        background: on ? 'var(--primary)' : 'var(--bg-elev)',
-        boxShadow: on ? 'none' : 'inset 0 0 0 1px var(--hairline-strong)',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute rounded-full"
-        style={{
-          top: 2,
-          left: 2,
-          width: 16,
-          height: 16,
-          background: 'var(--fg-on-primary)',
-          transform: on ? 'translateX(16px)' : 'translateX(0)',
-          transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      />
-    </button>
-  )
-}
 
 interface SchemeSwatchesProps {
   active: ColorScheme
@@ -236,14 +196,12 @@ export default function PreferencesPage() {
         title={t('preferences.title')}
       />
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {/* Language */}
         <SectionLabel>{t('profile.language.title')}</SectionLabel>
         <div
           className="flex items-center"
           style={{
-            padding: '0 20px 14px',
+            padding: '0 20px 12px',
             gap: 6,
-            borderBottom: '1px solid var(--hairline)',
             flexWrap: 'wrap',
           }}
         >
@@ -261,26 +219,13 @@ export default function PreferencesPage() {
             )
           })}
         </div>
-        <div
-          style={{
-            padding: '0 20px 14px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('profile.language.description')}
-        </div>
+        <SettingsDescription>{t('profile.language.description')}</SettingsDescription>
 
-        {/* Appearance (color scheme) */}
         <SectionLabel trailing={<ProBadge />}>{t('profile.colorScheme.title')}</SectionLabel>
         <div
           className="flex items-center justify-end"
           style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--hairline)',
+            padding: '4px 20px 12px',
             gap: 12,
           }}
         >
@@ -292,26 +237,13 @@ export default function PreferencesPage() {
             t={t}
           />
         </div>
-        <div
-          style={{
-            padding: '0 20px 14px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('profile.colorScheme.description')}
-        </div>
+        <SettingsDescription>{t('profile.colorScheme.description')}</SettingsDescription>
 
-        {/* Schedule (week start day) */}
         <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
         <div
           className="flex items-center justify-end"
           style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--hairline)',
+            padding: '4px 20px 12px',
             gap: 12,
             flexWrap: 'wrap',
           }}
@@ -332,42 +264,18 @@ export default function PreferencesPage() {
             })}
           </div>
         </div>
-        <div
-          style={{
-            padding: '0 20px 14px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('settings.weekStartDay.description')}
-        </div>
+        <SettingsDescription>{t('settings.weekStartDay.description')}</SettingsDescription>
 
-        {/* Home Screen */}
         <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
-        <SettingsRow label={t('settings.homeScreen.showGeneral')} accessory="none">
+        <SettingsRow label={t('settings.homeScreen.showGeneral')} accessory="none" divider={false}>
           <MonoToggle
             on={mounted && showGeneralOnToday}
             onToggle={toggleShowGeneral}
             ariaLabel={t('settings.homeScreen.showGeneral')}
           />
         </SettingsRow>
-        <div
-          style={{
-            padding: '0 20px 14px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('settings.homeScreen.showGeneralDesc')}
-        </div>
+        <SettingsDescription>{t('settings.homeScreen.showGeneralDesc')}</SettingsDescription>
 
-        {/* Notifications */}
         {pushSupported && (
           <>
             <SectionLabel>{t('settings.notifications.title')}</SectionLabel>

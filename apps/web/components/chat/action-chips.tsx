@@ -5,10 +5,6 @@ import { useTranslations } from 'next-intl'
 import type { ActionResult } from '@orbit/shared/types/chat'
 import { ConflictWarning } from './conflict-warning'
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const ACTION_LABELS: Record<string, string> = {
   log_habit: 'chat.action.logged',
   create_habit: 'chat.action.created',
@@ -74,17 +70,9 @@ const DEFAULT_CHIP_STYLE = {
   Icon: Info,
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function chipStyle(action: ActionResult) {
   return CHIP_STYLES[action.status] ?? DEFAULT_CHIP_STYLE
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface ActionChipsProps {
   actions: ActionResult[]

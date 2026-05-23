@@ -30,10 +30,6 @@ export {
   useGoals,
 } from './use-goal-queries'
 
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
-
 export function useCreateGoal() {
   const queryClient = useQueryClient()
 
@@ -73,7 +69,6 @@ export function useDeleteGoal() {
         queryKey: goalKeys.lists(),
       })
 
-      // Optimistic: remove goal from cache
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },
         (old) => {
@@ -160,7 +155,6 @@ export function useReorderGoals() {
         queryKey: goalKeys.lists(),
       })
 
-      // Optimistic: update positions in cache
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },
         (old) => {

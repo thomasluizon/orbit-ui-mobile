@@ -25,16 +25,10 @@ import {
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import {
-  buildUpdateHabitRequest,
-  type HabitFormData,
-} from '@/lib/habit-request-builders'
+import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
+import { habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface EditHabitModalProps {
   open: boolean
@@ -42,10 +36,6 @@ interface EditHabitModalProps {
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function EditHabitModal({
   open,
@@ -119,39 +109,46 @@ export function EditHabitModal({
     }
   }, [detailError, showError, translate])
 
-  useEffect(() => {
-    if (!open || !habit) return
-
-    const prefill = buildEditHabitFormState(habit, habitDetail)
-    formHelpers.form.reset(prefill.formValues)
-     
-    setOriginalEndDate(prefill.originalEndDate)
-    setReminderTimes(prefill.reminderTimes)
-    tags.resetTags(prefill.selectedTagIds)
-    setSelectedGoalIds(prefill.selectedGoalIds)
-    setInitialTagIds(
-      JSON.stringify(
-        [...prefill.selectedTagIds].sort((left, right) =>
-          left.localeCompare(right),
+  const sessionHabitId = open && habit ? habit.id : null
+  const sessionDetailId = habitDetail?.id ?? null
+  const [previousSession, setPreviousSession] = useState<{
+    habitId: string | null
+    detailId: string | null
+  }>({ habitId: null, detailId: null })
+  if (
+    sessionHabitId !== previousSession.habitId ||
+    sessionDetailId !== previousSession.detailId
+  ) {
+    setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
+    if (open && habit) {
+      const prefill = buildEditHabitFormState(habit, habitDetail)
+      formHelpers.form.reset(prefill.formValues)
+      setOriginalEndDate(prefill.originalEndDate)
+      setReminderTimes(prefill.reminderTimes)
+      tags.resetTags(prefill.selectedTagIds)
+      setSelectedGoalIds(prefill.selectedGoalIds)
+      setInitialTagIds(
+        JSON.stringify(
+          [...prefill.selectedTagIds].sort((left, right) =>
+            left.localeCompare(right),
+          ),
         ),
-      ),
-    )
-    setInitialGoalIds(
-      JSON.stringify(
-        [...prefill.selectedGoalIds].sort((left, right) =>
-          left.localeCompare(right),
+      )
+      setInitialGoalIds(
+        JSON.stringify(
+          [...prefill.selectedGoalIds].sort((left, right) =>
+            left.localeCompare(right),
+          ),
         ),
-      ),
-    )
-    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-    applyHabitFormMode(prefill.mode, formHelpers)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, habit?.id, habitDetail?.id])
+      )
+      setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+      applyHabitFormMode(prefill.mode, formHelpers)
+    }
+  }
 
   const handleSubmit = useCallback(async () => {
     if (!habit) return
     flushBufferedInputsRef.current()
-    const data = formHelpers.form.getValues() as unknown as HabitFormData
     const error = formHelpers.validateAll({
       reminderTimes,
       selectedGoalIds,
@@ -161,6 +158,7 @@ export function EditHabitModal({
       showError(error)
       return
     }
+    const data = habitFormSchema.parse(formHelpers.form.getValues())
 
     const request = buildUpdateHabitRequest(
       data,
@@ -281,10 +279,6 @@ export function EditHabitModal({
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(
   tokens: ReturnType<typeof createTokensV2>,

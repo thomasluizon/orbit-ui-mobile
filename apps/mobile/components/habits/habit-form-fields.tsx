@@ -69,14 +69,10 @@ import { AppTimePicker } from "@/components/ui/app-time-picker";
 import { AppSelect } from "@/components/ui/app-select";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { ProBadge } from "@/components/ui/pro-badge";
-import { radius } from "@/lib/theme";
+import { createTokensV2, radius } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme";
 
-type ThemeColors = ReturnType<typeof useAppTheme>["colors"];
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface HabitFormFieldsProps {
   formHelpers: HabitFormHelpers;
@@ -92,10 +88,6 @@ interface HabitFormFieldsProps {
   defaultExpanded?: boolean;
   children?: ReactNode;
 }
-
-// ---------------------------------------------------------------------------
-// Frequency type card config
-// ---------------------------------------------------------------------------
 
 const FREQUENCY_TYPE_CARDS = [
   {
@@ -127,10 +119,6 @@ const FREQUENCY_TYPE_CARDS = [
     exampleKey: "habits.form.generalExample",
   },
 ] as const;
-
-// ---------------------------------------------------------------------------
-// Day picker pills
-// ---------------------------------------------------------------------------
 
 interface ChoiceButtonOption {
   key: string;
@@ -178,14 +166,14 @@ function ChoiceButtonRow({
 
 interface HabitEmojiSelectorProps {
   selectedEmoji: string;
-  colors: ThemeColors;
+  tokens: AppTokens;
   styles: ReturnType<typeof createStyles>;
   onSelect: (emoji: string) => void;
 }
 
 function HabitEmojiSelector({
   selectedEmoji,
-  colors,
+  tokens,
   styles,
   onSelect,
 }: Readonly<HabitEmojiSelectorProps>) {
@@ -260,7 +248,7 @@ function HabitEmojiSelector({
                   accessibilityRole="button"
                   accessibilityLabel={t("common.close")}
                 >
-                  <X size={18} color={colors.textSecondary} />
+                  <X size={18} color={tokens.fg2} />
                 </TouchableOpacity>
               </View>
 
@@ -268,7 +256,7 @@ function HabitEmojiSelector({
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t("habits.form.emojiSearchPlaceholder")}
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={tokens.fg3}
                 style={styles.emojiSearchInput}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -320,7 +308,7 @@ function HabitEmojiSelector({
                             accessibilityState={{ selected }}
                             accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
                           >
-                            <Text style={[styles.emojiOptionText, { color: colors.textPrimary }]}>{emoji}</Text>
+                            <Text style={[styles.emojiOptionText, { color: tokens.fg1 }]}>{emoji}</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -382,7 +370,7 @@ interface TagEditorRowProps {
   onCommit: () => void;
   onCancel: () => void;
   styles: ReturnType<typeof createStyles>;
-  colors: ThemeColors;
+  tokens: AppTokens;
 }
 
 function TagEditorRow({
@@ -396,14 +384,14 @@ function TagEditorRow({
   onCommit,
   onCancel,
   styles,
-  colors,
+  tokens,
 }: Readonly<TagEditorRowProps>) {
   return (
     <View style={styles.tagFormRow}>
       <BottomSheetAppTextInput
         value={value}
         placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={tokens.fg3}
         maxLength={50}
         accessibilityLabel={inputAriaLabel}
         editable={!disabled}
@@ -426,7 +414,7 @@ function TagEditorRow({
         onPress={onCancel}
         activeOpacity={0.7}
       >
-        <X size={14} color={colors.textMuted} />
+        <X size={14} color={tokens.fg3} />
       </TouchableOpacity>
     </View>
   );
@@ -525,7 +513,7 @@ interface HabitTagChipProps {
   onEdit: () => void;
   onDelete: () => void;
   styles: ReturnType<typeof createStyles>;
-  colors: ThemeColors;
+  tokens: AppTokens;
 }
 
 function HabitTagChip({
@@ -537,7 +525,7 @@ function HabitTagChip({
   onEdit,
   onDelete,
   styles,
-  colors,
+  tokens,
 }: Readonly<HabitTagChipProps>) {
   return (
     <View
@@ -558,7 +546,7 @@ function HabitTagChip({
           <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
         )}
         <Text
-          style={[styles.tagChipText, selected && { color: colors.white }]}
+          style={[styles.tagChipText, selected && { color: tokens.fgOnPrimary }]}
         >
           {tag.name}
         </Text>
@@ -571,7 +559,7 @@ function HabitTagChip({
       >
         <PenSquare
           size={12}
-          color={selected ? "rgba(255,255,255,0.7)" : colors.textMuted}
+          color={selected ? "rgba(255,255,255,0.7)" : tokens.fg3}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -582,19 +570,15 @@ function HabitTagChip({
       >
         <X
           size={12}
-          color={selected ? "rgba(255,255,255,0.7)" : colors.textMuted}
+          color={selected ? "rgba(255,255,255,0.7)" : tokens.fg3}
         />
       </TouchableOpacity>
     </View>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Reminder sub-component
-// ---------------------------------------------------------------------------
-
 interface ReminderSectionProps {
-  colors: ThemeColors;
+  tokens: AppTokens;
   reminderEnabled: boolean;
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
@@ -603,7 +587,7 @@ interface ReminderSectionProps {
 }
 
 function ReminderSection({
-  colors,
+  tokens,
   reminderEnabled,
   reminderTimes,
   onReminderTimesChange,
@@ -611,7 +595,7 @@ function ReminderSection({
   reminderLabel,
 }: Readonly<ReminderSectionProps>) {
   const { t } = useTranslation();
-  const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
+  const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customValue, setCustomValue] = useState("");
@@ -652,7 +636,7 @@ function ReminderSection({
     <View style={sectionStyles.container}>
       <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
-          <Bell size={16} color={colors.primary} />
+          <Bell size={16} color={tokens.primary} />
           <Text style={sectionStyles.headerLabel}>
             {t("habits.form.reminder")}
           </Text>
@@ -660,13 +644,12 @@ function ReminderSection({
         <Switch
           value={reminderEnabled}
           onValueChange={onToggleReminder}
-          trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-          thumbColor={colors.white}
+          trackColor={{ false: tokens.bgElev, true: tokens.primary }}
+          thumbColor={tokens.fgOnPrimary}
         />
       </View>
       {reminderEnabled && (
         <View style={sectionStyles.body}>
-          {/* Selected reminder chips */}
           <View style={sectionStyles.chipsRow}>
             {reminderTimes.map((time) => (
               <View key={time} style={sectionStyles.chip}>
@@ -681,13 +664,12 @@ function ReminderSection({
                   onPress={() => removeReminder(time)}
                   activeOpacity={0.7}
                 >
-                  <X size={12} color={colors.primary} />
+                  <X size={12} color={tokens.primary} />
                 </TouchableOpacity>
               </View>
             ))}
           </View>
 
-          {/* Add reminder */}
           <TouchableOpacity
             style={sectionStyles.addButton}
             onPress={() => {
@@ -696,7 +678,7 @@ function ReminderSection({
             }}
             activeOpacity={0.7}
           >
-            <Plus size={14} color={colors.primary} />
+            <Plus size={14} color={tokens.primary} />
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>
@@ -721,7 +703,7 @@ function ReminderSection({
                   <BottomSheetAppTextInput
                     value={customValue}
                     placeholder={t("habits.form.reminderCustomPlaceholder")}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={tokens.fg3}
                     keyboardType="number-pad"
                     style={sectionStyles.customInput}
                     onChangeText={setCustomValue}
@@ -757,7 +739,7 @@ function ReminderSection({
                     onPress={addCustomReminder}
                     activeOpacity={0.7}
                   >
-                    <Plus size={14} color={colors.white} />
+                    <Plus size={14} color={tokens.fgOnPrimary} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -769,7 +751,7 @@ function ReminderSection({
                 <Text
                   style={[
                     sectionStyles.dropdownItemText,
-                    { color: colors.primary, fontWeight: "500" },
+                    { color: tokens.primary, fontWeight: "500" },
                   ]}
                 >
                   {t("habits.form.reminderCustom")}
@@ -783,12 +765,8 @@ function ReminderSection({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Scheduled reminder sub-component
-// ---------------------------------------------------------------------------
-
 interface ScheduledReminderSectionProps {
-  colors: ThemeColors;
+  tokens: AppTokens;
   reminderEnabled: boolean;
   scheduledReminders:
     | { when: ScheduledReminderWhen; time: string }[]
@@ -801,7 +779,7 @@ interface ScheduledReminderSectionProps {
 }
 
 function ScheduledReminderSection({
-  colors,
+  tokens,
   reminderEnabled,
   scheduledReminders,
   onToggleReminder,
@@ -810,7 +788,7 @@ function ScheduledReminderSection({
 }: Readonly<ScheduledReminderSectionProps>) {
   const { t, i18n } = useTranslation();
   const deviceLocale = i18n.language;
-  const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
+  const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const MAX_SCHEDULED_REMINDERS = 5;
   const [showForm, setShowForm] = useState(false);
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
@@ -862,7 +840,7 @@ function ScheduledReminderSection({
     <View style={sectionStyles.container}>
       <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
-          <Bell size={16} color={colors.primary} />
+          <Bell size={16} color={tokens.primary} />
           <Text style={sectionStyles.headerLabel}>
             {t("habits.form.scheduledReminder")}
           </Text>
@@ -870,8 +848,8 @@ function ScheduledReminderSection({
         <Switch
           value={reminderEnabled}
           onValueChange={onToggleReminder}
-          trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-          thumbColor={colors.white}
+          trackColor={{ false: tokens.bgElev, true: tokens.primary }}
+          thumbColor={tokens.fgOnPrimary}
         />
       </View>
       {reminderEnabled && (
@@ -887,7 +865,7 @@ function ScheduledReminderSection({
                     onPress={() => removeScheduledReminder(idx)}
                     activeOpacity={0.7}
                   >
-                    <X size={12} color={colors.primary} />
+                    <X size={12} color={tokens.primary} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -900,7 +878,7 @@ function ScheduledReminderSection({
               onPress={() => setShowForm(true)}
               activeOpacity={0.7}
             >
-              <Plus size={14} color={colors.primary} />
+              <Plus size={14} color={tokens.primary} />
               <Text style={sectionStyles.addButtonText}>
                 {t("habits.form.scheduledReminderAdd")}
               </Text>
@@ -915,7 +893,6 @@ function ScheduledReminderSection({
 
           {showForm && (
             <View style={sectionStyles.formBody}>
-              {/* Day before / Same day toggle */}
               <View style={sectionStyles.whenRow}>
                 <TouchableOpacity
                   style={[
@@ -954,7 +931,6 @@ function ScheduledReminderSection({
                 </TouchableOpacity>
               </View>
 
-              {/* Time input + add/cancel */}
               <View style={sectionStyles.timeRow}>
                 <AppTimePicker
                   value={time}
@@ -988,7 +964,7 @@ function ScheduledReminderSection({
                   }}
                   activeOpacity={0.7}
                 >
-                  <X size={14} color={colors.textMuted} />
+                  <X size={14} color={tokens.fg3} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -999,26 +975,22 @@ function ScheduledReminderSection({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Slip alert sub-component
-// ---------------------------------------------------------------------------
-
 interface SlipAlertSectionProps {
-  colors: ThemeColors;
+  tokens: AppTokens;
   hasProAccess: boolean;
   slipAlertEnabled: boolean;
   onToggle: () => void;
 }
 
 function SlipAlertSection({
-  colors,
+  tokens,
   hasProAccess,
   slipAlertEnabled,
   onToggle,
 }: Readonly<SlipAlertSectionProps>) {
   const { t } = useTranslation();
   const router = useRouter();
-  const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
+  const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
 
   return (
     <View style={sectionStyles.container}>
@@ -1026,7 +998,7 @@ function SlipAlertSection({
         <View style={sectionStyles.headerRow}>
           <View style={{ flex: 1, gap: 2 }}>
             <View style={sectionStyles.headerLeft}>
-              <ShieldAlert size={16} color={colors.primary} />
+              <ShieldAlert size={16} color={tokens.primary} />
               <Text style={sectionStyles.headerLabel}>
                 {t("habits.form.slipAlert")}
               </Text>
@@ -1038,8 +1010,8 @@ function SlipAlertSection({
           <Switch
             value={slipAlertEnabled}
             onValueChange={onToggle}
-            trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-            thumbColor={colors.white}
+            trackColor={{ false: tokens.bgElev, true: tokens.primary }}
+            thumbColor={tokens.fgOnPrimary}
           />
         </View>
       ) : (
@@ -1050,9 +1022,9 @@ function SlipAlertSection({
         >
           <View style={{ flex: 1, gap: 2 }}>
             <View style={sectionStyles.headerLeft}>
-              <ShieldAlert size={16} color={colors.textMuted} />
+              <ShieldAlert size={16} color={tokens.fg3} />
               <Text
-                style={[sectionStyles.headerLabel, { color: colors.textMuted }]}
+                style={[sectionStyles.headerLabel, { color: tokens.fg3 }]}
               >
                 {t("habits.form.slipAlert")}
               </Text>
@@ -1070,10 +1042,6 @@ function SlipAlertSection({
     </View>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitFormFields({
   formHelpers,
@@ -1093,10 +1061,14 @@ export function HabitFormFields({
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
   );
-  const { colors } = useAppTheme();
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
   const { showError } = useAppToast();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const sectionStyles = useMemo(() => createSectionStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const hasProAccess = useHasProAccess();
   const { tags: availableTags } = useTags();
   const createTag = useCreateTag();
@@ -1182,7 +1154,6 @@ export function HabitFormFields({
   }) ?? "";
   const watchedEmoji = useWatch({ control: form.control, name: "emoji" }) ?? "";
 
-  // Reminder label function
   function reminderLabel(minutes: number): string {
     const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes);
     if (preset) return t(preset.key);
@@ -1206,7 +1177,6 @@ export function HabitFormFields({
     [onReminderEnabledChange, setValue],
   );
 
-  // Progressive disclosure
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded);
 
   function toggleAdvanced() {
@@ -1214,7 +1184,6 @@ export function HabitFormFields({
     setShowAdvanced((prev) => !prev);
   }
 
-  // Compute active frequency type key for card highlighting
   const activeFrequencyKey = isOneTime
     ? "one-time"
     : isGeneral
@@ -1233,7 +1202,6 @@ export function HabitFormFields({
     [setOneTime, setRecurring, setFlexible, setGeneral],
   );
 
-  // Count filled advanced fields for the badge
   const advancedFieldCount = useMemo(() => {
     return [
       watchedDescription.length > 0,
@@ -1266,11 +1234,6 @@ export function HabitFormFields({
 
   return (
     <View style={styles.container}>
-      {/* ═══════════════════════════════════════════════════
-         PRIMARY FIELDS -- Always visible
-         ═══════════════════════════════════════════════════ */}
-
-      {/* Title */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.title")}</Text>
         <BufferedSheetInput
@@ -1278,7 +1241,7 @@ export function HabitFormFields({
           registerFlush={registerBufferedInputFlusher}
           maxLength={200}
           placeholder={t("habits.form.titlePlaceholder")}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={tokens.fg3}
           style={styles.input}
           onCommit={(val) => setValue("title", val, { shouldDirty: true })}
           accessibilityLabel={t("habits.form.title")}
@@ -1292,12 +1255,11 @@ export function HabitFormFields({
 
       <HabitEmojiSelector
         selectedEmoji={watchedEmoji}
-        colors={colors}
+        tokens={tokens}
         styles={styles}
         onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
       />
 
-      {/* Frequency type cards (2x2 grid) */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.frequency")}</Text>
         <View style={styles.frequencyCardGrid}>
@@ -1326,7 +1288,7 @@ export function HabitFormFields({
                 >
                   <CardIcon
                     size={18}
-                    color={isActive ? colors.primary : colors.textMuted}
+                    color={isActive ? tokens.primary : tokens.fg3}
                   />
                 </View>
                 <Text
@@ -1351,7 +1313,6 @@ export function HabitFormFields({
         </View>
       </View>
 
-      {/* Flexible description */}
       {isFlexible && (
         <Text style={styles.flexibleHint}>
           {t("habits.form.flexibleDescription", {
@@ -1365,7 +1326,6 @@ export function HabitFormFields({
         </Text>
       )}
 
-      {/* Frequency qty + unit picker */}
       {!isOneTime && !isGeneral && (
         <View style={styles.frequencyRow}>
           <View style={styles.frequencyField}>
@@ -1407,7 +1367,6 @@ export function HabitFormFields({
         </View>
       )}
 
-      {/* Day picker */}
       {showDayPicker && !isGeneral && (
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t("habits.form.activeDays")}</Text>
@@ -1427,7 +1386,6 @@ export function HabitFormFields({
         </View>
       )}
 
-      {/* Due date + Due time in a row */}
       {!isGeneral && (
         <View style={styles.dueDateRow}>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
@@ -1454,7 +1412,6 @@ export function HabitFormFields({
         </View>
       )}
 
-      {/* Tags */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{t("habits.form.tags")}</Text>
         <View style={styles.tagsRow}>
@@ -1469,7 +1426,7 @@ export function HabitFormFields({
                 atLimit={isDisabled}
                 disabled={isTagMutationPending}
                 styles={styles}
-                colors={colors}
+                tokens={tokens}
                 onToggle={() => tags.toggleTag(tag.id)}
                 onEdit={() => tags.startEditTag(tag)}
                 onDelete={() =>
@@ -1506,7 +1463,6 @@ export function HabitFormFields({
           )}
         </View>
 
-        {/* Inline tag edit */}
         {tags.editingTagId && (
           <View style={styles.tagEditSection}>
             <TagColorPicker
@@ -1551,12 +1507,11 @@ export function HabitFormFields({
               }}
               onCancel={tags.cancelEditTag}
               styles={styles}
-              colors={colors}
+              tokens={tokens}
             />
           </View>
         )}
 
-        {/* Inline new tag creation */}
         {tags.showNewTag && (
           <View style={styles.tagEditSection}>
             <TagColorPicker
@@ -1603,15 +1558,11 @@ export function HabitFormFields({
               }}
               onCancel={() => tags.setShowNewTag(false)}
               styles={styles}
-              colors={colors}
+              tokens={tokens}
             />
           </View>
         )}
       </View>
-
-      {/* ═══════════════════════════════════════════════════
-         MORE OPTIONS toggle
-         ═══════════════════════════════════════════════════ */}
 
       <View style={styles.moreOptionsDivider}>
         <TouchableOpacity
@@ -1620,7 +1571,7 @@ export function HabitFormFields({
           activeOpacity={0.7}
         >
           <View style={showAdvanced ? styles.chevronRotated : undefined}>
-            <ChevronDown size={16} color={colors.textSecondary} />
+            <ChevronDown size={16} color={tokens.fg2} />
           </View>
           <Text style={styles.moreOptionsLabel}>
             {t("habits.form.moreOptions")}
@@ -1633,21 +1584,15 @@ export function HabitFormFields({
         </TouchableOpacity>
       </View>
 
-      {/* ═══════════════════════════════════════════════════
-         ADVANCED FIELDS -- Behind "More options"
-         Fields stay mounted for react-hook-form
-         ═══════════════════════════════════════════════════ */}
-
       {showAdvanced && (
         <View style={styles.advancedSection}>
-          {/* Description */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>{t("habits.form.description")}</Text>
             <BufferedSheetInput
               value={watchedDescription}
               registerFlush={registerBufferedInputFlusher}
               placeholder={t("habits.form.descriptionPlaceholder")}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={tokens.fg3}
               maxLength={2000}
               multiline
               numberOfLines={2}
@@ -1659,7 +1604,6 @@ export function HabitFormFields({
             />
           </View>
 
-          {/* Checklist */}
           <View style={[styles.fieldGroup, { gap: 12 }]}>
             <Text style={styles.label}>{t("habits.form.checklist")}</Text>
             <HabitChecklist
@@ -1679,7 +1623,6 @@ export function HabitFormFields({
             </View>
           </View>
 
-          {/* End time */}
           {watchedDueTime && !isGeneral && (
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
@@ -1694,7 +1637,6 @@ export function HabitFormFields({
             </View>
           )}
 
-          {/* End date (recurring only) */}
           {showEndDate && (
             <View style={styles.fieldGroup}>
               {watchedEndDate ? (
@@ -1717,7 +1659,7 @@ export function HabitFormFields({
                       }
                       activeOpacity={0.7}
                     >
-                      <X size={16} color={colors.textMuted} />
+                      <X size={16} color={tokens.fg3} />
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.hintText}>
@@ -1734,7 +1676,7 @@ export function HabitFormFields({
                   }
                   activeOpacity={0.7}
                 >
-                  <Plus size={14} color={colors.primary} />
+                  <Plus size={14} color={tokens.primary} />
                   <Text style={sectionStyles.addButtonText}>
                     {t("habits.form.addEndDate")}
                   </Text>
@@ -1743,10 +1685,9 @@ export function HabitFormFields({
             </View>
           )}
 
-          {/* Reminder (only when dueTime is set, hidden for general habits) */}
           {watchedDueTime && !isGeneral && (
             <ReminderSection
-              colors={colors}
+              tokens={tokens}
               reminderEnabled={watchedReminderEnabled}
               reminderTimes={reminderTimes}
               onReminderTimesChange={onReminderTimesChange}
@@ -1757,10 +1698,9 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
           {!watchedDueTime && !isGeneral && (
             <ScheduledReminderSection
-              colors={colors}
+              tokens={tokens}
               reminderEnabled={watchedReminderEnabled}
               scheduledReminders={watchedScheduledReminders}
               onToggleReminder={() =>
@@ -1773,7 +1713,6 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Goals */}
           {hasProAccess && (
             <GoalLinkingField
               selectedGoalIds={selectedGoalIds}
@@ -1782,7 +1721,6 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Bad habit toggle */}
           {!isGeneral && (
             <TouchableOpacity
               style={styles.checkboxRow}
@@ -1799,7 +1737,7 @@ export function HabitFormFields({
                   watchedIsBadHabit && styles.customCheckboxChecked,
                 ]}
               >
-                {watchedIsBadHabit && <Check size={12} color={colors.white} />}
+                {watchedIsBadHabit && <Check size={12} color={tokens.fgOnPrimary} />}
               </View>
               <Text style={styles.checkboxLabel}>
                 {t("habits.form.badHabitLabel")}
@@ -1807,10 +1745,9 @@ export function HabitFormFields({
             </TouchableOpacity>
           )}
 
-          {/* Slip alert toggle (only when bad habit) */}
           {watchedIsBadHabit && (
             <SlipAlertSection
-              colors={colors}
+              tokens={tokens}
               hasProAccess={hasProAccess}
               slipAlertEnabled={watchedSlipAlertEnabled}
               onToggle={() =>
@@ -1821,7 +1758,6 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Slot for extra fields (e.g. sub-habits) */}
           {children}
         </View>
       )}
@@ -1830,18 +1766,14 @@ export function HabitFormFields({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Section styles (shared by sub-components)
-// ---------------------------------------------------------------------------
-
-function createSectionStyles(colors: ThemeColors) {
+function createSectionStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 16,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       gap: 12,
     },
     headerRow: {
@@ -1857,7 +1789,7 @@ function createSectionStyles(colors: ThemeColors) {
     headerLabel: {
       fontSize: 14,
       fontWeight: "500",
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     body: {
       gap: 12,
@@ -1874,12 +1806,12 @@ function createSectionStyles(colors: ThemeColors) {
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: radius.full,
-      backgroundColor: colors.primary_15,
+      backgroundColor: tokens.bgElev,
     },
     chipText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.primary,
+      color: tokens.primary,
     },
     addButton: {
       flexDirection: "row",
@@ -1889,13 +1821,13 @@ function createSectionStyles(colors: ThemeColors) {
     addButtonText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.primary,
+      color: tokens.primary,
     },
     dropdown: {
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surfaceOverlay,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
       padding: 4,
       marginTop: 8,
     },
@@ -1906,7 +1838,7 @@ function createSectionStyles(colors: ThemeColors) {
     },
     dropdownItemText: {
       fontSize: 14,
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     customRow: {
       flexDirection: "row",
@@ -1917,14 +1849,14 @@ function createSectionStyles(colors: ThemeColors) {
     },
     customInput: {
       width: 60,
-      backgroundColor: colors.surface,
-      color: colors.textPrimary,
+      backgroundColor: tokens.bgElev,
+      color: tokens.fg1,
       borderRadius: radius.xl,
       paddingVertical: 6,
       paddingHorizontal: 12,
       fontSize: 14,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     unitRow: {
       flexDirection: "row",
@@ -1934,33 +1866,33 @@ function createSectionStyles(colors: ThemeColors) {
       paddingHorizontal: 8,
       paddingVertical: 6,
       borderRadius: radius.xl,
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     unitButtonActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: tokens.primary,
+      borderColor: tokens.primary,
     },
     unitButtonText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     unitButtonTextActive: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     customAddButton: {
       width: 28,
       height: 28,
       borderRadius: radius.full,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
       alignItems: "center",
       justifyContent: "center",
     },
     limitText: {
       fontSize: 12,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     formBody: {
       gap: 12,
@@ -1974,22 +1906,22 @@ function createSectionStyles(colors: ThemeColors) {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.xl,
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       alignItems: "center",
     },
     whenButtonActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: tokens.primary,
+      borderColor: tokens.primary,
     },
     whenButtonText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     whenButtonTextActive: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     timeRow: {
       flexDirection: "row",
@@ -1998,39 +1930,39 @@ function createSectionStyles(colors: ThemeColors) {
     },
     timeInput: {
       flex: 1,
-      backgroundColor: colors.surface,
-      color: colors.textPrimary,
+      backgroundColor: tokens.bgElev,
+      color: tokens.fg1,
       borderRadius: radius.xl,
       paddingVertical: 8,
       paddingHorizontal: 12,
       fontSize: 14,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     timeAddButton: {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.xl,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
     },
     timeAddButtonText: {
       fontSize: 12,
       fontWeight: "700",
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     timeCancelButton: {
       padding: 8,
     },
     slipDescription: {
       fontSize: 12,
-      color: colors.textMuted,
+      color: tokens.fg3,
       marginLeft: 24,
     },
     disabledSwitch: {
       width: 40,
       height: 22,
       borderRadius: radius.full,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       opacity: 0.5,
       justifyContent: "center",
       paddingHorizontal: 2,
@@ -2039,16 +1971,12 @@ function createSectionStyles(colors: ThemeColors) {
       width: 18,
       height: 18,
       borderRadius: radius.full,
-      backgroundColor: colors.white,
+      backgroundColor: tokens.fgOnPrimary,
     },
   });
 }
 
-// ---------------------------------------------------------------------------
-// Main styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ThemeColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       gap: 32,
@@ -2059,19 +1987,19 @@ function createStyles(colors: ThemeColors) {
     label: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },
     input: {
-      backgroundColor: colors.surface,
-      color: colors.textPrimary,
+      backgroundColor: tokens.bgElev,
+      color: tokens.fg1,
       borderRadius: radius.lg,
       paddingVertical: 12,
       paddingHorizontal: 16,
       fontSize: 14,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     textarea: {
       minHeight: 60,
@@ -2079,16 +2007,16 @@ function createStyles(colors: ThemeColors) {
     },
     fieldError: {
       fontSize: 12,
-      color: colors.red400,
+      color: tokens.statusBad,
       marginTop: 2,
     },
     hintText: {
       fontSize: 12,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     flexibleHint: {
       fontSize: 12,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     emojiTrigger: {
       flexDirection: "row",
@@ -2096,8 +2024,8 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       borderRadius: radius.xl,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
       padding: 14,
     },
     emojiPreview: {
@@ -2106,9 +2034,9 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 22,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.primary_10,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.primary_20,
+      borderColor: tokens.bgElev,
     },
     emojiPreviewText: {
       fontSize: 24,
@@ -2123,9 +2051,9 @@ function createStyles(colors: ThemeColors) {
       maxHeight: "82%",
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       paddingHorizontal: 16,
       paddingTop: 14,
       paddingBottom: 24,
@@ -2144,7 +2072,7 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
     },
     emojiModalTitle: {
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 16,
       fontWeight: "700",
     },
@@ -2154,9 +2082,9 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.primary_10,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.primary_20,
+      borderColor: tokens.bgElev,
     },
     emojiPreviewCompactText: {
       fontSize: 21,
@@ -2168,15 +2096,15 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     emojiSearchInput: {
       height: 44,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      color: colors.textPrimary,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
+      color: tokens.fg1,
       paddingHorizontal: 14,
       fontSize: 14,
     },
@@ -2185,24 +2113,24 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 2,
     },
     emojiCategoryTab: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
     emojiCategoryTabActive: {
-      backgroundColor: colors.primary_15,
-      borderColor: colors.primary,
+      backgroundColor: tokens.bgElev,
+      borderColor: tokens.primary,
     },
     emojiCategoryTabText: {
-      color: colors.textSecondary,
+      color: tokens.fg2,
       fontSize: 12,
       fontWeight: "600",
     },
     emojiCategoryTabTextActive: {
-      color: colors.primary,
+      color: tokens.primary,
     },
     emojiModalList: {
       maxHeight: 430,
@@ -2212,12 +2140,12 @@ function createStyles(colors: ThemeColors) {
       gap: 8,
     },
     emojiCategoryTitle: {
-      color: colors.textMuted,
+      color: tokens.fg3,
       fontSize: 12,
       fontWeight: "700",
     },
     emojiEmptyText: {
-      color: colors.textMuted,
+      color: tokens.fg3,
       textAlign: "center",
       paddingVertical: 32,
       fontSize: 14,
@@ -2233,19 +2161,18 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
     },
     emojiOptionSelected: {
-      backgroundColor: colors.primary_15,
-      borderColor: colors.primary,
+      backgroundColor: tokens.bgElev,
+      borderColor: tokens.primary,
     },
     emojiOptionText: {
       fontSize: 18,
       lineHeight: 22,
     },
-    // Frequency card grid
     frequencyCardGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -2258,12 +2185,12 @@ function createStyles(colors: ThemeColors) {
       padding: 12,
     },
     frequencyCardActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary_15,
+      borderColor: tokens.primary,
+      backgroundColor: tokens.bgElev,
     },
     frequencyCardInactive: {
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surfaceElevated,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
     },
     frequencyCardIcon: {
       width: 36,
@@ -2274,10 +2201,10 @@ function createStyles(colors: ThemeColors) {
       marginBottom: 8,
     },
     frequencyCardIconActive: {
-      backgroundColor: colors.primary_15,
+      backgroundColor: tokens.bgElev,
     },
     frequencyCardIconInactive: {
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     frequencyCardTitle: {
       fontSize: 13,
@@ -2285,19 +2212,19 @@ function createStyles(colors: ThemeColors) {
       marginBottom: 2,
     },
     frequencyCardTitleActive: {
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     frequencyCardTitleInactive: {
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     frequencyCardDesc: {
       fontSize: 11,
-      color: colors.textMuted,
+      color: tokens.fg3,
       lineHeight: 15,
     },
     frequencyCardExample: {
       fontSize: 10,
-      color: colors.textMuted,
+      color: tokens.fg3,
       lineHeight: 14,
       marginTop: 4,
       fontStyle: "italic",
@@ -2320,21 +2247,21 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: radius.full,
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     dayButtonActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: tokens.primary,
+      borderColor: tokens.primary,
     },
     dayButtonText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     dayButtonTextActive: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     dueDateRow: {
       flexDirection: "row",
@@ -2363,9 +2290,9 @@ function createStyles(colors: ThemeColors) {
       borderRadius: radius.full,
     },
     tagChipInactive: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     tagChipMain: {
       flexDirection: "row",
@@ -2383,7 +2310,7 @@ function createStyles(colors: ThemeColors) {
     tagChipText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     tagAction: {
       paddingHorizontal: 4,
@@ -2393,15 +2320,15 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: radius.full,
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderStyle: "dashed",
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     newTagButtonText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     tagEditSection: {
       gap: 12,
@@ -2418,7 +2345,7 @@ function createStyles(colors: ThemeColors) {
     },
     colorDotSelected: {
       borderWidth: 2,
-      borderColor: colors.white,
+      borderColor: tokens.fgOnPrimary,
     },
     tagFormRow: {
       flexDirection: "row",
@@ -2429,20 +2356,19 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.xl,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
     },
     tagFormSaveText: {
       fontSize: 12,
       fontWeight: "700",
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     tagFormCancel: {
       padding: 8,
     },
-    // More options toggle
     moreOptionsDivider: {
       borderTopWidth: 1,
-      borderTopColor: colors.borderMuted,
+      borderTopColor: tokens.hairline,
       paddingTop: 12,
       marginTop: 4,
     },
@@ -2455,17 +2381,16 @@ function createStyles(colors: ThemeColors) {
     moreOptionsLabel: {
       fontSize: 14,
       fontWeight: "500",
-      color: colors.textSecondary,
+      color: tokens.fg2,
       flex: 1,
     },
     moreOptionsBadge: {
       fontSize: 12,
-      color: colors.primary,
+      color: tokens.primary,
     },
     chevronRotated: {
       transform: [{ rotate: "180deg" }],
     },
-    // Advanced section
     advancedSection: {
       gap: 24,
     },
@@ -2480,19 +2405,18 @@ function createStyles(colors: ThemeColors) {
       height: 20,
       borderRadius: 8,
       borderWidth: 2,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       alignItems: "center",
       justifyContent: "center",
     },
     customCheckboxChecked: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: tokens.primary,
+      borderColor: tokens.primary,
     },
     checkboxLabel: {
       fontSize: 14,
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
-    // Legacy (kept for compatibility — not used in updated layout)
     unitPicker: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -2502,21 +2426,21 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 10,
       paddingVertical: 8,
       borderRadius: radius.xl,
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
     },
     unitOptionActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: tokens.primary,
+      borderColor: tokens.primary,
     },
     unitOptionText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     unitOptionTextActive: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
   });
 }

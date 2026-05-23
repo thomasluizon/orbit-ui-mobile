@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Loader2, Check, Settings2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -35,10 +35,19 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   )
   const [title, setTitle] = useState('')
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
-  const [isCreated, setIsCreated] = useState(false)
+  const [createdInfo, setCreatedInfo] = useState<{ id: string; title: string } | null>(null)
+  const isCreated = createdInfo !== null
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
   const { showError } = useAppToast()
+
+  useEffect(() => {
+    if (!createdInfo) return
+    const timer = setTimeout(() => {
+      onCreated(createdInfo.id, createdInfo.title)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [createdInfo, onCreated])
 
   const createHabit = useCreateHabit()
   const isCreating = createHabit.isPending
@@ -80,17 +89,14 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       },
       {
         onSuccess: (result) => {
-          setIsCreated(true)
-          setTimeout(() => {
-            onCreated(result.id, title.trim())
-          }, 1500)
+          setCreatedInfo({ id: result.id, title: title.trim() })
         },
         onError: (err: unknown) => {
           showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
         },
       },
     )
-  }, [title, frequencyUnit, isCreating, createHabit, onCreated, showError, translate])
+  }, [title, frequencyUnit, isCreating, createHabit, showError, translate])
 
   if (isCreated) {
     return (
@@ -173,7 +179,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         ariaLabel={t('onboarding.flow.createHabit.placeholder')}
       />
 
-      {/* "Use a form instead" chip toggles the frequency picker */}
       <div className="flex justify-center">
         <Chip
           active={showFrequencyPicker}
@@ -217,7 +222,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         </div>
       )}
 
-      {/* Starters */}
       <SectionLabel top={8} bottom={6}>
         {t('onboarding.flow.createHabit.starters')}
       </SectionLabel>
@@ -233,7 +237,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         ))}
       </div>
 
-      {/* Create button */}
       <button
         type="button"
         className="appearance-none border-0 cursor-pointer disabled:opacity-50"

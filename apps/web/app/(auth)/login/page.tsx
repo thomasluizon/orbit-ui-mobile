@@ -98,10 +98,6 @@ function resolveLoginErrorState(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
 function Spinner({ size = 4 }: Readonly<{ size?: number }>) {
   return (
     <svg className={`size-${size} animate-spin`} viewBox="0 0 24 24" fill="none">
@@ -434,10 +430,6 @@ function CodeStep({
   )
 }
 
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
 async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
@@ -484,10 +476,6 @@ function isOfflinePreflight(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false
 }
 
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
-
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -520,10 +508,8 @@ export default function LoginPage() {
   const authStepMotion = resolveMotionPreset('route-replace', Boolean(prefersReducedMotion))
   const feedbackMotion = resolveMotionPreset('success-feedback', Boolean(prefersReducedMotion))
 
-  // Referral code from cookie
   const referralCode = getCookieValue('referral_code')
 
-  // Read ref query param and store in cookie
   useEffect(() => {
     const refParam = searchParams.get('ref')
     if (refParam && /^[a-zA-Z0-9_-]+$/.test(refParam)) {
@@ -531,7 +517,6 @@ export default function LoginPage() {
     }
   }, [searchParams])
 
-  // Deep link pre-fill
   const searchParamsKey = searchParams.toString()
   const [previousSearchParamsKey, setPreviousSearchParamsKey] = useState<string | null>(null)
   if (searchParamsKey !== previousSearchParamsKey) {
@@ -680,7 +665,6 @@ export default function LoginPage() {
         className="flex flex-col"
         style={{ padding: '40px 28px 24px', gap: 18 }}
       >
-        {/* Saturn dropcap + Orbit wordmark + step subtitle */}
         <div
           className="flex flex-col items-center"
           style={{ gap: 14, paddingBottom: 12 }}
@@ -719,7 +703,6 @@ export default function LoginPage() {
           {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
         </h2>
 
-        {/* Referral banner */}
         {referralCode && (
           <motion.div
             role="status"
@@ -756,7 +739,6 @@ export default function LoginPage() {
           </motion.div>
         )}
 
-        {/* Error message (per v8: centered italic in overdue color) */}
         {errorMessage && (
           <div
             role="alert"
@@ -774,7 +756,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Success alert */}
         <AnimatePresence initial={false} mode="popLayout">
           {successMessage ? (
             <motion.div

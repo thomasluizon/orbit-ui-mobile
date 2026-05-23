@@ -1,11 +1,4 @@
-// ---------------------------------------------------------------------------
-// Orbit API endpoint constants
-// All paths are relative to the BFF proxy (/api/...).
-// Dynamic segments use functions returning template-literal types.
-// ---------------------------------------------------------------------------
-
 export const API = {
-  // -- Auth ------------------------------------------------------------------
   auth: {
     sendCode: '/api/auth/send-code',
     verifyCode: '/api/auth/verify-code',
@@ -16,7 +9,6 @@ export const API = {
     confirmDeletion: '/api/auth/confirm-deletion',
   },
 
-  // -- Profile ---------------------------------------------------------------
   profile: {
     get: '/api/profile',
     timezone: '/api/profile/timezone',
@@ -31,7 +23,6 @@ export const API = {
     reset: '/api/profile/reset',
   },
 
-  // -- Habits ----------------------------------------------------------------
   habits: {
     list: '/api/habits',
     create: '/api/habits',
@@ -58,7 +49,6 @@ export const API = {
     metrics: (id: string) => `/api/habits/${id}/metrics` as const,
   },
 
-  // -- Goals -----------------------------------------------------------------
   goals: {
     list: '/api/goals',
     create: '/api/goals',
@@ -74,7 +64,6 @@ export const API = {
     review: '/api/goals/review',
   },
 
-  // -- Tags ------------------------------------------------------------------
   tags: {
     list: '/api/tags',
     create: '/api/tags',
@@ -83,7 +72,6 @@ export const API = {
     assign: (habitId: string) => `/api/tags/${habitId}/assign` as const,
   },
 
-  // -- Notifications ---------------------------------------------------------
   notifications: {
     list: '/api/notifications',
     markRead: (id: string) => `/api/notifications/${id}/read` as const,
@@ -96,7 +84,6 @@ export const API = {
     testPush: '/api/notifications/test-push',
   },
 
-  // -- Subscription / Billing ------------------------------------------------
   subscription: {
     checkout: '/api/subscriptions/checkout',
     portal: '/api/subscriptions/portal',
@@ -106,7 +93,6 @@ export const API = {
     adReward: '/api/subscriptions/ad-reward',
   },
 
-  // -- Gamification ----------------------------------------------------------
   gamification: {
     profile: '/api/gamification/profile',
     achievements: '/api/gamification/achievements',
@@ -114,7 +100,6 @@ export const API = {
     streakFreeze: '/api/gamification/streak/freeze',
   },
 
-  // -- Chat / AI -------------------------------------------------------------
   chat: {
     send: '/api/chat',
   },
@@ -133,14 +118,12 @@ export const API = {
       `/api/ai/clarifications/${operationId}/resolve` as const,
   },
 
-  // -- User Facts ------------------------------------------------------------
   userFacts: {
     list: '/api/user-facts',
     delete: (id: string) => `/api/user-facts/${id}` as const,
     bulk: '/api/user-facts/bulk',
   },
 
-  // -- Calendar --------------------------------------------------------------
   calendar: {
     events: '/api/calendar/events',
     dismiss: '/api/calendar/dismiss',
@@ -152,36 +135,30 @@ export const API = {
     autoSyncRun: '/api/calendar/auto-sync/run',
   },
 
-  // -- Support ---------------------------------------------------------------
   support: {
     send: '/api/support',
   },
 
-  // -- Referrals -------------------------------------------------------------
   referral: {
     dashboard: '/api/referrals/dashboard',
   },
 
-  // -- API Keys --------------------------------------------------------------
   apiKeys: {
     list: '/api/api-keys',
     create: '/api/api-keys',
     delete: (id: string) => `/api/api-keys/${id}` as const,
   },
 
-  // -- Config ----------------------------------------------------------------
   config: {
     get: '/api/config',
   },
 
-  // -- Sync ------------------------------------------------------------------
   sync: {
     batch: '/api/sync/batch',
     changes: '/api/sync/changes',
     changesV2: '/api/sync/v2/changes',
   },
 
-  // -- Checklist Templates ---------------------------------------------------
   checklistTemplates: {
     list: '/api/checklist-templates',
     create: '/api/checklist-templates',

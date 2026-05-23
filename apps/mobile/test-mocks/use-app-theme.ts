@@ -1,22 +1,6 @@
 export interface TestAppTheme {
-  colors: {
-    primary: string
-    primary_10: string
-    white: string
-    textMuted: string
-    textSecondary: string
-    textPrimary: string
-    surface: string
-    surfaceElevated: string
-    borderMuted: string
-    amber400: string
-    amber500: string
-    red400: string
-    red500: string
-    green400: string
-    green500: string
-    surfaceGround: string
-  }
+  currentScheme: 'purple'
+  currentTheme: 'dark'
   shadows: {
     sm: {
       shadowColor: string
@@ -41,24 +25,8 @@ export interface TestAppTheme {
 
 export function useAppTheme(): TestAppTheme {
   return {
-    colors: {
-      primary: '#2563eb',
-      primary_10: '#dbeafe',
-      white: '#ffffff',
-      textMuted: '#64748b',
-      textSecondary: '#334155',
-      textPrimary: '#0f172a',
-      surface: '#ffffff',
-      surfaceElevated: '#f8fafc',
-      borderMuted: '#e2e8f0',
-      amber400: '#f59e0b',
-      amber500: '#d97706',
-      red400: '#f87171',
-      red500: '#ef4444',
-      green400: '#4ade80',
-      green500: '#22c55e',
-      surfaceGround: '#f1f5f9',
-    },
+    currentScheme: 'purple',
+    currentTheme: 'dark',
     shadows: {
       sm: {
         shadowColor: '#000',

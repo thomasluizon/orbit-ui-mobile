@@ -54,12 +54,20 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    currentScheme: 'purple',
+    currentTheme: 'dark',
   }),
 }))
 
 vi.mock('@/lib/theme', () => ({
   radius: { xl: 20, full: 9999 },
   shadows: { sm: {} },
+  createTokensV2: () => new Proxy({}, {
+    get: (_target, prop) => {
+      if (prop === 'fgOnPrimary') return '#ffffff'
+      return '#111111'
+    },
+  }),
 }))
 
 vi.mock('lucide-react-native', () => {

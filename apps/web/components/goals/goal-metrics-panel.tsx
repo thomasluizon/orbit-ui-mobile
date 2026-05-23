@@ -11,10 +11,6 @@ import {
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface GoalMetricsPanelProps {
   metrics: GoalMetricsViewModel | null
   unit: string
@@ -22,11 +18,7 @@ interface GoalMetricsPanelProps {
   isStreak?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-/** v8 metrics: status row + flush SettingsRow strip + adherence rows.
+/** Metrics: status row + flush SettingsRow strip + adherence rows.
  *  No chrome cards — purely hairline-separated rows. */
 export function GoalMetricsPanel({
   metrics,
@@ -84,7 +76,6 @@ export function GoalMetricsPanel({
     <div>
       <SectionLabel>{t('goals.metrics.title')}</SectionLabel>
 
-      {/* Status row with leading dot */}
       {statusConfig && (
         <SettingsRow
           label={t('goals.metrics.title')}
@@ -95,7 +86,6 @@ export function GoalMetricsPanel({
         />
       )}
 
-      {/* Projected completion */}
       <SettingsRow
         label={t('goals.metrics.projectedCompletion')}
         mono
@@ -108,7 +98,6 @@ export function GoalMetricsPanel({
         valueColor="var(--fg-1)"
       />
 
-      {/* Streak: days remaining. Standard: velocity. */}
       {isStreak ? (
         <SettingsRow
           label={t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
@@ -131,7 +120,6 @@ export function GoalMetricsPanel({
         />
       )}
 
-      {/* Linked habit adherence */}
       {metrics.habitAdherence.length > 0 && (
         <>
           <SectionLabel>{t('goals.metrics.habitAdherence')}</SectionLabel>

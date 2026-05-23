@@ -36,10 +36,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface CreateGoalModalProps {
   open: boolean
   onClose: () => void
@@ -52,10 +48,6 @@ interface CreateGoalRequest {
   deadline?: string
   type?: 'Standard' | 'Streak'
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const { t } = useTranslation()
@@ -121,25 +113,14 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  function validate(): string | null {
-    return translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
-  }
-
-  function buildTitle(): string {
-    return buildGoalTitle(description, targetValue, unit)
-  }
-
-  function resetForm() {
+  const resetForm = useCallback(() => {
     setGoalType('Standard')
     setDescription('')
     setTargetValue('')
     setUnit('')
     setDeadline('')
     setSubmitted(false)
-  }
+  }, [])
 
   const handleTypeChange = useCallback(
     (type: GoalType) => {
@@ -155,7 +136,10 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
 
   const onSubmit = useCallback(async () => {
     setSubmitted(true)
-    const err = validate()
+    const err = translateErrorKey(
+      translate,
+      validateGoalDraftInput(description, targetValue, unit),
+    )
     if (err) {
       showError(err)
       return
@@ -165,7 +149,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     if (numVal === null) return
 
     try {
-      const title = buildTitle()
+      const title = buildGoalTitle(description, targetValue, unit)
       const request: CreateGoalRequest = {
         title,
         targetValue: numVal,
@@ -182,13 +166,13 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'),
       )
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     createGoal,
     deadline,
     description,
     goalType,
     onClose,
+    resetForm,
     showError,
     targetValue,
     translate,
@@ -407,10 +391,6 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(
   tokens: ReturnType<typeof createTokensV2>,

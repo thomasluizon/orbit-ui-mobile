@@ -36,13 +36,9 @@ export function TourOverlay() {
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === totalSteps - 1
 
-  const handleEnd = useCallback(async () => {
+  const handleEnd = useCallback(() => {
     endTour()
-    try {
-      await completeTour()
-    } catch {
-      // Silently fail
-    }
+    completeTour().catch(() => {})
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old
       return { ...old, hasCompletedTour: true }
@@ -59,7 +55,7 @@ export function TourOverlay() {
         }),
       )
     } catch {
-      // localStorage unavailable
+      // localStorage may throw in private-browsing modes — completion is server-persisted.
     }
   }, [endTour, queryClient])
 

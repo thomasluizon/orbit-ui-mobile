@@ -34,10 +34,6 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface EditGoalModalProps {
   open: boolean
   onClose: () => void
@@ -57,10 +53,6 @@ interface UpdateGoalRequest {
   unit: string
   deadline?: string | null
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
   const { t } = useTranslation()
@@ -133,20 +125,12 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
     }
   }, [open, goal.deadline, goal.targetValue, goal.title, goal.unit])
 
-  function validate(): string | null {
-    return translateErrorKey(
+  const onSubmit = useCallback(async () => {
+    setSubmitted(true)
+    const err = translateErrorKey(
       translate,
       validateGoalDraftInput(description, targetValue, unit),
     )
-  }
-
-  function buildTitle(): string {
-    return buildGoalTitle(description, targetValue, unit)
-  }
-
-  const onSubmit = useCallback(async () => {
-    setSubmitted(true)
-    const err = validate()
     if (err) {
       showError(err)
       return
@@ -156,7 +140,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
     if (numVal === null) return
 
     try {
-      const title = buildTitle()
+      const title = buildGoalTitle(description, targetValue, unit)
       const request: UpdateGoalRequest = {
         title,
         targetValue: numVal,
@@ -171,7 +155,6 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
         getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
       )
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     deadline,
     description,
@@ -360,10 +343,6 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(
   tokens: ReturnType<typeof createTokensV2>,

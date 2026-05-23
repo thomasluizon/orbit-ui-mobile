@@ -25,11 +25,6 @@ import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
 
-// v8 inserts a "Meet Astra" step between Welcome and Create Habit on web only
-// (mobile parity follows separately). We track the visual step locally without
-// touching the shared step constants -- web shows N+1 steps where N is the
-// shared total. The Meet Astra step is a passive screen with no functional
-// side effects.
 const WEB_ASTRA_OFFSET = 1
 
 export function OnboardingFlow() {
@@ -38,11 +33,6 @@ export function OnboardingFlow() {
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
 
-  // sharedStep is the value drawn from `@orbit/shared/utils` (0-5). It maps to
-  // the functional flow: welcome, createHabit, completeHabit, createGoal,
-  // features, complete. The Astra interstitial is a web-only insertion that
-  // sits "between" sharedStep 0 and sharedStep 1 without changing the shared
-  // constants. astraStepShown becomes true when the user passes the Astra step.
   const [sharedStep, setSharedStep] = useState(0)
   const [astraStepShown, setAstraStepShown] = useState(false)
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
@@ -50,21 +40,16 @@ export function OnboardingFlow() {
   const [createdGoal, setCreatedGoal] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  // SSR guard
   if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) { // NOSONAR - SSR guard
     setMounted(true)
   }
 
   const sharedDisplayTotal = getOnboardingDisplayTotal(hasProAccess)
-  // Web adds the Astra step on top of the shared total.
   const displayTotal = sharedDisplayTotal + WEB_ASTRA_OFFSET
-  // We deliberately drive the Astra view via a parallel boolean so progressing
-  // back lands cleanly on Welcome.
   const [viewingAstra, setViewingAstra] = useState(false)
   const displayStep = useMemo(() => {
     const sharedDisplay = getOnboardingDisplayStep(sharedStep, hasProAccess)
-    if (viewingAstra) return 2 // Astra is step 2 in the v8 spec (Welcome=1)
-    // After Astra is shown, every subsequent shared step shifts by +1.
+    if (viewingAstra) return 2
     if (astraStepShown) return sharedDisplay + WEB_ASTRA_OFFSET
     return sharedDisplay
   }, [sharedStep, hasProAccess, viewingAstra, astraStepShown])
@@ -74,13 +59,11 @@ export function OnboardingFlow() {
 
   const goNext = useCallback(() => {
     if (sharedStep === 0 && !astraStepShown) {
-      // Welcome -> Astra interstitial
       setViewingAstra(true)
       setAstraStepShown(true)
       return
     }
     if (viewingAstra) {
-      // Astra -> CreateHabit
       setViewingAstra(false)
       setSharedStep((s) => getOnboardingNextStep(s, hasProAccess))
       return
@@ -90,12 +73,10 @@ export function OnboardingFlow() {
 
   const goPrev = useCallback(() => {
     if (viewingAstra) {
-      // Astra -> Welcome
       setViewingAstra(false)
       return
     }
     if (sharedStep === 1 && astraStepShown) {
-      // CreateHabit -> Astra
       setViewingAstra(true)
       setSharedStep(0)
       return
@@ -139,7 +120,6 @@ export function OnboardingFlow() {
     setSharedStep(ONBOARDING_COMPLETE_STEP)
   }
 
-  // Interactive steps that hide the footer nav (Astra step keeps the footer).
   const hideFooter = !viewingAstra && shouldHideOnboardingFooter(sharedStep)
 
   const stepContent = (() => {
@@ -182,7 +162,6 @@ export function OnboardingFlow() {
     }
   })()
 
-  // Focus trap
   const overlayRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!mounted) return
@@ -209,7 +188,6 @@ export function OnboardingFlow() {
       }
 
     el.addEventListener('keydown', handleKeyDown)
-    // Focus first focusable element
     const firstFocusable = el.querySelector<HTMLElement>('button, [href], input')
     firstFocusable?.focus()
 
@@ -218,7 +196,6 @@ export function OnboardingFlow() {
 
   if (!mounted) return null
 
-  // Mono progress label: "Orbit · 01 / 07" -- matches v8 spec.
   const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
 
   const isFinalStep = sharedStep === ONBOARDING_COMPLETE_STEP
@@ -229,12 +206,11 @@ export function OnboardingFlow() {
       ref={overlayRef}
       role="dialog"
       className="fixed inset-0 z-[60] m-0 h-dvh w-screen overflow-y-auto"
-      style={{ background: 'var(--bg-base)' }}
+      style={{ background: 'var(--bg)' }}
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
       <div className="flex flex-col min-h-dvh relative">
-        {/* Header: mono progress label + Skip */}
         <div
           className="flex items-center justify-between"
           style={{ padding: '16px 20px' }}
@@ -269,7 +245,6 @@ export function OnboardingFlow() {
           )}
         </div>
 
-        {/* Step content (scrollable) */}
         <div
           className="flex-1 min-h-0 overflow-y-auto"
           style={{ padding: '0 28px' }}
@@ -279,7 +254,6 @@ export function OnboardingFlow() {
           </div>
         </div>
 
-        {/* Footer: progress dots + Back / Continue */}
         {!hideFooter && (
           <div
             className="flex flex-col items-center"

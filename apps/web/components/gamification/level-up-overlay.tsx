@@ -29,6 +29,17 @@ export function LevelUpOverlay({
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
     activeCelebration?.kind === 'level-up' ? activeCelebration : null
+  const [previousActiveLevelUp, setPreviousActiveLevelUp] = useState<
+    typeof activeLevelUp | undefined
+  >(undefined)
+
+  if (activeLevelUp !== previousActiveLevelUp) {
+    setPreviousActiveLevelUp(activeLevelUp)
+    if (activeLevelUp) {
+      setLevel(activeLevelUp.payload.level)
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -63,14 +74,11 @@ export function LevelUpOverlay({
   useEffect(() => {
     if (!activeLevelUp) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store snapshot into local state
-    setLevel(activeLevelUp.payload.level)
-    setShouldRender(true)
     requestAnimationFrame(() => setIsVisible(true))
     timerRef.current = setTimeout(() => {
       dismiss(activeLevelUp.id)
     }, 3000)
-  }, [activeLevelUp, dismiss, t])
+  }, [activeLevelUp, dismiss])
 
   if (!mounted || !shouldRender) return null
 

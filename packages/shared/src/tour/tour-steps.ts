@@ -1,11 +1,6 @@
 import type { TourStep, TourSection } from '../types/tour'
 
-// ---------------------------------------------------------------------------
-// All tour steps, ordered by section
-// ---------------------------------------------------------------------------
-
 export const TOUR_STEPS: TourStep[] = [
-  // -- Section: Habits (route: /) -------------------------------------------
   {
     id: 'habits-list',
     section: 'habits',
@@ -81,7 +76,6 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/',
   },
 
-  // -- Section: Goals (route: /, goals tab) ---------------------------------
   {
     id: 'goals-tab',
     section: 'goals',
@@ -111,7 +105,6 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/',
   },
 
-  // -- Section: Chat (route: /chat) -----------------------------------------
   {
     id: 'chat-area',
     section: 'chat',
@@ -150,7 +143,6 @@ export const TOUR_STEPS: TourStep[] = [
     proBadge: true,
   },
 
-  // -- Section: Calendar (route: /calendar) ---------------------------------
   {
     id: 'calendar-grid',
     section: 'calendar',
@@ -188,7 +180,6 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/calendar',
   },
 
-  // -- Section: Profile (route: /profile) -----------------------------------
   {
     id: 'profile-streak',
     section: 'profile',

@@ -33,10 +33,6 @@ import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-v
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// v8 inserts a "Meet Astra" step between Welcome and Create Habit. We mirror the
-// web approach: a parallel `viewingAstra` boolean drives the interstitial
-// without altering the shared step constants. The shared total is 6; the v8
-// progress label shows N+1 (7) once Astra has been visited.
 const MOBILE_ASTRA_OFFSET = 1
 
 export function OnboardingFlow() {
@@ -62,7 +58,7 @@ export function OnboardingFlow() {
   const displayTotal = sharedDisplayTotal + MOBILE_ASTRA_OFFSET
   const displayStep = useMemo(() => {
     const sharedDisplay = getOnboardingDisplayStep(sharedStep, hasProAccess)
-    if (viewingAstra) return 2 // Astra sits between Welcome (1) and CreateHabit (3)
+    if (viewingAstra) return 2
     if (astraStepShown) return sharedDisplay + MOBILE_ASTRA_OFFSET
     return sharedDisplay
   }, [sharedStep, hasProAccess, viewingAstra, astraStepShown])
@@ -194,7 +190,6 @@ export function OnboardingFlow() {
   return (
     <Modal visible transparent animationType="fade">
       <View style={styles.container}>
-        {/* Header: mono progress label + Skip */}
         <View style={styles.header}>
           <Text style={styles.progressLabel}>{progressLabel}</Text>
           {!isFinalStep && (
@@ -206,7 +201,6 @@ export function OnboardingFlow() {
           )}
         </View>
 
-        {/* Step content (scrollable) */}
         <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -215,7 +209,6 @@ export function OnboardingFlow() {
           <View style={styles.stepWrapper}>{stepContent}</View>
         </KeyboardAwareScrollView>
 
-        {/* Footer: progress dots + Back / Continue */}
         {!hideFooter && (
           <View style={styles.footer}>
             <View style={styles.dotsRow}>

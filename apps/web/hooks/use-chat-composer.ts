@@ -160,6 +160,14 @@ export function useChatComposer() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [showLangPicker, setShowLangPicker] = useState(false)
+  const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
+
+  if (speechError !== previousSpeechError) {
+    setPreviousSpeechError(speechError)
+    if (speechError) {
+      setSendError(speechError)
+    }
+  }
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
@@ -327,14 +335,8 @@ export function useChatComposer() {
     prevIsRecording.current = isRecording
   }, [isRecording, transcript])
 
-  // Mirror speech recognition errors into the chat send-error surface and
-  // auto-clear after 4s. This is responding to an external hook's state
-  // change, which is the documented allowed case for setState-in-effect.
   useEffect(() => {
     if (!speechError) return
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirroring external hook state into composer's error surface
-    setSendError(speechError)
     const timer = globalThis.setTimeout(() => {
       setSendError((current) => (current === speechError ? null : current))
     }, 4000)

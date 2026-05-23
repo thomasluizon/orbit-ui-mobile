@@ -19,6 +19,17 @@ export function StreakCelebration() {
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [previousStreakCelebration, setPreviousStreakCelebration] = useState<
+    typeof streakCelebration | undefined
+  >(undefined)
+
+  if (streakCelebration !== previousStreakCelebration) {
+    setPreviousStreakCelebration(streakCelebration)
+    if (streakCelebration) {
+      setStreakCount(streakCelebration.streak)
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -28,9 +39,6 @@ export function StreakCelebration() {
 
   useEffect(() => {
     if (streakCelebration) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store snapshot into local state
-      setStreakCount(streakCelebration.streak)
-      setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {

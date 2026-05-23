@@ -3,8 +3,6 @@ import { setSessionCookies } from '@/lib/auth-api'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
-  extractErrorMessage,
-  isRecord,
   ORBIT_REQUEST_ID_HEADER,
   resolveRequestId,
   resolveResponseRequestId,
@@ -23,7 +21,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json() as unknown
-    const bodyRecord = isRecord(body) ? body : {}
 
     const response = await fetch(`${apiBase}/api/auth/google`, {
       method: 'POST',
@@ -39,19 +36,7 @@ export async function POST(request: NextRequest) {
     responseHeaders.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
 
     if (!response.ok) {
-      const errorPayload = buildAuthErrorPayload(data, backendRequestId)
-      console.error('[auth/google] backend exchange failed', {
-        requestId: backendRequestId,
-        status: response.status,
-        error: extractErrorMessage(data) ?? 'Authentication failed',
-        language: typeof bodyRecord.language === 'string' ? bodyRecord.language : undefined,
-        hasAccessToken: typeof bodyRecord.accessToken === 'string' && bodyRecord.accessToken.length > 0,
-        hasGoogleAccessToken: typeof bodyRecord.googleAccessToken === 'string' && bodyRecord.googleAccessToken.length > 0,
-        hasGoogleRefreshToken: typeof bodyRecord.googleRefreshToken === 'string' && bodyRecord.googleRefreshToken.length > 0,
-        hasReferralCode: typeof bodyRecord.referralCode === 'string' && bodyRecord.referralCode.length > 0,
-      })
-
-      return NextResponse.json(errorPayload, {
+      return NextResponse.json(buildAuthErrorPayload(data, backendRequestId), {
         status: response.status,
         headers: responseHeaders,
       })
@@ -59,20 +44,13 @@ export async function POST(request: NextRequest) {
 
     const loginResponse = data as BackendLoginResponse
 
-    // Set httpOnly cookies server-side
     await setSessionCookies(loginResponse.token, loginResponse.refreshToken)
 
-    // Strip tokens from response
     const { token: _token, refreshToken: _refreshToken, ...safeResponse } = loginResponse
     return NextResponse.json(safeResponse, {
       headers: responseHeaders,
     })
-  } catch (error: unknown) {
-    console.error('[auth/google] unexpected error', {
-      requestId,
-      error,
-    })
-
+  } catch {
     return NextResponse.json(
       {
         error: 'Authentication failed',

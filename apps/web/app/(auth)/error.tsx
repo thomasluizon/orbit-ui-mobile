@@ -18,7 +18,7 @@ export default function AuthError({
   return (
     <div className="flex flex-col items-center gap-4 text-center w-full max-w-sm">
       <svg
-        className="size-10 text-text-muted"
+        className="size-10 text-[var(--fg-3)]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -30,12 +30,12 @@ export default function AuthError({
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
-      <p className="text-sm text-text-secondary">
+      <p className="text-sm text-[var(--fg-2)]">
         {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
       </p>
       <button
         onClick={reset}
-        className="px-5 py-2.5 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-colors"
+        className="px-5 py-2.5 rounded-[var(--radius-xl)] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
       >
         {t('common.retry')}
       </button>

@@ -48,10 +48,6 @@ import {
 } from "./calendar/_components/calendar-shell";
 import { CalendarDayEntryRow } from "./calendar/_components/calendar-day-entry";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface GridDay {
   date: Date;
   dateStr: string;
@@ -66,10 +62,6 @@ interface GridDay {
 
 type Tokens = ReturnType<typeof createTokensV2>;
 type DayStatus = "none" | "full" | "partial" | "upcoming";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return "none";
@@ -101,10 +93,6 @@ function statusLabel(
   if (entry.status === "missed") return t("calendar.status.missed").toUpperCase();
   return t("calendar.status.upcoming").toUpperCase();
 }
-
-// ---------------------------------------------------------------------------
-// Calendar Screen
-// ---------------------------------------------------------------------------
 
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
@@ -523,10 +511,6 @@ function DayDot({
   }
   return <View style={{ width: 5, height: 5 }} />;
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({

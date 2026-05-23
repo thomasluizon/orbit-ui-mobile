@@ -25,10 +25,10 @@ import {
 } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
-import { createColors } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type AppColors = ReturnType<typeof createColors>
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AuthCallbackErrorState {
   message: string
@@ -37,8 +37,12 @@ interface AuthCallbackErrorState {
 
 export default function AuthCallbackScreen() {
   const { t, i18n } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const params = useLocalSearchParams<{
     token?: string
     refreshToken?: string
@@ -187,7 +191,7 @@ export default function AuthCallbackScreen() {
         </>
       ) : (
         <>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tokens.primary} />
           <Text style={styles.text}>{t('auth.signingIn')}</Text>
         </>
       )}
@@ -195,38 +199,38 @@ export default function AuthCallbackScreen() {
   )
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: tokens.bg,
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 24,
       gap: 16,
     },
     text: {
-      color: colors.textSecondary,
+      color: tokens.fg2,
       fontSize: 16,
     },
     errorCard: {
       width: '100%',
       maxWidth: 360,
       borderRadius: 20,
-      backgroundColor: colors.redBg,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.redBorder,
+      borderColor: tokens.hairlineStrong,
       paddingHorizontal: 16,
       paddingVertical: 14,
     },
     errorText: {
-      color: colors.red400,
+      color: tokens.statusBad,
       fontSize: 14,
       textAlign: 'center',
       lineHeight: 20,
     },
     errorReferenceText: {
-      color: colors.red400,
+      color: tokens.statusBad,
       fontSize: 12,
       textAlign: 'center',
       lineHeight: 18,
@@ -238,7 +242,7 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: 12,
     },
     backButtonText: {
-      color: colors.primary,
+      color: tokens.primary,
       fontSize: 14,
       fontWeight: '700',
     },

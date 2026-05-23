@@ -69,10 +69,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
-// ---------------------------------------------------------------------------
-// Props & Handle
-// ---------------------------------------------------------------------------
-
 interface HabitListProps {
   view?: 'today' | 'all' | 'general'
   selectedDate?: Date
@@ -99,10 +95,6 @@ export interface HabitListHandle {
   checkAndPromptParentLog: (childHabitId: string) => void
 }
 
-// ---------------------------------------------------------------------------
-// Move parent picker types
-// ---------------------------------------------------------------------------
-
 interface MoveParentOption {
   id: string | null
   label: string
@@ -110,10 +102,6 @@ interface MoveParentOption {
   disabled: boolean
   reason: string | null
 }
-
-// ---------------------------------------------------------------------------
-// Drag item shape
-// ---------------------------------------------------------------------------
 
 interface DragItem {
   id: string
@@ -126,14 +114,6 @@ interface DragItem {
 }
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
-// ---------------------------------------------------------------------------
-// Date group shape
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Pure helpers (outer scope -- no component state dependency)
-// ---------------------------------------------------------------------------
 
 function formatDateGroupLabel(
   key: string,
@@ -195,7 +175,6 @@ function buildDragItemsFlat(
     addHabitTree(h, 0, null)
   }
 
-  // Post-pass: compute isLastChild
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const next = items[i + 1]
@@ -206,10 +185,6 @@ function buildDragItemsFlat(
 
   return items
 }
-
-// ---------------------------------------------------------------------------
-// Loading skeleton (stateless)
-// ---------------------------------------------------------------------------
 
 function HabitListSkeleton() {
   return (
@@ -248,10 +223,6 @@ function HabitListSkeleton() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Sortable wrapper for drag-and-drop items
-// ---------------------------------------------------------------------------
-
 function SortableHabitItem({
   id,
   children,
@@ -283,10 +254,6 @@ function SortableHabitItem({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
   view = 'today',
   selectedDate,
@@ -306,7 +273,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const { profile } = useProfile()
   const locale = useLocale()
 
-  // Queries & mutations
   const habitsQuery = useHabits(filters)
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
@@ -315,7 +281,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const reorderHabitsMut = useReorderHabits()
   const moveHabitParentMut = useMoveHabitParent()
 
-  // Config
   const { config: appConfig } = useConfig()
   const maxHabitDepth = appConfig.limits.maxHabitDepth
 
@@ -324,10 +289,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-  // Get children helper
   const getChildren = habitsQuery.getChildren
 
-  // Recently completed for exit animation
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState(
     new Set<string>(),
   )
@@ -356,7 +319,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     })
   }, [recentlyCompletedPromptIdsRef])
 
-  // Visibility helpers
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
   const visibility = useHabitVisibility({
     habitsById,
@@ -367,7 +329,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     recentlyCompletedIds,
   })
 
-  // Wrapper for getVisibleChildren that passes the current view
   const getVisibleChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
       return visibility.getVisibleChildren(parentId, view)
@@ -375,10 +336,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [visibility, view],
   )
 
-  // Drill navigation
   const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
 
-  // Collapse state
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
 
   const toggleExpand = useCallback((habitId: string) => {
@@ -393,7 +352,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     })
   }, [])
 
-  // Collapse / expand all
   const expandableIds = useMemo(() => {
     const ids: string[] = []
     for (const h of habitsById.values()) {
@@ -417,7 +375,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     setCollapsedIds(new Set())
   }, [])
 
-  // Filter habits
   const habits = useMemo(() => {
     if (view === 'all') {
       return topLevelHabits.filter((h) => isHabitVisibleInAllView(h, showCompleted))
@@ -434,12 +391,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     return topLevelHabits.filter((h) => visibility.hasVisibleContent(h))
   }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
 
-  // All loaded/selectable IDs including descendants
   const allLoadedIds = useMemo(() => {
     return collectVisibleHabitTreeIds(habits, getVisibleChildren)
   }, [getVisibleChildren, habits])
 
-  // Children progress -- matches Nuxt computeChildProgress logic
   const isListView = view === 'all' || view === 'general'
 
   const childrenProgressMap = useMemo(() => {
@@ -456,7 +411,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         total++
         if (child.isCompleted) done++
       } else if (!visibility.isRelevantToday(child) && !child.isLoggedInRange) {
-        // Not relevant today and not logged -- only count nested
         const nested = computeFn(child.id)
         return nested
       } else if (visibility.isDueOnSelectedDate(child) || child.isLoggedInRange) {
@@ -568,7 +522,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [getChildren, isListView, visibility, recentlyCompletedPromptIdsRef],
   )
 
-  // Date groups for "all" view
   const dateGroups = useMemo<HabitListDateGroup[]>(() => {
     if (view !== 'all') return []
 
@@ -617,30 +570,22 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     return result
   }, [view, habits, t, locale])
 
-  // Flat drag items for rendering
   const dragItems = useMemo<DragItem[]>(() => {
     if (view === 'all') return []
     return buildDragItemsFlat(habits, collapsedIds, visibility.getVisibleChildren, view)
   }, [habits, collapsedIds, visibility, view])
 
-  // -------------------------------------------------------------------------
-  // Drag-and-drop state and handlers (matches Nuxt VueDraggable behavior)
-  // -------------------------------------------------------------------------
-
   const [isDragging, setIsDragging] = useState(false)
   const autoCollapsedOnDragRef = useReactRef<string | null>(null)
 
-  // Mutable ref for drag items so onDragEnd always sees latest after collapse
   const dragItemsRef = useReactRef<DragItem[]>(dragItems)
   useEffect(() => {
     dragItemsRef.current = dragItems
   }, [dragItems, dragItemsRef])
 
-  // Override drag items during active drag (collapsed descendants removed)
   const [dragOverrideItems, setDragOverrideItems] = useState<DragItem[] | null>(null)
   const activeDragItems = dragOverrideItems ?? dragItems
 
-  // DnD sensors: pointer with 5px distance activation, touch with 300ms delay
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 5 },
   })
@@ -649,7 +594,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   })
   const sensors = useSensors(pointerSensor, touchSensor)
 
-  // Enable DnD only in today/general view when not in select mode
   const isDndEnabled = view !== 'all' && !isSelectMode
 
   function handleDragStart(event: DragStartEvent) {
@@ -658,12 +602,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
     const draggedId = String(event.active.id)
 
-    // Find the dragged item in current drag items
     const currentItems = dragItemsRef.current
     const draggedItem = currentItems.find((item) => item.id === draggedId)
     if (!draggedItem) return
 
-    // If dragged item has visible children, collapse them for drag
     const isCollapsed = collapsedIds.has(draggedItem.id)
     if (draggedItem.hasChildren && !isCollapsed) {
       autoCollapsedOnDragRef.current = draggedItem.id
@@ -708,11 +650,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       }
     }
 
-    // Clean up drag state
     setIsDragging(false)
     setDragOverrideItems(null)
 
-    // Re-expand any parent that was auto-collapsed during drag start
     const autoCollapsedId = autoCollapsedOnDragRef.current
     if (autoCollapsedId) {
       setCollapsedIds((prev) => {
@@ -724,10 +664,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  // Card selected date (only pass in today view to dim non-due)
   const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
 
-  // Modal states
   const [showDetailDrawer, setShowDetailDrawer] = useState(false)
   const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -744,21 +682,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [showForceLogConfirm, setShowForceLogConfirm] = useState(false)
   const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
 
-  // Auto-log parent state
   const [showAutoLogParent, setShowAutoLogParent] = useState(false)
   const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
   const autoLogParentHabit = autoLogParentId ? habitsById.get(autoLogParentId) ?? null : null
 
-  // Move parent picker state
   const [showMoveParentOverlay, setShowMoveParentOverlay] = useState(false)
   const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
   const [selectedMoveParentId, setSelectedMoveParentId] = useState<string | null>(null)
   const [isMovingParent, setIsMovingParent] = useState(false)
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
-
-  // -------------------------------------------------------------------------
-  // Auto-log parent when all sub-habits complete
-  // -------------------------------------------------------------------------
 
   function checkAndPromptParentLog(childHabitId: string) {
     const child = habitsById.get(childHabitId)
@@ -766,7 +698,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     const parent = habitsById.get(child.parentId)
     if (!parent || parent.isCompleted) return
 
-    // Only prompt if the parent itself is due today, overdue, or a general habit
     const parentIsDueToday =
       parent.isGeneral ||
       parent.isOverdue ||
@@ -788,17 +719,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     markRecentlyCompleted(parentId)
     try {
       await logHabit.mutateAsync({ habitId: parentId })
-      // After logging parent, check if grandparent also needs logging
       checkAndPromptParentLog(parentId)
     } catch {
       clearRecentlyCompleted(parentId)
-      // Error handled by mutation
     }
   }
-
-  // -------------------------------------------------------------------------
-  // Move parent picker helpers
-  // -------------------------------------------------------------------------
 
   function getHabitDepth(habitId: string): number {
     let depth = 0
@@ -853,7 +778,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     return { valid: true, reason: null }
   }
 
-  const moveParentOptions = useMemo<MoveParentOption[]>(() => {
+  const moveParentOptions = ((): MoveParentOption[] => {
     if (!movingHabitId) return []
 
     const options: MoveParentOption[] = []
@@ -866,8 +791,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       reason: rootValidation.reason,
     })
 
-    function addOption(habit: NormalizedHabit, depth: number) {
-      const validation = validateMoveTarget(habit.id, movingHabitId!)
+    const stack: Array<{ habit: NormalizedHabit; depth: number }> = []
+    for (let i = topLevelHabits.length - 1; i >= 0; i--) {
+      const habit = topLevelHabits[i]
+      if (habit) stack.push({ habit, depth: 0 })
+    }
+    while (stack.length > 0) {
+      const top = stack.pop()
+      if (!top) break
+      const { habit, depth } = top
+      const validation = validateMoveTarget(habit.id, movingHabitId)
       options.push({
         id: habit.id,
         label: habit.title,
@@ -875,20 +808,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         disabled: !validation.valid,
         reason: validation.reason,
       })
-
-      const ch = getChildren(habit.id)
-      for (const child of ch) {
-        addOption(child, depth + 1)
+      const children = getChildren(habit.id)
+      for (let i = children.length - 1; i >= 0; i--) {
+        const child = children[i]
+        if (child) stack.push({ habit: child, depth: depth + 1 })
       }
     }
 
-    for (const topLevel of topLevelHabits) {
-      addOption(topLevel, 0)
-    }
-
     return options
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- addOption is defined inline and only references the listed deps; recreating it on every render would invalidate the memo unnecessarily
-  }, [movingHabitId, topLevelHabits, habitsById, t, maxHabitDepth])
+  })()
 
   const selectedMoveOption = moveParentOptions.find(
     (option) => option.id === selectedMoveParentId,
@@ -934,10 +862,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       setIsMovingParent(false)
     }
   }
-
-  // -------------------------------------------------------------------------
-  // Actions
-  // -------------------------------------------------------------------------
 
   function openDetail(habit: NormalizedHabit) {
     setSelectedHabit(habit)
@@ -1060,7 +984,6 @@ const isPostponeAction = useMemo(() => {
     return habit ? !habit.frequencyUnit : false
   }, [habitToSkip, habitsById])
 
-  // Skip confirm message -- 3 branches: postpone, flexible, regular
   const skipConfirmMessage = useMemo(() => {
     if (isPostponeAction) return t('habits.postponeConfirmMessage')
     if (habitToSkip) {
@@ -1071,10 +994,6 @@ const isPostponeAction = useMemo(() => {
     }
     return t('habits.skipConfirmMessage')
   }, [isPostponeAction, habitToSkip, habitsById, t])
-
-  // -------------------------------------------------------------------------
-  // Expose imperative handle
-  // -------------------------------------------------------------------------
 
   useImperativeHandle(ref, () => ({
     collapseAll,
@@ -1100,7 +1019,6 @@ const isPostponeAction = useMemo(() => {
     return 'empty'
   }
 
-  // Build inline meta tokens (frequency, dueTime, checklist, overdue/bad).
   function buildMetaTokens(habit: NormalizedHabit, isChild: boolean): HabitRowMetaToken[] {
     const tokens: HabitRowMetaToken[] = []
     const freqLabel = computeHabitFrequencyLabel(habit, t)
@@ -1119,7 +1037,6 @@ const isPostponeAction = useMemo(() => {
     return tokens
   }
 
-  // Render a single HabitRow with all handlers
   function renderHabitCard(
     habit: NormalizedHabit,
     depth: number,
@@ -1186,12 +1103,10 @@ const isPostponeAction = useMemo(() => {
     )
   }
 
-  // Loading skeleton
   if (habitsQuery.isLoading && !habitsQuery.data) {
     return <HabitListSkeleton />
   }
 
-  // Render nested children in all-view up to the configured habit depth.
   function renderAllViewChildren(parentId: string, depth: number): React.ReactNode {
     if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
     const children = getVisibleChildren(parentId)
@@ -1210,7 +1125,6 @@ const isPostponeAction = useMemo(() => {
     ))
   }
 
-  // Drill-down sub-content (loading / children / empty)
   function renderDrillContent(): React.ReactNode {
     if (drill.drillLoading) {
       return <HabitListSkeleton />
@@ -1230,7 +1144,7 @@ const isPostponeAction = useMemo(() => {
           )}
           <button
             type="button"
-            className="w-full flex items-center justify-center gap-2 py-3 text-text-muted text-sm hover:text-primary transition-[color] duration-150"
+            className="w-full flex items-center justify-center gap-2 py-3 text-[var(--fg-3)] text-sm hover:text-[var(--primary-pressed)] transition-[color] duration-150"
             style={{
               fontFamily: 'var(--font-family-sans)',
               fontSize: 13,
@@ -1247,11 +1161,11 @@ const isPostponeAction = useMemo(() => {
 
     return (
       <div className="text-center py-8">
-        <p className="text-text-muted text-sm">
+        <p className="text-[var(--fg-3)] text-sm">
           {t('habits.noSubHabits')}
         </p>
         <button
-          className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-border-muted text-text-muted text-sm hover:border-primary hover:text-primary transition-[border-color,color,background-color,transform] duration-150"
+          className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-[var(--hairline)] text-[var(--fg-3)] text-sm hover:border-[var(--primary)] hover:text-[var(--primary-pressed)] transition-[border-color,color,background-color,transform] duration-150"
           onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
         >
           <Plus className="size-4" />
@@ -1261,25 +1175,23 @@ const isPostponeAction = useMemo(() => {
     )
   }
 
-  // Main content area (replaces nested ternary chain)
   function renderMainContent(): React.ReactNode {
-    // Drill-down view
     if (drill.currentParent) {
       return (
         <>
           <div className="flex items-center gap-3 pb-1">
             <button
               aria-label={t('common.goBack')}
-              className="shrink-0 size-8 rounded-full bg-surface flex items-center justify-center hover:bg-surface-elevated/80 transition-[background-color,transform] duration-150"
+              className="shrink-0 size-8 rounded-full bg-[var(--bg-elev)] flex items-center justify-center hover:bg-[var(--bg-elev)]/80 transition-[background-color,transform] duration-150"
               onClick={drill.drillBack}
             >
-              <ArrowLeft className="size-4 text-text-secondary" aria-hidden="true" />
+              <ArrowLeft className="size-4 text-[var(--fg-2)]" aria-hidden="true" />
             </button>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-text-primary truncate">
+              <h3 className="text-sm font-bold text-[var(--fg-1)] truncate">
                 {drill.currentParent.title}
               </h3>
-              <p className="text-[10px] text-text-muted uppercase tracking-wider">
+              <p className="text-[10px] text-[var(--fg-3)] uppercase tracking-wider">
                 {drill.drillChildren.filter((c) => c.isCompleted).length}/
                 {drill.drillChildren.length} {t('habits.completed')}
               </p>
@@ -1288,7 +1200,7 @@ const isPostponeAction = useMemo(() => {
 
           {drill.drillStack.length > 1 && (
             <button
-              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors pb-2"
+              className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors pb-2"
               onClick={drill.drillReset}
             >
               <Home className="size-3" />
@@ -1301,7 +1213,6 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
-    // Empty: all done today
     if (habits.length === 0 && view === 'today' && (data?.totalCount ?? 0) > 0) {
       return (
         <HabitListEmptyState
@@ -1314,7 +1225,6 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
-    // Empty: no habits
     if (habits.length === 0) {
       return (
         <HabitListEmptyState
@@ -1326,7 +1236,6 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
-    // ALL VIEW: date-grouped list with nested children
     if (view === 'all') {
       return (
         <>
@@ -1349,7 +1258,6 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
-    // TODAY / GENERAL VIEW: draggable list (not in select mode)
     if (isDndEnabled) {
       return (
         <DndContext
@@ -1380,7 +1288,6 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
-    // TODAY / GENERAL VIEW: select mode (no drag)
     return (
       <div className="stagger-enter">
         {dragItems.map((item) => (
@@ -1402,7 +1309,6 @@ const isPostponeAction = useMemo(() => {
     <div data-tour="tour-habit-list">
       {renderMainContent()}
 
-      {/* Modals */}
       <HabitDetailDrawer
         open={showDetailDrawer}
         onOpenChange={setShowDetailDrawer}
@@ -1498,7 +1404,6 @@ const isPostponeAction = useMemo(() => {
         variant="warning"
       />
 
-      {/* Auto-log parent when all sub-habits complete */}
       <ConfirmDialog
         open={showAutoLogParent}
         onOpenChange={setShowAutoLogParent}
@@ -1514,7 +1419,6 @@ const isPostponeAction = useMemo(() => {
         variant="success"
       />
 
-      {/* Move parent picker */}
       <AppOverlay
         open={showMoveParentOverlay}
         onOpenChange={(open) => {
@@ -1526,14 +1430,14 @@ const isPostponeAction = useMemo(() => {
         footer={
           <div className="flex gap-3">
             <button
-              className="flex-1 py-3 rounded-xl border border-border text-text-primary font-bold text-sm hover:bg-surface-elevated/80 transition-[background-color,border-color,color,opacity,transform] duration-150 disabled:opacity-50"
+              className="flex-1 py-3 rounded-xl border border-[var(--hairline)] text-[var(--fg-1)] font-bold text-sm hover:bg-[var(--bg-elev)]/80 transition-[background-color,border-color,color,opacity,transform] duration-150 disabled:opacity-50"
               disabled={isMovingParent}
               onClick={closeMoveParentPicker}
             >
               {t('common.cancel')}
             </button>
             <button
-              className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-[background-color,opacity,transform] duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-xl bg-[var(--primary)] text-white font-bold text-sm hover:bg-[var(--primary-pressed)] transition-[background-color,opacity,transform] duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canSubmitMoveParent}
               onClick={confirmMoveParent}
             >
@@ -1549,23 +1453,23 @@ const isPostponeAction = useMemo(() => {
                 key={option.id ?? '__root__'}
                 className={`w-full text-left rounded-lg border px-3 py-2.5 transition-[background-color,border-color,color,opacity] duration-150 ${
                   option.id === selectedMoveParentId
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border-muted bg-surface hover:bg-surface-elevated/80'
-                } ${option.disabled ? 'opacity-50 cursor-not-allowed hover:bg-surface' : ''}`}
+                    ? 'border-[var(--primary)] bg-[var(--bg-sunk)]'
+                    : 'border-[var(--hairline)] bg-[var(--bg-elev)] hover:bg-[var(--bg-elev)]/80'
+                } ${option.disabled ? 'opacity-50 cursor-not-allowed hover:bg-[var(--bg-elev)]' : ''}`}
                 style={option.id === null ? undefined : { paddingLeft: `${0.75 + option.depth * 1.1}rem` }}
                 disabled={option.disabled}
                 onClick={() => setSelectedMoveParentId(option.id)}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-text-primary truncate">{option.label}</span>
+                  <span className="text-sm font-semibold text-[var(--fg-1)] truncate">{option.label}</span>
                   {option.id === movingHabit?.parentId && (
-                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
                       {t('habits.moveParent.currentParent')}
                     </span>
                   )}
                 </div>
                 {option.reason && (
-                  <p className="text-[10px] text-text-muted mt-1">
+                  <p className="text-[10px] text-[var(--fg-3)] mt-1">
                     {option.reason}
                   </p>
                 )}
@@ -1573,7 +1477,7 @@ const isPostponeAction = useMemo(() => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-text-muted text-center py-4">
+          <p className="text-sm text-[var(--fg-3)] text-center py-4">
             {t('habits.moveParent.noOptions')}
           </p>
         )}

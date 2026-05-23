@@ -29,10 +29,6 @@ import { formatLocaleDate } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface HabitDetailDrawerProps {
   open: boolean
   onClose: () => void
@@ -40,19 +36,11 @@ interface HabitDetailDrawerProps {
   onLogged?: (habitId: string) => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 /**
- * v8 Habit Detail Drawer. Covers all 7 spec variants by data-driven section
- * presence: active, parent+children (sub-habits rendered as HabitRow with
- * `child`+`indent`), skipped (checklist hidden when empty), checklist, bad,
- * slip alert (when `slipAlertEnabled`), linked goal (when `linkedGoals` non
- * empty).
- *
- * Data flow preserved: `useHabitFullDetail`, `useUpdateChecklist`,
- * `useLogHabit`, optimistic-update + onLogged callbacks all intact.
+ * Habit Detail Drawer. Covers all variants by data-driven section presence:
+ * active, parent+children (sub-habits rendered as HabitRow with `child`+`indent`),
+ * skipped (checklist hidden when empty), checklist, bad, slip alert
+ * (when `slipAlertEnabled`), linked goal (when `linkedGoals` non empty).
  */
 export function HabitDetailDrawer({
   open,
@@ -152,7 +140,6 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
-  // Summary line below the title (mono row).
   const summaryParts = useMemo(() => {
     if (!habit) return ''
     const parts: string[] = []
@@ -384,10 +371,6 @@ export function HabitDetailDrawer({
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({

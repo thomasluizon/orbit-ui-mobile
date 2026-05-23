@@ -26,6 +26,7 @@ import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useTotalHabitCount } from '@/hooks/use-habits'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion } from '@/lib/motion'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
@@ -355,7 +356,11 @@ function GlobalOverlays({
 }
 
 function RootLayoutContent() {
-  const { colors, currentTheme, surfaces } = useAppTheme()
+  const { currentScheme, currentTheme, surfaces } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const navigationTheme = useMemo<NavigationTheme>(() => {
     const baseTheme = currentTheme === 'dark' ? DarkTheme : DefaultTheme
 
@@ -364,18 +369,18 @@ function RootLayoutContent() {
       dark: currentTheme === 'dark',
       colors: {
         ...baseTheme.colors,
-        primary: colors.primary,
+        primary: tokens.primary,
         background: surfaces.screen.backgroundColor,
         card: surfaces.elevated.backgroundColor,
-        text: colors.textPrimary,
-        border: colors.borderMuted,
-        notification: colors.primary,
+        text: tokens.fg1,
+        border: tokens.hairline,
+        notification: tokens.primary,
       },
     }
   }, [
-    colors.borderMuted,
-    colors.primary,
-    colors.textPrimary,
+    tokens.hairline,
+    tokens.primary,
+    tokens.fg1,
     currentTheme,
     surfaces.elevated.backgroundColor,
     surfaces.screen.backgroundColor,
@@ -424,10 +429,10 @@ function AppBottomTabBar({
   const insets = useSafeAreaInsets()
 
   const active: BottomTabId = useMemo(() => {
+    if (pathname === '/' || pathname === '/today') return 'today'
     if (pathname.startsWith('/chat')) return 'chat'
-    if (pathname.startsWith('/calendar')) return 'calendar'
-    if (pathname.startsWith('/profile')) return 'profile'
-    return 'today'
+    if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar'
+    return 'profile'
   }, [pathname])
 
   const handleTab = (id: BottomTabId) => {

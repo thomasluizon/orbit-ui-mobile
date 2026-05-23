@@ -16,7 +16,10 @@ import {
 } from '@/hooks/use-checklist-templates'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -28,9 +31,13 @@ export function ChecklistTemplates({
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { showError } = useAppToast()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
@@ -122,7 +129,7 @@ export function ChecklistTemplates({
                     disabled={isDeletingThisTemplate(template.id)}
                     activeOpacity={0.8}
                   >
-                    <X size={12} color={colors.textMuted} />
+                    <X size={12} color={tokens.fg3} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -136,7 +143,7 @@ export function ChecklistTemplates({
           <BottomSheetAppTextInput
             value={templateName}
             placeholder={t('habits.form.templateNamePlaceholder')}
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={tokens.fg3}
             style={styles.input}
             accessibilityLabel={t('habits.form.templateNamePlaceholder')}
             accessibilityHint={t('habits.form.saveAsTemplate')}
@@ -168,7 +175,7 @@ export function ChecklistTemplates({
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           >
-            <X size={14} color={colors.textMuted} />
+            <X size={14} color={tokens.fg3} />
           </TouchableOpacity>
         </View>
       ) : null}
@@ -176,7 +183,7 @@ export function ChecklistTemplates({
   )
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       gap: 10,
@@ -187,7 +194,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     saveLink: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primary,
+      color: tokens.primary,
     },
     templatesWrap: {
       gap: 6,
@@ -195,7 +202,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     templatesLabel: {
       fontSize: 10,
       fontWeight: '700',
-      color: colors.textMuted,
+      color: tokens.fg3,
       textTransform: 'uppercase',
       letterSpacing: 0.6,
     },
@@ -209,8 +216,8 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       alignItems: 'center',
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surface,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
       overflow: 'hidden',
     },
     chipLoadButton: {
@@ -221,7 +228,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     },
     chipText: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     chipDeleteButton: {
       minHeight: 32,
@@ -241,16 +248,16 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       minHeight: 40,
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surface,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
       paddingHorizontal: 12,
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 13,
     },
     saveButton: {
       minHeight: 40,
       borderRadius: 14,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
       paddingHorizontal: 14,
       alignItems: 'center',
       justifyContent: 'center',
@@ -261,7 +268,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     saveButtonText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     closeButton: {
       width: 36,

@@ -5,49 +5,30 @@ import { GoalCard } from './goal-card'
 import { useReorderGoals } from '@/hooks/use-goals'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface GoalListProps {
   goals: Goal[]
 }
 
-// ---------------------------------------------------------------------------
-// Constants (matching Nuxt SortableJS config)
-// ---------------------------------------------------------------------------
-
-/** Delay before touch drag starts (ms) -- matches SortableJS delay: 300 */
+/** Delay before touch drag starts (ms). */
 const TOUCH_HOLD_DELAY = 300
 
-/** Minimum movement (px) before cancelling hold -- matches touchStartThreshold: 5 */
+/** Minimum movement (px) before cancelling hold. */
 const TOUCH_MOVE_THRESHOLD = 5
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function GoalList({ goals }: Readonly<GoalListProps>) {
   const listRef = useRef<HTMLDivElement>(null)
   const reorderGoals = useReorderGoals()
 
-  // Drag state (shared between mouse and touch)
   const dragItemRef = useRef<number | null>(null)
   const dragOverItemRef = useRef<number | null>(null)
 
-  // Visual state
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
-  // Touch state
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   const touchDragging = useRef(false)
   const touchItemRef = useRef<HTMLElement | null>(null)
-
-  // -------------------------------------------------------------------------
-  // Reorder logic (shared)
-  // -------------------------------------------------------------------------
 
   const commitReorder = useCallback(() => {
     if (
@@ -81,10 +62,6 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
     setDragOverIndex(null)
   }, [goals, reorderGoals])
 
-  // -------------------------------------------------------------------------
-  // HTML5 drag handlers (mouse/pointer)
-  // -------------------------------------------------------------------------
-
   const handleDragStart = useCallback((index: number) => {
     dragItemRef.current = index
     setDragIndex(index)
@@ -98,10 +75,6 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
   const handleDragEnd = useCallback(() => {
     commitReorder()
   }, [commitReorder])
-
-  // -------------------------------------------------------------------------
-  // Touch handlers (mobile support with 300ms hold delay)
-  // -------------------------------------------------------------------------
 
   const clearTouchTimer = useCallback(() => {
     if (touchTimerRef.current) {
@@ -180,10 +153,6 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
     touchItemRef.current = null
   }, [clearTouchTimer, commitReorder])
 
-  // -------------------------------------------------------------------------
-  // CSS class helper
-  // -------------------------------------------------------------------------
-
   const getDragClasses = useCallback(
     (index: number): string => {
       if (dragIndex === null) return ''
@@ -193,10 +162,6 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
     },
     [dragIndex, dragOverIndex],
   )
-
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
 
   return (
     <div ref={listRef} className="space-y-3 stagger-enter">

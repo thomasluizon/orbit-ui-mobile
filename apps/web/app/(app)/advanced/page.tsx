@@ -56,13 +56,6 @@ async function fetchCapabilities(): Promise<AgentCapability[]> {
   return res.json()
 }
 
-// createApiKey and revokeApiKey live in app/actions/api-keys.ts so mutations go through
-// the Server Action layer (per CLAUDE.md BFF rule) rather than raw client-side fetches.
-
-// ---------------------------------------------------------------------------
-// Standalone helpers (S7721: moved to module scope)
-// ---------------------------------------------------------------------------
-
 async function copyToClipboard(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text)
@@ -70,10 +63,6 @@ async function copyToClipboard(text: string): Promise<void> {
     // Clipboard API not available
   }
 }
-
-// ---------------------------------------------------------------------------
-// Advanced Settings Page
-// ---------------------------------------------------------------------------
 
 export default function AdvancedPage() {
   const t = useTranslations()
@@ -83,10 +72,8 @@ export default function AdvancedPage() {
   const { profile } = useProfile()
   const queryClient = useQueryClient()
 
-  // --- Widget Info ---
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
 
-  // --- API Keys ---
   const apiKeysQuery = useQuery({
     queryKey: apiKeyKeys.lists(),
     queryFn: fetchApiKeys,
@@ -139,7 +126,6 @@ export default function AdvancedPage() {
     },
   })
 
-  // Connection instructions
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [activeConfigTab, setActiveConfigTab] = useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
@@ -178,7 +164,6 @@ export default function AdvancedPage() {
         title={t('advancedSettings.title')}
       />
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {/* Widget */}
         <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
         <button
           type="button"
@@ -222,7 +207,6 @@ export default function AdvancedPage() {
           <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
         </button>
 
-        {/* For Developers */}
         <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
         <div style={{ padding: '0 20px 14px' }}>
           {!profile?.hasProAccess && (
@@ -263,15 +247,14 @@ export default function AdvancedPage() {
 
           {profile?.hasProAccess && (
             <>
-              {/* API Keys Sub-section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t('orbitMcp.apiKeys')}</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--fg-3)]">{t('orbitMcp.apiKeys')}</h4>
                   {canCreateKey && (
                     <button
                       type="button"
                       disabled={!canCreateScopedKey}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:text-text-muted"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors disabled:cursor-not-allowed disabled:text-[var(--fg-3)] disabled:hover:text-[var(--fg-3)]"
                       onClick={() => setCreateKeyModalOpen(true)}
                     >
                       <Plus className="size-3.5" />
@@ -280,24 +263,21 @@ export default function AdvancedPage() {
                   )}
                 </div>
 
-                <p className="text-xs text-text-muted">{t('orbitMcp.apiKeysDescription')}</p>
+                <p className="text-xs text-[var(--fg-3)]">{t('orbitMcp.apiKeysDescription')}</p>
 
-                {/* Max keys warning */}
                 {!canCreateKey && (
                   <p className="text-xs text-[var(--status-overdue)] font-medium">
                     {t('orbitMcp.maxKeysReached')}
                   </p>
                 )}
 
-                {/* Loading state */}
                 {apiKeysQuery.isLoading && (
                   <div className="space-y-2">
-                    <div className="h-14 w-full bg-surface-elevated rounded-2xl animate-pulse" />
-                    <div className="h-14 w-full bg-surface-elevated rounded-2xl animate-pulse" />
+                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-2xl animate-pulse" />
+                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-2xl animate-pulse" />
                   </div>
                 )}
 
-                {/* Error */}
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
                   <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.apiKeysError')}</p>
                 )}
@@ -306,14 +286,12 @@ export default function AdvancedPage() {
                   <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.apiKeysError')}</p>
                 )}
 
-                {/* Empty state */}
                 {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
                   <div className="text-center py-4">
-                    <p className="text-text-muted text-sm">{t('orbitMcp.noKeys')}</p>
+                    <p className="text-[var(--fg-3)] text-sm">{t('orbitMcp.noKeys')}</p>
                   </div>
                 )}
 
-                {/* Key list */}
                 {apiKeys.length > 0 && (
                   <div className="space-y-2">
                     {apiKeys.map((key) => {
@@ -322,40 +300,38 @@ export default function AdvancedPage() {
                       const expiresAtUtc = key.expiresAtUtc ?? null
 
                       return (
-                      <div key={key.id} className="rounded-2xl bg-background p-3 space-y-2">
+                      <div key={key.id} className="rounded-2xl bg-[var(--bg)] p-3 space-y-2">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text-primary truncate">{key.name}</p>
-                            <p className="text-xs font-mono text-text-muted mt-0.5">{key.keyPrefix}...</p>
-                            <p className="text-[10px] text-text-muted mt-1">
+                            <p className="text-sm font-medium text-[var(--fg-1)] truncate">{key.name}</p>
+                            <p className="text-xs font-mono text-[var(--fg-3)] mt-0.5">{key.keyPrefix}...</p>
+                            <p className="text-[10px] text-[var(--fg-3)] mt-1">
                               {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
-                            <p className="text-[10px] text-text-muted">{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
-                            <p className="text-[10px] text-text-muted">
+                            <p className="text-[10px] text-[var(--fg-3)]">{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
+                            <p className="text-[10px] text-[var(--fg-3)]">
                               {t('orbitMcp.lastUsed')}{' '}
                               {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </p>
-                            <p className="text-[10px] text-text-muted">
+                            <p className="text-[10px] text-[var(--fg-3)]">
                               {isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
                             </p>
                             {expiresAtUtc && (
-                              <p className="text-[10px] text-text-muted">
+                              <p className="text-[10px] text-[var(--fg-3)]">
                                 {t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}
                               </p>
                             )}
                           </div>
                         </div>
 
-                        {/* Revoke */}
                         {revokingKeyId === key.id ? (
-                          /* Revoke: confirmation state */
                           <div className="flex items-center justify-between rounded-xl bg-[var(--status-bad)]/5 border border-[var(--status-bad)]/20 px-3 py-2">
                             <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.revokeConfirm')}</p>
                             <div className="flex items-center gap-2 shrink-0 ml-3">
                               <button
-                                className="text-xs font-semibold text-text-muted hover:text-text-primary transition-colors"
+                                className="text-xs font-semibold text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
                                 onClick={() => setRevokingKeyId(null)}
                               >
                                 {t('orbitMcp.cancel')}
@@ -369,10 +345,9 @@ export default function AdvancedPage() {
                             </div>
                           </div>
                         ) : (
-                          /* Revoke: normal state */
                           <div className="flex justify-end">
                             <button
-                              className="text-xs font-semibold text-text-muted hover:text-[var(--status-bad)] transition-colors"
+                              className="text-xs font-semibold text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors"
                               onClick={() => setRevokingKeyId(key.id)}
                             >
                               {t('orbitMcp.revoke')}
@@ -386,19 +361,18 @@ export default function AdvancedPage() {
                 )}
               </div>
 
-              {/* Connection Instructions */}
-              <div className="border-t border-border pt-4 space-y-3">
+              <div className="border-t border-[var(--hairline)] pt-4 space-y-3">
                 <button
                   className="flex items-center justify-between w-full group"
                   onClick={() => setInstructionsOpen(!instructionsOpen)}
                   aria-expanded={instructionsOpen}
                   aria-controls="mcp-instructions"
                 >
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted group-hover:text-text-secondary transition-colors">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--fg-3)] group-hover:text-[var(--fg-2)] transition-colors">
                     {t('orbitMcp.connectionInstructions')}
                   </h4>
                   <ChevronDown
-                    className={`size-4 text-text-muted transition-transform duration-200 ${
+                    className={`size-4 text-[var(--fg-3)] transition-transform duration-200 ${
                       instructionsOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -406,7 +380,6 @@ export default function AdvancedPage() {
 
                 {instructionsOpen && (
                   <div id="mcp-instructions">
-                    {/* Tab buttons */}
                     <div className="flex gap-2">
                       {MCP_CONFIG_TABS.map((tab) => (
                         (() => {
@@ -422,8 +395,8 @@ export default function AdvancedPage() {
                               key={tab}
                               className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-[background-color,border-color,color] ${
                                 activeConfigTab === tab
-                                  ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                                  : 'bg-background border border-border text-text-secondary hover:text-text-primary'
+                                  ? 'bg-[var(--primary)] text-white'
+                                  : 'bg-[var(--bg)] border border-[var(--hairline)] text-[var(--fg-2)] hover:text-[var(--fg-1)]'
                               }`}
                               onClick={() => setActiveConfigTab(tab)}
                             >
@@ -434,37 +407,34 @@ export default function AdvancedPage() {
                       ))}
                     </div>
 
-                    {/* Claude Web instructions (OAuth, no API key needed) */}
                     {activeConfigTab === 'web' ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-text-muted">{t('orbitMcp.webInstructions')}</p>
-                        <ol className="text-xs text-text-secondary space-y-2 list-decimal list-inside">
+                        <p className="text-xs text-[var(--fg-3)]">{t('orbitMcp.webInstructions')}</p>
+                        <ol className="text-xs text-[var(--fg-2)] space-y-2 list-decimal list-inside">
                           <li>{t('orbitMcp.webStep1')}</li>
                           <li>{t('orbitMcp.webStep2')}</li>
                           <li>{t('orbitMcp.webStep3')}</li>
                           <li>{t('orbitMcp.webStep4')}</li>
                         </ol>
                         <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{MCP_ENDPOINT_URL}</pre>
+                          <pre className="rounded-[var(--radius-lg)] bg-[var(--bg)] border border-[var(--hairline)] p-4 text-xs font-mono text-[var(--fg-2)] overflow-x-auto leading-relaxed">{MCP_ENDPOINT_URL}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)]/80 backdrop-blur-sm text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
                             onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
                           >
                             <Clipboard className="size-4" />
                           </button>
                         </div>
-                        <p className="text-xs text-text-muted italic">{t('orbitMcp.webNoApiKey')}</p>
+                        <p className="text-xs text-[var(--fg-3)] italic">{t('orbitMcp.webNoApiKey')}</p>
                       </div>
                     ) : (
-                      /* Desktop / Code instructions (API key required) */
                       <div className="space-y-3">
-                        <p className="text-xs text-text-muted">{t('orbitMcp.configInstructions')}</p>
+                        <p className="text-xs text-[var(--fg-3)]">{t('orbitMcp.configInstructions')}</p>
 
-                        {/* Config code block */}
                         <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-background border border-border p-4 text-xs font-mono text-text-secondary overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
+                          <pre className="rounded-[var(--radius-lg)] bg-[var(--bg)] border border-[var(--hairline)] p-4 text-xs font-mono text-[var(--fg-2)] overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)]/80 backdrop-blur-sm text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
                             onClick={copyConfig}
                           >
                             {configCopied ? (
@@ -475,7 +445,7 @@ export default function AdvancedPage() {
                           </button>
                         </div>
 
-                        <p className="text-xs text-text-muted italic">{t('orbitMcp.replaceKey')}</p>
+                        <p className="text-xs text-[var(--fg-3)] italic">{t('orbitMcp.replaceKey')}</p>
                       </div>
                     )}
                   </div>
@@ -486,7 +456,6 @@ export default function AdvancedPage() {
         </div>
       </div>
 
-      {/* Widget Info Overlay */}
       <AppOverlay
         open={showWidgetInfo}
         onOpenChange={setShowWidgetInfo}
@@ -494,25 +463,25 @@ export default function AdvancedPage() {
       >
         <div id="widget-info-dialog" className="space-y-5">
           <div>
-            <h3 className="text-sm font-bold text-text-primary mb-1.5">{t('profile.widgetHow.title')}</h3>
-            <ol className="text-sm text-text-secondary leading-relaxed space-y-2">
+            <h3 className="text-sm font-bold text-[var(--fg-1)] mb-1.5">{t('profile.widgetHow.title')}</h3>
+            <ol className="text-sm text-[var(--fg-2)] leading-relaxed space-y-2">
               {WIDGET_STEP_KEYS.map((stepKey, index) => (
                 <li key={stepKey} className="flex gap-2">
-                  <span className="text-primary font-bold shrink-0">{index + 1}.</span>
+                  <span className="text-[var(--primary)] font-bold shrink-0">{index + 1}.</span>
                   <span>{t(stepKey)}</span>
                 </li>
               ))}
             </ol>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-text-primary mb-1.5">{t('profile.widgetHow.featuresTitle')}</h3>
-            <ul className="text-sm text-text-secondary leading-relaxed space-y-1.5">
+            <h3 className="text-sm font-bold text-[var(--fg-1)] mb-1.5">{t('profile.widgetHow.featuresTitle')}</h3>
+            <ul className="text-sm text-[var(--fg-2)] leading-relaxed space-y-1.5">
               {WIDGET_FEATURES.map((feature) => {
                 const icon = {
-                  checkCircle: <CheckCircle className="size-4 text-primary shrink-0 mt-0.5" />,
-                  clock: <Clock className="size-4 text-primary shrink-0 mt-0.5" />,
-                  list: <List className="size-4 text-primary shrink-0 mt-0.5" />,
-                  rotateCcw: <RotateCcw className="size-4 text-primary shrink-0 mt-0.5" />,
+                  checkCircle: <CheckCircle className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
+                  clock: <Clock className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
+                  list: <List className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
+                  rotateCcw: <RotateCcw className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
                 }[feature.iconKey]
 
                 return (
@@ -527,7 +496,6 @@ export default function AdvancedPage() {
         </div>
       </AppOverlay>
 
-      {/* Create API Key Modal */}
       <CreateApiKeyModal
         open={createKeyModalOpen}
         onOpenChange={setCreateKeyModalOpen}

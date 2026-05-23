@@ -10,8 +10,10 @@ import {
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
-import { radius } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
+import { createTokensV2, radius } from '@/lib/theme';
+import { useAppTheme } from "@/lib/use-app-theme"
+
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 type PendingOperationExecutionResult = {
   ok: boolean;
@@ -33,14 +35,16 @@ interface PendingOperationCardProps {
   ) => Promise<PendingOperationExecutionResult>;
 }
 
-function formatRiskLabel(riskClass: PendingAgentOperation["riskClass"]): string {
+function getRiskLabelKey(
+  riskClass: PendingAgentOperation["riskClass"],
+): "chat.pendingOp.risk.high" | "chat.pendingOp.risk.destructive" | "chat.pendingOp.risk.low" {
   switch (riskClass) {
     case "High":
-      return "High risk";
+      return "chat.pendingOp.risk.high";
     case "Destructive":
-      return "Destructive";
+      return "chat.pendingOp.risk.destructive";
     default:
-      return "Low risk";
+      return "chat.pendingOp.risk.low";
   }
 }
 
@@ -64,8 +68,12 @@ export function PendingOperationCard({
   onVerifyStepUp,
 }: Readonly<PendingOperationCardProps>) {
   const { t } = useTranslation();
-  const { colors, shadows } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -74,10 +82,7 @@ export function PendingOperationCard({
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
 
   const needsStepUp = pendingOperation.confirmationRequirement === "StepUp";
-  const riskLabel = useMemo(
-    () => formatRiskLabel(pendingOperation.riskClass),
-    [pendingOperation.riskClass],
-  );
+  const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass));
 
   async function handleStart() {
     setIsLoading(true);
@@ -150,7 +155,7 @@ export function PendingOperationCard({
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconWrap}>
-          <ShieldAlert size={16} color={colors.amber400} />
+          <ShieldAlert size={16} color={tokens.statusOverdue} />
         </View>
         <View style={styles.headerText}>
           <View style={styles.headerRow}>
@@ -170,8 +175,8 @@ export function PendingOperationCard({
             onChangeText={(value) =>
               setVerificationCode(value.replace(/\D/g, "").slice(0, 6))
             }
-            placeholder="123456"
-            placeholderTextColor={colors.textMuted}
+            placeholder={t("common.codePlaceholder")}
+            placeholderTextColor={tokens.fg3}
             keyboardType="number-pad"
             maxLength={6}
             style={styles.codeInput}
@@ -185,7 +190,7 @@ export function PendingOperationCard({
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
             ) : (
               <Text style={styles.primaryButtonText}>{t("auth.verify")}</Text>
             )}
@@ -204,7 +209,7 @@ export function PendingOperationCard({
           activeOpacity={0.8}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={colors.white} />
+            <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
           ) : (
             <Text style={styles.primaryButtonText}>
               {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
@@ -219,10 +224,7 @@ export function PendingOperationCard({
   );
 }
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>["colors"],
-  shadows: ReturnType<typeof useAppTheme>["shadows"],
-) {
+function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>['shadows']) {
   return StyleSheet.create({
     card: {
       marginTop: 12,
@@ -262,7 +264,7 @@ function createStyles(
       flex: 1,
       fontSize: 13,
       fontWeight: "700",
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     riskPill: {
       borderRadius: 999,
@@ -277,12 +279,12 @@ function createStyles(
       fontWeight: "700",
       textTransform: "uppercase",
       letterSpacing: 0.6,
-      color: colors.amber400,
+      color: tokens.statusOverdue,
     },
     summary: {
       fontSize: 12,
       lineHeight: 18,
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     verificationBlock: {
       gap: 10,
@@ -290,11 +292,11 @@ function createStyles(
     codeInput: {
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.background,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bg,
       paddingHorizontal: 14,
       paddingVertical: 12,
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 14,
       letterSpacing: 4,
       textAlign: "center",
@@ -303,7 +305,7 @@ function createStyles(
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radius.lg,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
       minHeight: 44,
       paddingHorizontal: 14,
       paddingVertical: 12,
@@ -311,23 +313,23 @@ function createStyles(
     primaryButtonText: {
       fontSize: 12,
       fontWeight: "700",
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     disabled: {
       opacity: 0.5,
     },
     helper: {
       fontSize: 11,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     error: {
       fontSize: 12,
-      color: colors.red400,
+      color: tokens.statusBad,
     },
     success: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.emerald400,
+      color: tokens.statusDone,
     },
   });
 }

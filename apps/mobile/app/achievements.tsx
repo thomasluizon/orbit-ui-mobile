@@ -24,11 +24,6 @@ import { AppBar } from '@/components/ui/app-bar'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-// ---------------------------------------------------------------------------
-// Achievements Screen — v8 Linear-tactical chrome
-// Level card · rarity-glyph rows per category · trailing "Locked / Earned"
-// ---------------------------------------------------------------------------
-
 export default function AchievementsScreen() {
   const { t, i18n } = useTranslation()
   const formatNum = (n: number) => new Intl.NumberFormat(i18n.language).format(n)
@@ -135,7 +130,6 @@ export default function AchievementsScreen() {
 
         {hasProAccess && profile ? (
           <>
-            {/* Level card — mono number + xp track */}
             <View
               style={[
                 styles.levelBlock,

@@ -11,17 +11,15 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { Achievement } from '@orbit/shared/types/gamification'
-import { gradients, radius, shadows } from '@/lib/theme'
+import { createTokensV2, gradients, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useDateFormat } from '@/hooks/use-date-format'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 function rarityColors(
   rarity: string,
-  colors: ReturnType<typeof useAppTheme>['colors'],
+  tokens: AppTokens,
 ): { text: string; bg: string } {
   switch (rarity.toLowerCase()) {
     case 'uncommon':
@@ -33,13 +31,9 @@ function rarityColors(
     case 'legendary':
       return { text: '#fbbf24', bg: 'rgba(251, 191, 36, 0.10)' }
     default:
-      return { text: colors.textSecondary, bg: colors.surfaceElevated }
+      return { text: tokens.fg2, bg: tokens.bgElev }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface AchievementCardProps {
   achievement: Achievement
@@ -47,22 +41,21 @@ interface AchievementCardProps {
   earnedDate: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function AchievementCard({
   achievement,
   earned,
   earnedDate,
 }: Readonly<AchievementCardProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { displayDate } = useDateFormat()
-  const styles = useMemo(() => createStyles(colors, earned), [colors, earned])
-  const rarity = rarityColors(achievement.rarity, colors)
+  const styles = useMemo(() => createStyles(tokens, earned), [tokens, earned])
+  const rarity = rarityColors(achievement.rarity, tokens)
 
-  // Shimmer animation for unlocked achievements
   const shimmerX = useSharedValue(-1)
   const isFirstMount = useRef(true)
 
@@ -95,7 +88,6 @@ export function AchievementCard({
         earned ? styles.cardEarned : styles.cardLocked,
       ]}
     >
-      {/* Gradient sheen overlay */}
       <LinearGradient
         colors={gradients.surfaceSheen}
         locations={gradients.surfaceSheenLocations}
@@ -104,9 +96,7 @@ export function AchievementCard({
         style={StyleSheet.absoluteFillObject}
         pointerEvents="none"
       />
-      {/* Inset top highlight */}
       <View style={styles.insetHighlight} pointerEvents="none" />
-      {/* Amber shimmer for unlocked achievements */}
       {earned && (
         <Animated.View style={[styles.shimmerContainer, shimmerStyle]} pointerEvents="none">
           <LinearGradient
@@ -118,20 +108,16 @@ export function AchievementCard({
           />
         </Animated.View>
       )}
-      {/* Icon */}
       <Text style={styles.icon}>{earned ? '\u2B50' : '\uD83D\uDD12'}</Text>
 
-      {/* Name */}
       <Text style={styles.name}>
         {t(`gamification.achievements.${achievement.id}.name`)}
       </Text>
 
-      {/* Description */}
       <Text style={styles.description}>
         {t(`gamification.achievements.${achievement.id}.description`)}
       </Text>
 
-      {/* Rarity + XP */}
       <View style={styles.metaRow}>
         <View style={[styles.rarityBadge, { backgroundColor: rarity.bg }]}>
           <Text style={[styles.rarityText, { color: rarity.text }]}>
@@ -143,7 +129,6 @@ export function AchievementCard({
         </Text>
       </View>
 
-      {/* Earned date */}
       {earned && earnedDate ? (
         <Text style={styles.earnedDate}>
           {t('gamification.page.earnedOn', {
@@ -155,11 +140,7 @@ export function AchievementCard({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], earned: boolean) {
+function createStyles(tokens: AppTokens, earned: boolean) {
   return StyleSheet.create({
     card: {
       borderRadius: radius.lg,
@@ -177,14 +158,14 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], earned: 
         : {}),
     },
     cardEarned: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.primary_20,
+      borderColor: tokens.bgElev,
     },
     cardLocked: {
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       opacity: 0.5,
     },
     insetHighlight: {
@@ -209,11 +190,11 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], earned: 
     name: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     description: {
       fontSize: 11,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginTop: 2,
     },
     metaRow: {
@@ -236,11 +217,11 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors'], earned: 
     xpText: {
       fontSize: 10,
       fontWeight: '700',
-      color: colors.primary,
+      color: tokens.primary,
     },
     earnedDate: {
       fontSize: 10,
-      color: colors.textMuted,
+      color: tokens.fg3,
       marginTop: 4,
     },
   })

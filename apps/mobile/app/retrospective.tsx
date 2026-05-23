@@ -41,11 +41,6 @@ import { PullQuote } from '@/components/chat/pull-quote'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-// ---------------------------------------------------------------------------
-// Retrospective Screen — v8 Linear-tactical chrome
-// Tabs (Week/Month/Quarter/Semester/Year) + Astra-attributed content/generate/loading.
-// ---------------------------------------------------------------------------
-
 interface RetrospectiveBodyProps {
   text: string
   tokens: Tokens
@@ -412,7 +407,6 @@ export default function RetrospectiveScreen() {
 
             {!isLoading && displayedRetrospective ? (
               <View style={styles.contentWrap}>
-                {/* Astra eyebrow + regenerate */}
                 <View style={styles.astraRow}>
                   <View style={styles.astraEyebrowGroup}>
                     <Sparkles size={11} color={tokens.primary} strokeWidth={1.7} />

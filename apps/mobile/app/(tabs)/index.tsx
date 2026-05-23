@@ -87,10 +87,6 @@ import {
   type TodayTabItem,
 } from "./today-shell";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
 type TodayView = (typeof TAB_VIEWS)[number];
 
@@ -149,9 +145,11 @@ const TodaySearchBar = memo(function TodaySearchBar({
 }: Readonly<TodaySearchBarProps>) {
   const [draft, setDraft] = useState(initialValue);
   const focusMotion = useResolvedMotionPreset("selection");
-  // Initial value captured once at mount; subsequent updates flow through the effect below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-time capture
-  const focusAnim = useMemo(() => new Animated.Value(focused ? 1 : 0), []);
+  const focusAnimRef = useRef<Animated.Value | null>(null);
+  if (focusAnimRef.current === null) {
+    focusAnimRef.current = new Animated.Value(focused ? 1 : 0);
+  }
+  const focusAnim = focusAnimRef.current;
 
   // Mirror controlled `initialValue` prop into local draft.
   const [previousInitialValue, setPreviousInitialValue] = useState(initialValue);
@@ -247,10 +245,6 @@ function createAnimatedTimingConfig(
   } as const;
 }
 
-// ---------------------------------------------------------------------------
-// Today Screen
-// ---------------------------------------------------------------------------
-
 export default function TodayScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
@@ -273,7 +267,6 @@ export default function TodayScreen() {
   const { tags } = useTags();
   const deleteHabit = useDeleteHabit();
 
-  // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate);
   const setSelectedDate = useUIStore((s) => s.setSelectedDate);
   const goToTodayDate = useUIStore((s) => s.goToToday);
@@ -298,7 +291,6 @@ export default function TodayScreen() {
   const hasProAccess = profile?.hasProAccess ?? false;
   const currentActiveView = resolveTodayView(activeView, hasProAccess);
 
-  // Local state
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false);
   const [showControlsMenu, setShowControlsMenu] = useState(false);
   const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
@@ -330,13 +322,14 @@ export default function TodayScreen() {
   const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
   const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
   const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
-  // Initial value captures isSelectMode at mount; subsequent updates flow through the effect.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-time capture
-  const bulkBarAnim = useMemo(() => new Animated.Value(isSelectMode ? 1 : 0), []);
+  const bulkBarAnimRef = useRef<Animated.Value | null>(null);
+  if (bulkBarAnimRef.current === null) {
+    bulkBarAnimRef.current = new Animated.Value(isSelectMode ? 1 : 0);
+  }
+  const bulkBarAnim = bulkBarAnimRef.current;
   const hasAnimatedFiltersRef = useRef(false);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
 
-  // Modal state
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<
@@ -423,7 +416,6 @@ export default function TodayScreen() {
     [t],
   );
 
-  // Date navigation
   const goToPreviousDay = useCallback(() => {
     setSlideDirection("left");
     setSelectedDate(formatAPIDate(subDays(selectedDate, 1)));
@@ -493,9 +485,6 @@ export default function TodayScreen() {
     });
   }, [selectedDate, t, locale]);
 
-  // Always show a localized long date in the AppBar subtitle (Thu · May 21
-  // style — the v8 spec subtitle). This stays stable across the
-  // "Today/Yesterday/Tomorrow" label semantics used in the date nav pill.
   const dateLong = useMemo(
     () =>
       formatLocaleDate(selectedDate, locale, {
@@ -546,7 +535,6 @@ export default function TodayScreen() {
     listTransitionAnim,
   ]);
 
-  // Tag filter toggle
   const toggleTagFilter = useCallback(
     (tagId: string) => {
       const idx = selectedTagIds.indexOf(tagId);
@@ -560,7 +548,6 @@ export default function TodayScreen() {
     [selectedTagIds, setSelectedTagIds],
   );
 
-  // Build filters (matching web exactly)
   const dateStr = formatAPIDate(selectedDate);
   const filters = useMemo<HabitsFilter>(() => {
     if (currentActiveView === "general") {
@@ -581,7 +568,6 @@ export default function TodayScreen() {
       if (selectedTagIds.length > 0) f.tagIds = selectedTagIds;
       return f;
     }
-    // 'all' view
     const f: HabitsFilter = {};
     if (searchQueryStore.trim()) f.search = searchQueryStore.trim();
     if (selectedFrequency) f.frequencyUnit = selectedFrequency;
@@ -734,7 +720,6 @@ export default function TodayScreen() {
 
   const selectedCount = selectedHabitIds.size;
 
-  // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters);
   const showCreateModal = useUIStore((s) => s.showCreateModal);
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
@@ -829,7 +814,6 @@ export default function TodayScreen() {
     }
   }, [activeView, hasProAccess, setActiveView]);
 
-  // Clear filters on view change
   useEffect(() => {
     if (
       !shouldResetSelectionForViewChange(
@@ -1353,9 +1337,6 @@ export default function TodayScreen() {
         </Animated.View>
       )}
 
-      {/* ============================================================
-          MODALS
-          ============================================================ */}
       <CreateHabitModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -1438,10 +1419,6 @@ export default function TodayScreen() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     safeArea: {
@@ -1461,7 +1438,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
     },
 
-    // Filter shell
     filtersShell: {
       paddingBottom: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
@@ -1497,7 +1473,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginHorizontal: 2,
     },
 
-    // Section trailing slot
     sectionTrailing: {
       flexDirection: "row",
       alignItems: "center",
@@ -1511,7 +1486,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: "center",
     },
 
-    // Controls menu
     controlsMenuItem: {
       flexDirection: "row",
       alignItems: "center",
@@ -1529,7 +1503,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ rotate: "180deg" }],
     },
 
-    // Bulk action bar wrap
     bulkActionBarWrap: {
       position: "absolute",
       left: 20,

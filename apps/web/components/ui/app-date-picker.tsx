@@ -119,11 +119,11 @@ export function AppDatePicker({
         aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="w-full bg-surface text-text-primary rounded-md py-3 px-4 text-sm border border-border text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors duration-[var(--duration-fast)]"
+        className="w-full bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-md py-3 px-4 text-sm border border-[var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:border-[var(--primary)] transition-colors duration-[var(--duration-fast)]"
         onClick={() => setIsOpen(!isOpen)}
       >
         <span>{displayValue || placeholder || t('common.selectDate')}</span>
-        <Calendar className="size-4 text-text-muted" />
+        <Calendar className="size-4 text-[var(--fg-3)]" />
       </button>
 
       {isOpen && (
@@ -139,7 +139,7 @@ export function AppDatePicker({
             open
             aria-modal="true"
             aria-labelledby={dialogLabelId}
-            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border-muted bg-surface-overlay p-2.5 text-text-primary shadow-[var(--shadow-lg)]"
+            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[var(--hairline)] bg-[var(--bg-elev)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-lg)]"
           >
             {/* Month navigation */}
             <div className="flex items-center justify-between mb-2">
@@ -149,11 +149,11 @@ export function AppDatePicker({
                 aria-label={t('common.previousMonth')}
                 onClick={prevMonth}
               >
-                <ChevronLeft className="size-4 text-text-muted" />
+                <ChevronLeft className="size-4 text-[var(--fg-3)]" />
               </button>
               <span
                 id={dialogLabelId}
-                className="text-xs font-medium text-text-primary capitalize"
+                className="text-xs font-medium text-[var(--fg-1)] capitalize"
                 aria-live="polite"
               >
                 {monthLabel}
@@ -164,7 +164,7 @@ export function AppDatePicker({
                 aria-label={t('common.nextMonth')}
                 onClick={nextMonth}
               >
-                <ChevronRight className="size-4 text-text-muted" />
+                <ChevronRight className="size-4 text-[var(--fg-3)]" />
               </button>
             </div>
 
@@ -175,7 +175,7 @@ export function AppDatePicker({
                     <th
                       key={day.key}
                       scope="col"
-                      className="py-1 text-center text-xs font-normal text-text-muted"
+                      className="py-1 text-center text-xs font-normal text-[var(--fg-3)]"
                     >
                       {day.label}
                     </th>
@@ -203,11 +203,11 @@ export function AppDatePicker({
                             aria-current={isToday ? 'date' : undefined}
                             className={`flex aspect-square w-full items-center justify-center rounded-lg text-xs transition-colors ${
                               isCurrentMonth
-                                ? 'text-text-primary hover:bg-white/10'
-                                : 'text-text-muted/40'
+                                ? 'text-[var(--fg-1)] hover:bg-white/10'
+                                : 'text-[var(--fg-3)]/40'
                             } ${
                               isSelected
-                                ? 'bg-primary text-white hover:bg-primary/80'
+                                ? 'bg-[var(--primary)] text-white hover:bg-[var(--primary-pressed)]'
                                 : ''
                             } ${
                               isToday && !isSelected

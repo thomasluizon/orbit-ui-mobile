@@ -6,10 +6,6 @@ import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Goal } from '@orbit/shared/types/goal'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface GoalLinkingFieldProps {
   selectedGoalIds: string[]
   atGoalLimit: boolean
@@ -20,11 +16,7 @@ interface GoalsListResponse {
   items: Goal[]
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-/** v8 chrome: hairline-ringed chip strip with mono percent token. */
+/** Hairline-ringed chip strip with mono percent token. */
 export function GoalLinkingField({
   selectedGoalIds,
   atGoalLimit,

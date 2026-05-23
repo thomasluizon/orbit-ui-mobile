@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-// --- Enums ---
-
 export const goalTypeSchema = z.enum(['Standard', 'Streak'])
 
 export type GoalType = z.infer<typeof goalTypeSchema>
@@ -19,8 +17,6 @@ export const trackingStatusSchema = z.enum([
 ])
 
 export type TrackingStatus = z.infer<typeof trackingStatusSchema>
-
-// --- Sub-schemas ---
 
 export const linkedHabitInfoSchema = z.object({
   id: z.string(),
@@ -58,8 +54,6 @@ export const goalReviewResponseSchema = z.object({
 })
 
 export type GoalReviewResponse = z.infer<typeof goalReviewResponseSchema>
-
-// --- Goal ---
 
 export const goalSchema = z.object({
   id: z.string(),
@@ -104,8 +98,6 @@ export const goalDetailWithMetricsSchema = z.object({
 })
 
 export type GoalDetailWithMetrics = z.infer<typeof goalDetailWithMetricsSchema>
-
-// --- Request types ---
 
 export const createGoalRequestSchema = z.object({
   title: z.string(),

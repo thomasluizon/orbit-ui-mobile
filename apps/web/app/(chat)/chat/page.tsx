@@ -17,6 +17,7 @@ import {
 } from '@orbit/shared/chat'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
+import { LocalImage } from '@/components/ui/local-image'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useHabitDetail } from '@/hooks/use-habits'
@@ -26,10 +27,6 @@ import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const GOAL_ACTION_TYPES = new Set([
   'CreateGoal',
   'UpdateGoal',
@@ -38,10 +35,6 @@ const GOAL_ACTION_TYPES = new Set([
   'UpdateGoalStatus',
   'LinkHabitsToGoal',
 ])
-
-// ---------------------------------------------------------------------------
-// Chat Page (Astra)
-// ---------------------------------------------------------------------------
 
 export default function ChatPage() {
   const t = useTranslations()
@@ -86,9 +79,6 @@ export default function ChatPage() {
     verifyAndExecutePendingOperationStepUp,
   } = useChatComposer()
 
-  // -------------------------------------------------------------------------
-  // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer)
-  // -------------------------------------------------------------------------
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const habitDetailQuery = useHabitDetail(selectedHabitId)
@@ -144,10 +134,6 @@ export default function ChatPage() {
     return () => document.removeEventListener('keydown', handleKeydown)
   }, [goBackOrFallback])
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-
   return (
     <div className="flex flex-col h-full">
       <AppBar
@@ -158,7 +144,6 @@ export default function ChatPage() {
         title={t('chat.title')}
       />
 
-      {/* Messages area */}
       <div
         data-tour="tour-chat-area"
         ref={chatContainerRef}
@@ -170,7 +155,6 @@ export default function ChatPage() {
         aria-busy={isTyping}
         aria-label={t('chat.title')}
       >
-        {/* Empty state with suggestions */}
         {showSuggestions && (
           <div
             className="flex flex-col items-center justify-center h-full"
@@ -228,7 +212,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Messages */}
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
@@ -269,11 +252,9 @@ export default function ChatPage() {
           />
         ))}
 
-        {/* Typing indicator */}
         {isTyping && <TypingIndicator />}
       </div>
 
-      {/* Bottom input area */}
       <div
         data-tour="tour-chat-input"
         className="shrink-0"
@@ -287,7 +268,6 @@ export default function ChatPage() {
             padding: `12px 20px calc(12px + var(--safe-bottom))`,
           }}
         >
-          {/* Error banner */}
           {sendError && (
             <div
               role="alert"
@@ -304,12 +284,10 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Image preview */}
           {imagePreview && (
             <div style={{ paddingBottom: 8 }}>
               <div className="relative inline-block">
-                {/* eslint-disable-next-line @next/next/no-img-element -- blob: URLs cannot be optimized by next/image */}
-                <img
+                <LocalImage
                   src={imagePreview}
                   alt=""
                   style={{
@@ -334,7 +312,6 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Starter chips */}
           {messages.length > 0 && starterChips.length > 0 && (
             <div
               className="overflow-x-auto"
@@ -366,7 +343,6 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -375,7 +351,6 @@ export default function ChatPage() {
             onChange={handleFileSelect}
           />
 
-          {/* Input bar */}
           <div
             className="flex items-center"
             style={{ gap: 8 }}
@@ -555,7 +530,6 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* Message limit indicators */}
           {!hasProAccess && atMessageLimit && (
             <div
               role="status"
@@ -591,7 +565,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Habit detail drawer */}
       <HabitDetailDrawer
         open={!!selectedHabitId}
         onOpenChange={handleDrawerOpenChange}

@@ -168,8 +168,6 @@ export function DeleteAccountModal({
   )
 }
 
-// --- Sub-components ---
-
 function DeleteConfirmStep({
   warningMessage,
   error,

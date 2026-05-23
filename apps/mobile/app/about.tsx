@@ -12,12 +12,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { SettingsRow } from '@/components/ui/settings-row'
 
-// ---------------------------------------------------------------------------
-// About Screen — v8 chrome
-// Simple info screen: SettingsRows for Feature guide, Referral, Support,
-// Privacy, Terms, Open-source notices.
-// ---------------------------------------------------------------------------
-
 export default function AboutScreen() {
   const { t } = useTranslation()
   const router = useRouter()

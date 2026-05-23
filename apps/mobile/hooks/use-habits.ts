@@ -132,10 +132,6 @@ export {
 export { useCalendarData } from './use-calendar-data'
 export { useSummary } from './use-summary'
 
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
-
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
@@ -587,10 +583,6 @@ export function useUpdateChecklist() {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Sub-habit and parent mutations
-// ---------------------------------------------------------------------------
-
 export function useCreateSubHabit() {
   const queryClient = useQueryClient()
 
@@ -692,10 +684,6 @@ export function useMoveHabitParent() {
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
   })
 }
-
-// ---------------------------------------------------------------------------
-// Bulk operations
-// ---------------------------------------------------------------------------
 
 export function useBulkCreateHabits() {
   const queryClient = useQueryClient()

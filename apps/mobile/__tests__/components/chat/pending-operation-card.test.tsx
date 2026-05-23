@@ -25,6 +25,19 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
     shadows: { sm: {} },
+    currentScheme: 'purple',
+    currentTheme: 'dark',
+  }),
+}))
+
+vi.mock('@/lib/theme', () => ({
+  radius: { xl: 20, full: 9999, md: 12, lg: 16, sm: 8 },
+  shadows: { sm: {} },
+  createTokensV2: () => new Proxy({}, {
+    get: (_target, prop) => {
+      if (prop === 'fgOnPrimary') return '#ffffff'
+      return '#111111'
+    },
   }),
 }))
 
@@ -119,7 +132,7 @@ describe('PendingOperationCard (mobile)', () => {
     })
 
     expect(onPrepareStepUp).toHaveBeenCalledWith('pending-1')
-    expect(tree.root.findAllByProps({ placeholder: '123456' }).length).toBeGreaterThan(0)
+    expect(tree.root.findAllByProps({ placeholder: 'common.codePlaceholder' }).length).toBeGreaterThan(0)
   })
 
   it('does not show success when execution returns a denied operation', async () => {

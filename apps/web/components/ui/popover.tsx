@@ -8,10 +8,6 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { usePopoverMenu, type UsePopoverMenuOptions } from '@/hooks/use-popover-menu'
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface PopoverProps extends UsePopoverMenuOptions {
   /** The element that triggers the popover. Must be or contain a <button>. */
   trigger: ReactNode
@@ -33,10 +29,6 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
   ).filter((element) => !element.hasAttribute('disabled') && element.tabIndex !== -1)
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function Popover({
   trigger,
   children,
@@ -55,44 +47,34 @@ export function Popover({
     isOpen: hookIsOpen,
     open: hookOpen,
     close: hookClose,
+    toggle: hookToggle,
     triggerRef,
     panelRef,
     position,
   } = usePopoverMenu({ placement, offset, margin })
   const wasOpenRef = useRef(false)
 
-  // Resolve effective open state and close function based on mode.
   const isOpen = isControlled ? controlledOpen : hookIsOpen
 
   const close = isControlled
     ? () => onOpenChange?.(false)
     : hookClose
 
-  // When in controlled mode, sync the internal hook whenever `controlledOpen`
-  // changes so position is computed on open.
   useEffect(() => {
     if (!isControlled) return
-    if (controlledOpen) {
-      hookOpen()
-    } else {
-      hookClose()
-    }
-  // hookOpen/hookClose are stable callbacks -- safe to list.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isControlled, controlledOpen])
+    if (controlledOpen) hookOpen()
+    else hookClose()
+  }, [isControlled, controlledOpen, hookOpen, hookClose])
 
-  // Propagate hook dismiss events (outside click, Escape, scroll) back to
-  // the controlled parent. Without this, dismiss handlers only update the
-  // hook's internal state and the panel stays open.
+  const previousHookIsOpenRef = useRef(hookIsOpen)
   useEffect(() => {
-    if (!isControlled) return
-    if (!hookIsOpen && controlledOpen) {
+    if (previousHookIsOpenRef.current === hookIsOpen) return
+    previousHookIsOpenRef.current = hookIsOpen
+    if (isControlled && !hookIsOpen && controlledOpen) {
       onOpenChange?.(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hookIsOpen])
+  }, [hookIsOpen, isControlled, controlledOpen, onOpenChange])
 
-  // For SSR safety, delay portal rendering until mounted.
   const mounted = useIsClient()
 
   useEffect(() => {
@@ -130,22 +112,10 @@ export function Popover({
     return () => cancelAnimationFrame(rafId)
   }, [triggerRef, isOpen])
 
-  // Wrap the trigger so we can forward the triggerRef.
-  // We render it inside a span that gets the ref forwarded via a hidden button
-  // wrapper -- but since we need the ref on a button, we clone/wrap differently.
-  // Strategy: render a <span> that passes the ref down via data attribute, and
-  // attach ref to the wrapping element's first button child. Instead, the
-  // cleanest approach is to render the trigger inside a wrapper and attach the
-  // ref to that wrapper, cast as HTMLButtonElement (acceptable because the
-  // wrapper is used only for getBoundingClientRect).
-  //
-  // The ref is typed as RefObject<HTMLButtonElement | null> in the hook but we
-  // only call .getBoundingClientRect() and .contains() on it, both of which are
-  // available on any HTMLElement. We use a div wrapper and a cast-free approach:
-  // the hook's triggerRef is reassigned to the wrapper div ref here.
-
   const resolvedPanel =
     typeof children === 'function' ? children(close) : children
+
+  const handleTriggerClickCapture = isControlled ? undefined : hookToggle
 
   function handlePanelKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
@@ -183,11 +153,9 @@ export function Popover({
 
   return (
     <>
-      {/* Trigger wrapper -- ref forwarded so hook can read its bounding rect.
-          display:inline-flex preserves layout flow while giving a measurable rect
-          (display:contents returns a zero rect from getBoundingClientRect). */}
       <div
-        ref={triggerRef as unknown as React.RefObject<HTMLDivElement>}
+        ref={triggerRef}
+        onClickCapture={handleTriggerClickCapture}
         style={{ display: 'inline-flex' }}
       >
         {trigger}

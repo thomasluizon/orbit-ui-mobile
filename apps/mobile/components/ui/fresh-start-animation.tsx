@@ -8,23 +8,22 @@ import {
 } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface FreshStartAnimationProps {
   onComplete: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimationProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const [visible, setVisible] = useState(true)
 
   const fadeAnim = useMemo(() => new Animated.Value(0), [])
@@ -35,10 +34,9 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const ringOpacity2 = useMemo(() => new Animated.Value(0.4), [])
   const textOpacity = useMemo(() => new Animated.Value(0), [])
   const textSlide = useMemo(() => new Animated.Value(20), [])
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
-    // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -53,7 +51,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }),
     ]).start()
 
-    // Ring animation
     Animated.loop(
       Animated.parallel([
         Animated.sequence([
@@ -114,7 +111,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       ]),
     ).start()
 
-    // Text entrance
     Animated.parallel([
       Animated.timing(textOpacity, {
         toValue: 1,
@@ -130,7 +126,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }),
     ]).start()
 
-    // Fade out at 2s
     const fadeTimer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -139,7 +134,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }).start()
     }, 2000)
 
-    // Complete at 2.5s
     const completeTimer = setTimeout(() => {
       setVisible(false)
       onComplete()
@@ -156,12 +150,9 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   return (
     <Modal visible transparent animationType="none">
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        {/* Backdrop */}
         <View style={styles.backdrop} />
 
-        {/* Center content */}
         <View style={styles.center}>
-          {/* Rings */}
           <Animated.View
             style={[
               styles.ring,
@@ -181,17 +172,15 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
             ]}
           />
 
-          {/* Center orb */}
           <Animated.View
             style={[
               styles.orb,
               { transform: [{ scale: scaleAnim }] },
             ]}
           >
-            <RefreshCw size={32} color={colors.textPrimary} />
+            <RefreshCw size={32} color={tokens.fg1} />
           </Animated.View>
 
-          {/* Text */}
           <Animated.View
             style={[
               styles.textContainer,
@@ -214,18 +203,14 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: `${colors.background}E6`,
+      backgroundColor: `${tokens.bg}E6`,
     },
     center: {
       flex: 1,
@@ -239,17 +224,17 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       height: 80,
       borderRadius: 40,
       borderWidth: 2,
-      borderColor: colors.primary_30,
+      borderColor: tokens.hairlineStrong,
     },
     orb: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: colors.primary_20,
+      backgroundColor: tokens.bgElev,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.primary_30,
+      borderColor: tokens.hairlineStrong,
     },
     textContainer: {
       marginTop: 40,
@@ -258,13 +243,13 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     titleText: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
       textAlign: 'center',
       letterSpacing: -0.5,
     },
     subtitleText: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       textAlign: 'center',
       marginTop: 8,
     },

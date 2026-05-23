@@ -46,7 +46,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       aria-live="assertive"
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+      <div className="absolute inset-0 bg-[var(--bg)]/90 backdrop-blur-md" />
 
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-8">
@@ -56,15 +56,15 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
 
         {/* Center orb */}
         <div className="fresh-start-orb">
-          <RefreshCw className="size-8 text-text-primary" />
+          <RefreshCw className="size-8 text-[var(--fg-1)]" />
         </div>
 
         {/* Text */}
         <div className="fresh-start-text mt-10 text-center">
-          <p className="text-[length:var(--text-fluid-xl)] font-bold text-text-primary tracking-tight">
+          <p className="text-[length:var(--text-fluid-xl)] font-bold text-[var(--fg-1)] tracking-tight">
             {t('profile.freshStart.successTitle')}
           </p>
-          <p className="text-[length:var(--text-fluid-sm)] text-text-secondary mt-2">
+          <p className="text-[length:var(--text-fluid-sm)] text-[var(--fg-2)] mt-2">
             {t('profile.freshStart.successSubtitle')}
           </p>
         </div>

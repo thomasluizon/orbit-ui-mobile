@@ -125,6 +125,88 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   }),
 }))
 
+// Mock the new useCalendarEvents hook to translate fetch mocks into the
+// discriminated union the page consumes. Each test case still controls
+// behavior via `globalThis.fetch = vi.fn()...`.
+vi.mock('@/hooks/use-calendar-events', async () => {
+  const { useEffect, useState } = await import('react')
+  const { isCalendarSyncNotConnectedMessage } = await import('@orbit/shared/utils')
+
+  type State = {
+    data:
+      | { status: 'connected'; events: unknown[] }
+      | { status: 'not-connected' }
+      | undefined
+    isLoading: boolean
+    isError: boolean
+    error: Error | null
+  }
+
+  return {
+    useCalendarEvents: (options?: { enabled?: boolean }) => {
+      const enabled = options?.enabled !== false
+      const [state, setState] = useState<State>({
+        data: undefined,
+        isLoading: enabled,
+        isError: false,
+        error: null,
+      })
+      useEffect(() => {
+        if (!enabled) return
+        let cancelled = false
+        void (async () => {
+          try {
+            const res = await globalThis.fetch('/api/calendar/events')
+            if (cancelled) return
+            if (!res.ok) {
+              const body = (await res.json().catch(() => null)) as
+                | { error?: string; message?: string }
+                | null
+              const msg =
+                body?.error ?? body?.message ?? `Failed with status ${res.status}`
+              if (isCalendarSyncNotConnectedMessage(msg.toLowerCase())) {
+                setState({
+                  data: { status: 'not-connected' },
+                  isLoading: false,
+                  isError: false,
+                  error: null,
+                })
+                return
+              }
+              setState({
+                data: undefined,
+                isLoading: false,
+                isError: true,
+                error: new Error(msg),
+              })
+              return
+            }
+            const events = (await res.json()) as unknown[]
+            setState({
+              data: { status: 'connected', events },
+              isLoading: false,
+              isError: false,
+              error: null,
+            })
+          } catch (err) {
+            if (cancelled) return
+            setState({
+              data: undefined,
+              isLoading: false,
+              isError: true,
+              error: err as Error,
+            })
+          }
+        })()
+        return () => {
+          cancelled = true
+        }
+      }, [enabled])
+      return { ...state, refetch: vi.fn() }
+    },
+  }
+})
+
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
   return {

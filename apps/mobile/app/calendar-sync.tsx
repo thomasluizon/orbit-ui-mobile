@@ -391,10 +391,6 @@ export default function CalendarSyncScreen() {
     void fetchManualEvents()
   }, [fetchManualEvents, isOnline, isReviewMode, queryClient])
 
-  // ---------------------------------------------------------------------------
-  // Helpers for rendering events as v8 selectable rows
-  // ---------------------------------------------------------------------------
-
   function renderEventRow(event: CalendarEvent) {
     const selected = selectedIds.has(event.id)
     const recurrenceLabel = formatCalendarSyncRecurrenceLabel(

@@ -67,7 +67,6 @@ export default function ProfilePage() {
     return t(item.hintKey)
   }
 
-  // Handle subscription success redirect — refresh profile to pick up new plan
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
       queryClient.invalidateQueries({ queryKey: profileKeys.all })
@@ -127,7 +126,6 @@ export default function ProfilePage() {
         </p>
       )}
 
-      {/* User identity block */}
       <div
         className="flex items-center"
         style={{
@@ -213,7 +211,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Streak row */}
       <SettingsRow
         label={t('streakDisplay.title')}
         ariaLabel={t('streakDisplay.title')}
@@ -242,7 +239,6 @@ export default function ProfilePage() {
         </span>
       </SettingsRow>
 
-      {/* Account section */}
       <SectionLabel>{t('profile.sections.account')}</SectionLabel>
       <nav aria-label={t('profile.sections.account')}>
         {accountNavItems.map((item) => (
@@ -263,7 +259,6 @@ export default function ProfilePage() {
         ))}
       </nav>
 
-      {/* Features section */}
       <SectionLabel>{t('profile.sections.features')}</SectionLabel>
       <div>
         {featureNavItems.map((item) => (
@@ -286,7 +281,6 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Subscription section */}
       <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
       <div data-tour="tour-profile-subscription">
         <SubscriptionCard
@@ -296,7 +290,6 @@ export default function ProfilePage() {
         />
       </div>
 
-      {/* Account actions */}
       <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
       <ProfileActionButton
         onClick={() => logout()}

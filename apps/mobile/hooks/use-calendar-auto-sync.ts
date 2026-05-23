@@ -16,10 +16,6 @@ interface CalendarQueryOptions {
   enabled?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
 async function fetchAutoSyncState(): Promise<CalendarAutoSyncState> {
   const raw = await apiClient<unknown>(API.calendar.autoSyncState)
   return calendarAutoSyncStateSchema.parse(raw)
@@ -53,10 +49,6 @@ export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
     refetchOnWindowFocus: true,
   })
 }
-
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
 
 interface SetAutoSyncContext {
   previous: CalendarAutoSyncState | undefined

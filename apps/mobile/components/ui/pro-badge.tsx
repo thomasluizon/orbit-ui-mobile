@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
 import Animated, {
   useSharedValue,
@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
 import { schemes } from '@orbit/shared/theme'
 import { useProfile } from '@/hooks/use-profile'
-import { radius, durations, gradients, primaryRgba } from '@/lib/theme'
+import { createTokensV2, radius, durations, gradients, primaryRgba } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ProBadgeProps {
@@ -33,7 +33,11 @@ interface ProBadgeProps {
 export function ProBadge({ alwaysVisible = false, style, textStyle, label }: ProBadgeProps) {
   const { t } = useTranslation()
   const { profile } = useProfile()
-  const { colors, currentScheme } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
 
   const isTrialActive = profile?.isTrialActive ?? false
   const hasProAccess = profile?.hasProAccess ?? false
@@ -76,7 +80,7 @@ export function ProBadge({ alwaysVisible = false, style, textStyle, label }: Pro
       style={[
         styles.badge,
         {
-          backgroundColor: colors.primary_15,
+          backgroundColor: tokens.bgElev,
           borderColor: primaryRgba(0.2, shadowRgb),
         },
         style,
@@ -92,7 +96,7 @@ export function ProBadge({ alwaysVisible = false, style, textStyle, label }: Pro
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
-      <Text style={[styles.text, { color: colors.primary }, textStyle]}>{badgeLabel}</Text>
+      <Text style={[styles.text, { color: tokens.primary }, textStyle]}>{badgeLabel}</Text>
     </View>
   )
 }

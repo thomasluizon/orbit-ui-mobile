@@ -10,17 +10,9 @@ import { resolveMotionPreset } from '@orbit/shared/theme'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import type { Goal } from '@orbit/shared/types/goal'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface GoalCardProps {
   goal: Goal
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const t = useTranslations()
@@ -31,13 +23,12 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   const isStreak = isStreakGoal(goal.type)
 
-  const progressColor = useMemo(() => {
-    if (goal.status === 'Completed') return 'bg-success'
-    if (goal.status === 'Abandoned') return 'bg-text-muted'
-    if (isStreak) return 'bg-warning'
-    if (goal.progressPercentage >= 75) return 'bg-success'
-    if (goal.progressPercentage >= 50) return 'bg-primary'
-    return 'bg-primary'
+  const progress = useMemo<{ state: string; className: string }>(() => {
+    if (goal.status === 'Completed') return { state: 'completed', className: 'bg-[var(--status-done)]' }
+    if (goal.status === 'Abandoned') return { state: 'abandoned', className: 'bg-[var(--fg-3)]' }
+    if (isStreak) return { state: 'streak', className: 'bg-[var(--status-overdue)]' }
+    if (goal.progressPercentage >= 75) return { state: 'high', className: 'bg-[var(--status-done)]' }
+    return { state: 'mid', className: 'bg-[var(--primary)]' }
   }, [goal.status, goal.progressPercentage, isStreak])
 
   const deadlineInfo = useMemo(() => {
@@ -51,18 +42,18 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (daysLeft < 0) {
       return {
         text: t('goals.deadline.overdue'),
-        className: 'text-danger bg-danger/10',
+        className: 'text-[var(--status-bad)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
       }
     }
     if (daysLeft <= 7) {
       return {
         text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-        className: 'text-warning bg-warning/10',
+        className: 'text-[var(--status-overdue)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
       }
     }
     return {
       text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-      className: 'text-text-muted bg-surface-elevated',
+      className: 'text-[var(--fg-3)] bg-[var(--bg-elev)]',
     }
   }, [goal.deadline, goal.status, t])
 
@@ -70,13 +61,13 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (goal.status === 'Completed') {
       return {
         text: t('goals.status.completed'),
-        className: 'text-success bg-success/10',
+        className: 'text-[var(--status-done)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
       }
     }
     if (goal.status === 'Abandoned') {
       return {
         text: t('goals.status.abandoned'),
-        className: 'text-text-muted bg-surface-elevated',
+        className: 'text-[var(--fg-3)] bg-[var(--bg-elev)]',
       }
     }
     return null
@@ -101,7 +92,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
       <motion.button
         type="button"
         data-tour="tour-goal-card"
-        className={`group relative w-full overflow-hidden rounded-[var(--radius-xl)] border border-border-muted bg-surface p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-surface-elevated/80 ${trackingBorderClass}`}
+        className={`group relative w-full overflow-hidden rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev)]/80 ${trackingBorderClass}`}
         whileTap={tapTarget}
         transition={{
           duration: selectionMotion.enterDuration / 1000,
@@ -120,7 +111,6 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
         />
         <div className="relative z-10 flex items-start gap-3">
           <div className="flex-1 min-w-0">
-            {/* Title row */}
             <div className="flex items-center gap-2 mb-1">
               {isStreak && (
                 <span className="text-base leading-none" aria-hidden="true">
@@ -128,9 +118,9 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                 </span>
               )}
               <h3
-                className={`text-sm font-semibold text-text-primary truncate ${
+                className={`text-sm font-semibold text-[var(--fg-1)] truncate ${
                   goal.status === 'Abandoned'
-                    ? 'line-through text-text-muted'
+                    ? 'line-through text-[var(--fg-3)]'
                     : ''
                 }`}
               >
@@ -145,8 +135,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
               )}
             </div>
 
-            {/* Progress text */}
-            <p className="text-xs text-text-secondary mb-2">
+            <p className="text-xs text-[var(--fg-2)] mb-2">
               {isStreak
                 ? t('goals.streak.ofTarget', {
                     current: goal.currentValue,
@@ -159,7 +148,6 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                   })}
             </p>
 
-            {/* Progress bar */}
             <div className="relative mb-2" data-tour="tour-goal-progress">
               <progress
                 className="sr-only"
@@ -168,11 +156,12 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                 aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
               />
               <div
-                className="h-2 bg-surface-elevated rounded-full overflow-hidden"
+                className="h-2 bg-[var(--bg-elev)] rounded-full overflow-hidden"
                 aria-hidden="true"
               >
                 <div
-                  className={`h-full rounded-full transition-[width,background-color,transform] duration-500 animate-[progress-fill_0.6s_ease-out] ${progressColor}`}
+                  data-progress-state={progress.state}
+                  className={`h-full rounded-full transition-[width,background-color,transform] duration-500 animate-[progress-fill_0.6s_ease-out] ${progress.className}`}
                   style={{
                     width: `${Math.min(goal.progressPercentage, 100)}%`,
                   }}
@@ -180,9 +169,8 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
               </div>
             </div>
 
-            {/* Footer: percentage + deadline */}
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-text-muted font-medium">
+              <span className="text-[11px] text-[var(--fg-3)] font-medium">
                 {t('goals.progressPercentage', {
                   pct: goal.progressPercentage,
                 })}

@@ -1,10 +1,6 @@
 import type { TourSection, TourStep } from '../types/tour'
 import { TOUR_STEPS, getTourStepsBySection, getSectionStepCount } from '../tour/tour-steps'
 
-// ---------------------------------------------------------------------------
-// Tour store -- shared state creator for web and mobile
-// ---------------------------------------------------------------------------
-
 type TourStoreSet = {
   (
     partial: Partial<TourStoreState> | ((state: TourStoreState) => Partial<TourStoreState>),
@@ -34,13 +30,11 @@ export interface TourStoreState {
   /** bounding rect of the current target element */
   targetRect: TourTargetRect | null
 
-  // -- Derived helpers (computed from state) --
   getActiveSteps: () => TourStep[]
   getCurrentStep: () => TourStep | null
   getTotalSteps: () => number
   getSectionProgress: () => { current: number; total: number; section: TourSection | null }
 
-  // -- Actions --
   startFullTour: () => void
   startSectionReplay: (section: TourSection) => void
   nextStep: () => TourStep | null

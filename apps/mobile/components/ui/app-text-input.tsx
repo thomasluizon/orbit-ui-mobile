@@ -7,9 +7,11 @@ import {
   type ComponentProps,
 } from 'react'
 import { StyleSheet, TextInput } from 'react-native'
-import { radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 type AppTextInputProps = ComponentProps<typeof TextInput>
 
@@ -20,9 +22,13 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
   ) {
     const localRef = useRef<TextInput>(null)
     const keyboardAware = useKeyboardAwareInputReveal()
-    const { colors } = useAppTheme()
+    const { currentScheme, currentTheme } = useAppTheme()
+    const tokens = useMemo(
+      () => createTokensV2(currentScheme, currentTheme),
+      [currentScheme, currentTheme],
+    )
     const [focused, setFocused] = useState(false)
-    const styles = useMemo(() => createStyles(colors), [colors])
+    const styles = useMemo(() => createStyles(tokens), [tokens])
 
     const assignRef = useCallback(
       (node: TextInput | null) => {
@@ -69,18 +75,16 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
   },
 )
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     input: {
-      color: colors.textPrimary,
-      borderColor: colors.borderMuted,
+      color: tokens.fg1,
+      borderColor: tokens.hairline,
       borderRadius: radius.md,
     },
     inputFocused: {
-      borderColor: colors.primaryTintBorder,
-      shadowColor: colors.primary,
+      borderColor: tokens.hairlineStrong,
+      shadowColor: tokens.primary,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.12,
       shadowRadius: 10,

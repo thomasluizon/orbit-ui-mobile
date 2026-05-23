@@ -104,8 +104,6 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   )
 }
 
-// --- Sub-components ---
-
 function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }>) {
   return (
     <div className="flex flex-col" style={{ gap: 6 }}>

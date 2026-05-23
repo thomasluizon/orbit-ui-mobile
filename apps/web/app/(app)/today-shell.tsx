@@ -12,20 +12,12 @@ import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import type { Tag } from '@/hooks/use-tags'
 
-// ---------------------------------------------------------------------------
-// Tab view type (preserved from previous shell)
-// ---------------------------------------------------------------------------
-
 export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
 
 export type TodayTabItem = {
   view: TodayTabView
   label: string
 }
-
-// ---------------------------------------------------------------------------
-// Header (AppBar with leading sun icon + Today/date + trailing cluster)
-// ---------------------------------------------------------------------------
 
 interface TodayHeaderProps {
   title: string
@@ -59,10 +51,6 @@ export function TodayHeader({
     />
   )
 }
-
-// ---------------------------------------------------------------------------
-// Section-head tabs (Today / All / General / Goals)
-// ---------------------------------------------------------------------------
 
 interface TodayTabsProps {
   tabs: TodayTabItem[]
@@ -99,10 +87,6 @@ export function TodayTabs({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Date navigation (prev / today / next)
-// ---------------------------------------------------------------------------
 
 interface TodayDateNavigationProps {
   visible: boolean
@@ -190,10 +174,6 @@ export function TodayDateNavigation({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Utility row — search/freq/tag chips + more menu
-// ---------------------------------------------------------------------------
 
 type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
 

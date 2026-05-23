@@ -18,10 +18,6 @@ type StreakInfoView = {
 
 type TranslationFn = (key: string, params?: Record<string, string | number | Date>) => string
 
-// ---------------------------------------------------------------------------
-// StreakTimelineCard -- 7-day timeline with v8 hairline dots
-// ---------------------------------------------------------------------------
-
 interface StreakTimelineCardProps {
   t: TranslationFn
   weekDays: StreakDayView[]
@@ -148,10 +144,6 @@ function StreakDot({ status }: Readonly<{ status: StreakDayView['status'] }>) {
   }
   return <span aria-hidden="true" style={{ width: 7, height: 7 }} />
 }
-
-// ---------------------------------------------------------------------------
-// FreezeProgressCard -- v8 chrome: SettingsRow list, plus Activate affordance
-// ---------------------------------------------------------------------------
 
 interface FreezeProgressCardProps {
   t: TranslationFn

@@ -15,6 +15,16 @@ export function AllDoneCelebration() {
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [previousAllDoneCelebration, setPreviousAllDoneCelebration] = useState<
+    boolean | undefined
+  >(undefined)
+
+  if (allDoneCelebration !== previousAllDoneCelebration) {
+    setPreviousAllDoneCelebration(allDoneCelebration)
+    if (allDoneCelebration) {
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -24,8 +34,6 @@ export function AllDoneCelebration() {
 
   useEffect(() => {
     if (allDoneCelebration) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror store trigger into local animation state
-      setShouldRender(true)
       requestAnimationFrame(() => setIsVisible(true))
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       dismissTimerRef.current = setTimeout(() => {

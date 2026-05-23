@@ -52,6 +52,7 @@
     }
   },
   "pushPrompt": {
+    "eyebrow": "Notifications",
     "title": "Stay on track",
     "description": "Enable notifications to get reminders for your habits",
     "enable": "Enable",
@@ -59,6 +60,7 @@
     "retryHint": "Notification setup failed. Tap Enable to retry."
   },
   "updatePrompt": {
+    "eyebrow": "Update available",
     "title": "Update available",
     "description": "A new version of Orbit is available with improvements and fixes",
     "update": "Update",
@@ -124,7 +126,10 @@
     "all": "All",
     "select": "Select",
     "previous": "Previous",
+    "previousPage": "Previous page",
     "next": "Next",
+    "nextPage": "Next page",
+    "codePlaceholder": "123456",
     "upgrade": "Upgrade",
     "proBadge": "Pro",
     "yearlyBadge": "Yearly",
@@ -210,6 +215,7 @@
     "errorReference": "Reference code: {requestId}",
     "backToLogin": "Back to login",
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
+    "sessionExpiringPrefix": "Session expires in",
     "sessionExpired": "Your session has expired. Please log in again.",
     "refresh": "Refresh",
     "login": "Log in",
@@ -239,6 +245,7 @@
   },
   "habits": {
     "title": "My Habits",
+    "emptyState": "No habits yet",
     "count": "no habits | one habit | {n} habits",
     "dueToday": "Due today",
     "overdue": "Overdue",
@@ -590,6 +597,14 @@
       "resisted": "Resisted",
       "scheduled": "Scheduled"
     },
+    "statusDot": {
+      "done": "Done",
+      "empty": "Not done",
+      "skip": "Skipped",
+      "overdue": "Overdue",
+      "bad": "Slipped",
+      "frozen": "Frozen"
+    },
     "completionHistory": "Completion History",
     "noCompletions": "No completions",
     "less": "Less",
@@ -657,6 +672,13 @@
   },
   "chat": {
     "title": "Astra",
+    "pendingOp": {
+      "risk": {
+        "high": "High risk",
+        "destructive": "Destructive",
+        "low": "Low risk"
+      }
+    },
     "empty": {
       "title": "How did the day land?"
     },
@@ -967,11 +989,16 @@
   "trial": {
     "proBadge": "Trial",
     "banner": {
+      "trialEyebrow": "Pro Trial",
       "daysLeft": "Pro Trial - {days} day left | Pro Trial - {days} days left",
       "lastDay": "Trial ends today!",
       "upgrade": "Upgrade"
     },
     "expired": {
+      "eyebrow": "Trial ended",
+      "heading": "Your Pro Trial Has Ended",
+      "paused": "Paused",
+      "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "title": "Your Pro Trial Has Ended",
       "subtitle": "You had {days} day of full Pro access. Don't lose what you built. | You had {days} days of full Pro access. Don't lose what you built.",
       "dontLose": "Don't lose access to:",
@@ -1054,6 +1081,8 @@
         "create": "Create Habit",
         "creating": "Creating...",
         "success": "Habit created!",
+        "useForm": "Use a form",
+        "starters": "Or try one",
         "frequency": {
           "daily": "Daily",
           "weekly": "Weekly",
@@ -1075,6 +1104,8 @@
       "createGoal": {
         "title": "Set a goal",
         "optional": "Optional",
+        "proTag": "PRO",
+        "starters": "Or try one",
         "subtitle": "Goals give your habits a bigger purpose.",
         "descriptionPlaceholder": "e.g., Read 12 books this year",
         "targetPlaceholder": "Quantity",
@@ -1117,7 +1148,8 @@
         "recap": {
           "habit": "Habit created",
           "goal": "Goal created",
-          "theme": "Theme personalized"
+          "theme": "Theme personalized",
+          "astra": "AI assistant"
         },
         "trialTitle": "Your Pro Trial is Active",
         "trialDesc": "Enjoy full Pro access until {date}."
@@ -1893,10 +1925,13 @@
   },
   "orbitMcp": {
     "title": "For Developers",
+    "copy": "Copy",
     "description": "Connect AI tools like Claude to your Orbit account via MCP",
     "apiKeys": "API Keys",
     "apiKeysDescription": "API keys let external tools access your Orbit data on your behalf",
     "createKey": "Create API Key",
+    "createHeading": "Create API Key",
+    "revealHeading": "API Key Created",
     "noKeys": "No API keys yet",
     "keyName": "Key Name",
     "keyNamePlaceholder": "e.g. Claude Desktop",

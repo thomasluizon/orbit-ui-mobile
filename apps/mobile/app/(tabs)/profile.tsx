@@ -69,10 +69,6 @@ import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-// ---------------------------------------------------------------------------
-// Profile Screen
-// ---------------------------------------------------------------------------
-
 export default function ProfileScreen() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -97,7 +93,6 @@ export default function ProfileScreen() {
   const streak = profile?.currentStreak ?? 0
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
-  // Tour anchors
   const subscriptionRef = useRef<View>(null)
   const preferencesRef = useRef<View>(null)
   const retroRef = useRef<View>(null)
@@ -139,7 +134,6 @@ export default function ProfileScreen() {
     [profile?.hasProAccess, gamificationProfile, t],
   )
 
-  // --- Fresh Start ---
   const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
@@ -208,7 +202,6 @@ export default function ProfileScreen() {
     }
   }
 
-  // --- Delete Account ---
   const [showTourReplay, setShowTourReplay] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
@@ -272,7 +265,6 @@ export default function ProfileScreen() {
     }
   }
 
-  // Deleted items for Fresh Start
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
 
@@ -340,7 +332,6 @@ export default function ProfileScreen() {
     router.push('/streak')
   }, [router])
 
-  // Subscription label / hint computed once for the SettingsRow.
   const subscriptionLabel = profile?.isTrialActive
     ? t('profile.subscription.trial')
     : profile?.hasProAccess
@@ -389,7 +380,6 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        {/* User block */}
         <View style={[styles.userBlock, { borderBottomColor: tokens.hairline }]}>
           {isLoading ? (
             <>
@@ -419,7 +409,6 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Streak row */}
         <View ref={streakRef} collapsable={false}>
           <Pressable
             onPress={handleStreakPress}
@@ -533,7 +522,6 @@ export default function ProfileScreen() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* Fresh Start Modal */}
       <Modal
         visible={showResetModal}
         transparent
@@ -691,18 +679,15 @@ export default function ProfileScreen() {
         </KeyboardAwareScrollView>
       </Modal>
 
-      {/* Tour Replay Modal */}
       <TourReplayModal
         visible={showTourReplay}
         onClose={() => setShowTourReplay(false)}
       />
 
-      {/* Fresh Start Animation */}
       {showFreshStartAnim && (
         <FreshStartAnimation onComplete={handleFreshStartComplete} />
       )}
 
-      {/* Delete Account Modal */}
       <Modal
         visible={showDeleteModal}
         transparent
@@ -901,10 +886,6 @@ export default function ProfileScreen() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 function createStyles(_tokens: Tokens) {
   return StyleSheet.create({
     safeArea: { flex: 1 },
@@ -920,7 +901,6 @@ function createStyles(_tokens: Tokens) {
       marginVertical: 12,
     },
 
-    // User block
     userBlock: {
       paddingHorizontal: 20,
       paddingVertical: 18,
@@ -961,7 +941,6 @@ function createStyles(_tokens: Tokens) {
       borderRadius: 4,
     },
 
-    // Streak row
     streakRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -995,7 +974,6 @@ function createStyles(_tokens: Tokens) {
       fontSize: 13,
     },
 
-    // Modal
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.58)',
@@ -1055,7 +1033,6 @@ function createStyles(_tokens: Tokens) {
       flex: 1,
     },
 
-    // Buttons
     primaryButton: {
       borderRadius: 8,
       paddingVertical: 12,

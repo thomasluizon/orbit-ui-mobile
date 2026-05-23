@@ -11,9 +11,10 @@ import { useTranslation } from "react-i18next";
 import type { GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
-import { radius } from "@/lib/theme";
-import type { ThemeContextValue } from "@/lib/theme-provider";
+import { createTokensV2, radius } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme";
+
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface StatusFilter {
   key: GoalStatus | null;
@@ -36,8 +37,12 @@ function SkeletonCard({
 
 export function GoalsView() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null);
 
   const { data, isFetched } = useGoals(activeFilter);
@@ -103,7 +108,7 @@ export function GoalsView() {
       ) : (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconContainer}>
-            <Flag size={32} color={colors.textMuted} />
+            <Flag size={32} color={tokens.fg3} />
           </View>
           <Text style={styles.emptyTitle}>{t("goals.empty")}</Text>
           <Text style={styles.emptySubtitle}>{t("goals.emptyHint")}</Text>
@@ -113,7 +118,7 @@ export function GoalsView() {
   );
 }
 
-function createStyles(colors: ThemeContextValue["colors"]) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       paddingTop: 16,
@@ -128,32 +133,32 @@ function createStyles(colors: ThemeContextValue["colors"]) {
       paddingVertical: 10,
       minHeight: 42,
       borderRadius: radius.lg,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       flexShrink: 0,
       justifyContent: "center",
     },
     filterChipActive: {
-      backgroundColor: colors.primaryTintBg,
-      borderColor: colors.primaryTintBorder,
+      backgroundColor: tokens.bgElev,
+      borderColor: tokens.hairlineStrong,
     },
     filterChipText: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.textFaded,
+      color: tokens.fg3,
     },
     filterChipTextActive: {
-      color: colors.primary,
+      color: tokens.primary,
     },
     skeletonContainer: {
       gap: 12,
     },
     skeletonCard: {
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderRadius: radius.xl,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 20,
       gap: 10,
       shadowColor: "#000",
@@ -166,19 +171,19 @@ function createStyles(colors: ThemeContextValue["colors"]) {
       height: 20,
       width: "66%",
       borderRadius: 999,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     skeletonBody: {
       height: 12,
       width: "100%",
       borderRadius: 999,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     skeletonBar: {
       height: 8,
       width: "100%",
       borderRadius: 999,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     emptyState: {
       alignItems: "center",
@@ -186,17 +191,17 @@ function createStyles(colors: ThemeContextValue["colors"]) {
       paddingHorizontal: 20,
       paddingVertical: 56,
       borderRadius: radius.xl,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
     },
     emptyIconContainer: {
       width: 64,
       height: 64,
       borderRadius: 32,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 16,
@@ -204,12 +209,12 @@ function createStyles(colors: ThemeContextValue["colors"]) {
     emptyTitle: {
       fontSize: 16,
       fontWeight: "600",
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginBottom: 4,
     },
     emptySubtitle: {
       fontSize: 14,
-      color: colors.textMuted,
+      color: tokens.fg3,
       textAlign: "center",
       marginBottom: 24,
     },

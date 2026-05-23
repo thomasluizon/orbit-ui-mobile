@@ -8,8 +8,10 @@ import {
   StyleSheet,
 } from 'react-native'
 import { ChevronDown, Check } from 'lucide-react-native'
-import { radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AppSelectOption {
   value: string
@@ -30,8 +32,12 @@ export function AppSelect({
   label,
 }: Readonly<AppSelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
-  const { colors, shadows } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
 
   const selectedOption = options.find((o) => o.value === value)
 
@@ -59,7 +65,7 @@ export function AppSelect({
         >
           {selectedOption?.label ?? label ?? ''}
         </Text>
-        <ChevronDown size={16} color={colors.textMuted} />
+        <ChevronDown size={16} color={tokens.fg3} />
       </TouchableOpacity>
 
       {/* Options modal */}
@@ -104,7 +110,7 @@ export function AppSelect({
                       {item.label}
                     </Text>
                     {isSelected ? (
-                      <Check size={16} color={colors.primary} />
+                      <Check size={16} color={tokens.primary} />
                     ) : null}
                   </TouchableOpacity>
                 )
@@ -117,30 +123,27 @@ export function AppSelect({
   )
 }
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>['shadows']) {
   return StyleSheet.create({
     trigger: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       borderRadius: radius.sm,
       paddingVertical: 12,
       paddingHorizontal: 16,
     },
     triggerText: {
       flex: 1,
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 14,
       marginRight: 8,
     },
     triggerPlaceholder: {
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,
@@ -153,22 +156,22 @@ function createStyles(
       width: '100%',
       maxWidth: 360,
       maxHeight: '60%',
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 8,
       ...shadows.lg,
       elevation: 12,
     },
     sheetTitle: {
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 14,
       fontWeight: '600',
       paddingHorizontal: 12,
       paddingVertical: 10,
       borderBottomWidth: 1,
-      borderBottomColor: colors.borderMuted,
+      borderBottomColor: tokens.hairline,
       marginBottom: 4,
     },
     list: {
@@ -183,15 +186,15 @@ function createStyles(
       borderRadius: radius.sm,
     },
     optionSelected: {
-      backgroundColor: colors.primary_10,
+      backgroundColor: tokens.bgSunk,
     },
     optionText: {
       flex: 1,
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 14,
     },
     optionTextSelected: {
-      color: colors.primary,
+      color: tokens.primary,
       fontWeight: '500',
     },
   })

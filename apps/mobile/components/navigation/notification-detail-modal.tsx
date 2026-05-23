@@ -13,10 +13,6 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface NotificationDetailModalProps {
   open: boolean
   onClose: () => void
@@ -24,10 +20,6 @@ interface NotificationDetailModalProps {
   onMarkAsRead: (id: string) => void
   onDelete: (id: string) => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function NotificationDetailModal({
   open,
@@ -100,10 +92,6 @@ export function NotificationDetailModal({
     </BottomSheetModal>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({

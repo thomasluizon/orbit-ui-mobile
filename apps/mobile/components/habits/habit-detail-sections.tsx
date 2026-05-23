@@ -31,14 +31,7 @@ interface HabitDetailStatsGridProps {
   metrics: HabitDetailMetrics | null
   loading: boolean
   t: TranslationFn
-  colors: {
-    primary: string
-    surfaceGround: string
-    borderMuted: string
-    textSecondary: string
-    textPrimary: string
-    textMuted: string
-  }
+  tokens: ReturnType<typeof createTokensV2>
   styles: Pick<
     HabitDetailSectionStyles,
     | 'statsGrid'
@@ -54,14 +47,14 @@ interface HabitDetailStatsGridProps {
 }
 
 /**
- * Legacy v1 stats grid kept for tests / any v1 surfaces not yet migrated.
- * The v8 Habit Detail Drawer renders `HabitDetailStatsRow` instead.
+ * Legacy stats grid kept for tests / any older surfaces not yet migrated.
+ * The current Habit Detail Drawer renders `HabitDetailStatsRow` instead.
  */
 export function HabitDetailStatsGrid({
   metrics,
   loading,
   t,
-  colors,
+  tokens,
   styles,
 }: Readonly<HabitDetailStatsGridProps>) {
   if (metrics && !loading) {
@@ -70,7 +63,7 @@ export function HabitDetailStatsGrid({
         <Text style={styles.sectionTitle}>{t('habits.detail.stats')}</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Flame size={20} color={colors.primary} />
+            <Flame size={20} color={tokens.primary} />
             <Text style={styles.statLabel}>
               {t('habits.detail.currentStreak')}
             </Text>
@@ -79,7 +72,7 @@ export function HabitDetailStatsGrid({
             </Text>
           </View>
           <View style={styles.statCard}>
-            <Trophy size={20} color={colors.primary} />
+            <Trophy size={20} color={tokens.primary} />
             <Text style={styles.statLabel}>
               {t('habits.detail.longestStreak')}
             </Text>
@@ -88,7 +81,7 @@ export function HabitDetailStatsGrid({
             </Text>
           </View>
           <View style={styles.statCard}>
-            <BarChart3 size={20} color={colors.primary} />
+            <BarChart3 size={20} color={tokens.primary} />
             <Text style={styles.statLabel}>
               {t('habits.detail.monthlyRate')}
             </Text>
@@ -125,7 +118,7 @@ export function HabitDetailStatsGrid({
         style={[
           styles.noDataText,
           {
-            color: colors.textMuted,
+            color: tokens.fg3,
             textAlign: 'center',
             paddingVertical: 8,
           },
@@ -136,10 +129,6 @@ export function HabitDetailStatsGrid({
     </View>
   )
 }
-
-// ---------------------------------------------------------------------------
-// v8 stats row: three column mono numbers + plain labels, hairline below.
-// ---------------------------------------------------------------------------
 
 interface HabitDetailStatsRowProps {
   metrics: HabitDetailMetrics | null

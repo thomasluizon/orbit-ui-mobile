@@ -40,10 +40,6 @@ import { useAdMob } from '@/hooks/use-ad-mob'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface GoalDetailDrawerProps {
   open: boolean
   onClose: () => void
@@ -52,12 +48,8 @@ interface GoalDetailDrawerProps {
 
 type ProgressDismissTarget = 'drawer' | 'form'
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 /**
- * v8 Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
+ * Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
  * at-risk, behind, completed, abandoned, streak, update (active progress
  * form). Preserves: streak vs standard handling, progress mutation,
  * status mutation, delete mutation, edit modal, dismiss guard.
@@ -682,10 +674,6 @@ export function GoalDetailDrawer({
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(
   tokens: ReturnType<typeof createTokensV2>,

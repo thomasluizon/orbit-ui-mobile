@@ -8,17 +8,9 @@ import { getErrorMessage , API } from '@orbit/shared/api'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 import { apiClient } from '@/lib/api-client'
 
-// ---------------------------------------------------------------------------
-// Helper: fetch habit detail
-// ---------------------------------------------------------------------------
-
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   return apiClient<HabitDetail>(API.habits.get(habitId))
 }
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface DrillNavigationState {
   drillStack: string[]
@@ -33,10 +25,6 @@ export interface DrillNavigationState {
   refreshCurrent: () => Promise<void>
   getDrillChildren: (parentId: string) => NormalizedHabit[]
 }
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,

@@ -26,10 +26,6 @@ import {
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface CreateGoalModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -101,10 +97,6 @@ function buildCreateGoalRequest(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModalProps>) {
   const t = useTranslations()
   const translate = useCallback(
@@ -114,7 +106,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   const createGoal = useCreateGoal()
   const { showError } = useAppToast()
 
-  // Form state
   const [goalType, setGoalType] = useState<GoalType>('Standard')
   const [description, setDescription] = useState('')
   const [targetValue, setTargetValue] = useState('')
@@ -150,41 +141,36 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     [submitted, description, targetValue, unit, translate],
   )
 
-  function handleTypeChange(type: GoalType) {
-    setGoalType(type)
-    if (type === 'Streak') {
-      setUnit(t('goals.form.streakUnit'))
-    } else {
-      setUnit('')
-    }
-  }
+  const handleTypeChange = useCallback(
+    (type: GoalType) => {
+      setGoalType(type)
+      if (type === 'Streak') {
+        setUnit(t('goals.form.streakUnit'))
+      } else {
+        setUnit('')
+      }
+    },
+    [t],
+  )
 
-  function validate(): string | null {
-    return translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
-  }
-
-  function buildTitle(): string {
-    return buildGoalTitle(description, targetValue, unit)
-  }
-
-  function resetForm() {
+  const resetForm = useCallback(() => {
     setGoalType('Standard')
     setDescription('')
     setTargetValue('')
     setUnit('')
     setDeadline('')
     setSubmitted(false)
-  }
+  }, [])
 
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
       setSubmitted(true)
 
-      const err = validate()
+      const err = translateErrorKey(
+        translate,
+        validateGoalDraftInput(description, targetValue, unit),
+      )
       if (err) {
         showError(err)
         return
@@ -194,7 +180,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       if (parsedTargetValue === null) return
 
       try {
-        const title = buildTitle()
+        const title = buildGoalTitle(description, targetValue, unit)
         const request = buildCreateGoalRequest(
           title,
           parsedTargetValue,
@@ -210,8 +196,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [createGoal, deadline, description, goalType, onOpenChange, showError, targetValue, translate, unit],
+    [createGoal, deadline, description, goalType, onOpenChange, resetForm, showError, targetValue, translate, unit],
   )
 
   return (
@@ -225,7 +210,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
         <form id="create-goal-form" className="-mx-6" onSubmit={onSubmit}>
-          {/* Goal Type chips */}
           <SectionLabel top={4}>{t('goals.form.type')}</SectionLabel>
           <div className="flex" style={{ padding: '0 20px 12px', gap: 6 }}>
             <Chip
@@ -273,7 +257,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             </div>
           )}
 
-          {/* Target row */}
           <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 12px', gap: 14 }}>
             <UnderlinedField
               label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
@@ -299,7 +282,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             )}
           </div>
 
-          {/* Description */}
           <div style={{ padding: '16px 20px 12px' }}>
             <UnderlinedField
               label={t('goals.form.description')}
@@ -317,7 +299,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             />
           </div>
 
-          {/* Deadline */}
           <SectionLabel>{t('goals.form.deadline')}</SectionLabel>
           <div style={{ padding: '0 20px 16px' }}>
             {deadline ? (
@@ -371,7 +352,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             )}
           </div>
 
-          {/* Footer action row */}
           <div
             className="flex items-center justify-between"
             style={{

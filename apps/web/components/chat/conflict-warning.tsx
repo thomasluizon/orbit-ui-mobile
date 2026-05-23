@@ -4,17 +4,9 @@ import { AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ConflictWarning as ConflictWarningType } from '@orbit/shared/types/chat'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface ConflictWarningProps {
   warning: ConflictWarningType
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function severityStyle(severity: ConflictWarningType['severity']): string {
   switch (severity) {
@@ -28,10 +20,6 @@ function severityStyle(severity: ConflictWarningType['severity']): string {
       return 'border-[var(--hairline)] bg-[var(--bg-elev)] text-[var(--fg-2)]'
   }
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
   const t = useTranslations()

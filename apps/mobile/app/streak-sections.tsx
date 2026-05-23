@@ -6,10 +6,6 @@ import { SettingsRow } from '@/components/ui/settings-row'
 type Tokens = ReturnType<typeof createTokensV2>
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
-// ---------------------------------------------------------------------------
-// Week Timeline (7-day grid · v8)
-// ---------------------------------------------------------------------------
-
 export type StreakDayView = {
   dateStr: string
   dayLabel: string
@@ -22,7 +18,7 @@ interface StreakWeekTimelineProps {
   tokens: Tokens
 }
 
-/** v8 7-column day grid: mono day label · dot/glyph by status. */
+/** 7-column day grid: mono day label · dot/glyph by status. */
 export function StreakWeekTimeline({
   weekDays,
   tokens,
@@ -94,10 +90,6 @@ export function StreakWeekTimeline({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Freeze Section (v8 SettingsRow-based, monthly-limit aware)
-// ---------------------------------------------------------------------------
-
 interface FreezeSectionProps {
   t: TranslationFn
   tokens: Tokens
@@ -119,7 +111,7 @@ interface FreezeSectionProps {
 }
 
 /**
- * v8 freeze section: hairline rows for Available / This month / progress.
+ * Freeze section: hairline rows for Available / This month / progress.
  * - When monthly limit is reached: shows "Available: 0" + italic limit message.
  * - Otherwise: shows count + inline "Use" link (if `canFreeze`) + usage row.
  */

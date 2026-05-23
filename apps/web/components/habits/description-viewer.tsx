@@ -36,17 +36,17 @@ export function DescriptionViewer({
   if (!mounted || !open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] bg-background flex flex-col">
+    <div className="fixed inset-0 z-[10000] bg-[var(--bg)] flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-border-muted shrink-0">
+      <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-[var(--hairline)] shrink-0">
         <button
           aria-label={t('common.back')}
-          className="size-9 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors duration-150"
+          className="size-9 rounded-full bg-[var(--bg-elev)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
           onClick={() => onOpenChange(false)}
         >
           <ArrowLeft className="size-4" />
         </button>
-        <h1 className="font-bold text-lg text-text-primary truncate">{title}</h1>
+        <h1 className="font-bold text-lg text-[var(--fg-1)] truncate">{title}</h1>
       </div>
 
       {/* Markdown content */}

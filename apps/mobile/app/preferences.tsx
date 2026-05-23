@@ -39,10 +39,6 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-// ---------------------------------------------------------------------------
-// Scheme Swatches — v8 strip of 6 colored dots, active has fg-1 inset ring.
-// ---------------------------------------------------------------------------
-
 interface SchemeSwatchesProps {
   active: ColorScheme
   hasProAccess: boolean
@@ -94,10 +90,6 @@ function SchemeSwatches({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Preferences Screen — v8 chrome
-// ---------------------------------------------------------------------------
-
 export default function PreferencesScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -125,7 +117,6 @@ export default function PreferencesScreen() {
     refreshPermissionStatus,
   } = usePushNotifications()
 
-  // --- Language ---
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
   const [previousProfileLanguage, setPreviousProfileLanguage] = useState(
     profile?.language,
@@ -153,7 +144,6 @@ export default function PreferencesScreen() {
     }
   }
 
-  // --- Week Start ---
   const weekStartOptions = buildWeekStartOptions(t)
   const weekStartMutation = useMutation({
     mutationFn: (day: number) =>
@@ -177,7 +167,6 @@ export default function PreferencesScreen() {
     },
   })
 
-  // --- Color Scheme ---
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
       router.push(buildUpgradeHref('/preferences'))
@@ -186,13 +175,11 @@ export default function PreferencesScreen() {
     applyScheme(scheme)
   }
 
-  // --- Theme Mode ---
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
     applyTheme(mode)
   }
 
-  // --- Home Screen ---
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
@@ -273,7 +260,6 @@ export default function PreferencesScreen() {
       >
         <TrialBanner />
 
-        {/* Language */}
         <SectionLabel>{t('profile.language.title')}</SectionLabel>
         <View
           style={[styles.chipsRow, { borderBottomColor: tokens.hairline }]}
@@ -289,7 +275,6 @@ export default function PreferencesScreen() {
           ))}
         </View>
 
-        {/* Appearance — Theme */}
         <SectionLabel>{t('preferences.themeMode')}</SectionLabel>
         <View
           style={[styles.themeRow, { borderBottomColor: tokens.hairline }]}
@@ -308,7 +293,6 @@ export default function PreferencesScreen() {
           />
         </View>
 
-        {/* Scheme */}
         <View
           style={[styles.schemeRow, { borderBottomColor: tokens.hairline }]}
         >
@@ -323,7 +307,6 @@ export default function PreferencesScreen() {
           />
         </View>
 
-        {/* Schedule */}
         <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
         <View
           style={[styles.weekRow, { borderBottomColor: tokens.hairline }]}
@@ -344,7 +327,6 @@ export default function PreferencesScreen() {
           </View>
         </View>
 
-        {/* Notifications */}
         <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
         {pushSupported ? (
           <>
@@ -401,7 +383,6 @@ export default function PreferencesScreen() {
           </View>
         )}
 
-        {/* Home */}
         <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
         <SettingsRow
           label={t('settings.homeScreen.showGeneralDesc')}

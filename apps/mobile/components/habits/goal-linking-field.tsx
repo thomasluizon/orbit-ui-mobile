@@ -6,8 +6,10 @@ import { API } from '@orbit/shared/api'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { apiClient } from '@/lib/api-client'
-import { radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface GoalLinkingFieldProps {
   selectedGoalIds: string[]
@@ -26,8 +28,12 @@ export function GoalLinkingField({
   onToggleGoal,
 }: Readonly<GoalLinkingFieldProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const { data: goals } = useQuery({
     queryKey: goalKeys.lists(),
@@ -84,7 +90,7 @@ export function GoalLinkingField({
   )
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       gap: 10,
@@ -94,7 +100,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 1,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     chips: {
       flexDirection: 'row',
@@ -108,12 +114,12 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       borderWidth: 1,
     },
     chipDefault: {
-      backgroundColor: colors.surface,
-      borderColor: colors.borderMuted,
+      backgroundColor: tokens.bgElev,
+      borderColor: tokens.hairline,
     },
     chipSelected: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: tokens.primary,
+      borderColor: tokens.primary,
     },
     chipDisabled: {
       opacity: 0.35,
@@ -123,17 +129,17 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       fontWeight: '700',
     },
     chipTextDefault: {
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     chipTextSelected: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     chipPercentage: {
       opacity: 0.72,
     },
     emptyText: {
       fontSize: 13,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
   })
 }

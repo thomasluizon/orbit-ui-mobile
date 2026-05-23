@@ -19,10 +19,6 @@ import {
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
-// ---------------------------------------------------------------------------
-// Gamification profile query
-// ---------------------------------------------------------------------------
-
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
@@ -66,12 +62,10 @@ export function useGamificationProfile(enabled = true) {
 
   const { leveledUp, newLevel, newAchievements } = milestones
 
-  // Clear level-up after overlay dismisses
   const clearLevelUp = useCallback(() => {
     setAcknowledgedLevel(profile?.level ?? null)
   }, [profile?.level])
 
-  // Invalidation helper
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
@@ -91,10 +85,6 @@ export function useGamificationProfile(enabled = true) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Streak info query
-// ---------------------------------------------------------------------------
-
 export function useStreakInfo() {
   return useQuery({
     queryKey: gamificationKeys.streak(),
@@ -102,10 +92,6 @@ export function useStreakInfo() {
     staleTime: QUERY_STALE_TIMES.gamification,
   })
 }
-
-// ---------------------------------------------------------------------------
-// Streak freeze mutation
-// ---------------------------------------------------------------------------
 
 export function useActivateStreakFreeze() {
   const queryClient = useQueryClient()
@@ -141,10 +127,6 @@ export function useActivateStreakFreeze() {
     },
   })
 }
-
-// ---------------------------------------------------------------------------
-// Derived selectors
-// ---------------------------------------------------------------------------
 
 export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null) {
   const streakQuery = useStreakInfo()

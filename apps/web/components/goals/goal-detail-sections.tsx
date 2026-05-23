@@ -25,7 +25,7 @@ interface GoalProgressHistorySectionProps {
 const HISTORY_PREVIEW_COUNT = 3
 
 /** Flush list of progress history entries: mono date right-aligned, change label
- *  in mono, optional italic note. Matches v8 GoalDetail history rows. */
+ *  in mono, optional italic note. */
 export function GoalProgressHistorySection({
   title,
   entries,
@@ -121,10 +121,6 @@ export function GoalProgressHistorySection({
   )
 }
 
-// ---------------------------------------------------------------------------
-// GoalProgressForm
-// ---------------------------------------------------------------------------
-
 interface GoalProgressFormProps {
   progressValue: number | null
   progressNote: string
@@ -143,7 +139,7 @@ interface GoalProgressFormProps {
 }
 
 /** Inline progress-update form rendered in-place inside the GoalDetailDrawer.
- *  Underlined inputs with mono numerals match v8 update flow. */
+ *  Underlined inputs with mono numerals. */
 export function GoalProgressForm({
   progressValue,
   progressNote,
@@ -243,7 +239,7 @@ interface UnderlinedInputFieldProps {
   onChange: (next: string) => void
 }
 
-/** v8 UnderlinedInput: tiny label, bare input with hairline underline. */
+/** UnderlinedInput: tiny label, bare input with hairline underline. */
 function UnderlinedInputField({
   label,
   value,
@@ -293,7 +289,7 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
-/** v8 linked-habits list: each habit is a single row with progress bar and percent. */
+/** Linked-habits list: each habit is a single row with progress bar and percent. */
 export function GoalLinkedHabitsSection({
   title,
   linkedHabits,
@@ -340,7 +336,7 @@ interface GoalActionButtonProps {
   destructive?: boolean
 }
 
-/** v8 quiet-link footer action: italic when destructive, otherwise fg-1. */
+/** Quiet-link footer action: italic when destructive, otherwise fg-1. */
 export function GoalActionButton({
   label,
   onClick,

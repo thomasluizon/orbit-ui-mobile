@@ -27,10 +27,6 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
-// ---------------------------------------------------------------------------
-// Underlined input — v8 form field with sentence-case label + hairline rule
-// ---------------------------------------------------------------------------
-
 interface UnderlinedInputProps {
   label: string
   value: string
@@ -88,11 +84,6 @@ function UnderlinedInput({
     </View>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Support Screen — v8 chrome
-// Underlined inputs + Send button. "Sent" success state with check + italic body.
-// ---------------------------------------------------------------------------
 
 export default function SupportScreen() {
   const goBackOrFallback = useGoBackOrFallback()

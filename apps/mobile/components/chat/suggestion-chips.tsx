@@ -1,8 +1,11 @@
 import { useMemo, useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useTourTarget } from "@/hooks/use-tour-target";
+
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface SuggestionChipsProps {
   onSelect: (suggestion: string) => void;
@@ -10,9 +13,13 @@ interface SuggestionChipsProps {
 
 export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
 
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const suggestionsRef = useRef<View>(null);
   useTourTarget("tour-chat-suggestions", suggestionsRef);
 
@@ -43,7 +50,7 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       flexDirection: "row",
@@ -55,14 +62,14 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderRadius: 9999,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
     },
     chipText: {
       fontSize: 12,
       fontWeight: "500",
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
   });
 }

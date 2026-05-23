@@ -69,7 +69,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         {items.length > 0 && !showSave && (
           <button
             type="button"
-            className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+            className="text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
             onClick={() => setShowSave(true)}
           >
             {t('habits.form.saveAsTemplate')}
@@ -78,20 +78,20 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         {templates.length > 0 && (
           <>
             {items.length > 0 && !showSave && (
-              <span className="text-text-muted text-xs">|</span>
+              <span className="text-[var(--fg-3)] text-xs">|</span>
             )}
             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
                 {t('habits.form.templates')}:
               </span>
               {templates.map((tmpl) => (
                 <span
                   key={tmpl.id}
-                  className="inline-flex items-center gap-1 rounded-lg text-xs bg-surface border border-border-muted"
+                  className="inline-flex items-center gap-1 rounded-lg text-xs bg-[var(--bg-elev)] border border-[var(--hairline)]"
                 >
                   <button
                     type="button"
-                    className="px-2 py-0.5 text-text-secondary hover:text-text-primary transition-colors duration-150"
+                    className="px-2 py-0.5 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
                     onClick={() => handleLoad(tmpl.id)}
                     aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
                   >
@@ -100,7 +100,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                   <button
                     type="button"
                     aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="px-1 py-0.5 text-text-muted hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
+                    className="px-1 py-0.5 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
                     onClick={() => handleDelete(tmpl.id)}
                     disabled={deleteTemplate.isPending && deleteTemplate.variables === tmpl.id}
                   >
@@ -119,7 +119,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             value={templateName}
             type="text"
             placeholder={t('habits.form.templateNamePlaceholder')}
-            className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="flex-1 min-w-0 bg-[var(--bg-elev)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-xl py-2 px-3 text-xs border border-[var(--hairline)] focus:outline-none focus:border-[var(--primary)]"
             onChange={(e) => setTemplateName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -130,7 +130,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-[background-color,opacity] duration-150"
+            className="shrink-0 px-3 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold disabled:opacity-50 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
             disabled={!templateName.trim() || createTemplate.isPending}
             onClick={handleSave}
             aria-label={t('common.save')}
@@ -139,7 +139,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors duration-150"
+            className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >

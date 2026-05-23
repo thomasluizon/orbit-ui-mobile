@@ -124,7 +124,6 @@ export default function StreakPage() {
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {/* Hero block: 80px mono number */}
           <div
             className={`streak-hero streak-hero--${tier} flex flex-col items-center text-center`}
             style={{

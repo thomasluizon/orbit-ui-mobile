@@ -16,6 +16,7 @@ interface SettingsRowProps {
   children?: ReactNode
   href?: string
   ariaLabel?: string
+  divider?: boolean
 }
 
 export function SettingsRow({
@@ -28,6 +29,7 @@ export function SettingsRow({
   leadingDot,
   children,
   ariaLabel,
+  divider = true,
 }: Readonly<SettingsRowProps>) {
   const interactive = typeof onClick === 'function'
   const RootTag = interactive ? 'button' : 'div'
@@ -41,12 +43,12 @@ export function SettingsRow({
       style={{
         padding: '14px 20px',
         gap: 12,
-        borderBottom: '1px solid var(--hairline)',
+        borderBottom: divider ? '1px solid var(--hairline)' : 'none',
         background: 'transparent',
         textAlign: 'left',
         appearance: 'none',
         border: 0,
-        borderBottomWidth: 1,
+        borderBottomWidth: divider ? 1 : 0,
         borderBottomStyle: 'solid',
         borderBottomColor: 'var(--hairline)',
       }}

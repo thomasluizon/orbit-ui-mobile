@@ -42,11 +42,6 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
 import { ConfirmDialogV2 } from '@/components/ui/confirm-dialog-v2'
 
-// ---------------------------------------------------------------------------
-// Advanced Screen — v8 chrome
-// Widget · Developers (API keys list when Pro, Locked when free) · Connection instructions.
-// ---------------------------------------------------------------------------
-
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -61,10 +56,8 @@ export default function AdvancedScreen() {
   const dateFnsLocale = i18n.language === 'pt-BR' ? ptBR : enUS
   const { isOnline } = useOffline()
 
-  // --- Widget Info ---
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
 
-  // --- API Keys ---
   const apiKeysQuery = useQuery({
     queryKey: apiKeyKeys.lists(),
     queryFn: () => apiClient<ApiKey[]>(API.apiKeys.list),
@@ -136,7 +129,6 @@ export default function AdvancedScreen() {
     },
   })
 
-  // --- Connection Instructions ---
   const [activeConfigTab, setActiveConfigTab] =
     useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
@@ -208,7 +200,6 @@ export default function AdvancedScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Widget */}
         <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
         <SettingsRow
           label={t('profile.widgetTitle')}
@@ -216,7 +207,6 @@ export default function AdvancedScreen() {
           accessory="chevron"
         />
 
-        {/* Developers */}
         <SectionLabel>{t('advancedSettings.developersSection')}</SectionLabel>
 
         {profile?.hasProAccess ? (
@@ -332,7 +322,6 @@ export default function AdvancedScreen() {
               </View>
             )}
 
-            {/* Connection instructions */}
             <SectionLabel>{t('orbitMcp.connectionInstructions')}</SectionLabel>
             <View style={styles.tabRow}>
               {MCP_CONFIG_TABS.map((tab) => (

@@ -66,7 +66,6 @@ export function OnboardingWelcome() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
-      {/* Saturn dropcap + title block */}
       <div
         className="flex flex-col items-center"
         style={{ gap: 14, paddingTop: 14 }}
@@ -90,7 +89,6 @@ export function OnboardingWelcome() {
         </h1>
       </div>
 
-      {/* Week starts on */}
       <div>
         <SectionLabel top={12} bottom={10}>
           {t('onboarding.flow.welcome.weekStart')}
@@ -125,7 +123,6 @@ export function OnboardingWelcome() {
         </div>
       </div>
 
-      {/* Color scheme (Pro/trial only) */}
       {hasProAccess && (
         <div>
           <SectionLabel top={12} bottom={10}>
@@ -145,7 +142,7 @@ export function OnboardingWelcome() {
                     borderRadius: 999,
                     background: option.color,
                     boxShadow: isActive
-                      ? 'inset 0 0 0 2px var(--bg-base), 0 0 0 2px var(--fg-1)'
+                      ? 'inset 0 0 0 2px var(--bg), 0 0 0 2px var(--fg-1)'
                       : 'inset 0 0 0 1px var(--hairline-strong)',
                   }}
                   aria-label={t(

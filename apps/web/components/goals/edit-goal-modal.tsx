@@ -23,10 +23,6 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface EditGoalModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -46,10 +42,6 @@ interface UpdateGoalRequest {
   unit: string
   deadline?: string | null
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function EditGoalModal({
   open,
@@ -116,23 +108,15 @@ export function EditGoalModal({
     }
   }
 
-  function validate(): string | null {
-    return translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
-  }
-
-  function buildTitle(): string {
-    return buildGoalTitle(description, targetValue, unit)
-  }
-
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
       setSubmitted(true)
 
-      const err = validate()
+      const err = translateErrorKey(
+        translate,
+        validateGoalDraftInput(description, targetValue, unit),
+      )
       if (err) {
         showError(err)
         return
@@ -142,7 +126,7 @@ export function EditGoalModal({
       if (parsedTargetValue === null) return
 
       try {
-        const title = buildTitle()
+        const title = buildGoalTitle(description, targetValue, unit)
         const request: UpdateGoalRequest = {
           title,
           targetValue: parsedTargetValue,
@@ -156,7 +140,6 @@ export function EditGoalModal({
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 

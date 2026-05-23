@@ -44,11 +44,6 @@ interface UserFact {
   category: string | null
 }
 
-// ---------------------------------------------------------------------------
-// AI Settings Screen — v8 chrome
-// Reflect · Memory · Summary · What Astra knows (paginated, select, empty)
-// ---------------------------------------------------------------------------
-
 export default function AiSettingsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -65,7 +60,6 @@ export default function AiSettingsScreen() {
   const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
 
-  // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       performQueuedApiMutation({
@@ -92,7 +86,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  // --- AI Summary toggle ---
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       performQueuedApiMutation({
@@ -119,7 +112,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  // --- User Facts ---
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
     queryFn: () => apiClient<UserFact[]>(API.userFacts.list),
@@ -202,7 +194,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  // Pagination
   const [factsPage, setFactsPage] = useState(1)
   const totalFactsPages = useMemo(
     () => Math.max(1, Math.ceil(facts.length / USER_FACTS_PER_PAGE)),
@@ -217,7 +208,6 @@ export default function AiSettingsScreen() {
     setFactsPage(totalFactsPages)
   }
 
-  // Selection mode
   const [selectMode, setSelectMode] = useState(false)
   const [selectedFactIds, setSelectedFactIds] = useState<Set<string>>(new Set())
 
@@ -244,7 +234,6 @@ export default function AiSettingsScreen() {
     }
   }
 
-  // Category label is always rendered as uppercase mono pill.
   function categoryLabel(category: string | null): string {
     const norm = normalizeUserFactCategory(category) ?? 'context'
     return t(`profile.facts.${norm}`, { defaultValue: norm }).toUpperCase()
@@ -306,7 +295,6 @@ export default function AiSettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Memory */}
         <SectionLabel>{t('profile.aiMemory.title')}</SectionLabel>
         {hasProAccess ? (
           <SettingsRow
@@ -337,7 +325,6 @@ export default function AiSettingsScreen() {
           </Text>
         </View>
 
-        {/* Summary */}
         <SectionLabel>{t('profile.aiSummary.title')}</SectionLabel>
         {hasProAccess ? (
           <SettingsRow
@@ -368,7 +355,6 @@ export default function AiSettingsScreen() {
           </Text>
         </View>
 
-        {/* What Astra knows */}
         <SectionLabel
           trailing={
             hasProAccess && totalFactsPages > 1 ? pagingTrailing : factsTrailing

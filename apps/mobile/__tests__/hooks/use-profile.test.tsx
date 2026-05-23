@@ -47,8 +47,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
 }))
 
-vi.mock('i18next', () => ({
-  default: mocks.i18n,
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ i18n: mocks.i18n, t: (key: string) => key }),
 }))
 
 vi.mock('@/lib/api-client', () => ({

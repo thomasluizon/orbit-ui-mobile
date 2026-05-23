@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
@@ -25,14 +25,16 @@ interface PendingOperationCardProps {
   ) => Promise<PendingOperationExecutionResult>
 }
 
-function formatRiskLabel(riskClass: PendingAgentOperation['riskClass']): string {
+function getRiskLabelKey(
+  riskClass: PendingAgentOperation['riskClass'],
+): 'chat.pendingOp.risk.high' | 'chat.pendingOp.risk.destructive' | 'chat.pendingOp.risk.low' {
   switch (riskClass) {
     case 'High':
-      return 'High risk'
+      return 'chat.pendingOp.risk.high'
     case 'Destructive':
-      return 'Destructive'
+      return 'chat.pendingOp.risk.destructive'
     default:
-      return 'Low risk'
+      return 'chat.pendingOp.risk.low'
   }
 }
 
@@ -64,10 +66,7 @@ export function PendingOperationCard({
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
 
   const needsStepUp = pendingOperation.confirmationRequirement === 'StepUp'
-  const riskLabel = useMemo(
-    () => formatRiskLabel(pendingOperation.riskClass),
-    [pendingOperation.riskClass],
-  )
+  const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass))
   const primaryActionLabel = isLoading
     ? t('common.loading')
     : needsStepUp
@@ -149,7 +148,7 @@ export function PendingOperationCard({
         </div>
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-text-primary">
+            <p className="text-sm font-semibold text-[var(--fg-1)]">
               {pendingOperation.displayName}
             </p>
             <span className="rounded-full border border-[var(--status-overdue)]/20 bg-[var(--status-overdue)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--status-overdue)]">
@@ -157,7 +156,7 @@ export function PendingOperationCard({
             </span>
           </div>
 
-          <p className="text-xs leading-relaxed text-text-secondary">
+          <p className="text-xs leading-relaxed text-[var(--fg-2)]">
             {pendingOperation.summary}
           </p>
 
@@ -171,12 +170,12 @@ export function PendingOperationCard({
                 onChange={(event) =>
                   setVerificationCode(event.target.value.replaceAll(/\D/g, '').slice(0, 6))
                 }
-                placeholder="123456"
-                className="w-full rounded-[var(--radius-lg)] border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none transition focus:border-primary"
+                placeholder={t('common.codePlaceholder')}
+                className="w-full rounded-[var(--radius-lg)] border border-[var(--hairline)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg-1)] outline-none transition focus:border-[var(--primary)]"
               />
               <button
                 type="button"
-                className="rounded-[var(--radius-lg)] bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-50"
+                className="rounded-[var(--radius-lg)] bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--primary-pressed)] disabled:opacity-50"
                 onClick={() => {
                   void handleVerify()
                 }}
@@ -190,7 +189,7 @@ export function PendingOperationCard({
           {!challengeId && !successMessage && (
             <button
               type="button"
-              className="rounded-[var(--radius-lg)] bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-50"
+              className="rounded-[var(--radius-lg)] bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--primary-pressed)] disabled:opacity-50"
               onClick={() => {
                 void handleStart()
               }}
@@ -201,7 +200,7 @@ export function PendingOperationCard({
           )}
 
           {challengeId && !successMessage && (
-            <p className="text-[11px] text-text-muted">
+            <p className="text-[11px] text-[var(--fg-3)]">
               {t('auth.codeSent')}
             </p>
           )}

@@ -23,14 +23,8 @@ import { ParentRing } from '@/components/ui/parent-ring'
 import { SelectCheck } from '@/components/ui/select-check'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
- * Action callbacks consumed by HabitRow. Shape is compatible with the legacy
- * `HabitCardActions` interface from `components/habit-card.tsx` so Phase 3
- * screen migrations can swap the component without touching call sites.
+ * Action callbacks consumed by HabitRow.
  */
 export interface HabitRowActions {
   onLog?: () => void
@@ -67,20 +61,15 @@ interface HabitRowProps {
   style?: StyleProp<ViewStyle>
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 /**
- * v8 Linear-tactical habit row: emoji · title · inline meta · trailing status dot.
- * Renders a tree-line connector for child rows. Replaces `habit-card.tsx`
- * lookups in Phase 3 screens (old component stays until Phase 7 cleanup).
+ * Habit row: emoji · title · inline meta · trailing status dot.
+ * Renders a tree-line connector for child rows.
  *
  * IMPORTANT: the root is a bare `Animated.View` from `react-native-reanimated`.
  * Stripping this wrapper regresses `@gorhom/bottom-sheet` modals on Android
  * (their `present()` silently no-ops). See `apps/mobile/lib/providers.tsx`
- * and commit 4d27a77 for the provider-level stabilizer; this row-level wrap
- * is the per-card piece of the same workaround. Do not "simplify" it.
+ * for the provider-level stabilizer; this row-level wrap is the per-card
+ * piece of the same workaround. Do not "simplify" it.
  */
 export function HabitRow({
   habit,
@@ -117,7 +106,6 @@ export function HabitRow({
 
   const isOverdue = status === 'overdue'
 
-  // Compose inline meta separated by · dots.
   const metaParts: (string | { kind: 'overdue' | 'bad' })[] = []
   if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
@@ -199,7 +187,6 @@ export function HabitRow({
       >
         {indent > 0 ? (
           <>
-            {/* Vertical tree line. Stops at midpoint on the last child. */}
             <View
               pointerEvents="none"
               style={[
@@ -211,7 +198,6 @@ export function HabitRow({
                 },
               ]}
             />
-            {/* Horizontal branch stub at midpoint. */}
             <View
               pointerEvents="none"
               style={[
@@ -355,10 +341,6 @@ export function HabitRow({
     </Animated.View>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 // Tokens are consumed via inline styles for dynamic theming; static styles
 // below contain no color values.

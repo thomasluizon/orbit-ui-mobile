@@ -60,7 +60,7 @@ export function BottomTabBar({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
 
-  const fabVisible = showFab && active !== 'chat' && active !== 'profile'
+  const fabVisible = showFab && active === 'today'
 
   return (
     <View

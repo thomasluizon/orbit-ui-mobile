@@ -9,7 +9,7 @@ import {
   buildHabitLogDateSet,
 } from "@orbit/shared/utils"
 import type { HabitLog } from "@orbit/shared/types/calendar"
-import { radius } from "@/lib/theme"
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme"
 import { useProfile } from "@/hooks/use-profile"
 import { useHabitLogs } from "@/hooks/use-habits"
@@ -21,18 +21,7 @@ interface HabitCalendarProps {
   logs?: HabitLog[] | null
 }
 
-type HabitCalendarColors = {
-  primary: string
-  surfaceGround: string
-  surface: string
-  surfaceElevated: string
-  borderMuted: string
-  textMuted: string
-  textSecondary: string
-  textPrimary: string
-  textFaded: string
-  white: string
-}
+type AppTokens = ReturnType<typeof createTokensV2>
 
 type HabitCalendarShadows = {
   sm: Record<string, unknown>
@@ -43,8 +32,12 @@ export function HabitCalendar({
   logs: externalLogs,
 }: Readonly<HabitCalendarProps>) {
   const { t } = useTranslation()
-  const { colors, shadows } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
   const { displayMonthYear, displayDate } = useDateFormat()
   const { displayTime } = useTimeFormat()
 
@@ -126,7 +119,7 @@ export function HabitCalendar({
           onPress={prevMonth}
           activeOpacity={0.7}
         >
-          <ChevronLeft size={16} color={colors.textMuted} />
+          <ChevronLeft size={16} color={tokens.fg3} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -144,7 +137,7 @@ export function HabitCalendar({
           onPress={nextMonth}
           activeOpacity={0.7}
         >
-          <ChevronRight size={16} color={colors.textMuted} />
+          <ChevronRight size={16} color={tokens.fg3} />
         </TouchableOpacity>
       </View>
 
@@ -204,7 +197,7 @@ export function HabitCalendar({
               onPress={() => setSelectedDate(null)}
               activeOpacity={0.7}
             >
-              <X size={14} color={colors.textMuted} />
+              <X size={14} color={tokens.fg3} />
             </TouchableOpacity>
           </View>
 
@@ -237,14 +230,14 @@ export function HabitCalendar({
 }
 
 function createStyles(
-  colors: HabitCalendarColors,
+  tokens: AppTokens,
   shadows: HabitCalendarShadows,
 ) {
   return StyleSheet.create({
     container: {
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       borderRadius: radius.xl,
       padding: 16,
       gap: 12,
@@ -261,7 +254,7 @@ function createStyles(
       borderRadius: 15,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     monthButton: {
       flex: 1,
@@ -271,7 +264,7 @@ function createStyles(
     monthLabel: {
       fontSize: 14,
       fontWeight: "700",
-      color: colors.textPrimary,
+      color: tokens.fg1,
       textTransform: "capitalize",
     },
     weekdayRow: {
@@ -288,7 +281,7 @@ function createStyles(
       fontWeight: "700",
       textTransform: "uppercase",
       letterSpacing: 0.8,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     grid: {
       flexDirection: "row",
@@ -306,17 +299,17 @@ function createStyles(
       borderRadius: 17,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
     },
     completedDaySelected: {
       borderWidth: 2,
-      borderColor: colors.primary,
+      borderColor: tokens.primary,
       transform: [{ scale: 1.04 }],
     },
     completedDayText: {
       fontSize: 12,
       fontWeight: "700",
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     dayPlaceholder: {
       width: 34,
@@ -333,20 +326,20 @@ function createStyles(
     },
     todayPlaceholder: {
       borderWidth: 1,
-      borderColor: colors.primary,
+      borderColor: tokens.primary,
     },
     dayPlaceholderText: {
       fontSize: 12,
       fontWeight: "500",
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     dayPastText: {
-      color: colors.textFaded,
+      color: tokens.fg3,
     },
     selectedLogs: {
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       borderRadius: radius.lg,
       padding: 12,
       gap: 10,
@@ -361,7 +354,7 @@ function createStyles(
       flex: 1,
       fontSize: 12,
       fontWeight: "700",
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     closeSelectionButton: {
       width: 22,
@@ -369,7 +362,7 @@ function createStyles(
       borderRadius: 11,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
     },
     selectedLogsList: {
       gap: 8,
@@ -379,7 +372,7 @@ function createStyles(
     },
     logMeta: {
       fontSize: 11,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     footer: {
       flexDirection: "row",
@@ -388,21 +381,21 @@ function createStyles(
       gap: 12,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.borderMuted,
+      borderTopColor: tokens.hairline,
     },
     footerLabel: {
       fontSize: 10,
       fontWeight: "700",
       textTransform: "uppercase",
       letterSpacing: 0.8,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     footerValue: {
       flex: 1,
       textAlign: "right",
       fontSize: 12,
       fontWeight: "700",
-      color: colors.primary,
+      color: tokens.primary,
     },
   })
 }

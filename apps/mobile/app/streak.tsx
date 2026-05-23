@@ -30,11 +30,6 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-// ---------------------------------------------------------------------------
-// Streak Screen — v8 Linear-tactical chrome
-// 80px mono hero number + week timeline + freeze section + tier row
-// ---------------------------------------------------------------------------
-
 export default function StreakScreen() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -78,7 +73,6 @@ export default function StreakScreen() {
     return ''
   }, [streak, t])
 
-  // Build 7-day timeline
   const weekDays = useMemo(() => {
     const today = new Date()
     const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
@@ -136,7 +130,6 @@ export default function StreakScreen() {
     ? t('streakDisplay.freeze.activeToday')
     : t('streakDisplay.detail.currentStreak')
 
-  // Tier label (purely visual, based on streak length)
   const tier = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
     if (streak >= 100) return 'Legendary'
@@ -166,7 +159,6 @@ export default function StreakScreen() {
           </View>
         ) : (
           <>
-            {/* Hero: 80px mono number */}
             <View
               style={[
                 styles.hero,
@@ -201,11 +193,9 @@ export default function StreakScreen() {
               ) : null}
             </View>
 
-            {/* Week timeline */}
             <SectionLabel>{t('streakDisplay.detail.thisWeek')}</SectionLabel>
             <StreakWeekTimeline weekDays={weekDays} tokens={tokens} />
 
-            {/* Freeze section */}
             <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
             <FreezeSection
               t={t}
@@ -227,7 +217,6 @@ export default function StreakScreen() {
               onActivateFreeze={() => setShowConfirm(true)}
             />
 
-            {/* Tier */}
             <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
             <View
               style={[
@@ -252,7 +241,6 @@ export default function StreakScreen() {
               </Text>
             </View>
 
-            {/* Recent freeze dates (kept as informational rows) */}
             {streakInfo?.recentFreezeDates &&
             streakInfo.recentFreezeDates.length > 0 ? (
               <>
@@ -297,10 +285,6 @@ export default function StreakScreen() {
     </SafeAreaView>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(_tokens: Tokens) {
   return StyleSheet.create({

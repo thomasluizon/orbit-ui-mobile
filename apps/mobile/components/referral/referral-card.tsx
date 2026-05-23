@@ -3,26 +3,24 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Gift, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
-import { radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface ReferralCardProps {
   onOpen: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
   const { t } = useTranslation()
-  const { colors, shadows } = useAppTheme()
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { stats, isLoading } = useReferral()
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
 
   return (
     <TouchableOpacity
@@ -31,7 +29,7 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
       onPress={onOpen}
     >
       <View style={styles.iconContainer}>
-        <Gift size={20} color={colors.primary} />
+        <Gift size={20} color={tokens.primary} />
       </View>
       <View style={styles.textContainer}>
         <Text style={styles.title}>{t('referral.card.title')}</Text>
@@ -46,28 +44,21 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
           {!isLoading && !stats && t('referral.card.hint')}
         </Text>
       </View>
-      <ChevronRight size={16} color={colors.textMuted} />
+      <ChevronRight size={16} color={tokens.fg3} />
     </TouchableOpacity>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>['shadows']) {
   return StyleSheet.create({
     card: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 16,
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderRadius: radius.xl,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 20,
       ...shadows.sm,
       elevation: 2,
@@ -76,7 +67,7 @@ function createStyles(
       width: 44,
       height: 44,
       borderRadius: radius.lg,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -86,11 +77,11 @@ function createStyles(
     title: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     subtitle: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginTop: 2,
     },
   })

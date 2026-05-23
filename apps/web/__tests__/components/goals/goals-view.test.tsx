@@ -112,6 +112,6 @@ describe('GoalsView', () => {
     mockIsFetched = true
     render(<GoalsView />)
     const allTab = screen.getByText('goals.filters.all')
-    expect(allTab.className).toContain('bg-primary')
+    expect(allTab).toHaveAttribute('aria-pressed', 'true')
   })
 })

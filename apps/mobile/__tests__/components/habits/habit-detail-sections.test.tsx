@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   HabitDetailStatsGrid,
 } from '@/components/habits/habit-detail-sections'
+import { createTokensV2 } from '@/lib/theme'
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('lucide-react-native', () => ({
@@ -37,14 +38,7 @@ describe('habit detail sections', () => {
           t={(key, params) =>
             params ? `${key}(${JSON.stringify(params)})` : key
           }
-          colors={{
-            primary: '#2563eb',
-            surfaceGround: '#fff',
-            borderMuted: '#cbd5e1',
-            textSecondary: '#334155',
-            textPrimary: '#0f172a',
-            textMuted: '#94a3b8',
-          }}
+          tokens={createTokensV2('purple', 'dark')}
           styles={{
             statsGrid: { flexDirection: 'row' },
             statCard: { padding: 8 },

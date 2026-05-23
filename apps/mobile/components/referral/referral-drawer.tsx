@@ -18,18 +18,10 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface ReferralDrawerProps {
   open: boolean
   onClose: () => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>) {
   const { t } = useTranslation()
@@ -213,10 +205,6 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
     </BottomSheetModal>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({

@@ -1,8 +1,6 @@
 import { z } from 'zod'
 import { habitLogSchema } from './calendar'
 
-// --- Enums ---
-
 export const frequencyUnitSchema = z.enum(['Day', 'Week', 'Month', 'Year'])
 
 export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>
@@ -18,8 +16,6 @@ export type ScheduledReminderWhen = z.infer<typeof scheduledReminderWhenSchema>
 export const bulkItemStatusSchema = z.enum(['Success', 'Failed'])
 
 export type BulkItemStatus = z.infer<typeof bulkItemStatusSchema>
-
-// --- Shared sub-schemas ---
 
 export const habitInstanceSchema = z.object({
   date: z.string(),
@@ -65,8 +61,6 @@ export const linkedGoalInfoSchema = z.object({
 
 export type LinkedGoalInfo = z.infer<typeof linkedGoalInfoSchema>
 
-// --- Base habit fields (shared across all representations) ---
-
 const baseHabitFieldsSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -86,8 +80,6 @@ const baseHabitFieldsSchema = z.object({
   position: z.number().nullable(),
   checklistItems: z.array(checklistItemSchema),
 })
-
-// --- Schedule types (GET /api/habits -- paginated, schedule-aware) ---
 
 export const habitScheduleChildSchema: z.ZodType<{
   id: string
@@ -149,8 +141,6 @@ export const habitScheduleItemSchema = baseHabitFieldsSchema.extend({
 
 export type HabitScheduleItem = z.infer<typeof habitScheduleItemSchema>
 
-// --- Paginated response (generic factory) ---
-
 export function createPaginatedSchema<T extends z.ZodType>(itemSchema: T) {
   return z.object({
     items: z.array(itemSchema),
@@ -168,8 +158,6 @@ export type PaginatedResponse<T> = {
   totalCount: number
   totalPages: number
 }
-
-// --- Detail types (GET /api/habits/:id) ---
 
 export const habitDetailChildSchema: z.ZodType<{
   id: string
@@ -208,8 +196,6 @@ export const habitDetailSchema = baseHabitFieldsSchema.extend({
 
 export type HabitDetail = z.infer<typeof habitDetailSchema>
 
-// --- Normalized habit (flat map for store) ---
-
 export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
   createdAtUtc: z.string(),
   parentId: z.string().nullable(),
@@ -231,8 +217,6 @@ export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
 })
 
 export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>
-
-// --- Request types ---
 
 export const createHabitRequestSchema = z.object({
   title: z.string(),
@@ -337,8 +321,6 @@ export const habitMetricsSchema = z.object({
 
 export type HabitMetrics = z.infer<typeof habitMetricsSchema>
 
-// --- Bulk operations ---
-
 export const bulkHabitItemSchema: z.ZodType<{
   title: string
   description?: string | null
@@ -428,8 +410,6 @@ export const bulkDeleteResponseSchema = z.object({
 
 export type BulkDeleteResponse = z.infer<typeof bulkDeleteResponseSchema>
 
-// --- Query filters (GET /api/habits) ---
-
 export const habitsFilterSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
@@ -445,8 +425,6 @@ export const habitsFilterSchema = z.object({
 })
 
 export type HabitsFilter = z.infer<typeof habitsFilterSchema>
-
-// --- Reorder / Parent / Sub-habit operations ---
 
 export const reorderHabitsRequestSchema = z.object({
   positions: z.array(
@@ -487,8 +465,6 @@ export const createSubHabitRequestSchema = z.object({
 })
 
 export type CreateSubHabitRequest = z.infer<typeof createSubHabitRequestSchema>
-
-// --- Bulk log/skip ---
 
 export const bulkLogItemRequestSchema = z.object({
   habitId: z.string(),

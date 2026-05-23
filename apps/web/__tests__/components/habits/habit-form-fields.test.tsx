@@ -753,12 +753,12 @@ describe('HabitFormFields', () => {
     )
     // Mon and Wed should have the active class
     const monBtn = screen.getByText('Mon')
-    expect(monBtn.className).toContain('bg-primary')
+    expect(monBtn).toHaveAttribute('aria-pressed', 'true')
     const wedBtn = screen.getByText('Wed')
-    expect(wedBtn.className).toContain('bg-primary')
+    expect(wedBtn).toHaveAttribute('aria-pressed', 'true')
     // Tue should not
     const tueBtn = screen.getByText('Tue')
-    expect(tueBtn.className).not.toContain('bg-primary text-white')
+    expect(tueBtn).toHaveAttribute('aria-pressed', 'false')
   })
 
   // -------------------------------------------------------------------------

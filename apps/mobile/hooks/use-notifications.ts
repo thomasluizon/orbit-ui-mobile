@@ -29,10 +29,6 @@ import {
   queueOrExecute,
 } from '@/lib/offline-mutations'
 
-// ---------------------------------------------------------------------------
-// Notifications list query
-// ---------------------------------------------------------------------------
-
 export function useNotifications() {
   const queryClient = useQueryClient()
 
@@ -87,10 +83,6 @@ export function useNotifications() {
     unreadCount,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()

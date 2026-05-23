@@ -115,31 +115,8 @@ vi.mock('@gorhom/bottom-sheet', () => ({
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
-    colors: {
-      background: '#ffffff',
-      border: '#cbd5e1',
-      primary: '#2563eb',
-      primary_10: '#dbeafe',
-      primary_15: '#bfdbfe',
-      primary_30: '#93c5fd',
-      primary_80: '#3b82f6',
-      success: '#16a34a',
-      danger: '#dc2626',
-      white: '#ffffff',
-      textMuted: '#64748b',
-      textSecondary: '#334155',
-      textPrimary: '#0f172a',
-      surface: '#ffffff',
-      surfaceElevated: '#f8fafc',
-      borderMuted: '#e2e8f0',
-      amber400: '#f59e0b',
-      amber500: '#d97706',
-      red400: '#f87171',
-      red500: '#ef4444',
-      green400: '#4ade80',
-      green500: '#22c55e',
-      surfaceGround: '#f1f5f9',
-    },
+    currentScheme: 'purple',
+    currentTheme: 'dark',
     radius: {
       sm: 8,
       md: 12,

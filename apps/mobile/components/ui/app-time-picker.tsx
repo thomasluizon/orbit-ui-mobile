@@ -16,8 +16,10 @@ import DateTimePicker, {
 import { Clock3 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
-import { radius, type AppColors, type AppShadows } from '@/lib/theme'
+import { createTokensV2, radius, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AppTimePickerProps {
   value: string
@@ -55,8 +57,12 @@ export function AppTimePicker({
 }: Readonly<AppTimePickerProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
-  const { colors, shadows, currentTheme } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
   const [isOpen, setIsOpen] = useState(false)
   const [draftValue, setDraftValue] = useState(() => parseTimeValue(value))
   const is24Hour = detectDefaultTimeFormat(locale) === '24h'
@@ -109,7 +115,7 @@ export function AppTimePicker({
         >
           {displayValue || placeholder || t('common.selectTime')}
         </Text>
-        <Clock3 size={16} color={disabled ? colors.textMuted : colors.textSecondary} />
+        <Clock3 size={16} color={disabled ? tokens.fg3 : tokens.fg2} />
       </TouchableOpacity>
 
       {Platform.OS === 'ios' ? (
@@ -167,16 +173,16 @@ export function AppTimePicker({
   )
 }
 
-function createStyles(colors: AppColors, shadows: AppShadows) {
+function createStyles(tokens: AppTokens, shadows: AppShadows) {
   return StyleSheet.create({
     trigger: {
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       borderRadius: radius.sm,
       paddingVertical: 12,
       paddingHorizontal: 16,
@@ -186,15 +192,15 @@ function createStyles(colors: AppColors, shadows: AppShadows) {
     },
     triggerText: {
       flex: 1,
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 14,
       marginRight: 8,
     },
     triggerTextDisabled: {
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     triggerPlaceholder: {
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,
@@ -207,7 +213,7 @@ function createStyles(colors: AppColors, shadows: AppShadows) {
       width: '100%',
       maxWidth: 360,
       borderRadius: radius.xl,
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       padding: 16,
       gap: 12,
       ...shadows.cardParent,
@@ -221,12 +227,12 @@ function createStyles(colors: AppColors, shadows: AppShadows) {
     dialogTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     dialogAction: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.primary,
+      color: tokens.primary,
     },
   })
 }

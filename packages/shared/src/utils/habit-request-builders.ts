@@ -2,36 +2,20 @@ import type {
   CreateHabitRequest,
   CreateSubHabitRequest,
   UpdateHabitRequest,
-  ScheduledReminderTime,
 } from '../types/habit'
+import type { HabitFormData } from '../validation'
 
-export interface HabitFormData {
-  title: string
-  description: string
-  emoji: string
-  isGeneral: boolean
-  isFlexible: boolean
-  frequencyUnit: 'Day' | 'Week' | 'Month' | 'Year' | null
-  frequencyQuantity: number | null
-  days: string[]
-  dueDate: string
-  dueTime: string
-  dueEndTime: string
-  endDate: string
-  isBadHabit: boolean
-  slipAlertEnabled: boolean
-  reminderEnabled: boolean
-  scheduledReminders: ScheduledReminderTime[]
-  checklistItems: Array<{ text: string; isChecked: boolean }>
-}
+export type { HabitFormData }
 
 function normalizeHabitEmoji(emoji: string | null | undefined): string | null {
   const normalized = emoji?.trim() ?? ''
   return normalized.length > 0 ? normalized : null
 }
 
+type HabitRequestDraft = Partial<CreateHabitRequest>
+
 function applyScheduleFields(
-  req: Record<string, unknown>,
+  req: HabitRequestDraft,
   data: HabitFormData,
 ): void {
   if (data.dueDate) req.dueDate = data.dueDate
@@ -48,7 +32,7 @@ function applyScheduleFields(
 }
 
 function applyReminderFields(
-  req: Record<string, unknown>,
+  req: HabitRequestDraft,
   data: HabitFormData,
   reminderTimes: number[],
 ): void {
@@ -70,7 +54,7 @@ export function buildSubHabitRequest(
   reminderTimes: number[],
   tagIds: string[],
 ): CreateSubHabitRequest {
-  const req = { title: data.title } as Record<string, unknown>
+  const req: CreateSubHabitRequest = { title: data.title }
   if (data.description) req.description = data.description
   const emoji = normalizeHabitEmoji(data.emoji)
   if (emoji) req.emoji = emoji
@@ -84,7 +68,7 @@ export function buildSubHabitRequest(
   }
   if (data.checklistItems?.length) req.checklistItems = data.checklistItems
   if (tagIds.length) req.tagIds = tagIds
-  return req as unknown as CreateSubHabitRequest
+  return req
 }
 
 export function buildCreateHabitRequest(
@@ -94,7 +78,7 @@ export function buildCreateHabitRequest(
   goalIds: string[],
   subHabits: string[],
 ): CreateHabitRequest {
-  const req: Record<string, unknown> = {
+  const req: CreateHabitRequest = {
     title: data.title,
     isBadHabit: data.isBadHabit,
   }
@@ -114,7 +98,7 @@ export function buildCreateHabitRequest(
   if (goalIds.length) req.goalIds = goalIds
   const filtered = subHabits.filter((s) => s.trim())
   if (filtered.length) req.subHabits = filtered
-  return req as unknown as CreateHabitRequest
+  return req
 }
 
 function applyUpdateScheduleFields(

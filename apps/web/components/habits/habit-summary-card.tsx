@@ -7,17 +7,9 @@ import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { SkeletonLine } from '@/components/ui/skeleton'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface HabitSummaryCardProps {
   date: string
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   const t = useTranslations()
@@ -37,21 +29,19 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
     aiSummaryEnabled,
   })
 
-  // Don't render if user doesn't have pro or AI summary disabled
   if (!hasProAccess || !aiSummaryEnabled) return null
 
-  // Loading skeleton
   if (isLoading) {
     return (
-      <div className="glass bg-surface rounded-xl p-4 space-y-3 border border-border-muted shadow-[var(--shadow-sm)]">
+      <div className="glass bg-[var(--bg-elev)] rounded-xl p-4 space-y-3 border border-[var(--hairline)] shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
-          <Sparkles className="text-primary size-5 animate-pulse" />
-          <span className="text-sm font-bold text-text-primary">
+          <Sparkles className="text-[var(--primary)] size-5 animate-pulse" />
+          <span className="text-sm font-bold text-[var(--fg-1)]">
             {t('summary.title')}
           </span>
           <ProBadge />
         </div>
-        <p className="text-sm text-text-muted">{t('summary.loading')}</p>
+        <p className="text-sm text-[var(--fg-3)]">{t('summary.loading')}</p>
         <div className="space-y-2">
           <SkeletonLine />
           <SkeletonLine width="w-4/5" />
@@ -60,13 +50,12 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
     )
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="bg-surface rounded-xl p-4 border border-border-muted">
-        <p className="text-text-secondary text-sm">{t('summary.error')}</p>
+      <div className="bg-[var(--bg-elev)] rounded-xl p-4 border border-[var(--hairline)]">
+        <p className="text-[var(--fg-2)] text-sm">{t('summary.error')}</p>
         <button
-          className="text-primary text-sm font-medium mt-2"
+          className="text-[var(--primary)] text-sm font-medium mt-2"
           onClick={() => refetch()}
         >
           {t('summary.retry')}
@@ -75,18 +64,17 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
     )
   }
 
-  // Content state
   if (summary) {
     return (
-      <div className="glass bg-surface rounded-xl p-4 border border-border-muted shadow-[var(--shadow-sm)]">
+      <div className="glass bg-[var(--bg-elev)] rounded-xl p-4 border border-[var(--hairline)] shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
-          <Sparkles className="text-primary size-5" />
-          <span className="text-sm font-bold text-text-primary">
+          <Sparkles className="text-[var(--primary)] size-5" />
+          <span className="text-sm font-bold text-[var(--fg-1)]">
             {t('summary.title')}
           </span>
           <ProBadge />
         </div>
-        <p className="text-sm text-text-secondary mt-2 leading-relaxed">
+        <p className="text-sm text-[var(--fg-2)] mt-2 leading-relaxed">
           {summary}
         </p>
       </div>

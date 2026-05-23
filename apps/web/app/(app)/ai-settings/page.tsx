@@ -20,8 +20,10 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { SelectCheck } from '@/components/ui/select-check'
+import { MonoToggle } from '@/components/ui/mono-toggle'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
 import { bulkDeleteUserFacts, deleteUserFact } from '@/app/actions/user-facts'
@@ -33,56 +35,6 @@ async function fetchUserFacts(): Promise<UserFact[]> {
   if (!res.ok) return []
   return res.json()
 }
-
-// ---------------------------------------------------------------------------
-// MonoToggle: v8-style 36x20 pill switch
-// ---------------------------------------------------------------------------
-
-interface MonoToggleProps {
-  on: boolean
-  onToggle: () => void
-  ariaLabel: string
-  disabled?: boolean
-}
-
-function MonoToggle({ on, onToggle, ariaLabel, disabled }: Readonly<MonoToggleProps>) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onToggle}
-      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 relative shrink-0"
-      style={{
-        width: 36,
-        height: 20,
-        borderRadius: 999,
-        background: on ? 'var(--primary)' : 'var(--bg-elev)',
-        boxShadow: on ? 'none' : 'inset 0 0 0 1px var(--hairline-strong)',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute rounded-full"
-        style={{
-          top: 2,
-          left: 2,
-          width: 16,
-          height: 16,
-          background: 'var(--fg-on-primary)',
-          transform: on ? 'translateX(16px)' : 'translateX(0)',
-          transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      />
-    </button>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Locked pro upgrade affordance
-// ---------------------------------------------------------------------------
 
 function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   return (
@@ -106,10 +58,6 @@ function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Fact item row
-// ---------------------------------------------------------------------------
-
 interface FactItemProps {
   fact: UserFact
   selectMode: boolean
@@ -125,6 +73,7 @@ function FactItem({
   onToggleSelection,
   onDelete,
 }: Readonly<FactItemProps>) {
+  const t = useTranslations()
   const category = fact.category ? normalizeUserFactCategory(fact.category) : null
   const categoryLabel = category ? category.toUpperCase() : null
 
@@ -163,7 +112,7 @@ function FactItem({
         <button
           type="button"
           onClick={onDelete}
-          aria-label="delete"
+          aria-label={t('common.delete')}
           className="appearance-none border-0 bg-transparent cursor-pointer shrink-0"
           style={{ padding: 4 }}
         >
@@ -204,10 +153,6 @@ function FactItem({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// AI Settings Page
-// ---------------------------------------------------------------------------
 
 export default function AiSettingsPage() {
   const t = useTranslations()
@@ -333,7 +278,7 @@ export default function AiSettingsPage() {
           type="button"
           disabled={factsPage === 1}
           onClick={() => setFactsPage((p) => p - 1)}
-          aria-label="previous page"
+          aria-label={t('common.previousPage')}
           className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
         >
           <ChevronLeft size={12} color="var(--fg-3)" />
@@ -342,7 +287,7 @@ export default function AiSettingsPage() {
           type="button"
           disabled={factsPage === totalFactsPages}
           onClick={() => setFactsPage((p) => p + 1)}
-          aria-label="next page"
+          aria-label={t('common.nextPage')}
           className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
         >
           <ChevronRight size={12} color="var(--fg-3)" />
@@ -360,9 +305,8 @@ export default function AiSettingsPage() {
         title={t('aiSettings.title')}
       />
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {/* Reflect / Memory */}
         <SectionLabel trailing={<ProBadge />}>{t('profile.aiMemory.title')}</SectionLabel>
-        <SettingsRow label={t('profile.aiMemory.title')} accessory="none">
+        <SettingsRow label={t('profile.aiMemory.title')} accessory="none" divider={false}>
           {hasProAccess ? (
             <MonoToggle
               on={aiMemoryEnabled}
@@ -374,22 +318,10 @@ export default function AiSettingsPage() {
             <ProUpgradeLink label={t('common.proBadge')} />
           )}
         </SettingsRow>
-        <div
-          style={{
-            padding: '0 20px 14px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('profile.aiMemory.description')}
-        </div>
+        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
 
-        {/* Summary */}
         <SectionLabel trailing={<ProBadge />}>{t('profile.aiSummary.title')}</SectionLabel>
-        <SettingsRow label={t('profile.aiSummary.title')} accessory="none">
+        <SettingsRow label={t('profile.aiSummary.title')} accessory="none" divider={false}>
           {hasProAccess ? (
             <MonoToggle
               on={aiSummaryEnabled}
@@ -401,20 +333,8 @@ export default function AiSettingsPage() {
             <ProUpgradeLink label={t('common.proBadge')} />
           )}
         </SettingsRow>
-        <div
-          style={{
-            padding: '0 20px 14px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('profile.aiSummary.description')}
-        </div>
+        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
-        {/* What Astra knows */}
         <SectionLabel trailing={factsTrailing}>{t('profile.facts.title')}</SectionLabel>
 
         {!hasProAccess && (
