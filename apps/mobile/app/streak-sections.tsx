@@ -94,7 +94,6 @@ interface FreezeSectionProps {
   t: TranslationFn
   tokens: Tokens
   streak: number
-  freezesAvailable: number
   freezesUsedThisMonth: number
   maxFreezesPerMonth: number
   streakFreezesAccumulated: number

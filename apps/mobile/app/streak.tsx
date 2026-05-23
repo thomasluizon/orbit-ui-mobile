@@ -201,7 +201,6 @@ export default function StreakScreen() {
               t={t}
               tokens={tokens}
               streak={streak}
-              freezesAvailable={freezesAvailable}
               freezesUsedThisMonth={freezesUsedThisMonth}
               maxFreezesPerMonth={maxFreezesPerMonth}
               streakFreezesAccumulated={streakFreezesAccumulated}

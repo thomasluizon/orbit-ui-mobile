@@ -201,7 +201,6 @@ export default function StreakPage() {
             streakFreezesAccumulated={streakFreezesAccumulated}
             maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
             daysUntilNextFreeze={daysUntilNextFreeze}
-            freezesAvailable={freezesAvailable}
             freezesUsedThisMonth={freezesUsedThisMonth}
             maxFreezesPerMonth={maxFreezesPerMonth}
             isFrozenToday={isFrozenToday}

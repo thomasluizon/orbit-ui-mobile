@@ -152,7 +152,6 @@ interface FreezeProgressCardProps {
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
   daysUntilNextFreeze: number
-  freezesAvailable: number
   freezesUsedThisMonth: number
   maxFreezesPerMonth: number
   isFrozenToday: boolean
