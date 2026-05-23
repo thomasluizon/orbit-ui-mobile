@@ -120,7 +120,7 @@ function MenuRow({
       role="menuitem"
       disabled={disabled}
       onClick={onClick}
-      className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center disabled:opacity-50"
+      className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)] disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
       style={{
         padding: '10px 12px',
         gap: 12,

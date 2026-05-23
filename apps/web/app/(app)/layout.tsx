@@ -57,7 +57,6 @@ function pathnameToTab(pathname: string): BottomTab {
 }
 
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
-  const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
   const { profile } = useProfile()
@@ -165,15 +164,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   return (
     <div className="relative isolate min-h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] ambient-glow">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[99999] focus:px-4 focus:py-2 focus:bg-[var(--primary)] focus:text-white focus:rounded"
-      >
-        {t('nav.skipToContent')}
-      </a>
-
       <main
-        id="main-content"
         className="relative z-10 mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
       >
         <TrialBanner />

@@ -594,7 +594,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .form-input {
-  @apply w-full bg-surface text-text-primary placeholder-text-muted rounded-[var(--radius-md)] py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-[background-color,border-color,box-shadow,color] duration-200;
+  @apply w-full bg-[var(--bg-elev)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[var(--radius-md)] py-3 px-4 text-sm border border-[var(--hairline)] focus:outline-none focus:border-[var(--primary)] transition-[background-color,border-color,color] duration-200;
 }
 
 /* ═══════════════════════════════════════════════════════
