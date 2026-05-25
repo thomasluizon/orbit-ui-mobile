@@ -53,7 +53,7 @@ interface HabitRowProps {
   isSelected?: boolean
   hasChildren?: boolean
   isExpanded?: boolean
-  /** Last child in a parent group — vertical tree line stops at midpoint. */
+  /** Last child in a parent group — accepted for caller compatibility; tree-line visual removed. */
   isLastChild?: boolean
   childrenDone?: number
   childrenTotal?: number
@@ -63,7 +63,6 @@ interface HabitRowProps {
 
 /**
  * Habit row: emoji · title · inline meta · trailing status dot.
- * Renders a tree-line connector for child rows.
  *
  * IMPORTANT: the root is a bare `Animated.View` from `react-native-reanimated`.
  * Stripping this wrapper regresses `@gorhom/bottom-sheet` modals on Android
@@ -79,7 +78,7 @@ export function HabitRow({
   isSelected = false,
   hasChildren = false,
   isExpanded = false,
-  isLastChild = false,
+  isLastChild: _isLastChild = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = {},
