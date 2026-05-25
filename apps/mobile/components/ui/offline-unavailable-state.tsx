@@ -76,7 +76,7 @@ function createStyles(tokens: AppTokens) {
     container: {
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: 16,
+      borderRadius: 12,
       backgroundColor: tokens.bgElev,
       flexDirection: 'row',
       gap: 10,

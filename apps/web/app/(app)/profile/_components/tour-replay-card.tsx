@@ -18,7 +18,7 @@ export function TourReplayCard() {
         onClick={() => setShowModal(true)}
         aria-labelledby={titleId}
         aria-describedby={hintId}
-        className="w-full rounded-[var(--radius-xl)] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] surface-interactive group bg-[var(--bg-elev)] border-[var(--hairline)] hover:bg-[var(--bg-elev)] hover:border-[var(--hairline)]"
+        className="w-full rounded-[12px] border p-5 flex items-center gap-4 text-left shadow-[var(--shadow-sm)] surface-interactive group bg-[var(--bg-elev)] border-[var(--hairline)] hover:bg-[var(--bg-elev)] hover:border-[var(--hairline)]"
       >
         <div className="shrink-0 flex items-center justify-center rounded-[var(--radius-lg)] p-3 transition-colors bg-[var(--bg-sunk)]">
           <Compass className="size-5 text-[var(--primary)]" />

@@ -470,7 +470,7 @@ export default function CalendarSyncPage() {
                   return (
                     <div
                       key={event.id}
-                      className={`w-full rounded-2xl p-4 transition-[background-color,border-color] border ${
+                      className={`w-full rounded-[12px] p-4 transition-[background-color,border-color] border ${
                         selectedIds.has(event.id)
                           ? 'bg-[var(--bg-sunk)] border-[var(--hairline-strong)]'
                           : 'bg-[var(--bg-elev)] border-[var(--hairline)]'
@@ -547,7 +547,7 @@ export default function CalendarSyncPage() {
 
               <div className="pt-2">
                 <button
-                  className="w-full py-3.5 rounded-[var(--radius-xl)] bg-[var(--primary)] text-white font-bold text-sm hover:bg-[var(--primary-pressed)] transition-[background-color,transform,opacity] active:scale-[0.98] disabled:opacity-50"
+                  className="w-full py-3.5 rounded-[12px] bg-[var(--primary)] text-white font-bold text-sm hover:bg-[var(--primary-pressed)] transition-[background-color,transform,opacity] active:scale-[0.98] disabled:opacity-50"
                   disabled={selectedIds.size === 0}
                   onClick={importSelected}
                 >
@@ -579,7 +579,7 @@ export default function CalendarSyncPage() {
           </div>
           <Link
             href="/"
-            className="bg-[var(--primary)] text-white font-bold py-3 px-8 rounded-[var(--radius-xl)] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
+            className="bg-[var(--primary)] text-white font-bold py-3 px-8 rounded-[12px] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
           >
             {t('calendar.goToHabits')}
           </Link>
@@ -597,14 +597,14 @@ export default function CalendarSyncPage() {
           </div>
           <div className="flex gap-3">
             <button
-              className="bg-[var(--primary)] text-white font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
+              className="bg-[var(--primary)] text-white font-bold py-3 px-6 rounded-[12px] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
               onClick={handleRetry}
             >
               {t('calendar.retry')}
             </button>
             <button
               type="button"
-              className="border border-[var(--hairline)] text-[var(--fg-2)] font-bold py-3 px-6 rounded-[var(--radius-xl)] text-sm hover:bg-[var(--bg-elev)] transition-colors"
+              className="border border-[var(--hairline)] text-[var(--fg-2)] font-bold py-3 px-6 rounded-[12px] text-sm hover:bg-[var(--bg-elev)] transition-colors"
               onClick={() => goBackOrFallback('/profile')}
             >
               {t('common.goBack')}

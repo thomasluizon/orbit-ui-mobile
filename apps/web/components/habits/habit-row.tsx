@@ -47,7 +47,9 @@ interface HabitRowProps {
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
   child?: boolean
-  /** Last child in a sibling group — closes the elevated parent block with a rounded bottom. */
+  /** Nesting depth (0 = top-level). Drives the left indent so hierarchy is visible. */
+  depth?: number
+  /** Last child in a sibling group — kept for compatibility with callers; no longer used for visual treatment. */
   isLastChild?: boolean
   selectMode?: boolean
   selected?: boolean
@@ -69,7 +71,8 @@ export function HabitRow({
   meta = [],
   streak,
   child = false,
-  isLastChild = false,
+  depth = 0,
+  isLastChild: _isLastChild = false,
   selectMode = false,
   selected = false,
   hasChildren = false,
@@ -101,22 +104,10 @@ export function HabitRow({
   const emojiSize = child ? 16 : 18
   const showStreak = !child && streak != null && streak >= 2
 
-  // Every habit row is a --bg-elev card. Parent + expanded children share one
-  // card via radius (parent top-rounded, last child bottom-rounded, middles
-  // square). Standalones get a fully rounded card. Whitespace below separates
-  // adjacent blocks — no internal or inter-row hairlines.
-  const isGroupStart = hasChildren && expanded && !child
-  const isGroupEnd = child && isLastChild
-  const isGroupMiddle = child && !isLastChild
-  const closesBlock = !child && !isGroupStart // standalone (no children expanded)
-
-  const groupBorderRadius = isGroupStart
-    ? '10px 10px 0 0'
-    : isGroupEnd
-      ? '0 0 10px 10px'
-      : isGroupMiddle
-        ? '0'
-        : '10px'
+  // Every habit row is its own fully-rounded --bg-elev card. Hierarchy comes
+  // from the left indent (16px per depth level), not from shared containers.
+  // 6px gap below each row gives breathing room without hairlines.
+  const indentPx = depth * 16
 
   function handleRowClick() {
     if (selectMode) onToggleSelection?.()
@@ -156,8 +147,9 @@ export function HabitRow({
         gap: 10,
         padding: `12px 20px`,
         background: selected ? 'var(--bg-sunk)' : 'var(--bg-elev)',
-        borderRadius: groupBorderRadius,
-        marginBottom: closesBlock || isGroupEnd ? 8 : 0,
+        borderRadius: 10,
+        marginLeft: indentPx,
+        marginBottom: 6,
       }}
     >
 

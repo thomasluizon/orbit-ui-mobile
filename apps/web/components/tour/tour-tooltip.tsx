@@ -247,9 +247,9 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-2xl border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 shadow-2xl'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-2xl border-b border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pt-3 shadow-2xl'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pb-8 shadow-2xl'
+    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[12px] border-b border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pt-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pb-8 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
   })()
 
   const floatStyle = (() => {

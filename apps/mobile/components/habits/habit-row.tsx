@@ -156,13 +156,10 @@ export function HabitRow({
 
   const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
 
-  // Every habit row is a --bg-elev card. Parent + expanded children share one
-  // card via radius (parent top-rounded, last child bottom-rounded, middles
-  // square). Standalones get a fully rounded card. Whitespace below separates
-  // adjacent blocks — no internal or inter-row hairlines.
-  const isGroupStart = hasChildren && isExpanded && !isChild
-  const isGroupEnd = isChild && isLastChild
-  const closesBlock = !isChild && !isGroupStart
+  // Every habit row is its own fully-rounded --bg-elev card. Hierarchy comes
+  // from the left indent (16px per depth level), not from shared containers.
+  // 6px gap below each row gives breathing room without hairlines.
+  const indentPx = depth * 16
 
   return (
     // Bare Animated.View stabilizer for @gorhom/bottom-sheet on Android.
@@ -187,11 +184,9 @@ export function HabitRow({
               : pressed
                 ? tokens.bgSunk
                 : tokens.bgElev,
-            borderTopLeftRadius: isGroupStart || closesBlock ? 10 : 0,
-            borderTopRightRadius: isGroupStart || closesBlock ? 10 : 0,
-            borderBottomLeftRadius: isGroupEnd || closesBlock ? 10 : 0,
-            borderBottomRightRadius: isGroupEnd || closesBlock ? 10 : 0,
-            marginBottom: closesBlock || isGroupEnd ? 8 : 0,
+            borderRadius: 10,
+            marginLeft: indentPx,
+            marginBottom: 6,
           },
         ]}
       >

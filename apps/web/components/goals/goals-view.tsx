@@ -76,7 +76,7 @@ export function GoalsView() {
               icon={Flag}
               title={t('goals.empty')}
               description={t('goals.emptyHint')}
-              className="rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-[var(--bg-sunk)] shadow-[var(--shadow-sm)]"
+              className="rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-sunk)] shadow-[var(--shadow-sm)]"
             />
           )}
         </>

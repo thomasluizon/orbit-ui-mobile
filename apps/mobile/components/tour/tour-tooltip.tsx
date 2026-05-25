@@ -169,8 +169,8 @@ function createTooltipStyles(tokens: AppTokens) {
       elevation: 10,
     },
     tooltipBottom: {
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 12,
       borderTopWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 12,
@@ -178,8 +178,8 @@ function createTooltipStyles(tokens: AppTokens) {
       shadowOffset: { width: 0, height: -4 },
     },
     tooltipTop: {
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
+      borderBottomLeftRadius: 12,
+      borderBottomRightRadius: 12,
       borderBottomWidth: 1,
       borderColor: tokens.hairline,
       paddingBottom: 16,

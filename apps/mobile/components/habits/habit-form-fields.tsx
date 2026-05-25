@@ -2157,7 +2157,7 @@ function createStyles(tokens: AppTokens) {
     emojiOption: {
       width: 38,
       height: 38,
-      borderRadius: 16,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: tokens.bgElev,

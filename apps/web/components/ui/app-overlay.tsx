@@ -238,7 +238,7 @@ export function AppOverlay({
         >
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/65 backdrop-blur-md cursor-default"
+            className="absolute inset-0 bg-black/65 cursor-default"
             aria-label={t('common.close')}
             tabIndex={-1}
             onPointerDown={handlePointerDown}
@@ -266,7 +266,7 @@ export function AppOverlay({
             aria-modal="true"
             aria-labelledby={hasTitle ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
-            className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-clip rounded-t-[var(--radius-2xl)] border-t border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[var(--shadow-3)] sm:rounded-[var(--radius-2xl)] sm:border sm:border-[var(--hairline)] flex flex-col overscroll-contain"
+            className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-clip rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)] sm:rounded-[12px] sm:border sm:border-[var(--hairline)] flex flex-col overscroll-contain"
             initial={{
               opacity: 0,
               y: motionPreset.shift,
@@ -347,7 +347,7 @@ export function AppOverlay({
             {footer && (
               <div
                 data-slot="overlay-footer"
-                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-[var(--hairline)] bg-[var(--bg-elev)]/80"
+                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-[var(--hairline)] bg-[var(--bg-elev)]"
               >
                 {footer}
               </div>

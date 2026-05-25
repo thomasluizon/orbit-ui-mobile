@@ -237,7 +237,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
     <div className="space-y-2">
       <button
         type="button"
-        className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-[var(--hairline)]bg-[var(--bg-elev)]/80 p-4 text-left transition-colors duration-150 hover:border-[var(--hairline-strong)] hover:bg-[var(--bg-elev)]/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]"
+        className="group flex w-full items-center justify-between gap-4 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-4 text-left transition-colors duration-150 hover:border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]"
         onClick={() => setPickerOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
@@ -247,14 +247,14 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
           <span className="form-label mb-1">{t('habits.form.emoji')}</span>
           <span className="block text-xs text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</span>
         </span>
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-[var(--hairline-strong)] bg-[var(--bg-sunk)] text-2xl transition-colors duration-150 group-hover:bg-[var(--bg-elev)]">
+        <span className="grid size-12 shrink-0 place-items-center rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--bg-sunk)] text-2xl transition-colors duration-150 group-hover:bg-[var(--bg-elev)]">
           {selectedDisplayEmoji}
         </span>
       </button>
 
       {pickerOpen && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4"
           role="presentation"
           onMouseDown={closePicker}
         >
@@ -262,7 +262,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
             role="dialog"
             aria-modal="true"
             aria-label={t('habits.form.emojiPickerTitle')}
-            className="w-full max-w-xl overflow-hidden rounded-2xl border border-[var(--hairline)]bg-[var(--bg-elev)] shadow-[0_20px_80px_rgba(0,0,0,0.45)]"
+            className="w-full max-w-xl overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
@@ -521,7 +521,7 @@ function ReminderSection({
             </button>
 
             {showAddReminder && (
-              <div className="mt-2 rounded-lg border border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[var(--shadow-lg)] p-1">
+              <div className="mt-2 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)] p-1">
                 {availablePresets.map((preset) => (
                   <button
                     key={preset.value}

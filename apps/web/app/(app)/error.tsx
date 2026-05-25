@@ -24,7 +24,7 @@ export default function AppError({
         {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
       </p>
       <button
-        className="px-5 py-2.5 rounded-[var(--radius-xl)] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
+        className="px-5 py-2.5 rounded-[12px] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
         onClick={reset}
       >
         {t('common.retry')}

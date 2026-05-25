@@ -273,8 +273,8 @@ export default function AdvancedPage() {
 
                 {apiKeysQuery.isLoading && (
                   <div className="space-y-2">
-                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-2xl animate-pulse" />
-                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-2xl animate-pulse" />
+                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-[12px] animate-pulse" />
+                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-[12px] animate-pulse" />
                   </div>
                 )}
 
@@ -300,7 +300,7 @@ export default function AdvancedPage() {
                       const expiresAtUtc = key.expiresAtUtc ?? null
 
                       return (
-                      <div key={key.id} className="rounded-2xl bg-[var(--bg)] p-3 space-y-2">
+                      <div key={key.id} className="rounded-[12px] bg-[var(--bg)] p-3 space-y-2">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-[var(--fg-1)] truncate">{key.name}</p>
@@ -419,7 +419,7 @@ export default function AdvancedPage() {
                         <div className="relative">
                           <pre className="rounded-[var(--radius-lg)] bg-[var(--bg)] border border-[var(--hairline)] p-4 text-xs font-mono text-[var(--fg-2)] overflow-x-auto leading-relaxed">{MCP_ENDPOINT_URL}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)]/80 backdrop-blur-sm text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
                             onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
                           >
                             <Clipboard className="size-4" />
@@ -434,7 +434,7 @@ export default function AdvancedPage() {
                         <div className="relative">
                           <pre className="rounded-[var(--radius-lg)] bg-[var(--bg)] border border-[var(--hairline)] p-4 text-xs font-mono text-[var(--fg-2)] overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
                           <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)]/80 backdrop-blur-sm text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
                             onClick={copyConfig}
                           >
                             {configCopied ? (

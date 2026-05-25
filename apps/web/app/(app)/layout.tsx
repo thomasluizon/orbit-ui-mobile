@@ -281,7 +281,7 @@ function GlobalOverlays({
           </p>
           <div className="flex flex-col gap-3 w-full">
             <button
-              className="w-full py-3.5 rounded-[var(--radius-xl)] bg-[var(--primary)] text-white font-bold text-sm text-center transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-[var(--primary-pressed)] active:scale-[0.98]"
+              className="w-full py-3.5 rounded-[12px] bg-[var(--primary)] text-white font-bold text-sm text-center transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-[var(--primary-pressed)] active:scale-[0.98]"
               onClick={onCalendarImport}
             >
               {t('onboarding.wizard.calendarButton')}

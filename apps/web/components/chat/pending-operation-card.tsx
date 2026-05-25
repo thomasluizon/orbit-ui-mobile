@@ -141,7 +141,7 @@ export function PendingOperationCard({
   }
 
   return (
-    <div className="rounded-[var(--radius-xl)] border border-[var(--status-overdue)]/25 bg-[var(--status-overdue)]/8 p-4 shadow-[var(--shadow-sm)]">
+    <div className="rounded-[12px] border border-[var(--status-overdue)]/25 bg-[var(--status-overdue)]/8 p-4 shadow-[var(--shadow-sm)]">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 rounded-full bg-[var(--status-overdue)]/15 p-2 text-[var(--status-overdue)]">
           <ShieldAlert className="size-4" />

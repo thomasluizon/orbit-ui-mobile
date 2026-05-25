@@ -415,25 +415,15 @@ function createStyles(tokens: AppTokens) {
     bubble: {
       paddingHorizontal: 16,
       paddingVertical: 12,
-      borderRadius: 16,
+      borderRadius: 12,
     },
     userBubble: {
       backgroundColor: tokens.primary,
-      borderBottomRightRadius: 6,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.4,
-      shadowRadius: 3,
-      elevation: 2,
+      borderBottomRightRadius: 4,
     },
     aiBubble: {
       backgroundColor: tokens.bgElev,
-      borderBottomLeftRadius: 6,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.4,
-      shadowRadius: 3,
-      elevation: 2,
+      borderBottomLeftRadius: 4,
     },
 
     imageAttachment: {
@@ -469,7 +459,7 @@ function createStyles(tokens: AppTokens) {
       width: "100%",
     },
     denialCard: {
-      borderRadius: 16,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: "rgba(248,113,113,0.2)",
       backgroundColor: "rgba(248,113,113,0.08)",
@@ -496,11 +486,11 @@ function createStyles(tokens: AppTokens) {
 
     typingBubble: {
       backgroundColor: tokens.bgElev,
-      borderRadius: 16,
-      borderBottomLeftRadius: 6,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      borderBottomRightRadius: 16,
+      borderRadius: 12,
+      borderBottomLeftRadius: 4,
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 12,
+      borderBottomRightRadius: 12,
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderWidth: 1,

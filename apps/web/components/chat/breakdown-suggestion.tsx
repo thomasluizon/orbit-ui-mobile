@@ -165,7 +165,7 @@ export function BreakdownSuggestion({
 
   if (isCreated) {
     return (
-      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2 py-2">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
@@ -181,7 +181,7 @@ export function BreakdownSuggestion({
   }
 
   return (
-    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
+    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-[var(--fg-1)]">
         {t.rich('habits.breakdown.breakInto', {
           name: RichBoldPrimary,

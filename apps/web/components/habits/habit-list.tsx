@@ -1068,6 +1068,7 @@ const isPostponeAction = useMemo(() => {
         meta={meta}
         streak={habit.currentStreak}
         child={isChild}
+        depth={depth}
         isLastChild={options?.isLastChild ?? false}
         selectMode={isSelectMode}
         selected={selectedHabitIds?.has(habit.id) ?? false}

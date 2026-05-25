@@ -35,7 +35,7 @@ export default function AuthError({
       </p>
       <button
         onClick={reset}
-        className="px-5 py-2.5 rounded-[var(--radius-xl)] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
+        className="px-5 py-2.5 rounded-[12px] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
       >
         {t('common.retry')}
       </button>

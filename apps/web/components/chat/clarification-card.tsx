@@ -68,7 +68,7 @@ export function ClarificationCard({
 
   if (resolved) {
     return (
-      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2 py-1">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
@@ -82,7 +82,7 @@ export function ClarificationCard({
   }
 
   return (
-    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[var(--radius-xl)] p-4 space-y-3 shadow-[var(--shadow-sm)]">
+    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-[var(--fg-1)]">
         {safeT(t, clarificationRequest.question)}
       </p>

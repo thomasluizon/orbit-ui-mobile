@@ -46,7 +46,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       aria-live="assertive"
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-[var(--bg)]/90 backdrop-blur-md" />
+      <div className="absolute inset-0 bg-[var(--bg)]" />
 
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-8">

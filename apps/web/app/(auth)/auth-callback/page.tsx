@@ -204,10 +204,10 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-[var(--bg-elev)] rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 space-y-6 border border-[var(--hairline)] text-center">
+      <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-6 space-y-6 border border-[var(--hairline)] text-center">
         {errorState ? (
           <>
-            <div className="bg-[var(--status-bad)]/10 border border-[var(--status-bad)]/30 rounded-2xl px-4 py-3 text-sm text-[var(--status-bad)]">
+            <div className="bg-[var(--status-bad)]/10 border border-[var(--status-bad)]/30 rounded-[12px] px-4 py-3 text-sm text-[var(--status-bad)]">
               <p>{errorState.message}</p>
               {errorState.requestId ? (
                 <p className="mt-2 text-xs text-[var(--status-bad)]">

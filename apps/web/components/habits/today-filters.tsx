@@ -55,14 +55,14 @@ export function TodayFilters({
         className="pt-3 pb-2"
         transition={transition}
       >
-        <div className="relative rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-[var(--bg-sunk)]/90 shadow-[inset_0_1px_0_var(--surface-top-highlight)] transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out focus-within:border-[var(--primary)]/25 focus-within:bg-[var(--bg-elev)] focus-within:shadow-[var(--shadow-sm)] focus-within:scale-[1.01] motion-reduce:focus-within:scale-100">
+        <div className="relative rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-sunk)]/90 shadow-[inset_0_1px_0_var(--surface-top-highlight)] transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out focus-within:border-[var(--primary)]/25 focus-within:bg-[var(--bg-elev)] focus-within:shadow-[var(--shadow-sm)] focus-within:scale-[1.01] motion-reduce:focus-within:scale-100">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-5 text-[var(--fg-3)] pointer-events-none" />
           <input
             value={localSearchQuery}
             type="text"
             aria-label={t('habits.searchPlaceholder')}
             placeholder={t('habits.searchPlaceholder')}
-            className="min-h-12 w-full rounded-[var(--radius-xl)] bg-transparent py-3 pl-12 pr-12 text-sm text-[var(--fg-1)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-12 w-full rounded-[12px] bg-transparent py-3 pl-12 pr-12 text-sm text-[var(--fg-1)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2 focus:ring-primary/20"
             onChange={(e) => onSearchChange(e.target.value)}
           />
           <AnimatePresence initial={false}>

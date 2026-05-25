@@ -100,8 +100,8 @@ export function MessageBubble({
           data-bubble-role={isUser ? 'user' : 'ai'}
           className={`px-4 py-3 text-sm ${
             isUser
-              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] rounded-2xl rounded-br-md shadow-[var(--shadow-sm)]'
-              : 'bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-2xl rounded-bl-md shadow-[var(--shadow-sm)]'
+              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] rounded-[12px] rounded-br-[4px]'
+              : 'bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-[12px] rounded-bl-[4px]'
           }`}
         >
           {message.imageUrl && (
@@ -174,7 +174,7 @@ export function MessageBubble({
               return (
                 <div
                   key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  className="rounded-[var(--radius-xl)] border border-[var(--status-bad)]/20 bg-[var(--status-bad)]/8 px-3 py-2"
+                  className="rounded-[12px] border border-[var(--status-bad)]/20 bg-[var(--status-bad)]/8 px-3 py-2"
                 >
                   <p className="text-xs font-medium text-[var(--status-bad)]">{denial.sourceName}</p>
                   <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">{denial.reason}</p>
