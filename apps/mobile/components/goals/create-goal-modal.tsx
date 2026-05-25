@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Plus, X } from 'lucide-react-native'
+import { Plus, X, Target, Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -15,7 +15,6 @@ import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { SectionLabel } from '@/components/ui/section-label'
-import { Chip } from '@/components/ui/chip'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -222,30 +221,72 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             <SectionLabel top={0} bottom={8}>
               {t('goals.form.type')}
             </SectionLabel>
-            <View style={styles.chipsRow}>
-              <Chip
-                active={goalType === 'Standard'}
-                onPress={() => handleTypeChange('Standard')}
-              >
-                {t('goals.form.typeStandard')}
-              </Chip>
-              <Chip
-                active={goalType === 'Streak'}
-                onPress={() => handleTypeChange('Streak')}
-              >
-                {t('goals.form.typeStreak')}
-              </Chip>
+            <View style={styles.typeCardsColumn}>
+              {(
+                [
+                  {
+                    key: 'Standard',
+                    titleKey: 'goals.form.typeStandard',
+                    descKey: 'goals.form.typeStandardDescription',
+                    icon: Target,
+                  },
+                  {
+                    key: 'Streak',
+                    titleKey: 'goals.form.typeStreak',
+                    descKey: 'goals.form.typeStreakHintGood',
+                    hintKey: 'goals.form.typeStreakHintBad',
+                    icon: Flame,
+                  },
+                ] as const
+              ).map((card) => {
+                const isActive = goalType === card.key
+                const CardIcon = card.icon
+                return (
+                  <TouchableOpacity
+                    key={card.key}
+                    style={[
+                      styles.typeCard,
+                      isActive
+                        ? styles.typeCardActive
+                        : styles.typeCardInactive,
+                    ]}
+                    onPress={() => handleTypeChange(card.key)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
+                  >
+                    <View style={styles.typeCardHeader}>
+                      <CardIcon
+                        size={18}
+                        color={isActive ? tokens.fg1 : tokens.fg3}
+                      />
+                      <Text
+                        style={[
+                          styles.typeCardTitle,
+                          isActive
+                            ? styles.typeCardTitleActive
+                            : styles.typeCardTitleInactive,
+                        ]}
+                      >
+                        {t(card.titleKey)}
+                      </Text>
+                    </View>
+                    {isActive ? (
+                      <View style={styles.typeCardBody}>
+                        <Text style={styles.typeCardDesc}>
+                          {t(card.descKey)}
+                        </Text>
+                        {'hintKey' in card && card.hintKey ? (
+                          <Text style={styles.typeCardHint}>
+                            {t(card.hintKey)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                )
+              })}
             </View>
-            {isStreak ? (
-              <View style={styles.streakHints}>
-                <Text style={styles.streakHint}>
-                  {t('goals.form.typeStreakHintGood')}
-                </Text>
-                <Text style={styles.streakHint}>
-                  {t('goals.form.typeStreakHintBad')}
-                </Text>
-              </View>
-            ) : null}
           </View>
 
           <View>
@@ -460,21 +501,60 @@ function createStyles(
       color: tokens.statusOverdue,
       marginTop: 4,
     },
-    chipsRow: {
-      flexDirection: 'row',
+    typeCardsColumn: {
+      flexDirection: 'column',
       gap: 6,
-      flexWrap: 'wrap',
     },
-    streakHints: {
-      gap: 4,
-      paddingTop: 10,
+    typeCard: {
+      borderRadius: 8,
+      borderWidth: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
     },
-    streakHint: {
+    typeCardActive: {
+      borderColor: tokens.fg3,
+      backgroundColor: tokens.bgElev,
+    },
+    typeCardInactive: {
+      borderColor: tokens.hairlineStrong,
+      backgroundColor: 'transparent',
+    },
+    typeCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    typeCardBody: {
+      marginTop: 6,
+      paddingLeft: 28,
+    },
+    typeCardTitle: {
       fontFamily: 'Geist',
       fontSize: 13,
-      fontStyle: 'italic',
+      flex: 1,
+    },
+    typeCardTitleActive: {
+      color: tokens.fg1,
+      fontWeight: '600',
+    },
+    typeCardTitleInactive: {
+      color: tokens.fg2,
+      fontWeight: '500',
+    },
+    typeCardDesc: {
+      fontFamily: 'Geist',
+      fontSize: 12,
       color: tokens.fg3,
       lineHeight: 18,
+    },
+    typeCardHint: {
+      fontFamily: 'Geist',
+      fontSize: 11,
+      color: tokens.fg3,
+      lineHeight: 16,
+      marginTop: 4,
+      fontStyle: 'italic',
+      opacity: 0.7,
     },
     deadlineRow: {
       flexDirection: 'row',

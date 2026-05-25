@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Target, Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { SectionLabel } from '@/components/ui/section-label'
-import { Chip } from '@/components/ui/chip'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -211,51 +210,96 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       >
         <form id="create-goal-form" className="-mx-6" onSubmit={onSubmit}>
           <SectionLabel top={4}>{t('goals.form.type')}</SectionLabel>
-          <div className="flex" style={{ padding: '0 20px 12px', gap: 6 }}>
-            <Chip
-              active={goalType === 'Standard'}
-              onClick={() => handleTypeChange('Standard')}
-            >
-              {t('goals.form.typeStandard')}
-            </Chip>
-            <Chip
-              active={goalType === 'Streak'}
-              onClick={() => handleTypeChange('Streak')}
-            >
-              {t('goals.form.typeStreak')}
-            </Chip>
+          <div
+            className="flex flex-col"
+            role="radiogroup"
+            aria-label={t('goals.form.type')}
+            style={{ padding: '0 20px 12px', gap: 6 }}
+          >
+            {([
+              {
+                key: 'Standard',
+                titleKey: 'goals.form.typeStandard',
+                descKey: 'goals.form.typeStandardDescription',
+                icon: Target,
+              },
+              {
+                key: 'Streak',
+                titleKey: 'goals.form.typeStreak',
+                descKey: 'goals.form.typeStreakHintGood',
+                hintKey: 'goals.form.typeStreakHintBad',
+                icon: Flame,
+              },
+            ] as const).map((card) => {
+              const isActive = goalType === card.key
+              const Icon = card.icon
+              return (
+                <button
+                  key={card.key}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => handleTypeChange(card.key as GoalType)}
+                  className="appearance-none cursor-pointer text-left w-full transition-[background-color,box-shadow] duration-150"
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: isActive ? 'var(--bg-elev)' : 'transparent',
+                    boxShadow: isActive
+                      ? 'inset 0 0 0 1px var(--fg-3)'
+                      : 'inset 0 0 0 1px var(--hairline-strong)',
+                    border: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Icon
+                      size={18}
+                      aria-hidden="true"
+                      style={{ color: isActive ? 'var(--fg-1)' : 'var(--fg-3)', flexShrink: 0 }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-family-sans)',
+                        fontSize: 13,
+                        fontWeight: isActive ? 600 : 500,
+                        color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+                      }}
+                    >
+                      {t(card.titleKey)}
+                    </span>
+                  </div>
+                  {isActive && (
+                    <div style={{ marginTop: 6, paddingLeft: 28 }}>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-family-sans)',
+                          fontSize: 12,
+                          color: 'var(--fg-3)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {t(card.descKey)}
+                      </div>
+                      {'hintKey' in card && card.hintKey && (
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontFamily: 'var(--font-family-sans)',
+                            fontSize: 11,
+                            fontStyle: 'italic',
+                            color: 'var(--fg-3)',
+                            opacity: 0.7,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {t(card.hintKey)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
-
-          {isStreak && (
-            <div
-              style={{
-                padding: '4px 20px 12px',
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 13,
-                  fontStyle: 'italic',
-                  color: 'var(--fg-3)',
-                  lineHeight: 1.5,
-                }}
-              >
-                {t('goals.form.typeStreakHintGood')}
-              </p>
-              <p
-                style={{
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 13,
-                  fontStyle: 'italic',
-                  color: 'var(--fg-3)',
-                  lineHeight: 1.5,
-                }}
-              >
-                {t('goals.form.typeStreakHintBad')}
-              </p>
-            </div>
-          )}
 
           <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 12px', gap: 14 }}>
             <UnderlinedField
