@@ -7,7 +7,6 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isSameMonth,
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -89,7 +88,6 @@ export default function CalendarPage() {
     let currentStreak = 0
 
     for (const day of days) {
-      if (!isSameMonth(day, currentMonth)) continue
       const entries: CalendarDayEntry[] = dayMap.get(formatAPIDate(day)) ?? []
       const completedCount = entries.filter((e) => e.status === 'completed').length
       totalLogs += completedCount
