@@ -85,7 +85,7 @@ export function ConfirmDialogV2({
         <button
           type="button"
           onClick={onCancel}
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
@@ -100,7 +100,7 @@ export function ConfirmDialogV2({
           <button
             type="button"
             onClick={onAction}
-            className="appearance-none border-0 bg-transparent cursor-pointer"
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
             style={{
               fontFamily: 'var(--font-family-sans)',
               fontSize: 14,

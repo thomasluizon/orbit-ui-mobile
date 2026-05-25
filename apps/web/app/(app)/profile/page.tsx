@@ -24,11 +24,13 @@ import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { plural } from '@/lib/plural'
 import { SubscriptionCard } from './_components/subscription-card'
 import { FreshStartModal } from './_components/fresh-start-modal'
 import { DeleteAccountModal } from './_components/delete-account-modal'
 import { ProfileNavIcon } from './_components/profile-nav-icon'
 import { ProfileActionButton } from './_components/profile-action-button'
+import { TourReplayModal } from './_components/tour-replay-modal'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -75,6 +77,7 @@ export default function ProfilePage() {
 
   const [showResetModal, setShowResetModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showTourReplay, setShowTourReplay] = useState(false)
 
   function handleNavClick(item: ProfileNavItem) {
     if (shouldRedirectProfileNavItem(item, profile)) {
@@ -237,7 +240,7 @@ export default function ProfilePage() {
                     color: 'var(--fg-3)',
                   }}
                 >
-                  {t('streakDisplay.daysSuffix')}
+                  {plural(t('streakDisplay.daysSuffix'), streakInfo?.currentStreak ?? 0)}
                 </span>
               </span>
             }
@@ -266,6 +269,11 @@ export default function ProfilePage() {
       <SectionLabel>{t('profile.sections.features')}</SectionLabel>
       <div className="px-5">
         <SettingsGroup>
+          <SettingsGroupRow
+            label={t('tour.replay.title')}
+            hint={t('tour.replay.hint')}
+            onClick={() => setShowTourReplay(true)}
+          />
           {featureNavItems.map((item) => (
             <SettingsGroupRow
               key={item.id}
@@ -319,6 +327,7 @@ export default function ProfilePage() {
         onOpenChange={setShowDeleteModal}
         profile={profile}
       />
+      <TourReplayModal open={showTourReplay} onOpenChange={setShowTourReplay} />
     </div>
   )
 }

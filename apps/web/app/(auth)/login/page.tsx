@@ -137,7 +137,7 @@ function PrimaryButton({
       onClick={onClick}
       disabled={disabled}
       aria-busy={loading}
-      className="w-full appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center"
+      className="w-full appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
       style={{
         padding: '12px 18px',
         background: 'var(--primary)',
@@ -174,7 +174,7 @@ function SecondaryButton({
       onClick={onClick}
       disabled={disabled}
       aria-busy={loading}
-      className="w-full appearance-none cursor-pointer disabled:opacity-50 inline-flex items-center justify-center"
+      className="w-full appearance-none cursor-pointer disabled:opacity-50 inline-flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
       style={{
         padding: '11px 18px',
         background: 'transparent',
@@ -212,7 +212,7 @@ function QuietLink({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
       style={{
         padding: 6,
         fontFamily: 'var(--font-family-sans)',

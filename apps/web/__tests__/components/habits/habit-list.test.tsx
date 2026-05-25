@@ -143,7 +143,7 @@ vi.mock('@/components/habits/habit-row', () => ({
     state?: string
     actions?: { onForceLogParent?: () => void; onLog?: () => void; onEdit?: () => void }
   }) => (
-    <div data-testid={`habit-card-${habit.id}`} data-tour-target={tourTargetId}>
+    <div data-testid={`habit-card-${habit.id}`} data-tour={tourTargetId}>
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>
         {childProgress?.done ?? 0}/{childProgress?.total ?? 0}
@@ -355,12 +355,12 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
     expect(screen.getByTestId('habit-card-tour-habit-1')).not.toHaveAttribute(
-      'data-tour-target',
+      'data-tour',
       'tour-habit-card',
     )
     expect(
       screen.getByTestId(`habit-card-${TOUR_FEATURED_HABIT_ID}`),
-    ).toHaveAttribute('data-tour-target', 'tour-habit-card')
+    ).toHaveAttribute('data-tour', 'tour-habit-card')
   })
 
   it('hides only completed one-time habits in all view when showCompleted is false', () => {

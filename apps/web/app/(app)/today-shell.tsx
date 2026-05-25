@@ -120,7 +120,7 @@ export function TodayDateNavigation({
       className="shrink-0"
       data-tour="tour-date-nav"
       style={{
-        padding: '4px 20px 10px',
+        padding: '12px 20px 16px',
       }}
     >
       <div
@@ -132,12 +132,11 @@ export function TodayDateNavigation({
         <button
           type="button"
           aria-label={previousLabel}
-          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0"
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0 text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
           style={{
             width: 32,
             height: 36,
             borderRadius: 8,
-            color: 'var(--fg-2)',
           }}
           onClick={onGoToPreviousDay}
         >
@@ -147,7 +146,7 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center animate-slide-date-${slideDirection}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center transition-opacity duration-150 ease-out hover:opacity-80 animate-slide-date-${slideDirection}`}
           style={{
             height: 36,
             padding: '0 8px',
@@ -164,12 +163,11 @@ export function TodayDateNavigation({
         <button
           type="button"
           aria-label={nextLabel}
-          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0"
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0 text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
           style={{
             width: 32,
             height: 36,
             borderRadius: 8,
-            color: 'var(--fg-2)',
           }}
           onClick={onGoToNextDay}
         >
@@ -247,8 +245,8 @@ export function TodayUtilityRow({
               type="button"
               aria-label={t('common.clear')}
               onClick={onSearchClear}
-              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-              style={{ width: 28, height: 28, borderRadius: 6, color: 'var(--fg-3)' }}
+              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+              style={{ width: 28, height: 28, borderRadius: 6 }}
             >
               <X size={14} strokeWidth={1.6} />
             </button>
@@ -256,12 +254,11 @@ export function TodayUtilityRow({
           <button
             type="button"
             onClick={onSearchToggle}
-            className="appearance-none border-0 bg-transparent cursor-pointer"
+            className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
             style={{
               padding: '6px 8px',
               fontFamily: 'var(--font-family-sans)',
               fontSize: 13,
-              color: 'var(--fg-2)',
             }}
           >
             {t('common.cancel')}
@@ -273,8 +270,8 @@ export function TodayUtilityRow({
             type="button"
             aria-label={t('habits.searchPlaceholder')}
             onClick={onSearchToggle}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0"
-            style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-3)' }}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0 text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            style={{ width: 36, height: 36, borderRadius: 8 }}
           >
             <Search size={15} strokeWidth={1.6} />
           </button>
@@ -308,8 +305,8 @@ export function TodayUtilityRow({
                 e.stopPropagation()
                 onOpenControlsMenu()
               }}
-              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-              style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-3)' }}
+              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+              style={{ width: 36, height: 36, borderRadius: 8 }}
             >
               <MoreHorizontal size={18} strokeWidth={1.6} />
             </button>
@@ -344,13 +341,16 @@ function FrequencyFunnel({
           type="button"
           aria-label={triggerAriaLabel}
           aria-pressed={selected != null}
-          className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0"
+          className={
+            'appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 transition-[background-color,color] duration-150 ease-out ' +
+            (selected
+              ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
+              : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+          }
           style={{
             width: 36,
             height: 36,
             borderRadius: 8,
-            color: selected ? 'var(--fg-1)' : 'var(--fg-3)',
-            background: selected ? 'var(--bg-elev)' : 'transparent',
             boxShadow: selected ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',
           }}
         >

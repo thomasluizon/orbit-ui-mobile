@@ -42,11 +42,10 @@ export function ProfileNavCard({
       onClick={handleClick}
       data-tour={dataTour}
       data-testid={isPrimary ? 'profile-primary-card' : undefined}
-      className="w-full text-left flex items-center cursor-pointer"
+      className="w-full text-left flex items-center cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
       style={{
         padding: '14px 20px',
         gap: 12,
-        background: 'transparent',
         appearance: 'none',
         border: 0,
         borderBottom: '1px solid var(--hairline)',

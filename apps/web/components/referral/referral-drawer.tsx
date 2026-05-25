@@ -110,7 +110,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
               </div>
               <button
                 type="button"
-                className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
+                className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center transition-opacity duration-150 ease-out hover:opacity-80"
                 style={{
                   fontFamily: 'var(--font-family-sans)',
                   fontSize: 13,
@@ -131,7 +131,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
             {canShare && (
               <button
                 type="button"
-                className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
                 style={{
                   padding: '14px 20px',
                   borderBottom: '1px solid var(--hairline)',

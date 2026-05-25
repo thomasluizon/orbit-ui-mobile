@@ -60,7 +60,7 @@ interface HabitRowProps {
   childProgress?: { done: number; total: number }
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
-  /** Optional data attribute (`data-tour-target`) used by the feature tour. */
+  /** Optional data attribute (`data-tour`) used by the feature tour. */
   tourTargetId?: string
   actions?: HabitRowActions
 }
@@ -141,14 +141,20 @@ export function HabitRow({
           handleRowClick()
         }
       }}
-      data-tour-target={tourTargetId}
-      className="relative flex items-center cursor-pointer"
+      data-tour={tourTargetId}
+      className={
+        `relative flex items-center cursor-pointer transition-[background-color] duration-150 ease-out ${
+          selected
+            ? 'bg-[var(--bg-sunk)]'
+            : 'bg-[var(--bg-elev)] hover:bg-[color-mix(in_oklch,var(--bg-elev),var(--fg-1)_4%)]'
+        }`
+      }
       style={{
         gap: 10,
-        padding: `12px 20px`,
-        background: selected ? 'var(--bg-sunk)' : 'var(--bg-elev)',
+        padding: '12px 16px',
         borderRadius: 10,
-        marginLeft: indentPx,
+        marginLeft: 20 + indentPx,
+        marginRight: 20,
         marginBottom: 6,
       }}
     >
@@ -167,11 +173,9 @@ export function HabitRow({
           onClick={handleExpand}
           aria-label={expanded ? t('common.collapse') : t('common.expand')}
           aria-expanded={expanded}
-          className="appearance-none border-0 bg-transparent cursor-pointer p-0 flex shrink-0"
+          className="appearance-none border-0 bg-transparent cursor-pointer p-0 flex shrink-0 text-[var(--fg-3)] transition-[transform,color] duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
-            color: 'var(--fg-3)',
             transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-            transition: 'transform var(--dur-base) var(--ease-standard)',
           }}
         >
           <ChevronDown size={14} />
@@ -189,8 +193,8 @@ export function HabitRow({
       )}
 
       <div
-        className="flex-1 min-w-0 flex items-baseline"
-        style={{ gap: 8 }}
+        className="flex-1 min-w-0 flex flex-col"
+        style={{ gap: 2 }}
       >
         <TitleText
           title={habit.title}
@@ -216,13 +220,53 @@ export function HabitRow({
           />
         )}
         {!selectMode && (
-          hasChildren && childProgress ? (
-            <ParentRing
-              done={childProgress.done}
-              total={childProgress.total}
-              size={14}
-              ariaLabel={t('goals.progress')}
-            />
+          hasChildren ? (
+            <>
+              {childProgress && childProgress.total > 0 && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: 12,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {childProgress.done}/{childProgress.total}
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label={
+                  childProgress
+                    ? `${habit.title} ${childProgress.done}/${childProgress.total}`
+                    : habit.title
+                }
+                onClick={(event) => {
+                  event.stopPropagation()
+                  if (isDone) {
+                    actions.onUnlog?.()
+                  } else if (
+                    childProgress &&
+                    childProgress.total > 0 &&
+                    childProgress.done >= childProgress.total
+                  ) {
+                    actions.onLog?.()
+                  } else {
+                    actions.onForceLogParent?.()
+                  }
+                }}
+                className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
+                style={{ padding: 6, margin: -6 }}
+              >
+                <ParentRing
+                  done={childProgress?.done ?? 0}
+                  total={childProgress?.total ?? 0}
+                  size={22}
+                  ariaLabel={t('goals.progress')}
+                />
+              </button>
+            </>
           ) : (
             <StatusDot
               state={state}
@@ -256,12 +300,11 @@ export function HabitRow({
                 type="button"
                 aria-label={t('habits.actions.more')}
                 onClick={(event) => event.stopPropagation()}
-                className="appearance-none border-0 bg-transparent flex items-center justify-center"
+                className="appearance-none border-0 bg-transparent flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg)] hover:text-[var(--fg-1)]"
                 style={{
                   width: 28,
                   height: 28,
                   borderRadius: 6,
-                  color: 'var(--fg-3)',
                   cursor: 'pointer',
                 }}
               >
@@ -393,7 +436,7 @@ interface MetaStripProps {
 function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
   return (
     <span
-      className="shrink-0 overflow-hidden whitespace-nowrap text-ellipsis"
+      className="overflow-hidden whitespace-nowrap text-ellipsis"
       style={{
         fontFamily: 'var(--font-family-sans)',
         fontSize: 13,
@@ -401,7 +444,6 @@ function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
         fontVariantNumeric: 'tabular-nums',
       }}
     >
-      <span style={{ margin: '0 4px', color: 'var(--fg-4)' }}>·</span>
       {tokens.map((token, i) => (
         <Fragment key={metaTokenKey(token, i)}>
           {i > 0 && <span style={{ margin: '0 6px', color: 'var(--fg-4)' }}>·</span>}

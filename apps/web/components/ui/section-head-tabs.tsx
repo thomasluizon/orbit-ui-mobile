@@ -33,7 +33,7 @@ export function SectionHeadTabs<TId extends string>({
       onKeyDown={onKeyDown}
       className="flex items-stretch shrink-0"
       style={{
-        padding: '8px 20px 10px',
+        padding: '12px 20px 16px',
         gap: 6,
         outline: 'none',
       }}
@@ -48,16 +48,19 @@ export function SectionHeadTabs<TId extends string>({
             aria-selected={isActive}
             aria-label={tab.label}
             onClick={() => onChange(tab.id)}
-            className="flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+            className={
+              'flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-[background-color,color,box-shadow] duration-150 ease-out ' +
+              (isActive
+                ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
+                : 'bg-transparent text-[var(--fg-2)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+            }
             style={{
               height: 38,
               padding: '0 10px',
               borderRadius: 8,
-              background: isActive ? 'var(--bg-elev)' : 'transparent',
               boxShadow: isActive
                 ? 'inset 0 0 0 1px var(--fg-3)'
                 : 'inset 0 0 0 1px var(--hairline-strong)',
-              color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
               fontFamily: 'var(--font-family-sans)',
               fontSize: 13,
               fontWeight: isActive ? 600 : 500,

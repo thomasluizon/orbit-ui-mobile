@@ -59,7 +59,7 @@ function SchemeSwatches({ active, hasProAccess, mounted, onSelect, t }: Readonly
             aria-label={ariaLabel}
             aria-pressed={isActive}
             onClick={() => onSelect(option.value)}
-            className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0"
+            className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 transition-[opacity,box-shadow] duration-150 ease-out hover:opacity-80"
             style={{
               width: 22,
               height: 22,

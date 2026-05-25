@@ -300,9 +300,8 @@ export default function ChatPage() {
                   type="button"
                   aria-label={t('chat.removeImage')}
                   onClick={removeImage}
-                  className="absolute -top-1.5 -right-1.5 rounded-full p-0.5"
+                  className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110"
                   style={{
-                    background: 'var(--bg-elev)',
                     boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
                   }}
                 >
@@ -432,8 +431,8 @@ export default function ChatPage() {
                   type="button"
                   aria-label={t('chat.attachImage')}
                   onClick={openFilePicker}
-                  className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-                  style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-3)' }}
+                  className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+                  style={{ width: 36, height: 36, borderRadius: 8 }}
                 >
                   <ImageIcon size={17} strokeWidth={1.5} />
                 </button>
@@ -445,8 +444,8 @@ export default function ChatPage() {
                       aria-label={t('chat.toggleMic')}
                       disabled={isTyping}
                       onClick={toggleRecording}
-                      className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-                      style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-3)' }}
+                      className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] disabled:opacity-50"
+                      style={{ width: 36, height: 36, borderRadius: 8 }}
                     >
                       <Mic size={17} strokeWidth={1.5} />
                     </button>
@@ -457,7 +456,7 @@ export default function ChatPage() {
                         e.stopPropagation()
                         setShowLangPicker((prev) => !prev)
                       }}
-                      className="appearance-none border-0 bg-transparent cursor-pointer"
+                      className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
                       style={{
                         padding: 4,
                         fontSize: 14,
@@ -488,7 +487,7 @@ export default function ChatPage() {
                               setSpeechLang(lang.value)
                               setShowLangPicker(false)
                             }}
-                            className="w-full text-left flex items-center"
+                            className="w-full text-left flex items-center bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-sunk)]"
                             style={{
                               padding: '6px 12px',
                               gap: 8,
@@ -496,7 +495,6 @@ export default function ChatPage() {
                               fontSize: 12,
                               color: speechLang === lang.value ? 'var(--primary)' : 'var(--fg-2)',
                               fontWeight: speechLang === lang.value ? 600 : 400,
-                              background: 'transparent',
                               border: 0,
                               cursor: 'pointer',
                             }}
@@ -514,12 +512,16 @@ export default function ChatPage() {
                   disabled={!canSend}
                   aria-label={t('chat.send')}
                   onClick={() => sendMessage()}
-                  className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center"
+                  className={
+                    'appearance-none border-0 cursor-pointer inline-flex items-center justify-center transition-[background-color,transform] duration-150 ease-out ' +
+                    (canSend
+                      ? 'bg-[var(--primary)] hover:bg-[var(--primary-pressed)] hover:scale-110 active:scale-95'
+                      : 'bg-[var(--bg-sunk)]')
+                  }
                   style={{
                     width: 32,
                     height: 32,
                     borderRadius: 999,
-                    background: canSend ? 'var(--primary)' : 'var(--bg-sunk)',
                     color: 'var(--fg-on-primary)',
                     opacity: canSend ? 1 : 0.4,
                   }}

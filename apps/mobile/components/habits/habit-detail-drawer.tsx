@@ -3,10 +3,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Sparkles } from 'lucide-react-native'
-import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { habitKeys } from '@orbit/shared/query'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -16,7 +14,6 @@ import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
 import { HabitCalendar } from './habit-calendar'
 import { HabitDetailStatsRow } from './habit-detail-sections'
-import { HabitRow } from './habit-row'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
@@ -24,7 +21,6 @@ import {
   useLogHabit,
 } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import type { NormalizedHabitsData } from '@/hooks/use-habit-queries'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -38,8 +34,7 @@ interface HabitDetailDrawerProps {
 
 /**
  * Habit Detail Drawer. Covers all variants by data-driven section presence:
- * active, parent+children (sub-habits rendered as HabitRow with `child`+`indent`),
- * skipped (checklist hidden when empty), checklist, bad, slip alert
+ * active, skipped (checklist hidden when empty), checklist, bad, slip alert
  * (when `slipAlertEnabled`), linked goal (when `linkedGoals` non empty).
  */
 export function HabitDetailDrawer({
@@ -55,31 +50,11 @@ export function HabitDetailDrawer({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const habitId = habit?.id ?? ''
-  const queryClient = useQueryClient()
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
     open && habitId ? habitId : null,
   )
 
-  // Resolve children from any cached useHabits query that already populated
-  // the normalized index. The drawer doesn't know which filter the host used,
-  // so we scan habit list caches and pick the first one that knows about this
-  // habit. Read-only: we never mutate the cache here.
-  const children = useMemo<NormalizedHabit[]>(() => {
-    if (!habit?.hasSubHabits) return []
-    const entries = queryClient.getQueriesData<NormalizedHabitsData>({
-      queryKey: habitKeys.lists(),
-    })
-    for (const [, data] of entries) {
-      if (!data) continue
-      const ids = data.childrenByParent.get(habit.id) ?? []
-      const found = ids
-        .map((id) => data.habitsById.get(id))
-        .filter((h): h is NormalizedHabit => h !== undefined)
-      if (found.length > 0) return found
-    }
-    return []
-  }, [habit, queryClient])
   const updateChecklist = useUpdateChecklist()
   const logHabit = useLogHabit()
 
@@ -234,17 +209,19 @@ export function HabitDetailDrawer({
               </View>
             ) : null}
 
-            <View>
-              <SectionLabel top={4} bottom={8}>
-                {t('habits.detail.stats')}
-              </SectionLabel>
-              <HabitDetailStatsRow
-                metrics={metrics}
-                loading={metricsLoading}
-                t={t}
-                tokens={tokens}
-              />
-            </View>
+            {habit.frequencyUnit || habit.isGeneral ? (
+              <View>
+                <SectionLabel top={4} bottom={8}>
+                  {t('habits.detail.stats')}
+                </SectionLabel>
+                <HabitDetailStatsRow
+                  metrics={metrics}
+                  loading={metricsLoading}
+                  t={t}
+                  tokens={tokens}
+                />
+              </View>
+            ) : null}
 
             {habit.dueTime ? (
               <View>
@@ -301,21 +278,6 @@ export function HabitDetailDrawer({
               </View>
             ) : null}
 
-            {children.length > 0 ? (
-              <View>
-                <SectionLabel top={8} bottom={0}>
-                  {t('habits.detail.children')}
-                </SectionLabel>
-                {children.map((child, index) => (
-                  <HabitRow
-                    key={child.id}
-                    habit={child}
-                    depth={1}
-                    isLastChild={index === children.length - 1}
-                  />
-                ))}
-              </View>
-            ) : null}
 
             <View>
               <SectionLabel top={8} bottom={8}>

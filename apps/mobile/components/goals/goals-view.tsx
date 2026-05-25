@@ -1,17 +1,18 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Flag } from "lucide-react-native";
+import { Check, Filter, Flag } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
-import { createTokensV2, radius } from '@/lib/theme';
+import { AnchoredMenu } from "@/components/ui/anchored-menu";
+import type { MenuAnchorRect } from "@/lib/anchored-menu";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 type AppTokens = ReturnType<typeof createTokensV2>;
@@ -45,6 +46,11 @@ export function GoalsView() {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null);
 
+  const filterMenuButtonRef = useRef<View>(null);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [filterMenuAnchorRect, setFilterMenuAnchorRect] =
+    useState<MenuAnchorRect | null>(null);
+
   const { data, isFetched } = useGoals(activeFilter);
 
   const statusFilters = useMemo<StatusFilter[]>(
@@ -65,37 +71,43 @@ export function GoalsView() {
 
   const handleFilterChange = useCallback((status: GoalStatus | null) => {
     setActiveFilter(status);
+    setShowFilterMenu(false);
   }, []);
+
+  const handleToggleFilterMenu = useCallback(() => {
+    if (showFilterMenu) {
+      setShowFilterMenu(false);
+      return;
+    }
+    filterMenuButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setFilterMenuAnchorRect({ x, y, width, height });
+      setShowFilterMenu(true);
+    });
+  }, [showFilterMenu]);
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        contentContainerStyle={styles.filtersRow}
-        showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="always"
-      >
-        {statusFilters.map((filter) => {
-          const active = activeFilter === filter.key;
-          return (
-            <TouchableOpacity
-              key={filter.key ?? "all"}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => handleFilterChange(filter.key)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  active && styles.filterChipTextActive,
-                ]}
-              >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.toolbar}>
+        <View ref={filterMenuButtonRef} collapsable={false}>
+          <Pressable
+            onPress={handleToggleFilterMenu}
+            accessibilityRole="button"
+            accessibilityLabel={t("goals.filters.statusFilter")}
+            accessibilityState={{ selected: activeFilter != null }}
+            hitSlop={6}
+            style={[
+              styles.iconBtn,
+              activeFilter != null && styles.iconBtnActive,
+            ]}
+          >
+            <Filter
+              size={15}
+              color={activeFilter != null ? tokens.fg1 : tokens.fg3}
+              strokeWidth={1.6}
+            />
+          </Pressable>
+        </View>
+      </View>
 
       {!isFetched ? (
         <View style={styles.skeletonContainer}>
@@ -114,6 +126,49 @@ export function GoalsView() {
           <Text style={styles.emptySubtitle}>{t("goals.emptyHint")}</Text>
         </View>
       )}
+
+      <AnchoredMenu
+        visible={showFilterMenu}
+        anchorRect={filterMenuAnchorRect}
+        onClose={() => setShowFilterMenu(false)}
+        width={200}
+        estimatedHeight={200}
+      >
+        {statusFilters.map((filter) => {
+          const active = activeFilter === filter.key;
+          return (
+            <Pressable
+              key={filter.key ?? "all"}
+              style={({ pressed }) => [
+                styles.menuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
+              onPress={() => handleFilterChange(filter.key)}
+              accessibilityRole="menuitem"
+              accessibilityState={{ selected: active }}
+            >
+              <View style={styles.menuCheck}>
+                {active ? (
+                  <Check size={14} color={tokens.primary} strokeWidth={2} />
+                ) : null}
+              </View>
+              <Text
+                style={[
+                  styles.menuLabel,
+                  {
+                    color: active ? tokens.fg1 : tokens.fg2,
+                    fontWeight: active ? "600" : "500",
+                  },
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </AnchoredMenu>
     </View>
   );
 }
@@ -121,51 +176,55 @@ export function GoalsView() {
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      paddingTop: 16,
+      paddingTop: 8,
     },
-    filtersRow: {
-      gap: 8,
-      paddingBottom: 16,
-      paddingRight: 20,
+    toolbar: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      paddingHorizontal: 20,
+      paddingBottom: 12,
     },
-    filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      minHeight: 42,
-      borderRadius: radius.lg,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      flexShrink: 0,
+    iconBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      alignItems: "center",
       justifyContent: "center",
     },
-    filterChipActive: {
+    iconBtnActive: {
       backgroundColor: tokens.bgElev,
+      borderWidth: 1,
       borderColor: tokens.hairlineStrong,
     },
-    filterChipText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: tokens.fg3,
+    menuItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
     },
-    filterChipTextActive: {
-      color: tokens.primary,
+    menuCheck: {
+      width: 14,
+      height: 14,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    menuLabel: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      flex: 1,
     },
     skeletonContainer: {
       gap: 12,
+      paddingHorizontal: 20,
     },
     skeletonCard: {
       backgroundColor: tokens.bgSunk,
-      borderRadius: radius.xl,
-      borderWidth: 1,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: tokens.hairline,
       padding: 20,
       gap: 10,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.16,
-      shadowRadius: 10,
-      elevation: 3,
     },
     skeletonTitle: {
       height: 20,
@@ -190,9 +249,10 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "center",
       paddingHorizontal: 20,
       paddingVertical: 56,
-      borderRadius: radius.xl,
+      marginHorizontal: 20,
+      borderRadius: 12,
       backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: tokens.hairline,
     },
     emptyIconContainer: {
@@ -200,19 +260,21 @@ function createStyles(tokens: AppTokens) {
       height: 64,
       borderRadius: 32,
       backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: tokens.hairline,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 16,
     },
     emptyTitle: {
+      fontFamily: "Geist",
       fontSize: 16,
       fontWeight: "600",
       color: tokens.fg2,
       marginBottom: 4,
     },
     emptySubtitle: {
+      fontFamily: "Geist",
       fontSize: 14,
       color: tokens.fg3,
       textAlign: "center",

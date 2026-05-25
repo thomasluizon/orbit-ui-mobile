@@ -291,6 +291,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
+  // The tour's "card" step anchors to the featured mock habit when injected,
+  // otherwise falls back to the first visible row so the spotlight still has
+  // something to point at when the user already has real habits.
+  const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
+    ? TOUR_FEATURED_HABIT_ID
+    : topLevelHabits[0]?.id
+
   const getChildren = habitsQuery.getChildren
 
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState(
@@ -1057,7 +1064,7 @@ const isPostponeAction = useMemo(() => {
     const meta = buildMetaTokens(habit, isChild)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
-      habit.id === TOUR_FEATURED_HABIT_ID ? 'tour-habit-card' : undefined
+      habit.id === tourCardHabitId ? 'tour-habit-card' : undefined
 
     return (
       <HabitRow

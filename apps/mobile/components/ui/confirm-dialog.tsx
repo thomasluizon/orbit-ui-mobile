@@ -8,9 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -42,7 +41,7 @@ export function ConfirmDialog({
   variant = 'danger',
 }: Readonly<ConfirmDialogProps>) {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme, surfaces } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -51,27 +50,17 @@ export function ConfirmDialog({
   const progress = useMemo(() => new Animated.Value(0), [])
   const [visible, setVisible] = useState(open)
 
-  const config = useMemo(() => {
+  const accentColor = useMemo(() => {
     switch (variant) {
       case 'warning':
-        return {
-          icon: AlertCircle,
-          accentColor: tokens.statusOverdue,
-        }
+        return tokens.statusOverdue
       case 'success':
-        return {
-          icon: CheckCircle2,
-          accentColor: tokens.statusDone,
-        }
+        return tokens.statusDone
       default:
-        return {
-          icon: AlertTriangle,
-          accentColor: tokens.statusBad,
-        }
+        return tokens.statusBad
     }
   }, [tokens, variant])
-  const Icon = config.icon
-  const styles = useMemo(() => createStyles(tokens, surfaces), [tokens, surfaces])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
     if (open) {
@@ -151,13 +140,7 @@ export function ConfirmDialog({
           ]}
           onStartShouldSetResponder={() => true}
         >
-          <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <Icon size={20} color={config.accentColor} />
-            </View>
-            <Text style={styles.title}>{title}</Text>
-          </View>
-
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
 
           <View style={styles.actions}>
@@ -177,12 +160,12 @@ export function ConfirmDialog({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={[styles.confirmButton, { backgroundColor: accentColor }]}
               onPress={handleConfirm}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               <Text
-                style={[styles.confirmLabel, { color: config.accentColor }]}
+                style={[styles.confirmLabel, { color: tokens.fgOnPrimary }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
@@ -197,7 +180,7 @@ export function ConfirmDialog({
   )
 }
 
-function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme>['surfaces']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -212,58 +195,48 @@ function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme
     dialog: {
       width: '100%',
       maxWidth: 360,
-      backgroundColor: surfaces.overlay.backgroundColor,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: surfaces.overlay.borderColor,
+      backgroundColor: tokens.bgElev,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairline,
       padding: 20,
-      ...surfaces.overlay.shadow,
-      elevation: Math.max(12, surfaces.overlay.elevation),
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 12,
-    },
-    iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-      backgroundColor: surfaces.ground.backgroundColor,
-      justifyContent: 'center',
-      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.35,
+      shadowOffset: { width: 0, height: 12 },
+      shadowRadius: 40,
+      elevation: 10,
     },
     title: {
-      flex: 1,
+      fontFamily: 'Geist',
       color: tokens.fg1,
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: '600',
+      letterSpacing: -0.17,
+      marginBottom: 6,
     },
     description: {
+      fontFamily: 'Geist',
       color: tokens.fg2,
       fontSize: 14,
-      lineHeight: 20,
+      lineHeight: 21,
       marginBottom: 20,
     },
     actions: {
       flexDirection: 'row',
-      gap: 12,
+      gap: 8,
     },
     cancelButton: {
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 8,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-      backgroundColor: surfaces.ground.backgroundColor,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairlineStrong,
       alignItems: 'center',
       justifyContent: 'center',
     },
     cancelLabel: {
+      fontFamily: 'Geist',
       color: tokens.fg2,
       fontSize: 14,
       fontWeight: '500',
@@ -273,15 +246,14 @@ function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 8,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
     },
     confirmLabel: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: '600',
       textAlign: 'center',
     },
   })

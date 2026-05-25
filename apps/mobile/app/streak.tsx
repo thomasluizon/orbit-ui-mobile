@@ -23,7 +23,7 @@ import {
 import { plural } from '@/lib/plural'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ConfirmDialogV2 } from '@/components/ui/confirm-dialog-v2'
 import { StreakWeekTimeline, FreezeSection } from './streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -159,12 +159,7 @@ export default function StreakScreen() {
           </View>
         ) : (
           <>
-            <View
-              style={[
-                styles.hero,
-                { borderBottomColor: tokens.hairline },
-              ]}
-            >
+            <View style={styles.hero}>
               <Text
                 style={[
                   styles.heroEyebrow,
@@ -186,6 +181,9 @@ export default function StreakScreen() {
               >
                 {streak}
               </Text>
+              <Text style={[styles.heroDays, { color: tokens.fg3 }]}>
+                {plural(t('streakDisplay.detail.daysUnit'), streak)}
+              </Text>
               {encouragement ? (
                 <Text style={[styles.heroEncouragement, { color: tokens.fg3 }]}>
                   {encouragement}
@@ -194,7 +192,63 @@ export default function StreakScreen() {
             </View>
 
             <SectionLabel>{t('streakDisplay.detail.thisWeek')}</SectionLabel>
-            <StreakWeekTimeline weekDays={weekDays} tokens={tokens} />
+            <View style={styles.groupWrap}>
+              <View
+                style={[
+                  styles.weekCard,
+                  {
+                    backgroundColor: tokens.bgElev,
+                    borderColor: tokens.hairline,
+                  },
+                ]}
+              >
+                <StreakWeekTimeline
+                  weekDays={weekDays}
+                  tokens={tokens}
+                  legend={{
+                    active: t('streakDisplay.detail.dayActive'),
+                    frozen: t('streakDisplay.detail.dayFrozen'),
+                    missed: t('streakDisplay.detail.dayMissed'),
+                  }}
+                />
+              </View>
+            </View>
+
+            <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
+            <View style={styles.groupWrap}>
+              <SettingsGroup>
+                <SettingsGroupRow
+                  label={t('streakDisplay.detail.currentStreak')}
+                  accessory="none"
+                  trailing={
+                    <Text style={[styles.statValue, { color: tokens.fg3 }]}>
+                      {streak}
+                    </Text>
+                  }
+                />
+                <SettingsGroupRow
+                  label={t('streakDisplay.detail.longestStreak')}
+                  accessory="none"
+                  trailing={
+                    <Text style={[styles.statValue, { color: tokens.fg3 }]}>
+                      {streakInfo?.longestStreak ?? 0}
+                    </Text>
+                  }
+                />
+                <SettingsGroupRow
+                  label={tier}
+                  accessory="none"
+                  trailing={
+                    <View
+                      style={[
+                        styles.tierDot,
+                        { backgroundColor: tokens.primary },
+                      ]}
+                    />
+                  }
+                />
+              </SettingsGroup>
+            </View>
 
             <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
             <FreezeSection
@@ -216,47 +270,26 @@ export default function StreakScreen() {
               onActivateFreeze={() => setShowConfirm(true)}
             />
 
-            <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
-            <View
-              style={[
-                styles.tierRow,
-                { borderBottomColor: tokens.hairline },
-              ]}
-            >
-              <View
-                style={[styles.tierDot, { backgroundColor: tokens.primary }]}
-              />
-              <Text style={[styles.tierLabel, { color: tokens.fg1 }]}>
-                {tier}
-              </Text>
-              <View style={{ flex: 1 }} />
-              <Text style={[styles.tierMeta, { color: tokens.fg3 }]}>
-                {plural(
-                  t('streakDisplay.profile.longestStreak', {
-                    count: streakInfo?.longestStreak ?? 0,
-                  }),
-                  streakInfo?.longestStreak ?? 0,
-                )}
-              </Text>
-            </View>
-
             {streakInfo?.recentFreezeDates &&
             streakInfo.recentFreezeDates.length > 0 ? (
               <>
                 <SectionLabel>
                   {t('streakDisplay.freeze.recentLabel')}
                 </SectionLabel>
-                {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
-                  <SettingsRow
-                    key={date}
-                    label={displayDate(date, {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                    accessory="none"
-                    mono
-                  />
-                ))}
+                <View style={styles.groupWrap}>
+                  <SettingsGroup>
+                    {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
+                      <SettingsGroupRow
+                        key={date}
+                        label={displayDate(date, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                        accessory="none"
+                      />
+                    ))}
+                  </SettingsGroup>
+                </View>
               </>
             ) : null}
 
@@ -300,8 +333,7 @@ function createStyles(_tokens: Tokens) {
       paddingTop: 32,
       paddingBottom: 28,
       alignItems: 'center',
-      gap: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      gap: 8,
     },
     heroEyebrow: {
       fontFamily: 'GeistMono',
@@ -316,33 +348,34 @@ function createStyles(_tokens: Tokens) {
       lineHeight: 72,
       fontVariant: ['tabular-nums'],
     },
+    heroDays: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+    },
     heroEncouragement: {
       fontFamily: 'Geist',
       fontSize: 14,
       fontStyle: 'italic',
       textAlign: 'center',
+      marginTop: 4,
     },
-    tierRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
+    groupWrap: {
       paddingHorizontal: 20,
+    },
+    weekCard: {
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
       paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    statValue: {
+      fontFamily: 'GeistMono',
+      fontSize: 13,
+      fontVariant: ['tabular-nums'],
     },
     tierDot: {
       width: 8,
       height: 8,
       borderRadius: 999,
-    },
-    tierLabel: {
-      fontFamily: 'Geist',
-      fontSize: 15,
-    },
-    tierMeta: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontVariant: ['tabular-nums'],
     },
   })
 }

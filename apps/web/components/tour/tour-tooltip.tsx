@@ -247,9 +247,9 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[12px] border-b border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pt-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] p-5 pb-8 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[12px] border-b border-[var(--hairline)] bg-[var(--bg-elev)] px-6 pt-3 pb-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))] shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
   })()
 
   const floatStyle = (() => {
@@ -268,30 +268,30 @@ export function TourTooltip({
       aria-label={t(step.titleKey)}
     >
       {mode !== 'float' && (
-        <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-border" />
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--hairline-strong)]" />
       )}
 
       <div className="mb-3 flex items-center gap-2">
         {SectionIcon && <SectionIcon className="size-4 text-[var(--primary)]" />}
-        <span className="text-xs font-medium text-[var(--fg-2)]">{sectionName}</span>
-        <span className="text-xs text-[var(--fg-3)]">
+        <span className="text-xs italic text-[var(--fg-2)]">{sectionName}</span>
+        <span className="font-[var(--font-family-mono)] text-[11px] uppercase tracking-[0.04em] text-[var(--fg-3)]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,
           })}
         </span>
         {step.proBadge && (
-          <span className="ml-auto rounded-full bg-[var(--bg-elev)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--primary)]">
+          <span className="ml-auto rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--primary)]">
             {t('tour.ui.pro')}
           </span>
         )}
       </div>
 
-      <h3 className="mb-1.5 text-base font-semibold text-[var(--fg-1)]">
+      <h3 className="mb-1.5 text-[length:var(--text-fluid-xl)] font-extrabold tracking-tight text-[var(--fg-1)]">
         {t(step.titleKey)}
       </h3>
 
-      <p className="mb-4 text-sm leading-relaxed text-[var(--fg-2)]">
+      <p className="mb-4 text-sm italic leading-relaxed text-[var(--fg-2)]">
         {t(step.descriptionKey)}
       </p>
 
@@ -303,7 +303,7 @@ export function TourTooltip({
           } else if (i < sectionProgress.current - 1) {
             dotClass = 'w-1.5 bg-[var(--primary)]/40'
           } else {
-            dotClass = 'w-1.5 bg-border'
+            dotClass = 'w-1.5 bg-[var(--hairline)]'
           }
           return (
             <div
@@ -321,7 +321,7 @@ export function TourTooltip({
           <button
             type="button"
             onClick={onPrev}
-            className="flex items-center gap-1 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--fg-2)] transition-colors hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            className="flex items-center gap-1 rounded-[10px] px-3 py-2.5 text-sm italic text-[var(--fg-2)] transition-colors duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)]"
           >
             <ChevronLeft className="size-4" />
             {t('tour.ui.back')}
@@ -332,7 +332,7 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex items-center gap-1 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--primary-pressed)]"
+          className="flex items-center gap-1 rounded-[10px] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-[var(--fg-on-primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" />}
@@ -342,7 +342,7 @@ export function TourTooltip({
       <button
         type="button"
         onClick={onSkip}
-        className="mt-2 w-full text-center text-xs text-[var(--fg-3)] transition-colors hover:text-[var(--fg-2)]"
+        className="mt-3 w-full text-center text-xs italic text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-2)]"
       >
         {t('tour.ui.skip')}
       </button>

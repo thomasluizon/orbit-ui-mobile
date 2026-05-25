@@ -73,6 +73,7 @@ export default function AchievementsPage() {
             </span>
             <Link
               href="/upgrade"
+              className="transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
               style={{
                 marginTop: 8,
                 padding: '10px 16px',

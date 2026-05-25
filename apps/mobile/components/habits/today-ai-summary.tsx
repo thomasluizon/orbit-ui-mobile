@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Star } from 'lucide-react-native'
+import { Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
@@ -13,9 +13,10 @@ interface TodayAISummaryProps {
 }
 
 /**
- * Today screen "Astra" block: filled star + heading, vertical hairline rail,
- * one or two lines of message. No card chrome. Whole block is tappable; tap
- * destination depends on state (pro → /chat, free → /upgrade, error → refetch).
+ * Today screen "Astra" block: full-height primary rail on the left, then
+ * Sparkles glyph + heading and one or two lines of message stacked on the
+ * right. No card chrome. Whole block is tappable; tap destination depends on
+ * state (pro → /chat, free → /upgrade, error → refetch).
  *
  * - Pro + enabled: shows the AI summary text
  * - Free: shows the upgrade prompt
@@ -27,7 +28,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(tokens.fg1, tokens.fg2, tokens.hairlineStrong), [tokens.fg1, tokens.fg2, tokens.hairlineStrong])
+  const styles = useMemo(() => createStyles(tokens.fg1, tokens.fg2, tokens.primary), [tokens.fg1, tokens.fg2, tokens.primary])
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
@@ -86,28 +87,28 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
         pressed ? styles.wrapPressed : null,
       ]}
     >
-      <View style={styles.headerRow}>
-        <Star
-          size={20}
-          color={tokens.fg1}
-          fill={tokens.fg1}
-          strokeWidth={1.5}
-        />
-        <Text style={styles.heading}>Astra</Text>
-      </View>
-      <View style={styles.messageRow}>
-        <View style={styles.railSlot}>
-          <View style={styles.rail} />
+      <View style={styles.row}>
+        <View style={styles.rail} />
+        <View style={styles.column}>
+          <View style={styles.headerRow}>
+            <Sparkles
+              size={20}
+              color={tokens.fg1}
+              fill={tokens.fg1}
+              strokeWidth={1.5}
+            />
+            <Text style={styles.heading}>Astra</Text>
+          </View>
+          <Text style={styles.message} numberOfLines={3}>
+            {resolved.text}
+          </Text>
         </View>
-        <Text style={styles.message} numberOfLines={3}>
-          {resolved.text}
-        </Text>
       </View>
     </Pressable>
   )
 }
 
-function createStyles(fg1: string, fg2: string, hairlineStrong: string) {
+function createStyles(fg1: string, fg2: string, primary: string) {
   return StyleSheet.create({
     wrap: {
       paddingHorizontal: 20,
@@ -117,10 +118,24 @@ function createStyles(fg1: string, fg2: string, hairlineStrong: string) {
     wrapPressed: {
       opacity: 0.6,
     },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      gap: 14,
+    },
+    rail: {
+      width: 2,
+      borderRadius: 1,
+      backgroundColor: primary,
+    },
+    column: {
+      flex: 1,
+      gap: 8,
+    },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 10,
     },
     heading: {
       fontFamily: 'Geist',
@@ -129,22 +144,7 @@ function createStyles(fg1: string, fg2: string, hairlineStrong: string) {
       color: fg1,
       letterSpacing: -0.2,
     },
-    messageRow: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 8,
-    },
-    railSlot: {
-      width: 20,
-      alignItems: 'center',
-    },
-    rail: {
-      width: 1,
-      flex: 1,
-      backgroundColor: hairlineStrong,
-    },
     message: {
-      flex: 1,
       fontFamily: 'Geist',
       fontSize: 14,
       lineHeight: 20,

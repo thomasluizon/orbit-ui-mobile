@@ -127,43 +127,49 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
             </Text>
           </Pressable>
 
-          <View style={styles.divider} />
+          <View style={styles.sectionList}>
+            {availableSections.map((section, index) => {
+              const iconKey = TOUR_SECTION_ICONS[section]
+              const Icon =
+                SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
+              const stepCount = getSectionStepCount(section)
+              const completed = sectionCompletion[section]
 
-          {availableSections.map((section) => {
-            const iconKey = TOUR_SECTION_ICONS[section]
-            const Icon =
-              SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
-            const stepCount = getSectionStepCount(section)
-            const completed = sectionCompletion[section]
-
-            return (
-              <Pressable
-                key={section}
-                style={({ pressed }) => [
-                  styles.sectionCard,
-                  pressed && styles.sectionCardPressed,
-                ]}
-                onPress={() => handleReplaySection(section)}
-              >
-                <View style={styles.sectionIcon}>
-                  {Icon && <Icon size={16} color={tokens.primary} />}
+              return (
+                <View key={section}>
+                  {index > 0 ? <View style={styles.sectionDivider} /> : null}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.sectionRow,
+                      pressed && styles.sectionRowPressed,
+                    ]}
+                    onPress={() => handleReplaySection(section)}
+                  >
+                    {Icon ? (
+                      <Icon
+                        size={18}
+                        color={tokens.fg3}
+                        strokeWidth={1.6}
+                      />
+                    ) : null}
+                    <View style={styles.sectionBody}>
+                      <Text style={styles.sectionTitle}>
+                        {t(`tour.sections.${section}`)}
+                      </Text>
+                      <Text style={styles.sectionSteps}>
+                        {t('tour.replay.steps', { count: stepCount })}
+                      </Text>
+                    </View>
+                    {completed ? (
+                      <CheckCircle size={16} color={tokens.statusDone} />
+                    ) : (
+                      <Play size={16} color={tokens.fg3} />
+                    )}
+                  </Pressable>
                 </View>
-                <View style={styles.sectionBody}>
-                  <Text style={styles.sectionTitle}>
-                    {t(`tour.sections.${section}`)}
-                  </Text>
-                  <Text style={styles.sectionSteps}>
-                    {t('tour.replay.steps', { count: stepCount })}
-                  </Text>
-                </View>
-                {completed ? (
-                  <CheckCircle size={16} color={tokens.statusDone} />
-                ) : (
-                  <Play size={16} color={tokens.fg3} />
-                )}
-              </Pressable>
-            )
-          })}
+              )
+            })}
+          </View>
         </View>
       </View>
     </Modal>
@@ -213,51 +219,45 @@ function createModalStyles(tokens: AppTokens) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: tokens.primary,
-      borderRadius: 10,
+      borderRadius: 8,
       paddingVertical: 14,
-      marginBottom: 16,
+      marginBottom: 20,
     },
     replayAllText: {
       fontSize: 14,
       fontWeight: '600',
       color: tokens.fgOnPrimary,
     },
-    divider: {
-      height: 1,
-      backgroundColor: tokens.hairline,
-      marginBottom: 12,
+    sectionList: {
+      gap: 0,
     },
-    sectionCard: {
+    sectionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-      marginBottom: 8,
+      gap: 14,
+      paddingVertical: 14,
     },
-    sectionCardPressed: {
-      opacity: 0.7,
+    sectionRowPressed: {
+      opacity: 0.6,
     },
-    sectionIcon: {
-      borderRadius: 8,
-      backgroundColor: tokens.bgSunk,
-      padding: 10,
-      marginRight: 12,
+    sectionDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: tokens.hairline,
     },
     sectionBody: {
       flex: 1,
+      gap: 2,
     },
     sectionTitle: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontFamily: 'Geist',
+      fontSize: 15,
+      fontWeight: '500',
       color: tokens.fg1,
     },
     sectionSteps: {
-      fontSize: 12,
-      color: tokens.fg2,
-      marginTop: 2,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
     },
   })
 }

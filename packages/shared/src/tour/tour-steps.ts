@@ -21,15 +21,6 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/',
   },
   {
-    id: 'habits-tags',
-    section: 'habits',
-    targetId: 'tour-habit-tags',
-    titleKey: 'tour.habits.tags.title',
-    descriptionKey: 'tour.habits.tags.description',
-    placement: 'bottom',
-    route: '/',
-  },
-  {
     id: 'habits-tabs',
     section: 'habits',
     targetId: 'tour-tabs-bar',

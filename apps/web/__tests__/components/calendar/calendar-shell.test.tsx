@@ -12,7 +12,6 @@ import {
 
 describe('Calendar shell helpers', () => {
   it('renders the calendar header actions', () => {
-    const onGoToToday = vi.fn()
     const onPreviousMonth = vi.fn()
     const onNextMonth = vi.fn()
 
@@ -20,10 +19,8 @@ describe('Calendar shell helpers', () => {
       <CalendarHeader
         title="nav.calendar"
         monthLabel="April 2026"
-        goToTodayLabel="dates.goToToday"
         previousMonthLabel="common.previousMonth"
         nextMonthLabel="common.nextMonth"
-        onGoToToday={onGoToToday}
         onPreviousMonth={onPreviousMonth}
         onNextMonth={onNextMonth}
       />,
@@ -40,7 +37,7 @@ describe('Calendar shell helpers', () => {
     expect(onNextMonth).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the calendar legend labels', () => {
+  it('renders the calendar legend labels inline', () => {
     render(
       <CalendarLegend
         doneLabel="Done"
@@ -52,7 +49,5 @@ describe('Calendar shell helpers', () => {
     expect(screen.getByText('Done')).toBeInTheDocument()
     expect(screen.getByText('Upcoming')).toBeInTheDocument()
     expect(screen.getByText('Missed')).toBeInTheDocument()
-    // v8: section title above legend
-    expect(screen.getByText('calendar.legend.sectionTitle')).toBeInTheDocument()
   })
 })

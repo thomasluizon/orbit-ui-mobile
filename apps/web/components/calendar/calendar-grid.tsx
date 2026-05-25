@@ -142,11 +142,13 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
               aria-current={cell.isToday ? 'date' : undefined}
               aria-disabled={!canSelect}
               onClick={() => canSelect && onSelectDay(cell.dateStr)}
-              className="relative flex flex-col items-center justify-center"
+              className={
+                'relative flex flex-col items-center justify-center bg-transparent transition-colors duration-150 ease-out ' +
+                (canSelect ? 'hover:bg-[var(--bg-elev)]' : '')
+              }
               style={{
                 appearance: 'none',
                 border: 0,
-                background: 'transparent',
                 height: 40,
                 gap: 3,
                 borderRadius: 6,

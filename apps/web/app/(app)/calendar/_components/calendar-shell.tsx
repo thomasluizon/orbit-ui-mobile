@@ -1,18 +1,14 @@
 'use client'
 
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
-import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
-import { SectionLabel } from '@/components/ui/section-label'
 
 interface CalendarHeaderProps {
   title: string
   monthLabel: string
   subtitle?: string | null
-  goToTodayLabel: string
   previousMonthLabel: string
   nextMonthLabel: string
-  onGoToToday: () => void
   onPreviousMonth: () => void
   onNextMonth: () => void
 }
@@ -38,8 +34,8 @@ export function CalendarHeader({
             type="button"
             aria-label={previousMonthLabel}
             onClick={onPreviousMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-            style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-2)' }}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            style={{ width: 36, height: 36, borderRadius: 8 }}
           >
             <ChevronLeft size={17} strokeWidth={1.6} />
           </button>
@@ -47,8 +43,8 @@ export function CalendarHeader({
             type="button"
             aria-label={nextMonthLabel}
             onClick={onNextMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-            style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-2)' }}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            style={{ width: 36, height: 36, borderRadius: 8 }}
           >
             <ChevronRight size={17} strokeWidth={1.6} />
           </button>
@@ -64,76 +60,47 @@ interface CalendarLegendProps {
   missedLabel: string
 }
 
-/** v8 calendar legend — flush rows under SectionLabel. */
+/** v8 calendar legend — inline row of colored dots + labels, no section header. */
 export function CalendarLegend({
   doneLabel,
   upcomingLabel,
   missedLabel,
 }: Readonly<CalendarLegendProps>) {
-  const t = useTranslations()
   return (
-    <div data-tour="tour-calendar-legend">
-      <SectionLabel>{t('calendar.legend.sectionTitle')}</SectionLabel>
-      <div style={{ padding: '0 20px 12px' }}>
-        <LegendRow dot="full" label={doneLabel} />
-        <LegendRow dot="primary" label={upcomingLabel} />
-        <LegendRow dot="bad" label={missedLabel} />
-      </div>
+    <div
+      data-tour="tour-calendar-legend"
+      className="flex flex-wrap items-center"
+      style={{ padding: '12px 20px', gap: 16 }}
+    >
+      <LegendItem dotColor="var(--fg-1)" label={doneLabel} />
+      <LegendItem dotColor="var(--primary)" label={upcomingLabel} />
+      <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
     </div>
   )
 }
 
-interface LegendRowProps {
-  dot: 'full' | 'primary' | 'bad'
+interface LegendItemProps {
+  dotColor: string
   label: string
 }
 
-function LegendRow({ dot, label }: Readonly<LegendRowProps>) {
-  let dotEl: React.ReactNode
-  if (dot === 'full') {
-    dotEl = (
-      <span
-        className="rounded-full"
-        style={{ width: 6, height: 6, background: 'var(--fg-1)' }}
-      />
-    )
-  } else if (dot === 'primary') {
-    dotEl = (
-      <span
-        className="rounded-full"
-        style={{ width: 6, height: 6, background: 'var(--primary)' }}
-      />
-    )
-  } else {
-    dotEl = (
-      <span
-        className="rounded-full"
-        style={{ width: 6, height: 6, background: 'var(--status-overdue)' }}
-      />
-    )
-  }
-
+function LegendItem({ dotColor, label }: Readonly<LegendItemProps>) {
   return (
-    <div
-      className="flex items-center"
-      style={{
-        padding: '11px 0',
-        gap: 12,
-        borderBottom: '1px solid var(--hairline)',
-      }}
-    >
-      <span className="inline-flex items-center justify-center shrink-0" style={{ width: 14 }}>
-        {dotEl}
-      </span>
+    <span className="inline-flex items-center" style={{ gap: 6 }}>
+      <span
+        aria-hidden="true"
+        className="rounded-full shrink-0"
+        style={{ width: 6, height: 6, background: dotColor }}
+      />
       <span
         style={{
           fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
-          color: 'var(--fg-1)',
+          fontSize: 13,
+          color: 'var(--fg-2)',
         }}
       >
         {label}
       </span>
-    </div>
+    </span>
   )
 }

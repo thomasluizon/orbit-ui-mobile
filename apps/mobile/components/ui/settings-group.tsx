@@ -83,21 +83,26 @@ export function SettingsGroupRow({
         pressed && onPress ? { backgroundColor: tokens.bg } : null,
       ]}
     >
-      <View style={styles.leadingBlock}>
-        {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
-        <Text style={[styles.label, { color: tokens.fg1 }]} numberOfLines={1}>
-          {label}
-        </Text>
-        {proBadge ? (
-          <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
-        ) : null}
-      </View>
-      <View style={styles.trailingBlock}>
+      {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
+      <View style={styles.textBlock}>
+        <View style={styles.titleRow}>
+          <Text
+            style={[styles.label, { color: tokens.fg1 }]}
+            numberOfLines={hint ? 1 : 2}
+          >
+            {label}
+          </Text>
+          {proBadge ? (
+            <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
+          ) : null}
+        </View>
         {hint ? (
           <Text style={[styles.hint, { color: tokens.fg3 }]} numberOfLines={1}>
             {hint}
           </Text>
         ) : null}
+      </View>
+      <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
           <ChevronRight size={16} color={tokens.fg4} strokeWidth={1.5} />
@@ -120,24 +125,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     minHeight: 48,
-  },
-  leadingBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-    minWidth: 0,
   },
   iconSlot: {
     width: 20,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  textBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   label: {
     fontFamily: 'Geist',
@@ -157,6 +163,5 @@ const styles = StyleSheet.create({
   hint: {
     fontFamily: 'Geist',
     fontSize: 13,
-    maxWidth: 200,
   },
 })

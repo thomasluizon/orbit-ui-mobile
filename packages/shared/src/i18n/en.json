@@ -581,15 +581,14 @@
     "legend": {
       "done": "Done",
       "upcoming": "Upcoming",
-      "missed": "Missed",
-      "sectionTitle": "Legend"
+      "missed": "Missed"
     },
     "thisMonth": "This month",
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
     "missedCount": "Missed",
     "summary": {
-      "days": "days completed"
+      "days": "day completed | days completed"
     },
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed"
@@ -1641,7 +1640,8 @@
       "all": "All",
       "active": "Active",
       "completed": "Completed",
-      "abandoned": "Abandoned"
+      "abandoned": "Abandoned",
+      "statusFilter": "Filter by status"
     },
     "deadline": {
       "due": "Due {date}",
@@ -1856,7 +1856,7 @@
   },
   "streakDisplay": {
     "title": "Streak",
-    "daysSuffix": "days",
+    "daysSuffix": "day | days",
     "celebration": {
       "title": "Streak!",
       "eyebrow": "Streak",
@@ -2113,10 +2113,6 @@
       "card": {
         "title": "Habit Card",
         "description": "Each habit shows its status, tags, and frequency. Tap the circle to mark it complete, or use the menu for more options like edit, skip, or delete."
-      },
-      "tags": {
-        "title": "Tags",
-        "description": "Tags help you organize habits by category. You can filter by tags and assign colors to keep things visually organized."
       },
       "tabs": {
         "title": "View Tabs",

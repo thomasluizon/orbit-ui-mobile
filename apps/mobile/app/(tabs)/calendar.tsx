@@ -149,10 +149,6 @@ export default function CalendarScreen() {
     onSwipeRight: prevMonth,
   });
 
-  const goToToday = useCallback(() => {
-    setCurrentMonth(startOfMonth(new Date()));
-  }, []);
-
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
     setShowDayDetail(true);
@@ -264,10 +260,8 @@ export default function CalendarScreen() {
       <CalendarHeader
         title={t("nav.calendar")}
         monthLabel={monthLabel}
-        goToTodayLabel={t("dates.goToToday")}
         previousMonthLabel={t("common.previousMonth")}
         nextMonthLabel={t("common.nextMonth")}
-        onGoToToday={goToToday}
         onPreviousMonth={prevMonth}
         onNextMonth={nextMonth}
         tokens={tokens}
@@ -342,7 +336,6 @@ export default function CalendarScreen() {
           </View>
         )}
 
-        <SectionLabel>{t("calendar.legend.sectionTitle")}</SectionLabel>
         <CalendarLegend
           fullLabel={t("calendar.legend.done")}
           partialLabel={t("calendar.legend.upcoming")}
@@ -496,7 +489,19 @@ function DayDot({
       />
     );
   }
-  if (status === "partial" || status === "upcoming") {
+  if (status === "partial") {
+    return (
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 999,
+          backgroundColor: tokens.statusOverdue,
+        }}
+      />
+    );
+  }
+  if (status === "upcoming") {
     return (
       <View
         style={{

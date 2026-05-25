@@ -55,6 +55,7 @@ export function TrialBanner() {
       </span>
       <Link
         href="/upgrade"
+        className="transition-opacity duration-150 ease-out hover:opacity-80"
         style={{
           fontFamily: 'var(--font-family-sans)',
           fontSize: 13,
@@ -68,7 +69,7 @@ export function TrialBanner() {
       <button
         type="button"
         aria-label={t('common.dismiss')}
-        className="appearance-none border-0 bg-transparent cursor-pointer"
+        className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
         style={{ padding: 4, color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-3)' }}
         onClick={() => setDismissed(true)}
       >

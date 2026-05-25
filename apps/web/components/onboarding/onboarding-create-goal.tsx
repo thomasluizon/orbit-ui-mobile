@@ -259,7 +259,7 @@ export function OnboardingCreateGoal({
 
       <button
         type="button"
-        className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+        className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
         disabled={!canCreate || isCreating}
         onClick={handleCreate}
         style={{
@@ -285,7 +285,7 @@ export function OnboardingCreateGoal({
 
       <button
         type="button"
-        className="appearance-none border-0 bg-transparent cursor-pointer"
+        className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
         disabled={isCreating}
         onClick={onSkip}
         style={{

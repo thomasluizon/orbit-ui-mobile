@@ -257,6 +257,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
+
+    // The tour's "card" step anchors to the featured mock habit when injected,
+    // otherwise falls back to the first visible row so the spotlight still
+    // has something to point at when the user already has real habits.
+    const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
+      ? TOUR_FEATURED_HABIT_ID
+      : topLevelHabits[0]?.id
     const totalCount = habitsQuery.data?.totalCount ?? 0
     const isLoading = habitsQuery.isLoading
     const isFetching = habitsQuery.isFetching
@@ -1430,7 +1437,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 ? () => prepareDrag(item, drag)
                 : undefined,
               tourTargetId:
-                item.habit.id === TOUR_FEATURED_HABIT_ID
+                item.habit.id === tourCardHabitId
                   ? 'tour-habit-card'
                   : undefined,
               isLastChild: item.isLastChild,
@@ -1438,7 +1445,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           )}
         </View>
       ),
-      [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset],
+      [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset, tourCardHabitId],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
@@ -2129,9 +2136,10 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
       paddingHorizontal: 20,
       paddingVertical: 56,
-      borderRadius: 20,
+      marginHorizontal: 20,
+      borderRadius: 12,
       backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: tokens.hairline,
     },
     allDoneIconContainer: {

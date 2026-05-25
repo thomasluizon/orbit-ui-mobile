@@ -393,7 +393,14 @@ export default function ProfileScreen() {
             <View style={styles.userRow}>
               <View style={[styles.avatar, { backgroundColor: tokens.bgElev }]}>
                 <Text style={[styles.avatarText, { color: tokens.fg1 }]}>
-                  {(profile?.name ?? '?').slice(0, 2).toUpperCase()}
+                  {profile?.name
+                    ? profile.name
+                        .split(' ')
+                        .slice(0, 2)
+                        .map((n) => n[0])
+                        .join('')
+                        .toUpperCase()
+                    : '?'}
                 </Text>
               </View>
               <View style={styles.userTexts}>
@@ -420,7 +427,7 @@ export default function ProfileScreen() {
                     {streak}
                   </Text>
                   <Text style={[styles.streakDays, { color: tokens.fg3 }]}>
-                    {t('streakDisplay.daysSuffix')}
+                    {plural(t('streakDisplay.daysSuffix'), streak)}
                   </Text>
                 </View>
               }

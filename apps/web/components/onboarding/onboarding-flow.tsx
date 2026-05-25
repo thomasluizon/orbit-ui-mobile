@@ -231,7 +231,7 @@ export function OnboardingFlow() {
           {!isFinalStep && (
             <button
               type="button"
-              className="appearance-none border-0 bg-transparent cursor-pointer"
+              className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
               style={{
                 fontFamily: 'var(--font-family-sans)',
                 fontSize: 13,
@@ -275,7 +275,7 @@ export function OnboardingFlow() {
                 {hasPrev && (
                   <button
                     type="button"
-                    className="appearance-none border-0 bg-transparent cursor-pointer"
+                    className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
                     style={{
                       fontFamily: 'var(--font-family-sans)',
                       fontSize: 13,
@@ -292,7 +292,7 @@ export function OnboardingFlow() {
                 {canAdvance && (
                   <button
                     type="button"
-                    className="w-full appearance-none border-0 cursor-pointer"
+                    className="w-full appearance-none border-0 cursor-pointer transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
                     style={{
                       padding: '10px 18px',
                       background: 'var(--primary)',

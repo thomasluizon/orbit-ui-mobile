@@ -128,7 +128,12 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
                 role="tab"
                 aria-selected={isActive}
                 tabIndex={isActive ? 0 : -1}
-                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0"
+                className={
+                  'appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 transition-[background-color,color,box-shadow] duration-150 ease-out ' +
+                  (isActive
+                    ? ''
+                    : 'hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+                }
                 style={{
                   height: 26,
                   padding: '0 9px',

@@ -79,46 +79,50 @@ export function SettingsGroupRow({
 
   const content = (
     <>
-      <span className="flex items-center flex-1 min-w-0" style={{ gap: 12 }}>
-        {icon ? (
-          <span
-            className="flex items-center justify-center shrink-0"
-            style={{ width: 20 }}
-            aria-hidden="true"
-          >
-            {icon}
-          </span>
-        ) : null}
+      {icon ? (
         <span
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 15,
-            fontWeight: 400,
-            color: 'var(--fg-1)',
-          }}
+          className="flex items-center justify-center shrink-0"
+          style={{ width: 20 }}
+          aria-hidden="true"
         >
-          {label}
+          {icon}
         </span>
-        {proBadge ? (
+      ) : null}
+      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 2 }}>
+        <span className="flex items-center" style={{ gap: 6 }}>
           <span
+            className={
+              hint
+                ? 'overflow-hidden whitespace-nowrap text-ellipsis'
+                : 'min-w-0'
+            }
             style={{
               fontFamily: 'var(--font-family-sans)',
-              fontSize: 10,
-              fontWeight: 600,
-              color: 'var(--fg-on-primary)',
-              background: 'var(--primary)',
-              padding: '2px 6px',
-              borderRadius: 4,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
+              fontSize: 15,
+              fontWeight: 400,
+              color: 'var(--fg-1)',
             }}
           >
-            {proBadgeLabel ?? 'Pro'}
+            {label}
           </span>
-        ) : null}
-      </span>
-      <span className="flex items-center shrink-0" style={{ gap: 8 }}>
+          {proBadge ? (
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'var(--fg-on-primary)',
+                background: 'var(--primary)',
+                padding: '2px 6px',
+                borderRadius: 4,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {proBadgeLabel ?? 'Pro'}
+            </span>
+          ) : null}
+        </span>
         {hint ? (
           <span
             className="overflow-hidden whitespace-nowrap text-ellipsis"
@@ -126,12 +130,13 @@ export function SettingsGroupRow({
               fontFamily: 'var(--font-family-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
-              maxWidth: 200,
             }}
           >
             {hint}
           </span>
         ) : null}
+      </span>
+      <span className="flex items-center shrink-0" style={{ gap: 8 }}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
           <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
@@ -154,10 +159,9 @@ export function SettingsGroupRow({
         aria-label={ariaLabel}
         data-tour={dataTour}
         data-testid={dataTestId}
-        className="w-full text-left flex items-center justify-between cursor-pointer transition-[background-color] duration-150 hover:bg-[var(--bg)]"
+        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg)]"
         style={{
           ...sharedStyle,
-          background: 'transparent',
           appearance: 'none',
           border: 0,
         }}

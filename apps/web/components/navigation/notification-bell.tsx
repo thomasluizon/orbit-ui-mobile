@@ -96,8 +96,8 @@ export function NotificationBell() {
       aria-label={visibleUnreadCount > 0 ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount) : t('notifications.bell')}
       aria-expanded={isOpen}
       aria-controls="notification-dropdown"
-      className="relative appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-      style={{ width: 36, height: 36, borderRadius: 8, color: 'var(--fg-2)' }}
+      className="relative appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+      style={{ width: 36, height: 36, borderRadius: 8 }}
       onClick={() => setIsOpen((prev) => !prev)}
     >
       <Bell size={17} strokeWidth={1.5} aria-hidden="true" />

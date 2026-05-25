@@ -581,15 +581,14 @@
     "legend": {
       "done": "Feito",
       "upcoming": "Próximo",
-      "missed": "Perdido",
-      "sectionTitle": "Legenda"
+      "missed": "Perdido"
     },
     "thisMonth": "Este mês",
     "bestStreak": "Melhor sequência",
     "totalLogs": "Total de registros",
     "missedCount": "Perdidos",
     "summary": {
-      "days": "dias completados"
+      "days": "dia completado | dias completados"
     },
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
@@ -1641,7 +1640,8 @@
       "all": "Todas",
       "active": "Ativas",
       "completed": "Concluídas",
-      "abandoned": "Abandonadas"
+      "abandoned": "Abandonadas",
+      "statusFilter": "Filtrar por status"
     },
     "deadline": {
       "due": "Prazo {date}",
@@ -1856,7 +1856,7 @@
   },
   "streakDisplay": {
     "title": "Sequência",
-    "daysSuffix": "dias",
+    "daysSuffix": "dia | dias",
     "celebration": {
       "title": "Sequência!",
       "eyebrow": "Sequência",
@@ -2113,10 +2113,6 @@
       "card": {
         "title": "Cartão de Hábito",
         "description": "Cada hábito mostra seu status, tags e frequência. Toque no círculo para marcar como concluído, ou use o menu para mais opções como editar, pular ou excluir."
-      },
-      "tags": {
-        "title": "Tags",
-        "description": "Tags ajudam a organizar hábitos por categoria. Você pode filtrar por tags e atribuir cores para manter tudo visualmente organizado."
       },
       "tabs": {
         "title": "Abas de Visualização",

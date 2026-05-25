@@ -127,6 +127,7 @@ export function DeleteAccountModal({
           warningMessage={warningMessage}
           error={error}
           loading={loading}
+          onCancel={() => onOpenChange(false)}
           onRequestDeletion={handleRequestDeletion}
         />
       )
@@ -142,6 +143,11 @@ export function DeleteAccountModal({
           onCodeInput={handleCodeInput}
           onCodeKeydown={handleCodeKeydown}
           onCodePaste={handleCodePaste}
+          onBack={() => {
+            setStep('confirm')
+            setCode(['', '', '', '', '', ''])
+            setError('')
+          }}
           onConfirmDeletion={handleConfirmDeletion}
         />
       )
@@ -172,11 +178,13 @@ function DeleteConfirmStep({
   warningMessage,
   error,
   loading,
+  onCancel,
   onRequestDeletion,
 }: Readonly<{
   warningMessage: string
   error: string
   loading: boolean
+  onCancel: () => void
   onRequestDeletion: () => void
 }>) {
   const t = useTranslations()
@@ -221,25 +229,24 @@ function DeleteConfirmStep({
       <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
-            color: 'var(--fg-3)',
             padding: 6,
           }}
           disabled={loading}
+          onClick={onCancel}
         >
           {t('common.cancel')}
         </button>
         <button
           type="button"
-          className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+          className="appearance-none border-0 cursor-pointer disabled:opacity-50 bg-[var(--primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
           disabled={loading}
           onClick={onRequestDeletion}
           style={{
             padding: '10px 18px',
-            background: 'var(--primary)',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
             fontFamily: 'var(--font-family-sans)',
@@ -262,6 +269,7 @@ function DeleteCodeStep({
   onCodeInput,
   onCodeKeydown,
   onCodePaste,
+  onBack,
   onConfirmDeletion,
 }: Readonly<{
   code: string[]
@@ -271,6 +279,7 @@ function DeleteCodeStep({
   onCodeInput: (index: number, value: string) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
   onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onBack: () => void
   onConfirmDeletion: () => void
 }>) {
   const t = useTranslations()
@@ -312,20 +321,20 @@ function DeleteCodeStep({
       <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
-            color: 'var(--fg-3)',
             padding: 6,
           }}
           disabled={loading}
+          onClick={onBack}
         >
           {t('common.back')}
         </button>
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-opacity duration-150 ease-out hover:opacity-80"
           disabled={loading || code.join('').length !== 6}
           onClick={onConfirmDeletion}
           style={{
@@ -369,11 +378,10 @@ function DeleteDeactivatedStep({
       <div className="flex items-center justify-end" style={{ paddingTop: 8 }}>
         <button
           type="button"
-          className="appearance-none border-0 cursor-pointer"
+          className="appearance-none border-0 cursor-pointer bg-[var(--primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
           onClick={onLogout}
           style={{
             padding: '10px 18px',
-            background: 'var(--primary)',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
             fontFamily: 'var(--font-family-sans)',

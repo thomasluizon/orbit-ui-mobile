@@ -13,10 +13,8 @@ import { createTokensV2 } from "@/lib/theme";
 interface CalendarHeaderProps {
   title: string;
   monthLabel: string;
-  goToTodayLabel: string;
   previousMonthLabel: string;
   nextMonthLabel: string;
-  onGoToToday: () => void;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
   tokens: ReturnType<typeof createTokensV2>;
@@ -65,48 +63,40 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.bgSunk,
     },
     legend: {
-      paddingHorizontal: 20,
-    },
-    legendRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      paddingVertical: 11,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
+      flexWrap: "wrap",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      gap: 16,
     },
-    legendDotWrap: {
-      width: 14,
+    legendItem: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
+      gap: 6,
     },
     legendDotFull: {
-      width: 5,
-      height: 5,
+      width: 6,
+      height: 6,
       borderRadius: 999,
       backgroundColor: tokens.fg1,
     },
-    legendDotPartial: {
-      width: 5,
-      height: 5,
+    legendDotUpcoming: {
+      width: 6,
+      height: 6,
       borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.fg3,
+      backgroundColor: tokens.primary,
     },
-    legendDotNone: {
-      width: 9,
-      height: 1,
-      backgroundColor: tokens.fg3,
+    legendDotMissed: {
+      width: 6,
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: tokens.statusOverdue,
     },
     legendLabel: {
       fontFamily: "Geist",
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    legendDesc: {
-      fontFamily: "Geist",
       fontSize: 13,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
   });
 }
@@ -114,10 +104,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 export function CalendarHeader({
   title,
   monthLabel,
-  goToTodayLabel,
   previousMonthLabel,
   nextMonthLabel,
-  onGoToToday,
   onPreviousMonth,
   onNextMonth,
   tokens,
@@ -141,14 +129,6 @@ export function CalendarHeader({
               activeOpacity={0.7}
             >
               <ChevronLeft size={17} color={tokens.fg2} strokeWidth={1.6} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              accessibilityLabel={goToTodayLabel}
-              style={styles.monthNavButton}
-              onPress={onGoToToday}
-              activeOpacity={0.7}
-            >
-              <ChevronRight size={17} color={tokens.fg2} strokeWidth={1.6} />
             </TouchableOpacity>
             <TouchableOpacity
               accessibilityLabel={nextMonthLabel}
@@ -193,22 +173,16 @@ export function CalendarLegend({
 
   return (
     <View ref={legendRef} collapsable={false} style={styles.legend}>
-      <View style={styles.legendRow}>
-        <View style={styles.legendDotWrap}>
-          <View style={styles.legendDotFull} />
-        </View>
+      <View style={styles.legendItem}>
+        <View style={styles.legendDotFull} />
         <Text style={styles.legendLabel}>{fullLabel}</Text>
       </View>
-      <View style={styles.legendRow}>
-        <View style={styles.legendDotWrap}>
-          <View style={styles.legendDotPartial} />
-        </View>
+      <View style={styles.legendItem}>
+        <View style={styles.legendDotUpcoming} />
         <Text style={styles.legendLabel}>{partialLabel}</Text>
       </View>
-      <View style={[styles.legendRow, { borderBottomWidth: 0 }]}>
-        <View style={styles.legendDotWrap}>
-          <View style={styles.legendDotNone} />
-        </View>
+      <View style={styles.legendItem}>
+        <View style={styles.legendDotMissed} />
         <Text style={styles.legendLabel}>{noneLabel}</Text>
       </View>
     </View>

@@ -53,16 +53,18 @@ export function BottomTabBar({
           aria-label={t('create')}
           aria-disabled={fabDisabled}
           disabled={fabDisabled}
-          className="absolute appearance-none border-0 flex items-center justify-center transition-[background-color,opacity] duration-150"
+          className={
+            'absolute appearance-none border-0 flex items-center justify-center -translate-x-1/2 transition-[background-color,opacity,transform] duration-200 ease-out ' +
+            (fabDisabled
+              ? 'bg-[var(--bg-elev)] text-[var(--fg-3)]'
+              : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] hover:scale-110 active:scale-95')
+          }
           style={{
             left: '50%',
-            top: -28,
-            transform: 'translateX(-50%)',
+            top: -14,
             width: 56,
             height: 56,
             borderRadius: 999,
-            background: fabDisabled ? 'var(--bg-elev)' : 'var(--primary)',
-            color: fabDisabled ? 'var(--fg-3)' : 'var(--fg-on-primary)',
             boxShadow: fabDisabled
               ? '0 0 0 5px var(--bg), inset 0 0 0 1px var(--hairline)'
               : '0 0 0 5px var(--bg), 0 4px 14px rgba(0,0,0,0.35)',
@@ -123,10 +125,14 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       onClick={onClick}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      className="relative appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center"
+      className={
+        'relative appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-150 ease-out ' +
+        (active
+          ? 'text-[var(--fg-1)]'
+          : 'text-[var(--fg-3)] hover:text-[var(--fg-1)]')
+      }
       style={{
         padding: '8px 0',
-        color: active ? 'var(--fg-1)' : 'var(--fg-3)',
       }}
     >
       {active && (

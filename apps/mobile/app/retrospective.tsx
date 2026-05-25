@@ -35,7 +35,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
-import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
+import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PullQuote } from '@/components/chat/pull-quote'
 
@@ -211,7 +211,7 @@ export default function RetrospectiveScreen() {
 
   const isLoaded = !!profile
 
-  const periodTabs = useMemo(
+  const periodChips = useMemo(
     () =>
       RETROSPECTIVE_PERIODS.map((p) => ({
         id: p,
@@ -370,11 +370,21 @@ export default function RetrospectiveScreen() {
                 { borderBottomColor: tokens.hairline },
               ]}
             >
-              <SectionHeadTabs
-                tabs={periodTabs}
-                active={period}
-                onChange={selectPeriod}
-              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipsScroll}
+              >
+                {periodChips.map((p) => (
+                  <Chip
+                    key={p.id}
+                    active={period === p.id}
+                    onPress={() => selectPeriod(p.id)}
+                  >
+                    {p.label}
+                  </Chip>
+                ))}
+              </ScrollView>
             </View>
 
             {isLoading ? (
@@ -541,6 +551,12 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  chipsScroll: {
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
   offlinePad: {
     paddingHorizontal: 20,

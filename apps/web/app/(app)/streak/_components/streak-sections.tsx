@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { plural } from '@/lib/plural'
 
 type StreakDayView = {
@@ -30,55 +30,62 @@ export function StreakTimelineCard({
   return (
     <div>
       <SectionLabel>{t('streakDisplay.detail.thisWeek')}</SectionLabel>
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          padding: '0 20px 14px',
-          gap: 6,
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
-        {weekDays.map((day) => (
+      <div className="px-5">
+        <div
+          className="overflow-hidden"
+          style={{
+            background: 'var(--bg-elev)',
+            border: '1px solid var(--hairline)',
+            borderRadius: 12,
+            padding: '14px 12px 12px',
+          }}
+        >
           <div
-            key={day.dateStr}
-            className="flex flex-col items-center"
-            style={{ gap: 6, padding: '6px 0' }}
+            className="grid"
+            style={{
+              gridTemplateColumns: 'repeat(7, 1fr)',
+              gap: 6,
+              marginBottom: 10,
+            }}
           >
-            <span
-              style={{
-                fontFamily: 'var(--font-family-mono)',
-                fontSize: 11,
-                fontWeight: 500,
-                color: day.status === 'today' || day.status === 'frozen' ? 'var(--fg-1)' : 'var(--fg-3)',
-              }}
-            >
-              {day.dayLabel} {day.dayNum}
-            </span>
-            <StreakDot status={day.status} />
+            {weekDays.map((day) => (
+              <div
+                key={day.dateStr}
+                className="flex flex-col items-center"
+                style={{ gap: 6, padding: '6px 0' }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: day.status === 'today' || day.status === 'frozen' ? 'var(--fg-1)' : 'var(--fg-3)',
+                  }}
+                >
+                  {day.dayLabel} {day.dayNum}
+                </span>
+                <StreakDot status={day.status} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div
-        className="flex flex-wrap items-center justify-center"
-        style={{
-          gap: 16,
-          padding: '10px 20px 12px',
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
-        <LegendItem>
-          <span aria-hidden="true" className="rounded-full" style={{ width: 7, height: 7, background: 'var(--fg-1)' }} />
-          <span>{t('streakDisplay.detail.dayActive')}</span>
-        </LegendItem>
-        <LegendItem>
-          <span aria-hidden="true" className="rounded-full" style={{ width: 7, height: 7, background: 'var(--status-frozen)' }} />
-          <span>{t('streakDisplay.detail.dayFrozen')}</span>
-        </LegendItem>
-        <LegendItem>
-          <span aria-hidden="true" className="rounded-full" style={{ width: 7, height: 7, boxShadow: 'inset 0 0 0 1.2px var(--fg-4)' }} />
-          <span>{t('streakDisplay.detail.dayMissed')}</span>
-        </LegendItem>
+          <div
+            className="flex flex-wrap items-center justify-center"
+            style={{ gap: 16, paddingTop: 6 }}
+          >
+            <LegendItem>
+              <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, background: 'var(--fg-1)' }} />
+              <span>{t('streakDisplay.detail.dayActive')}</span>
+            </LegendItem>
+            <LegendItem>
+              <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, background: 'var(--status-frozen)' }} />
+              <span>{t('streakDisplay.detail.dayFrozen')}</span>
+            </LegendItem>
+            <LegendItem>
+              <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, boxShadow: 'inset 0 0 0 1.2px var(--fg-4)' }} />
+              <span>{t('streakDisplay.detail.dayMissed')}</span>
+            </LegendItem>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -208,50 +215,52 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
   return (
     <div>
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
-      <SettingsRow
-        label={t('streakDisplay.detail.currentStreak')}
-        value={String(streak)}
-        mono
-        accessory="none"
-      />
-      <SettingsRow
-        label={t('streakDisplay.detail.longestStreak')}
-        value={String(longestStreak)}
-        mono
-        accessory="none"
-      />
+      <div className="px-5">
+        <SettingsGroup>
+          <SettingsGroupRow
+            label={t('streakDisplay.detail.currentStreak')}
+            trailing={<StatValue value={streak} />}
+          />
+          <SettingsGroupRow
+            label={t('streakDisplay.detail.longestStreak')}
+            trailing={<StatValue value={longestStreak} />}
+          />
+        </SettingsGroup>
+      </div>
 
       <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-      <SettingsRow
-        label={t('streakDisplay.freeze.accumulatedLabel')}
-        value={t('streakDisplay.freeze.accumulatedShort', {
-          count: streakFreezesAccumulated,
-          max: maxStreakFreezesAccumulated,
-        })}
-        mono
-        accessory="none"
-      />
-      <SettingsRow
-        label={t('streakDisplay.freeze.monthlyUsageLabel')}
-        value={`${freezesUsedThisMonth} / ${maxFreezesPerMonth}`}
-        mono
-        accessory="none"
-      />
-      <div
-        style={{
-          padding: '10px 20px 14px',
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
+      <div className="px-5">
+        <SettingsGroup>
+          <SettingsGroupRow
+            label={t('streakDisplay.freeze.accumulatedLabel')}
+            trailing={
+              <StatValue
+                value={t('streakDisplay.freeze.accumulatedShort', {
+                  count: streakFreezesAccumulated,
+                  max: maxStreakFreezesAccumulated,
+                })}
+              />
+            }
+          />
+          <SettingsGroupRow
+            label={t('streakDisplay.freeze.monthlyUsageLabel')}
+            trailing={
+              <StatValue value={`${freezesUsedThisMonth} / ${maxFreezesPerMonth}`} />
+            }
+          />
+        </SettingsGroup>
+      </div>
+
+      <div className="px-5" style={{ paddingTop: 14 }}>
         <button
           type="button"
           onClick={onActivateFreeze}
           disabled={!canFreeze}
           aria-label={t('streakDisplay.freeze.activate')}
-          className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full"
+          className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full transition-[background-color] duration-150 ease-out enabled:hover:bg-[var(--primary-pressed)]"
           style={{
-            height: 40,
-            borderRadius: 8,
+            height: 44,
+            borderRadius: 10,
             background: canFreeze ? 'var(--primary)' : 'var(--bg-elev)',
             color: canFreeze ? 'var(--fg-on-primary)' : 'var(--fg-3)',
             fontFamily: 'var(--font-family-sans)',
@@ -264,99 +273,45 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
           {t('streakDisplay.freeze.activate')}
         </button>
       </div>
-      {hasReachedMonthlyLimit && (
-        <div
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('streakDisplay.freeze.monthlyLimit', { max: maxFreezesPerMonth })}
-        </div>
-      )}
-      {!hasReachedMonthlyLimit && progressSubtitle && (
-        <div
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {progressSubtitle}
-        </div>
-      )}
-      {isFrozenToday && (
-        <div
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 11,
-            color: 'var(--status-frozen)',
-            letterSpacing: '0.06em',
-          }}
-        >
-          {t('streakDisplay.freeze.activeToday')}
-        </div>
-      )}
-      {hasCompletedToday && !isFrozenToday && streak > 0 && (
-        <div
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('streakDisplay.freeze.completedToday')}
-        </div>
-      )}
-      {freezeSuccess && (
-        <div
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            color: 'var(--status-frozen)',
-          }}
-        >
-          {t('streakDisplay.freeze.success')}
-        </div>
-      )}
-      {errorMessage && (
-        <div
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--status-overdue)',
-          }}
-        >
-          {errorMessage}
-        </div>
-      )}
+
+      <div className="px-5 flex flex-col" style={{ paddingTop: 10, gap: 6 }}>
+        {hasReachedMonthlyLimit ? (
+          <HelperLine color="var(--fg-3)">
+            {t('streakDisplay.freeze.monthlyLimit', { max: maxFreezesPerMonth })}
+          </HelperLine>
+        ) : progressSubtitle ? (
+          <HelperLine color="var(--fg-3)">{progressSubtitle}</HelperLine>
+        ) : null}
+        {isFrozenToday && (
+          <HelperLine color="var(--status-frozen)">
+            {t('streakDisplay.freeze.activeToday')}
+          </HelperLine>
+        )}
+        {hasCompletedToday && !isFrozenToday && streak > 0 && (
+          <HelperLine color="var(--fg-3)">
+            {t('streakDisplay.freeze.completedToday')}
+          </HelperLine>
+        )}
+        {freezeSuccess && (
+          <HelperLine color="var(--status-frozen)">
+            {t('streakDisplay.freeze.success')}
+          </HelperLine>
+        )}
+        {errorMessage && (
+          <HelperLine color="var(--status-overdue)">{errorMessage}</HelperLine>
+        )}
+      </div>
+
       {recentFreezeDates.length > 0 && (
         <>
           <SectionLabel>{t('streakDisplay.freeze.recentLabel')}</SectionLabel>
           <div
+            className="px-5"
             style={{
-              padding: '0 20px 14px',
-              borderBottom: '1px solid var(--hairline)',
               display: 'flex',
               flexWrap: 'wrap',
               gap: 8,
+              paddingBottom: 14,
             }}
           >
             {recentFreezeDates.slice(0, 5).map((date) => (
@@ -364,8 +319,9 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
                 key={date}
                 style={{
                   padding: '4px 8px',
-                  borderRadius: 4,
-                  boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+                  borderRadius: 6,
+                  border: '1px solid var(--hairline)',
+                  background: 'var(--bg-elev)',
                   fontFamily: 'var(--font-family-mono)',
                   fontSize: 11,
                   color: 'var(--fg-2)',
@@ -379,5 +335,38 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
         </>
       )}
     </div>
+  )
+}
+
+function StatValue({ value }: Readonly<{ value: number | string }>) {
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--font-family-mono)',
+        fontSize: 13,
+        color: 'var(--fg-3)',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      {value}
+    </span>
+  )
+}
+
+function HelperLine({
+  color,
+  children,
+}: Readonly<{ color: string; children: React.ReactNode }>) {
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        fontStyle: 'italic',
+        color,
+      }}
+    >
+      {children}
+    </span>
   )
 }

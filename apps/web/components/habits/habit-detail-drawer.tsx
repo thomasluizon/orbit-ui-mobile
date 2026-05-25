@@ -203,11 +203,13 @@ export function HabitDetailDrawer({
               />
             )}
 
-            <HabitDetailStatsGrid
-              metrics={metrics}
-              loading={metricsLoading}
-              t={t as TranslationFn}
-            />
+            {habit.frequencyUnit || habit.isGeneral ? (
+              <HabitDetailStatsGrid
+                metrics={metrics}
+                loading={metricsLoading}
+                t={t as TranslationFn}
+              />
+            ) : null}
 
             {liveChecklist.length > 0 && (
               <div style={{ padding: '0 20px 12px' }}>

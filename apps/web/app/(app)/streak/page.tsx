@@ -248,7 +248,7 @@ export default function StreakPage() {
               type="button"
               disabled={activateFreezeMutation.isPending}
               onClick={handleFreeze}
-              className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full"
+              className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
               style={{
                 height: 44,
                 borderRadius: 8,
@@ -265,7 +265,7 @@ export default function StreakPage() {
             <button
               type="button"
               onClick={() => setShowConfirm(false)}
-              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center w-full"
+              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center w-full transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
               style={{
                 height: 40,
                 fontFamily: 'var(--font-family-sans)',

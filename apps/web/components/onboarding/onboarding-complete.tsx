@@ -140,7 +140,7 @@ export function OnboardingComplete({
 
       <button
         type="button"
-        className="appearance-none border-0 cursor-pointer"
+        className="appearance-none border-0 cursor-pointer transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
         onClick={onFinish}
         style={{
           padding: '12px 18px',

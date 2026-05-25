@@ -158,6 +158,7 @@ export function HabitRow({
   // Every habit row is its own fully-rounded --bg-elev card. Hierarchy comes
   // from the left indent (16px per depth level), not from shared containers.
   // 6px gap below each row gives breathing room without hairlines.
+  // 20px horizontal margin matches the screen header's gutter.
   const indentPx = depth * 16
 
   return (
@@ -177,14 +178,15 @@ export function HabitRow({
           {
             paddingTop: 12,
             paddingBottom: 12,
-            paddingLeft: 20,
+            paddingLeft: 16,
             backgroundColor: isSelected
               ? tokens.bgSunk
               : pressed
                 ? tokens.bgSunk
                 : tokens.bgElev,
             borderRadius: 10,
-            marginLeft: indentPx,
+            marginLeft: 20 + indentPx,
+            marginRight: 20,
             marginBottom: 6,
           },
         ]}
@@ -240,7 +242,6 @@ export function HabitRow({
               numberOfLines={1}
               style={[styles.meta, { color: tokens.fg3 }]}
             >
-              <Text style={{ color: tokens.fg4 }}> · </Text>
               {metaParts.map((part, i) => (
                 <Fragment key={i}>
                   {i > 0 ? (
@@ -273,26 +274,31 @@ export function HabitRow({
           ) : null}
           {!isSelectMode ? (
             hasChildren && childrenTotal > 0 ? (
-              <Pressable
-                onPress={() => {
-                  if (isDoneForRange) {
-                    actions.onUnlog?.()
-                  } else if (childrenDone >= childrenTotal) {
-                    actions.onLog?.()
-                  } else {
-                    actions.onForceLogParent?.()
-                  }
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-              >
-                <ParentRing
-                  done={childrenDone}
-                  total={childrenTotal}
-                  size={14}
-                />
-              </Pressable>
+              <>
+                <Text style={[styles.childProgressText, { color: tokens.fg3 }]}>
+                  {childrenDone}/{childrenTotal}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    if (isDoneForRange) {
+                      actions.onUnlog?.()
+                    } else if (childrenDone >= childrenTotal) {
+                      actions.onLog?.()
+                    } else {
+                      actions.onForceLogParent?.()
+                    }
+                  }}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
+                >
+                  <ParentRing
+                    done={childrenDone}
+                    total={childrenTotal}
+                    size={22}
+                  />
+                </Pressable>
+              </>
             ) : (
               <StatusDot
                 state={dotState}
@@ -323,7 +329,7 @@ export function HabitRow({
 // below contain no color values.
 const styles = StyleSheet.create({
   row: {
-    paddingRight: 20,
+    paddingRight: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -332,23 +338,18 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+    gap: 2,
   },
   title: {
     fontFamily: 'Geist',
     fontWeight: '400',
     letterSpacing: -0.08,
     lineHeight: 21,
-    flexShrink: 1,
-    minWidth: 0,
   },
   meta: {
     fontFamily: 'Geist',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
-    flexShrink: 0,
   },
   trailing: {
     flexDirection: 'row',
@@ -359,6 +360,11 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
+  },
+  childProgressText: {
+    fontFamily: 'GeistMono',
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
   },
   streak: {
     fontFamily: 'GeistMono',

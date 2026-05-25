@@ -295,7 +295,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         >
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
             onClick={onSelectAll}
             style={{
               fontFamily: 'var(--font-family-sans)',
@@ -308,7 +308,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           </button>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
             onClick={onClear}
             style={{
               fontFamily: 'var(--font-family-sans)',
@@ -392,7 +392,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
       <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
@@ -405,7 +405,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         </button>
         <button
           type="submit"
-          className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+          className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
           disabled={isSubmitting}
           style={{
             padding: '10px 18px',

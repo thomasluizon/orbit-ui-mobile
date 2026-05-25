@@ -44,9 +44,7 @@ export default function AboutScreen() {
           label={t('onboarding.featureGuide.openButton')}
           onPress={() => setShowGuide(true)}
         />
-        <View>
-          <ReferralCard onOpen={() => setShowReferral(true)} />
-        </View>
+        <ReferralCard onOpen={() => setShowReferral(true)} />
         <SettingsRow
           label={t('profile.support.title')}
           onPress={() => router.push('/support')}

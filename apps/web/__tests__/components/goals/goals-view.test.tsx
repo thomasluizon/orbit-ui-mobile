@@ -23,15 +23,18 @@ vi.mock('@/components/goals/goal-list', () => ({
 
 import { GoalsView } from '@/components/goals/goals-view'
 
+function openFilterMenu() {
+  fireEvent.click(screen.getByRole('button', { name: 'goals.filters.statusFilter' }))
+}
+
 describe('GoalsView', () => {
-  it('renders filter tabs', () => {
+  it('renders the status filter trigger', () => {
     mockGoalsData = { allGoals: [] }
     mockIsFetched = true
     render(<GoalsView />)
-    expect(screen.getByText('goals.filters.all')).toBeInTheDocument()
-    expect(screen.getByText('goals.filters.active')).toBeInTheDocument()
-    expect(screen.getByText('goals.filters.completed')).toBeInTheDocument()
-    expect(screen.getByText('goals.filters.abandoned')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'goals.filters.statusFilter' }),
+    ).toBeInTheDocument()
   })
 
   it('shows loading skeletons when not fetched', () => {
@@ -64,7 +67,7 @@ describe('GoalsView', () => {
     expect(screen.getByText('Goal 2')).toBeInTheDocument()
   })
 
-  it('filters goals by active status', () => {
+  it('filters goals by active status from the menu', () => {
     mockGoalsData = {
       allGoals: [
         { id: '1', title: 'Active Goal', status: 'Active' },
@@ -73,12 +76,13 @@ describe('GoalsView', () => {
     }
     mockIsFetched = true
     render(<GoalsView />)
-    fireEvent.click(screen.getByText('goals.filters.active'))
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
     expect(screen.getByText('Active Goal')).toBeInTheDocument()
     expect(screen.queryByText('Done Goal')).not.toBeInTheDocument()
   })
 
-  it('filters goals by completed status', () => {
+  it('filters goals by completed status from the menu', () => {
     mockGoalsData = {
       allGoals: [
         { id: '1', title: 'Active Goal', status: 'Active' },
@@ -87,12 +91,13 @@ describe('GoalsView', () => {
     }
     mockIsFetched = true
     render(<GoalsView />)
-    fireEvent.click(screen.getByText('goals.filters.completed'))
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.completed' }))
     expect(screen.queryByText('Active Goal')).not.toBeInTheDocument()
     expect(screen.getByText('Done Goal')).toBeInTheDocument()
   })
 
-  it('shows all goals when All filter is selected', () => {
+  it('shows all goals when All filter is reselected', () => {
     mockGoalsData = {
       allGoals: [
         { id: '1', title: 'Active Goal', status: 'Active' },
@@ -101,17 +106,22 @@ describe('GoalsView', () => {
     }
     mockIsFetched = true
     render(<GoalsView />)
-    fireEvent.click(screen.getByText('goals.filters.active'))
-    fireEvent.click(screen.getByText('goals.filters.all'))
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.all' }))
     expect(screen.getByText('Active Goal')).toBeInTheDocument()
     expect(screen.getByText('Done Goal')).toBeInTheDocument()
   })
 
-  it('highlights active filter tab', () => {
+  it('marks the trigger as pressed when a filter is active', () => {
     mockGoalsData = { allGoals: [] }
     mockIsFetched = true
     render(<GoalsView />)
-    const allTab = screen.getByText('goals.filters.all')
-    expect(allTab).toHaveAttribute('aria-pressed', 'true')
+    const trigger = screen.getByRole('button', { name: 'goals.filters.statusFilter' })
+    expect(trigger).toHaveAttribute('aria-pressed', 'false')
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    expect(trigger).toHaveAttribute('aria-pressed', 'true')
   })
 })

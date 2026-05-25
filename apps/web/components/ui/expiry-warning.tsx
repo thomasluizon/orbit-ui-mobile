@@ -94,7 +94,7 @@ export function ExpiryWarning() {
         </span>
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
           onClick={handleLogin}
           style={{
             fontFamily: 'var(--font-family-sans)',

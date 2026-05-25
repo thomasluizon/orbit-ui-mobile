@@ -197,7 +197,12 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             <button
               type="button"
               key={freq.value}
-              className="flex-1 appearance-none border-0 cursor-pointer"
+              className={
+                'flex-1 appearance-none border-0 cursor-pointer transition-[background-color,color,box-shadow] duration-150 ease-out ' +
+                (activeFrequency === freq.value
+                  ? ''
+                  : 'hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+              }
               disabled={isCreating}
               onClick={() => selectFrequency(freq.value)}
               style={{
@@ -239,7 +244,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
 
       <button
         type="button"
-        className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+        className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
         disabled={!title.trim() || isCreating}
         onClick={handleCreate}
         style={{

@@ -22,11 +22,10 @@ export function ProfileActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left cursor-pointer"
+      className="w-full text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
       style={{
         appearance: 'none',
         border: 0,
-        background: 'transparent',
         padding: '14px 20px',
         borderBottom: '1px solid var(--hairline)',
         fontFamily: 'var(--font-family-sans)',
