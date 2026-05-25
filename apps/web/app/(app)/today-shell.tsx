@@ -1,8 +1,9 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal, Filter, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
+import { Popover } from '@/components/ui/popover'
 import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
@@ -116,28 +117,26 @@ export function TodayDateNavigation({
 
   return (
     <div
-      className="flex items-center justify-center shrink-0"
+      className="shrink-0"
       data-tour="tour-date-nav"
       style={{
         padding: '4px 20px 10px',
       }}
     >
       <div
-        className="inline-flex items-center"
+        className="flex items-center w-full"
         style={{
-          border: '1px solid var(--hairline-strong)',
-          borderRadius: 999,
           padding: '0 4px',
         }}
       >
         <button
           type="button"
           aria-label={previousLabel}
-          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0"
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 999,
+            width: 32,
+            height: 36,
+            borderRadius: 8,
             color: 'var(--fg-2)',
           }}
           onClick={onGoToPreviousDay}
@@ -148,10 +147,9 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center animate-slide-date-${slideDirection}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center animate-slide-date-${slideDirection}`}
           style={{
-            minWidth: 110,
-            height: 30,
+            height: 36,
             padding: '0 8px',
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
@@ -166,11 +164,11 @@ export function TodayDateNavigation({
         <button
           type="button"
           aria-label={nextLabel}
-          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0"
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 999,
+            width: 32,
+            height: 36,
+            borderRadius: 8,
             color: 'var(--fg-2)',
           }}
           onClick={onGoToNextDay}
@@ -282,25 +280,8 @@ export function TodayUtilityRow({
           </button>
           <div
             className="flex items-center flex-1 min-w-0 overflow-x-auto thin-scrollbar"
-            style={{ gap: 14 }}
+            style={{ gap: 8 }}
           >
-            {showFreq && (
-              <>
-                <FreqFilter
-                  active={!selectedFrequency}
-                  label={t('common.all')}
-                  onClick={() => onFrequencyChange(null)}
-                />
-                {frequencyOptions.map((opt) => (
-                  <FreqFilter
-                    key={opt.key}
-                    active={selectedFrequency === opt.key}
-                    label={opt.label}
-                    onClick={() => onFrequencyChange(selectedFrequency === opt.key ? null : opt.key)}
-                  />
-                ))}
-              </>
-            )}
             {tags.map((tag) => (
               <TagChip
                 key={tag.id}
@@ -310,6 +291,15 @@ export function TodayUtilityRow({
               />
             ))}
           </div>
+          {showFreq && (
+            <FrequencyFunnel
+              selected={selectedFrequency}
+              options={frequencyOptions}
+              onChange={onFrequencyChange}
+              triggerAriaLabel={t('habits.frequencyFilter')}
+              allLabel={t('common.all')}
+            />
+          )}
           <div ref={controlsMenuRef} className="shrink-0">
             <button
               type="button"
@@ -330,30 +320,102 @@ export function TodayUtilityRow({
   )
 }
 
-interface FreqFilterProps {
+interface FrequencyFunnelProps {
+  selected: FreqKey | null
+  options: Array<{ key: FreqKey; label: string }>
+  onChange: (key: FreqKey | null) => void
+  triggerAriaLabel: string
+  allLabel: string
+}
+
+function FrequencyFunnel({
+  selected,
+  options,
+  onChange,
+  triggerAriaLabel,
+  allLabel,
+}: Readonly<FrequencyFunnelProps>) {
+  return (
+    <Popover
+      placement="bottom-end"
+      className="min-w-[180px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={triggerAriaLabel}
+          aria-pressed={selected != null}
+          className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            color: selected ? 'var(--fg-1)' : 'var(--fg-3)',
+            background: selected ? 'var(--bg-elev)' : 'transparent',
+            boxShadow: selected ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',
+          }}
+        >
+          <Filter size={16} strokeWidth={1.6} />
+        </button>
+      }
+    >
+      {(close) => (
+        <>
+          <FrequencyMenuRow
+            active={!selected}
+            label={allLabel}
+            onClick={() => {
+              onChange(null)
+              close()
+            }}
+          />
+          {options.map((opt) => (
+            <FrequencyMenuRow
+              key={opt.key}
+              active={selected === opt.key}
+              label={opt.label}
+              onClick={() => {
+                onChange(selected === opt.key ? null : opt.key)
+                close()
+              }}
+            />
+          ))}
+        </>
+      )}
+    </Popover>
+  )
+}
+
+interface FrequencyMenuRowProps {
   active: boolean
   label: string
   onClick: () => void
 }
 
-function FreqFilter({ active, label, onClick }: Readonly<FreqFilterProps>) {
+function FrequencyMenuRow({ active, label, onClick }: Readonly<FrequencyMenuRowProps>) {
   return (
     <button
       type="button"
+      role="menuitemradio"
+      aria-checked={active}
       onClick={onClick}
-      aria-label={label}
-      aria-pressed={active}
-      className="appearance-none border-0 bg-transparent cursor-pointer shrink-0"
+      className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
       style={{
-        padding: '4px 0',
+        padding: '8px 10px',
+        gap: 10,
         fontFamily: 'var(--font-family-sans)',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: active ? 600 : 500,
-        letterSpacing: '-0.005em',
-        color: active ? 'var(--fg-1)' : 'var(--fg-3)',
-        whiteSpace: 'nowrap',
+        color: active ? 'var(--fg-1)' : 'var(--fg-2)',
+        textAlign: 'left',
+        borderRadius: 6,
       }}
     >
+      <span
+        className="inline-flex shrink-0 items-center justify-center"
+        style={{ width: 14, color: 'var(--primary)' }}
+      >
+        {active ? <Check size={14} strokeWidth={2} /> : null}
+      </span>
       {label}
     </button>
   )

@@ -27,7 +27,6 @@ import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ControlsMenu } from '@/components/habits/controls-menu'
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
-import { InfoRow } from '@/components/ui/info-row'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
@@ -386,16 +385,6 @@ export default function TodayPage() {
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
 
-  const topLevelHabits = useMemo(
-    () => habitsQuery.data?.topLevelHabits ?? [],
-    [habitsQuery.data],
-  )
-  const statTotal = topLevelHabits.length
-  const statDone = useMemo(
-    () => topLevelHabits.filter((h) => h.isCompleted).length,
-    [topLevelHabits],
-  )
-
   const getDescendantIds = useCallback(
     (parentId: string): string[] => {
       return collectSelectableDescendantIds(
@@ -497,9 +486,6 @@ export default function TodayPage() {
     onSuccess: clearSelection,
   })
 
-  const showStatStrip = currentActiveView === 'today' && hasFetched && statTotal > 0
-  const statPct = statTotal > 0 ? statDone / statTotal : 0
-
   return (
     <div className="relative">
       <TodayHeader
@@ -507,17 +493,6 @@ export default function TodayPage() {
         subtitle={headerSubtitle}
         streak={streakInfo?.currentStreak ?? 0}
       />
-
-      {currentActiveView === 'today' && isToday(selectedDate) && (
-        <TodayAISummary date={formatAPIDate(selectedDate)} />
-      )}
-
-      {showStatStrip && (
-        <InfoRow
-          label={`${statDone} ${t('habits.statOf')} ${statTotal} · ${Math.round(statPct * 100)}%`}
-          progress={statPct}
-        />
-      )}
 
       <TodayTabs
         tabs={tabItems}
@@ -527,6 +502,10 @@ export default function TodayPage() {
         viewsLabel={t('habits.viewsLabel')}
         onKeyDown={handleTabKeydown}
       />
+
+      {currentActiveView === 'today' && isToday(selectedDate) && (
+        <TodayAISummary date={formatAPIDate(selectedDate)} />
+      )}
 
       <TodayDateNavigation
         visible={currentActiveView === 'today'}

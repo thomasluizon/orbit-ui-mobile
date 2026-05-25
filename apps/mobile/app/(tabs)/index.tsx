@@ -30,6 +30,7 @@ import {
   ChevronsUpDown,
   Check,
   Eye,
+  Filter,
 } from "lucide-react-native";
 import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -294,6 +295,9 @@ export default function TodayScreen() {
   const [showControlsMenu, setShowControlsMenu] = useState(false);
   const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
     useState<MenuAnchorRect | null>(null);
+  const [showFreqMenu, setShowFreqMenu] = useState(false);
+  const [freqMenuAnchorRect, setFreqMenuAnchorRect] =
+    useState<MenuAnchorRect | null>(null);
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
     "right",
@@ -316,6 +320,7 @@ export default function TodayScreen() {
     goalsScrollTo,
   );
   const controlsButtonRef = useRef<View>(null);
+  const freqMenuButtonRef = useRef<View>(null);
   const previousActiveViewRef = useRef(activeView);
   const dateLabelAnim = useMemo(() => new Animated.Value(0), []);
   const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
@@ -872,6 +877,30 @@ export default function TodayScreen() {
     measureControlsButton();
   }, [measureControlsButton, showControlsMenu]);
 
+  const measureFreqMenuButton = useCallback(() => {
+    freqMenuButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setFreqMenuAnchorRect({ x, y, width, height });
+      setShowFreqMenu(true);
+    });
+  }, []);
+
+  const handleToggleFreqMenu = useCallback(() => {
+    if (showFreqMenu) {
+      setShowFreqMenu(false);
+      return;
+    }
+
+    measureFreqMenuButton();
+  }, [measureFreqMenuButton, showFreqMenu]);
+
+  const handleSelectFrequency = useCallback(
+    (key: FreqKey | null) => {
+      setSelectedFrequency(key);
+      setShowFreqMenu(false);
+    },
+    [setSelectedFrequency],
+  );
+
   const handleSelectAll = useCallback(() => {
     selectAllHabits(Array.from(allLoadedIds));
   }, [allLoadedIds, selectAllHabits]);
@@ -988,6 +1017,9 @@ export default function TodayScreen() {
     () => (
       <>
         {sharedHeader}
+
+        {showSummary ? <TodayAISummary date={dateStr} /> : null}
+
         <TodayDateNavigation
           visible={currentActiveView === "today"}
           dateLabel={dateLabel}
@@ -1005,8 +1037,6 @@ export default function TodayScreen() {
           }
         />
 
-        {showSummary ? <TodayAISummary date={dateStr} /> : null}
-
         <SectionLabel
           trailing={
             <View style={styles.sectionTrailing}>
@@ -1023,6 +1053,33 @@ export default function TodayScreen() {
                   strokeWidth={1.6}
                 />
               </Pressable>
+              {currentActiveView !== "general" ? (
+                <View ref={freqMenuButtonRef} collapsable={false}>
+                  <Pressable
+                    onPress={handleToggleFreqMenu}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("habits.frequencyFilter")}
+                    accessibilityState={{ selected: selectedFrequency != null }}
+                    hitSlop={6}
+                    style={[
+                      styles.iconBtn,
+                      selectedFrequency != null && {
+                        backgroundColor: tokens.bgElev,
+                        borderWidth: 1,
+                        borderColor: tokens.hairlineStrong,
+                      },
+                    ]}
+                  >
+                    <Filter
+                      size={15}
+                      color={
+                        selectedFrequency != null ? tokens.fg1 : tokens.fg3
+                      }
+                      strokeWidth={1.6}
+                    />
+                  </Pressable>
+                </View>
+              ) : null}
               <View ref={controlsButtonRef} collapsable={false}>
                 <Pressable
                   onPress={handleToggleControlsMenu}
@@ -1066,59 +1123,6 @@ export default function TodayScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filtersContent}
           >
-            {activeView !== "general" ? (
-              <>
-                <Pressable
-                  onPress={() => setSelectedFrequency(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.all")}
-                  accessibilityState={{ selected: !selectedFrequency }}
-                  style={styles.freqFilter}
-                  hitSlop={6}
-                >
-                  <Text
-                    style={[
-                      styles.freqFilterLabel,
-                      {
-                        color: !selectedFrequency ? tokens.fg1 : tokens.fg3,
-                        fontWeight: !selectedFrequency ? "600" : "500",
-                      },
-                    ]}
-                  >
-                    {t("common.all")}
-                  </Text>
-                </Pressable>
-                {frequencyOptions.map((opt) => {
-                  const active = selectedFrequency === opt.key;
-                  return (
-                    <Pressable
-                      key={opt.key}
-                      onPress={() =>
-                        setSelectedFrequency(active ? null : opt.key)
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={opt.label}
-                      accessibilityState={{ selected: active }}
-                      style={styles.freqFilter}
-                      hitSlop={6}
-                    >
-                      <Text
-                        style={[
-                          styles.freqFilterLabel,
-                          {
-                            color: active ? tokens.fg1 : tokens.fg3,
-                            fontWeight: active ? "600" : "500",
-                          },
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </>
-            ) : null}
-
             {tags.map((tag) => (
               <TagChip
                 key={tag.id}
@@ -1227,6 +1231,77 @@ export default function TodayScreen() {
               </Text>
             </Pressable>
           </AnchoredMenu>
+
+          <AnchoredMenu
+            visible={showFreqMenu}
+            anchorRect={freqMenuAnchorRect}
+            onClose={() => setShowFreqMenu(false)}
+            width={200}
+            estimatedHeight={260}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlsMenuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
+              onPress={() => handleSelectFrequency(null)}
+              accessibilityRole="menuitem"
+              accessibilityState={{ selected: !selectedFrequency }}
+            >
+              <View style={styles.freqMenuCheck}>
+                {!selectedFrequency ? (
+                  <Check size={14} color={tokens.primary} strokeWidth={2} />
+                ) : null}
+              </View>
+              <Text
+                style={[
+                  styles.controlsMenuLabel,
+                  {
+                    color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
+                    fontWeight: !selectedFrequency ? "600" : "500",
+                  },
+                ]}
+              >
+                {t("common.all")}
+              </Text>
+            </Pressable>
+            {frequencyOptions.map((opt) => {
+              const active = selectedFrequency === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  style={({ pressed }) => [
+                    styles.controlsMenuItem,
+                    {
+                      backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                    },
+                  ]}
+                  onPress={() => handleSelectFrequency(active ? null : opt.key)}
+                  accessibilityRole="menuitem"
+                  accessibilityState={{ selected: active }}
+                >
+                  <View style={styles.freqMenuCheck}>
+                    {active ? (
+                      <Check size={14} color={tokens.primary} strokeWidth={2} />
+                    ) : null}
+                  </View>
+                  <Text
+                    style={[
+                      styles.controlsMenuLabel,
+                      {
+                        color: active ? tokens.fg1 : tokens.fg2,
+                        fontWeight: active ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </AnchoredMenu>
         </Animated.View>
       </>
     ),
@@ -1270,6 +1345,10 @@ export default function TodayScreen() {
       tags,
       toggleTagFilter,
       tokens,
+      freqMenuAnchorRect,
+      showFreqMenu,
+      handleToggleFreqMenu,
+      handleSelectFrequency,
     ],
   );
 
@@ -1481,13 +1560,10 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingVertical: 4,
     },
-    freqFilter: {
-      paddingVertical: 4,
-    },
-    freqFilterLabel: {
-      fontFamily: "Geist",
-      fontSize: 13,
-      letterSpacing: -0.05,
+    freqMenuCheck: {
+      width: 16,
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     sectionTrailing: {

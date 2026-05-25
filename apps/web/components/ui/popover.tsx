@@ -170,12 +170,9 @@ export function Popover({
                 role="dialog"
                 aria-modal="false"
                 className={[
-                  'habit-actions-menu',
                   'fixed',
-                  'p-1.5',
-                  'rounded-[var(--radius-xl)]',
+                  'p-1',
                   'z-[70]',
-                  'shadow-[var(--shadow-lg)]',
                   className,
                 ]
                   .filter(Boolean)
@@ -183,6 +180,10 @@ export function Popover({
                 style={{
                   top: `${position.top}px`,
                   left: `${position.left}px`,
+                  background: 'var(--bg-elev)',
+                  borderRadius: 12,
+                  boxShadow:
+                    '0 12px 40px rgba(0,0,0,0.35), inset 0 0 0 1px var(--hairline)',
                 }}
                 tabIndex={-1}
                 onKeyDown={handlePanelKeyDown}

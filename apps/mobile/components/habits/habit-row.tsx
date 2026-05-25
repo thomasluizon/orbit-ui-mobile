@@ -91,7 +91,6 @@ export function HabitRow({
   const { displayTime } = useTimeFormat()
 
   const isChild = depth > 0
-  const indent = depth * 16
 
   const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
   const status = useMemo(
@@ -152,11 +151,18 @@ export function HabitRow({
 
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 18
-  const verticalPadding = isChild ? 10 : 13
 
   const titleColor = isDoneForRange ? tokens.fg3 : tokens.fg1
 
   const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
+
+  // Every habit row is a --bg-elev card. Parent + expanded children share one
+  // card via radius (parent top-rounded, last child bottom-rounded, middles
+  // square). Standalones get a fully rounded card. Whitespace below separates
+  // adjacent blocks — no internal or inter-row hairlines.
+  const isGroupStart = hasChildren && isExpanded && !isChild
+  const isGroupEnd = isChild && isLastChild
+  const closesBlock = !isChild && !isGroupStart
 
   return (
     // Bare Animated.View stabilizer for @gorhom/bottom-sheet on Android.
@@ -173,44 +179,22 @@ export function HabitRow({
         style={({ pressed }) => [
           styles.row,
           {
-            paddingTop: verticalPadding,
-            paddingBottom: verticalPadding,
-            paddingLeft: 20 + indent,
+            paddingTop: 12,
+            paddingBottom: 12,
+            paddingLeft: 20,
             backgroundColor: isSelected
               ? tokens.bgSunk
               : pressed
-                ? tokens.bgElev
-                : 'transparent',
-            borderBottomColor: tokens.hairline,
+                ? tokens.bgSunk
+                : tokens.bgElev,
+            borderTopLeftRadius: isGroupStart || closesBlock ? 10 : 0,
+            borderTopRightRadius: isGroupStart || closesBlock ? 10 : 0,
+            borderBottomLeftRadius: isGroupEnd || closesBlock ? 10 : 0,
+            borderBottomRightRadius: isGroupEnd || closesBlock ? 10 : 0,
+            marginBottom: closesBlock || isGroupEnd ? 8 : 0,
           },
         ]}
       >
-        {indent > 0 ? (
-          <>
-            <View
-              pointerEvents="none"
-              style={[
-                styles.treeVertical,
-                {
-                  left: indent / 2 + 12,
-                  bottom: isLastChild ? '50%' : 0,
-                  backgroundColor: tokens.hairlineStrong,
-                },
-              ]}
-            />
-            <View
-              pointerEvents="none"
-              style={[
-                styles.treeStub,
-                {
-                  left: indent / 2 + 12,
-                  backgroundColor: tokens.hairlineStrong,
-                },
-              ]}
-            />
-          </>
-        ) : null}
-
         {isSelectMode ? (
           <SelectCheck
             selected={isSelected}
@@ -270,13 +254,12 @@ export function HabitRow({
                   ) : null}
                   {typeof part === 'string' ? (
                     part
-                  ) : part.kind === 'overdue' ? (
-                    <Text style={{ color: tokens.statusOverdue }}>
-                      {t('habits.overdue')}
-                    </Text>
                   ) : (
-                    <Text style={{ color: tokens.statusBad }}>
-                      {t('habits.badHabit')}
+                    <Text style={{ fontStyle: 'italic' }}>
+                      {(part.kind === 'overdue'
+                        ? t('habits.overdue')
+                        : t('habits.badHabit')
+                      ).toLowerCase()}
                     </Text>
                   )}
                 </Fragment>
@@ -350,19 +333,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     position: 'relative',
-  },
-  treeVertical: {
-    position: 'absolute',
-    top: 0,
-    width: 1,
-  },
-  treeStub: {
-    position: 'absolute',
-    top: '50%',
-    width: 8,
-    height: 1,
   },
   titleBlock: {
     flex: 1,

@@ -165,6 +165,7 @@ interface DragItem extends ReorderableHabitItem {
   depth: number
   hasChildren: boolean
   hasSubHabits: boolean
+  isLastChild: boolean
 }
 
 function formatDateGroupLabel(
@@ -552,6 +553,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           depth,
           hasChildren: children.length > 0,
           hasSubHabits: habit.hasSubHabits,
+          isLastChild: false,
         })
         if (!collapsedIds.has(habit.id)) {
           for (const child of children) {
@@ -562,6 +564,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       for (const h of visibleHabits) {
         addHabitTree(h, 0)
+      }
+
+      for (let i = 0; i < items.length; i++) {
+        const current = items[i]
+        const next = items[i + 1]
+        if (!current) continue
+        current.isLastChild = !next || next.depth <= current.depth
       }
 
       return items
@@ -1248,6 +1257,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           isDrillCard?: boolean
           onLongPressCard?: () => void
           tourTargetId?: string
+          isLastChild?: boolean
         },
       ) => {
         const progress = hasChildren
@@ -1261,6 +1271,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             selectedDate={selectedDate}
             depth={depth}
             hasChildren={hasChildren}
+            isLastChild={options?.isLastChild ?? false}
             isExpanded={!collapsedIds.has(habit.id)}
             childrenDone={progress.done}
             childrenTotal={progress.total}
@@ -1378,7 +1389,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           const children = getVisibleChildren(currentParentId)
           if (children.length === 0) return null
 
-          return children.map((child) => {
+          return children.map((child, index) => {
             const visibleChildren = getVisibleChildren(child.id)
             return (
               <View key={child.id} style={styles.allViewChild}>
@@ -1387,6 +1398,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   currentDepth,
                   visibleChildren.length > 0,
                   child.hasSubHabits,
+                  { isLastChild: index === children.length - 1 },
                 )}
                 {walk(child.id, currentDepth + 1)}
               </View>
@@ -1421,6 +1433,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 item.habit.id === TOUR_FEATURED_HABIT_ID
                   ? 'tour-habit-card'
                   : undefined,
+              isLastChild: item.isLastChild,
             },
           )}
         </View>

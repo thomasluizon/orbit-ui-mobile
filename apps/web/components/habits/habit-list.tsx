@@ -48,6 +48,7 @@ import {
   useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
@@ -272,6 +273,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const router = useRouter()
   const { profile } = useProfile()
   const locale = useLocale()
+  const { displayTime } = useTimeFormat()
 
   const habitsQuery = useHabits(filters)
   const logHabit = useLogHabit()
@@ -1023,7 +1025,7 @@ const isPostponeAction = useMemo(() => {
     const tokens: HabitRowMetaToken[] = []
     const freqLabel = computeHabitFrequencyLabel(habit, t)
     if (freqLabel) tokens.push(freqLabel)
-    if (habit.dueTime) tokens.push(habit.dueTime)
+    if (habit.dueTime) tokens.push(displayTime(habit.dueTime))
     if (habit.checklistItems.length > 0) {
       const done = habit.checklistItems.filter((c) => c.isChecked).length
       tokens.push(`${done}/${habit.checklistItems.length}`)
@@ -1066,7 +1068,6 @@ const isPostponeAction = useMemo(() => {
         meta={meta}
         streak={habit.currentStreak}
         child={isChild}
-        indent={isChild ? 16 * depth : 0}
         isLastChild={options?.isLastChild ?? false}
         selectMode={isSelectMode}
         selected={selectedHabitIds?.has(habit.id) ?? false}
@@ -1112,13 +1113,14 @@ const isPostponeAction = useMemo(() => {
     const children = getVisibleChildren(parentId)
     if (children.length === 0) return null
 
-    return children.map((child) => (
+    return children.map((child, index) => (
       <div key={child.id}>
         {renderHabitCard(
           child,
           depth,
           getVisibleChildren(child.id).length > 0,
           habitsById.get(child.id)?.hasSubHabits ?? false,
+          { isLastChild: index === children.length - 1 },
         )}
         {renderAllViewChildren(child.id, depth + 1)}
       </div>

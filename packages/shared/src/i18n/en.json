@@ -279,7 +279,7 @@
     "viewGeneral": "General",
     "today": "Today",
     "sectionLabel": "Habits",
-    "statOf": "of",
+    "frequencyFilter": "Filter by frequency",
     "searchPlaceholder": "Search habits...",
     "showCompleted": "Show completed",
     "collapseAll": "Collapse all",

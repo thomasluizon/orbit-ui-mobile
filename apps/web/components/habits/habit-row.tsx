@@ -45,11 +45,9 @@ interface HabitRowProps {
   meta?: HabitRowMetaToken[]
   /** Streak number from `habit.currentStreak` — only rendered when >= 2 and not child. */
   streak?: number
-  /** True when this row is rendered under a parent (renders tree-line connector + smaller text). */
+  /** True when this row is rendered under a parent. Renders with smaller text. */
   child?: boolean
-  /** Extra left padding so the parent column aligns; pixel value. */
-  indent?: number
-  /** Last child in a sibling group — vertical tree line stops at row midpoint. */
+  /** Last child in a sibling group — closes the elevated parent block with a rounded bottom. */
   isLastChild?: boolean
   selectMode?: boolean
   selected?: boolean
@@ -65,16 +63,12 @@ interface HabitRowProps {
   actions?: HabitRowActions
 }
 
-const TREE_LINE_OFFSET_PX = 12
-const TREE_STUB_WIDTH_PX = 8
-
 export function HabitRow({
   habit,
   state = 'empty',
   meta = [],
   streak,
   child = false,
-  indent = 0,
   isLastChild = false,
   selectMode = false,
   selected = false,
@@ -107,6 +101,23 @@ export function HabitRow({
   const emojiSize = child ? 16 : 18
   const showStreak = !child && streak != null && streak >= 2
 
+  // Every habit row is a --bg-elev card. Parent + expanded children share one
+  // card via radius (parent top-rounded, last child bottom-rounded, middles
+  // square). Standalones get a fully rounded card. Whitespace below separates
+  // adjacent blocks — no internal or inter-row hairlines.
+  const isGroupStart = hasChildren && expanded && !child
+  const isGroupEnd = child && isLastChild
+  const isGroupMiddle = child && !isLastChild
+  const closesBlock = !child && !isGroupStart // standalone (no children expanded)
+
+  const groupBorderRadius = isGroupStart
+    ? '10px 10px 0 0'
+    : isGroupEnd
+      ? '0 0 10px 10px'
+      : isGroupMiddle
+        ? '0'
+        : '10px'
+
   function handleRowClick() {
     if (selectMode) onToggleSelection?.()
     else onDetail?.()
@@ -128,11 +139,6 @@ export function HabitRow({
     return 'var(--fg-1)'
   }
 
-  // Tree-line geometry: vertical span runs full height (or stops at 50% for the last child)
-  // and a horizontal stub anchors to the row midpoint. Both sit at `indent/2 + TREE_LINE_OFFSET_PX`
-  // from the row's left edge so they align with the parent emoji column above.
-  const treeLineLeft = indent / 2 + TREE_LINE_OFFSET_PX
-
   return (
     <div
       onClick={handleRowClick}
@@ -148,37 +154,12 @@ export function HabitRow({
       className="relative flex items-center cursor-pointer"
       style={{
         gap: 10,
-        padding: `${child ? 10 : 13}px 20px ${child ? 10 : 13}px ${20 + indent}px`,
-        borderBottom: '1px solid var(--hairline)',
-        background: selected ? 'var(--bg-sunk)' : 'transparent',
+        padding: `12px 20px`,
+        background: selected ? 'var(--bg-sunk)' : 'var(--bg-elev)',
+        borderRadius: groupBorderRadius,
+        marginBottom: closesBlock || isGroupEnd ? 8 : 0,
       }}
     >
-      {indent > 0 && (
-        <>
-          <span
-            aria-hidden="true"
-            className="absolute"
-            style={{
-              left: treeLineLeft,
-              top: 0,
-              bottom: isLastChild ? '50%' : 0,
-              width: 1,
-              background: 'var(--hairline-strong)',
-            }}
-          />
-          <span
-            aria-hidden="true"
-            className="absolute"
-            style={{
-              left: treeLineLeft,
-              top: '50%',
-              width: TREE_STUB_WIDTH_PX,
-              height: 1,
-              background: 'var(--hairline-strong)',
-            }}
-          />
-        </>
-      )}
 
       {selectMode && (
         <SelectCheck
@@ -277,7 +258,7 @@ export function HabitRow({
         {!selectMode && hasMenuActions && (
           <Popover
             placement="bottom-end"
-            className="min-w-[180px] py-1 bg-[var(--bg-elev)] border border-[var(--hairline)] rounded-[var(--radius-md)] shadow-[var(--shadow-3)]"
+            className="min-w-[180px]"
             trigger={
               <button
                 type="button"
@@ -446,8 +427,5 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
 
 function renderMetaToken(token: HabitRowMetaToken): ReactNode {
   if (typeof token === 'string') return token
-  if (token.kind === 'overdue') {
-    return <span style={{ color: 'var(--status-overdue)' }}>{token.label}</span>
-  }
-  return <span style={{ color: 'var(--status-bad)' }}>{token.label}</span>
+  return <span style={{ fontStyle: 'italic' }}>{token.label.toLowerCase()}</span>
 }

@@ -47,7 +47,7 @@ export function ControlsMenu({
       ref={menuPanelRef}
       role="menu"
       tabIndex={0}
-      className="habit-actions-menu fixed z-[70]"
+      className="fixed z-[70]"
       style={{
         left: `${position.left}px`,
         top: `${position.top}px`,

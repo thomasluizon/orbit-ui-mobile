@@ -29,16 +29,17 @@ export function StatusDot({
 }: Readonly<StatusDotProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const isHollow = state === 'empty'
+  const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
 
   const colorMap: Record<StatusDotState, string> = {
     done: tokens.statusDone,
-    empty: 'transparent',
+    empty: tokens.statusEmpty,
     skip: tokens.statusSkip,
     overdue: tokens.statusOverdue,
     bad: tokens.statusBad,
     frozen: tokens.statusFrozen,
   }
+  const color = colorMap[state]
 
   const dot = (
     <View
@@ -46,9 +47,9 @@ export function StatusDot({
         width: size,
         height: size,
         borderRadius: 999,
-        backgroundColor: colorMap[state],
-        borderWidth: isHollow ? 1.5 : 0,
-        borderColor: isHollow ? tokens.statusEmpty : 'transparent',
+        backgroundColor: isFilled ? color : 'transparent',
+        borderWidth: isFilled ? 0 : 1.5,
+        borderColor: isFilled ? 'transparent' : color,
       }}
     />
   )

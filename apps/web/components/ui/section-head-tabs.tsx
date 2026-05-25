@@ -1,10 +1,9 @@
 'use client'
 
 import { Lock } from 'lucide-react'
-import { Chip } from './chip'
 
-/** Strip of inline-chip tabs sitting directly under AppBar (Today/All/General/Goals).
- *  Locked tabs render a small lock glyph instead of being hidden. */
+/** Tab bar that spreads its children proportionally across the row.
+ *  Used for the Today / All / General / Goals view switcher. */
 export interface SectionHeadTabItem<TId extends string> {
   id: TId
   label: string
@@ -32,28 +31,45 @@ export function SectionHeadTabs<TId extends string>({
       tabIndex={0}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className="flex items-center shrink-0"
+      className="flex items-stretch shrink-0"
       style={{
         padding: '8px 20px 10px',
         gap: 6,
         outline: 'none',
       }}
     >
-      {tabs.map((tab) => (
-        <Chip
-          key={tab.id}
-          active={tab.id === active}
-          onClick={() => onChange(tab.id)}
-          ariaLabel={tab.label}
-          leading={
-            tab.locked ? (
+      {tabs.map((tab) => {
+        const isActive = tab.id === active
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-label={tab.label}
+            onClick={() => onChange(tab.id)}
+            className="flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+            style={{
+              height: 38,
+              padding: '0 10px',
+              borderRadius: 8,
+              background: isActive ? 'var(--bg-elev)' : 'transparent',
+              boxShadow: isActive
+                ? 'inset 0 0 0 1px var(--fg-3)'
+                : 'inset 0 0 0 1px var(--hairline-strong)',
+              color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              fontWeight: isActive ? 600 : 500,
+            }}
+          >
+            {tab.locked ? (
               <Lock size={11} strokeWidth={1.6} color="currentColor" />
-            ) : undefined
-          }
-        >
-          {tab.label}
-        </Chip>
-      ))}
+            ) : null}
+            {tab.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

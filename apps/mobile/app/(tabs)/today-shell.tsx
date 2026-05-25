@@ -213,8 +213,6 @@ export function TodayDateNavigation({
 
 const styles = StyleSheet.create({
   dateNavWrap: {
-    flexDirection: 'row',
-    justifyContent: 'center',
     paddingHorizontal: 20,
     paddingTop: 4,
     paddingBottom: 10,
@@ -222,19 +220,20 @@ const styles = StyleSheet.create({
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 999,
     paddingHorizontal: 4,
   },
   dateChevron: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dateLabelPress: {
-    paddingHorizontal: 4,
+    flex: 1,
+    paddingHorizontal: 8,
     paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateLabel: {
     fontFamily: 'Geist',
@@ -242,7 +241,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: -0.1,
     textAlign: 'center',
-    minWidth: 110,
   },
 })
 
