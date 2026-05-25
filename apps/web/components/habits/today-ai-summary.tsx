@@ -1,22 +1,27 @@
 'use client'
 
-import Link from 'next/link'
-import { Sparkles } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Star } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
-import { PullQuote } from '@/components/chat/pull-quote'
 
 interface TodayAISummaryProps {
   date: string
 }
 
-/** AI Summary block on Today screen.
- *  - Pro + enabled → renders Astra-attributed PullQuote with summary + "Ask Astra" link
- *  - Free → renders upgrade prompt PullQuote
- *  - Pro + disabled → renders nothing (matches HabitSummaryCard behavior). */
+/**
+ * Today screen "Astra" block: filled star + heading, vertical hairline rail,
+ * one or two lines of message. No card chrome. Whole block is tappable; tap
+ * destination depends on state (pro → /chat, free → /upgrade, error → refetch).
+ *
+ * - Pro + enabled: shows the AI summary text
+ * - Free: shows the upgrade prompt
+ * - Pro + disabled: renders nothing
+ */
 export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const t = useTranslations()
+  const router = useRouter()
   const uiLocale = useLocale()
   const { profile } = useProfile()
 
@@ -31,145 +36,106 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
     aiSummaryEnabled,
   })
 
-  // Free user: upgrade prompt
-  if (!hasProAccess) {
-    return (
-      <div
-        style={{
-          padding: '14px 20px 16px',
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
-        <PullQuote eyebrow={<AstraEyebrow time="" hideTime />} italic paddingX={0} paddingY={0}>
-          {t('summary.freePrompt')}
-          <div style={{ marginTop: 10 }}>
-            <Link
-              href="/upgrade"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-                textDecorationThickness: 1,
-                textDecorationColor: 'var(--hairline-strong)',
-                fontStyle: 'normal',
-              }}
-            >
-              {t('summary.upgrade')}
-            </Link>
-          </div>
-        </PullQuote>
-      </div>
-    )
+  type Resolved = { text: string; onClick: () => void; label: string }
+
+  function resolveBody(): Resolved | null {
+    if (!hasProAccess) {
+      return {
+        text: t('summary.freePrompt'),
+        onClick: () => router.push('/upgrade'),
+        label: t('summary.upgrade'),
+      }
+    }
+    if (!aiSummaryEnabled) return null
+    if (isLoading) {
+      return {
+        text: t('summary.loading'),
+        onClick: () => router.push('/chat'),
+        label: t('summary.loading'),
+      }
+    }
+    if (error) {
+      return {
+        text: t('summary.error'),
+        onClick: () => {
+          void refetch()
+        },
+        label: t('summary.retry'),
+      }
+    }
+    if (!summary) return null
+    return {
+      text: summary,
+      onClick: () => router.push('/chat'),
+      label: t('summary.askAstra'),
+    }
   }
 
-  // Pro user, summary disabled — nothing rendered
-  if (!aiSummaryEnabled) return null
+  const resolved = resolveBody()
+  if (!resolved) return null
 
-  // Pro user, loading
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          padding: '14px 20px 16px',
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
-        <PullQuote eyebrow={<AstraEyebrow time="" hideTime />} italic paddingX={0} paddingY={0}>
-          {t('summary.loading')}
-        </PullQuote>
-      </div>
-    )
-  }
-
-  // Pro user, error
-  if (error) {
-    return (
-      <div
-        style={{
-          padding: '14px 20px 16px',
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
-        <PullQuote eyebrow={<AstraEyebrow time="" hideTime />} italic paddingX={0} paddingY={0}>
-          {t('summary.error')}
-          <div style={{ marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="appearance-none border-0 bg-transparent cursor-pointer"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                padding: 0,
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-                textDecorationThickness: 1,
-                textDecorationColor: 'var(--hairline-strong)',
-                fontStyle: 'normal',
-              }}
-            >
-              {t('summary.retry')}
-            </button>
-          </div>
-        </PullQuote>
-      </div>
-    )
-  }
-
-  // Pro user, summary present
-  if (summary) {
-    return (
-      <div
-        style={{
-          padding: '14px 20px 16px',
-          borderBottom: '1px solid var(--hairline)',
-        }}
-      >
-        <PullQuote eyebrow={<AstraEyebrow time={summaryHour()} />} italic paddingX={0} paddingY={0}>
-          {summary}
-          <div style={{ marginTop: 10 }}>
-            <Link
-              href="/chat"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-                textDecorationThickness: 1,
-                textDecorationColor: 'var(--hairline-strong)',
-                fontStyle: 'normal',
-              }}
-            >
-              {t('summary.askAstra')}
-            </Link>
-          </div>
-        </PullQuote>
-      </div>
-    )
-  }
-
-  return null
-}
-
-function AstraEyebrow({ time, hideTime = false }: Readonly<{ time: string; hideTime?: boolean }>) {
   return (
-    <>
-      <Sparkles size={11} strokeWidth={1.7} color="var(--primary)" />
-      {hideTime ? 'ASTRA' : `ASTRA · ${time}`}
-    </>
+    <button
+      type="button"
+      onClick={resolved.onClick}
+      aria-label={resolved.label}
+      className="w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[opacity] duration-150 hover:opacity-80"
+      style={{
+        padding: '14px 20px 16px',
+      }}
+    >
+      <div className="flex items-center" style={{ gap: 12 }}>
+        <Star
+          size={20}
+          strokeWidth={1.5}
+          color="var(--fg-1)"
+          fill="var(--fg-1)"
+        />
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 20,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          Astra
+        </span>
+      </div>
+      <div className="flex" style={{ gap: 12, marginTop: 8 }}>
+        <div
+          aria-hidden="true"
+          style={{
+            width: 20,
+            display: 'flex',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 1,
+              alignSelf: 'stretch',
+              background: 'var(--hairline-strong)',
+            }}
+          />
+        </div>
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            lineHeight: 1.45,
+            color: 'var(--fg-2)',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {resolved.text}
+        </span>
+      </div>
+    </button>
   )
-}
-
-function summaryHour(): string {
-  const now = new Date()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
 }

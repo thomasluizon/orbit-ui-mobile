@@ -1,11 +1,11 @@
 import type { ComponentType } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import {
   CalendarDays,
   Home,
   type LucideProps,
+  MessageCircle,
   Plus,
-  Sparkles,
   User,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -37,7 +37,7 @@ interface TabDef {
 
 const TABS: readonly TabDef[] = [
   { id: 'today', labelKey: 'nav.home', Icon: Home },
-  { id: 'chat', labelKey: 'nav.astra', Icon: Sparkles, emphasize: true },
+  { id: 'chat', labelKey: 'nav.astra', Icon: MessageCircle, emphasize: true },
   { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
   { id: 'profile', labelKey: 'nav.you', Icon: User },
 ]
@@ -165,7 +165,7 @@ function TabButton({
         />
       ) : null}
       <View style={styles.iconWrap}>
-        <tab.Icon size={22} color={iconColor} strokeWidth={1.5} />
+        <tab.Icon size={24} color={iconColor} strokeWidth={1.6} />
         {showUnread ? (
           <View
             style={[
@@ -178,17 +178,6 @@ function TabButton({
           />
         ) : null}
       </View>
-      <Text
-        style={[
-          styles.tabLabel,
-          {
-            color: tint,
-            fontWeight: isActive ? '500' : '400',
-          },
-        ]}
-      >
-        {label}
-      </Text>
     </Pressable>
   )
 }
@@ -222,8 +211,8 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 14,
+    paddingBottom: 16,
   },
   tabSlot: {
     flex: 1,
@@ -234,15 +223,14 @@ const styles = StyleSheet.create({
   },
   tabBtn: {
     flex: 1,
-    paddingTop: 4,
+    paddingVertical: 8,
     alignItems: 'center',
-    gap: 5,
     position: 'relative',
   },
   activeIndicator: {
     position: 'absolute',
-    top: -1,
-    width: 14,
+    top: -2,
+    width: 16,
     height: 2,
     borderRadius: 1,
   },
@@ -257,10 +245,5 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     borderWidth: 2,
-  },
-  tabLabel: {
-    fontFamily: 'Geist',
-    fontSize: 11,
-    letterSpacing: 0.11,
   },
 })

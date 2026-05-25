@@ -10,7 +10,7 @@ import {
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { useTranslations } from 'next-intl'
-import { User } from 'lucide-react'
+import { User, Flame } from 'lucide-react'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -20,14 +20,14 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { SubscriptionCard } from './_components/subscription-card'
 import { FreshStartModal } from './_components/fresh-start-modal'
 import { DeleteAccountModal } from './_components/delete-account-modal'
-import { ProfileNavCard } from './_components/profile-nav-card'
+import { ProfileNavIcon } from './_components/profile-nav-icon'
 import { ProfileActionButton } from './_components/profile-action-button'
 
 export default function ProfilePage() {
@@ -131,7 +131,6 @@ export default function ProfilePage() {
         style={{
           padding: '20px 20px 18px',
           gap: 14,
-          borderBottom: '1px solid var(--hairline)',
         }}
       >
         {isLoading ? (
@@ -211,78 +210,79 @@ export default function ProfilePage() {
         )}
       </div>
 
-      <SettingsRow
-        label={t('streakDisplay.title')}
-        ariaLabel={t('streakDisplay.title')}
-        onClick={() => router.push('/streak')}
-        leadingDot={(streakInfo?.currentStreak ?? 0) > 0 ? 'var(--status-bad)' : undefined}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {streakInfo?.currentStreak ?? 0}
-        </span>
-        <span
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('streakDisplay.daysSuffix')}
-        </span>
-      </SettingsRow>
+      <div className="px-5">
+        <SettingsGroup>
+          <SettingsGroupRow
+            icon={<Flame size={18} strokeWidth={1.75} color="var(--status-bad)" />}
+            label={t('streakDisplay.title')}
+            ariaLabel={t('streakDisplay.title')}
+            onClick={() => router.push('/streak')}
+            trailing={
+              <span className="flex items-center" style={{ gap: 6 }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: 'var(--fg-1)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {streakInfo?.currentStreak ?? 0}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 13,
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {t('streakDisplay.daysSuffix')}
+                </span>
+              </span>
+            }
+          />
+        </SettingsGroup>
+      </div>
 
       <SectionLabel>{t('profile.sections.account')}</SectionLabel>
-      <nav aria-label={t('profile.sections.account')}>
-        {accountNavItems.map((item) => (
-          <ProfileNavCard
-            key={item.id}
-            href={item.route}
-            icon={null}
-            title={t(item.titleKey)}
-            hint={getNavHint(item)}
-            proBadgeLabel={t('common.proBadge')}
-            dataTour={navTourMap[item.id]}
-            onNavigate={(event) => {
-              if (!shouldRedirectProfileNavItem(item, profile)) return
-              event.preventDefault()
-              handleNavClick(item)
-            }}
-          />
-        ))}
+      <nav aria-label={t('profile.sections.account')} className="px-5">
+        <SettingsGroup>
+          {accountNavItems.map((item) => (
+            <SettingsGroupRow
+              key={item.id}
+              icon={<ProfileNavIcon iconKey={item.iconKey} />}
+              label={t(item.titleKey)}
+              hint={getNavHint(item)}
+              proBadge={item.proBadge}
+              proBadgeLabel={t('common.proBadge')}
+              dataTour={navTourMap[item.id]}
+              onClick={() => handleNavClick(item)}
+            />
+          ))}
+        </SettingsGroup>
       </nav>
 
       <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-      <div>
-        {featureNavItems.map((item) => (
-          <ProfileNavCard
-            key={item.id}
-            href={item.route}
-            icon={null}
-            title={t(item.titleKey)}
-            hint={getNavHint(item)}
-            variant={item.variant}
-            proBadge={item.proBadge}
-            proBadgeLabel={t('common.proBadge')}
-            dataTour={navTourMap[item.id]}
-            onNavigate={(event) => {
-              if (!shouldRedirectProfileNavItem(item, profile)) return
-              event.preventDefault()
-              handleNavClick(item)
-            }}
-          />
-        ))}
+      <div className="px-5">
+        <SettingsGroup>
+          {featureNavItems.map((item) => (
+            <SettingsGroupRow
+              key={item.id}
+              icon={<ProfileNavIcon iconKey={item.iconKey} />}
+              label={t(item.titleKey)}
+              hint={getNavHint(item)}
+              proBadge={item.proBadge}
+              proBadgeLabel={t('common.proBadge')}
+              dataTour={navTourMap[item.id]}
+              onClick={() => handleNavClick(item)}
+            />
+          ))}
+        </SettingsGroup>
       </div>
 
       <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-      <div data-tour="tour-profile-subscription">
+      <div data-tour="tour-profile-subscription" className="px-5">
         <SubscriptionCard
           profile={profile}
           trialDaysLeft={trialDaysLeft}
@@ -295,13 +295,13 @@ export default function ProfilePage() {
         onClick={() => logout()}
         icon={null}
         label={t('profile.logout')}
-        tone="default"
+        tone="danger"
       />
       <ProfileActionButton
         onClick={() => setShowResetModal(true)}
         icon={null}
         label={t('profile.freshStart.button')}
-        tone="default"
+        tone="primary"
       />
       <ProfileActionButton
         onClick={() => setShowDeleteModal(true)}

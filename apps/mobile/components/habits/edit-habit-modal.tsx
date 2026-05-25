@@ -299,9 +299,6 @@ function createStyles(
       alignItems: 'center',
       gap: 12,
       paddingTop: 16,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
-      marginTop: 4,
     },
     cancelButton: {
       paddingVertical: 10,

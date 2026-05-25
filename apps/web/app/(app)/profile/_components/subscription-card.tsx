@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import type { Profile } from '@orbit/shared/types/profile'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 
 interface SubscriptionCardProps {
   profile: Profile | undefined
@@ -93,38 +94,16 @@ export function SubscriptionCard({
     )
   }
 
+  const secondary = isTrial ? `${label} · ${hint}` : (hint ? `${label} · ${hint}` : label)
+
   return (
-    <div
-      className="flex items-center"
-      style={{
-        padding: '14px 20px',
-        gap: 12,
-        borderBottom: '1px solid var(--hairline)',
-      }}
-    >
-      <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
-        <span
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 15,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {t('profile.subscription.plan')}
-        </span>
-        <span
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {isTrial ? `${label} · ${hint}` : label}{!isTrial && hint ? ` · ${hint}` : ''}
-        </span>
-      </div>
-      {rightLink}
-    </div>
+    <SettingsGroup>
+      <SettingsGroupRow
+        label={t('profile.subscription.plan')}
+        hint={secondary}
+        trailing={rightLink}
+        accessory="none"
+      />
+    </SettingsGroup>
   )
 }

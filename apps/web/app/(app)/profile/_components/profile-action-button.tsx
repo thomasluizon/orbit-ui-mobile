@@ -10,14 +10,14 @@ interface ProfileActionButtonProps {
   compact?: boolean
 }
 
-/** v8 flush row action — italic destructive label (no red text), plain otherwise. */
+/** v8 flush row action — `danger` tone colors the label red; `compact` renders smaller italic for quieter destructive actions. */
 export function ProfileActionButton({
   label,
   onClick,
   tone = 'default',
   compact = false,
 }: Readonly<ProfileActionButtonProps>) {
-  const isDestructive = tone === 'danger'
+  const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
   return (
     <button
       type="button"
@@ -30,11 +30,10 @@ export function ProfileActionButton({
         padding: '14px 20px',
         borderBottom: '1px solid var(--hairline)',
         fontFamily: 'var(--font-family-sans)',
-        fontSize: compact ? 14 : 15,
+        fontSize: compact ? 13 : 15,
         fontWeight: 400,
-        color: 'var(--fg-1)',
-        fontStyle: isDestructive ? 'italic' : 'normal',
-        opacity: compact ? 0.78 : 1,
+        color,
+        fontStyle: compact ? 'italic' : 'normal',
       }}
     >
       {label}

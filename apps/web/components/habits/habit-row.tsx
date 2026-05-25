@@ -253,7 +253,7 @@ export function HabitRow({
           ) : (
             <StatusDot
               state={state}
-              size={9}
+              size={22}
               onToggle={handleToggleStatus}
               ariaLabel={t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}
             />
@@ -400,7 +400,8 @@ function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProp
         fontSize: size,
         fontWeight: 400,
         color,
-        textDecoration: strikethrough ? 'line-through' : 'none',
+        textDecorationLine: strikethrough ? 'line-through' : 'none',
+        textDecorationStyle: 'solid',
         textDecorationColor: 'var(--hairline-strong)',
         textDecorationThickness: 1,
         lineHeight: 1.25,

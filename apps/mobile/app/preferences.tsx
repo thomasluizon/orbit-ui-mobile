@@ -32,7 +32,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Chip } from '@/components/ui/chip'
 import { MonoToggle } from '@/components/ui/mono-toggle'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -261,9 +261,7 @@ export default function PreferencesScreen() {
         <TrialBanner />
 
         <SectionLabel>{t('profile.language.title')}</SectionLabel>
-        <View
-          style={[styles.chipsRow, { borderBottomColor: tokens.hairline }]}
-        >
+        <View style={styles.chipsRow}>
           {LANGUAGE_OPTIONS.map((lang) => (
             <Chip
               key={lang.value}
@@ -276,9 +274,7 @@ export default function PreferencesScreen() {
         </View>
 
         <SectionLabel>{t('preferences.themeMode')}</SectionLabel>
-        <View
-          style={[styles.themeRow, { borderBottomColor: tokens.hairline }]}
-        >
+        <View style={styles.themeRow}>
           <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
             {t('preferences.themeMode')}
           </Text>
@@ -293,9 +289,7 @@ export default function PreferencesScreen() {
           />
         </View>
 
-        <View
-          style={[styles.schemeRow, { borderBottomColor: tokens.hairline }]}
-        >
+        <View style={styles.schemeRow}>
           <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
             {t('profile.colorScheme.title')}
           </Text>
@@ -308,9 +302,7 @@ export default function PreferencesScreen() {
         </View>
 
         <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
-        <View
-          style={[styles.weekRow, { borderBottomColor: tokens.hairline }]}
-        >
+        <View style={styles.weekRow}>
           <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
             {t('settings.weekStartDay.title')}
           </Text>
@@ -329,54 +321,44 @@ export default function PreferencesScreen() {
 
         <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
         {pushSupported ? (
-          <>
-            <SettingsRow
-              label={t('settings.notifications.title')}
-              accessory="none"
-            >
-              <MonoToggle
-                on={pushEnabled}
-                onPress={() => {
-                  void handlePushToggle()
-                }}
-                disabled={pushLoading}
-                accessibilityLabel={t('settings.notifications.title')}
+          <View style={styles.groupWrap}>
+            <SettingsGroup>
+              <SettingsGroupRow
+                label={t('settings.notifications.title')}
+                trailing={
+                  <MonoToggle
+                    on={pushEnabled}
+                    onPress={() => {
+                      void handlePushToggle()
+                    }}
+                    disabled={pushLoading}
+                    accessibilityLabel={t('settings.notifications.title')}
+                  />
+                }
+                accessory="none"
               />
-            </SettingsRow>
-            <View
-              style={[styles.statusBlock, { borderBottomColor: tokens.hairline }]}
-            >
-              <Text
-                style={[styles.statusText, { color: pushStatusColor }]}
-              >
+            </SettingsGroup>
+            <View style={styles.statusBlock}>
+              <Text style={[styles.statusText, { color: pushStatusColor }]}>
                 {pushStatusText}
               </Text>
             </View>
             {permissionStatus === 'denied' ? (
-              <View
-                style={[
-                  styles.actionBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
+              <Pressable
+                onPress={() => {
+                  void Linking.openSettings().catch(() => {})
+                }}
+                accessibilityRole="button"
+                style={styles.linkPress}
               >
-                <Pressable
-                  onPress={() => {
-                    void Linking.openSettings().catch(() => {})
-                  }}
-                  accessibilityRole="button"
-                  style={styles.linkPress}
-                >
-                  <Text style={[styles.linkText, { color: tokens.fg1 }]}>
-                    {t('settings.notifications.openSettings')}
-                  </Text>
-                </Pressable>
-              </View>
+                <Text style={[styles.linkText, { color: tokens.fg1 }]}>
+                  {t('settings.notifications.openSettings')}
+                </Text>
+              </Pressable>
             ) : null}
-          </>
+          </View>
         ) : (
-          <View
-            style={[styles.statusBlock, { borderBottomColor: tokens.hairline }]}
-          >
+          <View style={styles.statusBlock}>
             <Text style={[styles.statusText, { color: tokens.fg3 }]}>
               {t('settings.notifications.unsupportedNative')}
             </Text>
@@ -384,18 +366,23 @@ export default function PreferencesScreen() {
         )}
 
         <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
-        <SettingsRow
-          label={t('settings.homeScreen.showGeneralDesc')}
-          accessory="none"
-        >
-          <MonoToggle
-            on={showGeneralOnToday}
-            onPress={() => {
-              void handleShowGeneralToggle(!showGeneralOnToday)
-            }}
-            accessibilityLabel={t('settings.homeScreen.showGeneralDesc')}
-          />
-        </SettingsRow>
+        <View style={styles.groupWrap}>
+          <SettingsGroup>
+            <SettingsGroupRow
+              label={t('settings.homeScreen.showGeneralDesc')}
+              trailing={
+                <MonoToggle
+                  on={showGeneralOnToday}
+                  onPress={() => {
+                    void handleShowGeneralToggle(!showGeneralOnToday)
+                  }}
+                  accessibilityLabel={t('settings.homeScreen.showGeneralDesc')}
+                />
+              }
+              accessory="none"
+            />
+          </SettingsGroup>
+        </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -407,21 +394,22 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
+  groupWrap: {
+    paddingHorizontal: 20,
+  },
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 6,
   },
   themeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 10,
     gap: 12,
   },
   schemeRow: {
@@ -429,8 +417,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 10,
     gap: 12,
   },
   weekRow: {
@@ -438,8 +425,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 10,
     gap: 12,
     flexWrap: 'wrap',
   },
@@ -470,20 +456,20 @@ const styles = StyleSheet.create({
   },
   statusBlock: {
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   statusText: {
     fontFamily: 'Geist',
     fontSize: 13,
     fontStyle: 'italic',
   },
-  actionBlock: {
+  linkPress: {
+    padding: 4,
+    alignSelf: 'flex-start',
     paddingHorizontal: 20,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  linkPress: { padding: 4, alignSelf: 'flex-start' },
   linkText: {
     fontFamily: 'Geist',
     fontSize: 13,

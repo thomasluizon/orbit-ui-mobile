@@ -45,11 +45,11 @@ export function StatusDot({
       type="button"
       onClick={handleClick}
       aria-label={ariaLabel ?? state}
-      className="appearance-none border-0 bg-transparent cursor-pointer shrink-0"
-      style={{ padding: 6, margin: -6 }}
+      className="group appearance-none border-0 bg-transparent cursor-pointer shrink-0"
+      style={{ padding: 10, margin: -10 }}
     >
       <span
-        className="inline-block rounded-full"
+        className="inline-block rounded-full transition-transform duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-125 group-active:scale-90"
         style={{
           width: size,
           height: size,

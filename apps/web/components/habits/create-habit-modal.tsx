@@ -342,8 +342,6 @@ export function CreateHabitModal({
           style={{
             paddingTop: 12,
             paddingBottom: 8,
-            borderTop: '1px solid var(--hairline)',
-            marginTop: 4,
           }}
         >
           <button

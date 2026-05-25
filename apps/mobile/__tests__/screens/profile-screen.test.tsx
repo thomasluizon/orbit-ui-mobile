@@ -190,8 +190,9 @@ vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
-  SettingsRow: () => null,
+vi.mock('@/components/ui/settings-group', () => ({
+  SettingsGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SettingsGroupRow: () => null,
 }))
 
 vi.mock('lucide-react-native', () => {
@@ -209,6 +210,7 @@ vi.mock('lucide-react-native', () => {
     Compass: createIcon('Compass'),
     User: createIcon('User'),
     ChevronLeft: createIcon('ChevronLeft'),
+    Flame: createIcon('Flame'),
   }
 })
 

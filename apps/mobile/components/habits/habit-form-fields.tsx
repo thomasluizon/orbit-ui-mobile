@@ -1277,36 +1277,35 @@ export function HabitFormFields({
                 ]}
                 onPress={frequencyHandlers[card.key]}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
               >
-                <View
-                  style={[
-                    styles.frequencyCardIcon,
-                    isActive
-                      ? styles.frequencyCardIconActive
-                      : styles.frequencyCardIconInactive,
-                  ]}
-                >
+                <View style={styles.frequencyCardHeader}>
                   <CardIcon
                     size={18}
-                    color={isActive ? tokens.primary : tokens.fg3}
+                    color={isActive ? tokens.fg1 : tokens.fg3}
                   />
+                  <Text
+                    style={[
+                      styles.frequencyCardTitle,
+                      isActive
+                        ? styles.frequencyCardTitleActive
+                        : styles.frequencyCardTitleInactive,
+                    ]}
+                  >
+                    {t(card.titleKey)}
+                  </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.frequencyCardTitle,
-                    isActive
-                      ? styles.frequencyCardTitleActive
-                      : styles.frequencyCardTitleInactive,
-                  ]}
-                >
-                  {t(card.titleKey)}
-                </Text>
-                <Text style={styles.frequencyCardDesc}>
-                  {t(card.descKey)}
-                </Text>
-                <Text style={styles.frequencyCardExample}>
-                  {t(card.exampleKey)}
-                </Text>
+                {isActive && (
+                  <View style={styles.frequencyCardBody}>
+                    <Text style={styles.frequencyCardDesc}>
+                      {t(card.descKey)}
+                    </Text>
+                    <Text style={styles.frequencyCardExample}>
+                      {t(card.exampleKey)}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -2174,56 +2173,51 @@ function createStyles(tokens: AppTokens) {
       lineHeight: 22,
     },
     frequencyCardGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 10,
+      flexDirection: "column",
+      gap: 6,
     },
     frequencyCard: {
-      width: "48%",
-      borderRadius: radius.xl,
-      borderWidth: 2,
-      padding: 12,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
     },
     frequencyCardActive: {
-      borderColor: tokens.primary,
+      borderColor: tokens.fg3,
       backgroundColor: tokens.bgElev,
     },
     frequencyCardInactive: {
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
+      borderColor: tokens.hairlineStrong,
+      backgroundColor: "transparent",
     },
-    frequencyCardIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.lg,
+    frequencyCardHeader: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 8,
+      gap: 10,
     },
-    frequencyCardIconActive: {
-      backgroundColor: tokens.bgElev,
-    },
-    frequencyCardIconInactive: {
-      backgroundColor: tokens.bgElev,
+    frequencyCardBody: {
+      marginTop: 6,
+      paddingLeft: 28,
     },
     frequencyCardTitle: {
       fontSize: 13,
-      fontWeight: "700",
-      marginBottom: 2,
+      flex: 1,
     },
     frequencyCardTitleActive: {
       color: tokens.fg1,
+      fontWeight: "600",
     },
     frequencyCardTitleInactive: {
       color: tokens.fg2,
+      fontWeight: "500",
     },
     frequencyCardDesc: {
-      fontSize: 11,
+      fontSize: 12,
       color: tokens.fg3,
-      lineHeight: 15,
+      lineHeight: 18,
     },
     frequencyCardExample: {
-      fontSize: 10,
+      fontSize: 11,
       color: tokens.fg3,
       lineHeight: 14,
       marginTop: 4,

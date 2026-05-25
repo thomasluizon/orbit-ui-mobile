@@ -319,7 +319,7 @@ export function HabitRow({
             ) : (
               <StatusDot
                 state={dotState}
-                size={9}
+                size={22}
                 onToggle={handleToggleStatus}
                 accessibilityLabel={
                   isDoneForRange

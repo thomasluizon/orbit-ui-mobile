@@ -67,9 +67,13 @@ export function StatusDot({
   return (
     <Pressable
       onPress={onToggle}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? state}
+      style={({ pressed }) => ({
+        transform: [{ scale: pressed ? 0.9 : 1 }],
+        opacity: pressed ? 0.85 : 1,
+      })}
     >
       {dot}
     </Pressable>

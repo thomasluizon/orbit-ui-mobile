@@ -157,87 +157,93 @@ export function TodayDateNavigation({
   return (
     <View
       ref={dateNavRef}
-      style={[styles.dateNav, { borderBottomColor: tokens.hairline }]}
+      style={styles.dateNavWrap}
       collapsable={false}
       {...panHandlers}
     >
-      <Pressable
-        onPress={onGoToPreviousDay}
-        accessibilityRole="button"
-        accessibilityLabel={previousLabel}
-        hitSlop={8}
-        style={styles.dateNavButton}
-      >
-        <ChevronLeft size={17} color={tokens.fg2} strokeWidth={1.6} />
-      </Pressable>
-      <Pressable
-        onPress={onGoToToday}
-        accessibilityRole="button"
-        accessibilityLabel={isTodaySelected ? dateLabel : todayLabel}
-        style={styles.dateLabelPress}
-      >
-        <Animated.Text
-          style={[
-            styles.dateLabel,
-            {
-              color: isTodaySelected ? tokens.primary : tokens.fg1,
-              opacity: dateLabelAnim,
-              transform: [
-                {
-                  translateX: dateLabelAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [dateLabelEnterShift, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
+      <View style={[styles.datePill, { borderColor: tokens.hairlineStrong }]}>
+        <Pressable
+          onPress={onGoToPreviousDay}
+          accessibilityRole="button"
+          accessibilityLabel={previousLabel}
+          hitSlop={8}
+          style={styles.dateChevron}
         >
-          {dateLabel}
-        </Animated.Text>
-      </Pressable>
-      <Pressable
-        onPress={onGoToNextDay}
-        accessibilityRole="button"
-        accessibilityLabel={nextLabel}
-        hitSlop={8}
-        style={styles.dateNavButton}
-      >
-        <ChevronRight size={17} color={tokens.fg2} strokeWidth={1.6} />
-      </Pressable>
+          <ChevronLeft size={16} color={tokens.fg2} strokeWidth={1.6} />
+        </Pressable>
+        <Pressable
+          onPress={onGoToToday}
+          accessibilityRole="button"
+          accessibilityLabel={isTodaySelected ? dateLabel : todayLabel}
+          style={styles.dateLabelPress}
+        >
+          <Animated.Text
+            style={[
+              styles.dateLabel,
+              {
+                color: isTodaySelected ? tokens.primary : tokens.fg1,
+                opacity: dateLabelAnim,
+                transform: [
+                  {
+                    translateX: dateLabelAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [dateLabelEnterShift, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {dateLabel}
+          </Animated.Text>
+        </Pressable>
+        <Pressable
+          onPress={onGoToNextDay}
+          accessibilityRole="button"
+          accessibilityLabel={nextLabel}
+          hitSlop={8}
+          style={styles.dateChevron}
+        >
+          <ChevronRight size={16} color={tokens.fg2} strokeWidth={1.6} />
+        </Pressable>
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  dateNav: {
+  dateNavWrap: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 10,
+  },
+  datePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 4,
   },
-  dateNavButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+  dateChevron: {
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dateLabelPress: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   dateLabel: {
     fontFamily: 'Geist',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
     letterSpacing: -0.1,
     textAlign: 'center',
-    minWidth: 140,
+    minWidth: 110,
   },
-  // Legacy style names kept (unused) so external imports don't break.
 })
 
 // Legacy TodayShellStyles type is retained for compatibility with any

@@ -64,7 +64,6 @@ import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AppTextInput } from "@/components/ui/app-text-input";
-import { Chip } from "@/components/ui/chip";
 import { TagChip } from "@/components/ui/tag-chip";
 import { SectionLabel } from "@/components/ui/section-label";
 import { TrialBanner } from "@/components/ui/trial-banner";
@@ -1069,35 +1068,55 @@ export default function TodayScreen() {
           >
             {activeView !== "general" ? (
               <>
-                <Chip
-                  active={!selectedFrequency}
+                <Pressable
                   onPress={() => setSelectedFrequency(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.all")}
+                  accessibilityState={{ selected: !selectedFrequency }}
+                  style={styles.freqFilter}
+                  hitSlop={6}
                 >
-                  {t("common.all")}
-                </Chip>
-                {frequencyOptions.map((opt) => (
-                  <Chip
-                    key={opt.key}
-                    active={selectedFrequency === opt.key}
-                    onPress={() =>
-                      setSelectedFrequency(
-                        selectedFrequency === opt.key ? null : opt.key,
-                      )
-                    }
+                  <Text
+                    style={[
+                      styles.freqFilterLabel,
+                      {
+                        color: !selectedFrequency ? tokens.fg1 : tokens.fg3,
+                        fontWeight: !selectedFrequency ? "600" : "500",
+                      },
+                    ]}
                   >
-                    {opt.label}
-                  </Chip>
-                ))}
+                    {t("common.all")}
+                  </Text>
+                </Pressable>
+                {frequencyOptions.map((opt) => {
+                  const active = selectedFrequency === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() =>
+                        setSelectedFrequency(active ? null : opt.key)
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={opt.label}
+                      accessibilityState={{ selected: active }}
+                      style={styles.freqFilter}
+                      hitSlop={6}
+                    >
+                      <Text
+                        style={[
+                          styles.freqFilterLabel,
+                          {
+                            color: active ? tokens.fg1 : tokens.fg3,
+                            fontWeight: active ? "600" : "500",
+                          },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </>
-            ) : null}
-
-            {activeView !== "general" && tags.length > 0 ? (
-              <View
-                style={[
-                  styles.filterDivider,
-                  { backgroundColor: tokens.hairlineStrong },
-                ]}
-              />
             ) : null}
 
             {tags.map((tag) => (
@@ -1440,8 +1459,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 
     filtersShell: {
       paddingBottom: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
     },
     searchWrap: {
       flexDirection: "row",
@@ -1449,8 +1466,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 10,
       paddingHorizontal: 20,
       paddingVertical: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
     },
     searchInput: {
       flex: 1,
@@ -1462,15 +1477,17 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     filtersContent: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 14,
       paddingHorizontal: 20,
       paddingVertical: 4,
     },
-    filterDivider: {
-      width: 1,
-      height: 18,
-      alignSelf: "center",
-      marginHorizontal: 2,
+    freqFilter: {
+      paddingVertical: 4,
+    },
+    freqFilterLabel: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      letterSpacing: -0.05,
     },
 
     sectionTrailing: {

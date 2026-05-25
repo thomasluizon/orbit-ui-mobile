@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Home, Sparkles, CalendarDays, User, Plus, type LucideIcon } from 'lucide-react'
+import { Home, MessageCircle, CalendarDays, User, Plus, type LucideIcon } from 'lucide-react'
 
 /** Mobile-style 4-tab bar (Home / Astra / Calendar / You) + centered Plus FAB.
  *  FAB hidden on Astra (has its own composer); rendered disabled on Profile. */
@@ -25,7 +25,7 @@ interface BottomTabBarProps {
 
 const DEFAULT_TABS: TabDef[] = [
   { id: 'today', labelKey: 'home', icon: Home },
-  { id: 'chat', labelKey: 'astra', icon: Sparkles, emphasize: true },
+  { id: 'chat', labelKey: 'astra', icon: MessageCircle, emphasize: true },
   { id: 'calendar', labelKey: 'calendar', icon: CalendarDays },
   { id: 'profile', labelKey: 'you', icon: User },
 ]
@@ -77,7 +77,7 @@ export function BottomTabBar({
         className="grid"
         style={{
           gridTemplateColumns: '1fr 1fr 80px 1fr 1fr',
-          padding: '8px 0 10px',
+          padding: '14px 0 16px',
         }}
       >
         {tabs.slice(0, 2).map((tab) => (
@@ -121,11 +121,11 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
       aria-current={active ? 'page' : undefined}
       className="relative appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center"
       style={{
-        padding: '4px 0 0',
-        gap: 5,
+        padding: '8px 0',
         color: active ? 'var(--fg-1)' : 'var(--fg-3)',
       }}
     >
@@ -134,10 +134,10 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
           aria-hidden="true"
           className="absolute"
           style={{
-            top: -1,
+            top: -2,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: 14,
+            width: 16,
             height: 2,
             background: 'var(--primary)',
             borderRadius: 1,
@@ -145,7 +145,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
         />
       )}
       <span className="relative">
-        <Icon size={22} strokeWidth={1.5} color={iconColor} />
+        <Icon size={24} strokeWidth={1.6} color={iconColor} />
         {unread && (
           <span
             aria-hidden="true"
@@ -160,16 +160,6 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
             }}
           />
         )}
-      </span>
-      <span
-        style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 11,
-          fontWeight: active ? 500 : 400,
-          letterSpacing: '0.01em',
-        }}
-      >
-        {label}
       </span>
     </button>
   )

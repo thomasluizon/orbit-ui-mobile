@@ -304,7 +304,6 @@ export default function PreferencesPage() {
               className={getPushStatusTone(pushStatus)}
               style={{
                 padding: '0 20px 14px',
-                borderBottom: '1px solid var(--hairline)',
                 fontFamily: 'var(--font-family-sans)',
                 fontSize: 12,
                 fontWeight: 500,

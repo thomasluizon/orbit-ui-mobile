@@ -567,7 +567,15 @@
       "errorAlreadyResolved": "Already handled. Please ask again.",
       "errorGeneric": "Something went wrong. Please try again."
     },
-    "subHabitPlaceholder": "Sub-habit title..."
+    "subHabitPlaceholder": "Sub-habit title...",
+    "statusDot": {
+      "done": "Done",
+      "empty": "Not done",
+      "skip": "Skipped",
+      "overdue": "Overdue",
+      "bad": "Slipped",
+      "frozen": "Frozen"
+    }
   },
   "calendar": {
     "legend": {
@@ -595,14 +603,6 @@
       "indulged": "Indulged",
       "resisted": "Resisted",
       "scheduled": "Scheduled"
-    },
-    "statusDot": {
-      "done": "Done",
-      "empty": "Not done",
-      "skip": "Skipped",
-      "overdue": "Overdue",
-      "bad": "Slipped",
-      "frozen": "Frozen"
     },
     "completionHistory": "Completion History",
     "noCompletions": "No completions",

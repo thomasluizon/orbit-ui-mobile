@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, Bell, Check, ShieldAlert, PenSquare, ChevronDown } from 'lucide-react'
+import { X, Plus, Bell, Check, ShieldAlert, PenSquare, ChevronDown, CalendarCheck, Repeat, Shuffle, Infinity } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
@@ -804,10 +804,10 @@ function SlipAlertSection({
 }
 
 const FREQUENCY_TYPE_CARDS = [
-  { key: 'one-time', titleKey: 'habits.form.oneTimeTask', descKey: 'habits.form.oneTimeDescription', exampleKey: 'habits.form.oneTimeExample' },
-  { key: 'recurring', titleKey: 'habits.form.recurring', descKey: 'habits.form.recurringDescription', exampleKey: 'habits.form.recurringExample' },
-  { key: 'flexible', titleKey: 'habits.form.flexible', descKey: 'habits.form.flexibleDescription2', exampleKey: 'habits.form.flexibleExample2' },
-  { key: 'general', titleKey: 'habits.form.general', descKey: 'habits.form.generalDescription', exampleKey: 'habits.form.generalExample' },
+  { key: 'one-time', icon: CalendarCheck, titleKey: 'habits.form.oneTimeTask', descKey: 'habits.form.oneTimeDescription', exampleKey: 'habits.form.oneTimeExample' },
+  { key: 'recurring', icon: Repeat, titleKey: 'habits.form.recurring', descKey: 'habits.form.recurringDescription', exampleKey: 'habits.form.recurringExample' },
+  { key: 'flexible', icon: Shuffle, titleKey: 'habits.form.flexible', descKey: 'habits.form.flexibleDescription2', exampleKey: 'habits.form.flexibleExample2' },
+  { key: 'general', icon: Infinity, titleKey: 'habits.form.general', descKey: 'habits.form.generalDescription', exampleKey: 'habits.form.generalExample' },
 ] as const
 
 export function HabitFormFields({
@@ -978,51 +978,75 @@ export function HabitFormFields({
         <span id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
         </span>
-        <div className="flex flex-wrap" style={{ gap: 6 }}>
+        <div className="flex flex-col" style={{ gap: 6 }}>
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
+            const Icon = card.icon
             return (
               <button
                 key={card.key}
                 type="button"
                 aria-pressed={isActive}
                 onClick={frequencyHandlers[card.key]}
-                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0"
+                className="appearance-none cursor-pointer text-left w-full transition-[background-color,box-shadow] duration-150"
                 style={{
-                  height: 28,
-                  padding: '0 12px',
-                  borderRadius: 6,
+                  padding: '10px 12px',
+                  borderRadius: 8,
                   background: isActive ? 'var(--bg-elev)' : 'transparent',
                   boxShadow: isActive
                     ? 'inset 0 0 0 1px var(--fg-3)'
                     : 'inset 0 0 0 1px var(--hairline-strong)',
                   border: 0,
-                  color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 500,
                 }}
               >
-                {t(card.titleKey as Parameters<typeof t>[0])}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon
+                    size={18}
+                    aria-hidden="true"
+                    style={{ color: isActive ? 'var(--fg-1)' : 'var(--fg-3)', flexShrink: 0 }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 13,
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+                    }}
+                  >
+                    {t(card.titleKey as Parameters<typeof t>[0])}
+                  </span>
+                </div>
+                {isActive && (
+                  <div style={{ marginTop: 6, paddingLeft: 28 }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-family-sans)',
+                        fontSize: 12,
+                        color: 'var(--fg-3)',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {t(card.descKey as Parameters<typeof t>[0])}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontFamily: 'var(--font-family-sans)',
+                        fontSize: 11,
+                        fontStyle: 'italic',
+                        color: 'var(--fg-3)',
+                        opacity: 0.7,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {t(card.exampleKey as Parameters<typeof t>[0])}
+                    </div>
+                  </div>
+                )}
               </button>
             )
           })}
         </div>
-        <p
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 12,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
-            lineHeight: 1.5,
-            marginTop: 4,
-          }}
-        >
-          {t(
-            (FREQUENCY_TYPE_CARDS.find((c) => c.key === activeFrequencyKey)?.descKey ??
-              'habits.form.recurringDescription') as Parameters<typeof t>[0],
-          )}
-        </p>
       </div>
 
       {isFlexible && (

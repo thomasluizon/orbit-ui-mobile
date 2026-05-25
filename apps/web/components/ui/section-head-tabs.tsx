@@ -36,7 +36,6 @@ export function SectionHeadTabs<TId extends string>({
       style={{
         padding: '8px 20px 10px',
         gap: 6,
-        borderBottom: '1px solid var(--hairline)',
         outline: 'none',
       }}
     >

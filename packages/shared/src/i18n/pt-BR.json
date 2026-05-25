@@ -567,7 +567,15 @@
       "errorAlreadyResolved": "Já resolvido. Pergunte novamente, por favor.",
       "errorGeneric": "Algo deu errado. Tente novamente."
     },
-    "subHabitPlaceholder": "Título do sub-hábito..."
+    "subHabitPlaceholder": "Título do sub-hábito...",
+    "statusDot": {
+      "done": "Feito",
+      "empty": "Não feito",
+      "skip": "Pulado",
+      "overdue": "Atrasado",
+      "bad": "Deslize",
+      "frozen": "Congelado"
+    }
   },
   "calendar": {
     "legend": {
@@ -595,14 +603,6 @@
       "indulged": "Cedeu",
       "resisted": "Resistiu",
       "scheduled": "Agendado"
-    },
-    "statusDot": {
-      "done": "Feito",
-      "empty": "Não feito",
-      "skip": "Pulado",
-      "overdue": "Atrasado",
-      "bad": "Deslize",
-      "frozen": "Congelado"
     },
     "completionHistory": "Histórico de Conclusão",
     "noCompletions": "Sem conclusões",

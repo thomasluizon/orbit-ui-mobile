@@ -28,8 +28,7 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { ChevronRight, User as UserIcon, X, Check } from 'lucide-react-native'
-import Svg, { Path } from 'react-native-svg'
+import { Flame, User as UserIcon, X, Check } from 'lucide-react-native'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -54,7 +53,7 @@ import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -63,7 +62,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { plural } from '@/lib/plural'
-import { ProfileNavCard } from './profile/_components/profile-nav-card'
+import { ProfileNavIcon } from './profile/_components/profile-nav-icon'
 import { ProfileActionButton } from './profile/_components/profile-action-button'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
@@ -380,7 +379,7 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <View style={[styles.userBlock, { borderBottomColor: tokens.hairline }]}>
+        <View style={styles.userBlock}>
           {isLoading ? (
             <>
               <View
@@ -409,96 +408,90 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        <View ref={streakRef} collapsable={false}>
-          <Pressable
-            onPress={handleStreakPress}
-            accessibilityRole="button"
-            accessibilityLabel={t('streakDisplay.title')}
-            style={({ pressed }) => [
-              styles.streakRow,
-              {
-                backgroundColor: pressed ? tokens.bgElev : 'transparent',
-                borderBottomColor: tokens.hairline,
-              },
-            ]}
-          >
-            <View style={styles.streakLeading}>
-              <Svg width={14} height={16} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
-                  stroke={tokens.statusBad}
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-              <Text style={[styles.streakLabel, { color: tokens.fg1 }]}>
-                {t('streakDisplay.title')}
-              </Text>
-            </View>
-            <View style={styles.streakTrailing}>
-              <Text style={[styles.streakCount, { color: tokens.fg1 }]}>
-                {streak}
-              </Text>
-              <Text style={[styles.streakDays, { color: tokens.fg3 }]}>
-                {t('streakDisplay.daysSuffix')}
-              </Text>
-              <ChevronRight size={16} color={tokens.fg4} strokeWidth={1.5} />
-            </View>
-          </Pressable>
+        <View ref={streakRef} collapsable={false} style={styles.groupWrap}>
+          <SettingsGroup>
+            <SettingsGroupRow
+              icon={<Flame size={18} color={tokens.statusBad} strokeWidth={1.75} />}
+              label={t('streakDisplay.title')}
+              onPress={handleStreakPress}
+              trailing={
+                <View style={styles.streakTrailing}>
+                  <Text style={[styles.streakCount, { color: tokens.fg1 }]}>
+                    {streak}
+                  </Text>
+                  <Text style={[styles.streakDays, { color: tokens.fg3 }]}>
+                    {t('streakDisplay.daysSuffix')}
+                  </Text>
+                </View>
+              }
+            />
+          </SettingsGroup>
         </View>
 
         <SectionLabel>{t('profile.sections.account')}</SectionLabel>
-        {accountNavItems.map((item) => (
-          <View
-            key={item.id}
-            ref={item.id === 'preferences' ? preferencesRef : undefined}
-            collapsable={false}
-          >
-            <ProfileNavCard
-              onPress={() => handleNavPress(item)}
-              title={t(item.titleKey)}
-              hint={getNavHint(item)}
-              proBadgeLabel={t('common.proBadge')}
-            />
-          </View>
-        ))}
+        <View style={styles.groupWrap}>
+          <SettingsGroup>
+            {accountNavItems.map((item) => (
+              <View
+                key={item.id}
+                ref={item.id === 'preferences' ? preferencesRef : undefined}
+                collapsable={false}
+              >
+                <SettingsGroupRow
+                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg3} />}
+                  label={t(item.titleKey)}
+                  hint={getNavHint(item)}
+                  onPress={() => handleNavPress(item)}
+                  proBadge={item.proBadge}
+                  proBadgeLabel={t('common.proBadge')}
+                />
+              </View>
+            ))}
+          </SettingsGroup>
+        </View>
 
         <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-        <ProfileNavCard
-          onPress={() => setShowTourReplay(true)}
-          title={t('tour.replay.title')}
-          hint={t('tour.replay.hint')}
-        />
-        {featureNavItems.map((item) => (
-          <View
-            key={item.id}
-            ref={
-              item.id === 'retrospective'
-                ? retroRef
-                : item.id === 'achievements'
-                  ? achievementsRef
-                  : undefined
-            }
-            collapsable={false}
-          >
-            <ProfileNavCard
-              onPress={() => handleNavPress(item)}
-              title={t(item.titleKey)}
-              hint={getNavHint(item)}
-              proBadge={item.proBadge}
-              proBadgeLabel={t('common.proBadge')}
+        <View style={styles.groupWrap}>
+          <SettingsGroup>
+            <SettingsGroupRow
+              label={t('tour.replay.title')}
+              hint={t('tour.replay.hint')}
+              onPress={() => setShowTourReplay(true)}
             />
-          </View>
-        ))}
+            {featureNavItems.map((item) => (
+              <View
+                key={item.id}
+                ref={
+                  item.id === 'retrospective'
+                    ? retroRef
+                    : item.id === 'achievements'
+                      ? achievementsRef
+                      : undefined
+                }
+                collapsable={false}
+              >
+                <SettingsGroupRow
+                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg3} />}
+                  label={t(item.titleKey)}
+                  hint={getNavHint(item)}
+                  onPress={() => handleNavPress(item)}
+                  proBadge={item.proBadge}
+                  proBadgeLabel={t('common.proBadge')}
+                />
+              </View>
+            ))}
+          </SettingsGroup>
+        </View>
 
         <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-        <View ref={subscriptionRef} collapsable={false}>
-          <SettingsRow
-            label={subscriptionLabel}
-            value={subscriptionHint}
-            onPress={() => router.push(buildUpgradeHref('/profile'))}
-          />
+        <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
+          <SettingsGroup>
+            <SettingsGroupRow
+              label={subscriptionLabel}
+              hint={subscriptionHint}
+              onPress={() => router.push(buildUpgradeHref('/profile'))}
+            />
+          </SettingsGroup>
         </View>
 
         <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
@@ -904,8 +897,10 @@ function createStyles(_tokens: Tokens) {
     userBlock: {
       paddingHorizontal: 20,
       paddingVertical: 18,
-      borderBottomWidth: StyleSheet.hairlineWidth,
       gap: 8,
+    },
+    groupWrap: {
+      paddingHorizontal: 20,
     },
     userRow: {
       flexDirection: 'row',
@@ -941,23 +936,6 @@ function createStyles(_tokens: Tokens) {
       borderRadius: 4,
     },
 
-    streakRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    streakLeading: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    streakLabel: {
-      fontFamily: 'Geist',
-      fontSize: 15,
-    },
     streakTrailing: {
       flexDirection: 'row',
       alignItems: 'center',

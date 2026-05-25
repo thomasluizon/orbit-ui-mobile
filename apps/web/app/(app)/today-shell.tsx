@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
-import { Chip } from '@/components/ui/chip'
 import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -120,57 +119,65 @@ export function TodayDateNavigation({
       className="flex items-center justify-center shrink-0"
       data-tour="tour-date-nav"
       style={{
-        padding: '12px 20px',
-        gap: 16,
-        borderBottom: '1px solid var(--hairline)',
+        padding: '4px 20px 10px',
       }}
     >
-      <button
-        type="button"
-        aria-label={previousLabel}
-        className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+      <div
+        className="inline-flex items-center"
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 8,
-          color: 'var(--fg-2)',
+          border: '1px solid var(--hairline-strong)',
+          borderRadius: 999,
+          padding: '0 4px',
         }}
-        onClick={onGoToPreviousDay}
       >
-        <ChevronLeft size={18} strokeWidth={1.6} />
-      </button>
-      <button
-        type="button"
-        key={dateLabel}
-        aria-label={isTodaySelected ? dateLabel : todayLabel}
-        className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center animate-slide-date-${slideDirection}`}
-        style={{
-          minWidth: 160,
-          height: 36,
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 15,
-          fontWeight: 600,
-          letterSpacing: '-0.005em',
-          color: isTodaySelected ? 'var(--primary)' : 'var(--fg-1)',
-        }}
-        onClick={onGoToToday}
-      >
-        {dateLabel}
-      </button>
-      <button
-        type="button"
-        aria-label={nextLabel}
-        className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 8,
-          color: 'var(--fg-2)',
-        }}
-        onClick={onGoToNextDay}
-      >
-        <ChevronRight size={18} strokeWidth={1.6} />
-      </button>
+        <button
+          type="button"
+          aria-label={previousLabel}
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 999,
+            color: 'var(--fg-2)',
+          }}
+          onClick={onGoToPreviousDay}
+        >
+          <ChevronLeft size={16} strokeWidth={1.6} />
+        </button>
+        <button
+          type="button"
+          key={dateLabel}
+          aria-label={isTodaySelected ? dateLabel : todayLabel}
+          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center animate-slide-date-${slideDirection}`}
+          style={{
+            minWidth: 110,
+            height: 30,
+            padding: '0 8px',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 500,
+            letterSpacing: '-0.005em',
+            color: isTodaySelected ? 'var(--primary)' : 'var(--fg-1)',
+          }}
+          onClick={onGoToToday}
+        >
+          {dateLabel}
+        </button>
+        <button
+          type="button"
+          aria-label={nextLabel}
+          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 999,
+            color: 'var(--fg-2)',
+          }}
+          onClick={onGoToNextDay}
+        >
+          <ChevronRight size={16} strokeWidth={1.6} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -219,7 +226,6 @@ export function TodayUtilityRow({
       style={{
         padding: '10px 8px 10px 12px',
         gap: 0,
-        borderBottom: '1px solid var(--hairline)',
       }}
     >
       {searchOpen ? (
@@ -276,40 +282,24 @@ export function TodayUtilityRow({
           </button>
           <div
             className="flex items-center flex-1 min-w-0 overflow-x-auto thin-scrollbar"
-            style={{ gap: 6 }}
+            style={{ gap: 14 }}
           >
             {showFreq && (
               <>
-                <Chip
+                <FreqFilter
                   active={!selectedFrequency}
+                  label={t('common.all')}
                   onClick={() => onFrequencyChange(null)}
-                  ariaLabel={t('common.all')}
-                >
-                  {t('common.all')}
-                </Chip>
+                />
                 {frequencyOptions.map((opt) => (
-                  <Chip
+                  <FreqFilter
                     key={opt.key}
                     active={selectedFrequency === opt.key}
+                    label={opt.label}
                     onClick={() => onFrequencyChange(selectedFrequency === opt.key ? null : opt.key)}
-                    ariaLabel={opt.label}
-                  >
-                    {opt.label}
-                  </Chip>
+                  />
                 ))}
               </>
-            )}
-            {showFreq && tags.length > 0 && (
-              <div
-                aria-hidden="true"
-                style={{
-                  width: 1,
-                  height: 16,
-                  background: 'var(--hairline-strong)',
-                  flexShrink: 0,
-                  margin: '0 2px',
-                }}
-              />
             )}
             {tags.map((tag) => (
               <TagChip
@@ -337,6 +327,35 @@ export function TodayUtilityRow({
         </>
       )}
     </div>
+  )
+}
+
+interface FreqFilterProps {
+  active: boolean
+  label: string
+  onClick: () => void
+}
+
+function FreqFilter({ active, label, onClick }: Readonly<FreqFilterProps>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={active}
+      className="appearance-none border-0 bg-transparent cursor-pointer shrink-0"
+      style={{
+        padding: '4px 0',
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
+        letterSpacing: '-0.005em',
+        color: active ? 'var(--fg-1)' : 'var(--fg-3)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
   )
 }
 
