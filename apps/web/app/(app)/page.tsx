@@ -289,13 +289,6 @@ export default function TodayPage() {
     })
   }, [currentActiveView, selectedDate, locale, t])
 
-  const headerTitle = useMemo(() => {
-    if (currentActiveView === 'all') return t('habits.viewAll')
-    if (currentActiveView === 'general') return t('habits.viewGeneral')
-    if (currentActiveView === 'goals') return t('goals.tab')
-    return t('habits.today')
-  }, [currentActiveView, t])
-
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
       TAB_VIEWS.map((view) => ({
@@ -489,7 +482,7 @@ export default function TodayPage() {
   return (
     <div className="relative">
       <TodayHeader
-        title={headerTitle}
+        title="Orbit"
         subtitle={headerSubtitle}
         streak={streakInfo?.currentStreak ?? 0}
       />
