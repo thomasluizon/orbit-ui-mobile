@@ -103,8 +103,7 @@ export default function AchievementsPage() {
               <>
                 <div
                   style={{
-                    padding: '20px',
-                    borderBottom: '1px solid var(--hairline)',
+                    padding: '20px 20px 12px',
                   }}
                 >
                   <div className="flex items-center" style={{ gap: 16 }}>

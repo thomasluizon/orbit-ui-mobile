@@ -1,24 +1,20 @@
 import { View, Text, StyleSheet } from 'react-native'
+import { Lock } from 'lucide-react-native'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import { createTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { useDateFormat } from '@/hooks/use-date-format'
 
 type Tokens = ReturnType<typeof createTokensV2>
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
+type DisplayDateFn = ReturnType<typeof useDateFormat>['displayDate']
 
 export type AchievementCategoryView = {
   key: string
   items: Achievement[]
 }
 
-interface AchievementCategorySectionProps {
-  category: AchievementCategoryView
-  t: TranslationFn
-  tokens: Tokens
-}
-
-// Rarity glyphs per v8 spec — shape, not color. Earned rows are full-tone, locked are dimmed.
 const RARITY_GLYPHS: Record<string, string> = {
   common: '◇',
   uncommon: '◈',
@@ -31,10 +27,12 @@ function rarityGlyph(rarity: string): string {
   return RARITY_GLYPHS[rarity.toLowerCase()] ?? '◇'
 }
 
-/**
- * v8 achievement category section: SectionLabel + hairline rows.
- * Each row: rarity glyph (16 mono) · name + desc · trailing earned/locked meta.
- */
+interface AchievementCategorySectionProps {
+  category: AchievementCategoryView
+  t: TranslationFn
+  tokens: Tokens
+}
+
 export function AchievementCategorySection({
   category,
   t,
@@ -45,86 +43,100 @@ export function AchievementCategorySection({
   return (
     <>
       <SectionLabel>{t(`gamification.categories.${category.key}`)}</SectionLabel>
-      {category.items.map((achievement) => {
-        const earned = achievement.isEarned
-        const glyph = rarityGlyph(achievement.rarity)
-        const name = t(`gamification.achievements.${achievement.id}.name`)
-        const description = t(
-          `gamification.achievements.${achievement.id}.description`,
-        )
-        const trailing = earned && achievement.earnedAtUtc
-          ? t('gamification.page.earnedOn', {
-              date: displayDate(new Date(achievement.earnedAtUtc)),
-            })
-          : t('gamification.locked')
-
-        return (
-          <View
-            key={achievement.id}
-            style={[
-              styles.row,
-              { borderBottomColor: tokens.hairline },
-            ]}
-          >
-            <Text
-              style={[
-                styles.glyph,
-                { color: earned ? tokens.fg1 : tokens.fg4 },
-              ]}
-            >
-              {glyph}
-            </Text>
-            <View style={styles.body}>
-              <Text
-                style={[
-                  styles.name,
-                  { color: earned ? tokens.fg1 : tokens.fg3 },
-                ]}
-                numberOfLines={1}
-              >
-                {name}
-              </Text>
-              {earned ? (
-                <Text
-                  style={[styles.description, { color: tokens.fg3 }]}
-                  numberOfLines={2}
-                >
-                  {description}
-                </Text>
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.trailing,
-                {
-                  color: earned ? tokens.fg3 : tokens.fg4,
-                  fontStyle: earned ? 'normal' : 'italic',
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {trailing}
-            </Text>
-          </View>
-        )
-      })}
+      <View style={styles.groupWrap}>
+        <SettingsGroup>
+          {category.items.map((achievement) => (
+            <AchievementRow
+              key={achievement.id}
+              achievement={achievement}
+              t={t}
+              tokens={tokens}
+              displayDate={displayDate}
+            />
+          ))}
+        </SettingsGroup>
+      </View>
     </>
   )
 }
 
+interface AchievementRowProps {
+  achievement: Achievement
+  t: TranslationFn
+  tokens: Tokens
+  displayDate: DisplayDateFn
+}
+
+function AchievementRow({
+  achievement,
+  t,
+  tokens,
+  displayDate,
+}: Readonly<AchievementRowProps>) {
+  const earned = achievement.isEarned
+  const glyph = rarityGlyph(achievement.rarity)
+  const name = t(`gamification.achievements.${achievement.id}.name`)
+  const subtitle =
+    earned && achievement.earnedAtUtc
+      ? t('gamification.page.earnedOn', {
+          date: displayDate(new Date(achievement.earnedAtUtc)),
+        })
+      : t(`gamification.achievements.${achievement.id}.description`)
+
+  return (
+    <View style={styles.row}>
+      <Text style={[styles.glyph, { color: earned ? tokens.fg1 : tokens.fg4 }]}>
+        {glyph}
+      </Text>
+      <View style={styles.body}>
+        <Text
+          style={[
+            styles.name,
+            {
+              color: earned ? tokens.fg1 : tokens.fg3,
+              fontWeight: earned ? '500' : '400',
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {name}
+        </Text>
+        <Text
+          style={[
+            styles.subtitle,
+            {
+              color: tokens.fg3,
+              fontStyle: earned ? 'normal' : 'italic',
+            },
+          ]}
+          numberOfLines={2}
+        >
+          {subtitle}
+        </Text>
+      </View>
+      {!earned ? (
+        <Lock size={14} color={tokens.fg4} strokeWidth={1.5} />
+      ) : null}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
+  groupWrap: {
+    paddingHorizontal: 20,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 56,
   },
   glyph: {
     fontFamily: 'GeistMono',
     fontSize: 16,
-    width: 18,
+    width: 20,
     textAlign: 'center',
   },
   body: {
@@ -136,16 +148,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist',
     fontSize: 15,
   },
-  description: {
+  subtitle: {
     fontFamily: 'Geist',
     fontSize: 12,
-    fontStyle: 'italic',
     lineHeight: 16,
-  },
-  trailing: {
-    fontFamily: 'GeistMono',
-    fontSize: 11,
-    maxWidth: 110,
-    textAlign: 'right',
   },
 })

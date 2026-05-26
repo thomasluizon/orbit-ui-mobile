@@ -43,7 +43,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 let mockGamificationLoading = false
 let mockGamificationProfile: Record<string, unknown> | null = null
-let mockAchievementsByCategory: { key: string; items: { id: string; name: string; isEarned: boolean; earnedAtUtc: string | null }[] }[] = []
+let mockAchievementsByCategory: { key: string; items: { id: string; name: string; isEarned: boolean; earnedAtUtc: string | null; rarity: string }[] }[] = []
 let mockXpProgress = 45
 
 vi.mock('@/hooks/use-gamification', () => ({
@@ -53,14 +53,6 @@ vi.mock('@/hooks/use-gamification', () => ({
     xpProgress: mockXpProgress,
     achievementsByCategory: mockAchievementsByCategory,
   }),
-}))
-
-vi.mock('@/components/gamification/achievement-card', () => ({
-  AchievementCard: ({ achievement, earned }: { achievement: { id: string; name: string }; earned: boolean }) => (
-    <div data-testid={`achievement-${achievement.id}`}>
-      {achievement.name} - {earned ? 'earned' : 'locked'}
-    </div>
-  ),
 }))
 
 vi.mock('@/components/ui/pro-badge', () => ({
@@ -200,14 +192,14 @@ describe('AchievementsPage', () => {
       {
         key: 'GettingStarted',
         items: [
-          { id: 'a1', name: 'First Habit', isEarned: true, earnedAtUtc: '2025-01-01T00:00:00Z' },
-          { id: 'a2', name: 'First Log', isEarned: false, earnedAtUtc: null },
+          { id: 'a1', name: 'First Habit', isEarned: true, earnedAtUtc: '2025-01-01T00:00:00Z', rarity: 'Common' },
+          { id: 'a2', name: 'First Log', isEarned: false, earnedAtUtc: null, rarity: 'Common' },
         ],
       },
       {
         key: 'Consistency',
         items: [
-          { id: 'a3', name: '7 Day Streak', isEarned: true, earnedAtUtc: '2025-02-01T00:00:00Z' },
+          { id: 'a3', name: '7 Day Streak', isEarned: true, earnedAtUtc: '2025-02-01T00:00:00Z', rarity: 'Uncommon' },
         ],
       },
     ]
@@ -230,7 +222,7 @@ describe('AchievementsPage', () => {
     mockAchievementsByCategory = [
       {
         key: 'GettingStarted',
-        items: [{ id: 'a1', name: 'First Habit', isEarned: false, earnedAtUtc: null }],
+        items: [{ id: 'a1', name: 'First Habit', isEarned: false, earnedAtUtc: null, rarity: 'Common' }],
       },
     ]
     render(<AchievementsPage />)

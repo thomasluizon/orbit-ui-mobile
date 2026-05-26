@@ -112,6 +112,14 @@ vi.mock("@/lib/theme", () => ({
     shadow2: { elevation: 4 },
     shadow3: { elevation: 10 },
   },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 20,
+    '2xl': 24,
+    full: 9999,
+  },
   spacing: {
     pageX: 20,
     pageBottom: 40,
@@ -128,10 +136,6 @@ vi.mock("@/components/ui/pro-badge", () => ({
 
 vi.mock("@/components/ui/offline-unavailable-state", () => ({
   OfflineUnavailableState: () => null,
-}));
-
-vi.mock("@/components/gamification/achievement-card", () => ({
-  AchievementCard: () => null,
 }));
 
 vi.mock("lucide-react-native", () => {

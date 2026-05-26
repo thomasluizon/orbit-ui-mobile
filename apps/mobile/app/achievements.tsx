@@ -130,12 +130,7 @@ export default function AchievementsScreen() {
 
         {hasProAccess && profile ? (
           <>
-            <View
-              style={[
-                styles.levelBlock,
-                { borderBottomColor: tokens.hairline },
-              ]}
-            >
+            <View style={styles.levelBlock}>
               <View style={styles.levelRow}>
                 <View>
                   <Text style={[styles.levelEyebrow, { color: tokens.fg3 }]}>
@@ -263,9 +258,8 @@ function createStyles(_tokens: Tokens) {
     levelBlock: {
       paddingHorizontal: 20,
       paddingTop: 24,
-      paddingBottom: 20,
+      paddingBottom: 12,
       gap: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     levelRow: {
       flexDirection: 'row',
