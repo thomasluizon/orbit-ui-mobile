@@ -1,4 +1,4 @@
-# apps/mobile — Expo SDK 53 + Expo Router
+# apps/mobile — Expo SDK 55 + Expo Router
 
 Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` (no BFF). Auth via SecureStore. SQLite offline queue.
 

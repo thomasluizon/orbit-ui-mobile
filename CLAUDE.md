@@ -1,6 +1,6 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web` (Next.js 15) + `apps/mobile` (Expo SDK 53) + `packages/shared`.
+Personal habit tracker. Turborepo monorepo: `apps/web` (Next.js 15) + `apps/mobile` (Expo SDK 55) + `packages/shared`.
 
 Cross-cutting rules only live here. Each workspace has a scoped `CLAUDE.md` Claude auto-loads when touching files in that subtree. Read them before writing code in those areas.
 
