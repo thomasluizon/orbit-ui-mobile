@@ -27,7 +27,7 @@ export function ProfileActionButton({
     tone === 'danger'
       ? tokens.statusBad
       : tone === 'primary'
-        ? tokens.fg1
+        ? tokens.primary
         : tokens.fg1
 
   return (

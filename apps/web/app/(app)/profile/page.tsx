@@ -301,19 +301,16 @@ export default function ProfilePage() {
       <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
       <ProfileActionButton
         onClick={() => logout()}
-        icon={null}
         label={t('profile.logout')}
         tone="danger"
       />
       <ProfileActionButton
         onClick={() => setShowResetModal(true)}
-        icon={null}
         label={t('profile.freshStart.button')}
         tone="primary"
       />
       <ProfileActionButton
         onClick={() => setShowDeleteModal(true)}
-        icon={null}
         label={t('profile.deleteAccount.button')}
         tone="danger"
         compact
