@@ -20,10 +20,6 @@ interface CalendarHeaderProps {
   tokens: ReturnType<typeof createTokensV2>;
 }
 
-interface CalendarLoadingSkeletonProps {
-  tokens: ReturnType<typeof createTokensV2>;
-}
-
 interface CalendarLegendProps {
   fullLabel: string;
   partialLabel: string;
@@ -47,20 +43,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 8,
       alignItems: "center",
       justifyContent: "center",
-    },
-    loadingContainer: {
-      paddingVertical: 16,
-    },
-    loadingGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 6,
-    },
-    loadingCell: {
-      width: "13.28%",
-      aspectRatio: 1,
-      borderRadius: 6,
-      backgroundColor: tokens.bgSunk,
     },
     legend: {
       flexDirection: "row",
@@ -141,22 +123,6 @@ export function CalendarHeader({
           </View>
         }
       />
-    </View>
-  );
-}
-
-export function CalendarLoadingSkeleton({
-  tokens,
-}: CalendarLoadingSkeletonProps) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-
-  return (
-    <View style={styles.loadingContainer}>
-      <View style={styles.loadingGrid}>
-        {Array.from({ length: 35 }, (_, index) => (
-          <View key={`sk-${index}`} style={styles.loadingCell} />
-        ))}
-      </View>
     </View>
   );
 }
