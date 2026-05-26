@@ -1,7 +1,19 @@
 'use client'
 
 import { Fragment, type MouseEvent, type ReactNode } from 'react'
-import { ChevronDown, MoreVertical, Pencil, Copy, FolderInput, Plus, SkipForward, Trash2, type LucideIcon } from 'lucide-react'
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  FastForward,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
@@ -92,8 +104,21 @@ export function HabitRow({
     onAddSubHabit,
     onSkip,
     onDelete,
+    onEnterSelectMode,
+    onDrillInto,
   } = actions
-  const hasMenuActions = !!(onEdit || onDuplicate || onMoveParent || onAddSubHabit || onSkip || onDelete)
+  const canSelect = !selectMode && !!onEnterSelectMode
+  const canDrillInto = hasChildren && !!onDrillInto
+  const hasMenuActions = !!(
+    onEdit ||
+    onDuplicate ||
+    onMoveParent ||
+    onAddSubHabit ||
+    onSkip ||
+    onDelete ||
+    canSelect ||
+    canDrillInto
+  )
 
   const isDone = state === 'done'
   const isSkip = state === 'skip'
@@ -318,6 +343,8 @@ export function HabitRow({
                 onMoveParent={onMoveParent}
                 onSkip={onSkip}
                 onDelete={onDelete}
+                onEnterSelectMode={canSelect ? onEnterSelectMode : undefined}
+                onDrillInto={canDrillInto ? onDrillInto : undefined}
                 t={t}
               />
             )}
@@ -336,6 +363,8 @@ interface HabitRowMenuProps {
   onMoveParent?: () => void
   onSkip?: () => void
   onDelete?: () => void
+  onEnterSelectMode?: () => void
+  onDrillInto?: () => void
   t: ReturnType<typeof useTranslations>
 }
 
@@ -347,6 +376,8 @@ function HabitRowMenu({
   onMoveParent,
   onSkip,
   onDelete,
+  onEnterSelectMode,
+  onDrillInto,
   t,
 }: Readonly<HabitRowMenuProps>) {
   function run(handler?: () => void) {
@@ -358,12 +389,26 @@ function HabitRowMenu({
 
   return (
     <div role="menu">
+      {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
+      {onMoveParent && <MenuItem icon={ArrowRight} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
+      {onSkip && <MenuItem icon={FastForward} label={t('habits.actions.skip')} onClick={run(onSkip)} tone="warning" />}
       {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} />}
       {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} />}
-      {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
-      {onMoveParent && <MenuItem icon={FolderInput} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
-      {onSkip && <MenuItem icon={SkipForward} label={t('habits.actions.skip')} onClick={run(onSkip)} />}
-      {onDelete && <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} destructive />}
+      {onEnterSelectMode && <MenuItem icon={CheckCircle2} label={t('common.select')} onClick={run(onEnterSelectMode)} />}
+      {onDelete && (
+        <>
+          <div
+            aria-hidden="true"
+            style={{
+              height: 1,
+              margin: '4px 8px',
+              background: 'var(--hairline)',
+            }}
+          />
+          <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} tone="danger" />
+        </>
+      )}
+      {onDrillInto && <MenuItem icon={ChevronRight} label={t('habits.actions.openSubHabits')} onClick={run(onDrillInto)} />}
     </div>
   )
 }
@@ -372,10 +417,16 @@ interface MenuItemProps {
   icon: LucideIcon
   label: string
   onClick: () => void
-  destructive?: boolean
+  tone?: 'default' | 'warning' | 'danger'
 }
 
-function MenuItem({ icon: Icon, label, onClick, destructive = false }: Readonly<MenuItemProps>) {
+function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<MenuItemProps>) {
+  const color =
+    tone === 'danger'
+      ? 'var(--status-bad)'
+      : tone === 'warning'
+        ? 'var(--status-overdue)'
+        : 'var(--fg-1)'
   return (
     <button
       type="button"
@@ -385,7 +436,7 @@ function MenuItem({ icon: Icon, label, onClick, destructive = false }: Readonly<
       style={{
         gap: 10,
         padding: '8px 12px',
-        color: destructive ? 'var(--status-bad)' : 'var(--fg-1)',
+        color,
         fontFamily: 'var(--font-family-sans)',
         fontSize: 14,
         cursor: 'pointer',

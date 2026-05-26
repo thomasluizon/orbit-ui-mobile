@@ -10,13 +10,15 @@ import {
 import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import {
+  ArrowRight,
+  CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Copy,
-  FolderInput,
+  FastForward,
   MoreVertical,
   Pencil,
   Plus,
-  SkipForward,
   Trash2,
   type LucideIcon,
 } from 'lucide-react-native'
@@ -153,7 +155,9 @@ export function HabitRow({
     !!actions.onMoveParent ||
     !!actions.onAddSubHabit ||
     !!actions.onSkip ||
-    !!actions.onDelete
+    !!actions.onDelete ||
+    (!isSelectMode && !!actions.onEnterSelectMode) ||
+    (hasChildren && !!actions.onDrillInto)
 
   const openMenu = useCallback(() => {
     menuButtonRef.current?.measureInWindow((x, y, width, height) => {
@@ -379,11 +383,13 @@ export function HabitRow({
           visible={menuVisible}
           anchorRect={menuAnchorRect}
           onClose={closeMenu}
-          width={200}
-          estimatedHeight={220}
+          width={208}
+          estimatedHeight={hasChildren ? 340 : 296}
         >
           <HabitRowMenuBody
             actions={actions}
+            hasChildren={hasChildren}
+            isSelectMode={isSelectMode}
             close={closeMenu}
             t={t}
             tokens={tokens}
@@ -396,6 +402,8 @@ export function HabitRow({
 
 interface HabitRowMenuBodyProps {
   actions: HabitRowActions
+  hasChildren: boolean
+  isSelectMode: boolean
   close: () => void
   t: (key: string) => string
   tokens: ReturnType<typeof createTokensV2>
@@ -403,6 +411,8 @@ interface HabitRowMenuBodyProps {
 
 function HabitRowMenuBody({
   actions,
+  hasChildren,
+  isSelectMode,
   close,
   t,
   tokens,
@@ -412,8 +422,35 @@ function HabitRowMenuBody({
     handler?.()
   }
 
+  const canSelect = !isSelectMode && !!actions.onEnterSelectMode
+  const canDrillInto = hasChildren && !!actions.onDrillInto
+
   return (
     <>
+      {actions.onAddSubHabit ? (
+        <MenuItem
+          icon={Plus}
+          label={t('habits.form.addSubHabit')}
+          color={tokens.fg1}
+          onPress={run(actions.onAddSubHabit)}
+        />
+      ) : null}
+      {actions.onMoveParent ? (
+        <MenuItem
+          icon={ArrowRight}
+          label={t('habits.moveParent.button')}
+          color={tokens.fg1}
+          onPress={run(actions.onMoveParent)}
+        />
+      ) : null}
+      {actions.onSkip ? (
+        <MenuItem
+          icon={FastForward}
+          label={t('habits.actions.skip')}
+          color={tokens.statusOverdue}
+          onPress={run(actions.onSkip)}
+        />
+      ) : null}
       {actions.onEdit ? (
         <MenuItem
           icon={Pencil}
@@ -430,36 +467,33 @@ function HabitRowMenuBody({
           onPress={run(actions.onDuplicate)}
         />
       ) : null}
-      {actions.onAddSubHabit ? (
+      {canSelect ? (
         <MenuItem
-          icon={Plus}
-          label={t('habits.form.addSubHabit')}
+          icon={CheckCircle2}
+          label={t('common.select')}
           color={tokens.fg1}
-          onPress={run(actions.onAddSubHabit)}
-        />
-      ) : null}
-      {actions.onMoveParent ? (
-        <MenuItem
-          icon={FolderInput}
-          label={t('habits.moveParent.button')}
-          color={tokens.fg1}
-          onPress={run(actions.onMoveParent)}
-        />
-      ) : null}
-      {actions.onSkip ? (
-        <MenuItem
-          icon={SkipForward}
-          label={t('habits.actions.skip')}
-          color={tokens.fg1}
-          onPress={run(actions.onSkip)}
+          onPress={run(actions.onEnterSelectMode)}
         />
       ) : null}
       {actions.onDelete ? (
+        <>
+          <View
+            style={[styles.menuDivider, { backgroundColor: tokens.hairline }]}
+          />
+          <MenuItem
+            icon={Trash2}
+            label={t('habits.deleteHabit')}
+            color={tokens.statusBad}
+            onPress={run(actions.onDelete)}
+          />
+        </>
+      ) : null}
+      {canDrillInto ? (
         <MenuItem
-          icon={Trash2}
-          label={t('habits.deleteHabit')}
-          color={tokens.statusOverdue}
-          onPress={run(actions.onDelete)}
+          icon={ChevronRight}
+          label={t('habits.actions.openSubHabits')}
+          color={tokens.fg1}
+          onPress={run(actions.onDrillInto)}
         />
       ) : null}
     </>
@@ -558,5 +592,10 @@ const styles = StyleSheet.create({
   menuItemLabel: {
     fontFamily: 'Geist',
     fontSize: 14,
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 4,
+    marginHorizontal: 8,
   },
 })
