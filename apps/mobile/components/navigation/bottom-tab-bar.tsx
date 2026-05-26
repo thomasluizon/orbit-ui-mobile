@@ -42,13 +42,7 @@ const TABS: readonly TabDef[] = [
   { id: 'profile', labelKey: 'nav.you', Icon: User },
 ]
 
-/**
- * v8 bottom navigation: 4 tabs + centered Plus FAB.
- * FAB auto-hides on Astra and Profile tabs (per PRD §8). Astra tab uses
- * Sparkles + primary tint when active to signal AI prominence.
- *
- * NOTE: this component is presentation-only — Phase 3 wires it into expo-router.
- */
+/** v8 bottom navigation: 4 tabs + centered Plus FAB; FAB auto-hides on the Astra and Profile tabs. */
 export function BottomTabBar({
   active,
   onTab,
