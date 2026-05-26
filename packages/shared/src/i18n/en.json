@@ -4,14 +4,6 @@
     "description": "Build better habits with AI-powered tracking and insights."
   },
   "settings": {
-    "title": "Settings",
-    "hint": "Language, colors, AI preferences, timezone",
-    "timeFormat": {
-      "title": "Time Format",
-      "description": "Choose how times are displayed throughout the app",
-      "12h": "12-hour (3:00 PM)",
-      "24h": "24-hour (15:00)"
-    },
     "notifications": {
       "title": "Push Notifications",
       "allowed": "Push notifications",
@@ -27,11 +19,7 @@
       "unsupported": "Push notifications are not supported in this browser",
       "deniedNative": "Notifications are blocked. Enable them in your device settings.",
       "unsupportedNative": "Push notifications are not supported on this device.",
-      "openSettings": "Open settings",
-      "sendTest": "Send test notification",
-      "sendingTest": "Sending test notification...",
-      "testSent": "Test notification sent",
-      "testFailed": "Failed to send test notification"
+      "openSettings": "Open settings"
     },
     "homeScreen": {
       "title": "Home Screen",
@@ -45,8 +33,6 @@
       "sunday": "Sunday"
     },
     "theme": {
-      "light": "Light",
-      "dark": "Dark",
       "switchToLight": "Switch to light mode",
       "switchToDark": "Switch to dark mode"
     }
@@ -164,7 +150,6 @@
   },
   "reviewPrompt": {
     "title": "Enjoying Orbit?",
-    "body": "If Orbit is helping, a quick 5-star rating goes a long way and helps more people find the app.",
     "cta": "Rate Orbit"
   },
   "dates": {
@@ -174,15 +159,6 @@
     "tomorrow": "Tomorrow",
     "nextDay": "Next day",
     "previousDay": "Previous day",
-    "days": {
-      "monday": "Monday",
-      "tuesday": "Tuesday",
-      "wednesday": "Wednesday",
-      "thursday": "Thursday",
-      "friday": "Friday",
-      "saturday": "Saturday",
-      "sunday": "Sunday"
-    },
     "daysShort": {
       "monday": "Mon",
       "tuesday": "Tue",
@@ -194,7 +170,6 @@
     }
   },
   "auth": {
-    "welcomeBack": "Welcome",
     "signIn": "Sign in",
     "enterCode": "Enter code",
     "email": "Email",
@@ -220,7 +195,6 @@
     "refresh": "Refresh",
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
-    "tagline": "Track your habits, build your streaks",
     "legalPrefix": "By signing in you agree to the",
     "legalConjunction": "and",
     "terms": "Terms",
@@ -244,21 +218,9 @@
     }
   },
   "habits": {
-    "title": "My Habits",
     "emptyState": "No habits yet",
     "count": "no habits | one habit | {n} habits",
-    "dueToday": "Due today",
     "overdue": "Overdue",
-    "dueYesterday": "Due yesterday",
-    "due": "Due {date}",
-    "instance": {
-      "overdueFor": "Overdue - {date}",
-      "loggingFor": "Logging for {date}",
-      "skippingFor": "Skipping for {date}",
-      "pending": "Pending",
-      "completed": "Completed",
-      "overdue": "Overdue"
-    },
     "oneTimeTask": "One-time task",
     "generalHabit": "General",
     "badHabit": "Bad Habit",
@@ -267,7 +229,6 @@
       "matchChild": "sub-habit: {value}",
       "matchDescription": "in description"
     },
-    "newHabit": "New Habit",
     "createHabit": "Create Habit",
     "createSubHabit": "Create Sub-Habit",
     "editHabit": "Edit Habit",
@@ -278,7 +239,6 @@
     "viewToday": "Today",
     "viewAll": "All",
     "viewGeneral": "General",
-    "today": "Today",
     "sectionLabel": "Habits",
     "frequencyFilter": "Filter by frequency",
     "searchPlaceholder": "Search habits...",
@@ -294,7 +254,6 @@
     "allDoneCelebrationTitle": "All done!",
     "allDoneCelebrationSubtitle": "You crushed every habit today.",
     "seeUpcoming": "See tomorrow's habits",
-    "generalSection": "General",
     "noSubHabits": "No sub-habits yet",
     "moveParent": {
       "button": "Move to...",
@@ -313,7 +272,6 @@
       "more": "More actions",
       "duplicate": "Duplicate",
       "skip": "Skip",
-      "postpone": "Postpone",
       "openSubHabits": "Open sub-habits",
       "unlog": "Mark incomplete"
     },
@@ -418,7 +376,6 @@
       "dueTime": "Due Time",
       "dueEndTime": "End Time",
       "reminder": "Remind me",
-      "reminderBefore": "How early",
       "reminderAtTime": "At the due time",
       "reminderMinutes": "min before",
       "reminder5min": "5 min before",
@@ -474,14 +431,11 @@
       "editDescription": "Update habit details",
       "checklist": "Checklist",
       "checklistPlaceholder": "Add an item...",
-      "addChecklistItem": "Add item",
       "templates": "Templates",
       "saveAsTemplate": "Save as template",
-      "loadTemplate": "Load template",
       "templateName": "Template name",
       "templateNamePlaceholder": "e.g. Weekly groceries",
       "deleteTemplate": "Delete",
-      "noTemplates": "No saved templates",
       "saveTemplateError": "Couldn't save template. Please try again.",
       "deleteTemplateError": "Couldn't delete template. Please try again.",
       "resetChecklist": "Reset",
@@ -501,10 +455,8 @@
       "endDateHint": "Habit stops appearing after this date",
       "endDateBeforeDueDate": "End date must be after the start date",
       "addEndDate": "Add end date",
-      "clearEndDate": "Remove end date",
       "endTimeBeforeStartTime": "End time must be after start time",
       "invalidTime": "Invalid time (must be HH:MM, 00:00-23:59)",
-      "invalidEndTime": "Invalid end time (must be HH:MM, 00:00-23:59)",
       "goals": "Goals",
       "noGoals": "No active goals",
       "goalLimit": "Goal limit reached"
@@ -515,8 +467,6 @@
       "circularReference": "A habit cannot be moved into itself"
     },
     "detail": {
-      "performance": "Performance",
-      "completed": "Completed",
       "loggedAt": "Logged at {time}",
       "day": "day",
       "days": "days",
@@ -531,8 +481,6 @@
       "noDataYet": "No data yet",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
-      "children": "Children",
-      "askAstraAbout": "Ask Astra about this",
       "askAstraEyebrow": "ASK ASTRA",
       "askAstraSubHabits": "Want to break this into smaller steps?",
       "askAstraDefault": "Want a perspective on this habit?"
@@ -547,7 +495,6 @@
     "breakdown": {
       "breakInto": "Break down {name} into:",
       "habitNamePlaceholder": "Habit name...",
-      "descriptionPlaceholder": "Description (optional)",
       "addHabit": "Add habit",
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
@@ -568,7 +515,6 @@
       "errorAlreadyResolved": "Already handled. Please ask again.",
       "errorGeneric": "Something went wrong. Please try again."
     },
-    "subHabitPlaceholder": "Sub-habit title...",
     "statusDot": {
       "done": "Done",
       "empty": "Not done",
@@ -605,9 +551,6 @@
       "scheduled": "Scheduled"
     },
     "completionHistory": "Completion History",
-    "noCompletions": "No completions",
-    "less": "Less",
-    "more": "More",
     "showRecurring": "Show recurring",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
@@ -641,10 +584,6 @@
       "title": "Automatic sync",
       "description": "Orbit checks your Google Calendar for new events and notifies you. Habits are never created without your confirmation.",
       "toggleLabel": "Enable automatic sync",
-      "proOnly": "Pro feature",
-      "statusIdle": "Active",
-      "statusReconnectRequired": "Reconnect needed",
-      "statusTransientError": "Sync error - will retry",
       "lastSyncedNever": "Never synced",
       "lastSyncedJustNow": "Just synced",
       "lastSyncedMinutesAgo": "{n} minute ago | {n} minutes ago",
@@ -657,15 +596,11 @@
       "reconnectTitle": "Google Calendar disconnected",
       "reconnectBody": "Auto-sync paused. Reconnect to resume.",
       "reconnectCta": "Reconnect",
-      "newSuggestionsTitle": "{count} new calendar event | {count} new calendar events",
-      "newSuggestionsBody": "Tap to review and import",
       "reviewModeTitle": "Review new events",
       "reviewModeEmpty": "No new events to review. All caught up!",
       "dismissSuggestion": "Dismiss",
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
-      "proRequired": "Upgrade to Pro to enable auto-sync",
-      "notConnected": "Connect Google Calendar first",
       "syncFailed": "Sync failed. Please try again."
     }
   },
@@ -720,7 +655,6 @@
       "updatedGoalProgress": "Updated goal progress: {name}",
       "updatedGoalStatus": "Updated goal status: {name}",
       "linkedGoalHabits": "Linked habits to goal: {name}",
-      "openHabit": "Open habit: {name}",
       "openEntity": "Open details: {name}"
     },
     "conflict": {
@@ -728,7 +662,6 @@
     },
     "attachmentPreview": "User uploaded attachment",
     "messagesUsed": "messages used this month",
-    "imageFallback": "Image",
     "senderYou": "You",
     "senderOrbit": "Astra",
     "unknownEntity": "Unknown",
@@ -746,7 +679,6 @@
       "preferences": "Preferences",
       "aiFeatures": "AI Features",
       "features": "Features",
-      "notifications": "Notifications",
       "aboutHelp": "About & Help",
       "advanced": "Advanced",
       "accountActions": "Account actions",
@@ -756,7 +688,6 @@
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
-    "userInfo": "User Information",
     "language": {
       "title": "Language",
       "description": "Select your preferred language"
@@ -765,25 +696,13 @@
       "title": "Color Scheme",
       "description": "Choose your accent color"
     },
-    "timezone": {
-      "title": "Timezone",
-      "current": "Current:",
-      "notSet": "Not set",
-      "searchPlaceholder": "Search timezones...",
-      "description": "Affects when habits are due and 'today' resolution"
-    },
     "aiMemory": {
       "title": "AI Memory",
-      "description": "When enabled, Orbit learns your preferences, routines, and context from conversations to give you more personalized responses.",
-      "privacy": "Your data stays private and is only used to improve your personal experience. It is never used for training AI models or shared with third parties.",
-      "enabled": "Orbit will remember things about you",
-      "disabled": "Orbit will not save new information about you"
+      "description": "When enabled, Orbit learns your preferences, routines, and context from conversations to give you more personalized responses."
     },
     "aiSummary": {
       "title": "Daily Summary",
-      "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen.",
-      "enabled": "Daily summary is active",
-      "disabled": "Daily summary is turned off"
+      "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
     },
     "facts": {
       "title": "What Astra knows",
@@ -811,7 +730,6 @@
     },
     "support": {
       "title": "Support",
-      "hint": "Questions, bugs, or feedback",
       "description": "Have a question, bug report, or feedback? Send us a message.",
       "name": "Name",
       "email": "Email",
@@ -829,7 +747,6 @@
       "emailInvalid": "Please enter a valid email address."
     },
     "logout": "Log Out",
-    "featureGuideHint": "Learn how to get the most out of Orbit",
     "retrospectiveTitle": "Retrospective",
     "retrospectiveHint": "AI insights on your habits over time",
     "widgetTitle": "Home Screen Widget",
@@ -878,7 +795,6 @@
       "preserveAccount": "Your account (email, name, password)",
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, color scheme, language, and timezone",
-      "confirmTitle": "Type to confirm",
       "confirmInstruction": "Type ORBIT below to confirm this action.",
       "confirmPlaceholder": "ORBIT",
       "confirmButton": "Reset my account",
@@ -936,7 +852,6 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "hint": "How we handle your data",
     "lastUpdated": "Last updated: April 2026",
     "intro": {
       "title": "Introduction",
@@ -1019,10 +934,7 @@
   "metrics": {
     "currentStreak": "Current Streak",
     "longestStreak": "Longest Streak",
-    "weekly": "Weekly",
-    "monthly": "Monthly",
-    "totalCompletions": "Total Completions",
-    "lastCompleted": "Last completed"
+    "monthly": "Monthly"
   },
   "summary": {
     "title": "Your Day",
@@ -1062,7 +974,6 @@
       "next": "Continue",
       "begin": "Begin",
       "back": "Back",
-      "finish": "Finish",
       "meetAstra": {
         "title": "Meet Astra.",
         "subtitle": "Orbit's assistant. It can create habits, recap your day, plan ahead, and reflect on what's drifting. Ask plainly. It listens."
@@ -1102,7 +1013,6 @@
       },
       "createGoal": {
         "title": "Set a goal",
-        "optional": "Optional",
         "proTag": "PRO",
         "starters": "Or try one",
         "subtitle": "Goals give your habits a bigger purpose.",
@@ -1122,7 +1032,6 @@
       },
       "features": {
         "title": "More to explore",
-        "subtitle": "Orbit has a lot more. Here are a few highlights.",
         "chat": {
           "title": "AI Chat",
           "desc": "Ask AI to create habits, get insights, or analyze your progress."
@@ -1158,10 +1067,6 @@
       "calendarTitle": "Import from Google Calendar",
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
       "calendarButton": "Import Calendar"
-    },
-    "weekStart": {
-      "title": "When does your week start?",
-      "description": "This setting affects how calendars and day pickers are displayed throughout the app."
     },
     "featureGuide": {
       "title": "Feature Guide",
@@ -1281,8 +1186,6 @@
         "supportDesc": "Have a question, found a bug, or want to share feedback? Use the Support page (accessible from your Profile) to send us a message.",
         "pushNotificationsTitle": "Push Notifications",
         "pushNotificationsDesc": "Enable or disable push notifications in Settings. Use the 'Send test notification' button to verify they work. Reminders are sent as push notifications based on each habit's due time.",
-        "timeFormatTitle": "Time Format",
-        "timeFormatDesc": "Switch between 12-hour (3:00 PM) and 24-hour (15:00) display. This affects how times are shown throughout the app, including habit due times and reminders.",
         "subscriptionTitle": "Subscription & Pro",
         "subscriptionDesc": "The free tier includes up to 10 habits and 20 AI messages per month. Orbit Pro unlocks unlimited habits, 500 AI messages, daily summaries, sub-habits, and all color schemes.",
         "retrospectiveTitle": "AI Retrospective",
@@ -1312,11 +1215,6 @@
     "title": "Upgrade to Pro",
     "alreadyPro": "You're on the Pro plan!",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
-    "manageSubscription": "Manage Subscription",
-    "trialActive": "Your free trial is active. Subscribe to keep Pro features after it ends.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "save33": "Save 33%",
     "feature": "Feature",
     "free": "Free",
     "subscribe": "Subscribe to Pro",
@@ -1434,7 +1332,6 @@
       "yearly": {
         "name": "Pro Yearly",
         "period": "/yr",
-        "perMonth": "/mo",
         "cta": "Subscribe Yearly",
         "recommended": "Best Value",
         "includesMonthly": "Everything in Pro Monthly, plus:"
@@ -1458,7 +1355,6 @@
         "appliedNote": "Referral discount applied"
       },
       "equivalent": "{price}/mo",
-      "loading": "Loading prices...",
       "error": "Couldn't load pricing",
       "retry": "Try again"
     },
@@ -1487,7 +1383,6 @@
       },
       "invoices": {
         "title": "Invoice History",
-        "empty": "No invoices yet",
         "download": "Download PDF",
         "statusPaid": "Paid",
         "statusOpen": "Open",
@@ -1501,7 +1396,6 @@
         "manage": "Manage Subscription",
         "manageHint": "Change plan, update payment method, or cancel"
       },
-      "loading": "Loading billing details...",
       "error": "Couldn't load billing details",
       "retry": "Try again"
     }
@@ -1516,39 +1410,10 @@
     "fetchHabits": "Failed to load habits",
     "createHabit": "Failed to create habit",
     "updateHabit": "Failed to update habit",
-    "updateChecklist": "Failed to update checklist",
-    "deleteHabit": "Failed to delete habit",
-    "logHabit": "Failed to log habit",
-    "skipHabit": "Failed to skip habit",
     "bulkCreateHabits": "Failed to create habits",
-    "bulkDeleteHabits": "Failed to delete habits",
-    "bulkLogHabits": "Failed to log habits",
-    "bulkSkipHabits": "Failed to skip habits",
-    "reorderHabits": "Failed to reorder habits",
-    "moveHabit": "Failed to move habit",
     "createSubHabit": "Failed to create sub-habit",
     "loadProfile": "Failed to load profile",
-    "updateTimezone": "Failed to update timezone",
-    "loadFacts": "Failed to load facts",
-    "deleteFact": "Failed to delete fact",
     "loadReferral": "Failed to load referral data",
-    "habitMetrics": "Failed to fetch habit metrics",
-    "duplicateHabit": "Failed to duplicate habit",
-    "fetchGamification": "Failed to load achievements",
-    "updateAiMemory": "Failed to update AI memory setting",
-    "updateAiSummary": "Failed to update daily summary setting",
-    "updateWeekStartDay": "Failed to update week start day",
-    "completeOnboarding": "Failed to complete onboarding",
-    "updateLanguage": "Failed to update language",
-    "createTag": "Failed to create tag",
-    "updateTag": "Failed to update tag",
-    "deleteTag": "Failed to delete tag",
-    "assignTags": "Failed to assign tags",
-    "deleteFacts": "Failed to delete facts",
-    "billing": "Failed to load billing info",
-    "subscriptionPlans": "Failed to load plans",
-    "updateColorScheme": "Failed to update color scheme",
-    "updateThemePreference": "Failed to update theme preference",
     "fetchSubHabits": "Failed to fetch sub-habits"
   },
   "speech": {
@@ -1559,17 +1424,14 @@
   },
   "goals": {
     "completedCelebrationTitle": "Goal achieved!",
-    "completedCelebrationSubtitle": "You've completed {name}",
     "completedCelebrationLabel": "Goal · {name}",
     "completedCelebrationFiled": "Filed.",
-    "title": "Goals",
     "tab": "Goals",
     "empty": "No goals yet",
     "emptyHint": "Create your first goal to start tracking progress",
     "create": "New Goal",
     "form": {
       "description": "Description",
-      "descriptionOptional": "Optional",
       "descriptionPlaceholder": "e.g., Read 12 books this year",
       "streakDescriptionPlaceholder": "e.g., Days at the gym",
       "targetValue": "Quantity",
@@ -1590,26 +1452,17 @@
       "type": "Goal type",
       "typeStandard": "Progress",
       "typeStandardDescription": "Track a measurable target step by step. Update progress manually or link habits that count toward it.",
-      "typeStandardExample": "Read 12 books, Run 100km",
       "typeStreak": "Streak",
-      "typeStreakDescription": "Go X days in a row. Link a habit and the streak tracks automatically.",
-      "typeStreakExample": "30 days at the gym, 60 days without smoking",
       "typeStreakHintGood": "Link a habit: streak grows each day you complete it. Miss a day and it resets to zero.",
       "typeStreakHintBad": "Link a bad habit: streak grows each day you resist. Log a slip and it resets to zero.",
       "streakTarget": "Target days",
       "streakTargetPlaceholder": "e.g. 30, 60, 90",
       "streakUnit": "consecutive days",
-      "streakRequiresHabit": "Streak goals require a linked habit",
       "target": "Target"
     },
     "streak": {
-      "dayCount": "{count} day streak",
-      "dayCountPlural": "{count} days streak",
-      "reset": "Streak reset",
       "ofTarget": "Day {current} of {target}",
-      "daysRemaining": "{count} days remaining",
-      "badHabitLabel": "days without",
-      "goodHabitLabel": "consecutive days"
+      "daysRemaining": "{count} days remaining"
     },
     "progress": "Progress",
     "progressOf": "{current} of {target} {unit}",
@@ -1645,27 +1498,22 @@
       "statusFilter": "Filter by status"
     },
     "deadline": {
-      "due": "Due {date}",
       "overdue": "Overdue",
       "daysLeft": "{n} day left | {n} days left"
     },
     "errors": {
-      "fetch": "Failed to load goals",
       "create": "Failed to create goal",
       "update": "Failed to update goal",
       "delete": "Failed to delete goal",
       "progress": "Failed to update progress"
     },
     "linkedHabits": "Linked Habits",
-    "linkHabits": "Link Habits",
-    "noLinkedHabits": "No habits linked to this goal",
     "metrics": {
       "title": "Goal Insights",
       "onTrack": "On Track",
       "atRisk": "At Risk",
       "behind": "Behind Schedule",
       "noDeadline": "No Deadline",
-      "completed": "Completed",
       "projectedCompletion": "Projected Completion",
       "velocity": "Progress Rate",
       "daysToDeadline": "Days to Deadline",
@@ -1675,9 +1523,7 @@
     }
   },
   "gamification": {
-    "xpReward": "+{n} XP",
     "title": "Achievements & Level",
-    "locked": "Locked",
     "profileCard": {
       "title": "Achievements & Level",
       "hint": "Track your progress and unlock achievements",
@@ -1687,30 +1533,9 @@
       "earned": "{count} / {total} achievements earned"
     },
     "page": {
-      "backToProfile": "Profile",
       "lockedTitle": "Unlock Achievements",
       "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and unlock achievements.",
-      "upgradeButton": "Upgrade to Pro",
-      "emptyEarned": "Complete habits to start earning achievements!"
-    },
-    "streak": {
-      "current": "day streak",
-      "currentShort": "{n}d",
-      "longest": "Longest: {n} day | Longest: {n} days"
-    },
-    "levels": {
-      "1": "Beginner",
-      "2": "Starter",
-      "3": "Committed",
-      "4": "Dedicated",
-      "5": "Focused",
-      "6": "Disciplined",
-      "7": "Consistent",
-      "8": "Driven",
-      "9": "Unstoppable",
-      "10": "Master",
-      "11": "Legend",
-      "12": "Orbit Elite"
+      "upgradeButton": "Upgrade to Pro"
     },
     "categories": {
       "GettingStarted": "Getting Started",
@@ -1720,14 +1545,6 @@
       "Perfection": "Perfection",
       "Special": "Special"
     },
-    "rarity": {
-      "common": "Common",
-      "uncommon": "Uncommon",
-      "rare": "Rare",
-      "epic": "Epic",
-      "legendary": "Legendary"
-    },
-    "rarityLocked": "Locked",
     "achievements": {
       "first_orbit": {
         "name": "First Orbit",
@@ -1831,14 +1648,10 @@
       }
     },
     "toast": {
-      "achievementUnlocked": "Achievement Unlocked!",
-      "xpEarned": "+{xp} XP",
       "achievementEyebrow": "Achievement · +{xp} XP"
     },
     "levelUp": {
       "title": "Level up",
-      "newLevel": "Level {level}",
-      "subtitle": "You are now a {title}",
       "steadyHand": "Steady hand."
     }
   },
@@ -1850,7 +1663,6 @@
       "tooManyRequests": "Too many requests. Please wait a moment.",
       "server": "Something went wrong. Please try again later.",
       "unknown": "An unexpected error occurred",
-      "fetchStreak": "Failed to load streak info",
       "activateFreeze": "Failed to activate streak freeze"
     }
   },
@@ -1858,21 +1670,16 @@
     "title": "Streak",
     "daysSuffix": "day | days",
     "celebration": {
-      "title": "Streak!",
       "eyebrow": "Streak",
       "subtitle": "1 day. | {count} days.",
       "milestone": "Amazing milestone!",
       "keepGoing": "Keep it going!"
     },
     "badge": {
-      "days": "{count}",
       "tooltip": "1 day streak | {count} day streak"
     },
     "profile": {
-      "title": "Your Streak",
       "currentStreak": "1 day streak | {count} day streak",
-      "longestStreak": "Longest: {count} day | Longest: {count} days",
-      "noStreak": "Start your streak today!",
       "encouragement1": "Great start!",
       "encouragement7": "One week strong!",
       "encouragement14": "Two weeks of dedication!",
@@ -1893,7 +1700,6 @@
       "celebrationTitle": "Streak saved!",
       "celebrationSubtitle": "Your streak holds.",
       "eyebrow": "Frozen · {date}",
-      "progressTitle": "Earn your next freeze",
       "progressSubtitle": "1 more day of activity unlocks your next freeze | {days} more days of activity unlock your next freeze",
       "progressReady": "Your next freeze is ready!",
       "maxAccumulated": "You've hit the maximum of {max} freezes. Use one before earning more.",
@@ -1902,11 +1708,7 @@
       "monthlyLimit": "You've used all {max} freezes this month",
       "accumulatedLabel": "Freezes banked",
       "accumulatedShort": "{count}/{max}",
-      "howItWorksTitle": "How streak freezes work",
-      "howItWorksBody": "Stay active for 7 days in a row and you'll earn a streak freeze automatically. Bank up to {maxAccumulated} at a time, and use up to {maxMonthly} per month to protect your streak on days you can't make it.",
-      "learnMore": "How it works",
-      "noFreezesAvailable": "Keep going to earn your first freeze",
-      "dayStreak": "{count}-day streak | {count}-day streak"
+      "noFreezesAvailable": "Keep going to earn your first freeze"
     },
     "detail": {
       "title": "Streak Details",
@@ -1921,8 +1723,6 @@
       "dayActive": "Active",
       "dayFrozen": "Frozen",
       "dayMissed": "Missed",
-      "dayFuture": "Upcoming",
-      "dayToday": "Today",
       "daysUnit": "day | days"
     }
   },
@@ -1967,12 +1767,8 @@
     "copyConfig": "Copy config",
     "apiKeysError": "Failed to load API keys",
     "createKeyError": "Failed to create API key",
-    "revokeKeyError": "Failed to revoke API key",
-    "deleteFactError": "Failed to delete fact",
-    "deleteFactsError": "Failed to delete facts",
     "scopesLabel": "Scopes:",
     "readOnlyLabel": "Read-only:",
-    "expiresLabel": "Expires:",
     "noScopes": "No scopes",
     "permReadOnly": "Read-only",
     "permReadWrite": "Read/write",
@@ -2004,37 +1800,16 @@
     "developersSection": "Developers"
   },
   "calendarSync": {
-    "title": "Calendar Sync",
-    "connected": "Google Calendar Connected",
-    "notConnected": "Not Connected",
-    "connectedDesc": "Your Google Calendar events are synced with Orbit. Events will show alongside your habits.",
-    "notConnectedDesc": "Connect your Google Calendar to see events alongside your habits in the calendar view.",
-    "connect": "Connect Google Calendar",
-    "refresh": "Refresh Calendar",
-    "disconnect": "Disconnect Calendar",
-    "disconnectConfirmTitle": "Disconnect Calendar",
-    "disconnectConfirmMessage": "Are you sure you want to disconnect your Google Calendar?",
-    "disconnectError": "Failed to disconnect calendar.",
-    "connectMessage": "This would open a Google OAuth flow to connect your calendar. This feature is coming soon on mobile.",
-    "howItWorks": "How it works",
-    "step1": "Connect your Google account",
-    "step2": "Orbit imports your calendar events",
-    "step3": "Events appear in the Calendar tab alongside habits",
-    "step4": "Your data stays private and is never shared",
-    "error": "Error"
+    "notConnected": "Not Connected"
   },
   "apiKeys": {
     "errors": {
-      "load": "Failed to load API keys",
-      "create": "Failed to create API key",
-      "revoke": "Failed to revoke API key"
+      "create": "Failed to create API key"
     }
   },
   "versionUpdate": {
     "title": "Update available",
     "description": "A newer version of Orbit is available. Update now to get the latest fixes and features.",
-    "currentLabel": "Your version: {version}",
-    "latestLabel": "Latest: {version}",
     "updateCta": "Update now",
     "laterCta": "Later"
   },
@@ -2090,7 +1865,6 @@
       "back": "Back",
       "skip": "Skip tour",
       "finish": "Finish",
-      "skipSection": "Skip section",
       "stepOf": "Step {current} of {total}",
       "pro": "PRO"
     },
@@ -2106,7 +1880,6 @@
       "hint": "Explore all features with a guided walkthrough",
       "modalTitle": "Replay Tour",
       "replayAll": "Replay Full Tour",
-      "replaySection": "Replay",
       "steps": "{count} steps"
     },
     "habits": {
@@ -2151,14 +1924,6 @@
       "progress": {
         "title": "Goal Progress",
         "description": "Update progress manually or let linked habits auto-track it. The progress bar shows how close you are to your target."
-      },
-      "link": {
-        "title": "Linked Habits",
-        "description": "Link habits to goals so every completion counts toward your target. One habit can contribute to multiple goals."
-      },
-      "aiReview": {
-        "title": "AI Goal Review",
-        "description": "Get an AI-powered analysis of your goal progress, including pace, projected completion date, and personalized recommendations."
       }
     },
     "chat": {
