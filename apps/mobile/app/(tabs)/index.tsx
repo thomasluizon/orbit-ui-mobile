@@ -1313,7 +1313,6 @@ export default function TodayScreen() {
       </>
     ),
     [
-      activeView,
       controlsMenuAnchorRect,
       currentActiveView,
       dateLabel,
@@ -1340,7 +1339,6 @@ export default function TodayScreen() {
       selectedFrequency,
       selectedTagIds,
       setSearchQueryStore,
-      setSelectedFrequency,
       sharedHeader,
       showCompleted,
       showControlsMenu,
