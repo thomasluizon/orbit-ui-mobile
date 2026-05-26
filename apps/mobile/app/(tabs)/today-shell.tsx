@@ -27,13 +27,11 @@ export type TodayTabItem = {
 
 /** v8 AppBar + streak/bell utility cluster for the Today screen. */
 export function TodayHeader({
-  title,
   currentStreak,
   onGoToToday,
   goToTodayLabel,
   dateLong,
 }: Readonly<{
-  title: string
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
@@ -52,7 +50,7 @@ export function TodayHeader({
     >
       <AppBar
         LeadingIcon={SaturnDropcap}
-        title={title}
+        title="Orbit"
         subtitle={dateLong}
         trailing={
           <>
