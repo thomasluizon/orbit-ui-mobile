@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { Star } from 'lucide-react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { radius } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ReviewReminderCardProps {
@@ -10,112 +9,73 @@ interface ReviewReminderCardProps {
   onDismiss: () => void
 }
 
+/**
+ * v8 review reminder edge banner: hairline-divided strip with quiet text
+ * and Rate / Later links on the right.
+ */
 export function ReviewReminderCard({
   onRate,
   onDismiss,
 }: Readonly<ReviewReminderCardProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.iconWrap}>
-          <Star size={18} color={colors.primary} fill={colors.primary} />
-        </View>
-        <View style={styles.copy}>
-          <Text style={styles.title}>{t('reviewPrompt.title')}</Text>
-          <Text style={styles.body}>{t('reviewPrompt.body')}</Text>
-        </View>
-      </View>
-
+    <View style={styles.banner}>
+      <Text style={styles.text}>{t('reviewPrompt.title')}</Text>
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={onDismiss}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.secondaryButtonText}>{t('common.later')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={onRate}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.primaryButtonText}>{t('reviewPrompt.cta')}</Text>
-        </TouchableOpacity>
+        <Pressable onPress={onRate} hitSlop={6}>
+          <Text style={styles.rateText}>{t('reviewPrompt.cta')}</Text>
+        </Pressable>
+        <Pressable onPress={onDismiss} hitSlop={6}>
+          <Text style={styles.laterText}>{t('common.later')}</Text>
+        </Pressable>
       </View>
     </View>
   )
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    card: {
-      marginBottom: 16,
-      padding: 16,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.primary_30,
-      backgroundColor: colors.surfaceOverlay,
-      gap: 14,
-    },
-    header: {
+    banner: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-    },
-    iconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.full,
       alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary_15,
+      justifyContent: 'space-between',
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: tokens.hairline,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      gap: 12,
+      marginBottom: 16,
     },
-    copy: {
+    text: {
       flex: 1,
-      gap: 4,
-    },
-    title: {
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.textPrimary,
-    },
-    body: {
+      fontFamily: 'Geist',
       fontSize: 13,
-      lineHeight: 19,
-      color: colors.textSecondary,
+      color: tokens.fg1,
     },
     actions: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: 10,
+      gap: 14,
     },
-    secondaryButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-    },
-    secondaryButtonText: {
+    rateText: {
+      fontFamily: 'Geist',
       fontSize: 13,
-      fontWeight: '600',
-      color: colors.textSecondary,
+      color: tokens.fg1,
+      textDecorationLine: 'underline',
+      paddingVertical: 4,
     },
-    primaryButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: radius.full,
-      backgroundColor: colors.primary,
-    },
-    primaryButtonText: {
+    laterText: {
+      fontFamily: 'Geist',
       fontSize: 13,
-      fontWeight: '700',
-      color: colors.white,
+      color: tokens.fg3,
+      paddingVertical: 4,
     },
   })
 }

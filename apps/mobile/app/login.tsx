@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Keyboard,
   Platform,
   StyleSheet,
   ActivityIndicator,
-  Image,
   Linking,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -24,7 +23,7 @@ import {
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { createColors } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
@@ -45,21 +44,52 @@ import {
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
-import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-
-type AppColors = ReturnType<typeof createColors>
+import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { CodeInput } from '@/components/ui/code-input'
 
 interface AuthErrorState {
   message: string
   requestId?: string
 }
 
+function Spinner({ size = 16, color = '#fff' }: { size?: number; color?: string }) {
+  return <ActivityIndicator size="small" color={color} style={{ width: size, height: size }} />
+}
+
+function GoogleIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+        fill="#4285F4"
+      />
+      <Path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <Path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <Path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
+    </Svg>
+  )
+}
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const params = useLocalSearchParams<{
     ref?: string
     returnUrl?: string
@@ -75,6 +105,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
@@ -124,7 +155,16 @@ export default function LoginScreen() {
     }
 
     hydrateAuthFlowState().catch(() => {})
-  }, [params.code, params.email, params.ref, params.returnUrl])
+  }, [
+    params.code,
+    params.email,
+    params.ref,
+    params.returnUrl,
+    setCodeDigits,
+    setEmail,
+    setShowReferralBanner,
+    setStep,
+  ])
 
   useEffect(() => {
     if (Platform.OS !== 'android') return
@@ -142,12 +182,16 @@ export default function LoginScreen() {
     }
   }, [])
 
+  const verifyCodeRef = useRef(() => {})
+  useEffect(() => {
+    verifyCodeRef.current = verifyCode
+  })
+
   useEffect(() => {
     if (step !== 'code' || isSubmitting) return
     if (isVerificationCodeComplete(codeDigits)) {
-      void verifyCode()
+      verifyCodeRef.current()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeDigits, step, isSubmitting])
 
   function resolveLoginErrorState(
@@ -168,19 +212,25 @@ export default function LoginScreen() {
     }
   }
 
+  function reportError(message: string) {
+    setErrorMessage(message)
+    showError(message)
+  }
+
   async function sendCode() {
     if (!isOnline) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
 
     const trimmed = email.trim()
     if (!trimmed) return
     if (!isValidEmail(trimmed)) {
-      showError(t('auth.errors.invalidEmail'))
+      reportError(t('auth.errors.invalidEmail'))
       return
     }
     setIsSubmitting(true)
+    setErrorMessage(null)
 
     try {
       await apiClient(API.auth.sendCode, {
@@ -191,7 +241,7 @@ export default function LoginScreen() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err).message)
+      reportError(resolveLoginErrorState(err).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -199,7 +249,7 @@ export default function LoginScreen() {
 
   async function verifyCode() {
     if (!isOnline) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
 
@@ -207,6 +257,7 @@ export default function LoginScreen() {
     if (code.length !== 6) return
     setIsSubmitting(true)
     setSuccessMessage(null)
+    setErrorMessage(null)
 
     try {
       const referralCode = await getStoredReferralCode()
@@ -232,7 +283,7 @@ export default function LoginScreen() {
       const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
       router.replace(returnUrl as Href)
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err).message)
+      reportError(resolveLoginErrorState(err).message)
       resetCodeDigits()
       codeInputRefs.current[0]?.focus()
     } finally {
@@ -242,13 +293,14 @@ export default function LoginScreen() {
 
   async function resendCode() {
     if (!isOnline) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
 
     if (!canResend) return
     setIsSubmitting(true)
     setSuccessMessage(null)
+    setErrorMessage(null)
 
     try {
       await apiClient(API.auth.sendCode, {
@@ -258,7 +310,7 @@ export default function LoginScreen() {
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err).message)
+      reportError(resolveLoginErrorState(err).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -267,16 +319,18 @@ export default function LoginScreen() {
   function backToEmail() {
     setStep('email')
     setSuccessMessage(null)
+    setErrorMessage(null)
     resetCodeDigits()
   }
 
   async function signInWithGoogle() {
     if (!isOnline) {
-      showError(t('auth.errors.offline'))
+      reportError(t('auth.errors.offline'))
       return
     }
 
     setIsGoogleLoading(true)
+    setErrorMessage(null)
 
     try {
       const pendingReturnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
@@ -288,7 +342,7 @@ export default function LoginScreen() {
 
       router.replace('/auth-callback')
     } catch (err: unknown) {
-      showError(resolveLoginErrorState(err, 'google').message)
+      reportError(resolveLoginErrorState(err, 'google').message)
     } finally {
       setIsGoogleLoading(false)
     }
@@ -298,38 +352,20 @@ export default function LoginScreen() {
     Linking.openURL('https://app.useorbit.org/privacy')
   }
 
-  // -- Spinner component (matches web SVG spinner) --
-  function Spinner({ size = 16, color = '#fff' }: { size?: number; color?: string }) {
-    return <ActivityIndicator size="small" color={color} style={{ width: size, height: size }} />
+  function openTerms() {
+    Linking.openURL('https://app.useorbit.org/about')
   }
 
-  // -- Google icon SVG --
-  function GoogleIcon() {
-    return (
-      <Svg width={20} height={20} viewBox="0 0 24 24">
-        <Path
-          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-          fill="#4285F4"
-        />
-        <Path
-          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-          fill="#34A853"
-        />
-        <Path
-          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-          fill="#FBBC05"
-        />
-        <Path
-          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-          fill="#EA4335"
-        />
-      </Svg>
-    )
-  }
+  const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
+  const canSubmitCode =
+    codeDigits.join('').length === 6 && !isSubmitting && isOnline
 
   return (
     <KeyboardAwareScrollView
-      containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      containerStyle={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       contentContainerStyle={[
         styles.scrollContent,
@@ -339,432 +375,411 @@ export default function LoginScreen() {
       keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}
     >
-        {/* Branding header - matches web auth layout */}
+      {/* Referral banner at the very top edge */}
+      {showReferralBanner && (
+        <View style={styles.referralBanner}>
+          <Text style={styles.referralBannerText}>
+            {t('referral.loginBanner')}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.formColumn}>
+        {/* Saturn glyph + wordmark + hairline rule */}
         <View style={styles.brandingHeader}>
-          <View style={styles.brandingRow}>
-            <Image
-              source={require('@/assets/logo-no-bg.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.logoText}>Orbit</Text>
-          </View>
-          <Text style={styles.tagline}>{t('auth.tagline')}</Text>
+          <SaturnDropcap size={32} color={tokens.fg1} />
+          <Text style={styles.wordmark}>Orbit</Text>
+          <View style={styles.brandingRule} />
         </View>
 
-        {/* Card - matches web bg-surface-overlay card */}
-        <View style={styles.card}>
-          {/* Welcome heading */}
-          <Text style={styles.welcomeHeading}>{t('auth.welcomeBack')}</Text>
+        {/* Step subtitle: "Sign in" / "Enter code" */}
+        <Text style={styles.stepSubtitle}>
+          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+        </Text>
 
-          {showReferralBanner && (
-            <View
-              style={styles.successAlert}
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-              accessibilityLabel={t('referral.loginBanner')}
-            >
-              <Text style={styles.successAlertText}>{t('referral.loginBanner')}</Text>
-            </View>
-          )}
+        {/* Inline italic error (v8 spec: centered overdue) */}
+        {errorMessage && (
+          <Text style={styles.inlineError}>{errorMessage}</Text>
+        )}
 
-          {/* Success alert */}
-          {successMessage && (
-            <View
-              style={styles.successAlert}
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-              accessibilityLabel={successMessage}
-            >
-              <Text style={styles.successAlertText}>{successMessage}</Text>
-            </View>
-          )}
+        {/* Success alert */}
+        {successMessage && (
+          <Text style={styles.successText}>{successMessage}</Text>
+        )}
 
-          {!isOnline && (
-            <OfflineUnavailableState
-              title={offlineTitle}
-              description={offlineDescription}
-              compact
+        {!isOnline && (
+          <OfflineUnavailableState
+            title={offlineTitle}
+            description={offlineDescription}
+            compact
+          />
+        )}
+
+        {step === 'email' ? (
+          <>
+            <UnderlinedInput
+              label={t('auth.email')}
+              mono
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t('auth.emailPlaceholder')}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              editable={!isSubmitting}
+              onSubmitEditing={sendCode}
+              returnKeyType="send"
+              accessibilityLabel={t('auth.email')}
             />
-          )}
 
-          {step === 'email' ? (
-            <>
-              {/* Step 1: Email */}
-              <View style={styles.formSection}>
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.formLabel}>{t('auth.email')}</Text>
-                  <AppTextInput
-                    style={styles.formInput}
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder={t('auth.emailPlaceholder')}
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="email"
-                    textContentType="emailAddress"
-                    editable={!isSubmitting}
-                    onSubmitEditing={sendCode}
-                    returnKeyType="send"
-                    accessibilityLabel={t('auth.email')}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.primaryButton, (!email.trim() || isSubmitting || !isOnline) && styles.buttonDisabled]}
-                  onPress={sendCode}
-                  disabled={!email.trim() || isSubmitting || !isOnline}
-                  accessibilityState={{ disabled: !email.trim() || isSubmitting || !isOnline, busy: isSubmitting }}
-                  activeOpacity={0.8}
-                >
-                  {isSubmitting && <Spinner />}
-                  <Text style={styles.primaryButtonText}>{t('auth.sendCode')}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* OAuth divider - "OR CONTINUE WITH" */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>
-                  {t('auth.orContinueWith').toUpperCase()}
-                </Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* Google Sign-In button */}
-              <TouchableOpacity
-                style={[styles.googleButton, (isGoogleLoading || !isOnline) && styles.buttonDisabled]}
-                onPress={signInWithGoogle}
-                disabled={isGoogleLoading || !isOnline}
-                activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryButton,
+                {
+                  backgroundColor: pressed
+                    ? tokens.primaryPressed
+                    : tokens.primary,
+                },
+                !canSubmitEmail && styles.buttonDisabled,
+              ]}
+              onPress={sendCode}
+              disabled={!canSubmitEmail}
+              accessibilityState={{
+                disabled: !canSubmitEmail,
+                busy: isSubmitting,
+              }}
+            >
+              {isSubmitting && <Spinner color={tokens.fgOnPrimary} />}
+              <Text
+                style={[
+                  styles.primaryButtonText,
+                  { color: tokens.fgOnPrimary },
+                ]}
               >
-                {isGoogleLoading ? (
-                  <Spinner size={20} color={colors.textPrimary} />
-                ) : (
-                  <GoogleIcon />
-                )}
-                <Text style={styles.googleButtonText}>{t('auth.signInWithGoogle')}</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              {/* Step 2: Code verification */}
-              <Text style={styles.codeSentText}>
-                {t('auth.codeSentTo')}{' '}
-                <Text style={styles.codeSentEmail}>{email}</Text>
+                {t('auth.sendCode')}
               </Text>
+            </Pressable>
 
-              <View style={styles.codeFormSection}>
-                {/* 6-digit code inputs */}
-                <View
-                  style={styles.codeInputRow}
-                  accessibilityRole="text"
-                  accessibilityLabel={`${t('auth.codeSentTo')} ${email}`}
-                >
-                  {codeDigits.map((digit, index) => (
-                    <AppTextInput
-                      key={index}
-                      ref={(el) => { codeInputRefs.current[index] = el }}
-                      style={styles.codeInput}
-                      value={digit}
-                      onChangeText={(value) => onCodeInput(index, value)}
-                      onKeyPress={(e) => onCodeKeyPress(index, e)}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      selectTextOnFocus
-                      editable={!isSubmitting}
-                      autoFocus={index === 0}
-                      accessibilityLabel={`${t('auth.codeDigit', { n: index + 1 })}`}
-                      textContentType={index === 0 ? 'oneTimeCode' : 'none'}
-                    />
-                  ))}
-                </View>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>
+                {t('auth.orContinueWith')}
+              </Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    (codeDigits.join('').length !== 6 || isSubmitting || !isOnline) && styles.buttonDisabled,
-                  ]}
-                  onPress={verifyCode}
-                  disabled={codeDigits.join('').length !== 6 || isSubmitting || !isOnline}
-                  accessibilityState={{
-                    disabled: codeDigits.join('').length !== 6 || isSubmitting || !isOnline,
-                    busy: isSubmitting,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  {isSubmitting && <Spinner />}
-                  <Text style={styles.primaryButtonText}>{t('auth.verify')}</Text>
-                </TouchableOpacity>
-              </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                {
+                  borderColor: tokens.hairlineStrong,
+                  backgroundColor: pressed ? tokens.bgSunk : 'transparent',
+                },
+                (isGoogleLoading || !isOnline) && styles.buttonDisabled,
+              ]}
+              onPress={signInWithGoogle}
+              disabled={isGoogleLoading || !isOnline}
+            >
+              {isGoogleLoading ? (
+                <Spinner size={20} color={tokens.fg1} />
+              ) : (
+                <GoogleIcon />
+              )}
+              <Text style={[styles.secondaryButtonText, { color: tokens.fg1 }]}>
+                {t('auth.signInWithGoogle')}
+              </Text>
+            </Pressable>
 
-              {/* Change email / Resend code row */}
-              <View style={styles.codeActionsRow}>
-                <TouchableOpacity onPress={backToEmail} activeOpacity={0.7}>
-                  <Text style={styles.changeEmailText}>{t('auth.changeEmail')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={resendCode}
-                  disabled={!canResend || !isOnline}
-                  accessibilityState={{ disabled: !canResend || !isOnline }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.resendText, (!canResend || !isOnline) && styles.resendDisabled]}>
-                    {canResend
-                      ? t('auth.resendCode')
-                      : `${t('auth.resendCode')} (${resendCountdown}s)`}
+            {/* Legal */}
+            <Text style={styles.legal}>
+              {t('auth.legalPrefix')}{' '}
+              <Text style={styles.legalLink} onPress={openTerms}>
+                {t('auth.terms')}
+              </Text>{' '}
+              {t('auth.legalConjunction')}{' '}
+              <Text style={styles.legalLink} onPress={openPrivacyPolicy}>
+                {t('auth.privacy')}
+              </Text>
+              .
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.codeSentText}>
+              {t('auth.codeSentTo')}{' '}
+              <Text style={styles.codeSentEmail}>{email}</Text>.
+            </Text>
+
+            <CodeInput
+              digits={codeDigits}
+              inputRefs={codeInputRefs}
+              onChange={onCodeInput}
+              onKeyPress={onCodeKeyPress}
+              ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+              disabled={isSubmitting}
+              autoFocusFirst
+            />
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryButton,
+                {
+                  backgroundColor: pressed
+                    ? tokens.primaryPressed
+                    : tokens.primary,
+                },
+                !canSubmitCode && styles.buttonDisabled,
+              ]}
+              onPress={verifyCode}
+              disabled={!canSubmitCode}
+              accessibilityState={{
+                disabled: !canSubmitCode,
+                busy: isSubmitting,
+              }}
+            >
+              {isSubmitting && <Spinner color={tokens.fgOnPrimary} />}
+              <Text
+                style={[
+                  styles.primaryButtonText,
+                  { color: tokens.fgOnPrimary },
+                ]}
+              >
+                {t('auth.verify')}
+              </Text>
+            </Pressable>
+
+            {/* Mono countdown or resend link */}
+            <View style={styles.resendRow}>
+              {canResend ? (
+                <Pressable onPress={resendCode} disabled={!isOnline}>
+                  <Text style={styles.resendActiveText}>
+                    {t('auth.resendCode')}
                   </Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+                </Pressable>
+              ) : (
+                <Text style={styles.resendCountdownText}>
+                  {t('auth.resendIn', { seconds: resendCountdown })}
+                </Text>
+              )}
+            </View>
 
-          {/* Privacy Policy link */}
-          <TouchableOpacity
-            style={styles.privacyLink}
-            onPress={openPrivacyPolicy}
-            activeOpacity={0.7}
-            accessibilityRole="link"
-          >
-            <Text style={styles.privacyText}>{t('privacy.title')}</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.changeEmailRow}>
+              <Pressable onPress={backToEmail}>
+                <Text style={styles.quietLink}>{t('auth.changeEmail')}</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+      </View>
     </KeyboardAwareScrollView>
   )
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-  },
-  scrollContentCode: {
-    paddingBottom: 24,
-  },
-  scrollContentKeyboard: {
-    justifyContent: 'flex-start',
-    paddingTop: 24,
-    paddingBottom: 24,
-  },
+    container: {
+      flex: 1,
+      backgroundColor: tokens.bg,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 28,
+      paddingVertical: 24,
+    },
+    scrollContentCode: {
+      paddingBottom: 24,
+    },
+    scrollContentKeyboard: {
+      justifyContent: 'flex-start',
+      paddingTop: 24,
+      paddingBottom: 24,
+    },
 
-  // -- Branding header (matches web auth layout) --
-  brandingHeader: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  brandingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-    alignSelf: 'center',
-  },
-  logoImage: {
-    width: 48,
-    height: 48,
-  },
-  logoText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  tagline: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
+    // Referral edge banner (very top, mono uppercase)
+    referralBanner: {
+      alignSelf: 'stretch',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: tokens.hairline,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    referralBannerText: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '600',
+      color: tokens.fg1,
+      letterSpacing: 0.66,
+    },
 
-  // -- Card (matches web bg-surface-overlay card) --
-  card: {
-    width: '100%',
-    maxWidth: 384, // max-w-sm = 24rem = 384px
-    backgroundColor: colors.surfaceOverlay,
-    borderRadius: 24, // radius-2xl = 1.5rem
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)', // border-muted
-    padding: 24,
-    gap: 24,
-    // shadow-lg equivalent
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 12,
-  },
+    formColumn: {
+      width: '100%',
+      maxWidth: 360,
+      gap: 18,
+    },
 
-  // -- Welcome heading --
-  welcomeHeading: {
-    fontSize: 24, // text-fluid-2xl at mobile
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    brandingHeader: {
+      alignItems: 'center',
+      gap: 14,
+      paddingBottom: 12,
+    },
+    wordmark: {
+      fontFamily: 'Geist',
+      fontSize: 28,
+      fontWeight: '600',
+      color: tokens.fg1,
+      letterSpacing: -0.7,
+      lineHeight: 28,
+    },
+    brandingRule: {
+      width: 60,
+      height: 1,
+      backgroundColor: tokens.hairlineStrong,
+      marginTop: 6,
+    },
 
-  // -- Alerts --
-  successAlert: {
-    backgroundColor: colors.emeraldBg,
-    borderWidth: 1,
-    borderColor: colors.emeraldBorder,
-    borderRadius: 16, // radius-lg
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  successAlertText: {
-    fontSize: 14,
-    color: colors.emerald400,
-  },
-  // -- Form --
-  formSection: {
-    gap: 16,
-  },
-  codeFormSection: {
-    gap: 24,
-  },
-  fieldGroup: {
-    gap: 6, // space-y-1.5
-  },
-  formLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  formInput: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12, // radius-md
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
+    stepSubtitle: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.fg3,
+      textAlign: 'center',
+    },
 
-  // -- Primary button (matches web Send Code / Verify) --
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 20, // radius-xl = 1.25rem
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    // shadow-glow equivalent
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
+    inlineError: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontStyle: 'italic',
+      color: tokens.statusOverdue,
+      textAlign: 'center',
+    },
 
-  // -- OAuth divider --
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.borderEmphasis,
-  },
-  dividerText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
+    successText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg2,
+      textAlign: 'center',
+    },
 
-  // -- Google button --
-  googleButton: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderEmphasis,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  googleButtonText: {
-    color: '#1f2937', // gray-800
-    fontSize: 16,
-    fontWeight: '500',
-  },
+    primaryButton: {
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    primaryButtonText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
 
-  // -- Code verification step --
-  codeSentText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  codeSentEmail: {
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  codeInputRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  codeInput: {
-    width: 44,
-    height: 52,
-    backgroundColor: colors.surfaceGround,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  codeActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  changeEmailText: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  resendText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  resendDisabled: {
-    opacity: 0.5,
-  },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingVertical: 8,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: tokens.hairline,
+    },
+    dividerText: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '500',
+      color: tokens.fg3,
+      letterSpacing: 0.66,
+    },
 
-  // -- Privacy link --
-  privacyLink: {
-    alignItems: 'center',
-    paddingTop: 8,
-  },
-  privacyText: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
+    secondaryButton: {
+      paddingHorizontal: 18,
+      paddingVertical: 11,
+      borderRadius: 10,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    secondaryButtonText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '500',
+    },
+
+    legal: {
+      fontFamily: 'Geist',
+      fontSize: 12,
+      fontStyle: 'italic',
+      lineHeight: 18,
+      color: tokens.fg3,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+    legalLink: {
+      textDecorationLine: 'underline',
+      color: tokens.fg3,
+    },
+
+    codeSentText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontStyle: 'italic',
+      lineHeight: 21,
+      color: tokens.fg3,
+      textAlign: 'center',
+    },
+    codeSentEmail: {
+      color: tokens.fg1,
+      fontStyle: 'normal',
+    },
+
+    resendRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      paddingTop: 4,
+    },
+    resendActiveText: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '500',
+      color: tokens.fg1,
+      textDecorationLine: 'underline',
+      letterSpacing: 0.44,
+    },
+    resendCountdownText: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '500',
+      color: tokens.fg3,
+      letterSpacing: 0.44,
+    },
+
+    changeEmailRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+    },
+    quietLink: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
+      paddingVertical: 6,
+    },
   })
 }

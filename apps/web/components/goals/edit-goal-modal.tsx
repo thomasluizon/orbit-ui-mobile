@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -23,10 +23,6 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface EditGoalModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -47,10 +43,6 @@ interface UpdateGoalRequest {
   deadline?: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function EditGoalModal({
   open,
   onOpenChange,
@@ -67,11 +59,10 @@ export function EditGoalModal({
 
   const isStreak = isStreakGoal(goal.type)
 
-  // Form state
-  const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState('')
-  const [unit, setUnit] = useState('')
-  const [deadline, setDeadline] = useState('')
+  const [description, setDescription] = useState(() => goal.title)
+  const [targetValue, setTargetValue] = useState(() => String(goal.targetValue))
+  const [unit, setUnit] = useState(() => goal.unit)
+  const [deadline, setDeadline] = useState(() => goal.deadline ?? '')
   const [submitted, setSubmitted] = useState(false)
 
   const isSubmitting = updateGoal.isPending
@@ -85,7 +76,6 @@ export function EditGoalModal({
     onDismiss: () => onOpenChange(false),
   })
 
-  // Per-field inline errors (shown after first submit attempt)
   const fieldErrors = useMemo(() => {
     if (!submitted) return {}
     const errs: Record<string, string> = {}
@@ -102,26 +92,20 @@ export function EditGoalModal({
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  // Load goal data when modal opens
-  useEffect(() => {
-    if (open) {
+  const [previousSession, setPreviousSession] = useState<{ open: boolean; id: string | null }>({
+    open,
+    id: open ? goal.id : null,
+  })
+  const nextSessionId = open ? goal.id : null
+  if (previousSession.open !== open || previousSession.id !== nextSessionId) {
+    setPreviousSession({ open, id: nextSessionId })
+    if (open && (!previousSession.open || previousSession.id !== goal.id)) {
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
     }
-  }, [open, goal.id])
-
-  function validate(): string | null {
-    return translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
-  }
-
-  function buildTitle(): string {
-    return buildGoalTitle(description, targetValue, unit)
   }
 
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
@@ -129,7 +113,10 @@ export function EditGoalModal({
       e.preventDefault()
       setSubmitted(true)
 
-      const err = validate()
+      const err = translateErrorKey(
+        translate,
+        validateGoalDraftInput(description, targetValue, unit),
+      )
       if (err) {
         showError(err)
         return
@@ -139,7 +126,7 @@ export function EditGoalModal({
       if (parsedTargetValue === null) return
 
       try {
-        const title = buildTitle()
+        const title = buildGoalTitle(description, targetValue, unit)
         const request: UpdateGoalRequest = {
           title,
           targetValue: parsedTargetValue,
@@ -153,7 +140,6 @@ export function EditGoalModal({
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
@@ -167,161 +153,166 @@ export function EditGoalModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="space-y-5" onSubmit={onSubmit}>
-        {/* Streak type badge */}
-        {isStreak && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400">
-              {t('goals.form.typeStreak')}
-            </span>
-          </div>
-        )}
-
-        {/* Quantity + Unit */}
-        <div className={isStreak ? '' : 'grid grid-cols-2 gap-3'}>
-          <div>
-            <label
-              htmlFor="edit-goal-target"
-              className="form-label"
+        <form className="-mx-6" onSubmit={onSubmit}>
+          {isStreak && (
+            <div
+              style={{
+                padding: '10px 20px',
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+                letterSpacing: '0.04em',
+                borderBottom: '1px solid var(--hairline)',
+              }}
             >
-              {isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-            </label>
-            <input
+              {t('goals.form.typeStreak')}
+            </div>
+          )}
+
+          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 12px', gap: 14 }}>
+            <UnderlinedField
+              label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
               id="edit-goal-target"
               type="number"
+              mono
               value={targetValue}
-              onChange={(e) => setTargetValue(e.target.value)}
-              className="form-input"
-              min={0.01}
-              step="any"
-              aria-invalid={!!fieldErrors.targetValue}
-              aria-describedby={fieldErrors.targetValue ? 'edit-goal-target-error' : undefined}
+              error={fieldErrors.targetValue}
+              onChange={setTargetValue}
             />
-            {fieldErrors.targetValue && (
-              <p id="edit-goal-target-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.targetValue}</p>
-            )}
-          </div>
-          {isStreak ? (
-            <div>
-              <label
-                htmlFor="edit-goal-unit-readonly"
-                className="form-label"
-              >
-                {t('goals.form.unit')}
-              </label>
-              <input
+            {isStreak ? (
+              <UnderlinedField
+                label={t('goals.form.unit')}
                 id="edit-goal-unit-readonly"
                 type="text"
                 value={unit}
                 readOnly
-                className="form-input opacity-60 cursor-not-allowed"
+                onChange={() => {}}
               />
-            </div>
-          ) : (
-            <div>
-              <label
-                htmlFor="edit-goal-unit"
-                className="form-label"
-              >
-                {t('goals.form.unit')}
-              </label>
-              <input
+            ) : (
+              <UnderlinedField
+                label={t('goals.form.unit')}
                 id="edit-goal-unit"
                 type="text"
                 value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="form-input"
                 maxLength={50}
-                aria-invalid={!!fieldErrors.unit}
-                aria-describedby={fieldErrors.unit ? 'edit-goal-unit-error' : undefined}
+                error={fieldErrors.unit}
+                onChange={setUnit}
               />
-              {fieldErrors.unit && (
-                <p id="edit-goal-unit-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.unit}</p>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Description (optional) */}
-        <div>
-          <label
-            htmlFor="edit-goal-description"
-            className="form-label"
-          >
-            {t('goals.form.description')}
-            <span className="text-text-muted font-normal ml-1">({t('goals.form.descriptionOptional')})</span>
-          </label>
-          <input
-            id="edit-goal-description"
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="form-input"
-            placeholder={t('goals.form.descriptionPlaceholder')}
-            maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
-            aria-invalid={!!fieldErrors.description}
-            aria-describedby={fieldErrors.description ? 'edit-goal-description-error' : undefined}
-          />
-          {fieldErrors.description && (
-            <p id="edit-goal-description-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.description}</p>
-          )}
-        </div>
+          <div style={{ padding: '0 20px 12px' }}>
+            <UnderlinedField
+              label={t('goals.form.description')}
+              id="edit-goal-description"
+              type="text"
+              value={description}
+              placeholder={t('goals.form.descriptionPlaceholder')}
+              maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
+              error={fieldErrors.description}
+              onChange={setDescription}
+            />
+          </div>
 
-        {/* Deadline */}
-        <div className="space-y-1.5">
-          {deadline ? (
-            <div className="space-y-1.5">
-              <span className="form-label">
-                {t('goals.form.deadline')}
-                <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <AppDatePicker
-                    value={deadline}
-                    onChange={setDeadline}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
-                  onClick={() => setDeadline('')}
+          <div style={{ padding: '0 20px 16px' }}>
+            {deadline ? (
+              <div className="flex flex-col" style={{ gap: 4 }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'var(--fg-3)',
+                  }}
                 >
-                  <X className="size-4" />
-                </button>
+                  {t('goals.form.deadline')}
+                </span>
+                <div className="flex items-center" style={{ gap: 8 }}>
+                  <div className="flex-1">
+                    <AppDatePicker value={deadline} onChange={setDeadline} />
+                  </div>
+                  <button
+                    type="button"
+                    className="appearance-none border-0 bg-transparent cursor-pointer"
+                    style={{ padding: 6, color: 'var(--fg-3)' }}
+                    aria-label={t('common.cancel')}
+                    onClick={() => setDeadline('')}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                {isGoalDeadlinePast(deadline) && (
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 13,
+                      fontStyle: 'italic',
+                      color: 'var(--status-overdue)',
+                    }}
+                  >
+                    {t('goals.form.deadlineInPast')}
+                  </p>
+                )}
               </div>
-              {deadline && isGoalDeadlinePast(deadline) && (
-                <p className="text-xs text-amber-400 font-medium">
-                  {t('goals.form.deadlineInPast')}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <span className="form-label">
-                {t('goals.form.deadline')}
-                <span className="text-text-muted font-normal ml-1">({t('goals.form.deadlineOptional')})</span>
-              </span>
+            ) : (
               <button
                 type="button"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-1.5"
+                className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
+                style={{
+                  fontFamily: 'var(--font-family-sans)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                  padding: 0,
+                  gap: 6,
+                }}
                 onClick={() => setDeadline(formatAPIDate(new Date()))}
               >
-                <Plus className="size-3.5" />
+                <Plus size={14} />
                 {t('goals.form.addDeadline')}
               </button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
-        >
-          {isSubmitting ? '...' : t('common.save')}
-        </button>
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '12px 20px 16px',
+              borderTop: '1px solid var(--hairline)',
+            }}
+          >
+            <button
+              type="button"
+              className="appearance-none border-0 bg-transparent cursor-pointer"
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+                padding: 6,
+              }}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+              style={{
+                background: 'var(--primary)',
+                color: 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                padding: '10px 18px',
+                borderRadius: 8,
+              }}
+            >
+              {isSubmitting ? '...' : t('common.save')}
+            </button>
+          </div>
         </form>
       </AppOverlay>
       <ConfirmDialog
@@ -338,5 +329,88 @@ export function EditGoalModal({
         variant="warning"
       />
     </>
+  )
+}
+
+interface UnderlinedFieldProps {
+  label: string
+  id: string
+  type: 'text' | 'number'
+  mono?: boolean
+  value: string
+  placeholder?: string
+  maxLength?: number
+  readOnly?: boolean
+  error?: string
+  onChange: (next: string) => void
+}
+
+function UnderlinedField({
+  label,
+  id,
+  type,
+  mono = false,
+  value,
+  placeholder,
+  maxLength,
+  readOnly = false,
+  error,
+  onChange,
+}: Readonly<UnderlinedFieldProps>) {
+  return (
+    <div className="flex flex-col" style={{ gap: 4 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        readOnly={readOnly}
+        min={type === 'number' ? 0.01 : undefined}
+        step={type === 'number' ? 'any' : undefined}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          appearance: 'none',
+          border: 0,
+          background: 'transparent',
+          outline: 'none',
+          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontSize: 14,
+          color: readOnly ? 'var(--fg-3)' : 'var(--fg-1)',
+          padding: '6px 0',
+          borderBottom: '1px solid var(--hairline-strong)',
+          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
+          width: '100%',
+          opacity: readOnly ? 0.6 : 1,
+        }}
+      />
+      {error && (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {error}
+        </p>
+      )}
+    </div>
   )
 }

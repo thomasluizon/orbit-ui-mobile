@@ -16,8 +16,8 @@ interface EmptyStateProps {
 }
 
 const iconVariantClasses: Record<NonNullable<EmptyStateProps['iconVariant']>, string> = {
-  default: 'bg-surface-ground border border-border-muted text-text-muted',
-  success: 'bg-green-500/10 border border-green-500/20 text-green-400',
+  default: 'bg-[var(--bg-sunk)] border border-[var(--hairline)] text-[var(--fg-3)]',
+  success: 'bg-[var(--status-done)]/10 border border-[var(--status-done)]/20 text-[var(--status-done)]',
 }
 
 export function EmptyState({
@@ -44,9 +44,9 @@ export function EmptyState({
         <Icon className="size-8" />
       </div>
 
-      {title ? <p className="text-sm font-bold text-text-primary mt-4">{title}</p> : null}
+      {title ? <p className="text-sm font-bold text-[var(--fg-1)] mt-4">{title}</p> : null}
 
-      <p className="text-xs text-text-muted mt-1.5 max-w-[240px] mx-auto leading-relaxed">
+      <p className="text-xs text-[var(--fg-3)] mt-1.5 max-w-[240px] mx-auto leading-relaxed">
         {description}
       </p>
 
@@ -57,8 +57,8 @@ export function EmptyState({
           className={[
             'mt-5 inline-flex items-center rounded-[var(--radius-md)] px-4 py-2 text-xs font-semibold transition-colors',
             action.variant === 'secondary'
-              ? 'text-primary hover:text-primary/80'
-              : 'bg-primary text-white hover:bg-primary/90',
+              ? 'text-[var(--primary)] hover:text-[var(--primary-pressed)]'
+              : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-pressed)]',
           ].join(' ')}
         >
           {action.label}

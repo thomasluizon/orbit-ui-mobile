@@ -99,58 +99,54 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
       onOpenChange={onOpenChange}
       title={t('tour.replay.modalTitle')}
     >
-      <div className="space-y-4">
-        {/* Replay full tour button */}
+      <div className="space-y-5">
         <button
           type="button"
           onClick={handleReplayAll}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[var(--primary-pressed)]"
         >
           <RotateCcw className="size-4" />
           {t('tour.replay.replayAll')}
         </button>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-text-muted">
-            {t('tour.sections.habits').charAt(0).toUpperCase()}
-          </span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        {/* Section cards */}
-        <div className="space-y-2">
-          {availableSections.map((section) => {
+        <div>
+          {availableSections.map((section, index) => {
             const iconKey = TOUR_SECTION_ICONS[section]
             const Icon = SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
             const stepCount = getSectionStepCount(section)
             const completed = sectionCompletion[section]
 
             return (
-              <button
-                key={section}
-                type="button"
-                onClick={() => handleReplaySection(section)}
-                className="w-full flex items-center gap-3 rounded-xl border border-border-muted bg-surface p-4 text-left transition-colors hover:bg-surface-elevated hover:border-border"
-              >
-                <div className="shrink-0 flex items-center justify-center rounded-lg bg-primary/10 p-2.5">
-                  {Icon && <Icon className="size-4 text-primary" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary">
-                    {t(`tour.sections.${section}`)}
-                  </p>
-                  <p className="text-xs text-text-secondary">
-                    {t('tour.replay.steps', { count: stepCount })}
-                  </p>
-                </div>
-                {completed ? (
-                  <CheckCircle className="size-4 text-green-500 shrink-0" />
-                ) : (
-                  <Play className="size-4 text-text-muted shrink-0" />
-                )}
-              </button>
+              <div key={section}>
+                {index > 0 ? (
+                  <div className="h-px bg-[var(--hairline)]" />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => handleReplaySection(section)}
+                  className="w-full flex items-center gap-3.5 py-3.5 text-left transition-opacity hover:opacity-70"
+                >
+                  {Icon && (
+                    <Icon
+                      className="size-[18px] shrink-0 text-[var(--fg-3)]"
+                      strokeWidth={1.6}
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-medium text-[var(--fg-1)]">
+                      {t(`tour.sections.${section}`)}
+                    </p>
+                    <p className="text-[13px] text-[var(--fg-3)] mt-0.5">
+                      {t('tour.replay.steps', { count: stepCount })}
+                    </p>
+                  </div>
+                  {completed ? (
+                    <CheckCircle className="size-4 text-[var(--status-done)] shrink-0" />
+                  ) : (
+                    <Play className="size-4 text-[var(--fg-3)] shrink-0" />
+                  )}
+                </button>
+              </div>
             )
           })}
         </div>

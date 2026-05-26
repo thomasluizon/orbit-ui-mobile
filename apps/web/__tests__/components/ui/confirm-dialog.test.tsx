@@ -54,7 +54,9 @@ describe('ConfirmDialog', () => {
       />,
     )
 
-    expect(screen.getByText('This moves the task to tomorrow.').className).toContain('pb-4')
+    // v8: description sits in a paragraph with an inline paddingBottom buffer.
+    const desc = screen.getByText('This moves the task to tomorrow.') as HTMLElement
+    expect(desc.style.paddingBottom).toBe('16px')
   })
 
   it('shows default confirm and cancel labels', () => {
@@ -122,7 +124,7 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('renders danger variant by default', () => {
+  it('renders the destructive (danger) confirm label in italic — v8 spec, no semantic fill', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -132,26 +134,11 @@ describe('ConfirmDialog', () => {
         onConfirm={vi.fn()}
       />,
     )
-    const confirmBtn = screen.getByText('common.confirm')
-    expect(confirmBtn.className).toContain('bg-red-500')
+    const confirmBtn = screen.getByText('common.confirm') as HTMLElement
+    expect(confirmBtn.style.fontStyle).toBe('italic')
   })
 
-  it('renders warning variant', () => {
-    render(
-      <ConfirmDialog
-        open={true}
-        onOpenChange={vi.fn()}
-        title="Warning"
-        description="Proceed?"
-        onConfirm={vi.fn()}
-        variant="warning"
-      />,
-    )
-    const confirmBtn = screen.getByText('common.confirm')
-    expect(confirmBtn.className).toContain('bg-amber-500')
-  })
-
-  it('renders success variant', () => {
+  it('renders non-destructive variants without italic emphasis', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -162,7 +149,7 @@ describe('ConfirmDialog', () => {
         variant="success"
       />,
     )
-    const confirmBtn = screen.getByText('common.confirm')
-    expect(confirmBtn.className).toContain('bg-green-500')
+    const confirmBtn = screen.getByText('common.confirm') as HTMLElement
+    expect(confirmBtn.style.fontStyle).toBe('normal')
   })
 })

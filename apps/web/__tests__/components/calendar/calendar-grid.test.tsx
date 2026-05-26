@@ -82,7 +82,7 @@ describe('CalendarGrid', () => {
     expect(todayCell).toBeInTheDocument()
   })
 
-  it('renders dots for days with entries', () => {
+  it('renders status dots inside day cells when entries are present', () => {
     const dayMap = new Map<string, CalendarDayEntry[]>([
       [
         '2025-06-15',
@@ -105,11 +105,12 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    const dots = container.querySelectorAll('.rounded-full.size-1')
+    // v8: dots are inline span elements with the rounded-full class.
+    const dots = container.querySelectorAll('span.block.rounded-full')
     expect(dots.length).toBeGreaterThan(0)
   })
 
-  it('applies green background for completed days', () => {
+  it('marks completed days with a full fg-1 dot', () => {
     const dayMap = new Map<string, CalendarDayEntry[]>([
       [
         '2025-06-15',
@@ -132,8 +133,11 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    const greenCells = container.querySelectorAll('.bg-green-500')
-    expect(greenCells.length).toBeGreaterThan(0)
+    // The completed-day indicator uses background: var(--fg-1) in inline style.
+    const fullDot = Array.from(
+      container.querySelectorAll<HTMLSpanElement>('span.block.rounded-full'),
+    ).some((el) => el.style.background.includes('var(--fg-1)'))
+    expect(fullDot).toBe(true)
   })
 
   it('disables non-current-month days', () => {

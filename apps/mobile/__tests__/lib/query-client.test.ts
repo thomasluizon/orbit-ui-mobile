@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { queryClient, persistQueryCache, restoreQueryCache } from '@/lib/query-client'
+
 const { getItemMock, setItemMock } = vi.hoisted(() => ({
   getItemMock: vi.fn(),
   setItemMock: vi.fn(),
@@ -11,8 +13,6 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     setItem: setItemMock,
   },
 }))
-
-import { queryClient, persistQueryCache, restoreQueryCache } from '@/lib/query-client'
 
 describe('mobile query client', () => {
   beforeEach(() => {

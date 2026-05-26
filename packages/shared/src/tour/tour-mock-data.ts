@@ -1,12 +1,9 @@
 import type { HabitScheduleItem } from '../types/habit'
 import type { Goal } from '../types/goal'
 
-// ---------------------------------------------------------------------------
-// Mock data factories for the guided tour
-// All IDs prefixed with "tour-" to prevent collision with real data.
+// Mock data factories for the guided tour.
+// All IDs are prefixed with "tour-" to prevent collision with real data.
 // Accepts a translator function so mock data matches the user's locale.
-// ---------------------------------------------------------------------------
-
 type T = (key: string) => string
 
 export function createTourMockTags(t: T) {

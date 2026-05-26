@@ -3,6 +3,11 @@ import type { ColorScheme, ColorSchemeDefinition } from './types'
 export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   purple: {
     primary: '#8b5cf6', primaryLight: '#7c3aed', shadowRgb: '139, 92, 246',
+    v2: {
+      hue: 286,
+      dark: { primary: '#8b5cf6', primaryPressed: '#a78bfa', chromaBg: 0.014, chromaFg: 0.020 },
+      light: { primary: '#7c3aed', primaryPressed: '#6d28d9', chromaBg: 0.012, chromaFg: 0.018 },
+    },
     dark: {
       background: '#07060e', surfaceGround: '#0d0b16', surface: '#13111f',
       surfaceElevated: '#1a1829', surfaceOverlay: '#211f33',
@@ -41,6 +46,11 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   },
   blue: {
     primary: '#3b82f6', primaryLight: '#2563eb', shadowRgb: '59, 130, 246',
+    v2: {
+      hue: 256,
+      dark: { primary: '#3b82f6', primaryPressed: '#60a5fa', chromaBg: 0.014, chromaFg: 0.020 },
+      light: { primary: '#2563eb', primaryPressed: '#1d4ed8', chromaBg: 0.012, chromaFg: 0.018 },
+    },
     dark: {
       background: '#060a10', surfaceGround: '#0a1018', surface: '#101825',
       surfaceElevated: '#162233', surfaceOverlay: '#1c2c42',
@@ -79,6 +89,11 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   },
   green: {
     primary: '#22c55e', primaryLight: '#16a34a', shadowRgb: '34, 197, 94',
+    v2: {
+      hue: 150,
+      dark: { primary: '#22c55e', primaryPressed: '#4ade80', chromaBg: 0.012, chromaFg: 0.018 },
+      light: { primary: '#16a34a', primaryPressed: '#15803d', chromaBg: 0.010, chromaFg: 0.016 },
+    },
     dark: {
       background: '#060e0a', surfaceGround: '#0a160f', surface: '#101f17',
       surfaceElevated: '#162b20', surfaceOverlay: '#1c3829',
@@ -117,6 +132,11 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   },
   rose: {
     primary: '#f43f5e', primaryLight: '#e11d48', shadowRgb: '244, 63, 94',
+    v2: {
+      hue: 12,
+      dark: { primary: '#f43f5e', primaryPressed: '#fb7185', chromaBg: 0.014, chromaFg: 0.022 },
+      light: { primary: '#e11d48', primaryPressed: '#be123c', chromaBg: 0.012, chromaFg: 0.018 },
+    },
     dark: {
       background: '#0e0608', surfaceGround: '#16090d', surface: '#1f1014',
       surfaceElevated: '#29171d', surfaceOverlay: '#351e26',
@@ -155,6 +175,11 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   },
   orange: {
     primary: '#f97316', primaryLight: '#ea580c', shadowRgb: '249, 115, 22',
+    v2: {
+      hue: 50,
+      dark: { primary: '#f97316', primaryPressed: '#fb923c', chromaBg: 0.015, chromaFg: 0.024 },
+      light: { primary: '#ea580c', primaryPressed: '#c2410c', chromaBg: 0.013, chromaFg: 0.020 },
+    },
     dark: {
       background: '#0e0906', surfaceGround: '#160f0a', surface: '#1f1610',
       surfaceElevated: '#291e16', surfaceOverlay: '#35261c',
@@ -193,6 +218,11 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   },
   cyan: {
     primary: '#06b6d4', primaryLight: '#0891b2', shadowRgb: '6, 182, 212',
+    v2: {
+      hue: 220,
+      dark: { primary: '#06b6d4', primaryPressed: '#22d3ee', chromaBg: 0.014, chromaFg: 0.020 },
+      light: { primary: '#0891b2', primaryPressed: '#0e7490', chromaBg: 0.012, chromaFg: 0.018 },
+    },
     dark: {
       background: '#060c0e', surfaceGround: '#0a1416', surface: '#101e22',
       surfaceElevated: '#16282e', surfaceOverlay: '#1c343b',

@@ -7,11 +7,10 @@ import {
   getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from '@orbit/shared/utils/goal-metrics'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface GoalMetricsPanelProps {
   metrics: GoalMetricsViewModel | null
@@ -20,33 +19,11 @@ interface GoalMetricsPanelProps {
   isStreak?: boolean
 }
 
-type AppColors = {
-  primary: string
-  primary_10: string
-  white: string
-  textMuted: string
-  textSecondary: string
-  textPrimary: string
-  surface: string
-  surfaceElevated: string
-  borderMuted: string
-  amber400: string
-  amber500: string
-  red400: string
-  red500: string
-  green400: string
-  green500: string
-  surfaceGround: string
-}
 const goalRadius = {
   sm: 8,
   lg: 16,
   xl: 20,
 } as const
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function GoalMetricsPanel({
   metrics,
@@ -55,9 +32,13 @@ export function GoalMetricsPanel({
   isStreak = false,
 }: GoalMetricsPanelProps) {
   const { t, i18n } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const locale = i18n.language
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const statusConfig = useMemo(() => {
     const presentation = getGoalMetricsStatusPresentation(metrics?.trackingStatus)
@@ -68,40 +49,39 @@ export function GoalMetricsPanel({
         return {
           label: t(presentation.labelKey),
           bg: 'rgba(34, 197, 94, 0.10)',
-          text: colors.green400,
-          dot: colors.green500,
+          text: tokens.statusDone,
+          dot: tokens.statusDone,
         }
       case 'warning':
         return {
           label: t(presentation.labelKey),
           bg: 'rgba(245, 158, 11, 0.10)',
-          text: colors.amber400,
-          dot: colors.amber500,
+          text: tokens.statusOverdue,
+          dot: tokens.statusOverdue,
         }
       case 'danger':
         return {
           label: t(presentation.labelKey),
           bg: 'rgba(248, 113, 113, 0.10)',
-          text: colors.red400,
-          dot: colors.red500,
+          text: tokens.statusBad,
+          dot: tokens.statusBad,
         }
       case 'muted':
         return {
           label: t(presentation.labelKey),
-          bg: colors.surfaceElevated,
-          text: colors.textSecondary,
-          dot: colors.textMuted,
+          bg: tokens.bgElev,
+          text: tokens.fg2,
+          dot: tokens.fg3,
         }
       default:
         return null
     }
-  }, [colors, metrics?.trackingStatus, t])
+  }, [tokens, metrics?.trackingStatus, t])
 
   function formatMetricDate(dateStr: string) {
     return formatGoalMetricsDate(dateStr, locale)
   }
 
-  // Loading skeleton
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -116,7 +96,6 @@ export function GoalMetricsPanel({
 
   if (!metrics) return null
 
-  // Days remaining for streak goals
   const daysRemaining =
     isStreak &&
     metrics.daysToDeadline != null &&
@@ -126,7 +105,6 @@ export function GoalMetricsPanel({
 
   return (
     <View style={styles.container}>
-      {/* Tracking Status Badge */}
       {statusConfig && (
         <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
           <View style={[styles.statusDot, { backgroundColor: statusConfig.dot }]} />
@@ -136,9 +114,7 @@ export function GoalMetricsPanel({
         </View>
       )}
 
-      {/* Stats Grid */}
       <View style={styles.statsGrid}>
-        {/* Projected Completion */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>
             {t('goals.metrics.projectedCompletion')}
@@ -150,7 +126,6 @@ export function GoalMetricsPanel({
           </Text>
         </View>
 
-        {/* For streak goals: days remaining. For standard: velocity */}
         {isStreak ? (
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>
@@ -176,7 +151,6 @@ export function GoalMetricsPanel({
         )}
       </View>
 
-      {/* Linked Habit Adherence */}
       {metrics.habitAdherence.length > 0 && (
         <View>
           <Text style={styles.adherenceTitle}>
@@ -189,10 +163,10 @@ export function GoalMetricsPanel({
               )
               const barColor =
                 adherenceTone === 'success'
-                  ? colors.green500
+                  ? tokens.statusDone
                   : adherenceTone === 'primary'
-                    ? colors.primary
-                    : colors.amber500
+                    ? tokens.primary
+                    : tokens.statusOverdue
 
               return (
                 <View key={habit.habitId} style={styles.adherenceCard}>
@@ -237,31 +211,25 @@ export function GoalMetricsPanel({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: AppColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
   container: {
     gap: 16,
     paddingVertical: 16,
   },
 
-  // Skeleton
   skeletonBadge: {
     height: 32,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: tokens.bgElev,
     borderRadius: goalRadius.xl,
   },
   skeletonStat: {
     height: 64,
     flex: 1,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: tokens.bgElev,
     borderRadius: goalRadius.xl,
   },
 
-  // Status badge
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -270,7 +238,7 @@ function createStyles(colors: AppColors) {
     paddingVertical: 10,
     borderRadius: goalRadius.lg,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: tokens.hairline,
   },
   statusDot: {
     width: 8,
@@ -282,19 +250,18 @@ function createStyles(colors: AppColors) {
     fontWeight: '600',
   },
 
-  // Stats grid
   statsGrid: {
     flexDirection: 'row',
     gap: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: tokens.bgElev,
     borderRadius: goalRadius.lg,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: tokens.hairline,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.4,
@@ -304,25 +271,24 @@ function createStyles(colors: AppColors) {
   statLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: tokens.fg3,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   statValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: tokens.fg1,
     marginTop: 4,
   },
   statValueAmber: {
-    color: colors.amber400,
+    color: tokens.statusOverdue,
   },
 
-  // Habit adherence
   adherenceTitle: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: tokens.fg3,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -331,7 +297,7 @@ function createStyles(colors: AppColors) {
     gap: 8,
   },
   adherenceCard: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: tokens.bgElev,
     borderRadius: goalRadius.lg,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -339,7 +305,7 @@ function createStyles(colors: AppColors) {
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: tokens.hairline,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.4,
@@ -353,7 +319,7 @@ function createStyles(colors: AppColors) {
   adherenceHabitTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textPrimary,
+    color: tokens.fg1,
   },
   adherenceBarRow: {
     flexDirection: 'row',
@@ -364,7 +330,7 @@ function createStyles(colors: AppColors) {
   adherenceBarBg: {
     flex: 1,
     height: 6,
-    backgroundColor: colors.surface,
+    backgroundColor: tokens.bgElev,
     borderRadius: 9999,
     overflow: 'hidden',
   },
@@ -375,19 +341,19 @@ function createStyles(colors: AppColors) {
   adherencePercent: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: tokens.fg3,
   },
   streakBadge: {
     marginLeft: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: goalRadius.sm,
-    backgroundColor: colors.primary_10,
+    backgroundColor: tokens.bgSunk,
   },
   streakText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.primary,
+    color: tokens.primary,
   },
   })
 }

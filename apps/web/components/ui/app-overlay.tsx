@@ -1,22 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useId, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useCallback, useId, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
+import { useIsClient } from '@/hooks/use-is-client'
 import {
   isTopOverlay,
   registerOverlay,
   unregisterOverlay,
   type OverlayCloseReason,
 } from '@/lib/overlay-stack'
-
-// ---------------------------------------------------------------------------
-// linkifyText -- converts URLs in plain text to clickable <a> tags
-// ---------------------------------------------------------------------------
 
 function escapeHtml(text: string): string {
   return text
@@ -33,17 +30,13 @@ function linkifyText(text: string): string {
   const result = parts.map((part, i) => {
     const escaped = escapeHtml(part)
     if (i % 2 === 1) {
-      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${escaped}</a>`
+      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-[var(--primary)] hover:underline">${escaped}</a>`
     }
     return escaped
   }).join('')
 
   return DOMPurify.sanitize(result, { ALLOWED_TAGS: ['a'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class'] })
 }
-
-// ---------------------------------------------------------------------------
-// AppOverlay
-// ---------------------------------------------------------------------------
 
 interface AppOverlayProps {
   open: boolean
@@ -89,13 +82,9 @@ export function AppOverlay({
   const pointerDownOnBackdrop = useRef(false)
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
   const requestCloseRef = useRef<(reason: OverlayCloseReason) => void>(() => {})
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('dialog', Boolean(prefersReducedMotion))
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const lockBodyScroll = useCallback(() => {
     if (bodyScrollLockCount === 0) {
@@ -143,7 +132,6 @@ export function AppOverlay({
     requestCloseRef.current = requestClose
   }, [requestClose])
 
-  // Focus trap
   useEffect(() => {
     if (!open) return
 
@@ -171,7 +159,6 @@ export function AppOverlay({
         .filter((el) => !el.closest('[hidden]'))
     }
 
-    // Auto-focus first focusable element
     requestAnimationFrame(() => {
       if (!isTopOverlay(overlayId)) return
       if (initialFocusRef?.current) {
@@ -251,7 +238,7 @@ export function AppOverlay({
         >
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/65 backdrop-blur-md cursor-default"
+            className="absolute inset-0 bg-black/65 cursor-default"
             aria-label={t('common.close')}
             tabIndex={-1}
             onPointerDown={handlePointerDown}
@@ -279,7 +266,7 @@ export function AppOverlay({
             aria-modal="true"
             aria-labelledby={hasTitle ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
-            className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-clip rounded-t-[var(--radius-2xl)] border-t border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] sm:rounded-[var(--radius-2xl)] sm:border flex flex-col overscroll-contain [box-shadow:var(--shadow-lg),inset_0_1px_0_var(--surface-top-highlight)]"
+            className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-clip rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)] sm:rounded-[12px] sm:border sm:border-[var(--hairline)] flex flex-col overscroll-contain"
             initial={{
               opacity: 0,
               y: motionPreset.shift,
@@ -305,7 +292,7 @@ export function AppOverlay({
             }}
           >
             <div className="flex justify-center pt-3 pb-2 sm:hidden">
-              <div className="h-1 w-10 rounded-full bg-primary/20" />
+              <div className="h-1 w-10 rounded-full bg-[var(--hairline-strong)]" />
             </div>
 
             {hasTitle && (
@@ -313,7 +300,7 @@ export function AppOverlay({
                 <div className="flex-1 min-w-0">
                   <h2
                     id={titleId}
-                    className="font-extrabold text-[length:var(--text-fluid-2xl)] text-text-primary tracking-tight"
+                    className="font-extrabold text-[length:var(--text-fluid-2xl)] text-[var(--fg-1)] tracking-tight"
                   >
                     {titleContent || title}
                   </h2>
@@ -321,12 +308,12 @@ export function AppOverlay({
                     <div className="mt-1 flex items-start gap-2">
                       <p
                         id={descriptionId}
-                        className="flex-1 text-sm text-text-secondary whitespace-pre-wrap max-h-32 overflow-y-auto"
+                        className="flex-1 text-sm text-[var(--fg-2)] whitespace-pre-wrap max-h-32 overflow-y-auto"
                         dangerouslySetInnerHTML={{ __html: linkedDescription }}
                       />
                       {expandable && (
                         <button
-                          className="shrink-0 size-8 rounded-full border border-border-muted bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-[background-color,border-color,color] duration-150 mt-0.5"
+                          className="shrink-0 size-8 rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-[background-color,border-color,color] duration-150 mt-0.5"
                           aria-label={t('common.expandDescription')}
                           onClick={onExpandDescription}
                         >
@@ -338,7 +325,7 @@ export function AppOverlay({
                 </div>
                 {dismissible && (
                   <button
-                    className="shrink-0 size-9 rounded-full border border-border-muted bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-[background-color,border-color,color,transform] duration-150 ml-4 active:scale-[var(--orbit-press-scale)]"
+                    className="shrink-0 size-9 rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-[background-color,border-color,color,transform] duration-150 ml-4 active:scale-[var(--orbit-press-scale)]"
                     aria-label={t('common.close')}
                     onClick={() => requestClose('close-button')}
                   >
@@ -360,7 +347,7 @@ export function AppOverlay({
             {footer && (
               <div
                 data-slot="overlay-footer"
-                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-border-muted bg-surface-overlay/80"
+                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-[var(--hairline)] bg-[var(--bg-elev)]"
               >
                 {footer}
               </div>

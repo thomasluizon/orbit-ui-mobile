@@ -53,14 +53,14 @@ describe('ActionChips', () => {
   it('shows success styling for successful actions', () => {
     const actions = [makeAction({ status: 'Success' })]
     const { container } = render(<ActionChips actions={actions} />)
-    const chip = container.querySelector('.text-emerald-400')
+    const chip = container.querySelector('[data-action-status="Success"]')
     expect(chip).toBeInTheDocument()
   })
 
   it('shows error styling for failed actions', () => {
     const actions = [makeAction({ status: 'Failed', error: 'Something went wrong' })]
     const { container } = render(<ActionChips actions={actions} />)
-    const chip = container.querySelector('.text-red-400')
+    const chip = container.querySelector('[data-action-status="Failed"]')
     expect(chip).toBeInTheDocument()
   })
 

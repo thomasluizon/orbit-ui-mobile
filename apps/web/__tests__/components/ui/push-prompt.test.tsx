@@ -136,12 +136,11 @@ describe('PushPrompt', () => {
 
     fireEvent.click(screen.getByText('pushPrompt.later'))
 
-    // After dismiss, the component transitions to hidden (opacity-0).
-    // The Secure cookie flag prevents JSDOM from storing the cookie,
-    // so we verify the visual hide transition class was applied.
+    // After dismiss the prompt fades out (inline opacity flips to 0) before
+    // unmounting; assert via the dialog wrapper style.
     await waitFor(() => {
-      const wrapper = screen.getByText('pushPrompt.title').closest('[class*="transition-all"]')
-      expect(wrapper?.className).toContain('opacity-0')
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.style.opacity).toBe('0')
     })
   })
 
@@ -167,10 +166,9 @@ describe('PushPrompt', () => {
     // Click the X close button (its parent button)
     fireEvent.click(screen.getByTestId('x-icon').closest('button')!)
 
-    // After dismiss, the component transitions to hidden
     await waitFor(() => {
-      const wrapper = screen.getByText('pushPrompt.title').closest('[class*="transition-all"]')
-      expect(wrapper?.className).toContain('opacity-0')
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.style.opacity).toBe('0')
     })
   })
 
@@ -192,8 +190,8 @@ describe('PushPrompt', () => {
 
     // Give effect time to run
     await new Promise((r) => setTimeout(r, 50))
-    // Should remain hidden since already subscribed
-    expect(container.querySelector('[class*="translate-y-0"]')).toBeNull()
+    // Should remain hidden since already subscribed (no dialog mounted).
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
   it('shows prompt when getSubscription throws an error and permission is not granted', async () => {

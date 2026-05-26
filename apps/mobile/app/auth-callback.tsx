@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -25,10 +25,10 @@ import {
 } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
-import { createColors } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type AppColors = ReturnType<typeof createColors>
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AuthCallbackErrorState {
   message: string
@@ -37,8 +37,12 @@ interface AuthCallbackErrorState {
 
 export default function AuthCallbackScreen() {
   const { t, i18n } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const params = useLocalSearchParams<{
     token?: string
     refreshToken?: string
@@ -60,36 +64,39 @@ export default function AuthCallbackScreen() {
   const processedRef = useRef(false)
   const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
 
-  function resolveCallbackError(err: unknown): AuthCallbackErrorState {
-    const status = err instanceof ApiClientError ? err.status : undefined
-    const payload = err instanceof ApiClientError ? err.data : err
-    const backendMessage = extractAuthBackendMessage(payload)
-    const requestId = extractBackendRequestId(payload)
-    const hasStructuredContext =
-      status !== undefined ||
-      backendMessage !== undefined ||
-      requestId !== undefined ||
-      err instanceof TypeError
+  const resolveCallbackError = useCallback(
+    (err: unknown): AuthCallbackErrorState => {
+      const status = err instanceof ApiClientError ? err.status : undefined
+      const payload = err instanceof ApiClientError ? err.data : err
+      const backendMessage = extractAuthBackendMessage(payload)
+      const requestId = extractBackendRequestId(payload)
+      const hasStructuredContext =
+        status !== undefined ||
+        backendMessage !== undefined ||
+        requestId !== undefined ||
+        err instanceof TypeError
 
-    if (!hasStructuredContext) {
+      if (!hasStructuredContext) {
+        return {
+          message: t('auth.callbackError'),
+          requestId,
+        }
+      }
+
+      const key = resolveAuthLoginErrorKey({
+        status,
+        backendMessage,
+        raw: err,
+        source: 'google',
+      })
+
       return {
-        message: t('auth.callbackError'),
+        message: t(key),
         requestId,
       }
-    }
-
-    const key = resolveAuthLoginErrorKey({
-      status,
-      backendMessage,
-      raw: err,
-      source: 'google',
-    })
-
-    return {
-      message: t(key),
-      requestId,
-    }
-  }
+    },
+    [t],
+  )
 
   const callbackUrl = useMemo(
     () =>
@@ -148,7 +155,7 @@ export default function AuthCallbackScreen() {
       const nextErrorState = resolveCallbackError(error)
       setErrorState(nextErrorState)
     })
-  }, [callbackUrl, i18n.language, login, router, t])
+  }, [callbackUrl, i18n.language, login, resolveCallbackError, router, t])
 
   useEffect(() => {
     if (processedRef.current || errorState || callbackUrl || isPendingGoogleAuthSession) return
@@ -184,7 +191,7 @@ export default function AuthCallbackScreen() {
         </>
       ) : (
         <>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tokens.primary} />
           <Text style={styles.text}>{t('auth.signingIn')}</Text>
         </>
       )}
@@ -192,38 +199,38 @@ export default function AuthCallbackScreen() {
   )
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: tokens.bg,
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 24,
       gap: 16,
     },
     text: {
-      color: colors.textSecondary,
+      color: tokens.fg2,
       fontSize: 16,
     },
     errorCard: {
       width: '100%',
       maxWidth: 360,
       borderRadius: 20,
-      backgroundColor: colors.redBg,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.redBorder,
+      borderColor: tokens.hairlineStrong,
       paddingHorizontal: 16,
       paddingVertical: 14,
     },
     errorText: {
-      color: colors.red400,
+      color: tokens.statusBad,
       fontSize: 14,
       textAlign: 'center',
       lineHeight: 20,
     },
     errorReferenceText: {
-      color: colors.red400,
+      color: tokens.statusBad,
       fontSize: 12,
       textAlign: 'center',
       lineHeight: 18,
@@ -235,7 +242,7 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: 12,
     },
     backButtonText: {
-      color: colors.primary,
+      color: tokens.primary,
       fontSize: 14,
       fontWeight: '700',
     },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -82,7 +82,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     },
   })
 
-  const watchedValues = normalizeHabitFormData(form.watch())
+  // useWatch (not form.watch()) so React Compiler can memoize — watch()'s
+  // function reference is unstable and trips react-hooks/incompatible-library.
+  const watchedValues = normalizeHabitFormData(
+    useWatch({ control: form.control }) as HabitFormInput,
+  )
   const { isOneTime, isGeneral, isFlexible, isRecurring, showDayPicker, showEndDate } =
     getHabitFormFlags(watchedValues)
 

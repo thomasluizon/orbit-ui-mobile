@@ -15,7 +15,7 @@ export {
 
 interface SpeechResultEvent {
   isFinal?: boolean
-  results: Array<{ transcript: string }>
+  results: { transcript: string }[]
 }
 
 interface SpeechErrorEvent {
@@ -42,13 +42,38 @@ interface SpeechRecognitionModule {
   ) => void
 }
 
+declare const require: (id: string) => unknown
+
+function hasFunctionAt(value: object, path: readonly string[]): boolean {
+  let current: unknown = value
+  for (const key of path) {
+    if (!current || typeof current !== 'object') return false
+    if (!(key in current)) return false
+    current = Reflect.get(current, key)
+  }
+  return typeof current === 'function'
+}
+
+function isSpeechRecognitionModule(value: unknown): value is SpeechRecognitionModule {
+  if (!value || typeof value !== 'object') return false
+
+  return (
+    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'isRecognitionAvailable']) &&
+    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'requestPermissionsAsync']) &&
+    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'start']) &&
+    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'stop']) &&
+    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'abort']) &&
+    hasFunctionAt(value, ['useSpeechRecognitionEvent'])
+  )
+}
+
 function getSpeechModule(): SpeechRecognitionModule | null {
   if (Platform.OS === 'web') return null
-  // expo-speech-recognition is unavailable in Expo Go because the native module isn't bundled there.
   if (Constants.appOwnership === AppOwnership.Expo) return null
 
   try {
-    return require('expo-speech-recognition') as SpeechRecognitionModule
+    const requiredModule = require('expo-speech-recognition')
+    return isSpeechRecognitionModule(requiredModule) ? requiredModule : null
   } catch {
     return null
   }
@@ -76,36 +101,40 @@ function getSpeechErrorMessageFromCode(error: string, t: (key: string, options?:
 
 export function useSpeechToText() {
   const { t, i18n } = useTranslation()
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isMountedRef = useRef(true)
 
   const [isRecording, setIsRecording] = useState(false)
-  const [isSupported, setIsSupported] = useState(() => getSpeechRecognitionAvailability())
+  const [isSupported] = useState(() => getSpeechRecognitionAvailability())
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [selectedLanguage, setSelectedLanguageState] = useState(() =>
     getDefaultChatSpeechLanguage(i18n.language),
   )
   const [recordingDuration, setRecordingDuration] = useState(0)
+  // Timer id lives in state (read only via the setter callback) so the helpers
+  // passed to useSpeechRecognitionEvent don't capture ref reads at render time.
+  const [_timerId, setTimerId] = useState<ReturnType<typeof setInterval> | null>(null)
 
   const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
+    setTimerId((current) => {
+      if (current) clearInterval(current)
+      return null
+    })
   }, [])
 
   const startTimer = useCallback(() => {
     clearTimer()
     setRecordingDuration(0)
-    timerRef.current = setInterval(() => {
+    const id = setInterval(() => {
       setRecordingDuration((current) => current + 1)
     }, 1000)
+    setTimerId(id)
   }, [clearTimer])
 
+  // `isSupported` is seeded by the lazy useState above and never changes after
+  // mount (the speech module is statically required), so we don't re-probe here.
   useEffect(() => {
     isMountedRef.current = true
-    setIsSupported(getSpeechRecognitionAvailability())
 
     AsyncStorage.getItem(CHAT_SPEECH_LANG_KEY)
       .then((storedLanguage) => {

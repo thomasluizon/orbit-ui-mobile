@@ -6,8 +6,6 @@ import {
   agentPolicyDenialSchema,
 } from './ai'
 
-// --- Enums ---
-
 export const aiActionTypeSchema = z.enum([
   'CreateHabit',
   'LogHabit',
@@ -35,8 +33,6 @@ export const actionStatusSchema = z.enum(['Success', 'Failed', 'Suggestion', 'Ne
 
 export type ActionStatus = z.infer<typeof actionStatusSchema>
 
-// --- Clarification (NeedsClarification status) ---
-
 export const quickActionSchema = z.object({
   label: z.string(),
   // `value` is what the client echoes back verbatim to the resolve endpoint; empty
@@ -56,8 +52,6 @@ export const clarificationRequestSchema = z.object({
 })
 
 export type ClarificationRequest = z.infer<typeof clarificationRequestSchema>
-
-// --- Sub-schemas ---
 
 export const conflictingHabitSchema = z.object({
   habitId: z.string(),
@@ -103,8 +97,6 @@ export const suggestedSubHabitSchema = z.object({
 
 export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
-// --- Action result ---
-
 export const actionResultSchema = z
   .object({
     type: aiActionTypeSchema,
@@ -134,8 +126,6 @@ export const actionResultSchema = z
   })
 
 export type ActionResult = z.infer<typeof actionResultSchema>
-
-// --- Chat ---
 
 export const chatMessageSchema = z.object({
   id: z.string(),

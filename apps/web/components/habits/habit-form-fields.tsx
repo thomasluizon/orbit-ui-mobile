@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useMemo, useId, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, Bell, Check, ShieldAlert, PenSquare, CalendarCheck, Repeat, Shuffle, Infinity, ChevronDown } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { X, Plus, Bell, Check, ShieldAlert, PenSquare, ChevronDown, CalendarCheck, Repeat, Shuffle, Infinity } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
@@ -27,10 +26,6 @@ import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface HabitFormFieldsProps {
   formHelpers: HabitFormHelpers
   titleInputRef?: RefObject<HTMLInputElement | null>
@@ -46,10 +41,6 @@ interface HabitFormFieldsProps {
   defaultExpanded?: boolean
   children?: ReactNode
 }
-
-// ---------------------------------------------------------------------------
-// Reminder presets
-// ---------------------------------------------------------------------------
 
 interface PillToggleOption {
   key: string
@@ -111,9 +102,9 @@ function ColorSwatches({
           type="button"
           aria-label={ariaLabel(color)}
           aria-pressed={activeColor === color}
-          className={`size-5 rounded-full transition-all ${
+          className={`size-5 rounded-full transition-transform ${
             activeColor === color
-              ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
+              ? 'ring-2 ring-[var(--fg-1)] ring-offset-2 ring-offset-[var(--bg)] scale-110'
               : 'hover:scale-110'
           }`}
           style={{ backgroundColor: color }}
@@ -156,7 +147,7 @@ function TagEditorRow({
         placeholder={placeholder}
         maxLength={50}
         disabled={disabled}
-        className="flex-1 min-w-0 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-xs border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="flex-1 min-w-0 bg-[var(--bg-elev)]text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-xl py-2 px-3 text-xs border border-[var(--hairline)]focus:outline-none focus:border-[var(--primary)]"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -167,7 +158,7 @@ function TagEditorRow({
       />
       <button
         type="button"
-        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-50"
+        className="shrink-0 px-3 py-2 rounded-xl bg-[var(--primary)] text-[var(--fg-on-primary)] text-xs font-bold hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150 disabled:opacity-50"
         disabled={disabled}
         onClick={onCommit}
       >
@@ -176,7 +167,7 @@ function TagEditorRow({
       <button
         type="button"
         aria-label={cancelAriaLabel}
-        className="shrink-0 p-2 text-text-muted hover:text-text-primary"
+        className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
         disabled={disabled}
         onClick={onCancel}
       >
@@ -246,7 +237,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
     <div className="space-y-2">
       <button
         type="button"
-        className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-border bg-surface/80 p-4 text-left transition-colors duration-150 hover:border-primary/30 hover:bg-surface-elevated/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        className="group flex w-full items-center justify-between gap-4 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-4 text-left transition-colors duration-150 hover:border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]"
         onClick={() => setPickerOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
@@ -254,16 +245,16 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
       >
         <span>
           <span className="form-label mb-1">{t('habits.form.emoji')}</span>
-          <span className="block text-xs text-text-muted">{t('habits.form.emojiDescription')}</span>
+          <span className="block text-xs text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</span>
         </span>
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-2xl transition-colors duration-150 group-hover:bg-primary/15">
+        <span className="grid size-12 shrink-0 place-items-center rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--bg-sunk)] text-2xl transition-colors duration-150 group-hover:bg-[var(--bg-elev)]">
           {selectedDisplayEmoji}
         </span>
       </button>
 
       {pickerOpen && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4"
           role="presentation"
           onMouseDown={closePicker}
         >
@@ -271,20 +262,20 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
             role="dialog"
             aria-modal="true"
             aria-label={t('habits.form.emojiPickerTitle')}
-            className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-[0_20px_80px_rgba(0,0,0,0.45)]"
+            className="w-full max-w-xl overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-border-muted px-4 py-3">
+            <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-2xl">{selectedDisplayEmoji}</span>
+                <span className="grid size-10 place-items-center rounded-xl bg-[var(--bg-sunk)] text-2xl">{selectedDisplayEmoji}</span>
                 <div>
-                  <h3 className="text-sm font-semibold text-text-primary">{t('habits.form.emojiPickerTitle')}</h3>
-                  <p className="text-xs text-text-muted">{t('habits.form.emojiDescription')}</p>
+                  <h3 className="text-sm font-semibold text-[var(--fg-1)]">{t('habits.form.emojiPickerTitle')}</h3>
+                  <p className="text-xs text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</p>
                 </div>
               </div>
               <button
                 type="button"
-                className="grid size-8 place-items-center rounded-lg text-text-muted hover:bg-surface-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                className="grid size-8 place-items-center rounded-lg text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]"
                 onClick={closePicker}
                 aria-label={t('common.close')}
               >
@@ -310,8 +301,8 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                       aria-pressed={selected}
                       className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         selected
-                          ? 'border-primary/60 bg-primary/15 text-text-primary'
-                          : 'border-border-muted bg-surface text-text-secondary hover:border-primary/30 hover:text-text-primary'
+                          ? 'border-[var(--primary)] bg-[var(--bg-elev)] text-[var(--fg-1)]'
+                          : 'border-[var(--hairline)] bg-[var(--bg-elev)]text-[var(--fg-2)] hover:border-[var(--hairline-strong)] hover:text-[var(--fg-1)]'
                       }`}
                       onClick={() => handleSelectCategory(category.id)}
                     >
@@ -323,10 +314,10 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
 
               <div className="max-h-[min(420px,55vh)] overflow-y-auto pr-1">
                 {filteredCategories.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-text-muted">{t('habits.form.emojiPickerEmpty')}</p>
+                  <p className="py-8 text-center text-sm text-[var(--fg-3)]">{t('habits.form.emojiPickerEmpty')}</p>
                 ) : filteredCategories.map((category) => (
                   <section key={category.id} id={`habit-emoji-${category.id}`} className="scroll-mt-3 pb-4">
-                    <h4 className="mb-2 text-xs font-semibold text-text-muted">{t(category.labelKey)}</h4>
+                    <h4 className="mb-2 text-xs font-semibold text-[var(--fg-3)]">{t(category.labelKey)}</h4>
                     <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10" role="listbox" aria-label={t(category.labelKey)}>
                       {category.emojis.map((emoji) => {
                         const isSelected = selectedDisplayEmoji === emoji
@@ -339,8 +330,8 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                             aria-label={`${t('habits.form.emoji')}: ${emoji}`}
                             className={`grid size-10 place-items-center rounded-xl border text-xl transition-colors duration-150 ${
                               isSelected
-                                ? 'border-primary/60 bg-primary/18'
-                                : 'border-transparent hover:border-border hover:bg-surface-elevated'
+                                ? 'border-[var(--primary)] bg-[var(--bg-elev)]'
+                                : 'border-transparent hover:border-[var(--hairline-strong)] hover:bg-[var(--bg-elev)]'
                             }`}
                             onClick={() => handleSelectEmoji(emoji)}
                           >
@@ -374,10 +365,10 @@ function HabitTagChip({
 }: Readonly<HabitTagChipProps>) {
   return (
     <div
-      className={`flex items-center rounded-full text-xs font-semibold transition-all ${
+      className={`flex items-center rounded-full text-xs font-semibold transition-[background-color,border-color,color,opacity] ${
         selected
           ? 'text-white'
-          : 'bg-surface border border-border text-text-secondary'
+          : 'bg-[var(--bg-elev)]border border-[var(--hairline)]text-[var(--fg-2)]'
       } ${
         !selected && atLimit
           ? 'opacity-30 pointer-events-none'
@@ -399,7 +390,7 @@ function HabitTagChip({
       <button
         type="button"
         className={`pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
-          selected ? 'text-white/70' : 'text-text-muted'
+          selected ? 'text-white/70' : 'text-[var(--fg-3)]'
         }`}
         aria-label={editAriaLabel}
         disabled={disabled}
@@ -410,7 +401,7 @@ function HabitTagChip({
       <button
         type="button"
         className={`pr-2 pl-0.5 py-1.5 hover:opacity-60 transition-opacity ${
-          selected ? 'text-white/70' : 'text-text-muted'
+          selected ? 'text-white/70' : 'text-[var(--fg-3)]'
         }`}
         aria-label={deleteAriaLabel}
         disabled={disabled}
@@ -421,10 +412,6 @@ function HabitTagChip({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Reminder sub-component (S3776: extracted to reduce cognitive complexity)
-// ---------------------------------------------------------------------------
 
 interface ReminderSectionProps {
   reminderLabelId: string
@@ -482,18 +469,18 @@ function ReminderSection({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+    <div className="space-y-3 rounded-lg border border-[var(--hairline)] p-4 bg-[var(--bg-sunk)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Bell className="size-4 text-primary" />
-          <span id={reminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.reminder')}</span>
+          <Bell className="size-4 text-[var(--primary)]" />
+          <span id={reminderLabelId} className="text-sm font-medium text-[var(--fg-1)]">{t('habits.form.reminder')}</span>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={reminderEnabled}
           aria-labelledby={reminderLabelId}
-          className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${reminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+          className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${reminderEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--bg-elev)]'}`}
           onClick={onToggleReminder}
         >
           <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${reminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
@@ -506,13 +493,13 @@ function ReminderSection({
             {reminderTimes.map((time) => (
               <span
                 key={time}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--bg-elev)] text-[var(--primary)]"
               >
                 {reminderLabel(time)}
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-primary/60'}`}
+                  className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--primary-pressed)]'}`}
                   disabled={reminderTimes.length <= 1}
                   onClick={() => removeReminder(time)}
                 >
@@ -526,7 +513,7 @@ function ReminderSection({
           <div className="relative">
             <button
               type="button"
-              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
               onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}
             >
               <Plus className="size-3.5" />
@@ -534,12 +521,12 @@ function ReminderSection({
             </button>
 
             {showAddReminder && (
-              <div className="mt-2 rounded-lg border border-border-muted bg-surface-overlay shadow-[var(--shadow-lg)] p-1">
+              <div className="mt-2 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)] p-1">
                 {availablePresets.map((preset) => (
                   <button
                     key={preset.value}
                     type="button"
-                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-text-primary hover:bg-surface-elevated/80 transition-all duration-150"
+                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-[var(--fg-1)] hover:bg-[var(--bg-elev)]/80 transition-colors duration-150"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -553,7 +540,7 @@ function ReminderSection({
                       min={1}
                       aria-label={t('habits.form.reminderCustomPlaceholder')}
                       placeholder={t('habits.form.reminderCustomPlaceholder')}
-                      className="w-20 bg-surface text-text-primary rounded-xl py-1.5 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-20 bg-[var(--bg-elev)]text-[var(--fg-1)] rounded-xl py-1.5 px-3 text-sm border border-[var(--hairline)]focus:outline-none focus:border-[var(--primary)]"
                       onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                     />
@@ -565,7 +552,7 @@ function ReminderSection({
                     />
                     <button
                       type="button"
-                      className="shrink-0 p-1.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-all duration-150"
+                      className="shrink-0 p-1.5 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-colors duration-150"
                       onClick={addCustomReminder}
                     >
                       <Plus className="size-3.5" />
@@ -574,7 +561,7 @@ function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-primary font-medium hover:bg-surface-elevated/80 transition-all duration-150"
+                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-[var(--primary)] font-medium hover:bg-[var(--bg-elev)]/80 transition-colors duration-150"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}
@@ -587,10 +574,6 @@ function ReminderSection({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Scheduled reminder sub-component (S3776: extracted to reduce cognitive complexity)
-// ---------------------------------------------------------------------------
 
 interface ScheduledReminderSectionProps {
   scheduledReminderLabelId: string
@@ -606,7 +589,7 @@ function ScheduledReminderSection({
   scheduledReminderLabelId, reminderEnabled, scheduledReminders,
   onToggleReminder, onSetScheduledReminders, onValidationError, t,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const MAX_SCHEDULED_REMINDERS = 5
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
@@ -648,18 +631,18 @@ function ScheduledReminderSection({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+    <div className="space-y-3 rounded-lg border border-[var(--hairline)] p-4 bg-[var(--bg-sunk)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Bell className="size-4 text-primary" />
-          <span id={scheduledReminderLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.scheduledReminder')}</span>
+          <Bell className="size-4 text-[var(--primary)]" />
+          <span id={scheduledReminderLabelId} className="text-sm font-medium text-[var(--fg-1)]">{t('habits.form.scheduledReminder')}</span>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={reminderEnabled}
           aria-labelledby={scheduledReminderLabelId}
-          className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${reminderEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+          className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${reminderEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--bg-elev)]'}`}
           onClick={onToggleReminder}
         >
           <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${reminderEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
@@ -672,10 +655,10 @@ function ScheduledReminderSection({
               {(scheduledReminders ?? []).map((sr, idx) => (
                 <span
                   key={`${sr.when}-${sr.time}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--bg-elev)] text-[var(--primary)]"
                 >
                   {scheduledReminderLabel(sr)}
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="hover:text-primary/60 transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="hover:text-[var(--primary-pressed)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
                     <X className="size-3" aria-hidden="true" />
                   </button>
                 </span>
@@ -687,7 +670,7 @@ function ScheduledReminderSection({
             {!showForm && !atLimit && (
               <button
                 type="button"
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
                 onClick={() => setShowForm(true)}
               >
                 <Plus className="size-3.5" />
@@ -696,7 +679,7 @@ function ScheduledReminderSection({
             )}
 
             {atLimit && (
-              <p className="text-xs text-text-muted">{t('habits.form.scheduledReminderMax')}</p>
+              <p className="text-xs text-[var(--fg-3)]">{t('habits.form.scheduledReminderMax')}</p>
             )}
 
             {showForm && (
@@ -704,10 +687,10 @@ function ScheduledReminderSection({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-[background-color,border-color,color] ${
                       when === 'day_before'
-                        ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                        : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                        ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+                        : 'bg-[var(--bg-elev)]border border-[var(--hairline)]text-[var(--fg-2)] hover:text-[var(--fg-1)]'
                     }`}
                     onClick={() => setWhen('day_before')}
                   >
@@ -715,10 +698,10 @@ function ScheduledReminderSection({
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-[background-color,border-color,color] ${
                       when === 'same_day'
-                        ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                        : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
+                        ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+                        : 'bg-[var(--bg-elev)]border border-[var(--hairline)]text-[var(--fg-2)] hover:text-[var(--fg-1)]'
                     }`}
                     onClick={() => setWhen('same_day')}
                   >
@@ -731,12 +714,12 @@ function ScheduledReminderSection({
                     value={time}
                     ariaLabel={t('habits.form.scheduledReminderTimePlaceholder')}
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                    className="flex-1 bg-surface text-text-primary placeholder-text-muted rounded-xl py-2 px-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                    className="flex-1 bg-[var(--bg-elev)]text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-xl py-2 px-3 text-sm border border-[var(--hairline)]focus:outline-none focus:border-[var(--primary)] transition-[border-color,box-shadow]"
                     onChange={setTime}
                   />
                   <button
                     type="button"
-                    className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all duration-150 disabled:opacity-40"
+                    className="shrink-0 px-3 py-2 rounded-xl bg-[var(--primary)] text-[var(--fg-on-primary)] text-xs font-bold hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150 disabled:opacity-40"
                     disabled={!time}
                     onClick={addScheduledReminder}
                   >
@@ -745,7 +728,7 @@ function ScheduledReminderSection({
                   <button
                     type="button"
                     aria-label={t('common.cancel')}
-                    className="shrink-0 p-2 text-text-muted hover:text-text-primary transition-colors"
+                    className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
                     onClick={() => { setShowForm(false); setTime('') }}
                   >
                     <X className="size-3.5" aria-hidden="true" />
@@ -759,10 +742,6 @@ function ScheduledReminderSection({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Slip alert sub-component (S3776: extracted to reduce cognitive complexity)
-// ---------------------------------------------------------------------------
 
 interface SlipAlertSectionProps {
   hasProAccess: boolean
@@ -779,16 +758,15 @@ function SlipAlertSection({
   const router = useRouter()
 
   return (
-    <div className="space-y-3 rounded-lg border border-border-muted p-4 bg-surface-ground">
+    <div className="space-y-3 rounded-lg border border-[var(--hairline)] p-4 bg-[var(--bg-sunk)]">
       {hasProAccess ? (
-        /* Pro unlocked state */
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="size-4 text-primary" />
-              <span id={slipAlertLabelId} className="text-sm font-medium text-text-primary">{t('habits.form.slipAlert')}</span>
+              <ShieldAlert className="size-4 text-[var(--primary)]" />
+              <span id={slipAlertLabelId} className="text-sm font-medium text-[var(--fg-1)]">{t('habits.form.slipAlert')}</span>
             </div>
-            <span id={slipAlertDescriptionId} className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+            <span id={slipAlertDescriptionId} className="text-xs text-[var(--fg-3)] ml-6">{t('habits.form.slipAlertDescription')}</span>
           </div>
           <button
             type="button"
@@ -796,14 +774,13 @@ function SlipAlertSection({
             aria-checked={slipAlertEnabled}
             aria-labelledby={slipAlertLabelId}
             aria-describedby={slipAlertDescriptionId}
-            className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${slipAlertEnabled ? 'bg-primary' : 'bg-surface-elevated'}`}
+            className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0 ml-3 ${slipAlertEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--bg-elev)]'}`}
             onClick={onToggle}
           >
             <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${slipAlertEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
           </button>
         </div>
       ) : (
-        /* Pro locked state */
         <button
           type="button"
           className="flex w-full items-center justify-between gap-3 text-left"
@@ -811,13 +788,13 @@ function SlipAlertSection({
         >
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="size-4 text-text-muted" />
-              <span className="text-sm font-medium text-text-muted">{t('habits.form.slipAlert')}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
+              <ShieldAlert className="size-4 text-[var(--fg-3)]" />
+              <span className="text-sm font-medium text-[var(--fg-3)]">{t('habits.form.slipAlert')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-elev)] border border-[var(--hairline-strong)] text-[var(--primary)] px-1.5 py-0.5 rounded-full">{t('common.proBadge')}</span>
             </div>
-            <span className="text-xs text-text-muted ml-6">{t('habits.form.slipAlertDescription')}</span>
+            <span className="text-xs text-[var(--fg-3)] ml-6">{t('habits.form.slipAlertDescription')}</span>
           </div>
-          <div className="relative w-10 h-5.5 rounded-full bg-surface-elevated shrink-0 ml-3 opacity-50 cursor-not-allowed">
+          <div className="relative w-10 h-5.5 rounded-full bg-[var(--bg-elev)] shrink-0 ml-3 opacity-50 cursor-not-allowed">
             <span className="absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow" />
           </div>
         </button>
@@ -825,14 +802,6 @@ function SlipAlertSection({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Frequency type card config
-// ---------------------------------------------------------------------------
 
 const FREQUENCY_TYPE_CARDS = [
   { key: 'one-time', icon: CalendarCheck, titleKey: 'habits.form.oneTimeTask', descKey: 'habits.form.oneTimeDescription', exampleKey: 'habits.form.oneTimeExample' },
@@ -896,7 +865,8 @@ export function HabitFormFields({
   const watchedIsBadHabit = watch('isBadHabit') ?? false
   const watchedReminderEnabled = watch('reminderEnabled') ?? false
   const watchedSlipAlertEnabled = watch('slipAlertEnabled') ?? false
-  const watchedChecklistItems = watch('checklistItems') ?? []
+  const watchedChecklistItemsRaw = watch('checklistItems')
+  const watchedChecklistItems = useMemo(() => watchedChecklistItemsRaw ?? [], [watchedChecklistItemsRaw])
   const watchedScheduledReminders = watch('scheduledReminders') ?? []
   const { tags: availableTags = [] } = useTags()
   const createTag = useCreateTag()
@@ -904,7 +874,6 @@ export function HabitFormFields({
   const deleteTag = useDeleteTag()
   const isTagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
 
-  // Reminder label function (shared with ReminderSection)
   function reminderLabel(minutes: number): string {
     const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
     if (preset) return t(preset.key as Parameters<typeof t>[0])
@@ -917,7 +886,6 @@ export function HabitFormFields({
     return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
   }
 
-  // Clear dueEndTime when dueTime is emptied
   useEffect(() => {
     if (!watchedDueTime && watchedDueEndTime) {
       setValue('dueEndTime', '', { shouldDirty: true })
@@ -933,10 +901,8 @@ export function HabitFormFields({
     setValue('reminderEnabled', nextEnabled, { shouldDirty: true })
   }, [onReminderEnabledChange, setValue])
 
-  // Progressive disclosure
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
 
-  // Compute active frequency type key for card highlighting
   const activeFrequencyKey = (() => {
     if (isOneTime) return 'one-time'
     if (isGeneral) return 'general'
@@ -951,7 +917,6 @@ export function HabitFormFields({
     general: setGeneral,
   }), [setOneTime, setRecurring, setFlexible, setGeneral])
 
-  // Count filled advanced fields for the badge
   const watchedDescription = watch('description') ?? ''
   const watchedEmoji = watch('emoji') ?? ''
   const advancedFieldCount = useMemo(() => {
@@ -965,7 +930,6 @@ export function HabitFormFields({
     ].filter(Boolean).length
   }, [watchedDescription, watchedChecklistItems, watchedEndDate, watchedReminderEnabled, selectedGoalIds, watchedIsBadHabit])
 
-  // Tag pop animation
   const [justToggledTagId, setJustToggledTagId] = useState('')
 
   function handleTagToggle(tagId: string) {
@@ -978,11 +942,6 @@ export function HabitFormFields({
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════════
-         PRIMARY FIELDS -- Always visible
-         ═══════════════════════════════════════════════════ */}
-
-      {/* Title */}
       <div className="space-y-2">
         <label htmlFor="habit-form-title" className="form-label">
           {t('habits.form.title')}
@@ -1004,7 +963,7 @@ export function HabitFormFields({
           }}
         />
         {errors.title && (
-          <p id="habit-form-title-error" className="text-xs text-destructive mt-1" role="alert">
+          <p id="habit-form-title-error" className="text-xs text-[var(--status-bad)] mt-1" role="alert">
             {errors.title.message}
           </p>
         )}
@@ -1015,53 +974,83 @@ export function HabitFormFields({
         onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
       />
 
-      {/* Frequency type cards (2x2 grid) */}
       <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
         <span id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
         </span>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col" style={{ gap: 6 }}>
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
-            const CardIcon = card.icon
+            const Icon = card.icon
             return (
               <button
                 key={card.key}
                 type="button"
+                aria-pressed={isActive}
                 onClick={frequencyHandlers[card.key]}
-                className={`relative text-left p-4 rounded-[var(--radius-xl)] border-2 transition-all duration-200 ${
-                  isActive
-                    ? 'border-primary bg-primary/8 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.1)]'
-                    : 'border-border-muted bg-surface-elevated/50 hover:border-border hover:bg-surface-elevated'
-                }`}
+                className="appearance-none cursor-pointer text-left w-full transition-[background-color,box-shadow] duration-150"
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  background: isActive ? 'var(--bg-elev)' : 'transparent',
+                  boxShadow: isActive
+                    ? 'inset 0 0 0 1px var(--fg-3)'
+                    : 'inset 0 0 0 1px var(--hairline-strong)',
+                  border: 0,
+                }}
               >
-                <div className={`size-9 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${
-                  isActive
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-surface-elevated text-text-muted'
-                }`}>
-                  <CardIcon className="size-[18px]" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon
+                    size={18}
+                    aria-hidden="true"
+                    style={{ color: isActive ? 'var(--fg-1)' : 'var(--fg-3)', flexShrink: 0 }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 13,
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+                    }}
+                  >
+                    {t(card.titleKey as Parameters<typeof t>[0])}
+                  </span>
                 </div>
-                <p className={`text-sm font-bold mb-0.5 ${
-                  isActive ? 'text-text-primary' : 'text-text-secondary'
-                }`}>
-                  {t(card.titleKey as Parameters<typeof t>[0])}
-                </p>
-                <p className="text-[11px] text-text-muted leading-snug">
-                  {t(card.descKey as Parameters<typeof t>[0])}
-                </p>
-                <p className="text-[10px] text-text-muted/60 mt-1.5 italic leading-snug">
-                  {t(card.exampleKey as Parameters<typeof t>[0])}
-                </p>
+                {isActive && (
+                  <div style={{ marginTop: 6, paddingLeft: 28 }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-family-sans)',
+                        fontSize: 12,
+                        color: 'var(--fg-3)',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {t(card.descKey as Parameters<typeof t>[0])}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontFamily: 'var(--font-family-sans)',
+                        fontSize: 11,
+                        fontStyle: 'italic',
+                        color: 'var(--fg-3)',
+                        opacity: 0.7,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {t(card.exampleKey as Parameters<typeof t>[0])}
+                    </div>
+                  </div>
+                )}
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Type-adaptive frequency sub-fields */}
       {isFlexible && (
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-[var(--fg-3)]">
           {t('habits.form.flexibleDescription', {
             n: watchedFrequencyQuantity ?? 3,
             unit: watchedFrequencyUnit
@@ -1109,7 +1098,6 @@ export function HabitFormFields({
         </div>
       )}
 
-      {/* Day picker */}
       {showDayPicker && !isGeneral && (
         <div className="space-y-2" role="group" aria-labelledby="habit-form-active-days-label">
           <span id="habit-form-active-days-label" className="form-label">
@@ -1117,9 +1105,9 @@ export function HabitFormFields({
           </span>
           <PillToggleRow
             containerClassName="flex flex-wrap gap-2"
-            buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-            activeClassName="bg-primary text-white"
-            inactiveClassName="bg-surface border border-border text-text-secondary hover:text-text-primary"
+            buttonClassName="px-3 py-1.5 rounded-full text-xs font-semibold transition-[background-color,border-color,color]"
+            activeClassName="bg-[var(--primary)] text-[var(--fg-on-primary)]"
+            inactiveClassName="bg-[var(--bg-elev)]border border-[var(--hairline)]text-[var(--fg-2)] hover:text-[var(--fg-1)]"
             options={daysList.map((day) => ({
               key: day.value,
               label: day.label,
@@ -1130,7 +1118,6 @@ export function HabitFormFields({
         </div>
       )}
 
-      {/* Due date + Due time (combined row) */}
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
@@ -1152,12 +1139,15 @@ export function HabitFormFields({
               value={watchedDueTime}
               ariaLabel={t('habits.form.dueTime')}
               onChange={(nextValue) => setValue('dueTime', nextValue, { shouldDirty: true })}
+              onClear={() => {
+                setValue('dueTime', '', { shouldDirty: true })
+                setValue('dueEndTime', '', { shouldDirty: true })
+              }}
             />
           </div>
         </div>
       )}
 
-      {/* Tags */}
       <div className="space-y-2" role="group" aria-labelledby="habit-form-tags-label">
         <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
@@ -1192,7 +1182,7 @@ export function HabitFormFields({
           {!tags.showNewTag && !tags.atTagLimit && (
             <button
               type="button"
-              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface border border-dashed border-border text-text-muted hover:text-text-primary hover:border-primary/50 transition-all"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--bg-elev)]border border-dashed border-[var(--hairline)]text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:border-[var(--hairline-strong)] transition-[background-color,border-color,color]"
               disabled={isTagMutationPending}
               onClick={() => tags.setShowNewTag(true)}
             >
@@ -1200,7 +1190,6 @@ export function HabitFormFields({
             </button>
           )}
         </div>
-        {/* Inline tag edit */}
         {tags.editingTagId && (
           <div className="space-y-2">
             <ColorSwatches
@@ -1235,7 +1224,6 @@ export function HabitFormFields({
             />
           </div>
         )}
-        {/* Inline new tag creation */}
         {tags.showNewTag && (
           <div className="space-y-2">
             <ColorSwatches
@@ -1274,21 +1262,17 @@ export function HabitFormFields({
         )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════
-         ADVANCED FIELDS -- Behind "More options"
-         ═══════════════════════════════════════════════════ */}
-
-      <div className="border-t border-border-muted pt-4 mt-2">
+      <div className="border-t border-[var(--hairline)] pt-4 mt-2">
         <button
           type="button"
           aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors w-full py-3"
+          className="flex items-center gap-2 text-sm font-medium text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors w-full py-3"
         >
           <ChevronDown className={`size-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
           {t('habits.form.moreOptions' as Parameters<typeof t>[0])}
           {advancedFieldCount > 0 && (
-            <span className="text-xs text-primary">{t('habits.form.moreOptionsCount' as Parameters<typeof t>[0], { count: advancedFieldCount })}</span>
+            <span className="text-xs text-[var(--primary)]">{t('habits.form.moreOptionsCount' as Parameters<typeof t>[0], { count: advancedFieldCount })}</span>
           )}
         </button>
       </div>
@@ -1300,7 +1284,6 @@ export function HabitFormFields({
         }`}
       >
         <div className="space-y-6 pt-2">
-          {/* Description */}
           <div className="space-y-2">
             <label htmlFor="habit-form-description" className="form-label">
               {t('habits.form.description')}
@@ -1315,7 +1298,6 @@ export function HabitFormFields({
             />
           </div>
 
-          {/* Checklist */}
           <div className="space-y-2" role="group" aria-labelledby="habit-form-checklist-label">
             <span id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
@@ -1333,7 +1315,6 @@ export function HabitFormFields({
             </div>
           </div>
 
-          {/* End time */}
           {watchedDueTime && !isGeneral && (
             <div className="space-y-2">
               <label htmlFor="habit-form-due-end-time" className="form-label">
@@ -1345,11 +1326,11 @@ export function HabitFormFields({
                 value={watchedDueEndTime}
                 ariaLabel={t('habits.form.dueEndTime')}
                 onChange={(nextValue) => setValue('dueEndTime', nextValue, { shouldDirty: true })}
+                onClear={() => setValue('dueEndTime', '', { shouldDirty: true })}
               />
             </div>
           )}
 
-          {/* End date (recurring only) */}
           {showEndDate && (
             <div className="space-y-1.5">
               {watchedEndDate ? (
@@ -1367,18 +1348,18 @@ export function HabitFormFields({
                     <button
                       type="button"
                       aria-label={t('habits.form.removeEndDate')}
-                      className="shrink-0 p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-full"
+                      className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors rounded-full"
                       onClick={() => setValue('endDate', '', { shouldDirty: true })}
                     >
                       <X className="size-4" />
                     </button>
                   </div>
-                  <p className="text-xs text-text-muted">{t('habits.form.endDateHint')}</p>
+                  <p className="text-xs text-[var(--fg-3)]">{t('habits.form.endDateHint')}</p>
                 </div>
               ) : (
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
                   onClick={() =>
                     setValue('endDate', watchedDueDate || '', {
                       shouldDirty: true,
@@ -1392,7 +1373,6 @@ export function HabitFormFields({
             </div>
           )}
 
-          {/* Reminder (only when dueTime is set, hidden for general habits) */}
           {watchedDueTime && !isGeneral && (
             <ReminderSection
               reminderLabelId={reminderLabelId}
@@ -1405,7 +1385,6 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Scheduled reminders (when no dueTime, hidden for general habits) */}
           {!watchedDueTime && !isGeneral && (
             <ScheduledReminderSection
               scheduledReminderLabelId={scheduledReminderLabelId}
@@ -1418,7 +1397,6 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Goals */}
           {hasProAccess && (
             <GoalLinkingField
               selectedGoalIds={selectedGoalIds}
@@ -1427,15 +1405,14 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Bad habit toggle */}
           {!isGeneral && (
             <label className="flex items-center gap-3 cursor-pointer py-2">
               <div
-                className={`size-5 rounded-lg border-2 flex items-center justify-center transition-all ${
-                  watchedIsBadHabit ? 'bg-primary border-primary' : 'border-border'
+                className={`size-5 rounded-lg border-2 flex items-center justify-center transition-[background-color,border-color] ${
+                  watchedIsBadHabit ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--hairline-strong)]'
                 }`}
               >
-                {watchedIsBadHabit && <Check className="size-3 text-white" />}
+                {watchedIsBadHabit && <Check className="size-3 text-[var(--fg-on-primary)]" />}
               </div>
               <input
                 type="checkbox"
@@ -1443,11 +1420,10 @@ export function HabitFormFields({
                 checked={watchedIsBadHabit}
                 onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
               />
-              <span className="text-sm text-text-primary">{t('habits.form.badHabitLabel')}</span>
+              <span className="text-sm text-[var(--fg-1)]">{t('habits.form.badHabitLabel')}</span>
             </label>
           )}
 
-          {/* Slip alert toggle (only when bad habit) */}
           {watchedIsBadHabit && (
             <SlipAlertSection
               hasProAccess={hasProAccess}
@@ -1459,7 +1435,6 @@ export function HabitFormFields({
             />
           )}
 
-          {/* Slot for extra fields (e.g. sub-habits) */}
           {children}
         </div>
       </div>

@@ -44,10 +44,10 @@ describe('ThemeToggle', () => {
     expect(mockToggle).toHaveBeenCalled()
   })
 
-  it('renders two icon containers (Sun and Moon)', () => {
+  it('renders exactly one icon for the current theme', () => {
+    // v8: a single Sun (dark mode) OR Moon (light mode) icon — no crossfade pair.
     mockTheme = 'dark'
     const { container } = render(<ThemeToggle />)
-    const svgs = container.querySelectorAll('svg')
-    expect(svgs.length).toBe(2)
+    expect(container.querySelectorAll('svg').length).toBe(1)
   })
 })

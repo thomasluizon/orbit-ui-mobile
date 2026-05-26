@@ -1,24 +1,20 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
-  Switch,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
-  ArrowLeft,
-  ShieldCheck,
-  Trash2,
-  Lock,
   ChevronLeft,
   ChevronRight,
-  Check,
-  CheckCircle,
+  Lock,
+  Sparkles,
+  Trash2,
   X,
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -33,10 +29,14 @@ import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
-import { spacing } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ProBadge } from '@/components/ui/pro-badge'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { MonoToggle } from '@/components/ui/mono-toggle'
+import { SelectCheck } from '@/components/ui/select-check'
 
 interface UserFact {
   id: string
@@ -44,23 +44,22 @@ interface UserFact {
   category: string | null
 }
 
-// ---------------------------------------------------------------------------
-// AI Settings Screen
-// ---------------------------------------------------------------------------
-
 export default function AiSettingsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(), [])
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
 
-  // --- AI Memory toggle ---
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       performQueuedApiMutation({
@@ -87,7 +86,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  // --- AI Summary toggle ---
   const aiSummaryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       performQueuedApiMutation({
@@ -114,7 +112,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  // --- User Facts ---
   const factsQuery = useQuery({
     queryKey: userFactKeys.lists(),
     queryFn: () => apiClient<UserFact[]>(API.userFacts.list),
@@ -197,7 +194,6 @@ export default function AiSettingsScreen() {
     },
   })
 
-  // Pagination
   const [factsPage, setFactsPage] = useState(1)
   const totalFactsPages = useMemo(
     () => Math.max(1, Math.ceil(facts.length / USER_FACTS_PER_PAGE)),
@@ -208,13 +204,10 @@ export default function AiSettingsScreen() {
     return facts.slice(start, start + USER_FACTS_PER_PAGE)
   }, [facts, factsPage])
 
-  useEffect(() => {
-    if (factsPage > totalFactsPages) {
-      setFactsPage(totalFactsPages)
-    }
-  }, [factsPage, totalFactsPages])
+  if (factsPage > totalFactsPages && totalFactsPages >= 1) {
+    setFactsPage(totalFactsPages)
+  }
 
-  // Selection mode
   const [selectMode, setSelectMode] = useState(false)
   const [selectedFactIds, setSelectedFactIds] = useState<Set<string>>(new Set())
 
@@ -241,507 +234,441 @@ export default function AiSettingsScreen() {
     }
   }
 
-  function factCategoryColor(category: string | null): {
-    text: string
-    bg: string
-  } {
-    switch (normalizeUserFactCategory(category)) {
-      case 'preference':
-        return { text: colors.primary, bg: 'rgba(139,92,246,0.10)' }
-      case 'routine':
-        return { text: colors.emerald, bg: 'rgba(52,211,153,0.10)' }
-      case 'context':
-        return { text: colors.blue, bg: 'rgba(96,165,250,0.10)' }
-      default:
-        return { text: colors.textSecondary, bg: colors.surfaceElevated }
-    }
+  function categoryLabel(category: string | null): string {
+    const norm = normalizeUserFactCategory(category) ?? 'context'
+    return t(`profile.facts.${norm}`, { defaultValue: norm }).toUpperCase()
   }
 
+  const factsTrailing = (
+    <View style={styles.factsTrailing}>
+      <Text style={[styles.factsPageMono, { color: tokens.fg3 }]}>
+        {t('profile.facts.title')}
+      </Text>
+    </View>
+  )
+
+  const pagingTrailing = (
+    <View style={styles.pagingRow}>
+      <Text style={[styles.pagingText, { color: tokens.fg3 }]}>
+        <Text style={{ color: tokens.fg1 }}>{factsPage}</Text> / {totalFactsPages}
+      </Text>
+      <Pressable
+        onPress={() => setFactsPage((p) => Math.max(1, p - 1))}
+        disabled={factsPage === 1}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.previous')}
+        style={styles.pageBtn}
+      >
+        <ChevronLeft
+          size={14}
+          color={factsPage === 1 ? tokens.fg4 : tokens.fg3}
+        />
+      </Pressable>
+      <Pressable
+        onPress={() => setFactsPage((p) => Math.min(totalFactsPages, p + 1))}
+        disabled={factsPage === totalFactsPages}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.next')}
+        style={styles.pageBtn}
+      >
+        <ChevronRight
+          size={14}
+          color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg3}
+        />
+      </Pressable>
+    </View>
+  )
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
+      edges={['top']}
+    >
+      <AppBar
+        back
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('aiSettings.title')}
+        backLabel={t('common.goBack')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBackOrFallback('/profile')}
-            activeOpacity={0.7}
+        <SectionLabel>{t('profile.aiMemory.title')}</SectionLabel>
+        {hasProAccess ? (
+          <SettingsRow
+            label={t('profile.aiMemory.title')}
+            accessory="none"
           >
-            <ArrowLeft size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('aiSettings.title')}</Text>
-        </View>
-
-        {/* AI Memory */}
-        <View style={styles.card}>
-          <View style={styles.toggleHeader}>
-            <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>
-                {t('profile.aiMemory.title')}
-              </Text>
-              <ProBadge alwaysVisible />
-            </View>
-            {hasProAccess ? (
-              <Switch
-                value={aiMemoryEnabled}
-                onValueChange={(value) => aiMemoryMutation.mutate(value)}
-                trackColor={{
-                  false: colors.surfaceElevated,
-                  true: colors.primary,
-                }}
-                thumbColor="#fff"
-                disabled={aiMemoryMutation.isPending}
-              />
-            ) : (
-              <TouchableOpacity
-                onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
-                style={styles.lockRow}
-              >
-                <Lock size={14} color={colors.primary} />
-                <Text style={styles.lockText}>
-                  {t('common.proBadge').toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={styles.cardDescription}>
+            <MonoToggle
+              on={aiMemoryEnabled}
+              onPress={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
+              disabled={aiMemoryMutation.isPending}
+              accessibilityLabel={t('profile.aiMemory.title')}
+            />
+          </SettingsRow>
+        ) : (
+          <SettingsRow
+            label={t('profile.aiMemory.title')}
+            onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
+            accessory="chevron"
+          >
+            <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
+          </SettingsRow>
+        )}
+        <View
+          style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
+        >
+          <Text style={[styles.italicText, { color: tokens.fg3 }]}>
             {t('profile.aiMemory.description')}
           </Text>
-          <View style={styles.privacyRow}>
-            <ShieldCheck size={14} color={colors.emerald} />
-            <Text style={styles.privacyText}>
-              {t('profile.aiMemory.privacy')}
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.statusText,
-              { color: aiMemoryEnabled ? colors.primary : colors.textMuted },
-            ]}
-          >
-            {aiMemoryEnabled
-              ? t('profile.aiMemory.enabled')
-              : t('profile.aiMemory.disabled')}
-          </Text>
         </View>
 
-        {/* AI Summary */}
-        <View style={styles.card}>
-          <View style={styles.toggleHeader}>
-            <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>
-                {t('profile.aiSummary.title')}
-              </Text>
-              <ProBadge alwaysVisible />
-            </View>
-            {hasProAccess ? (
-              <Switch
-                value={aiSummaryEnabled}
-                onValueChange={(value) => aiSummaryMutation.mutate(value)}
-                trackColor={{
-                  false: colors.surfaceElevated,
-                  true: colors.primary,
-                }}
-                thumbColor="#fff"
-                disabled={aiSummaryMutation.isPending}
-              />
-            ) : (
-              <TouchableOpacity
-                onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
-                style={styles.lockRow}
-              >
-                <Lock size={14} color={colors.primary} />
-                <Text style={styles.lockText}>
-                  {t('common.proBadge').toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={styles.cardDescription}>
+        <SectionLabel>{t('profile.aiSummary.title')}</SectionLabel>
+        {hasProAccess ? (
+          <SettingsRow
+            label={t('profile.aiSummary.title')}
+            accessory="none"
+          >
+            <MonoToggle
+              on={aiSummaryEnabled}
+              onPress={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+              disabled={aiSummaryMutation.isPending}
+              accessibilityLabel={t('profile.aiSummary.title')}
+            />
+          </SettingsRow>
+        ) : (
+          <SettingsRow
+            label={t('profile.aiSummary.title')}
+            onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
+            accessory="chevron"
+          >
+            <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
+          </SettingsRow>
+        )}
+        <View
+          style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
+        >
+          <Text style={[styles.italicText, { color: tokens.fg3 }]}>
             {t('profile.aiSummary.description')}
           </Text>
-          <Text
-            style={[
-              styles.statusText,
-              { color: aiSummaryEnabled ? colors.primary : colors.textMuted },
-            ]}
-          >
-            {aiSummaryEnabled
-              ? t('profile.aiSummary.enabled')
-              : t('profile.aiSummary.disabled')}
-          </Text>
         </View>
 
-        {/* What Orbit Knows -- User Facts */}
-        <View style={styles.card}>
-          <View style={styles.factsHeader}>
-            <View style={styles.labelRow}>
-              <Text style={styles.cardLabel}>{t('profile.facts.title')}</Text>
-              {facts.length > 0 && (
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{facts.length}</Text>
-                </View>
-              )}
-            </View>
-            {facts.length > 0 && (
-              <TouchableOpacity
-                style={styles.selectButton}
-                onPress={toggleSelectMode}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  selectMode ? t('common.cancel') : t('profile.facts.select')
-                }
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                {selectMode ? (
-                  <X size={12} color={colors.textSecondary} />
-                ) : (
-                  <CheckCircle size={12} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
+        <SectionLabel
+          trailing={
+            hasProAccess && totalFactsPages > 1 ? pagingTrailing : factsTrailing
+          }
+        >
+          {t('profile.facts.title')}
+        </SectionLabel>
 
-          {/* Bulk actions bar */}
-          {selectMode && (
-            <View style={styles.bulkActionsBar}>
-              <TouchableOpacity onPress={toggleSelectAll}>
-                <Text style={styles.selectAllText}>
-                  {selectedFactIds.size === facts.length
-                    ? t('profile.facts.deselectAll')
-                    : t('profile.facts.selectAll')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+        {!hasProAccess ? (
+          <View
+            style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
+          >
+            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+              {t('profile.facts.lockedHint')}
+            </Text>
+          </View>
+        ) : factsQuery.isLoading ? (
+          <View style={styles.skelStack}>
+            <View
+              style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+            />
+            <View
+              style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+            />
+          </View>
+        ) : facts.length === 0 ? (
+          <View style={styles.emptyBlock}>
+            <Sparkles size={26} color={tokens.fg3} strokeWidth={1.4} />
+            <Text
+              style={[styles.emptyText, { color: tokens.fg3 }]}
+            >
+              {t('profile.facts.empty')}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {selectMode ? (
+              <View
                 style={[
-                  styles.deleteSelectedButton,
-                  selectedFactIds.size === 0 && { opacity: 0.3 },
+                  styles.selectBar,
+                  { borderBottomColor: tokens.hairline },
                 ]}
-                disabled={selectedFactIds.size === 0}
-                onPress={() => bulkDeleteMutation.mutate([...selectedFactIds])}
               >
-                <Text style={styles.deleteSelectedText}>
-                  {t('profile.facts.deleteSelected', {
+                <Text
+                  style={[styles.selectedCount, { color: tokens.fg1 }]}
+                >
+                  {t('profile.facts.selectedCount', {
                     n: selectedFactIds.size,
                   })}
                 </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Loading state */}
-          {factsQuery.isLoading && (
-            <View style={{ gap: 12 }}>
-              <View
-                style={[styles.skeletonBar, { height: 40, borderRadius: 16 }]}
-              />
-              <View
-                style={[styles.skeletonBar, { height: 40, borderRadius: 16 }]}
-              />
-            </View>
-          )}
-
-          {/* Empty state */}
-          {!factsQuery.isLoading && facts.length === 0 && (
-            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-              <Text style={styles.emptyText}>{t('profile.facts.empty')}</Text>
-            </View>
-          )}
-
-          {/* Facts list */}
-          {!factsQuery.isLoading && facts.length > 0 && (
-            <View style={{ gap: 8 }}>
-              {pagedFacts.map((fact) => {
-                const catColor = factCategoryColor(fact.category)
-                const isSelected = selectedFactIds.has(fact.id)
-                return (
-                  <TouchableOpacity
-                    key={fact.id}
-                    style={[
-                      styles.factRow,
-                      isSelected && selectMode && styles.factRowSelected,
-                    ]}
-                    onPress={
-                      selectMode
-                        ? () => toggleFactSelection(fact.id)
-                        : undefined
+                <View style={styles.selectActions}>
+                  <Pressable
+                    onPress={toggleSelectAll}
+                    accessibilityRole="button"
+                    style={styles.selectActionPress}
+                  >
+                    <Text
+                      style={[styles.selectActionText, { color: tokens.fg1 }]}
+                    >
+                      {selectedFactIds.size === facts.length
+                        ? t('profile.facts.deselectAll')
+                        : t('profile.facts.selectAll')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      bulkDeleteMutation.mutate([...selectedFactIds])
                     }
-                    activeOpacity={selectMode ? 0.7 : 1}
-                    disabled={!selectMode}
+                    disabled={selectedFactIds.size === 0}
+                    accessibilityRole="button"
+                    style={styles.selectActionPress}
                   >
-                    {selectMode && (
-                      <TouchableOpacity
-                        style={{ marginTop: 2 }}
-                        onPress={() => toggleFactSelection(fact.id)}
-                      >
-                        <View
-                          style={[
-                            styles.checkbox,
-                            isSelected && styles.checkboxChecked,
-                          ]}
-                        >
-                          {isSelected && <Check size={12} color="#fff" />}
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.factText}>{fact.factText}</Text>
-                      {fact.category && (
-                        <View
-                          style={[
-                            styles.factCategory,
-                            { backgroundColor: catColor.bg },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.factCategoryText,
-                              { color: catColor.text },
-                            ]}
-                          >
-                            {t(
-                              `profile.facts.${fact.category?.toLowerCase()}`,
-                              { defaultValue: fact.category },
-                            )}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    {!selectMode && (
-                      <TouchableOpacity
-                        style={styles.factDeleteBtn}
-                        onPress={() => deleteMutation.mutate(fact.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Trash2 size={14} color={colors.textMuted} />
-                      </TouchableOpacity>
-                    )}
-                  </TouchableOpacity>
-                )
-              })}
-
-              {/* Pagination */}
-              {totalFactsPages > 1 && (
-                <View style={styles.paginationRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.paginationBtn,
-                      factsPage === 1 && { opacity: 0.3 },
-                    ]}
-                    disabled={factsPage === 1}
-                    onPress={() => setFactsPage((p) => p - 1)}
+                    <Text
+                      style={[
+                        styles.selectActionItalic,
+                        { color: tokens.fg3 },
+                        selectedFactIds.size === 0 && { opacity: 0.45 },
+                      ]}
+                    >
+                      {t('profile.facts.deleteSelectedShort')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={toggleSelectMode}
+                    accessibilityRole="button"
+                    style={styles.selectActionPress}
                   >
-                    <ChevronLeft size={16} color={colors.textMuted} />
-                  </TouchableOpacity>
-                  <Text style={styles.paginationText}>
-                    {factsPage} / {totalFactsPages}
-                  </Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.paginationBtn,
-                      factsPage === totalFactsPages && { opacity: 0.3 },
-                    ]}
-                    disabled={factsPage === totalFactsPages}
-                    onPress={() => setFactsPage((p) => p + 1)}
-                  >
-                    <ChevronRight size={16} color={colors.textMuted} />
-                  </TouchableOpacity>
+                    <X size={14} color={tokens.fg3} />
+                  </Pressable>
                 </View>
-              )}
-            </View>
-          )}
-        </View>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.factsHeader,
+                  { borderBottomColor: tokens.hairline },
+                ]}
+              >
+                <Pressable
+                  onPress={toggleSelectMode}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('profile.facts.select')}
+                  style={styles.selectActionPress}
+                >
+                  <Text
+                    style={[styles.selectActionText, { color: tokens.fg3 }]}
+                  >
+                    {t('profile.facts.select')}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {pagedFacts.map((fact) => {
+              const selected = selectedFactIds.has(fact.id)
+              return (
+                <Pressable
+                  key={fact.id}
+                  onPress={
+                    selectMode ? () => toggleFactSelection(fact.id) : undefined
+                  }
+                  accessibilityRole={selectMode ? 'checkbox' : 'none'}
+                  accessibilityState={
+                    selectMode ? { checked: selected } : undefined
+                  }
+                  style={({ pressed }) => [
+                    styles.factRow,
+                    {
+                      borderBottomColor: tokens.hairline,
+                      backgroundColor:
+                        selected && selectMode
+                          ? tokens.bgSunk
+                          : pressed && selectMode
+                            ? tokens.bgElev
+                            : 'transparent',
+                    },
+                  ]}
+                >
+                  {selectMode ? (
+                    <View style={styles.checkSlot}>
+                      <SelectCheck
+                        selected={selected}
+                        size={16}
+                        onPress={() => toggleFactSelection(fact.id)}
+                      />
+                    </View>
+                  ) : null}
+                  <View style={styles.factBody}>
+                    {fact.category ? (
+                      <View
+                        style={[
+                          styles.categoryPill,
+                          { borderColor: tokens.hairlineStrong },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.categoryText, { color: tokens.fg2 }]}
+                        >
+                          {categoryLabel(fact.category)}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Text style={[styles.factText, { color: tokens.fg1 }]}>
+                      {fact.factText}
+                    </Text>
+                  </View>
+                  {!selectMode ? (
+                    <Pressable
+                      onPress={() => deleteMutation.mutate(fact.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('profile.facts.delete')}
+                      style={styles.deleteBtn}
+                    >
+                      <Trash2 size={14} color={tokens.fg4} strokeWidth={1.5} />
+                    </Pressable>
+                  ) : null}
+                </Pressable>
+              )
+            })}
+          </>
+        )}
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles() {
   return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: colors.background },
+    safeArea: { flex: 1 },
     container: { flex: 1 },
-    scrollContent: {
-      paddingHorizontal: spacing.pageX,
-      paddingBottom: spacing.pageBottom,
+    scrollContent: { paddingBottom: 40 },
+    italicBlock: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
-
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.cardGap,
-      paddingTop: spacing.sectionGap * 2,
-      paddingBottom: spacing.cardGap * 2,
+    italicText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
     },
-    backButton: { padding: 8, marginLeft: -8 },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
+    factsTrailing: { display: 'none' },
+    factsPageMono: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
     },
-
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: spacing.cardPadding,
-      marginBottom: spacing.cardGap,
-      gap: spacing.cardGap,
-    },
-    toggleHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    labelRow: {
+    pagingRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
     },
-    cardLabel: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      color: colors.textMuted,
+    pagingText: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontVariant: ['tabular-nums'],
     },
-    lockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    lockText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-    cardDescription: {
+    pageBtn: { padding: 4 },
+    skelStack: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    skelBar: {
+      height: 56,
+      borderRadius: 8,
+    },
+    emptyBlock: {
+      paddingHorizontal: 24,
+      paddingVertical: 40,
+      alignItems: 'center',
+      gap: 12,
+    },
+    emptyText: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      color: colors.textSecondary,
-      lineHeight: 20,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      lineHeight: 22,
     },
-    privacyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    privacyText: {
-      fontSize: 12,
-      color: colors.textMuted,
-      flex: 1,
-      lineHeight: 18,
-    },
-    statusText: { fontSize: 12, fontWeight: '500' },
-
-    // Facts header
     factsHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    countBadge: {
-      backgroundColor: colors.surfaceElevated,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 999,
-    },
-    countBadgeText: {
-      fontSize: 10,
-      fontWeight: '600',
-      color: colors.textMuted,
-    },
-    selectButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceElevated,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    // Bulk actions
-    bulkActionsBar: {
+    selectBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 16,
-      padding: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    selectAllText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-    deleteSelectedButton: {
-      backgroundColor: colors.red,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 999,
+    selectedCount: {
+      fontFamily: 'GeistMono',
+      fontSize: 12,
+      fontWeight: '500',
     },
-    deleteSelectedText: { fontSize: 12, fontWeight: '600', color: '#fff' },
-
-    // Skeleton
-    skeletonBar: {
-      backgroundColor: colors.surfaceElevated,
-      width: '100%',
+    selectActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
     },
-
-    // Empty
-    emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
-
-    // Fact row
+    selectActionPress: { padding: 4 },
+    selectActionText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    selectActionItalic: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+    },
     factRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 12,
-      backgroundColor: colors.background,
-      borderRadius: 16,
-      padding: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    factRowSelected: {
-      borderWidth: 1,
-      borderColor: 'rgba(139,92,246,0.40)',
+    checkSlot: {
+      paddingTop: 2,
     },
-    checkbox: {
-      width: 20,
-      height: 20,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
+    factBody: {
+      flex: 1,
+      gap: 6,
     },
-    checkboxChecked: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    factText: { fontSize: 14, color: colors.textPrimary },
-    factCategory: {
+    categoryPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 8,
+      paddingHorizontal: 6,
       paddingVertical: 2,
-      borderRadius: 999,
-      marginTop: 4,
+      borderRadius: 4,
+      borderWidth: StyleSheet.hairlineWidth,
     },
-    factCategoryText: { fontSize: 10, fontWeight: '600' },
-    factDeleteBtn: {
-      padding: 6,
-      borderRadius: 999,
-    },
-
-    // Pagination
-    paginationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-      paddingTop: 4,
-    },
-    paginationBtn: {
-      padding: 6,
-      borderRadius: 999,
-    },
-    paginationText: {
-      fontSize: 12,
+    categoryText: {
+      fontFamily: 'GeistMono',
+      fontSize: 10,
       fontWeight: '600',
-      color: colors.textSecondary,
+      letterSpacing: 0.6,
+    },
+    factText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    deleteBtn: {
+      padding: 4,
     },
   })
 }
+

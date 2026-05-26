@@ -2,10 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { setSessionCookies } from '@/lib/auth-api'
 import {
   buildAuthErrorPayload,
-  buildEmailLogContext,
   buildRequestIdResponseHeaders,
-  extractErrorMessage,
-  isRecord,
   ORBIT_REQUEST_ID_HEADER,
   resolveRequestId,
   resolveResponseRequestId,
@@ -24,7 +21,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json() as unknown
-    const bodyRecord = isRecord(body) ? body : {}
 
     const response = await fetch(`${apiBase}/api/auth/verify-code`, {
       method: 'POST',
@@ -40,16 +36,6 @@ export async function POST(request: NextRequest) {
     responseHeaders.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
 
     if (!response.ok) {
-      console.error('[auth/verify-code] backend request failed', {
-        requestId: backendRequestId,
-        status: response.status,
-        error: extractErrorMessage(data) ?? 'Authentication failed',
-        language: typeof bodyRecord.language === 'string' ? bodyRecord.language : undefined,
-        codeLength: typeof bodyRecord.code === 'string' ? bodyRecord.code.length : undefined,
-        hasReferralCode: typeof bodyRecord.referralCode === 'string' && bodyRecord.referralCode.length > 0,
-        ...buildEmailLogContext(bodyRecord.email),
-      })
-
       return NextResponse.json(buildAuthErrorPayload(data, backendRequestId), {
         status: response.status,
         headers: responseHeaders,
@@ -58,20 +44,13 @@ export async function POST(request: NextRequest) {
 
     const loginResponse = data as BackendLoginResponse
 
-    // Set httpOnly cookies server-side
     await setSessionCookies(loginResponse.token, loginResponse.refreshToken)
 
-    // Strip tokens from response -- client must never see them
     const { token: _token, refreshToken: _refreshToken, ...safeResponse } = loginResponse
     return NextResponse.json(safeResponse, {
       headers: responseHeaders,
     })
-  } catch (error: unknown) {
-    console.error('[auth/verify-code] unexpected error', {
-      requestId,
-      error,
-    })
-
+  } catch {
     return NextResponse.json(
       {
         error: 'Authentication failed',

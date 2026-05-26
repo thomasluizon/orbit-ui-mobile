@@ -5,8 +5,6 @@ import {
   MAX_GOAL_UNIT_LENGTH,
 } from './constants'
 
-// --- Goal form schema ---
-
 export const goalFormSchema = z.object({
   title: z
     .string()

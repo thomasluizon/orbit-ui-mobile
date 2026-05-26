@@ -20,13 +20,14 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
-  ArrowLeft,
   Sparkles,
   SendHorizontal,
   Image as ImageIcon,
   Mic,
   Square,
   X,
+  WifiOff,
+  MoreHorizontal,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { API } from "@orbit/shared/api";
@@ -63,6 +64,7 @@ import {
   canAccessEntitlement,
   detectDefaultTimeFormat,
   getErrorMessage,
+  habitDetailToNormalized,
   resolveUpgradeEntitlementFromError,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
@@ -77,21 +79,30 @@ import { SuggestionChips } from "@/components/chat/suggestion-chips";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
+import { AppBar } from "@/components/ui/app-bar";
+import { Chip } from "@/components/ui/chip";
 import { AppTextInput } from "@/components/ui/app-text-input";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { useChatStore } from "@/stores/chat-store";
-import { createColors } from "@/lib/theme";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
 import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
-import { habitDetailToNormalized } from "@orbit/shared/utils";
 
-// ---------------------------------------------------------------------------
-// Animated Sparkle Icon for empty state
-// ---------------------------------------------------------------------------
-
-type AppColors = ReturnType<typeof createColors>;
+type Tokens = ReturnType<typeof createTokensV2>;
 type ChatStyles = ReturnType<typeof createStyles>;
+
+interface RNFileUpload {
+  uri: string;
+  type: string;
+  name: string;
+}
+
+declare global {
+  interface FormData {
+    append(name: string, value: RNFileUpload): void;
+  }
+}
 
 interface AdRewardResponse {
   bonusMessagesGranted: number;
@@ -140,7 +151,6 @@ function buildAgentExecutionMessage(response: AgentExecuteOperationResponse): st
   return (
     response.operation.summary ??
     response.policyDenial?.reason ??
-    response.operation.policyReason ??
     response.operation.sourceName
   );
 }
@@ -170,9 +180,9 @@ function AnimatedSparkle({
   primaryColor: string;
   styles: ChatStyles;
 }>) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.7)).current;
-  const spin = useRef(new Animated.Value(0)).current;
+  const scale = useMemo(() => new Animated.Value(1), []);
+  const opacity = useMemo(() => new Animated.Value(0.7), []);
+  const spin = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -222,7 +232,7 @@ function AnimatedSparkle({
       <Animated.View style={[styles.orbitRing, { transform: [{ rotate }] }]} />
       <View style={styles.sparkleGlow} />
       <Animated.View style={{ transform: [{ scale }], opacity }}>
-        <Sparkles size={28} color={primaryColor} />
+        <Sparkles size={36} color={primaryColor} strokeWidth={1.3} />
       </Animated.View>
     </View>
   );
@@ -235,7 +245,7 @@ function AnimatedVisualizerBar({
   delay: number;
   styles: ChatStyles;
 }>) {
-  const scale = useRef(new Animated.Value(0.45)).current;
+  const scale = useMemo(() => new Animated.Value(0.45), []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -293,7 +303,7 @@ interface ChatComposerInputProps {
   isOnline: boolean;
   selectedImagePresent: boolean;
   placeholder: string;
-  colors: AppColors;
+  tokens: Tokens;
   styles: ChatStyles;
   onSend: (message: string) => void;
 }
@@ -307,7 +317,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
   isOnline,
   selectedImagePresent,
   placeholder,
-  colors,
+  tokens,
   styles,
   onSend,
 }: Readonly<ChatComposerInputProps>) {
@@ -339,6 +349,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
   }, [isRecording, transcript]);
 
   useEffect(() => {
+     
     setDraft("");
     void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
   }, [resetSignal]);
@@ -371,11 +382,11 @@ const ChatComposerInput = memo(function ChatComposerInput({
   return (
     <>
       <AppTextInput
-        style={styles.textInput}
+        style={[styles.textInput, { color: tokens.fg1 }]}
         value={draft}
         onChangeText={setDraft}
         placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={tokens.fg3}
         multiline
         maxLength={2000}
         editable={isOnline}
@@ -387,6 +398,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
       <TouchableOpacity
         style={[
           styles.sendButton,
+          { backgroundColor: tokens.primary },
           !canSend && styles.sendButtonDisabled,
         ]}
         onPress={handleSend}
@@ -395,7 +407,7 @@ const ChatComposerInput = memo(function ChatComposerInput({
         accessibilityState={{ disabled: !canSend || !isOnline }}
         activeOpacity={0.7}
       >
-        <SendHorizontal size={16} color="#fff" />
+        <SendHorizontal size={14} color={tokens.fgOnPrimary} strokeWidth={2.2} />
       </TouchableOpacity>
     </>
   );
@@ -404,7 +416,11 @@ const ChatComposerInput = memo(function ChatComposerInput({
 export default function ChatScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
   const { isOnline } = useOffline();
   const goBackOrFallback = useGoBackOrFallback();
   const insets = useSafeAreaInsets();
@@ -528,6 +544,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (speechError) {
+       
       setSendError(speechError);
       const timer = setTimeout(() => {
         setSendError((current) => (current === speechError ? null : current));
@@ -538,12 +555,14 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (isRecording) {
+       
       setShowLangPicker(false);
     }
   }, [isRecording]);
 
   useEffect(() => {
     if (!isOnline) {
+       
       setShowLangPicker(false);
     }
   }, [isOnline]);
@@ -618,7 +637,7 @@ export default function ChatScreen() {
     setImagePreview(null);
   }, []);
 
-  function buildImageUpload(asset: ImagePicker.ImagePickerAsset): Blob {
+  function buildImageUpload(asset: ImagePicker.ImagePickerAsset): RNFileUpload {
     const mimeType =
       resolveChatImageMimeType({
         mimeType: asset.mimeType,
@@ -632,7 +651,7 @@ export default function ChatScreen() {
       uri: asset.uri,
       type: mimeType,
       name: asset.fileName ?? `orbit-chat-image.${extension}`,
-    } as unknown as Blob;
+    };
   }
 
   const sendMessage = useCallback(
@@ -917,14 +936,12 @@ export default function ChatScreen() {
     showRewardedAd,
     t,
   ]);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const handleBreakdownConfirmed = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   }, [queryClient]);
 
-  // Habit detail drawer (clicking a "Created [habit]" chip opens the drawer).
-  // Lazy: only fetch the single habit by ID after the user taps a chip.
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const habitDetailQuery = useHabitDetail(selectedHabitId);
@@ -956,7 +973,6 @@ export default function ChatScreen() {
     setSelectedGoalId(null);
   }, []);
 
-  // Render message item
   const renderMessage = useCallback(
     ({ item }: { item: ChatMessage }) => (
       <MessageBubble
@@ -1001,6 +1017,7 @@ export default function ChatScreen() {
       handleActionChipClick,
       handleBreakdownConfirmed,
       preparePendingOperationStepUp,
+      router,
       verifyAndExecutePendingOperationStepUp,
     ],
   );
@@ -1008,30 +1025,40 @@ export default function ChatScreen() {
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={["top"]}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <View style={[styles.header, styles.headerSpacing]}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t("common.goBack")}
-            activeOpacity={0.7}
-            onPress={() => goBackOrFallback("/")}
-            style={styles.headerButton}
-          >
-            <ArrowLeft size={18} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t("chat.title")}</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <AppBar
+          back
+          onBack={() => goBackOrFallback("/")}
+          backLabel={t("common.goBack")}
+          LeadingIcon={Sparkles}
+          title={t("chat.title")}
+          trailing={
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("habits.actions.more")}
+              activeOpacity={0.7}
+              style={styles.iconBtn}
+            >
+              <MoreHorizontal
+                size={17}
+                color={tokens.fg2}
+                strokeWidth={1.5}
+              />
+            </TouchableOpacity>
+          }
+        />
 
         {showSuggestions ? (
           <View ref={chatAreaRef} style={styles.emptyState}>
-            <AnimatedSparkle primaryColor={colors.primary} styles={styles} />
-            <Text style={styles.emptyText}>{t("chat.suggestion.prompt")}</Text>
+            <AnimatedSparkle primaryColor={tokens.fg1} styles={styles} />
+            <Text style={[styles.emptyText, { color: tokens.fg2 }]}>
+              {t("chat.suggestion.prompt")}
+            </Text>
             <SuggestionChips
               onSelect={(suggestion) => {
                 void sendMessage(suggestion);
@@ -1060,13 +1087,15 @@ export default function ChatScreen() {
           style={[
             styles.inputArea,
             {
+              backgroundColor: tokens.bg,
+              borderTopColor: tokens.hairline,
               paddingBottom: Math.max(16, insets.bottom + 12),
               marginBottom: Platform.OS === "android" ? keyboardInset : 0,
             },
           ]}
         >
           {sendError && (
-            <Text style={styles.errorText} accessibilityRole="alert">
+            <Text style={[styles.errorText, { color: tokens.statusBad }]} accessibilityRole="alert">
               {sendError}
             </Text>
           )}
@@ -1085,7 +1114,7 @@ export default function ChatScreen() {
               }}
               activeOpacity={0.75}
             >
-              <Text style={styles.permissionActionText}>
+              <Text style={[styles.permissionActionText, { color: tokens.fg1 }]}>
                 {t("common.openSettings")}
               </Text>
             </TouchableOpacity>
@@ -1096,20 +1125,32 @@ export default function ChatScreen() {
               <View style={styles.imagePreviewCard}>
                 <Image
                   source={{ uri: imagePreview }}
-                  style={styles.imagePreview}
+                  style={[styles.imagePreview, { borderColor: tokens.hairline }]}
                 />
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t("chat.removeImage")}
                   activeOpacity={0.8}
                   onPress={removeImage}
-                  style={styles.imageRemoveButton}
+                  style={[
+                    styles.imageRemoveButton,
+                    { backgroundColor: tokens.bgElev, borderColor: tokens.hairlineStrong },
+                  ]}
                 >
-                  <X size={12} color={colors.textPrimary} />
+                  <X size={12} color={tokens.fg1} />
                 </TouchableOpacity>
               </View>
             </View>
           )}
+
+          {messages.length > 0 && !isOnline ? (
+            <View style={styles.offlineNotice}>
+              <WifiOff size={15} color={tokens.fg3} strokeWidth={1.6} />
+              <Text style={[styles.offlineText, { color: tokens.fg2 }]}>
+                {offlineTitle}
+              </Text>
+            </View>
+          ) : null}
 
           {messages.length > 0 && (
             <ScrollView
@@ -1118,28 +1159,37 @@ export default function ChatScreen() {
               contentContainerStyle={styles.quickChipsContent}
               style={styles.quickChipsScroll}
             >
-                {starterChips.map((chip) => (
-                  <TouchableOpacity
-                    key={chip}
-                    style={styles.quickChip}
-                    onPress={() => sendMessage(chip)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={chip}
-                  >
-                    <Text style={styles.quickChipText}>{chip}</Text>
-                  </TouchableOpacity>
-                ))}
+              {starterChips.map((chip) => (
+                <Chip
+                  key={chip}
+                  onPress={() => sendMessage(chip)}
+                  accessibilityLabel={chip}
+                >
+                  {chip}
+                </Chip>
+              ))}
             </ScrollView>
           )}
 
-          <View style={styles.inputBar}>
+          <View
+            style={[
+              styles.inputBar,
+              { borderTopColor: tokens.hairline },
+            ]}
+          >
             {isRecording ? (
               <>
                 <View style={styles.recordingContent}>
                   <View style={styles.recordingStatus}>
-                    <View style={styles.recordingDot} />
-                    <Text style={styles.recordingTime}>{recordingTime}</Text>
+                    <View
+                      style={[
+                        styles.recordingDot,
+                        { backgroundColor: tokens.statusBad },
+                      ]}
+                    />
+                    <Text style={[styles.recordingTime, { color: tokens.fg1 }]}>
+                      {recordingTime}
+                    </Text>
                   </View>
                   <RecordingVisualizer styles={styles} />
                 </View>
@@ -1148,13 +1198,32 @@ export default function ChatScreen() {
                   accessibilityLabel={t("chat.stopRecording")}
                   activeOpacity={0.7}
                   onPress={toggleRecording}
-                  style={styles.stopButton}
+                  style={[
+                    styles.stopButton,
+                    { backgroundColor: tokens.fg1 },
+                  ]}
                 >
-                  <Square size={14} color={colors.white} fill={colors.white} />
+                  <Square size={11} color={tokens.bg} fill={tokens.bg} />
                 </TouchableOpacity>
               </>
             ) : (
               <>
+                <ChatComposerInput
+                  transcript={transcript}
+                  resetSignal={composerResetSignal}
+                  isRecording={isRecording}
+                  isTyping={isTyping}
+                  atMessageLimit={atMessageLimit}
+                  isOnline={isOnline}
+                  selectedImagePresent={selectedImage !== null}
+                  placeholder={t("chat.placeholder")}
+                  tokens={tokens}
+                  styles={styles}
+                  onSend={(message) => {
+                    void sendMessage(message);
+                  }}
+                />
+
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t("chat.attachImage")}
@@ -1165,7 +1234,7 @@ export default function ChatScreen() {
                   }}
                   style={styles.iconButton}
                 >
-                  <ImageIcon size={15} color={colors.textMuted} />
+                  <ImageIcon size={17} color={tokens.fg3} strokeWidth={1.5} />
                 </TouchableOpacity>
 
                 {speechSupported && (
@@ -1178,7 +1247,7 @@ export default function ChatScreen() {
                       onPress={toggleRecording}
                       style={styles.iconButton}
                     >
-                      <Mic size={16} color={colors.textMuted} />
+                      <Mic size={17} color={tokens.fg3} strokeWidth={1.5} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1195,7 +1264,15 @@ export default function ChatScreen() {
                     </TouchableOpacity>
 
                     {showLangPicker && (
-                      <View style={styles.languagePicker}>
+                      <View
+                        style={[
+                          styles.languagePicker,
+                          {
+                            backgroundColor: tokens.bgElev,
+                            borderColor: tokens.hairlineStrong,
+                          },
+                        ]}
+                      >
                         {SPEECH_LANGUAGES.map((lang) => (
                           <TouchableOpacity
                             key={lang.value}
@@ -1206,8 +1283,9 @@ export default function ChatScreen() {
                             }}
                             style={[
                               styles.languageOption,
-                              speechLang === lang.value &&
-                                styles.languageOptionActive,
+                              speechLang === lang.value && {
+                                backgroundColor: tokens.bgSunk,
+                              },
                             ]}
                           >
                             <Text style={styles.languageOptionFlag}>
@@ -1216,8 +1294,11 @@ export default function ChatScreen() {
                             <Text
                               style={[
                                 styles.languageOptionText,
-                                speechLang === lang.value &&
-                                  styles.languageOptionTextActive,
+                                { color: tokens.fg2 },
+                                speechLang === lang.value && {
+                                  color: tokens.fg1,
+                                  fontWeight: "600",
+                                },
                               ]}
                             >
                               {lang.label}
@@ -1228,29 +1309,13 @@ export default function ChatScreen() {
                     )}
                   </View>
                 )}
-
-                <ChatComposerInput
-                  transcript={transcript}
-                  resetSignal={composerResetSignal}
-                  isRecording={isRecording}
-                  isTyping={isTyping}
-                  atMessageLimit={atMessageLimit}
-                  isOnline={isOnline}
-                  selectedImagePresent={selectedImage !== null}
-                  placeholder={t("chat.placeholder")}
-                  colors={colors}
-                  styles={styles}
-                  onSend={(message) => {
-                    void sendMessage(message);
-                  }}
-                />
               </>
             )}
           </View>
 
           {!hasProAccess && atMessageLimit && (
             <View style={styles.rewardCard}>
-              <Text style={styles.limitText} accessibilityLiveRegion="polite">
+              <Text style={[styles.limitText, { color: tokens.statusOverdue }]} accessibilityLiveRegion="polite">
                 {t("chat.limitReachedError")}
               </Text>
               {adsEnabledForUser ? (
@@ -1258,6 +1323,7 @@ export default function ChatScreen() {
                   <TouchableOpacity
                     style={[
                       styles.rewardButton,
+                      { borderColor: tokens.hairlineStrong },
                       !canWatchRewardAd && styles.rewardButtonDisabled,
                     ]}
                     onPress={() => {
@@ -1266,25 +1332,25 @@ export default function ChatScreen() {
                     disabled={!canWatchRewardAd}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.rewardButtonText}>
+                    <Text style={[styles.rewardButtonText, { color: tokens.fg1 }]}>
                       {isLoadingReward
                         ? t("common.loading")
                         : t("ads.watchForMessages")}
                     </Text>
                   </TouchableOpacity>
-                  <Text style={styles.rewardMeta}>
+                  <Text style={[styles.rewardMeta, { color: tokens.fg3 }]}>
                     {rewardsClaimedToday}/{dailyRewardCap}{" "}
                     {t("ads.dailyLimitReached")}
                   </Text>
                   {rewardMessage ? (
-                    <Text style={styles.rewardMessage}>{rewardMessage}</Text>
+                    <Text style={[styles.rewardMessage, { color: tokens.fg2 }]}>{rewardMessage}</Text>
                   ) : null}
                 </>
               ) : null}
             </View>
           )}
           {!hasProAccess && !atMessageLimit && (
-            <Text style={styles.usageText}>
+            <Text style={[styles.usageText, { color: tokens.fg3 }]}>
               {aiMessagesUsed}/{aiMessagesLimit} {t("chat.messagesUsed")}
             </Text>
           )}
@@ -1307,55 +1373,31 @@ export default function ChatScreen() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: AppColors) {
+function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     keyboardAvoid: {
       flex: 1,
     },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 20,
-      paddingBottom: 12,
-    },
-    headerSpacing: {
-      paddingTop: 18,
-    },
-    headerButton: {
+    iconBtn: {
       width: 36,
       height: 36,
-      borderRadius: 18,
+      borderRadius: 8,
       alignItems: "center",
       justifyContent: "center",
-    },
-    headerTitle: {
-      flex: 1,
-      fontSize: 20,
-      fontWeight: "700",
-      color: colors.textPrimary,
-      textAlign: "center",
-    },
-    headerSpacer: {
-      width: 36,
     },
     emptyState: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
       gap: 24,
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
     },
     sparkleOuter: {
-      width: 64,
-      height: 64,
+      width: 132,
+      height: 132,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1365,37 +1407,39 @@ function createStyles(colors: AppColors) {
       right: 0,
       bottom: 0,
       left: 0,
-      borderRadius: 32,
-      borderWidth: 1,
-      borderColor: colors.primary_20,
-      borderStyle: "dashed",
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: tokens.primary,
       opacity: 0.85,
     },
     sparkleGlow: {
       position: "absolute",
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: colors.primary_15,
+      top: 10,
+      right: 10,
+      bottom: 10,
+      left: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairlineStrong,
     },
-
     emptyText: {
-      fontSize: 14,
-      color: colors.textSecondary,
+      fontFamily: "Geist",
+      fontSize: 20,
+      fontWeight: "600",
+      letterSpacing: -0.2,
+      textAlign: "center",
     },
     messageList: {
       paddingVertical: 16,
     },
     inputArea: {
-      borderTopWidth: 1,
-      borderTopColor: colors.borderMuted,
+      borderTopWidth: StyleSheet.hairlineWidth,
       paddingHorizontal: 16,
       paddingTop: 12,
-      backgroundColor: colors.background,
     },
     errorText: {
-      fontSize: 14,
-      color: colors.red400,
+      fontFamily: "Geist",
+      fontSize: 13,
       textAlign: "center",
       marginBottom: 8,
     },
@@ -1405,9 +1449,10 @@ function createStyles(colors: AppColors) {
       paddingVertical: 4,
     },
     permissionActionText: {
+      fontFamily: "Geist",
       fontSize: 13,
-      fontWeight: "600",
-      color: colors.primary,
+      fontWeight: "500",
+      textDecorationLine: "underline",
     },
     imagePreviewRow: {
       paddingBottom: 8,
@@ -1419,9 +1464,8 @@ function createStyles(colors: AppColors) {
     imagePreview: {
       width: 64,
       height: 64,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderRadius: 6,
+      borderWidth: StyleSheet.hairlineWidth,
     },
     imageRemoveButton: {
       position: "absolute",
@@ -1430,9 +1474,7 @@ function createStyles(colors: AppColors) {
       width: 20,
       height: 20,
       borderRadius: 10,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: StyleSheet.hairlineWidth,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1441,33 +1483,33 @@ function createStyles(colors: AppColors) {
     },
     quickChipsContent: {
       gap: 8,
+      paddingRight: 16,
     },
-    quickChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      borderRadius: 9999,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.border50,
+    offlineNotice: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 8,
     },
-    quickChipText: {
-      fontSize: 11,
-      fontWeight: "500",
-      color: colors.textPrimary,
+    offlineText: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      fontStyle: "italic",
     },
     inputBar: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      gap: 8,
+      paddingTop: 10,
+      paddingHorizontal: 4,
+      gap: 6,
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
     iconButton: {
-      padding: 4,
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
     },
     languageControl: {
       position: "relative",
@@ -1477,7 +1519,7 @@ function createStyles(colors: AppColors) {
     languageFlagButton: {
       paddingVertical: 4,
       paddingHorizontal: 4,
-      borderRadius: 10,
+      borderRadius: 6,
     },
     languageFlagText: {
       fontSize: 12,
@@ -1487,10 +1529,8 @@ function createStyles(colors: AppColors) {
       left: 0,
       bottom: 40,
       minWidth: 148,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surfaceOverlay,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
       paddingVertical: 6,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 8 },
@@ -1506,26 +1546,20 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    languageOptionActive: {
-      backgroundColor: colors.primary_10,
-    },
     languageOptionFlag: {
       fontSize: 13,
     },
     languageOptionText: {
+      fontFamily: "Geist",
       fontSize: 12,
-      color: colors.textSecondary,
-    },
-    languageOptionTextActive: {
-      color: colors.primary400,
-      fontWeight: "700",
     },
     textInput: {
       flex: 1,
-      fontSize: 14,
-      color: colors.textPrimary,
+      minWidth: 0,
+      fontFamily: "Geist",
+      fontSize: 15,
       paddingVertical: 8,
-      paddingHorizontal: 12,
+      paddingHorizontal: 8,
       maxHeight: 120,
       minHeight: 36,
     },
@@ -1543,58 +1577,49 @@ function createStyles(colors: AppColors) {
       gap: 8,
     },
     recordingDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: colors.red500,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
     recordingTime: {
-      color: colors.red400,
-      fontSize: 14,
-      fontWeight: "600",
+      fontFamily: "GeistMono",
+      fontSize: 12,
+      fontWeight: "500",
+      fontVariant: ["tabular-nums"],
     },
     visualizer: {
       flex: 1,
       minHeight: 24,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
       gap: 4,
     },
     visualizerBar: {
-      width: 4,
-      height: 18,
-      borderRadius: 9999,
-      backgroundColor: colors.red400,
+      width: 3,
+      height: 20,
+      backgroundColor: tokens.fg2,
+      borderRadius: 1,
     },
     sendButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 20,
-      backgroundColor: colors.primary,
+      width: 32,
+      height: 32,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      // shadow-glow-sm equivalent
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.15,
-      shadowRadius: 10,
-      elevation: 3,
     },
     sendButtonDisabled: {
       opacity: 0.4,
     },
     stopButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.red500,
+      width: 32,
+      height: 32,
+      borderRadius: 8,
       alignItems: "center",
       justifyContent: "center",
     },
     limitText: {
-      fontSize: 10,
-      color: colors.amber400,
+      fontFamily: "Geist",
+      fontSize: 11,
       textAlign: "center",
       fontWeight: "500",
     },
@@ -1606,36 +1631,36 @@ function createStyles(colors: AppColors) {
     rewardButton: {
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 999,
-      backgroundColor: colors.primary_10,
-      borderWidth: 1,
-      borderColor: colors.primary_30,
+      borderRadius: 6,
+      borderWidth: StyleSheet.hairlineWidth,
     },
     rewardButtonDisabled: {
       opacity: 0.5,
     },
     rewardButtonText: {
-      fontSize: 10,
-      fontWeight: "700",
-      color: colors.primary,
+      fontFamily: "Geist",
+      fontSize: 12,
+      fontWeight: "600",
       textAlign: "center",
     },
     rewardMeta: {
-      fontSize: 9,
-      color: colors.textMuted,
+      fontFamily: "GeistMono",
+      fontSize: 10,
       textAlign: "center",
+      fontVariant: ["tabular-nums"],
     },
     rewardMessage: {
-      fontSize: 10,
-      color: colors.textSecondary,
+      fontFamily: "Geist",
+      fontSize: 11,
       textAlign: "center",
-      fontWeight: "600",
+      fontWeight: "500",
     },
     usageText: {
+      fontFamily: "GeistMono",
       fontSize: 10,
-      color: colors.textMuted,
       textAlign: "center",
       marginTop: 8,
+      fontVariant: ["tabular-nums"],
     },
   });
 }

@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Clock, Bell, CalendarDays } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+import { useState, useCallback, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { Sparkles, ChevronRight } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
@@ -18,20 +21,12 @@ import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { formatLocaleDate } from '@orbit/shared/utils'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface HabitDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
   onLogged?: (habitId: string) => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function HabitDetailDrawer({
   open,
@@ -40,7 +35,7 @@ export function HabitDetailDrawer({
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
-  const locale = useDeviceLocale()
+  const locale = useLocale()
   const { displayTime } = useTimeFormat()
   const habitId = habit?.id ?? ''
 
@@ -52,7 +47,10 @@ export function HabitDetailDrawer({
 
   const metrics = fullDetail?.metrics ?? null
   const logs = fullDetail?.logs ?? null
-  const liveChecklist = fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? []
+  const liveChecklist = useMemo(
+    () => fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [],
+    [fullDetail?.habit.checklistItems, habit?.checklistItems],
+  )
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
@@ -94,6 +92,20 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
+  const askPrompt = habit?.checklistItems && habit.checklistItems.length > 0
+    ? t('habits.detail.askAstraSubHabits')
+    : t('habits.detail.askAstraDefault')
+
+  const router = useRouter()
+  function handleAskAstra() {
+    const seed = habit?.title ? `${askPrompt} (${habit.title})` : askPrompt
+    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem('orbit-chat-draft', seed)
+    }
+    onOpenChange(false)
+    router.push('/chat')
+  }
+
   return (
     <>
       {habit?.description && (
@@ -112,73 +124,107 @@ export function HabitDetailDrawer({
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
+        footer={
+          <button
+            type="button"
+            onClick={handleAskAstra}
+            aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
+            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev)]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+            style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <PullQuote
+                  paddingX={0}
+                  paddingY={0}
+                  eyebrow={
+                    <>
+                      <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                      <span>{t('habits.detail.askAstraEyebrow')}</span>
+                    </>
+                  }
+                >
+                  {askPrompt}
+                </PullQuote>
+              </div>
+              <ChevronRight
+                size={16}
+                strokeWidth={1.7}
+                color="var(--fg-3)"
+                aria-hidden="true"
+                className="shrink-0"
+              />
+            </div>
+          </button>
+        }
       >
         {habit && (
-          <div className="space-y-6">
-            {/* Due time */}
+          <div className="-mx-6">
             {habit.dueTime && (
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <Clock className="size-4 text-primary" />
-                <span>{displayTime(habit.dueTime)}</span>
-              </div>
+              <SettingsRow
+                label={t('habits.form.dueTime')}
+                value={displayTime(habit.dueTime)}
+                mono
+                accessory="none"
+              />
             )}
 
-            {/* Scheduled reminders */}
             {habit.scheduledReminders && habit.scheduledReminders.length > 0 && (
-              <div className="flex items-start gap-2 text-sm text-text-secondary">
-                <Bell className="size-4 text-primary mt-0.5" />
-                <div className="flex flex-wrap gap-1.5">
-                  {habit.scheduledReminders.map((sr, idx) => (
-                    <span
-                      key={`${sr.when}-${sr.time}-${idx}`}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                    >
-                      {sr.when === 'day_before'
+              <>
+                <SectionLabel>{t('habits.detail.reminders')}</SectionLabel>
+                {habit.scheduledReminders.map((sr, idx) => (
+                  <SettingsRow
+                    key={`${sr.when}-${sr.time}-${idx}`}
+                    label={
+                      sr.when === 'day_before'
                         ? t('habits.form.scheduledReminderDayBeforeAt', {
                             time: displayTime(sr.time),
                           })
                         : t('habits.form.scheduledReminderSameDayAt', {
                             time: displayTime(sr.time),
-                          })}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                          })
+                    }
+                    accessory="none"
+                  />
+                ))}
+              </>
             )}
 
-            {/* End date */}
             {habit.endDate && (
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <CalendarDays className="size-4 text-primary" />
-                <span>
-                  {t('habits.detail.endsOn')}{' '}
-                  {formatLocaleDate(habit.endDate, locale, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
-            )}
-
-            {/* Checklist */}
-            {liveChecklist.length > 0 && (
-              <HabitChecklist
-                items={liveChecklist}
-                interactive
-                onToggle={handleChecklistToggle}
-                onReset={handleChecklistReset}
-                onClear={handleChecklistClear}
+              <SettingsRow
+                label={t('habits.detail.endsOn')}
+                value={formatLocaleDate(habit.endDate, locale, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                mono
+                accessory="none"
               />
             )}
 
-            <HabitDetailStatsGrid metrics={metrics} loading={metricsLoading} t={t as TranslationFn} />
+            {habit.frequencyUnit || habit.isGeneral ? (
+              <HabitDetailStatsGrid
+                metrics={metrics}
+                loading={metricsLoading}
+                t={t as TranslationFn}
+              />
+            ) : null}
 
-            {/* Calendar heatmap */}
-            <div>
-              <h3 className="text-sm font-bold text-text-primary mb-3">
-                {t('habits.detail.activity')}
-              </h3>
+            {liveChecklist.length > 0 && (
+              <div style={{ padding: '0 20px 12px' }}>
+                <HabitChecklist
+                  items={liveChecklist}
+                  interactive
+                  onToggle={handleChecklistToggle}
+                  onReset={handleChecklistReset}
+                  onClear={handleChecklistClear}
+                />
+              </div>
+            )}
+
+            <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
+            <div style={{ padding: '0 20px 12px' }}>
               <HabitCalendar habitId={habit.id} logs={logs} />
             </div>
           </div>
@@ -201,3 +247,4 @@ export function HabitDetailDrawer({
     </>
   )
 }
+

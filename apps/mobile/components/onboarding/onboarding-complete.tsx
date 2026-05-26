@@ -1,17 +1,12 @@
 import { useMemo } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { parseISO } from 'date-fns'
-import { CheckCircle2, Sparkles, BadgeCheck } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { radius, shadows } from '@/lib/theme'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface OnboardingCompleteProps {
   createdHabit: string
@@ -19,10 +14,10 @@ interface OnboardingCompleteProps {
   onFinish: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * v8 final step: filled primary check disc, "You're set." heading, italic
+ * subtitle, hairline-divided recap rows. Preserves trial info + onFinish.
+ */
 export function OnboardingComplete({
   createdHabit,
   createdGoal,
@@ -32,13 +27,17 @@ export function OnboardingComplete({
   const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
     return displayDate(parseISO(profile.trialEndsAt))
-  }, [profile?.trialEndsAt, displayDate])
+  }, [profile, displayDate])
 
   const recapItems = useMemo(() => {
     const items = [
@@ -63,159 +62,142 @@ export function OnboardingComplete({
 
   return (
     <View style={styles.container}>
-      {/* Celebration icon */}
-      <View style={styles.iconWrapper}>
-        <View style={styles.iconGlow} />
-        <View style={styles.iconCircle}>
-          <BadgeCheck size={40} color={colors.primary} />
+      <View style={styles.header}>
+        <View
+          style={[styles.checkDisc, { backgroundColor: tokens.primary }]}
+        >
+          <Check size={30} color={tokens.fgOnPrimary} strokeWidth={2.4} />
         </View>
+        <Text style={styles.title}>
+          {t('onboarding.flow.complete.title')}
+        </Text>
+        <Text style={styles.subtitle}>
+          {t('onboarding.flow.complete.subtitle')}
+        </Text>
       </View>
 
-      {/* Title */}
-      <Text style={styles.title}>
-        {t('onboarding.flow.complete.title')}
-      </Text>
-      <Text style={styles.subtitle}>
-        {t('onboarding.flow.complete.subtitle')}
-      </Text>
-
-      {/* Recap */}
       <View style={styles.recapList}>
         {recapItems.map((item) => (
           <View key={item.key} style={styles.recapRow}>
-            <CheckCircle2 size={16} color={colors.success} />
             <Text style={styles.recapText}>{item.label}</Text>
+            <Check size={15} color={tokens.primary} strokeWidth={1.8} />
           </View>
         ))}
       </View>
 
-      {/* Trial info */}
       {profile?.isTrialActive && (
         <View style={styles.trialCard}>
-          <Sparkles size={20} color={colors.primary} />
-          <View style={styles.trialText}>
-            <Text style={styles.trialTitle}>
-              {t('onboarding.flow.complete.trialTitle')}
-            </Text>
-            <Text style={styles.trialDesc}>
-              {t('onboarding.flow.complete.trialDesc', {
-                date: formattedTrialEnd,
-              })}
-            </Text>
-          </View>
+          <Text style={styles.trialTitle}>
+            {t('onboarding.flow.complete.trialTitle')}
+          </Text>
+          <Text style={styles.trialDesc}>
+            {t('onboarding.flow.complete.trialDesc', {
+              date: formattedTrialEnd,
+            })}
+          </Text>
         </View>
       )}
 
-      {/* CTA */}
-      <TouchableOpacity
-        style={styles.startBtn}
-        activeOpacity={0.8}
+      <Pressable
+        style={({ pressed }) => [
+          styles.startBtn,
+          {
+            backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+          },
+        ]}
         onPress={onFinish}
       >
-        <Text style={styles.startBtnText}>
+        <Text style={[styles.startBtnText, { color: tokens.fgOnPrimary }]}>
           {t('onboarding.flow.complete.start')}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ThemeContextValue['colors']) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     container: {
+      gap: 22,
+      paddingTop: 12,
+      paddingBottom: 12,
+    },
+    header: {
       alignItems: 'center',
+      gap: 14,
+      paddingTop: 14,
     },
-    iconWrapper: {
-      marginBottom: 24,
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    iconGlow: {
-      position: 'absolute',
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: colors.primary_15,
-      opacity: 0.5,
-    },
-    iconCircle: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: colors.primary_10,
+    checkDisc: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       alignItems: 'center',
       justifyContent: 'center',
     },
     title: {
+      fontFamily: 'Geist',
       fontSize: 24,
-      fontWeight: '700',
-      color: colors.textPrimary,
+      fontWeight: '600',
+      letterSpacing: -0.48,
+      color: tokens.fg1,
       textAlign: 'center',
-      marginBottom: 8,
     },
     subtitle: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      color: colors.textSecondary,
+      lineHeight: 21,
+      color: tokens.fg2,
       textAlign: 'center',
+      maxWidth: 280,
     },
     recapList: {
-      marginTop: 24,
-      gap: 8,
+      gap: 0,
     },
     recapRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      justifyContent: 'space-between',
+      paddingVertical: 11,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.hairline,
     },
     recapText: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      color: colors.textSecondary,
+      color: tokens.fg1,
     },
     trialCard: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-      marginTop: 24,
-      padding: 16,
-      borderRadius: radius.xl,
-      backgroundColor: colors.primary_10,
-      borderWidth: 1,
-      borderColor: colors.primary_15,
-      width: '100%',
-    },
-    trialText: {
-      flex: 1,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: tokens.hairline,
+      gap: 4,
     },
     trialTitle: {
-      fontSize: 14,
+      fontFamily: 'Geist',
+      fontSize: 13,
       fontWeight: '600',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     trialDesc: {
-      fontSize: 12,
-      color: colors.textSecondary,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg2,
       lineHeight: 18,
-      marginTop: 4,
     },
     startBtn: {
-      width: '100%',
-      marginTop: 32,
-      paddingVertical: 14,
-      borderRadius: radius.xl,
-      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
       alignItems: 'center',
-      ...shadows.sm,
-      elevation: 3,
+      justifyContent: 'center',
     },
     startBtnText: {
-      color: colors.white,
-      fontSize: 16,
-      fontWeight: '700',
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
     },
   })
 }

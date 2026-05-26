@@ -6,31 +6,31 @@
      5-level surface hierarchy, semantic tokens, spring animations
      ═══════════════════════════════════════════════════════ */
 
-  /* Surface hierarchy (5 levels of depth) */
-  --color-background: #07060e;
-  --color-surface-ground: #0d0b16;
-  --color-surface: #13111f;
-  --color-surface-elevated: #1a1829;
-  --color-surface-overlay: #211f33;
+  /* Surfaces — aliased to v8 OKLCH tokens (defined per-scheme on :root.dark/.light).
+     Old Tailwind classes (bg-background, bg-surface, bg-surface-elevated, ...) now
+     resolve to v8 colors so the whole codebase migrates at once. */
+  --color-background:       var(--bg);
+  --color-surface-ground:   var(--bg-sunk);
+  --color-surface:          var(--bg-elev);
+  --color-surface-elevated: var(--bg-elev);
+  --color-surface-overlay:  var(--bg-elev);
+  --color-card:             var(--bg-elev);
+  --color-card-border:      var(--hairline);
 
-  /* Legacy aliases (keep for backward compat with Nuxt UI internals) */
-  --color-card: #13111f;
-  --color-card-border: #1a1829;
+  /* Primary accent — aliased to scheme-driven v8 token */
+  --color-primary: var(--primary);
 
-  /* Primary accent (default: purple) */
-  --color-primary: #8b5cf6;
+  /* Text hierarchy — aliased to v8 fg tokens */
+  --color-text-primary:   var(--fg-1);
+  --color-text-secondary: var(--fg-2);
+  --color-text-muted:     var(--fg-3);
+  --color-text-faded:     var(--fg-3);
+  --color-text-inverse:   var(--fg-on-primary);
 
-  /* Text hierarchy */
-  --color-text-primary: #f0eef6;
-  --color-text-secondary: #9b95ad;
-  --color-text-muted: #7a7490;
-  --color-text-faded: #a59cba;
-  --color-text-inverse: #07060e;
-
-  /* Border hierarchy (3 levels) */
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-muted: rgba(255, 255, 255, 0.04);
-  --color-border-emphasis: rgba(255, 255, 255, 0.12);
+  /* Borders — aliased to v8 hairline tokens */
+  --color-border:          var(--hairline);
+  --color-border-muted:    var(--hairline);
+  --color-border-emphasis: var(--hairline-strong);
 
   /* Semantic feedback */
   --color-success: #34d399;
@@ -51,7 +51,32 @@
   --color-primary-950: #3b0764;
 
   /* Typography */
-  --font-family-sans: var(--font-manrope), 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: var(--font-geist-sans), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-family-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* v2 (redesign/v2) — Linear-tactical OKLCH semantic tokens.
+     Concrete values are set per-scheme on :root.dark / :root.light below. */
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-sunk: var(--bg-sunk);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-fg-on-primary: var(--fg-on-primary);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-status-done: var(--status-done);
+  --color-status-empty: var(--status-empty);
+  --color-status-skip: var(--status-skip);
+  --color-status-overdue: var(--status-overdue);
+  --color-status-bad: var(--status-bad);
+  --color-status-frozen: var(--status-frozen);
+  --shadow-hairline: 0 0 0 0.5px rgba(15, 16, 22, 0.06);
+  --shadow-1: 0 1px 2px rgba(15, 16, 22, 0.04), 0 1px 0 rgba(15, 16, 22, 0.02);
+  --shadow-2: 0 1px 2px rgba(15, 16, 22, 0.05), 0 4px 12px rgba(15, 16, 22, 0.04);
+  --shadow-3: 0 2px 6px rgba(15, 16, 22, 0.06), 0 12px 32px rgba(15, 16, 22, 0.08);
 
   /* Animations.
      `slide-up-fade` uses `backwards` fill-mode (start-state only, no post-animation
@@ -131,6 +156,203 @@
   /* Composite transitions */
   --transition-interactive: var(--duration-fast) var(--ease-smooth);
   --transition-layout: var(--duration-normal) var(--ease-out);
+
+  /* ═══════════════════════════════════════════════════════
+     v2 (redesign/v2) — Linear-tactical OKLCH design system
+     Type scale, motion, hit targets. Scheme + mode token
+     wiring lives in the .scheme-* / :root.dark|.light blocks
+     below so OKLCH neutrals can derive from --hue / --chroma.
+     ═══════════════════════════════════════════════════════ */
+
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-base: 16px;
+  --fs-md: 18px;
+  --fs-lg: 22px;
+  --fs-xl: 28px;
+  --fs-2xl: 34px;
+  --fs-3xl: 44px;
+  --fs-4xl: 60px;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+  --lh-loose: 1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.04em;
+  --tracking-widest: 0.12em;
+
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --dur-base: 220ms;
+
+  --hit-min: 44px;
+  --hit-comfortable: 56px;
+
+  /* Default scheme (purple, dark) — overridden by .scheme-* classes below */
+  --primary: #8b5cf6;
+  --primary-pressed: #a78bfa;
+  --hue: 286;
+  --chroma-bg: 0.014;
+  --chroma-fg: 0.020;
+}
+
+/* ═══════════════════════════════════════════════════════
+   v2 scheme classes — set per-scheme primary + OKLCH hue/chroma
+   Applied on documentElement by theme-dom.ts and bootstrap script
+   ═══════════════════════════════════════════════════════ */
+
+.scheme-purple.light, :root.scheme-purple.light { --primary: #7c3aed; --primary-pressed: #6d28d9; --hue: 286; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-purple.dark                              { --primary: #8b5cf6; --primary-pressed: #a78bfa; --hue: 286; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+.scheme-blue.light                               { --primary: #2563eb; --primary-pressed: #1d4ed8; --hue: 256; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-blue.dark                                { --primary: #3b82f6; --primary-pressed: #60a5fa; --hue: 256; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+.scheme-green.light                              { --primary: #16a34a; --primary-pressed: #15803d; --hue: 150; --chroma-bg: 0.010; --chroma-fg: 0.016; }
+.scheme-green.dark                               { --primary: #22c55e; --primary-pressed: #4ade80; --hue: 150; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-rose.light                               { --primary: #e11d48; --primary-pressed: #be123c; --hue: 12;  --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-rose.dark                                { --primary: #f43f5e; --primary-pressed: #fb7185; --hue: 12;  --chroma-bg: 0.014; --chroma-fg: 0.022; }
+.scheme-orange.light                             { --primary: #ea580c; --primary-pressed: #c2410c; --hue: 50;  --chroma-bg: 0.013; --chroma-fg: 0.020; }
+.scheme-orange.dark                              { --primary: #f97316; --primary-pressed: #fb923c; --hue: 50;  --chroma-bg: 0.015; --chroma-fg: 0.024; }
+.scheme-cyan.light                               { --primary: #0891b2; --primary-pressed: #0e7490; --hue: 220; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-cyan.dark                                { --primary: #06b6d4; --primary-pressed: #22d3ee; --hue: 220; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+
+/* Light-mode neutrals — tinted toward --hue, never pure white/gray */
+:root.light, .light {
+  --bg:                oklch(0.985 var(--chroma-bg) var(--hue));
+  --bg-elev:           oklch(0.995 var(--chroma-bg) var(--hue));
+  --bg-sunk:           oklch(0.965 var(--chroma-bg) var(--hue));
+  --hairline:          oklch(0.905 calc(var(--chroma-bg) * 1.4) var(--hue));
+  --hairline-strong:   oklch(0.84  calc(var(--chroma-bg) * 1.6) var(--hue));
+  --fg-1:              oklch(0.205 var(--chroma-fg) var(--hue));
+  --fg-2:              oklch(0.40  var(--chroma-fg) var(--hue));
+  --fg-3:              oklch(0.55  var(--chroma-fg) var(--hue));
+  --fg-4:              oklch(0.68  var(--chroma-fg) var(--hue));
+  --fg-on-primary:     oklch(0.99 0 0);
+  --status-done:       var(--primary);
+  --status-empty:      oklch(0.78 var(--chroma-bg) var(--hue));
+  --status-skip:       oklch(0.62 var(--chroma-fg) var(--hue));
+  --status-overdue:    oklch(0.62 0.13 60);
+  --status-bad:        oklch(0.55 0.14 20);
+  --status-frozen:     oklch(0.62 0.09 235);
+  --selection-bg:      oklch(0.92 calc(var(--chroma-bg) * 1.6) var(--hue));
+}
+
+/* Dark-mode neutrals — Linear-leaning blue-cool near-black */
+:root.dark, .dark {
+  --bg:                oklch(0.16 0.012 var(--hue));
+  --bg-elev:           oklch(0.20 0.014 var(--hue));
+  --bg-sunk:           oklch(0.13 0.010 var(--hue));
+  --hairline:          oklch(0.27 0.014 var(--hue));
+  --hairline-strong:   oklch(0.34 0.016 var(--hue));
+  --fg-1:              oklch(0.965 0.014 var(--hue));
+  --fg-2:              oklch(0.74  0.014 var(--hue));
+  --fg-3:              oklch(0.58  0.014 var(--hue));
+  --fg-4:              oklch(0.42  0.012 var(--hue));
+  --fg-on-primary:     oklch(0.99 0 0);
+  --status-done:       var(--primary);
+  --status-empty:      oklch(0.42 0.012 var(--hue));
+  --status-skip:       oklch(0.58 0.014 var(--hue));
+  --status-overdue:    oklch(0.74 0.10 60);
+  --status-bad:        oklch(0.65 0.12 20);
+  --status-frozen:     oklch(0.72 0.07 235);
+  --selection-bg:      oklch(0.32 0.018 var(--hue));
+}
+
+/* ═══════════════════════════════════════════════════════
+   v2 semantic type classes — hierarchy through weight + color
+   not size jumps. Body line-height 1.55–1.65.
+   ═══════════════════════════════════════════════════════ */
+
+.t-eyebrow {
+  font-family: var(--font-family-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.t-display {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-hero {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-4xl);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-h1 {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-h2 {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-row {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-body {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+}
+.t-secondary {
+  font-family: var(--font-family-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--fg-2);
+}
+.t-meta {
+  font-family: var(--font-family-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--tracking-wide);
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.t-num {
+  font-family: var(--font-family-mono);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+.t-num-xl {
+  font-family: var(--font-family-mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-3xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--fg-1);
 }
 
 @layer base {
@@ -372,7 +594,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .form-input {
-  @apply w-full bg-surface text-text-primary placeholder-text-muted rounded-[var(--radius-md)] py-3 px-4 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-[background-color,border-color,box-shadow,color] duration-200;
+  @apply w-full bg-[var(--bg-elev)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[var(--radius-md)] py-3 px-4 text-sm border border-[var(--hairline)] focus:outline-none focus:border-[var(--primary)] transition-[background-color,border-color,color] duration-200;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1064,303 +1286,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   :root:not(.dark) .ambient-glow::after {
     opacity: 0.16;
   }
-}
-
-/* ═══════════════════════════════════════════════════════
-   HABIT RITUAL STRIPS -- Aurora Maximalism
-   Dark violet surfaces, personal emoji identity, neon status rails
-   ═══════════════════════════════════════════════════════ */
-
-/* Parent card -- glass surface with depth */
-.habit-card-parent {
-  position: relative;
-  background:
-    var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.075);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: transform 280ms var(--ease-out),
-              box-shadow 280ms var(--ease-out),
-              border-color 280ms ease;
-}
-
-.habit-card-parent::before,
-.habit-card-child::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 1px;
-  background: var(--surface-top-highlight);
-  pointer-events: none;
-  z-index: 1;
-}
-.habit-card-parent:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    0 0 30px rgba(var(--primary-shadow), 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-.habit-card-parent:active {
-  transform: translateY(-1px) scale(0.985);
-  transition-duration: 100ms;
-}
-
-/* Due-today -- amber inner glow */
-.habit-card-parent.habit-status-due {
-  border-left: 4px solid rgba(245, 158, 11, 0.82);
-  background:
-    var(--color-surface);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 6px 0 20px -8px rgba(245, 158, 11, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.habit-card-parent.habit-status-due:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    inset 6px 0 24px -8px rgba(245, 158, 11, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-
-/* Overdue -- red inner glow */
-.habit-card-parent.habit-status-overdue {
-  border-left: 4px solid rgba(239, 68, 68, 0.86);
-  background:
-    var(--color-surface);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    inset 6px 0 20px -8px rgba(239, 68, 68, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.habit-card-parent.habit-status-overdue:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    inset 6px 0 24px -8px rgba(239, 68, 68, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-
-/* Child card -- glass nested surface with accent line */
-.habit-card-child {
-  position: relative;
-  background:
-    rgba(13, 11, 22, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-left: 2px solid rgba(var(--primary-shadow), 0.25);
-  box-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.3),
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  transition: transform 250ms var(--ease-out),
-              box-shadow 250ms var(--ease-out),
-              border-color 250ms ease,
-              background 250ms ease;
-}
-
-.habit-emoji-orb {
-  text-shadow: 0 0 18px rgba(var(--primary-shadow), 0.25);
-}
-
-:root:not(.dark) .habit-emoji-orb {
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(0, 0, 0, 0.07);
-  box-shadow:
-    0 1px 2px rgba(26, 22, 37, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
-  text-shadow: none;
-}
-
-:root:not(.dark) .habit-emoji-orb > span:first-child {
-  opacity: 0.42;
-}
-
-:root:not(.dark) .habit-emoji-orb > span:nth-child(2) {
-  opacity: 0.08;
-}
-
-:root:not(.dark) .habit-emoji-orb > span:last-child {
-  filter: drop-shadow(0 1px 1px rgba(26, 22, 37, 0.14));
-}
-.habit-card-child:hover {
-  transform: translateY(-2px);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%),
-    rgba(19, 17, 31, 0.8);
-  border-color: rgba(255, 255, 255, 0.07);
-  border-left-color: rgba(var(--primary-shadow), 0.5);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    0 0 16px rgba(var(--primary-shadow), 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.habit-card-child.habit-status-due {
-  border-left: 3px solid rgba(245, 158, 11, 0.72);
-  background:
-    rgba(13, 11, 22, 0.62);
-}
-
-.habit-card-child.habit-status-overdue {
-  border-left: 3px solid rgba(239, 68, 68, 0.76);
-  background:
-    rgba(13, 11, 22, 0.62);
-}
-.habit-card-child:active {
-  transform: translateY(-1px) scale(0.99);
-  transition-duration: 80ms;
-}
-
-/* Log button -- glow ring on hover, gradient when done */
-.log-btn {
-  border-radius: 9999px;
-  transition: background-color 250ms var(--ease-out), border-color 250ms var(--ease-out), box-shadow 250ms var(--ease-out), transform 250ms var(--ease-out);
-}
-.log-btn:not(.log-btn-done):hover {
-  box-shadow: 0 0 0 3px rgba(var(--primary-shadow), 0.12),
-              0 0 20px rgba(var(--primary-shadow), 0.1);
-}
-.log-btn-done {
-  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, white)) !important;
-  box-shadow: 0 0 16px rgba(var(--primary-shadow), 0.4),
-              0 0 40px rgba(var(--primary-shadow), 0.15);
-}
-
-/* Progress ring -- glow on fill stroke */
-.progress-ring-glow {
-  filter: drop-shadow(0 0 4px rgba(var(--primary-shadow), 0.35));
-}
-
-/* Actions menu -- frosted glass panel */
-.habit-actions-menu {
-  background: color-mix(in srgb, var(--color-surface-overlay) 92%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.6),
-    0 4px 12px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-/* ═══════════════════════════════════════════════════════
-   HABIT CARDS -- Light Theme Overrides
-   ═══════════════════════════════════════════════════════ */
-
-:root:not(.dark) .habit-card-parent {
-  background: var(--color-surface);
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-:root:not(.dark) .habit-card-parent:hover {
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.06),
-    0 0 24px rgba(var(--primary-shadow), 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-:root:not(.dark) .habit-card-parent.habit-status-due {
-  border-left: 4px solid rgba(245, 158, 11, 0.62);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 6px 0 20px -8px rgba(245, 158, 11, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-:root:not(.dark) .habit-card-parent.habit-status-due:hover {
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.06),
-    inset 6px 0 24px -8px rgba(245, 158, 11, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-:root:not(.dark) .habit-card-parent.habit-status-overdue {
-  border-left: 4px solid rgba(239, 68, 68, 0.62);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 6px 0 20px -8px rgba(239, 68, 68, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-:root:not(.dark) .habit-card-parent.habit-status-overdue:hover {
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.06),
-    inset 6px 0 24px -8px rgba(239, 68, 68, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-:root:not(.dark) .habit-card-child {
-  background: var(--color-surface-ground);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-left: 2px solid rgba(var(--primary-shadow), 0.2);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 2px 8px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-:root:not(.dark) .habit-card-child.habit-status-due {
-  border-left: 3px solid rgba(245, 158, 11, 0.52);
-  background: var(--color-surface-ground);
-}
-
-:root:not(.dark) .habit-card-child.habit-status-overdue {
-  border-left: 3px solid rgba(239, 68, 68, 0.54);
-  background: var(--color-surface-ground);
-}
-:root:not(.dark) .habit-card-child:hover {
-  background: var(--color-surface);
-  border-color: rgba(0, 0, 0, 0.08);
-  border-left-color: rgba(var(--primary-shadow), 0.4);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    0 8px 20px rgba(0, 0, 0, 0.04),
-    0 0 12px rgba(var(--primary-shadow), 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-:root:not(.dark) .log-btn:not(.log-btn-done):hover {
-  box-shadow: 0 0 0 3px rgba(var(--primary-shadow), 0.08),
-              0 0 16px rgba(var(--primary-shadow), 0.06);
-}
-:root:not(.dark) .log-btn-done {
-  box-shadow: 0 0 12px rgba(var(--primary-shadow), 0.2),
-              0 0 28px rgba(var(--primary-shadow), 0.08);
-}
-
-:root:not(.dark) .progress-ring-glow {
-  filter: drop-shadow(0 0 3px rgba(var(--primary-shadow), 0.2));
-}
-
-:root:not(.dark) .habit-actions-menu {
-  background: color-mix(in srgb, var(--color-surface-overlay) 95%, transparent);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.1),
-    0 4px 10px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 /* ═══════════════════════════════════════════════════════

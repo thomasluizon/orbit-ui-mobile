@@ -57,23 +57,39 @@ import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { HabitCard } from './habit-card'
+import { HabitRow } from '@/components/habits/habit-row'
+import { useTourTarget } from '@/hooks/use-tour-target'
 import {
   HabitListDateGroupSection,
   HabitListEmptyState,
   type HabitListDateGroup,
 } from './habit-list-sections'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+/**
+ * Wraps a HabitRow in a measurable View that registers itself with the tour
+ * registry. v8's HabitRow has no internal tour-target prop so we anchor here
+ * from the parent. Renders no extra layout — the wrapping View is a sibling
+ * of the row, sized to fit content.
+ */
+function HabitRowTourAnchor({
+  targetId,
+  children,
+}: Readonly<{ targetId: string; children: ReactElement }>) {
+  const anchorRef = useRef<View>(null)
+  useTourTarget(targetId, anchorRef)
+  return (
+    <View ref={anchorRef} collapsable={false}>
+      {children}
+    </View>
+  )
+}
 
 interface HabitListProps {
   view?: 'today' | 'all' | 'general'
@@ -93,6 +109,12 @@ interface HabitListProps {
     onSaved?: () => void | Promise<void>,
   ) => void
   onScrollBeginDrag?: () => void
+  /** Notified whenever the all-collapsed status changes. Parents can mirror
+   * this in render-time state (refs cannot be read during render). */
+  onAllCollapsedChange?: (allCollapsed: boolean) => void
+  /** Notified whenever the set of visible habit ids changes. Parents can
+   * mirror this in render-time state. */
+  onAllLoadedIdsChange?: (ids: Set<string>) => void
 }
 
 export interface HabitListHandle {
@@ -106,11 +128,7 @@ export interface HabitListHandle {
   scrollToOffset: (offset: number) => void
 }
 
-// ---------------------------------------------------------------------------
-// Skeleton card for loading state
-// ---------------------------------------------------------------------------
-
-type ThemeColors = ReturnType<typeof useAppTheme>['colors']
+type AppTokens = ReturnType<typeof createTokensV2>
 type HabitListStyles = ReturnType<typeof createStyles>
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
@@ -170,10 +188,6 @@ function formatDateGroupLabel(
   })
 }
 
-// ---------------------------------------------------------------------------
-// HabitList
-// ---------------------------------------------------------------------------
-
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
     {
@@ -191,16 +205,22 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       onDetailHabit,
       onEditHabit,
       onScrollBeginDrag,
+      onAllCollapsedChange,
+      onAllLoadedIdsChange,
     },
     ref,
   ) {
-    const { t } = useTranslation()
-    const deviceLocale = useDeviceLocale()
+    const { t, i18n } = useTranslation()
+    const deviceLocale = i18n.language
     const router = useRouter()
     const pathname = usePathname()
     const { profile } = useProfile()
-    const { colors } = useAppTheme()
-    const styles = useMemo(() => createStyles(colors), [colors])
+    const { currentScheme, currentTheme } = useAppTheme()
+    const tokens = useMemo(
+      () => createTokensV2(currentScheme, currentTheme),
+      [currentScheme, currentTheme],
+    )
+    const styles = useMemo(() => createStyles(tokens), [tokens])
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const scrollTo = useCallback((y: number) => {
       scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
@@ -236,13 +256,23 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
+
+    // The tour's "card" step anchors to the featured mock habit when injected,
+    // otherwise falls back to the first visible row so the spotlight still
+    // has something to point at when the user already has real habits.
+    const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
+      ? TOUR_FEATURED_HABIT_ID
+      : topLevelHabits[0]?.id
     const totalCount = habitsQuery.data?.totalCount ?? 0
     const isLoading = habitsQuery.isLoading
     const isFetching = habitsQuery.isFetching
     const refetch = habitsQuery.refetch
     const getChildren = habitsQuery.getChildren
-    const childrenByParent =
-      habitsQuery.data?.childrenByParent ?? new Map<string, string[]>()
+    const childrenByParent = useMemo(
+      () =>
+        habitsQuery.data?.childrenByParent ?? new Map<string, string[]>(),
+      [habitsQuery.data?.childrenByParent],
+    )
 
     const logMutation = useLogHabit()
     const skipMutation = useSkipHabit()
@@ -255,7 +285,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
-    // Collapse state
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
     const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<
       Set<string>
@@ -467,6 +496,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [collapsedIds, expandableIds],
     )
 
+    // Publish allCollapsed and allLoadedIds upward so parents can read them
+    // in render without ref-during-render violations.
+    useEffect(() => {
+      onAllCollapsedChange?.(allCollapsed)
+    }, [allCollapsed, onAllCollapsedChange])
+
+    useEffect(() => {
+      onAllLoadedIdsChange?.(allLoadedIds)
+    }, [allLoadedIds, onAllLoadedIdsChange])
+
     const collapseAll = useCallback(() => {
       setCollapsedIds(new Set(expandableIds))
     }, [expandableIds])
@@ -486,6 +525,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         return next
       })
     }, [])
+
+    const [isDraggingList, setIsDraggingList] = useState(false)
+    const [dragOverrideItems, setDragOverrideItems] = useState<
+      DragItem[] | null
+    >(null)
+    const autoCollapsedOnDragRef = useRef<string | null>(null)
 
     const restoreCollapsedStateAfterDrag = useCallback(() => {
       setIsDraggingList(false)
@@ -529,14 +574,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return items
     }, [visibleHabits, collapsedIds, getVisibleChildren])
 
-    const [isDraggingList, setIsDraggingList] = useState(false)
-    const [dragOverrideItems, setDragOverrideItems] = useState<
-      DragItem[] | null
-    >(null)
     const activeDragItems = dragOverrideItems ?? flatItems
     const activeDragItemsRef = useRef(activeDragItems)
-    activeDragItemsRef.current = activeDragItems
-    const autoCollapsedOnDragRef = useRef<string | null>(null)
+    // Update mutable drag-items ref inside an effect so the lint rule
+    // accepts it (refs may not be written during render).
+    useEffect(() => {
+      activeDragItemsRef.current = activeDragItems
+    }, [activeDragItems])
     const isDndEnabled = view !== 'all' && !isSelectMode
 
     const isListView = view === 'all' || view === 'general'
@@ -697,7 +741,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const parentHabit = habitsById.get(childHabit.parentId)
         if (!parentHabit || parentHabit.isCompleted) return
 
-        // Only prompt if the parent itself is due today, overdue, or a general habit
         const parentIsDueToday =
           parentHabit.isGeneral ||
           parentHabit.isOverdue ||
@@ -857,17 +900,21 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const getSubtreeMaxDepth = useCallback(
       (habitId: string, baseDepth: number): number => {
-        let maxDepth = baseDepth
-        const children = getChildren(habitId)
+        function walk(currentId: string, currentDepth: number): number {
+          let maxDepth = currentDepth
+          const children = getChildren(currentId)
 
-        for (const child of children) {
-          const childMaxDepth = getSubtreeMaxDepth(child.id, baseDepth + 1)
-          if (childMaxDepth > maxDepth) {
-            maxDepth = childMaxDepth
+          for (const child of children) {
+            const childMaxDepth = walk(child.id, currentDepth + 1)
+            if (childMaxDepth > maxDepth) {
+              maxDepth = childMaxDepth
+            }
           }
+
+          return maxDepth
         }
 
-        return maxDepth
+        return walk(habitId, baseDepth)
       },
       [getChildren],
     )
@@ -1214,22 +1261,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           ? getChildrenProgress(habit.id)
           : { done: 0, total: 0 }
 
-        return (
-          <HabitCard
+        const row = (
+          <HabitRow
             key={habit.id}
             habit={habit}
             selectedDate={selectedDate}
-            isDrillCard={options?.isDrillCard ?? false}
-            isRecentlyCompleted={recentlyCompletedIds.has(habit.id)}
             depth={depth}
             hasChildren={hasChildren}
-            hasSubHabits={hasSubHabits}
-            tourTargetId={options?.tourTargetId}
             isExpanded={!collapsedIds.has(habit.id)}
             childrenDone={progress.done}
             childrenTotal={progress.total}
-            showAddSubHabit
-            searchQuery={searchQuery}
             isSelectMode={isSelectMode}
             isSelected={selectedIds.has(habit.id)}
             actions={{
@@ -1289,25 +1330,37 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             }}
           />
         )
+
+        if (options?.tourTargetId) {
+          return (
+            <HabitRowTourAnchor
+              key={habit.id}
+              targetId={options.tourTargetId}
+            >
+              {row}
+            </HabitRowTourAnchor>
+          )
+        }
+
+        return row
       },
       [
         selectedDate,
         collapsedIds,
         getChildrenProgress,
-        recentlyCompletedIds,
-        searchQuery,
         isSelectMode,
         selectedIds,
         onLogHabit,
         logMutation,
         promptSkip,
         toggleExpand,
-        t,
         promptDelete,
         promptDuplicate,
         openMoveParentDialog,
         startAddSubHabit,
-        drill.drillInto,
+        drill,
+        handleDirectLog,
+        promptForceLogParent,
         toggleSelectMode,
         toggleSelectionCascade,
         getDescendantIds,
@@ -1319,26 +1372,44 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const renderAllViewChildren = useCallback(
       (parentId: string, depth: number) => {
-        if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
-        const children = getVisibleChildren(parentId)
-        if (children.length === 0) return null
+        function walk(
+          currentParentId: string,
+          currentDepth: number,
+        ): ReactElement[] | null {
+          if (
+            collapsedIds.has(currentParentId) ||
+            currentDepth >= maxHabitDepth
+          ) {
+            return null
+          }
+          const children = getVisibleChildren(currentParentId)
+          if (children.length === 0) return null
 
-        return children.map((child) => {
-          const visibleChildren = getVisibleChildren(child.id)
-          return (
-            <View key={child.id} style={styles.allViewChild}>
-              {renderHabitCard(
-                child,
-                depth,
-                visibleChildren.length > 0,
-                child.hasSubHabits,
-              )}
-              {renderAllViewChildren(child.id, depth + 1)}
-            </View>
-          )
-        })
+          return children.map((child) => {
+            const visibleChildren = getVisibleChildren(child.id)
+            return (
+              <View key={child.id} style={styles.allViewChild}>
+                {renderHabitCard(
+                  child,
+                  currentDepth,
+                  visibleChildren.length > 0,
+                  child.hasSubHabits,
+                )}
+                {walk(child.id, currentDepth + 1)}
+              </View>
+            )
+          })
+        }
+
+        return walk(parentId, depth)
       },
-      [collapsedIds, getVisibleChildren, maxHabitDepth, renderHabitCard, styles.allViewChild],
+      [
+        collapsedIds,
+        getVisibleChildren,
+        maxHabitDepth,
+        renderHabitCard,
+        styles.allViewChild,
+      ],
     )
 
     const renderItem = useCallback(
@@ -1354,14 +1425,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 ? () => prepareDrag(item, drag)
                 : undefined,
               tourTargetId:
-                item.habit.id === TOUR_FEATURED_HABIT_ID
+                item.habit.id === tourCardHabitId
                   ? 'tour-habit-card'
                   : undefined,
             },
           )}
         </View>
       ),
-      [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset],
+      [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset, tourCardHabitId],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
@@ -1378,22 +1449,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }
           onAction={onCreatePress}
           variant="primary"
-          styles={styles}
-          colors={{
-            textMuted: colors.textMuted,
-            primary: colors.primary,
-            textSecondary: colors.textSecondary,
-          }}
         />
       ),
-      [
-        colors.primary,
-        colors.textMuted,
-        colors.textSecondary,
-        onCreatePress,
-        styles,
-        t,
-      ],
+      [onCreatePress, t],
     )
 
     const listHeaderComponent = useMemo(
@@ -1409,10 +1467,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <RefreshControl
           refreshing={isFetching && !isLoading}
           onRefresh={refetch}
-          tintColor={colors.primary}
+          tintColor={tokens.primary}
         />
       ),
-      [colors.primary, isFetching, isLoading, refetch],
+      [tokens.primary, isFetching, isLoading, refetch],
     )
 
     const renderGroupSection = useCallback(
@@ -1420,7 +1478,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListDateGroupSection
           group={group}
           overdueLabel={t('habits.overdue')}
-          styles={styles}
           renderHabit={(habit) => {
             const children = getVisibleChildren(habit.id)
             return (
@@ -1437,7 +1494,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }}
         />
       ),
-      [getVisibleChildren, renderAllViewChildren, renderHabitCard, styles, t],
+      [getVisibleChildren, renderAllViewChildren, renderHabitCard, t],
     )
 
     const renderDrillItem = useCallback(
@@ -1472,7 +1529,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           activeOpacity={0.7}
         >
           <Text style={styles.drillAddBtnText}>
-            {t('habits.actions.addSubHabit')}
+            {t('habits.form.addSubHabit')}
           </Text>
         </TouchableOpacity>
       ),
@@ -1694,7 +1751,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   activeOpacity={0.8}
                 >
                   {moveParentMutation.isPending ? (
-                    <ActivityIndicator size="small" color={colors.white} />
+                    <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
                   ) : (
                     <Text style={styles.moveDialogConfirmText}>
                       {t('habits.moveParent.confirm')}
@@ -1708,7 +1765,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       </>
     )
 
-    // Drill view: when drilled into a parent, show its sub-habits
     if (drill.currentParentId) {
       const completedCount = drill.drillChildren.filter(
         (c) => c.isCompleted || c.isLoggedInRange,
@@ -1723,7 +1779,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               style={styles.drillBackBtn}
               activeOpacity={0.7}
             >
-              <ChevronLeft size={20} color={colors.primary} />
+              <ChevronLeft size={20} color={tokens.primary} />
               <Text style={styles.drillBackText}>{t('common.back')}</Text>
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
@@ -1737,7 +1793,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             </View>
             {drill.drillStack.length > 1 ? (
               <TouchableOpacity onPress={drill.drillReset} activeOpacity={0.7}>
-                <ChevronLeft size={16} color={colors.textMuted} />
+                <ChevronLeft size={16} color={tokens.fg3} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -1745,7 +1801,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
 
       const drillEmptyState = drill.drillLoading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+        <ActivityIndicator color={tokens.primary} style={{ marginTop: 24 }} />
       ) : drill.drillError ? (
         <Text style={styles.emptyText}>{drill.drillError}</Text>
       ) : (
@@ -1780,7 +1836,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    // Loading skeleton (matches web: 3 skeleton cards)
     if (isLoading) {
       return (
         <>
@@ -1806,7 +1861,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    // All done today empty state
     if (
       flatItems.length === 0 &&
       totalCount > 0 &&
@@ -1824,7 +1878,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               <View style={styles.sectionInset}>
                 <View style={styles.emptyAllDone}>
                   <View style={styles.allDoneIconContainer}>
-                    <CheckCircle2 size={40} color={colors.success} />
+                    <CheckCircle2 size={40} color={tokens.statusDone} />
                   </View>
                   <Text style={styles.allDoneTitle}>
                     {t('habits.allDoneToday')}
@@ -1913,10 +1967,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   },
 )
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 function alpha(color: string, opacity: number): string {
   const normalized = color.trim()
 
@@ -1946,19 +1996,18 @@ function alpha(color: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    // Skeleton loading (matches web skeleton)
     skeletonContainer: {
       paddingTop: 8,
       paddingBottom: 100,
       gap: 12,
     },
     skeletonCard: {
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 16,
       flexDirection: 'row',
       alignItems: 'center',
@@ -1973,7 +2022,7 @@ function createStyles(colors: ThemeColors) {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: colors.primaryTintBg,
+      backgroundColor: tokens.bgElev,
     },
     skeletonContent: {
       flex: 1,
@@ -1982,20 +2031,17 @@ function createStyles(colors: ThemeColors) {
     skeletonTitle: {
       height: 16,
       width: '75%',
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       borderRadius: 8,
     },
     skeletonSubtitle: {
       height: 12,
       width: '40%',
-      backgroundColor: alpha(colors.surfaceElevated, 0.6),
+      backgroundColor: alpha(tokens.bgElev, 0.6),
       borderRadius: 8,
     },
 
-    // List
-    sectionInset: {
-      paddingHorizontal: 20,
-    },
+    sectionInset: {},
     listContent: {
       paddingBottom: 100,
     },
@@ -2020,18 +2066,18 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 1,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     groupLabelOverdue: {
-      color: colors.red400,
+      color: tokens.statusBad,
     },
     groupDivider: {
       flex: 1,
       height: 1,
-      backgroundColor: colors.border,
+      backgroundColor: tokens.hairline,
     },
     groupDividerOverdue: {
-      backgroundColor: alpha(colors.red400, 0.2),
+      backgroundColor: alpha(tokens.statusBad, 0.2),
     },
     groupItems: {
       gap: 10,
@@ -2057,13 +2103,13 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 1,
-      color: colors.primary,
+      color: tokens.primary,
       opacity: 0.7,
     },
     generalSectionDivider: {
       flex: 1,
       height: 1,
-      backgroundColor: colors.primary_20,
+      backgroundColor: tokens.bgElev,
     },
     generalSectionList: {
       gap: 10,
@@ -2072,24 +2118,24 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
 
-    // Empty: all done today (matches web allDoneToday state)
     emptyAllDone: {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 20,
       paddingVertical: 56,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceGround,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
+      marginHorizontal: 20,
+      borderRadius: 12,
+      backgroundColor: tokens.bgSunk,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairline,
     },
     allDoneIconContainer: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: colors.emeraldBg,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.emerald500_20,
+      borderColor: tokens.bgElev,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 16,
@@ -2097,12 +2143,12 @@ function createStyles(colors: ThemeColors) {
     allDoneTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
       marginBottom: 4,
     },
     allDoneSubtitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       textAlign: 'center',
       marginBottom: 24,
     },
@@ -2110,41 +2156,40 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 12,
-      backgroundColor: colors.primary_10,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.primary_20,
+      borderColor: tokens.bgElev,
     },
     seeUpcomingText: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.primary,
+      color: tokens.primary,
     },
 
-    // Empty: no habits (matches web no habits state)
     emptyState: {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 20,
       paddingVertical: 56,
       borderRadius: 20,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
     },
     emptyIconContainer: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: colors.surfaceGround,
+      backgroundColor: tokens.bgSunk,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 16,
     },
     emptySubtitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       textAlign: 'center',
       marginBottom: 24,
     },
@@ -2152,8 +2197,8 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 12,
-      backgroundColor: colors.primary,
-      shadowColor: colors.primary,
+      backgroundColor: tokens.primary,
+      shadowColor: tokens.primary,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.2,
       shadowRadius: 20,
@@ -2162,7 +2207,7 @@ function createStyles(colors: ThemeColors) {
     createButtonText: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
     dialogBackdrop: {
       flex: 1,
@@ -2175,21 +2220,21 @@ function createStyles(colors: ThemeColors) {
       width: '100%',
       maxWidth: 380,
       maxHeight: '75%',
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       borderRadius: 20,
       padding: 20,
     },
     moveDialogTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     moveDialogDescription: {
       fontSize: 14,
       lineHeight: 20,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginTop: 8,
       marginBottom: 16,
     },
@@ -2203,14 +2248,14 @@ function createStyles(colors: ThemeColors) {
     moveOption: {
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surface,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
       paddingHorizontal: 12,
       paddingVertical: 12,
     },
     moveOptionSelected: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary_10,
+      borderColor: tokens.primary,
+      backgroundColor: tokens.bgSunk,
     },
     moveOptionDisabled: {
       opacity: 0.5,
@@ -2225,23 +2270,23 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       fontSize: 14,
       fontWeight: '600',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     moveOptionCurrent: {
       fontSize: 10,
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 0.8,
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     moveOptionReason: {
       fontSize: 11,
-      color: colors.textMuted,
+      color: tokens.fg3,
       marginTop: 6,
     },
     moveDialogEmpty: {
       fontSize: 14,
-      color: colors.textMuted,
+      color: tokens.fg3,
       textAlign: 'center',
       paddingVertical: 16,
     },
@@ -2256,20 +2301,20 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       paddingVertical: 12,
     },
     moveDialogCancelText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
     moveDialogConfirm: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 14,
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
       paddingVertical: 12,
       minHeight: 46,
     },
@@ -2279,10 +2324,9 @@ function createStyles(colors: ThemeColors) {
     moveDialogConfirmText: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
 
-    // Drill navigation
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2290,7 +2334,7 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: colors.borderMuted,
+      borderBottomColor: tokens.hairline,
       marginBottom: 8,
     },
     drillBackBtn: {
@@ -2301,17 +2345,17 @@ function createStyles(colors: ThemeColors) {
     },
     drillBackText: {
       fontSize: 14,
-      color: colors.primary,
+      color: tokens.primary,
       fontWeight: '500',
     },
     drillTitle: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     drillProgress: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginTop: 1,
     },
     drillAddBtn: {
@@ -2320,17 +2364,17 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: colors.primary,
+      borderColor: tokens.primary,
       alignItems: 'center',
     },
     drillAddBtnText: {
       fontSize: 14,
-      color: colors.primary,
+      color: tokens.primary,
       fontWeight: '500',
     },
     emptyText: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       textAlign: 'center',
       marginTop: 32,
       paddingHorizontal: 24,

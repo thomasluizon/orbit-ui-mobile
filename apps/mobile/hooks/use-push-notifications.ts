@@ -73,38 +73,45 @@ function isExpoGo(): boolean {
   return Constants.appOwnership === 'expo'
 }
 
+function hasFunctionProperty(value: object, key: string): boolean {
+  return key in value && typeof Reflect.get(value, key) === 'function'
+}
+
 function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsModule {
   if (!value || typeof value !== 'object') return false
 
-  const candidate = value as Partial<ExpoNotificationsModule>
   return (
-    typeof candidate.setNotificationHandler === 'function' &&
-    typeof candidate.setNotificationChannelAsync === 'function' &&
-    typeof candidate.getPermissionsAsync === 'function' &&
-    typeof candidate.requestPermissionsAsync === 'function' &&
-    typeof candidate.getExpoPushTokenAsync === 'function' &&
-    typeof candidate.getDevicePushTokenAsync === 'function' &&
-    typeof candidate.addNotificationResponseReceivedListener === 'function'
+    hasFunctionProperty(value, 'setNotificationHandler') &&
+    hasFunctionProperty(value, 'setNotificationChannelAsync') &&
+    hasFunctionProperty(value, 'getPermissionsAsync') &&
+    hasFunctionProperty(value, 'requestPermissionsAsync') &&
+    hasFunctionProperty(value, 'getExpoPushTokenAsync') &&
+    hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
+    hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
 }
+
+function getModuleDefaultExport(value: object): unknown {
+  if (!('default' in value)) return null
+  return Reflect.get(value, 'default')
+}
+
+declare const require: (id: string) => unknown
 
 function getNotificationsModule(): ExpoNotificationsModule | null {
   if (isExpoGo()) return null
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps Expo Go from importing unsupported notifications code
-    const requiredModule = require('expo-notifications') as unknown
+    const requiredModule = require('expo-notifications')
     if (isExpoNotificationsModule(requiredModule)) {
       return requiredModule
     }
 
-    if (
-      requiredModule &&
-      typeof requiredModule === 'object' &&
-      'default' in requiredModule &&
-      isExpoNotificationsModule(requiredModule.default)
-    ) {
-      return requiredModule.default
+    if (requiredModule && typeof requiredModule === 'object') {
+      const defaultExport = getModuleDefaultExport(requiredModule)
+      if (isExpoNotificationsModule(defaultExport)) {
+        return defaultExport
+      }
     }
 
     return null
@@ -124,8 +131,10 @@ function isPhysicalDevice(): boolean {
     return Device.isDevice
   }
 
-  const deviceModule = Device as unknown as { default?: { isDevice?: unknown } }
-  return deviceModule.default?.isDevice === true
+  if (!('default' in Device)) return false
+  const defaultExport = Reflect.get(Device, 'default')
+  if (!defaultExport || typeof defaultExport !== 'object') return false
+  return Reflect.get(defaultExport, 'isDevice') === true
 }
 
 function isGrantedStatus(status: string): status is 'granted' {
@@ -502,13 +511,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [expoPushToken, isAuthenticated, isSupported, permissionStatus, writeDisabledPreference])
 
+  // Defer sync calls to a microtask so the synchronous setState calls inside
+  // syncGrantedPermission (the unsupported-module short-circuit at the top of
+  // the function) don't fire inside the effect body.
   useEffect(() => {
-    void syncGrantedPermission()
+    void Promise.resolve().then(() => syncGrantedPermission())
   }, [syncGrantedPermission])
 
   useEffect(() => {
     if (isAuthenticated && isGrantedStatus(permissionStatus ?? '') && !isRegistered) {
-      void syncGrantedPermission()
+      void Promise.resolve().then(() => syncGrantedPermission())
     }
   }, [isAuthenticated, isRegistered, permissionStatus, syncGrantedPermission])
 

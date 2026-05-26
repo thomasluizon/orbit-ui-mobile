@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+
 const mocks = vi.hoisted(() => ({
   runQueuedMutation: vi.fn(),
   apiClient: vi.fn(),
@@ -12,8 +14,6 @@ vi.mock('@/lib/offline-mutations', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
 describe('performQueuedApiMutation', () => {
   beforeEach(() => {

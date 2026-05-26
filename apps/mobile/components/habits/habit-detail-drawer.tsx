@@ -1,151 +1,160 @@
-import { useState, useCallback, useMemo } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import {
-  Clock,
-  Bell,
-  CalendarDays,
-} from "lucide-react-native";
-import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
-import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { HabitChecklist } from "./habit-checklist";
-import { DescriptionViewer } from "./description-viewer";
-import { HabitCalendar } from "./habit-calendar";
-import {
-  HabitDetailStatsGrid,
-} from "./habit-detail-sections";
-import { useTimeFormat } from "@/hooks/use-time-format";
-import { useDeviceLocale } from "@/hooks/use-device-locale";
+import { useState, useCallback, useMemo } from 'react'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import { useTranslation } from 'react-i18next'
+import { ChevronRight, Sparkles } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { HabitChecklist } from './habit-checklist'
+import { DescriptionViewer } from './description-viewer'
+import { HabitCalendar } from './habit-calendar'
+import { HabitDetailStatsRow } from './habit-detail-sections'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
   useUpdateChecklist,
   useLogHabit,
-} from "@/hooks/use-habits";
-import type { NormalizedHabit } from "@orbit/shared/types/habit";
-import { formatLocaleDate } from "@orbit/shared/utils";
-import { radius } from "@/lib/theme";
-import { useAppTheme } from "@/lib/use-app-theme";
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+} from '@/hooks/use-habits'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { formatLocaleDate } from '@orbit/shared/utils'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HabitDetailDrawerProps {
-  open: boolean;
-  onClose: () => void;
-  habit: NormalizedHabit | null;
-  onLogged?: (habitId: string) => void;
+  open: boolean
+  onClose: () => void
+  habit: NormalizedHabit | null
+  onLogged?: (habitId: string) => void
 }
 
-type HabitDetailColors = {
-  primary: string
-  primary_10: string
-  surfaceGround: string
-  surface: string
-  surfaceElevated: string
-  borderMuted: string
-  border: string
-  textSecondary: string
-  textPrimary: string
-  textMuted: string
-  textFaded: string
-  white: string
-}
-
-type HabitDetailShadows = {
-  sm: Record<string, unknown>
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * Habit Detail Drawer. Covers all variants by data-driven section presence:
+ * active, skipped (checklist hidden when empty), checklist, bad, slip alert
+ * (when `slipAlertEnabled`), linked goal (when `linkedGoals` non empty).
+ */
 export function HabitDetailDrawer({
   open,
   onClose,
   habit,
   onLogged,
 }: Readonly<HabitDetailDrawerProps>) {
-  const { t } = useTranslation();
-  const locale = useDeviceLocale();
-  const { displayTime } = useTimeFormat();
-  const { colors, shadows } = useAppTheme();
-  const styles = useMemo(
-    () => createStyles(colors, shadows),
-    [colors, shadows],
-  );
-  const habitId = habit?.id ?? "";
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
+  const { displayTime } = useTimeFormat()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const habitId = habit?.id ?? ''
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
     open && habitId ? habitId : null,
-  );
-  const updateChecklist = useUpdateChecklist();
-  const logHabit = useLogHabit();
+  )
 
-  const metrics = fullDetail?.metrics ?? null;
-  const logs = fullDetail?.logs ?? null;
-  const liveChecklist = fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [];
+  const updateChecklist = useUpdateChecklist()
+  const logHabit = useLogHabit()
 
-  const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false);
-  const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] = useState(false);
+  const metrics = fullDetail?.metrics ?? null
+  const logs = fullDetail?.logs ?? null
+  const liveChecklist = useMemo(
+    () => fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [],
+    [fullDetail?.habit.checklistItems, habit?.checklistItems],
+  )
+
+  const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
+  const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] =
+    useState(false)
+
+  const router = useRouter()
+  const askPrompt = useMemo(() => {
+    if (!habit) return ''
+    return habit.hasSubHabits
+      ? t('habits.detail.askAstraSubHabits')
+      : t('habits.detail.askAstraDefault')
+  }, [habit, t])
+
+  const handleAskAstra = useCallback(() => {
+    if (!habit) return
+    const seed = `${askPrompt} (${habit.title})`
+    void AsyncStorage.setItem('orbit-chat-draft', seed)
+    onClose()
+    router.push('/chat')
+  }, [askPrompt, habit, onClose, router])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
-      if (!habit) return;
-      const items = [...liveChecklist];
-      const item = items[index];
-      if (!item) return;
-      items[index] = { ...item, isChecked: !item.isChecked };
-      updateChecklist.mutate({ habitId: habit.id, items });
-      if (items.length > 0 && items.every((i) => i.isChecked) && !habit.isCompleted) {
-        setShowChecklistCompleteConfirm(true);
+      if (!habit) return
+      const items = [...liveChecklist]
+      const item = items[index]
+      if (!item) return
+      items[index] = { ...item, isChecked: !item.isChecked }
+      updateChecklist.mutate({ habitId: habit.id, items })
+      if (
+        items.length > 0 &&
+        items.every((i) => i.isChecked) &&
+        !habit.isCompleted
+      ) {
+        setShowChecklistCompleteConfirm(true)
       }
     },
     [habit, liveChecklist, updateChecklist],
-  );
+  )
 
   const handleChecklistReset = useCallback(() => {
-    if (!habit) return;
-    const items = liveChecklist.map((i) => ({ ...i, isChecked: false }));
-    updateChecklist.mutate({ habitId: habit.id, items });
-  }, [habit, liveChecklist, updateChecklist]);
+    if (!habit) return
+    const items = liveChecklist.map((i) => ({ ...i, isChecked: false }))
+    updateChecklist.mutate({ habitId: habit.id, items })
+  }, [habit, liveChecklist, updateChecklist])
 
   const handleChecklistClear = useCallback(() => {
-    if (!habit) return;
-    updateChecklist.mutate({ habitId: habit.id, items: [] });
-  }, [habit, updateChecklist]);
+    if (!habit) return
+    updateChecklist.mutate({ habitId: habit.id, items: [] })
+  }, [habit, updateChecklist])
+
+  const summaryParts = useMemo(() => {
+    if (!habit) return ''
+    const parts: string[] = []
+    if (habit.currentStreak)
+      parts.push(`${t('habits.detail.currentStreak')} ${habit.currentStreak}`)
+    if (habit.linkedGoals && habit.linkedGoals.length > 0)
+      parts.push(t('habits.detail.linkedGoal'))
+    if (liveChecklist.length > 0) {
+      const checked = liveChecklist.filter((i) => i.isChecked).length
+      parts.push(`${checked}/${liveChecklist.length}`)
+    }
+    return parts.join('  ·  ')
+  }, [habit, liveChecklist, t])
 
   return (
     <>
-      {habit?.description && (
+      {habit?.description ? (
         <DescriptionViewer
           open={descriptionViewerOpen}
           onClose={() => setDescriptionViewerOpen(false)}
           title={habit.title}
           description={habit.description}
         />
-      )}
+      ) : null}
 
       <ConfirmDialog
         open={showChecklistCompleteConfirm}
         onOpenChange={setShowChecklistCompleteConfirm}
-        title={t("habits.checklistCompleteTitle")}
-        description={t("habits.checklistCompleteMessage", { name: habit?.title ?? "" })}
-        confirmLabel={t("habits.checklistCompleteConfirm")}
-        cancelLabel={t("common.cancel")}
+        title={t('habits.checklistCompleteTitle')}
+        description={t('habits.checklistCompleteMessage', {
+          name: habit?.title ?? '',
+        })}
+        confirmLabel={t('habits.checklistCompleteConfirm')}
+        cancelLabel={t('common.cancel')}
         variant="success"
         onConfirm={async () => {
-          if (!habit) return;
+          if (!habit) return
           try {
-            await logHabit.mutateAsync({ habitId: habit.id });
-            onLogged?.(habit.id);
+            await logHabit.mutateAsync({ habitId: habit.id })
+            onLogged?.(habit.id)
           } catch {
             // Error handled by mutation
           }
@@ -157,294 +166,251 @@ export function HabitDetailDrawer({
         onClose={onClose}
         title={habit?.title}
         contentKey={habitId}
-        snapPoints={["68%", "92%"]}
+        snapPoints={['68%', '92%']}
       >
-        {habit && (
+        {habit ? (
           <BottomSheetScrollView
             style={styles.scroll}
             contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
           >
-            {/* Description (expandable) */}
-            {habit.description && (
+            {summaryParts ? (
+              <Text style={styles.summary}>{summaryParts}</Text>
+            ) : null}
+
+            {habit.description ? (
               <TouchableOpacity
                 onPress={() => setDescriptionViewerOpen(true)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('habits.detail.viewDescription')}
               >
                 <Text style={styles.description} numberOfLines={2}>
                   {habit.description}
                 </Text>
               </TouchableOpacity>
-            )}
+            ) : null}
 
-            {/* Due time */}
-            {habit.dueTime && (
-              <View style={styles.infoRow}>
-                <Clock size={16} color={colors.primary} />
-                <Text style={styles.infoText}>
-                  {displayTime(habit.dueTime)}
-                </Text>
-              </View>
-            )}
-
-            {/* Scheduled reminders */}
-            {habit.scheduledReminders &&
-              habit.scheduledReminders.length > 0 && (
-                <View style={styles.infoRow}>
-                  <Bell size={16} color={colors.primary} />
-                  <View style={styles.reminderChips}>
-                    {habit.scheduledReminders.map((sr, idx) => (
-                      <View
-                        key={`${sr.when}-${sr.time}-${idx}`}
-                        style={styles.reminderChip}
-                      >
-                        <Text style={styles.reminderChipText}>
-                          {sr.when === "day_before"
-                            ? t("habits.form.scheduledReminderDayBeforeAt", {
-                                time: displayTime(sr.time),
-                              })
-                            : t("habits.form.scheduledReminderSameDayAt", {
-                                time: displayTime(sr.time),
-                              })}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
+            {liveChecklist.length > 0 ? (
+              <View>
+                <SectionLabel top={4} bottom={8}>
+                  {t('habits.form.checklist')}
+                </SectionLabel>
+                <View style={styles.sectionInset}>
+                  <HabitChecklist
+                    items={liveChecklist}
+                    interactive
+                    onToggle={handleChecklistToggle}
+                    onReset={handleChecklistReset}
+                    onClear={handleChecklistClear}
+                  />
                 </View>
-              )}
+              </View>
+            ) : null}
 
-            {/* End date */}
-            {habit.endDate && (
-              <View style={styles.infoRow}>
-                <CalendarDays size={16} color={colors.primary} />
-                <Text style={styles.infoText}>
-                  {t("habits.detail.endsOn")}{" "}
-                  {formatLocaleDate(habit.endDate, locale, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+            {habit.frequencyUnit || habit.isGeneral ? (
+              <View>
+                <SectionLabel top={4} bottom={8}>
+                  {t('habits.detail.stats')}
+                </SectionLabel>
+                <HabitDetailStatsRow
+                  metrics={metrics}
+                  loading={metricsLoading}
+                  t={t}
+                  tokens={tokens}
+                />
+              </View>
+            ) : null}
+
+            {habit.dueTime ? (
+              <View>
+                <SectionLabel top={8} bottom={0}>
+                  {t('habits.detail.reminders')}
+                </SectionLabel>
+                <SettingsRow
+                  label={t('habits.form.dueTime')}
+                  value={displayTime(habit.dueTime)}
+                  mono
+                  accessory="none"
+                />
+                {habit.scheduledReminders?.map((sr, idx) => (
+                  <SettingsRow
+                    key={`${sr.when}-${sr.time}-${idx}`}
+                    label={
+                      sr.when === 'day_before'
+                        ? t('habits.form.scheduledReminderDayBefore')
+                        : t('habits.form.scheduledReminderSameDay')
+                    }
+                    value={displayTime(sr.time)}
+                    mono
+                    accessory="none"
+                  />
+                ))}
+              </View>
+            ) : null}
+
+            {habit.endDate ? (
+              <SettingsRow
+                label={t('habits.detail.endsOn')}
+                value={formatLocaleDate(habit.endDate, locale, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                mono
+                accessory="none"
+              />
+            ) : null}
+
+            {habit.linkedGoals && habit.linkedGoals.length > 0 ? (
+              <View>
+                <SectionLabel top={8} bottom={0}>
+                  {t('habits.detail.linkedGoal')}
+                </SectionLabel>
+                {habit.linkedGoals.map((g) => (
+                  <SettingsRow
+                    key={g.id}
+                    label={g.title}
+                    accessory="chevron"
+                  />
+                ))}
+              </View>
+            ) : null}
+
+
+            <View>
+              <SectionLabel top={8} bottom={8}>
+                {t('habits.detail.activity')}
+              </SectionLabel>
+              <View style={styles.sectionInset}>
+                <HabitCalendar habitId={habit.id} logs={logs} />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleAskAstra}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
+              style={styles.askAstra}
+            >
+              <View
+                style={[
+                  styles.askAstraRule,
+                  { backgroundColor: tokens.primary },
+                ]}
+              />
+              <View style={styles.askAstraContent}>
+                <View style={styles.askAstraEyebrow}>
+                  <Sparkles
+                    size={12}
+                    color={tokens.primary}
+                    strokeWidth={1.7}
+                  />
+                  <Text
+                    style={[
+                      styles.askAstraEyebrowText,
+                      { color: tokens.fg3 },
+                    ]}
+                  >
+                    {t('habits.detail.askAstraEyebrow')}
+                  </Text>
+                </View>
+                <Text style={[styles.askAstraBody, { color: tokens.fg2 }]}>
+                  {askPrompt}
                 </Text>
               </View>
-            )}
-
-            {/* Checklist */}
-            {liveChecklist.length > 0 && (
-              <HabitChecklist
-                items={liveChecklist}
-                interactive
-                onToggle={handleChecklistToggle}
-                onReset={handleChecklistReset}
-                onClear={handleChecklistClear}
+              <ChevronRight
+                size={16}
+                color={tokens.fg3}
+                strokeWidth={1.7}
               />
-            )}
-
-            <HabitDetailStatsGrid
-              metrics={metrics}
-              loading={metricsLoading}
-              t={t}
-              colors={{
-                primary: colors.primary,
-                surfaceGround: colors.surfaceGround,
-                borderMuted: colors.borderMuted,
-                textSecondary: colors.textSecondary,
-                textPrimary: colors.textPrimary,
-                textMuted: colors.textMuted,
-              }}
-              styles={{
-                statsGrid: styles.statsGrid,
-                statCard: styles.statCard,
-                statLabel: styles.statLabel,
-                statValue: styles.statValue,
-                skeletonIcon: styles.skeletonIcon,
-                skeletonLabel: styles.skeletonLabel,
-                skeletonValue: styles.skeletonValue,
-                sectionTitle: styles.sectionTitle,
-                noDataText: styles.noDataText,
-              }}
-            />
-
-            <View style={styles.calendarSection}>
-              <Text style={styles.sectionTitle}>
-                {t("habits.detail.activity")}
-              </Text>
-              <HabitCalendar habitId={habit.id} logs={logs} />
-            </View>
+            </TouchableOpacity>
           </BottomSheetScrollView>
-        )}
+        ) : null}
       </BottomSheetModal>
     </>
-  );
+  )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(
-  colors: HabitDetailColors,
-  shadows: HabitDetailShadows,
-) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     scroll: {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 20,
       paddingBottom: 40,
-      gap: 24,
+      gap: 0,
+    },
+    summary: {
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 14,
+      fontFamily: 'GeistMono',
+      fontSize: 12,
+      fontWeight: '500',
+      color: tokens.fg3,
+      letterSpacing: 0.48,
+      fontVariant: ['tabular-nums'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
     description: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      fontFamily: 'Geist',
       fontSize: 14,
-      lineHeight: 20,
-      color: colors.textSecondary,
+      lineHeight: 21,
+      color: tokens.fg2,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
-    infoRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 8,
+    sectionInset: {
+      paddingHorizontal: 20,
+      paddingBottom: 8,
     },
-    infoText: {
-      fontSize: 14,
-      color: colors.textSecondary,
+    askAstra: {
+      position: 'relative',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingLeft: 34,
+      paddingRight: 20,
+      paddingTop: 16,
+      paddingBottom: 24,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: tokens.hairline,
+      marginTop: 8,
     },
-    reminderChips: {
+    askAstraRule: {
+      position: 'absolute',
+      left: 20,
+      top: 20,
+      bottom: 28,
+      width: 2,
+      borderRadius: 1,
+    },
+    askAstraContent: {
       flex: 1,
-      flexDirection: "row",
-      flexWrap: "wrap",
+    },
+    askAstraEyebrow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 6,
+      marginBottom: 6,
     },
-    reminderChip: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: colors.primary_10,
+    askAstraEyebrowText: {
+      fontFamily: 'GeistMono',
+      fontSize: 10.5,
+      fontWeight: '500',
+      letterSpacing: 0.63,
     },
-    reminderChipText: {
-      fontSize: 12,
-      fontWeight: "500",
-      color: colors.primary,
-    },
-    statsGrid: {
-      flexDirection: "row",
-      gap: 12,
-    },
-    statCard: {
-      flex: 1,
-      backgroundColor: colors.surfaceGround,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      borderRadius: radius.xl,
-      padding: 12,
-      alignItems: "center",
-      gap: 4,
-      ...shadows.sm,
-    },
-    statLabel: {
-      fontSize: 10,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      color: colors.textSecondary,
-      textAlign: "center",
-    },
-    statValue: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    skeletonIcon: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: colors.surfaceElevated,
-    },
-    skeletonLabel: {
-      width: 40,
-      height: 10,
-      borderRadius: 4,
-      backgroundColor: colors.surfaceElevated,
-    },
-    skeletonValue: {
-      width: 32,
-      height: 20,
-      borderRadius: 4,
-      backgroundColor: colors.surfaceElevated,
-    },
-    notesSection: {
-      gap: 12,
-    },
-    calendarSection: {
-      gap: 12,
-    },
-    sectionTitle: {
+    askAstraBody: {
+      fontFamily: 'Geist',
       fontSize: 14,
-      fontWeight: "700",
-      color: colors.textPrimary,
+      fontStyle: 'italic',
+      lineHeight: 20,
     },
-    notesList: {
-      gap: 8,
-    },
-    noteCard: {
-      backgroundColor: colors.surfaceGround,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      borderRadius: radius.md,
-      padding: 12,
-      ...shadows.sm,
-    },
-    noteDate: {
-      fontSize: 10,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      color: colors.textMuted,
-      marginBottom: 4,
-    },
-    noteText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-    },
-    showMoreButton: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    noDataText: {
-      fontSize: 14,
-    },
-    buttonRow: {
-      flexDirection: "row",
-      gap: 12,
-    },
-    editButton: {
-      flex: 1,
-      paddingVertical: 16,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    editButtonText: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    deleteButton: {
-      flex: 2,
-      paddingVertical: 16,
-      borderRadius: radius.xl,
-      backgroundColor: colors.primary,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-    },
-    deleteButtonText: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.white,
-    },
-  });
+  })
 }

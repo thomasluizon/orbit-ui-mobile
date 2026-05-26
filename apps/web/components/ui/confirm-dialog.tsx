@@ -1,6 +1,5 @@
 'use client'
 
-import { AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from './app-overlay'
 
@@ -15,36 +14,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   onConfirm: () => void
   onCancel?: () => void
+  /** 'danger' is treated as destructive — italicized action label, no semantic fill. */
   variant?: Variant
-}
-
-const variantConfig: Record<
-  Variant,
-  {
-    icon: typeof AlertTriangle
-    bg: string
-    text: string
-    btn: string
-  }
-> = {
-  danger: {
-    icon: AlertTriangle,
-    bg: 'bg-red-500/10',
-    text: 'text-red-500',
-    btn: 'bg-red-500 hover:bg-red-600',
-  },
-  warning: {
-    icon: AlertCircle,
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-500',
-    btn: 'bg-amber-500 hover:bg-amber-600',
-  },
-  success: {
-    icon: CheckCircle2,
-    bg: 'bg-green-500/10',
-    text: 'text-green-500',
-    btn: 'bg-green-500 hover:bg-green-600',
-  },
 }
 
 export function ConfirmDialog({
@@ -59,8 +30,7 @@ export function ConfirmDialog({
   variant = 'danger',
 }: Readonly<ConfirmDialogProps>) {
   const t = useTranslations()
-  const config = variantConfig[variant]
-  const Icon = config.icon
+  const destructive = variant === 'danger'
 
   function handleConfirm() {
     onConfirm()
@@ -76,34 +46,52 @@ export function ConfirmDialog({
     <AppOverlay
       open={open}
       onOpenChange={onOpenChange}
-      titleContent={
-        <div className="flex items-center gap-3">
-          <div
-            className={`size-10 rounded-full flex items-center justify-center shrink-0 ${config.bg}`}
-          >
-            <Icon className={`size-5 ${config.text}`} />
-          </div>
-          <span>{title}</span>
-        </div>
-      }
+      title={title}
       footer={
-        <div className="flex gap-3">
+        <div className="flex justify-end items-center" style={{ gap: 16 }}>
           <button
-            className="flex-1 py-3 rounded-xl border border-border text-text-secondary font-medium text-sm hover:bg-surface transition-colors duration-[var(--duration-fast)]"
+            type="button"
             onClick={handleCancel}
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              padding: 6,
+            }}
           >
             {cancelLabel || t('common.cancel')}
           </button>
           <button
-            className={`flex-1 py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.98] shadow-[var(--shadow-sm)] ${config.btn}`}
+            type="button"
             onClick={handleConfirm}
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--fg-1)',
+              fontStyle: destructive ? 'italic' : 'normal',
+              padding: 6,
+            }}
           >
             {confirmLabel || t('common.confirm')}
           </button>
         </div>
       }
     >
-      <p className="pb-4 text-sm text-text-secondary">{description}</p>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          lineHeight: 1.5,
+          color: 'var(--fg-2)',
+          paddingBottom: 16,
+        }}
+      >
+        {description}
+      </p>
     </AppOverlay>
   )
 }

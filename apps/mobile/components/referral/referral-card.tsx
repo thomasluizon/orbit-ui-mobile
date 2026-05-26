@@ -1,97 +1,30 @@
-import { useMemo } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { Gift, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
-import { radius } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import { SettingsRow } from '@/components/ui/settings-row'
 
 interface ReferralCardProps {
   onOpen: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/** v8 chrome: flush SettingsRow with title left, mono progress value right. */
 export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
   const { t } = useTranslation()
-  const { colors, shadows } = useAppTheme()
   const { stats, isLoading } = useReferral()
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+
+  let value = t('referral.card.hint')
+  if (!isLoading && stats) {
+    value = t('referral.card.progress', {
+      count: stats.successfulReferrals,
+      max: stats.maxReferrals,
+    })
+  }
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.7}
+    <SettingsRow
+      label={t('referral.card.title')}
       onPress={onOpen}
-    >
-      <View style={styles.iconContainer}>
-        <Gift size={20} color={colors.primary} />
-      </View>
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>{t('referral.card.title')}</Text>
-        <Text style={styles.subtitle}>
-          {isLoading && t('referral.card.hint')}
-          {!isLoading &&
-            stats &&
-            t('referral.card.progress', {
-              count: stats.successfulReferrals,
-              max: stats.maxReferrals,
-            })}
-          {!isLoading && !stats && t('referral.card.hint')}
-        </Text>
-      </View>
-      <ChevronRight size={16} color={colors.textMuted} />
-    </TouchableOpacity>
+      value={value}
+      mono={!isLoading && !!stats}
+    />
   )
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
-  return StyleSheet.create({
-    card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 16,
-      backgroundColor: colors.surface,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 20,
-      ...shadows.sm,
-      elevation: 2,
-    },
-    iconContainer: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.lg,
-      backgroundColor: colors.surfaceElevated,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    textContainer: {
-      flex: 1,
-    },
-    title: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.textPrimary,
-    },
-    subtitle: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-  })
 }

@@ -36,21 +36,20 @@ function createWrapper() {
 }
 
 describe('OnboardingWelcome', () => {
-  it('renders welcome title and subtitle', () => {
+  it('renders welcome title heading', () => {
     render(<OnboardingWelcome />, { wrapper: createWrapper() })
     expect(screen.getByText('onboarding.flow.welcome.title')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.flow.welcome.subtitle')).toBeInTheDocument()
   })
 
-  it('renders week start day buttons', () => {
+  it('renders the week start day section label', () => {
     render(<OnboardingWelcome />, { wrapper: createWrapper() })
-    expect(screen.getByText('settings.weekStartDay.monday')).toBeInTheDocument()
-    expect(screen.getByText('settings.weekStartDay.sunday')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.flow.welcome.weekStart')).toBeInTheDocument()
   })
 
-  it('renders the Orbit logo', () => {
+  it('exposes monday and sunday selectors via aria-label', () => {
     render(<OnboardingWelcome />, { wrapper: createWrapper() })
-    expect(screen.getByAltText('Orbit')).toBeInTheDocument()
+    expect(screen.getByLabelText('settings.weekStartDay.monday')).toBeInTheDocument()
+    expect(screen.getByLabelText('settings.weekStartDay.sunday')).toBeInTheDocument()
   })
 
   it('does not show color scheme for non-pro users', () => {

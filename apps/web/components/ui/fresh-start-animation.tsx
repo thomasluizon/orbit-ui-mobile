@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 
 interface FreshStartAnimationProps {
   onComplete: () => void
@@ -13,10 +14,9 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const t = useTranslations()
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
 
   useEffect(() => {
-    setMounted(true)
     // Trigger entrance on next frame
     requestAnimationFrame(() => {
       setIsVisible(true)
@@ -46,7 +46,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       aria-live="assertive"
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+      <div className="absolute inset-0 bg-[var(--bg)]" />
 
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-8">
@@ -56,15 +56,15 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
 
         {/* Center orb */}
         <div className="fresh-start-orb">
-          <RefreshCw className="size-8 text-text-primary" />
+          <RefreshCw className="size-8 text-[var(--fg-1)]" />
         </div>
 
         {/* Text */}
         <div className="fresh-start-text mt-10 text-center">
-          <p className="text-[length:var(--text-fluid-xl)] font-bold text-text-primary tracking-tight">
+          <p className="text-[length:var(--text-fluid-xl)] font-bold text-[var(--fg-1)] tracking-tight">
             {t('profile.freshStart.successTitle')}
           </p>
-          <p className="text-[length:var(--text-fluid-sm)] text-text-secondary mt-2">
+          <p className="text-[length:var(--text-fluid-sm)] text-[var(--fg-2)] mt-2">
             {t('profile.freshStart.successSubtitle')}
           </p>
         </div>

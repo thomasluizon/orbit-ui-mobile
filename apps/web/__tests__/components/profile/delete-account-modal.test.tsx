@@ -116,21 +116,21 @@ describe('DeleteAccountModal', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders overlay with title when open', () => {
+  it('renders overlay with the confirmation heading when open', () => {
     render(
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.title')).toBeInTheDocument()
+    expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
   })
 
-  it('shows confirm step by default with warning and send-code button', () => {
+  it('shows confirm step by default with warning and continue button', () => {
     render(
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
     expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.warningDetail')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
+    expect(screen.getByText('common.continue')).toBeInTheDocument()
   })
 
   it('shows pro warning when user has pro access', () => {
@@ -152,7 +152,7 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
 
     await waitFor(() => {
       expect(mockRequestDeletion).toHaveBeenCalledTimes(1)
@@ -170,7 +170,7 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
 
     // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
@@ -183,7 +183,7 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
 
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
@@ -198,13 +198,13 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
 
     await waitFor(() => {
-      expect(screen.getByText('profile.deleteAccount.confirmDelete')).toBeInTheDocument()
+      expect(screen.getByText('auth.verify')).toBeInTheDocument()
     })
 
-    const confirmBtn = screen.getByText('profile.deleteAccount.confirmDelete')
+    const confirmBtn = screen.getByText('auth.verify')
     expect(confirmBtn).toBeDisabled()
   })
 
@@ -214,7 +214,7 @@ describe('DeleteAccountModal', () => {
     )
 
     // Go to code step
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
@@ -226,7 +226,7 @@ describe('DeleteAccountModal', () => {
     })
 
     // Confirm
-    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
+    fireEvent.click(screen.getByText('auth.verify'))
 
     await waitFor(() => {
       expect(mockConfirmDeletion).toHaveBeenCalledWith('123456')
@@ -245,7 +245,7 @@ describe('DeleteAccountModal', () => {
     )
 
     // Go to code step
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
@@ -257,7 +257,7 @@ describe('DeleteAccountModal', () => {
     })
 
     // Confirm
-    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
+    fireEvent.click(screen.getByText('auth.verify'))
 
     // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
@@ -271,7 +271,7 @@ describe('DeleteAccountModal', () => {
     )
 
     // Go to code step
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
@@ -283,7 +283,7 @@ describe('DeleteAccountModal', () => {
     })
 
     // Confirm deletion
-    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
+    fireEvent.click(screen.getByText('auth.verify'))
     await waitFor(() => {
       expect(screen.getByText('profile.logout')).toBeInTheDocument()
     })
@@ -301,7 +301,7 @@ describe('DeleteAccountModal', () => {
     )
 
     // Navigate to code step
-    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
@@ -311,6 +311,7 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByTestId('overlay-reopen'))
 
     // Should be back at confirm step since handleOpenChange resets state when value is true
-    expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
+    expect(screen.getByText('common.continue')).toBeInTheDocument()
+    expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
   })
 })

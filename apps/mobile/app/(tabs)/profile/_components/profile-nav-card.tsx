@@ -1,138 +1,101 @@
-import { useMemo, type ReactNode } from 'react'
-import { Pressable, Text, View, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
-import { createColors } from '@/lib/theme'
-import { useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
-type AppColors = ReturnType<typeof createColors>
-
 interface ProfileNavCardProps {
-  colors: AppColors
-  icon: ReactNode
   title: string
   hint: string
   onPress: () => void
-  variant?: 'default' | 'primary'
   proBadge?: boolean
   proBadgeLabel?: string
   rightText?: string
 }
 
+/**
+ * v8 SettingsRow-style profile navigation entry. Replaces the old card
+ * shell with a hairline row. Kept under the same name so existing consumers
+ * (profile.tsx) keep working.
+ */
 export function ProfileNavCard({
-  colors,
-  icon,
   title,
   hint,
   onPress,
-  variant = 'default',
   proBadge = false,
   proBadgeLabel,
   rightText,
-}: ProfileNavCardProps) {
-  const styles = useMemo(() => createProfileNavCardStyles(colors), [colors])
-  const selectionMotion = useResolvedMotionPreset('selection')
-  const isPrimary = variant === 'primary'
+}: Readonly<ProfileNavCardProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.navCardShell,
-        isPrimary && styles.navCardPrimaryShell,
-        pressed && styles.navCardPressed,
-        pressed && !selectionMotion.reducedMotionEnabled &&
-          styles.navCardPressedMotion,
-      ]}
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={title}
       accessibilityHint={rightText ?? hint}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          backgroundColor: pressed ? tokens.bgElev : 'transparent',
+          borderBottomColor: tokens.hairline,
+        },
+      ]}
     >
-      <View style={[styles.navCardContent, isPrimary && styles.navCardContentPrimary]}>
-        <View style={[styles.navCardIcon, isPrimary && styles.navCardIconPrimary]}>
-          {icon}
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text
+            style={[styles.title, { color: tokens.fg1 }]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          {proBadge ? (
+            <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
+          ) : null}
         </View>
-        <View style={styles.navCardBody}>
-          <View style={styles.navCardTitleRow}>
-            <Text style={styles.navCardTitle}>{title}</Text>
-            {proBadge && (
-              <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
-            )}
-          </View>
-          <Text style={styles.navCardHint}>{rightText ?? hint}</Text>
-        </View>
-        <ChevronRight size={16} color={colors.textMuted} />
+        <Text
+          style={[styles.hint, { color: tokens.fg3 }]}
+          numberOfLines={1}
+        >
+          {rightText ?? hint}
+        </Text>
       </View>
+      <ChevronRight size={16} color={tokens.fg4} strokeWidth={1.5} />
     </Pressable>
   )
 }
 
-function createProfileNavCardStyles(colors: AppColors) {
-  return StyleSheet.create({
-    navCardShell: {
-      width: '100%',
-      borderColor: colors.borderMuted,
-      borderWidth: 1,
-      borderRadius: 20,
-      overflow: 'hidden',
-      shadowColor: '#000000',
-      shadowOpacity: 0.12,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 1,
-    },
-    navCardContent: {
-      backgroundColor: colors.surfaceGround,
-      padding: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    navCardPrimaryShell: {
-      borderColor: colors.primaryTintBorder,
-    },
-    navCardContentPrimary: {
-      backgroundColor: colors.primaryTintBg,
-    },
-    navCardPressed: {
-      opacity: 0.86,
-    },
-    navCardPressedMotion: {
-      transform: [{ scale: 0.985 }],
-    },
-    navCardIcon: {
-      borderRadius: 16,
-      backgroundColor: colors.primary_10,
-      padding: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-      marginRight: 16,
-    },
-    navCardIconPrimary: {
-      backgroundColor: colors.primaryTintIconBg,
-    },
-    navCardBody: {
-      flex: 1,
-      minWidth: 0,
-      marginRight: 12,
-    },
-    navCardTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    navCardTitle: {
-      color: colors.textPrimary,
-      fontSize: 14,
-      fontWeight: '700',
-      flexShrink: 1,
-    },
-    navCardHint: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      marginTop: 2,
-    },
-    proBadgeSpacing: {
-      marginLeft: 8,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  title: {
+    fontFamily: 'Geist',
+    fontSize: 15,
+    fontWeight: '400',
+    flexShrink: 1,
+  },
+  hint: {
+    fontFamily: 'Geist',
+    fontSize: 12,
+  },
+  proBadgeSpacing: {
+    marginLeft: 8,
+  },
+})

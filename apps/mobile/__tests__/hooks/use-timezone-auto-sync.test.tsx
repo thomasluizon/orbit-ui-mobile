@@ -4,6 +4,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
+import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -11,7 +13,7 @@ const mocks = vi.hoisted(() => {
     profile: null as unknown as Profile,
   }
 
-  const appStateListeners: Array<(status: string) => void> = []
+  const appStateListeners: ((status: string) => void)[] = []
   const appState = {
     addEventListener: vi.fn((_event: string, listener: (status: string) => void) => {
       appStateListeners.push(listener)
@@ -57,8 +59,6 @@ vi.mock('react-native', () => ({
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mocks.performQueuedApiMutation,
 }))
-
-import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 
 function renderHookHarness(profile: Profile | undefined) {
   function Harness() {

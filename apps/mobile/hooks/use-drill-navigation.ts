@@ -3,22 +3,14 @@ import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
-import { getErrorMessage } from '@orbit/shared/api'
-import { API } from '@orbit/shared/api'
+import { getErrorMessage , API } from '@orbit/shared/api'
+
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Helper: fetch habit detail
-// ---------------------------------------------------------------------------
 
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   return apiClient<HabitDetail>(API.habits.get(habitId))
 }
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface DrillNavigationState {
   drillStack: string[]
@@ -33,10 +25,6 @@ export interface DrillNavigationState {
   refreshCurrent: () => Promise<void>
   getDrillChildren: (parentId: string) => NormalizedHabit[]
 }
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,
@@ -123,15 +111,17 @@ export function useDrillNavigation(
     [drillChildrenMap],
   )
 
-  // Auto-refresh drill children when store data updates
+  // Auto-refresh drill children when store data updates. Defer to a microtask
+  // so the synchronous portion of fetchDrillChildren (the optimistic loading
+  // setState) doesn't fire inside the effect body — React 19 forbids cascading
+  // setState calls in effects. The fetch still happens promptly (next tick).
   const lastUpdatedRef = useRef(lastUpdated)
   useEffect(() => {
-    if (lastUpdated !== lastUpdatedRef.current) {
-      lastUpdatedRef.current = lastUpdated
-      if (currentParentId) {
-        fetchDrillChildren(currentParentId, true)
-      }
-    }
+    if (lastUpdated === lastUpdatedRef.current) return
+    lastUpdatedRef.current = lastUpdated
+    if (!currentParentId) return
+    const parentId = currentParentId
+    void Promise.resolve().then(() => fetchDrillChildren(parentId, true))
   }, [lastUpdated, currentParentId, fetchDrillChildren])
 
   useEffect(() => {

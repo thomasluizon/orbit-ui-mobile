@@ -31,6 +31,9 @@ vi.mock('@/app/actions/profile', () => ({
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: () => <div data-testid="step-welcome">Welcome</div>,
 }))
+vi.mock('@/components/onboarding/onboarding-meet-astra', () => ({
+  OnboardingMeetAstra: () => <div data-testid="step-meet-astra">Meet Astra</div>,
+}))
 vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ onCreated }: { onCreated: (id: string, title: string) => void }) => (
     <div data-testid="step-create-habit">
@@ -86,28 +89,32 @@ describe('OnboardingFlow', () => {
     expect(screen.getByText('onboarding.flow.skip')).toBeInTheDocument()
   })
 
-  it('shows next button on welcome step', () => {
+  it('shows the begin label on the welcome step', () => {
     render(<OnboardingFlow />)
-    expect(screen.getByText('onboarding.flow.next')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.flow.begin')).toBeInTheDocument()
   })
 
-  it('advances to create habit step on next', () => {
+  it('advances to the meet-astra interstitial first', () => {
     render(<OnboardingFlow />)
-    fireEvent.click(screen.getByText('onboarding.flow.next'))
-    expect(screen.getByTestId('step-create-habit')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
   })
 
   it('advances through all steps via interactions', () => {
     render(<OnboardingFlow />)
-    // Step 0 -> 1: click Next
+    // welcome -> meet astra
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
+
+    // meet astra -> create habit
     fireEvent.click(screen.getByText('onboarding.flow.next'))
     expect(screen.getByTestId('step-create-habit')).toBeInTheDocument()
 
-    // Step 1 -> 2: create habit
+    // create habit -> complete habit
     fireEvent.click(screen.getByText('Create'))
     expect(screen.getByTestId('step-complete-habit')).toBeInTheDocument()
 
-    // Step 2 -> 3: complete habit
+    // complete habit -> create goal
     fireEvent.click(screen.getByText('Complete'))
     expect(screen.getByTestId('step-create-goal')).toBeInTheDocument()
   })
@@ -128,6 +135,8 @@ describe('OnboardingFlow', () => {
     render(<OnboardingFlow />)
     const dialog = screen.getByRole('dialog')
     expect(dialog.tagName).toBe('DIV')
-    expect(dialog).toHaveClass('fixed', 'inset-0', 'w-screen', 'h-dvh')
+    expect(dialog).toHaveClass('fixed', 'inset-0')
+    expect(dialog.className).toMatch(/w-screen/)
+    expect(dialog.className).toMatch(/h-dvh/)
   })
 })

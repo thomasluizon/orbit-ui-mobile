@@ -1,13 +1,24 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { addMonths, subMonths, startOfMonth, format } from 'date-fns'
+import {
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  format,
+} from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
+import { formatAPIDate } from '@orbit/shared/utils'
+import { plural } from '@/lib/plural'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
 import {
   CalendarHeader,
   CalendarLegend,
@@ -25,7 +36,10 @@ export default function CalendarPage() {
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
-  const monthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }), [currentMonth, dateFnsLocale])
+  const monthLabel = useMemo(
+    () => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }),
+    [currentMonth, dateFnsLocale],
+  )
 
   // Mini completion summary for the header
   const monthSummary = useMemo(() => {
@@ -40,7 +54,7 @@ export default function CalendarPage() {
     })
     if (daysWithActivity === 0) return null
     const pct = Math.round((daysCompleted / daysWithActivity) * 100)
-    return `${daysCompleted}/${daysWithActivity} ${t('calendar.summary.days')} (${pct}%)`
+    return `${daysCompleted}/${daysWithActivity} ${plural(t('calendar.summary.days'), daysCompleted)} (${pct}%)`
   }, [dayMap, isLoading, t])
 
   const prevMonth = useCallback(() => {
@@ -49,10 +63,6 @@ export default function CalendarPage() {
 
   const nextMonth = useCallback(() => {
     setCurrentMonth((m) => addMonths(m, 1))
-  }, [])
-
-  const goToToday = useCallback(() => {
-    setCurrentMonth(startOfMonth(new Date()))
   }, [])
 
   const onSelectDay = useCallback((dateStr: string) => {
@@ -64,6 +74,35 @@ export default function CalendarPage() {
     if (!selectedDay) return []
     return dayMap.get(selectedDay) ?? []
   }, [selectedDay, dayMap])
+
+  // "Este mês" stat strip — mirrors mobile: best streak / total logs / missed
+  // computed from current-month days only.
+  const monthStats = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd = endOfMonth(currentMonth)
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+
+    let totalLogs = 0
+    let missed = 0
+    let bestStreak = 0
+    let currentStreak = 0
+
+    for (const day of days) {
+      const entries: CalendarDayEntry[] = dayMap.get(formatAPIDate(day)) ?? []
+      const completedCount = entries.filter((e) => e.status === 'completed').length
+      totalLogs += completedCount
+      missed += entries.filter((e) => e.status === 'missed').length
+
+      if (entries.length > 0 && completedCount === entries.length) {
+        currentStreak += 1
+        if (currentStreak > bestStreak) bestStreak = currentStreak
+      } else {
+        currentStreak = 0
+      }
+    }
+
+    return { bestStreak, totalLogs, missed }
+  }, [currentMonth, dayMap])
 
   // Swipe navigation
   const touchStartX = useRef<number | null>(null)
@@ -96,27 +135,11 @@ export default function CalendarPage() {
         title={t('nav.calendar')}
         monthLabel={monthLabel}
         subtitle={monthSummary}
-        goToTodayLabel={t('dates.goToToday')}
         previousMonthLabel={t('common.previousMonth')}
         nextMonthLabel={t('common.nextMonth')}
-        onGoToToday={goToToday}
         onPreviousMonth={prevMonth}
         onNextMonth={nextMonth}
       />
-
-      {/* Loading skeleton */}
-      {isLoading && (
-        <div className="py-4">
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {Array.from({ length: 35 }, (_, i) => (
-              <div
-                key={i}
-                className="aspect-square bg-surface rounded-[var(--radius-xl)] animate-pulse"
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Refetch loading bar */}
       <div
@@ -125,25 +148,40 @@ export default function CalendarPage() {
         }`}
       />
 
-      {/* Calendar grid */}
-      {!isLoading && (
-        <div
-          className={`py-2 transition-opacity duration-200 bg-surface rounded-[var(--radius-xl)] border border-border-muted p-3 shadow-[var(--shadow-sm)] ${
-            isFetching ? 'opacity-40 pointer-events-none' : ''
-          }`}
-        >
-          <CalendarGrid
-            currentMonth={currentMonth}
-            dayMap={dayMap}
-            onSelectDay={onSelectDay}
-          />
-        </div>
-      )}
+      {/* Calendar grid — always renders the structure so users see months
+       *  instantly; the loading state only suppresses status dots. */}
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={dayMap}
+        onSelectDay={onSelectDay}
+        isLoading={isLoading}
+      />
 
       <CalendarLegend
         doneLabel={t('calendar.legend.done')}
         upcomingLabel={t('calendar.legend.upcoming')}
         missedLabel={t('calendar.legend.missed')}
+      />
+
+      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
+      <SettingsRow
+        label={t('calendar.bestStreak')}
+        value={String(monthStats.bestStreak)}
+        accessory="none"
+        mono
+      />
+      <SettingsRow
+        label={t('calendar.totalLogs')}
+        value={String(monthStats.totalLogs)}
+        accessory="none"
+        mono
+      />
+      <SettingsRow
+        label={t('calendar.missedCount')}
+        value={String(monthStats.missed)}
+        accessory="none"
+        mono
+        divider={false}
       />
 
       {/* Day detail overlay */}

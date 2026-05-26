@@ -13,15 +13,13 @@ import {
   Easing,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
-  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { parseShowGeneralOnTodayPreference } from "@orbit/shared/utils";
 import {
   Search,
   X,
@@ -30,12 +28,9 @@ import {
   RefreshCw,
   ChevronsDownUp,
   ChevronsUpDown,
-  PlusCircle,
-  MinusCircle,
-  FastForward,
-  Trash2,
   Check,
   Eye,
+  Filter,
 } from "lucide-react-native";
 import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -43,6 +38,7 @@ import {
   formatAPIDate,
   formatLocaleDate,
   isHabitVisibleInAllView,
+  parseShowGeneralOnTodayPreference,
 } from "@orbit/shared/utils";
 import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
@@ -63,11 +59,14 @@ import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
-import { HabitSummaryCard } from "@/components/habits/habit-summary-card";
+import { TodayAISummary } from "@/components/habits/today-ai-summary";
+import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
 import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AppTextInput } from "@/components/ui/app-text-input";
+import { TagChip } from "@/components/ui/tag-chip";
+import { SectionLabel } from "@/components/ui/section-label";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { AnchoredMenu } from "@/components/ui/anchored-menu";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
@@ -76,9 +75,8 @@ import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import { useResolvedMotionPreset } from "@/lib/motion";
-import { radius, shadows, spacing } from "@/lib/theme";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { useDeviceLocale } from "@/hooks/use-device-locale";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
@@ -88,10 +86,6 @@ import {
   TodayDateNavigation,
   type TodayTabItem,
 } from "./today-shell";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
 type TodayView = (typeof TAB_VIEWS)[number];
@@ -135,7 +129,7 @@ interface TodaySearchBarProps {
   placeholder: string;
   clearLabel: string;
   focused: boolean;
-  colors: ReturnType<typeof useAppTheme>["colors"];
+  tokens: ReturnType<typeof createTokensV2>;
   styles: ReturnType<typeof createStyles>;
 }
 
@@ -146,16 +140,23 @@ const TodaySearchBar = memo(function TodaySearchBar({
   placeholder,
   clearLabel,
   focused,
-  colors,
+  tokens,
   styles,
 }: Readonly<TodaySearchBarProps>) {
   const [draft, setDraft] = useState(initialValue);
   const focusMotion = useResolvedMotionPreset("selection");
-  const focusAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const focusAnimRef = useRef<Animated.Value | null>(null);
+  if (focusAnimRef.current === null) {
+    focusAnimRef.current = new Animated.Value(focused ? 1 : 0);
+  }
+  const focusAnim = focusAnimRef.current;
 
-  useEffect(() => {
+  // Mirror controlled `initialValue` prop into local draft.
+  const [previousInitialValue, setPreviousInitialValue] = useState(initialValue);
+  if (initialValue !== previousInitialValue) {
+    setPreviousInitialValue(initialValue);
     setDraft(initialValue);
-  }, [initialValue]);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -177,52 +178,39 @@ const TodaySearchBar = memo(function TodaySearchBar({
 
   const focusAnimatedStyle = useMemo(
     () => ({
-      transform: [
-        {
-          scale: focusAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1, focusMotion.reducedMotionEnabled ? 1 : 1.01],
-          }),
-        },
-      ],
+      opacity: focusAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.9, 1],
+      }),
     }),
-    [focusAnim, focusMotion.reducedMotionEnabled],
+    [focusAnim],
   );
 
   return (
-    <View style={styles.searchWrapper}>
-      <Animated.View
-        style={[
-          styles.searchContainer,
-          focused ? styles.searchContainerFocused : null,
-          focusAnimatedStyle,
-        ]}
-      >
-        <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
-        <AppTextInput
-          style={styles.searchInput}
-          value={draft}
-          onChangeText={setDraft}
-          onFocus={() => onFocusChange(true)}
-          onBlur={() => onFocusChange(false)}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="search"
-          selectionColor={colors.primary}
-        />
-        {draft.length > 0 ? (
-          <TouchableOpacity
-            onPress={() => setDraft("")}
-            style={styles.searchClear}
-            accessibilityRole="button"
-            accessibilityLabel={clearLabel}
-            activeOpacity={0.75}
-          >
-            <X size={16} color={colors.textSecondary} />
-          </TouchableOpacity>
-        ) : null}
-      </Animated.View>
-    </View>
+    <Animated.View style={[styles.searchWrap, focusAnimatedStyle]}>
+      <Search size={15} color={tokens.fg3} />
+      <AppTextInput
+        style={[styles.searchInput, { color: tokens.fg1 }]}
+        value={draft}
+        onChangeText={setDraft}
+        onFocus={() => onFocusChange(true)}
+        onBlur={() => onFocusChange(false)}
+        placeholder={placeholder}
+        placeholderTextColor={tokens.fg3}
+        returnKeyType="search"
+        selectionColor={tokens.primary}
+      />
+      {draft.length > 0 ? (
+        <Pressable
+          onPress={() => setDraft("")}
+          accessibilityRole="button"
+          accessibilityLabel={clearLabel}
+          hitSlop={6}
+        >
+          <X size={15} color={tokens.fg3} />
+        </Pressable>
+      ) : null}
+    </Animated.View>
   );
 });
 
@@ -257,21 +245,20 @@ function createAnimatedTimingConfig(
   } as const;
 }
 
-// ---------------------------------------------------------------------------
-// Today Screen
-// ---------------------------------------------------------------------------
-
 export default function TodayScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const theme = useAppTheme();
-  const { colors } = theme;
+  const tokens = useMemo(
+    () => createTokensV2(theme.currentScheme, theme.currentTheme),
+    [theme.currentScheme, theme.currentTheme],
+  );
   const listMotion = useResolvedMotionPreset("list-enter");
   const selectionMotion = useResolvedMotionPreset("selection");
   const router = useRouter();
-  const locale = useDeviceLocale();
   const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
@@ -280,7 +267,6 @@ export default function TodayScreen() {
   const { tags } = useTags();
   const deleteHabit = useDeleteHabit();
 
-  // UI Store
   const selectedDateStr = useUIStore((s) => s.selectedDate);
   const setSelectedDate = useUIStore((s) => s.setSelectedDate);
   const goToTodayDate = useUIStore((s) => s.goToToday);
@@ -305,17 +291,24 @@ export default function TodayScreen() {
   const hasProAccess = profile?.hasProAccess ?? false;
   const currentActiveView = resolveTodayView(activeView, hasProAccess);
 
-  // Local state
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false);
   const [showControlsMenu, setShowControlsMenu] = useState(false);
   const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
+    useState<MenuAnchorRect | null>(null);
+  const [showFreqMenu, setShowFreqMenu] = useState(false);
+  const [freqMenuAnchorRect, setFreqMenuAnchorRect] =
     useState<MenuAnchorRect | null>(null);
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
     "right",
   );
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const habitListRef = useRef<HabitListHandle>(null);
+  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false);
+  const [habitListAllLoadedIds, setHabitListAllLoadedIds] = useState<
+    Set<string>
+  >(() => new Set());
   const habitsTourRef = useRef<View>(null);
   useTourTarget("tour-habit-list", habitsTourRef);
   const goalsScrollRef = useRef<ScrollView>(null);
@@ -327,16 +320,20 @@ export default function TodayScreen() {
     goalsScrollTo,
   );
   const controlsButtonRef = useRef<View>(null);
+  const freqMenuButtonRef = useRef<View>(null);
   const previousActiveViewRef = useRef(activeView);
-  const dateLabelAnim = useRef(new Animated.Value(0)).current;
-  const filtersTransitionAnim = useRef(new Animated.Value(1)).current;
-  const listTransitionAnim = useRef(new Animated.Value(1)).current;
-  const refetchTransitionAnim = useRef(new Animated.Value(0)).current;
-  const bulkBarAnim = useRef(new Animated.Value(isSelectMode ? 1 : 0)).current;
+  const dateLabelAnim = useMemo(() => new Animated.Value(0), []);
+  const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
+  const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
+  const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
+  const bulkBarAnimRef = useRef<Animated.Value | null>(null);
+  if (bulkBarAnimRef.current === null) {
+    bulkBarAnimRef.current = new Animated.Value(isSelectMode ? 1 : 0);
+  }
+  const bulkBarAnim = bulkBarAnimRef.current;
   const hasAnimatedFiltersRef = useRef(false);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
 
-  // Modal state
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<
@@ -423,7 +420,6 @@ export default function TodayScreen() {
     [t],
   );
 
-  // Date navigation
   const goToPreviousDay = useCallback(() => {
     setSlideDirection("left");
     setSelectedDate(formatAPIDate(subDays(selectedDate, 1)));
@@ -493,6 +489,16 @@ export default function TodayScreen() {
     });
   }, [selectedDate, t, locale]);
 
+  const dateLong = useMemo(
+    () =>
+      formatLocaleDate(selectedDate, locale, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }),
+    [selectedDate, locale],
+  );
+
   useEffect(() => {
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
@@ -533,7 +539,6 @@ export default function TodayScreen() {
     listTransitionAnim,
   ]);
 
-  // Tag filter toggle
   const toggleTagFilter = useCallback(
     (tagId: string) => {
       const idx = selectedTagIds.indexOf(tagId);
@@ -547,7 +552,6 @@ export default function TodayScreen() {
     [selectedTagIds, setSelectedTagIds],
   );
 
-  // Build filters (matching web exactly)
   const dateStr = formatAPIDate(selectedDate);
   const filters = useMemo<HabitsFilter>(() => {
     if (currentActiveView === "general") {
@@ -568,7 +572,6 @@ export default function TodayScreen() {
       if (selectedTagIds.length > 0) f.tagIds = selectedTagIds;
       return f;
     }
-    // 'all' view
     const f: HabitsFilter = {};
     if (searchQueryStore.trim()) f.search = searchQueryStore.trim();
     if (selectedFrequency) f.frequencyUnit = selectedFrequency;
@@ -609,8 +612,6 @@ export default function TodayScreen() {
     confirmBulkSkip,
   } = bulkActions;
 
-  // Use the shared visibility helpers so bulk-selection scope matches what
-  // HabitList actually renders (Today view surfaces today's items + overdue).
   const visibility = useHabitVisibility({
     habitsById,
     childrenByParent,
@@ -679,6 +680,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     if (isSelectMode) {
+       
       setRenderBulkActionBar(true);
       bulkBarAnim.stopAnimation?.();
       bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
@@ -713,7 +715,8 @@ export default function TodayScreen() {
     selectionMotion.reducedMotionEnabled,
   ]);
 
-  const allLoadedIds = habitListRef.current?.allLoadedIds ?? visibleHabitIds;
+  const allLoadedIds =
+    habitListAllLoadedIds.size > 0 ? habitListAllLoadedIds : visibleHabitIds;
 
   const allSelected =
     allLoadedIds.size > 0 &&
@@ -721,7 +724,6 @@ export default function TodayScreen() {
 
   const selectedCount = selectedHabitIds.size;
 
-  // Sync filters to UI store
   const setFilters = useUIStore((s) => s.setFilters);
   const showCreateModal = useUIStore((s) => s.showCreateModal);
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
@@ -732,10 +734,7 @@ export default function TodayScreen() {
   }, [filters, setFilters]);
 
   const showSummary =
-    currentActiveView === "today" &&
-    isToday(selectedDate) &&
-    profile?.hasProAccess &&
-    profile?.aiSummaryEnabled;
+    currentActiveView === "today" && isToday(selectedDate) && hasProAccess;
 
   const filtersAnimatedStyle = useMemo(
     () => ({
@@ -810,7 +809,7 @@ export default function TodayScreen() {
         },
       ],
     }),
-    [bulkBarAnim, selectionMotion.scaleFrom, selectionMotion.shift],
+    [bulkBarAnim, selectionMotion],
   );
 
   useEffect(() => {
@@ -819,7 +818,6 @@ export default function TodayScreen() {
     }
   }, [activeView, hasProAccess, setActiveView]);
 
-  // Clear filters on view change
   useEffect(() => {
     if (
       !shouldResetSelectionForViewChange(
@@ -879,6 +877,30 @@ export default function TodayScreen() {
     measureControlsButton();
   }, [measureControlsButton, showControlsMenu]);
 
+  const measureFreqMenuButton = useCallback(() => {
+    freqMenuButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setFreqMenuAnchorRect({ x, y, width, height });
+      setShowFreqMenu(true);
+    });
+  }, []);
+
+  const handleToggleFreqMenu = useCallback(() => {
+    if (showFreqMenu) {
+      setShowFreqMenu(false);
+      return;
+    }
+
+    measureFreqMenuButton();
+  }, [measureFreqMenuButton, showFreqMenu]);
+
+  const handleSelectFrequency = useCallback(
+    (key: FreqKey | null) => {
+      setSelectedFrequency(key);
+      setShowFreqMenu(false);
+    },
+    [setSelectedFrequency],
+  );
+
   const handleSelectAll = useCallback(() => {
     selectAllHabits(Array.from(allLoadedIds));
   }, [allLoadedIds, selectAllHabits]);
@@ -890,28 +912,17 @@ export default function TodayScreen() {
   const handleOpenBulkDelete = useCallback(() => {
     if (selectedCount === 0) return;
     setShowBulkDeleteConfirm(true);
-  }, [selectedCount]);
+  }, [selectedCount, setShowBulkDeleteConfirm]);
 
   const handleOpenBulkLog = useCallback(() => {
     if (selectedCount === 0) return;
     setShowBulkLogConfirm(true);
-  }, [selectedCount]);
+  }, [selectedCount, setShowBulkLogConfirm]);
 
   const handleOpenBulkSkip = useCallback(() => {
     if (selectedCount === 0) return;
     setShowBulkSkipConfirm(true);
-  }, [selectedCount]);
-
-  const requestHabitDelete = useCallback(
-    (habitId: string) => {
-      const habit = detailHabit?.id === habitId ? detailHabit : null;
-      if (!habit) return;
-
-      setHabitPendingDelete(habit);
-      setShowHabitDeleteConfirm(true);
-    },
-    [detailHabit],
-  );
+  }, [selectedCount, setShowBulkSkipConfirm]);
 
   const confirmHabitDelete = useCallback(async () => {
     if (!habitPendingDelete) return;
@@ -952,6 +963,15 @@ export default function TodayScreen() {
     setShowControlsMenu(false);
   }, []);
 
+  const handleToggleSearch = useCallback(() => {
+    setIsSearchOpen((open) => {
+      if (open) {
+        setSearchQueryStore("");
+      }
+      return !open;
+    });
+  }, [setSearchQueryStore]);
+
   const sharedHeader = useMemo(
     () => (
       <>
@@ -959,7 +979,7 @@ export default function TodayScreen() {
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
-          styles={styles}
+          dateLong={dateLong}
         />
 
         <TrialBanner />
@@ -978,18 +998,16 @@ export default function TodayScreen() {
           activeView={currentActiveView}
           onChangeView={handleChangeView}
           viewsLabel={t("habits.viewsLabel")}
-          styles={styles}
         />
       </>
     ),
     [
-      activeView,
+      currentActiveView,
       currentStreak,
+      dateLong,
       goToToday,
-      reviewReminder.dismiss,
-      reviewReminder.requestReview,
-      reviewReminder.shouldShow,
-      styles,
+      handleChangeView,
+      reviewReminder,
       tabItems,
       t,
     ],
@@ -999,6 +1017,9 @@ export default function TodayScreen() {
     () => (
       <>
         {sharedHeader}
+
+        {showSummary ? <TodayAISummary date={dateStr} /> : null}
+
         <TodayDateNavigation
           visible={currentActiveView === "today"}
           dateLabel={dateLabel}
@@ -1010,136 +1031,107 @@ export default function TodayScreen() {
           previousLabel={t("dates.previousDay")}
           todayLabel={t("dates.goToToday")}
           nextLabel={t("dates.nextDay")}
-          iconColor={colors.textSecondary}
-          styles={styles}
           dateLabelAnim={dateLabelAnim}
           panHandlers={
             !isSearchFocused ? swipePanResponder.panHandlers : undefined
           }
         />
 
-        {showSummary ? (
-          <View style={styles.summaryWrap}>
-            <HabitSummaryCard date={dateStr} />
-          </View>
-        ) : null}
+        <SectionLabel
+          trailing={
+            <View style={styles.sectionTrailing}>
+              <Pressable
+                onPress={handleToggleSearch}
+                accessibilityRole="button"
+                accessibilityLabel={t("habits.searchPlaceholder")}
+                hitSlop={6}
+                style={styles.iconBtn}
+              >
+                <Search
+                  size={15}
+                  color={isSearchOpen ? tokens.fg1 : tokens.fg3}
+                  strokeWidth={1.6}
+                />
+              </Pressable>
+              {currentActiveView !== "general" ? (
+                <View ref={freqMenuButtonRef} collapsable={false}>
+                  <Pressable
+                    onPress={handleToggleFreqMenu}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("habits.frequencyFilter")}
+                    accessibilityState={{ selected: selectedFrequency != null }}
+                    hitSlop={6}
+                    style={[
+                      styles.iconBtn,
+                      selectedFrequency != null && {
+                        backgroundColor: tokens.bgElev,
+                        borderWidth: 1,
+                        borderColor: tokens.hairlineStrong,
+                      },
+                    ]}
+                  >
+                    <Filter
+                      size={15}
+                      color={
+                        selectedFrequency != null ? tokens.fg1 : tokens.fg3
+                      }
+                      strokeWidth={1.6}
+                    />
+                  </Pressable>
+                </View>
+              ) : null}
+              <View ref={controlsButtonRef} collapsable={false}>
+                <Pressable
+                  onPress={handleToggleControlsMenu}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("habits.actions.more")}
+                  hitSlop={6}
+                  style={styles.iconBtn}
+                >
+                  <MoreVertical
+                    size={15}
+                    color={tokens.fg3}
+                    strokeWidth={1.6}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          }
+        >
+          {t("habits.sectionLabel")}
+        </SectionLabel>
 
         <Animated.View
           testID="today-filters-shell"
-          style={[styles.habitsSection, filtersAnimatedStyle]}
+          style={[styles.filtersShell, filtersAnimatedStyle]}
         >
-          <TodaySearchBar
-            initialValue={searchQueryStore}
-            onChange={setSearchQueryStore}
-            onFocusChange={setIsSearchFocused}
-            placeholder={t("habits.searchPlaceholder")}
-            clearLabel={t("common.clear")}
-            focused={isSearchFocused}
-            colors={colors}
-            styles={styles}
-          />
+          {isSearchOpen ? (
+            <TodaySearchBar
+              initialValue={searchQueryStore}
+              onChange={setSearchQueryStore}
+              onFocusChange={setIsSearchFocused}
+              placeholder={t("habits.searchPlaceholder")}
+              clearLabel={t("common.clear")}
+              focused={isSearchFocused}
+              tokens={tokens}
+              styles={styles}
+            />
+          ) : null}
 
-          <View style={styles.filtersWrapper}>
-            <View style={styles.filtersRail}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filtersContent}
-              >
-                {activeView !== "general" ? (
-                  <>
-                    <TouchableOpacity
-                      style={[
-                        styles.filterChip,
-                        !selectedFrequency && styles.filterChipActive,
-                      ]}
-                      onPress={() => setSelectedFrequency(null)}
-                      activeOpacity={0.72}
-                    >
-                      <Text
-                        style={[
-                          styles.filterChipText,
-                          !selectedFrequency && styles.filterChipTextActive,
-                        ]}
-                      >
-                        {t("common.all")}
-                      </Text>
-                    </TouchableOpacity>
-                    {frequencyOptions.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.key}
-                        style={[
-                          styles.filterChip,
-                          selectedFrequency === opt.key &&
-                            styles.filterChipActive,
-                        ]}
-                        onPress={() =>
-                          setSelectedFrequency(
-                            selectedFrequency === opt.key ? null : opt.key,
-                          )
-                        }
-                        activeOpacity={0.72}
-                      >
-                        <Text
-                          style={[
-                            styles.filterChipText,
-                            selectedFrequency === opt.key &&
-                              styles.filterChipTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                ) : null}
-
-                {activeView !== "general" && tags.length > 0 ? (
-                  <View style={styles.filterDivider} />
-                ) : null}
-
-                {tags.map((tag) => (
-                  <TouchableOpacity
-                    key={tag.id}
-                    style={[
-                      styles.filterChip,
-                      selectedTagIds.includes(tag.id)
-                        ? { backgroundColor: tag.color, borderColor: tag.color }
-                        : null,
-                    ]}
-                    onPress={() => toggleTagFilter(tag.id)}
-                    activeOpacity={0.72}
-                  >
-                    {!selectedTagIds.includes(tag.id) ? (
-                      <View
-                        style={[styles.tagDot, { backgroundColor: tag.color }]}
-                      />
-                    ) : null}
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        selectedTagIds.includes(tag.id)
-                          ? { color: "#fff" }
-                          : null,
-                      ]}
-                    >
-                      {tag.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View ref={controlsButtonRef} collapsable={false}>
-              <TouchableOpacity
-                style={styles.controlsButton}
-                activeOpacity={0.7}
-                onPress={handleToggleControlsMenu}
-              >
-                <MoreVertical size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersContent}
+          >
+            {tags.map((tag) => (
+              <TagChip
+                key={tag.id}
+                tag={tag}
+                active={selectedTagIds.includes(tag.id)}
+                onPress={() => toggleTagFilter(tag.id)}
+              />
+            ))}
+          </ScrollView>
 
           <AnchoredMenu
             visible={showControlsMenu}
@@ -1148,77 +1140,175 @@ export default function TodayScreen() {
             width={220}
             estimatedHeight={220}
           >
-            <TouchableOpacity
-              style={styles.controlsMenuItem}
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlsMenuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
               onPress={handleToggleSelectMode}
-              activeOpacity={0.75}
             >
               {isSelectMode ? (
-                <X size={16} color={colors.textMuted} />
+                <X size={15} color={tokens.fg2} strokeWidth={1.6} />
               ) : (
-                <CheckCircle2 size={16} color={colors.textMuted} />
+                <CheckCircle2
+                  size={15}
+                  color={tokens.fg2}
+                  strokeWidth={1.6}
+                />
               )}
-              <Text style={styles.controlsMenuLabel}>
+              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
                 {isSelectMode ? t("common.cancel") : t("common.select")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.controlsMenuItem}
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlsMenuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
               onPress={handleToggleCollapse}
-              activeOpacity={0.75}
             >
-              {!!habitListRef.current?.allCollapsed ? (
-                <ChevronsUpDown size={16} color={colors.textMuted} />
+              {habitListAllCollapsed ? (
+                <ChevronsUpDown
+                  size={15}
+                  color={tokens.fg2}
+                  strokeWidth={1.6}
+                />
               ) : (
-                <ChevronsDownUp size={16} color={colors.textMuted} />
+                <ChevronsDownUp
+                  size={15}
+                  color={tokens.fg2}
+                  strokeWidth={1.6}
+                />
               )}
-              <Text style={styles.controlsMenuLabel}>
-                {!!habitListRef.current?.allCollapsed
+              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
+                {habitListAllCollapsed
                   ? t("habits.expandAll")
                   : t("habits.collapseAll")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.controlsMenuItem}
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlsMenuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
               onPress={handleRefresh}
-              activeOpacity={0.75}
             >
               <RefreshCw
-                size={16}
-                color={colors.textMuted}
+                size={15}
+                color={tokens.fg2}
+                strokeWidth={1.6}
                 style={habitsQuery.isFetching ? styles.rotatingIcon : undefined}
               />
-              <Text style={styles.controlsMenuLabel}>
+              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
                 {t("habits.refresh")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.controlsMenuItem}
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlsMenuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
               onPress={handleToggleCompleted}
-              activeOpacity={0.75}
             >
               {showCompleted ? (
-                <Check size={16} color={colors.textMuted} />
+                <Check size={15} color={tokens.fg2} strokeWidth={1.6} />
               ) : (
-                <Eye size={16} color={colors.textMuted} />
+                <Eye size={15} color={tokens.fg2} strokeWidth={1.6} />
               )}
-              <Text style={styles.controlsMenuLabel}>
+              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
                 {t("habits.showCompleted")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
+          </AnchoredMenu>
+
+          <AnchoredMenu
+            visible={showFreqMenu}
+            anchorRect={freqMenuAnchorRect}
+            onClose={() => setShowFreqMenu(false)}
+            width={200}
+            estimatedHeight={260}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlsMenuItem,
+                {
+                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                },
+              ]}
+              onPress={() => handleSelectFrequency(null)}
+              accessibilityRole="menuitem"
+              accessibilityState={{ selected: !selectedFrequency }}
+            >
+              <View style={styles.freqMenuCheck}>
+                {!selectedFrequency ? (
+                  <Check size={14} color={tokens.primary} strokeWidth={2} />
+                ) : null}
+              </View>
+              <Text
+                style={[
+                  styles.controlsMenuLabel,
+                  {
+                    color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
+                    fontWeight: !selectedFrequency ? "600" : "500",
+                  },
+                ]}
+              >
+                {t("common.all")}
+              </Text>
+            </Pressable>
+            {frequencyOptions.map((opt) => {
+              const active = selectedFrequency === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  style={({ pressed }) => [
+                    styles.controlsMenuItem,
+                    {
+                      backgroundColor: pressed ? tokens.bgSunk : "transparent",
+                    },
+                  ]}
+                  onPress={() => handleSelectFrequency(active ? null : opt.key)}
+                  accessibilityRole="menuitem"
+                  accessibilityState={{ selected: active }}
+                >
+                  <View style={styles.freqMenuCheck}>
+                    {active ? (
+                      <Check size={14} color={tokens.primary} strokeWidth={2} />
+                    ) : null}
+                  </View>
+                  <Text
+                    style={[
+                      styles.controlsMenuLabel,
+                      {
+                        color: active ? tokens.fg1 : tokens.fg2,
+                        fontWeight: active ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </AnchoredMenu>
         </Animated.View>
       </>
     ),
     [
       activeView,
-      colors.primary,
-      colors.textMuted,
-      colors.textSecondary,
       controlsMenuAnchorRect,
+      currentActiveView,
       dateLabel,
       dateLabelAnim,
       dateStr,
@@ -1227,26 +1317,38 @@ export default function TodayScreen() {
       goToNextDay,
       goToPreviousDay,
       goToToday,
+      habitListAllCollapsed,
       habitsQuery.isFetching,
       handleRefresh,
       handleToggleCollapse,
       handleToggleCompleted,
       handleToggleControlsMenu,
+      handleToggleSearch,
       handleToggleSelectMode,
+      isSearchFocused,
+      isSearchOpen,
       isSelectMode,
+      searchQueryStore,
       selectedDate,
       selectedFrequency,
       selectedTagIds,
       setSearchQueryStore,
+      setSelectedFrequency,
       sharedHeader,
       showCompleted,
       showControlsMenu,
       showSummary,
       slideDirection,
       styles,
+      swipePanResponder.panHandlers,
       t,
       tags,
       toggleTagFilter,
+      tokens,
+      freqMenuAnchorRect,
+      showFreqMenu,
+      handleToggleFreqMenu,
+      handleSelectFrequency,
     ],
   );
 
@@ -1294,6 +1396,8 @@ export default function TodayScreen() {
               onDetailHabit={setDetailHabit}
               onEditHabit={handleEditHabit}
               onScrollBeginDrag={handleListScrollBeginDrag}
+              onAllCollapsedChange={setHabitListAllCollapsed}
+              onAllLoadedIdsChange={setHabitListAllLoadedIds}
             />
           </Animated.View>
         </Animated.View>
@@ -1303,74 +1407,34 @@ export default function TodayScreen() {
         <Animated.View
           testID="bulk-action-bar"
           style={[
-            styles.bulkActionBar,
+            styles.bulkActionBarWrap,
             { bottom: 20 + insets.bottom },
             bulkBarAnimatedStyle,
           ]}
         >
-          <Text style={styles.bulkSelectionText}>
-            {plural(t("common.selected", { n: selectedCount }), selectedCount)}
-          </Text>
-          <View style={styles.bulkActionRow}>
-            <TouchableOpacity
-              style={styles.bulkActionButton}
-              onPress={allSelected ? handleDeselectAll : handleSelectAll}
-              activeOpacity={0.75}
-            >
-              {allSelected ? (
-                <MinusCircle size={18} color={colors.textSecondary} />
-              ) : (
-                <PlusCircle size={18} color={colors.textSecondary} />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.bulkActionButton,
-                selectedCount === 0 && styles.bulkActionButtonDisabled,
-              ]}
-              onPress={handleOpenBulkLog}
-              activeOpacity={0.75}
-              disabled={selectedCount === 0}
-            >
-              <CheckCircle2 size={18} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.bulkActionButton,
-                selectedCount === 0 && styles.bulkActionButtonDisabled,
-              ]}
-              onPress={handleOpenBulkSkip}
-              activeOpacity={0.75}
-              disabled={selectedCount === 0}
-            >
-              <FastForward size={18} color={colors.amber400} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.bulkActionButton,
-                selectedCount === 0 && styles.bulkActionButtonDisabled,
-              ]}
-              onPress={handleOpenBulkDelete}
-              activeOpacity={0.75}
-              disabled={selectedCount === 0}
-            >
-              <Trash2 size={18} color={colors.red400} />
-            </TouchableOpacity>
-            <View style={styles.bulkDivider} />
-            <TouchableOpacity
-              style={styles.bulkActionButton}
-              onPress={clearSelection}
-              activeOpacity={0.75}
-            >
-              <X size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+          <BulkActionBarV2
+            count={selectedCount}
+            allSelected={allSelected}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            onLog={handleOpenBulkLog}
+            onSkip={handleOpenBulkSkip}
+            onDelete={handleOpenBulkDelete}
+            onClose={clearSelection}
+            countLabel={plural(
+              t("common.selected", { n: selectedCount }),
+              selectedCount,
+            )}
+            selectAllLabel={t("common.selectAll")}
+            deselectAllLabel={t("common.deselectAll")}
+            logLabel={t("habits.bulkLogConfirm")}
+            skipLabel={t("habits.bulkSkipConfirm")}
+            deleteLabel={t("habits.bulkDeleteConfirm")}
+            closeLabel={t("common.cancel")}
+          />
         </Animated.View>
       )}
 
-      {/* ============================================================
-          MODALS
-          ============================================================ */}
       <CreateHabitModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -1453,25 +1517,17 @@ export default function TodayScreen() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles - pixel-accurate match with web CSS
-// ---------------------------------------------------------------------------
-
-function createStyles(theme: ReturnType<typeof useAppTheme>) {
-  const { colors, surfaces } = theme;
-
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    // Layout
     safeArea: {
       flex: 1,
-      backgroundColor: surfaces.screen.backgroundColor,
+      backgroundColor: tokens.bg,
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: spacing.pageX,
-      paddingBottom: spacing.pageBottom + 80,
+      paddingBottom: 120,
     },
     scrollContentWithBulkBar: {
       paddingBottom: 220,
@@ -1480,631 +1536,71 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       flex: 1,
     },
 
-    // Header: pt-8 pb-2 = 32px/8px
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 12,
-      paddingTop: spacing.sectionGap,
-      paddingBottom: spacing.sectionGap,
-      marginTop: 4,
-      borderRadius: radius.xl,
-      backgroundColor: surfaces.ground.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-      ...surfaces.ground.shadow,
-      elevation: surfaces.ground.elevation,
-    },
-    logoRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.cardGap,
-    },
-    // Logo: size-10 = 40px
-    logoIcon: {
-      width: 40,
-      height: 40,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radius.lg,
-      backgroundColor: colors.primaryTintBg,
-      borderWidth: 1,
-      borderColor: colors.primaryTintBorder,
-    },
-    logoImage: {
-      width: 34,
-      height: 34,
-    },
-    // text-[length:var(--text-fluid-xl)] = 18-24px, font-extrabold
-    headerTitle: {
-      fontSize: 22,
-      fontWeight: "800",
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
-    },
-    headerRight: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.itemGap,
-    },
-    streakBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      backgroundColor: "rgba(251,191,36,0.1)",
-      borderWidth: 1,
-      borderColor: "rgba(251,191,36,0.15)",
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: radius.full,
-    },
-    streakText: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: "#fbbf24",
-    },
-    avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    avatarText: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.textSecondary,
-    },
-
-    // Tabs: pt-4 = 16px
-    tabsWrapper: {
-      paddingTop: 12,
-    },
-    // bg-surface-ground rounded-[var(--radius-lg)] p-1 gap-1
-    tabsRow: {
-      flexDirection: "row",
-      backgroundColor: surfaces.ground.backgroundColor,
-      borderRadius: radius.lg,
-      padding: 4,
-      gap: 4,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-    },
-    // flex-1 text-center py-2 text-sm font-bold rounded-[var(--radius-md)]
-    tab: {
-      flex: 1,
-      alignItems: "center",
-      minHeight: 44,
-      justifyContent: "center",
-      paddingVertical: 10,
-      borderRadius: radius.md,
-    },
-    // text-primary bg-surface shadow-[var(--shadow-sm)]
-    tabActive: {
-      backgroundColor: surfaces.card.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.card.borderColor,
-      ...surfaces.card.shadow,
-      elevation: surfaces.card.elevation,
-    },
-    tabText: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.textSecondary,
-    },
-    tabTextActive: {
-      color: colors.primary,
-    },
-
-    // Section container
-    section: {
-      paddingTop: spacing.itemGap,
-    },
-
-    // Date navigation: pt-4 pb-4 = 16px each
-    dateNav: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 10,
-      paddingHorizontal: 8,
-      paddingVertical: 8,
-      marginTop: 12,
-      marginBottom: 6,
-      borderRadius: radius.xl,
-      backgroundColor: surfaces.ground.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-    },
-    // size-9 = 36px rounded-full bg-surface
-    dateNavButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: surfaces.elevated.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.elevated.borderColor,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    // min-w-40 = 160px, text-base font-semibold
-    dateLabel: {
-      fontSize: 17,
-      fontWeight: "600",
-      color: colors.textPrimary,
-      minWidth: 148,
-      textAlign: "center",
-    },
-    dateLabelToday: {
-      color: colors.primary,
-    },
-
-    // AI Summary card - matches web's summary card
-    summaryCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.primary_30,
-      padding: 16,
-      marginBottom: 8,
-    },
-    summaryHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginBottom: 8,
-    },
-    summaryTitle: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.primary,
-    },
-    summaryText: {
-      fontSize: 14,
-      lineHeight: 20,
-      color: colors.textSecondary,
-    },
-    summaryWrap: {
-      paddingTop: 4,
-      paddingBottom: 6,
-    },
-
-    // Habits section
-    habitsSection: {
-      paddingTop: 6,
-    },
-
-    // Search bar: pt-3 pb-2 = 12px/8px
-    searchWrapper: {
-      paddingTop: 12,
+    filtersShell: {
       paddingBottom: 8,
     },
-    // rounded-full py-3 pl-12 pr-12 bg-surface border border-border
-    searchContainer: {
+    searchWrap: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: surfaces.card.backgroundColor,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: surfaces.card.borderColor,
-      paddingVertical: 11,
-      paddingLeft: 48,
-      paddingRight: 48,
-      minHeight: 54,
-      ...surfaces.card.shadow,
-      elevation: surfaces.card.elevation,
-    },
-    searchContainerFocused: {
-      backgroundColor: surfaces.elevated.backgroundColor,
-      borderColor: colors.primaryTintBorder,
-      ...surfaces.primaryTint.shadow,
-      elevation: surfaces.primaryTint.elevation,
-    },
-    searchIcon: {
-      position: "absolute",
-      left: 20,
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingVertical: 8,
     },
     searchInput: {
       flex: 1,
-      fontSize: 16,
-      color: colors.textPrimary,
-      padding: 0,
-    },
-    searchClear: {
-      position: "absolute",
-      right: 12,
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: surfaces.elevated.backgroundColor,
-    },
-
-    // Filter chips row: pb-2 = 8px
-    filtersWrapper: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginBottom: 4,
-      padding: 8,
-      borderRadius: radius.xl,
-      backgroundColor: surfaces.ground.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-    },
-    filtersRail: {
-      flex: 1,
+      minWidth: 0,
+      paddingVertical: 0,
+      fontFamily: "Geist",
+      fontSize: 15,
     },
     filtersContent: {
       flexDirection: "row",
-      gap: 10,
-      paddingRight: 16,
-      paddingBottom: 2,
-    },
-    // px-4 py-2 rounded-full text-xs font-semibold
-    filterChip: {
-      flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      minHeight: 44,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: radius.lg,
-      backgroundColor: surfaces.card.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.card.borderColor,
-      ...surfaces.ground.shadow,
-      elevation: surfaces.ground.elevation,
+      gap: 14,
+      paddingHorizontal: 20,
+      paddingVertical: 4,
     },
-    filterChipActive: {
-      backgroundColor: colors.primaryTintBg,
-      borderColor: colors.primaryTintBorder,
-      ...surfaces.primaryTint.shadow,
-      elevation: surfaces.primaryTint.elevation,
-    },
-    filterChipText: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.textFaded,
-    },
-    filterChipTextActive: {
-      color: colors.primary,
-    },
-    // Divider between frequency and tag chips
-    filterDivider: {
-      width: 1,
-      height: 24,
-      backgroundColor: colors.border,
-      alignSelf: "center",
-    },
-    tagDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
-    // Controls (3-dot) button
-    controlsButton: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.xl,
+    freqMenuCheck: {
+      width: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: surfaces.card.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.card.borderColor,
-      ...surfaces.ground.shadow,
-      elevation: surfaces.ground.elevation,
     },
+
+    sectionTrailing: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    iconBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
     controlsMenuItem: {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      borderRadius: radius.md,
+      borderRadius: 6,
     },
     controlsMenuLabel: {
+      fontFamily: "Geist",
       fontSize: 14,
       fontWeight: "500",
-      color: colors.textPrimary,
     },
     rotatingIcon: {
       transform: [{ rotate: "180deg" }],
     },
-    bulkActionBar: {
+
+    bulkActionBarWrap: {
       position: "absolute",
       left: 20,
       right: 20,
       zIndex: 20,
-      backgroundColor: surfaces.overlay.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.overlay.borderColor,
-      borderRadius: radius.xl,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      ...surfaces.overlay.shadow,
-      elevation: surfaces.overlay.elevation,
-    },
-    bulkSelectionText: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.textPrimary,
-      marginBottom: 10,
-    },
-    bulkActionRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    bulkActionButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: surfaces.elevated.backgroundColor,
-      borderWidth: 1,
-      borderColor: surfaces.elevated.borderColor,
-    },
-    bulkActionButtonDisabled: {
-      opacity: 0.45,
-    },
-    bulkDivider: {
-      width: 1,
-      height: 20,
-      backgroundColor: colors.border,
-      marginHorizontal: 2,
-    },
-
-    // Habit card - matches web .habit-card-parent
-    habitCard: {
-      borderRadius: radius.lg,
-      padding: 16,
-      marginBottom: 10,
-      // Glass surface with gradient effect
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.06)",
-      // Shadow matching .habit-card-parent box-shadow
-      ...(Platform.OS === "ios"
-        ? {
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.4,
-            shadowRadius: 8,
-          }
-        : { elevation: 4 }),
-    },
-    habitCardRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
-    },
-
-    // Log button - matches web .log-btn + size-10 sm:size-11
-    logButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 2,
-      borderColor: colors.borderEmphasis,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    // .log-btn-done gradient
-    logButtonDone: {
-      backgroundColor: colors.primary,
-      borderColor: "transparent",
-      // Glow shadow matching .log-btn-done
-      ...(Platform.OS === "ios"
-        ? {
-            shadowColor: colors.primary,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.4,
-            shadowRadius: 16,
-          }
-        : { elevation: 6 }),
-    },
-    logButtonOverdue: {
-      borderColor: "rgba(239,68,68,0.2)",
-    },
-
-    // Content area
-    habitContent: {
-      flex: 1,
-      minWidth: 0,
-    },
-    // font-bold text-text-primary text-sm sm:text-base
-    habitTitle: {
-      fontSize: 15,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    habitTitleDone: {
-      textDecorationLine: "line-through",
-      textDecorationColor: "rgba(122,116,144,0.4)",
-    },
-    // text-text-muted text-[11px] sm:text-xs
-    habitDescription: {
-      fontSize: 11,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-
-    // Badges row: flex items-center gap-1.5 mt-1.5 flex-wrap
-    badgesRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      flexWrap: "wrap",
-      gap: 6,
-      marginTop: 6,
-    },
-    // text-[10px] font-semibold uppercase tracking-widest text-text-muted/70
-    frequencyLabel: {
-      fontSize: 10,
-      fontWeight: "600",
-      textTransform: "uppercase",
-      letterSpacing: 1.5,
-      color: "rgba(122,116,144,0.7)",
-    },
-    // Due time: text-[10px] font-medium text-text-secondary
-    dueTimeText: {
-      fontSize: 10,
-      fontWeight: "500",
-      color: colors.textSecondary,
-    },
-    // Badge styles: px-2 py-0.5 rounded-full text-[9px] font-bold
-    badgeOverdue: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: "rgba(239,68,68,0.1)",
-    },
-    badgeOverdueText: {
-      fontSize: 9,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      color: "#ef4444",
-    },
-    badgeBadHabit: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: "rgba(239,68,68,0.1)",
-      borderWidth: 1,
-      borderColor: "rgba(239,68,68,0.1)",
-    },
-    badgeBadHabitText: {
-      fontSize: 9,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      color: "#f87171",
-    },
-    badgeTag: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-    },
-    badgeTagText: {
-      fontSize: 9,
-      fontWeight: "700",
-      color: "rgba(255,255,255,0.95)",
-    },
-    badgePrimary: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: colors.primary_10,
-      borderWidth: 1,
-      borderColor: colors.primary_20,
-    },
-    badgePrimaryText: {
-      fontSize: 9,
-      fontWeight: "700",
-      color: colors.primary,
-    },
-    badgeStreak: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 2,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: "rgba(251,191,36,0.1)",
-      borderWidth: 1,
-      borderColor: "rgba(251,191,36,0.1)",
-    },
-    badgeStreakText: {
-      fontSize: 9,
-      fontWeight: "700",
-      color: "#fbbf24",
-    },
-    badgeChecklist: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 2,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-    },
-    badgeChecklistText: {
-      fontSize: 9,
-      fontWeight: "700",
-      color: colors.textSecondary,
-    },
-
-    // Drill icon (3-dot) on card right
-    drillIcon: {
-      padding: 8,
-    },
-
-    // Habit list container: space-y-2.5 = 10px gap via marginBottom on cards
-    habitListContainer: {
-      paddingTop: 8,
-    },
-
-    // Loading / Skeleton
-    loadingContainer: {
-      paddingTop: 8,
-      gap: 12,
-    },
-    skeletonCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 16,
-    },
-    skeletonCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceElevated,
-    },
-    skeletonContent: {
-      flex: 1,
-      gap: 10,
-    },
-    skeletonLine1: {
-      height: 16,
-      width: "75%",
-      borderRadius: 8,
-      backgroundColor: colors.surfaceElevated,
-    },
-    skeletonLine2: {
-      height: 12,
-      width: "40%",
-      borderRadius: 8,
-      backgroundColor: colors.surfaceElevated,
-    },
-
-    // Empty state
-    emptyState: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 64,
-      gap: 8,
-    },
-    emptyTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    emptySubtitle: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: "center",
     },
   });
 }

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 
 interface DescriptionViewerProps {
   open: boolean
@@ -21,39 +22,31 @@ export function DescriptionViewer({
   description,
 }: Readonly<DescriptionViewerProps>) {
   const t = useTranslations()
-  const [mounted, setMounted] = useState(false)
-  const [renderedHtml, setRenderedHtml] = useState('')
+  const mounted = useIsClient()
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!open || !description) {
-      setRenderedHtml('')
-      return
-    }
+  const renderedHtml = useMemo(() => {
+    if (!open || !description) return ''
     const raw = marked.parse(description, { async: false }) as string // NOSONAR - marked.parse with async:false returns string but typed as string | Promise<string>
-    setRenderedHtml(DOMPurify.sanitize(raw, {
+    return DOMPurify.sanitize(raw, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'a'],
       ALLOWED_ATTR: ['href', 'target', 'rel'],
-    }))
+    })
   }, [open, description])
 
   if (!mounted || !open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] bg-background flex flex-col">
+    <div className="fixed inset-0 z-[10000] bg-[var(--bg)] flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-border-muted shrink-0">
+      <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-[var(--hairline)] shrink-0">
         <button
           aria-label={t('common.back')}
-          className="size-9 rounded-full bg-surface-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-all duration-150"
+          className="size-9 rounded-full bg-[var(--bg-elev)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
           onClick={() => onOpenChange(false)}
         >
           <ArrowLeft className="size-4" />
         </button>
-        <h1 className="font-bold text-lg text-text-primary truncate">{title}</h1>
+        <h1 className="font-bold text-lg text-[var(--fg-1)] truncate">{title}</h1>
       </div>
 
       {/* Markdown content */}

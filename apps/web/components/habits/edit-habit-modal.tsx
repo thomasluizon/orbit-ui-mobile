@@ -19,11 +19,8 @@ import {
   toggleSelectedId,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { buildUpdateHabitRequest, type HabitFormData } from '@/lib/habit-request-builders'
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
+import { habitFormSchema } from '@orbit/shared/validation'
 
 interface EditHabitModalProps {
   open: boolean
@@ -31,10 +28,6 @@ interface EditHabitModalProps {
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function EditHabitModal({
   open,
@@ -72,14 +65,12 @@ export function EditHabitModal({
     onDismiss: () => onOpenChange(false),
   })
 
-  // Fetch detail to get dueDate, dueTime, endDate etc.
   const { data: habitDetail, error: detailError } = useHabitDetail(open && habit ? habit.id : null)
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  // Show detail fetch error
   useEffect(() => {
     if (detailError) {
       showError(
@@ -88,34 +79,40 @@ export function EditHabitModal({
     }
   }, [detailError, showError, translate])
 
-  // Populate form when the modal session starts and once detail loads.
-  // Avoid rehydrating on every background refetch while the user is typing.
-  useEffect(() => {
-    if (!open || !habit) return
-
-    const prefill = buildEditHabitFormState(habit, habitDetail)
-    formHelpers.form.reset(prefill.formValues)
-    setOriginalEndDate(prefill.originalEndDate)
-    setReminderTimes(prefill.reminderTimes)
-    tags.resetTags(prefill.selectedTagIds)
-    setSelectedGoalIds(prefill.selectedGoalIds)
-    setInitialTagIds(
-      JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
-    )
-    setInitialGoalIds(
-      JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
-    )
-    setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
-    applyHabitFormMode(prefill.mode, formHelpers)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, habit?.id, habitDetail?.id])
+  const sessionHabitId = open && habit ? habit.id : null
+  const sessionDetailId = habitDetail?.id ?? null
+  const [previousSession, setPreviousSession] = useState<{
+    habitId: string | null
+    detailId: string | null
+  }>({ habitId: null, detailId: null })
+  if (
+    sessionHabitId !== previousSession.habitId ||
+    sessionDetailId !== previousSession.detailId
+  ) {
+    setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
+    if (open && habit) {
+      const prefill = buildEditHabitFormState(habit, habitDetail)
+      formHelpers.form.reset(prefill.formValues)
+      setOriginalEndDate(prefill.originalEndDate)
+      setReminderTimes(prefill.reminderTimes)
+      tags.resetTags(prefill.selectedTagIds)
+      setSelectedGoalIds(prefill.selectedGoalIds)
+      setInitialTagIds(
+        JSON.stringify([...prefill.selectedTagIds].sort((left, right) => left.localeCompare(right))),
+      )
+      setInitialGoalIds(
+        JSON.stringify([...prefill.selectedGoalIds].sort((left, right) => left.localeCompare(right))),
+      )
+      setInitialReminderTimes(JSON.stringify(prefill.reminderTimes))
+      applyHabitFormMode(prefill.mode, formHelpers)
+    }
+  }
 
   const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
       e.preventDefault()
       if (!habit) return
 
-      const data = formHelpers.form.getValues() as unknown as HabitFormData
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
@@ -125,6 +122,7 @@ export function EditHabitModal({
         showError(error)
         return
       }
+      const data = habitFormSchema.parse(formHelpers.form.getValues())
 
       const request = buildUpdateHabitRequest(data, formHelpers.isOneTime, originalEndDate, reminderTimes, selectedGoalIds)
 
@@ -163,11 +161,23 @@ export function EditHabitModal({
           defaultExpanded
         />
 
-        {/* Submit buttons */}
-        <div className="flex gap-3 pt-3">
+        <div
+          className="flex items-center justify-between"
+          style={{
+            paddingTop: 12,
+            paddingBottom: 8,
+          }}
+        >
           <button
             type="button"
-            className="flex-1 py-3.5 rounded-xl border border-border text-text-secondary font-semibold text-sm hover:bg-surface-elevated/80 transition-all duration-150"
+            className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              padding: 6,
+            }}
             disabled={updateHabit.isPending}
             onClick={dismissGuard.requestDismiss}
           >
@@ -175,7 +185,17 @@ export function EditHabitModal({
           </button>
           <button
             type="submit"
-            className="flex-[2] py-3.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50 flex items-center justify-center gap-2"
+            className="appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center"
+            style={{
+              background: 'var(--primary)',
+              color: 'var(--fg-on-primary)',
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 600,
+              padding: '10px 18px',
+              borderRadius: 8,
+              gap: 6,
+            }}
             disabled={updateHabit.isPending || !formHelpers.form.formState.isValid}
           >
             {updateHabit.isPending && (

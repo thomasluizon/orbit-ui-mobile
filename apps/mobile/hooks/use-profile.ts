@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useEffect } from 'react'
-import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -13,16 +13,13 @@ import {
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
-// ---------------------------------------------------------------------------
-// useProfile -- TanStack Query hook for the user profile (mobile)
-// ---------------------------------------------------------------------------
-
 async function fetchProfile(): Promise<Profile> {
   return apiClient<Profile>(API.profile.get)
 }
 
 export function useProfile() {
   const queryClient = useQueryClient()
+  const { i18n } = useTranslation()
 
   const query = useQuery({
     queryKey: profileKeys.detail(),
@@ -32,15 +29,13 @@ export function useProfile() {
   })
 
   const profile = query.data
+  const profileLanguage = profile?.language
 
-  // Sync i18n language from profile (matches web's cookie-based locale sync)
   useEffect(() => {
-    if (!profile?.language) return
-    if (i18n.language !== profile.language) {
-      // eslint-disable-next-line import/no-named-as-default-member -- i18next default export is the configured singleton instance
-      void i18n.changeLanguage(profile.language)
-    }
-  }, [profile?.language])
+    if (!profileLanguage) return
+    if (i18n.language === profileLanguage) return
+    void i18n.changeLanguage(profileLanguage)
+  }, [profileLanguage, i18n])
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: profileKeys.all })
@@ -62,10 +57,6 @@ export function useProfile() {
     patchProfile,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Derived selectors -- thin hooks that select from the profile query cache
-// ---------------------------------------------------------------------------
 
 /** Computed: does the user currently have Pro-level access? */
 export function useHasProAccess(): boolean {

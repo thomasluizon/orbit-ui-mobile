@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { View, Text, Image, StyleSheet, Animated } from "react-native";
 import { Sparkles, User } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -10,11 +10,8 @@ import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
 import { formatChatMessage } from "@/components/chat/format-chat-message";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
-
-// ---------------------------------------------------------------------------
-// MessageBubble
-// ---------------------------------------------------------------------------
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -105,8 +102,12 @@ export function MessageBubble({
   onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(
     new Set(),
   );
@@ -153,10 +154,9 @@ export function MessageBubble({
         isUser ? styles.userContainer : styles.aiContainer,
       ]}
     >
-      {/* AI avatar */}
       {!isUser && (
         <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Sparkles size={20} color={colors.primary} />
+          <Sparkles size={20} color={tokens.primary} />
         </View>
       )}
 
@@ -166,16 +166,13 @@ export function MessageBubble({
           isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI,
         ]}
       >
-        {/* Sender label */}
         <Text style={styles.senderLabel}>
           {isUser ? t("chat.senderYou") : t("chat.senderOrbit")}
         </Text>
 
-        {/* Message bubble */}
         <View
           style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
         >
-          {/* Image attachment */}
           {message.imageUrl && (
             <Image
               source={{ uri: message.imageUrl }}
@@ -185,7 +182,6 @@ export function MessageBubble({
             />
           )}
 
-          {/* Message text */}
           <Text style={[styles.messageText, isUser && styles.userText]}>
             {formattedSegments.map((segment, index) => (
               <Text
@@ -202,12 +198,10 @@ export function MessageBubble({
           </Text>
         </View>
 
-        {/* Action chips for AI messages */}
         {!isUser && nonSuggestionActions.length > 0 && (
           <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />
         )}
 
-        {/* Breakdown suggestions */}
         {!isUser && suggestionActions.length > 0 && (
           <View style={styles.breakdownContainer}>
             {suggestionActions.map((action) => {
@@ -227,7 +221,6 @@ export function MessageBubble({
           </View>
         )}
 
-        {/* Clarification cards */}
         {!isUser && clarificationActions.length > 0 && (
           <View style={styles.breakdownContainer}>
             {clarificationActions.map((action) => (
@@ -289,24 +282,23 @@ export function MessageBubble({
         )}
       </View>
 
-      {/* User avatar */}
       {isUser && (
         <View style={styles.userAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <User size={20} color={colors.textSecondary} />
+          <User size={20} color={tokens.fg2} />
         </View>
       )}
     </View>
   );
 }
 
-// ---------------------------------------------------------------------------
-// TypingIndicator
-// ---------------------------------------------------------------------------
-
 function AnimatedDot({ delay }: { delay: number }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const opacity = useRef(new Animated.Value(1)).current;
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const opacity = useMemo(() => new Animated.Value(1), []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -333,21 +325,22 @@ function AnimatedDot({ delay }: { delay: number }) {
 
 export function TypingIndicator() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
     <View style={[styles.container, styles.aiContainer]} accessibilityLiveRegion="polite">
-      {/* AI avatar */}
       <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Sparkles size={20} color={colors.primary} />
+        <Sparkles size={20} color={tokens.primary} />
       </View>
 
       <View style={styles.bubbleColumnAI}>
-        {/* Sender label */}
         <Text style={styles.senderLabel}>{t("chat.senderOrbit")}</Text>
 
-        {/* Typing bubble */}
         <View style={styles.typingBubble}>
           <View style={styles.dotsRow}>
             <AnimatedDot delay={0} />
@@ -360,13 +353,9 @@ export function TypingIndicator() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>;
 
-type ThemeColors = ReturnType<typeof useAppTheme>["colors"];
-
-function createStyles(colors: ThemeColors) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       flexDirection: "row",
@@ -381,14 +370,13 @@ function createStyles(colors: ThemeColors) {
       justifyContent: "flex-start",
     },
 
-    // Avatars (matching web: size-10 = 40px)
     aiAvatar: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: colors.primary_20,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.primary_30,
+      borderColor: tokens.hairlineStrong,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "flex-end",
@@ -397,15 +385,14 @@ function createStyles(colors: ThemeColors) {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       borderWidth: 2,
-      borderColor: colors.primary_20,
+      borderColor: tokens.bgElev,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "flex-end",
     },
 
-    // Bubble column layout
     bubbleColumn: {
       maxWidth: "70%",
       flexDirection: "column",
@@ -417,43 +404,28 @@ function createStyles(colors: ThemeColors) {
       alignItems: "flex-start",
     },
 
-    // Sender label
     senderLabel: {
       fontSize: 11,
       fontWeight: "500",
-      color: colors.textSecondary,
+      color: tokens.fg2,
       marginBottom: 4,
       paddingHorizontal: 8,
     },
 
-    // Bubble
     bubble: {
       paddingHorizontal: 16,
       paddingVertical: 12,
-      borderRadius: 16,
+      borderRadius: 12,
     },
     userBubble: {
-      backgroundColor: colors.primary,
-      borderBottomRightRadius: 6,
-      // shadow-sm
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.4,
-      shadowRadius: 3,
-      elevation: 2,
+      backgroundColor: tokens.primary,
+      borderBottomRightRadius: 4,
     },
     aiBubble: {
-      backgroundColor: colors.surfaceElevated,
-      borderBottomLeftRadius: 6,
-      // shadow-sm
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.4,
-      shadowRadius: 3,
-      elevation: 2,
+      backgroundColor: tokens.bgElev,
+      borderBottomLeftRadius: 4,
     },
 
-    // Image attachment
     imageAttachment: {
       width: 200,
       height: 192,
@@ -461,11 +433,10 @@ function createStyles(colors: ThemeColors) {
       marginBottom: 8,
     },
 
-    // Message text
     messageText: {
       fontSize: 14,
       lineHeight: 20,
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     messageTextBold: {
       fontWeight: "700",
@@ -474,10 +445,9 @@ function createStyles(colors: ThemeColors) {
       fontStyle: "italic",
     },
     userText: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
 
-    // Breakdown suggestions container
     breakdownContainer: {
       gap: 12,
       marginTop: 12,
@@ -489,7 +459,7 @@ function createStyles(colors: ThemeColors) {
       width: "100%",
     },
     denialCard: {
-      borderRadius: 16,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: "rgba(248,113,113,0.2)",
       backgroundColor: "rgba(248,113,113,0.08)",
@@ -500,33 +470,31 @@ function createStyles(colors: ThemeColors) {
     denialTitle: {
       fontSize: 12,
       fontWeight: "600",
-      color: colors.red400,
+      color: tokens.statusBad,
     },
     denialReason: {
       fontSize: 11,
       lineHeight: 16,
-      color: colors.red400,
+      color: tokens.statusBad,
     },
     denialUpgrade: {
       fontSize: 11,
       fontWeight: "700",
-      color: colors.primary,
+      color: tokens.primary,
       marginTop: 8,
     },
 
-    // Typing indicator
     typingBubble: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 16,
-      borderBottomLeftRadius: 6,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      borderBottomRightRadius: 16,
+      backgroundColor: tokens.bgElev,
+      borderRadius: 12,
+      borderBottomLeftRadius: 4,
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 12,
+      borderBottomRightRadius: 12,
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      // shadow-sm
+      borderColor: tokens.hairline,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.4,
@@ -542,7 +510,7 @@ function createStyles(colors: ThemeColors) {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: colors.textSecondary,
+      backgroundColor: tokens.fg2,
     },
   });
 }

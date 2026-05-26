@@ -91,9 +91,9 @@ describe('PendingOperationCard', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'auth.sendCode' }))
-    await screen.findByPlaceholderText('123456')
+    await screen.findByPlaceholderText('common.codePlaceholder')
 
-    fireEvent.change(screen.getByPlaceholderText('123456'), { target: { value: '123456' } })
+    fireEvent.change(screen.getByPlaceholderText('common.codePlaceholder'), { target: { value: '123456' } })
     fireEvent.click(screen.getByRole('button', { name: 'auth.verify' }))
 
     await waitFor(() => {

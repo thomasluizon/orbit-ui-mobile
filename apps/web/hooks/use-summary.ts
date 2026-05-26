@@ -8,10 +8,6 @@ import {
   getMsUntilNextDailySummaryTimeBucket,
 } from '@orbit/shared/utils'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface SummaryResponse {
   summary: string
   fromCache: boolean
@@ -23,10 +19,6 @@ interface UseSummaryOptions {
   hasProAccess: boolean
   aiSummaryEnabled: boolean
 }
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 /**
  * Fetches AI-generated daily summary from GET /api/habits/summary.
@@ -74,10 +66,6 @@ export function useSummary({
     refetch: query.refetch,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Invalidation helper (call after mutations that change habit data)
-// ---------------------------------------------------------------------------
 
 /**
  * Invalidates all summary queries. Call this from mutation onSettled

@@ -1,23 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { startAndroidUpdate, useVersionCheck } from '@/hooks/use-version-check'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const SNOOZE_STORAGE_KEY = 'orbit:version-update-snoozed-until'
 const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24 // 24h
 
-function formatTemplate(template: string, version: string): string {
-  return template.replace('{version}', version)
-}
-
+/**
+ * v8 version-update drawer (iOS path): quiet eyebrow + version title + mono
+ * delta line + italic patch notes + primary CTA + Later link.
+ * Android path defers to native Play Core flow.
+ */
 export function VersionUpdateDrawer() {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const {
     updateAvailable,
     forceUpdate,
@@ -30,6 +35,14 @@ export function VersionUpdateDrawer() {
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
+  // Updated each render with current time; React Compiler considers Date.now()
+  // impure during render so we hold it as state and refresh in an interval.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -50,9 +63,6 @@ export function VersionUpdateDrawer() {
   }, [])
 
   // Android: hand off to the native Play Core flow as soon as we detect an update.
-  // For force updates (priority >= 4) we trigger IMMEDIATE, which is a full-screen,
-  // non-dismissible Google-provided UI. Otherwise FLEXIBLE, which lets the user keep
-  // using the app while the update downloads.
   useEffect(() => {
     if (Platform.OS !== 'android') return
     if (!updateAvailable) return
@@ -65,23 +75,27 @@ export function VersionUpdateDrawer() {
     void startAndroidUpdate({ immediate: forceUpdate })
     if (!forceUpdate) {
       const until = Date.now() + SNOOZE_DURATION_MS
+       
       setSnoozedUntil(until)
       AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
     }
   }, [updateAvailable, forceUpdate, snoozeLoaded, snoozedUntil, dismissedForSession])
 
-  // iOS path: custom sheet with a link to the App Store. Apple provides no
-  // in-app update API, so this is the standard approach. Suppress the prompt
-  // when we have no store URL to send the user to -- otherwise the primary CTA
-  // would be a no-op.
   const shouldShowIosSheet = useMemo(() => {
     if (Platform.OS !== 'ios') return false
     if (!updateAvailable) return false
     if (!iosStoreUrl) return false
     if (!snoozeLoaded) return false
-    const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
+    const isSnoozed = snoozedUntil !== null && snoozedUntil > nowMs
     return !isSnoozed && !dismissedForSession
-  }, [updateAvailable, iosStoreUrl, snoozeLoaded, snoozedUntil, dismissedForSession])
+  }, [
+    updateAvailable,
+    iosStoreUrl,
+    snoozeLoaded,
+    snoozedUntil,
+    dismissedForSession,
+    nowMs,
+  ])
 
   const handleIosUpdate = useCallback(() => {
     if (!iosStoreUrl) return
@@ -103,81 +117,114 @@ export function VersionUpdateDrawer() {
       open={shouldShowIosSheet}
       onClose={handleIosLater}
       title={t('versionUpdate.title')}
-      snapPoints={['45%']}
+      snapPoints={['55%']}
     >
       <View style={styles.container}>
-        <Text style={styles.description}>{t('versionUpdate.description')}</Text>
-
-        {currentVersion ? (
-          <Text style={styles.metaLine}>
-            {formatTemplate(t('versionUpdate.currentLabel'), currentVersion)}
+        <Text style={styles.eyebrow}>{t('updatePrompt.title')}</Text>
+        <Text style={styles.title}>
+          {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.title')}
+        </Text>
+        {currentVersion && latestVersion ? (
+          <Text style={styles.delta}>
+            {currentVersion} → {latestVersion}
           </Text>
         ) : null}
-        {latestVersion ? (
-          <Text style={styles.metaLine}>
-            {formatTemplate(t('versionUpdate.latestLabel'), latestVersion)}
-          </Text>
-        ) : null}
+        <Text style={styles.description}>
+          {t('versionUpdate.description')}
+        </Text>
 
-        <TouchableOpacity
-          style={styles.primaryButton}
+        <View style={styles.spacer} />
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryButton,
+            {
+              backgroundColor: pressed
+                ? tokens.primaryPressed
+                : tokens.primary,
+            },
+          ]}
           onPress={handleIosUpdate}
-          activeOpacity={0.85}
         >
-          <Text style={styles.primaryButtonLabel}>{t('versionUpdate.updateCta')}</Text>
-        </TouchableOpacity>
+          <Text style={[styles.primaryButtonLabel, { color: tokens.fgOnPrimary }]}>
+            {t('versionUpdate.updateCta')}
+          </Text>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.secondaryButton}
           onPress={handleIosLater}
-          activeOpacity={0.7}
         >
-          <Text style={styles.secondaryButtonLabel}>{t('versionUpdate.laterCta')}</Text>
-        </TouchableOpacity>
+          <Text style={styles.secondaryButtonLabel}>
+            {t('versionUpdate.laterCta')}
+          </Text>
+        </Pressable>
       </View>
     </BottomSheetModal>
   )
 }
 
-type ThemeColors = ThemeContextValue['colors']
-
-function createStyles(colors: ThemeColors) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     container: {
-      paddingHorizontal: 24,
-      paddingBottom: 32,
+      paddingHorizontal: 22,
+      paddingTop: 10,
+      paddingBottom: 22,
       gap: 12,
     },
-    description: {
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.textPrimary,
+    eyebrow: {
+      fontFamily: 'Geist',
+      fontSize: 12,
+      fontWeight: '600',
+      color: tokens.fg3,
     },
-    metaLine: {
-      fontSize: 13,
-      color: colors.textMuted,
+    title: {
+      fontFamily: 'Geist',
+      fontSize: 22,
+      fontWeight: '600',
+      letterSpacing: -0.33,
+      color: tokens.fg1,
+    },
+    delta: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '500',
+      color: tokens.fg3,
+      letterSpacing: 0.44,
+    },
+    description: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontStyle: 'italic',
+      lineHeight: 22,
+      color: tokens.fg2,
+      marginTop: 4,
+    },
+    spacer: {
+      flex: 1,
+      minHeight: 12,
     },
     primaryButton: {
-      marginTop: 16,
-      backgroundColor: colors.primary,
-      borderRadius: 999,
-      paddingVertical: 14,
+      marginTop: 12,
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 18,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     primaryButtonLabel: {
-      color: colors.textInverse,
-      fontSize: 16,
-      fontWeight: '700',
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
     },
     secondaryButton: {
-      borderRadius: 999,
-      paddingVertical: 12,
+      paddingVertical: 6,
       alignItems: 'center',
     },
     secondaryButtonLabel: {
-      color: colors.textMuted,
-      fontSize: 15,
-      fontWeight: '600',
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
     },
   })
 }

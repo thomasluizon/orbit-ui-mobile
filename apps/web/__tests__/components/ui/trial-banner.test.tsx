@@ -59,20 +59,20 @@ describe('TrialBanner', () => {
     expect(screen.getByText('trial.banner.lastDay')).toBeInTheDocument()
   })
 
-  it('applies urgent styling when trial is urgent', () => {
+  it('shows the urgent last-day message when no days remain', () => {
     mockProfile = { isTrialActive: true }
     mockTrialUrgent = true
+    mockTrialDaysLeft = 0
     render(<TrialBanner />)
-    const status = screen.getByRole('status')
-    expect(status.className).toContain('bg-amber-500/10')
+    expect(screen.getByText('trial.banner.lastDay')).toBeInTheDocument()
   })
 
-  it('applies normal styling when trial is not urgent', () => {
+  it('shows the days-left count when trial is not urgent', () => {
     mockProfile = { isTrialActive: true }
     mockTrialUrgent = false
+    mockTrialDaysLeft = 5
     render(<TrialBanner />)
-    const status = screen.getByRole('status')
-    expect(status.className).toContain('bg-primary/10')
+    expect(document.body.textContent).toContain('trial.banner.daysLeft')
   })
 
   it('dismisses when dismiss button clicked', () => {

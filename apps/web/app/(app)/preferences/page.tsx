@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { Check, Lock } from 'lucide-react'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import {
   buildWeekStartOptions,
@@ -12,6 +12,7 @@ import {
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import {
@@ -21,12 +22,69 @@ import {
 } from '@/hooks/use-push-notification-preferences'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsDescription } from '@/components/ui/settings-description'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Chip } from '@/components/ui/chip'
+import { MonoToggle } from '@/components/ui/mono-toggle'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
   updateLanguage,
 } from '@/app/actions/profile'
+
+interface SchemeSwatchesProps {
+  active: ColorScheme
+  hasProAccess: boolean
+  mounted: boolean
+  onSelect: (scheme: ColorScheme) => void
+  t: ReturnType<typeof useTranslations>
+}
+
+function SchemeSwatches({ active, hasProAccess, mounted, onSelect, t }: Readonly<SchemeSwatchesProps>) {
+  return (
+    <div className="flex items-center" style={{ gap: 12 }}>
+      {colorSchemeOptions.map((option) => {
+        const isActive = mounted && active === option.value
+        const isLocked = !hasProAccess && option.value !== 'purple'
+        const ariaLabel = t(
+          `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
+        ) // NOSONAR - dynamic i18n key
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-label={ariaLabel}
+            aria-pressed={isActive}
+            onClick={() => onSelect(option.value)}
+            className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 transition-[opacity,box-shadow] duration-150 ease-out hover:opacity-80"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 999,
+              background: option.color,
+              boxShadow: isActive ? 'inset 0 0 0 2px var(--fg-1)' : 'none',
+            }}
+          >
+            {isActive && (
+              <Check
+                size={11}
+                strokeWidth={2.5}
+                color="var(--fg-on-primary)"
+                style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.4))' }}
+              />
+            )}
+            {!isActive && isLocked && (
+              <Lock size={9} strokeWidth={2} color="rgba(255,255,255,0.65)" />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function PreferencesPage() {
   const t = useTranslations()
@@ -45,39 +103,37 @@ export default function PreferencesPage() {
     togglePush: handleTogglePush,
   } = usePushNotificationPreferences()
 
-  // Hydration guard: cookie/localStorage reads differ between server and client.
-  // Defer client-only state until after mount to prevent aria-pressed mismatches.
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
+
   useEffect(() => {
-    setMounted(true)
     localStorage.removeItem('orbit_time_format')
     document.cookie = 'orbit_time_format=;max-age=0;path=/;samesite=strict'
   }, [])
 
-  // --- Language ---
-  const [selectedLanguage, setSelectedLanguage] = useState('en')
-
-  useEffect(() => {
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
+    if (typeof document === 'undefined') return 'en'
     const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
-    if (match?.[1]) setSelectedLanguage(decodeURIComponent(match[1]))
-  }, [])
+    return match?.[1] ? decodeURIComponent(match[1]) : 'en'
+  })
 
-  async function handleLanguageChange(locale: SupportedLocale) {
-    setSelectedLanguage(locale)
-    document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
-    if (isAuthenticated) {
-      try {
-        await updateLanguage({ language: locale })
-      } catch {
-        // Error handled silently like Vue
+  const handleLanguageChange = useCallback(
+    async (locale: SupportedLocale) => {
+      setSelectedLanguage(locale)
+      if (typeof document !== 'undefined') {
+        document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
       }
-    }
-    // Hard reload to re-trigger next-intl proxy with the new locale cookie
-    // (router.refresh() alone does not re-evaluate proxy)
-    globalThis.location.reload()
-  }
+      if (isAuthenticated) {
+        try {
+          await updateLanguage({ language: locale })
+        } catch {
+          // Error handled silently
+        }
+      }
+      globalThis.location.reload()
+    },
+    [isAuthenticated],
+  )
 
-  // --- Week Start Day ---
   const weekStartOptions = buildWeekStartOptions(t)
 
   const weekStartMutation = useMutation({
@@ -94,7 +150,6 @@ export default function PreferencesPage() {
     },
   })
 
-  // --- Color Scheme ---
   const colorSchemeMutation = useMutation({
     mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
     onMutate: (scheme) => {
@@ -121,12 +176,10 @@ export default function PreferencesPage() {
     colorSchemeMutation.mutate(scheme)
   }
 
-  // --- Home Screen Toggle (local-only preference) ---
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
-
-  useEffect(() => {
-    setShowGeneralOnToday(parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today')))
-  }, [])
+  const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
+    if (typeof localStorage === 'undefined') return false
+    return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
+  })
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday
@@ -135,185 +188,132 @@ export default function PreferencesPage() {
   }
 
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-        <button
-          type="button"
-          aria-label={t('common.backToProfile')}
-          className="p-2 -ml-2 text-text-muted hover:text-text-primary transition-colors"
-          onClick={() => goBackOrFallback('/profile')}
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('preferences.title')}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <SectionLabel>{t('profile.language.title')}</SectionLabel>
+        <div
+          className="flex items-center"
+          style={{
+            padding: '0 20px 12px',
+            gap: 6,
+            flexWrap: 'wrap',
+          }}
         >
-          <ArrowLeft className="size-5" />
-        </button>
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {t('preferences.title')}
-        </h1>
-      </header>
-
-      <div className="space-y-4">
-        {/* Language */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {t('profile.language.title')}
-          </h2>
-          <p className="text-sm text-text-secondary">
-            {t('profile.language.description')}
-          </p>
-          <div className="flex gap-2">
-            {LANGUAGE_OPTIONS.map((lang) => {
-              const isActive = mounted && selectedLanguage === lang.value
-              return (
-                <button
-                  key={lang.value}
-                  aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                  }`}
-                  onClick={() => handleLanguageChange(lang.value)}
-                >
-                  {lang.label}
-                </button>
-              )
-            })}
-          </div>
+          {LANGUAGE_OPTIONS.map((lang) => {
+            const isActive = mounted && selectedLanguage === lang.value
+            return (
+              <Chip
+                key={lang.value}
+                active={isActive}
+                onClick={() => handleLanguageChange(lang.value)}
+                ariaLabel={lang.label}
+              >
+                {lang.label}
+              </Chip>
+            )
+          })}
         </div>
+        <SettingsDescription>{t('profile.language.description')}</SettingsDescription>
 
-        {/* Color Scheme */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-              {t('profile.colorScheme.title')}
-            </h2>
-            <ProBadge />
-          </div>
-          <p className="text-sm text-text-secondary">
-            {t('profile.colorScheme.description')}
-          </p>
-          <div className="flex gap-3">
-            {colorSchemeOptions.map((option) => {
-              const isActive = mounted && currentScheme === option.value
-              return (
-                <button
-                  key={option.value}
-                  aria-label={t(`preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0])} // NOSONAR - dynamic i18n key requires assertion
-                  aria-pressed={isActive}
-                  className={`size-12 rounded-full transition-all active:scale-90 flex items-center justify-center ${
-                    isActive
-                      ? 'ring-2 ring-offset-2 ring-offset-surface scale-110'
-                      : 'hover:scale-105 opacity-70 hover:opacity-100'
-                  }`}
-                  style={{
-                    backgroundColor: option.color,
-                    '--tw-ring-color': isActive ? option.color : undefined,
-                  } as React.CSSProperties}
-                  onClick={() => handleSchemeChange(option.value)}
-                >
-                  {isActive && (
-                    <Check className="size-5 text-white" />
-                  )}
-                  {!profile?.hasProAccess && option.value !== 'purple' && !isActive && (
-                    <Lock className="size-3.5 text-white/70" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
+        <SectionLabel trailing={<ProBadge />}>{t('profile.colorScheme.title')}</SectionLabel>
+        <div
+          className="flex items-center justify-end"
+          style={{
+            padding: '4px 20px 12px',
+            gap: 12,
+          }}
+        >
+          <SchemeSwatches
+            active={currentScheme}
+            hasProAccess={profile?.hasProAccess ?? false}
+            mounted={mounted}
+            onSelect={handleSchemeChange}
+            t={t}
+          />
         </div>
+        <SettingsDescription>{t('profile.colorScheme.description')}</SettingsDescription>
 
-        {/* Week Start Day */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-            {t('settings.weekStartDay.title')}
-          </h2>
-          <p className="text-sm text-text-secondary">
-            {t('settings.weekStartDay.description')}
-          </p>
-          <div className="flex gap-2">
+        <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
+        <div
+          className="flex items-center justify-end"
+          style={{
+            padding: '4px 20px 12px',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div className="flex items-center" style={{ gap: 4 }}>
             {weekStartOptions.map((opt) => {
               const isActive = mounted && profile?.weekStartDay === opt.value
               return (
-                <button
+                <Chip
                   key={opt.value}
-                  aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-[var(--radius-lg)] text-sm font-semibold transition-all ${
-                    isActive
-                      ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                      : 'bg-background border border-border text-text-secondary hover:text-text-primary'
-                  }`}
+                  active={isActive}
                   onClick={() => weekStartMutation.mutate(opt.value)}
+                  ariaLabel={opt.label}
                 >
                   {opt.label}
-                </button>
+                </Chip>
               )
             })}
           </div>
         </div>
+        <SettingsDescription>{t('settings.weekStartDay.description')}</SettingsDescription>
 
-        {/* Home Screen */}
-        <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('settings.homeScreen.title')}
-              </h2>
-              <p className="text-xs text-text-muted mt-1">
-                {t('settings.homeScreen.showGeneralDesc')}
-              </p>
-            </div>
-            <button
-              role="switch"
-              aria-checked={mounted && showGeneralOnToday}
-              aria-label={t('settings.homeScreen.showGeneral')}
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                mounted && showGeneralOnToday ? 'bg-primary' : 'bg-surface-elevated'
-              }`}
-              onClick={toggleShowGeneral}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                  mounted && showGeneralOnToday ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
+        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
+        <SettingsRow label={t('settings.homeScreen.showGeneral')} accessory="none" divider={false}>
+          <MonoToggle
+            on={mounted && showGeneralOnToday}
+            onToggle={toggleShowGeneral}
+            ariaLabel={t('settings.homeScreen.showGeneral')}
+          />
+        </SettingsRow>
+        <SettingsDescription>{t('settings.homeScreen.showGeneralDesc')}</SettingsDescription>
 
-        {/* Push Notifications */}
         {pushSupported && (
-          <div className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">
-                {t('settings.notifications.title')}
-              </h2>
+          <>
+            <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+            <SettingsRow label={t('settings.notifications.allowed')} accessory="none">
               {pushPermission !== 'denied' && (
-                <button
-                  role="switch"
-                  aria-checked={pushSubscribed}
-                  aria-label={t('settings.notifications.title')}
+                <MonoToggle
+                  on={pushSubscribed}
+                  onToggle={handleTogglePush}
+                  ariaLabel={t('settings.notifications.title')}
                   disabled={pushLoading}
-                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 ${
-                    pushSubscribed ? 'bg-primary' : 'bg-surface-elevated'
-                  }`}
-                  onClick={handleTogglePush}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                      pushSubscribed ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                />
               )}
-            </div>
-            <p className="text-sm text-text-secondary">
+            </SettingsRow>
+            <div
+              style={{
+                padding: '0 20px 6px',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                fontStyle: 'italic',
+                color: 'var(--fg-3)',
+              }}
+            >
               {t('settings.notifications.description')}
-            </p>
-            <p className={`text-xs font-medium ${getPushStatusTone(pushStatus)}`}>
+            </div>
+            <div
+              className={getPushStatusTone(pushStatus)}
+              style={{
+                padding: '0 20px 14px',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
               {t(getPushStatusMessageKey(pushStatus, pushPermission))}
-            </p>
-          </div>
+            </div>
+          </>
         )}
+        <div style={{ height: 24 }} />
       </div>
     </div>
   )

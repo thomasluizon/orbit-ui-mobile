@@ -26,19 +26,19 @@ export function AppSelect({
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className="w-full appearance-none bg-surface text-text-primary rounded-md py-3 pr-10 pl-4 text-sm border border-border text-left focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors duration-[var(--duration-fast)]"
+        className="w-full appearance-none bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-md py-3 pr-10 pl-4 text-sm border border-[var(--hairline)] text-left focus:outline-none focus:border-[var(--primary)] transition-colors duration-[var(--duration-fast)]"
       >
         {options.map((option) => (
           <option
             key={option.value}
             value={option.value}
-            className="bg-surface text-text-primary"
+            className="bg-[var(--bg-elev)] text-[var(--fg-1)]"
           >
             {option.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-text-muted" />
+      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-3)]" />
     </div>
   )
 }

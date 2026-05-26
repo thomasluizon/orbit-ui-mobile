@@ -189,7 +189,8 @@ describe('StreakPage', () => {
 
   it('renders current and longest streak stats', () => {
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.detail.currentStreak')).toBeInTheDocument()
+    // current label appears in hero eyebrow AND stats row
+    expect(screen.getAllByText('streakDisplay.detail.currentStreak').length).toBeGreaterThan(0)
     expect(screen.getByText('streakDisplay.detail.longestStreak')).toBeInTheDocument()
   })
 
@@ -215,7 +216,8 @@ describe('StreakPage', () => {
   it('shows frozen today indicator when isFrozenToday', () => {
     mockIsFrozenToday = true
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.freeze.activeToday')).toBeInTheDocument()
+    // frozen indicator appears in hero eyebrow AND freeze status block
+    expect(screen.getAllByText('streakDisplay.freeze.activeToday').length).toBeGreaterThan(0)
   })
 
   it('shows completed today hint', () => {

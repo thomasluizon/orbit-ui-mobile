@@ -3,13 +3,15 @@ import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
+import { useAssignTags, useDeleteTag } from '@/hooks/use-tags'
+
 const mocks = vi.hoisted(() => {
   const state = {
-    tags: [] as Array<{
+    tags: [] as {
       key: readonly unknown[]
-      value: Array<{ id: string; name: string; color: string }>
-    }>,
-    habits: [] as Array<{ key: readonly unknown[]; value: HabitScheduleItem[] }>,
+      value: { id: string; name: string; color: string }[]
+    }[],
+    habits: [] as { key: readonly unknown[]; value: HabitScheduleItem[] }[],
   }
 
   const queryClient = {
@@ -26,7 +28,7 @@ const mocks = vi.hoisted(() => {
       filters: { queryKey: readonly unknown[] },
       updater: unknown[] | ((old: unknown[] | undefined) => unknown[] | undefined),
     ) => {
-      const apply = <T,>(entries: Array<{ key: readonly unknown[]; value: T[] }>) => (
+      const apply = <T,>(entries: { key: readonly unknown[]; value: T[] }[]) => (
         entries.map((entry) => ({
           ...entry,
           value: typeof updater === 'function'
@@ -46,7 +48,7 @@ const mocks = vi.hoisted(() => {
       if (JSON.stringify(queryKey) === JSON.stringify(tagKeys.lists())) {
         const existing = state.tags.find((entry) => JSON.stringify(entry.key) === JSON.stringify(queryKey))
         if (existing) {
-          existing.value = value as Array<{ id: string; name: string; color: string }>
+          existing.value = value as { id: string; name: string; color: string }[]
         }
         return
       }
@@ -116,8 +118,6 @@ vi.mock('@/lib/offline-mutations', () => ({
   queueOrExecute: mocks.queueOrExecute,
   withQueuedMarker: mocks.withQueuedMarker,
 }))
-
-import { useAssignTags, useDeleteTag } from '@/hooks/use-tags'
 
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
@@ -209,7 +209,7 @@ describe('mobile tag hooks', () => {
     const mutation = useAssignTags() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
       { habitId: string; tagIds: string[] },
-      { previousHabitLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]> }
+      { previousHabitLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
     >
 
     mocks.queueOrExecute.mockResolvedValue({
@@ -233,8 +233,8 @@ describe('mobile tag hooks', () => {
       { queued: true; queuedMutationId: string },
       string,
       {
-        previousLists: ReadonlyArray<readonly [readonly unknown[], Array<{ id: string; name: string; color: string }> | undefined]>
-        previousHabitLists: ReadonlyArray<readonly [readonly unknown[], HabitScheduleItem[] | undefined]>
+        previousLists: readonly (readonly [readonly unknown[], { id: string; name: string; color: string }[] | undefined])[]
+        previousHabitLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
       }
     >
     const initialTags = mocks.state.tags[0]?.value

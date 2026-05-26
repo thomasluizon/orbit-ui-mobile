@@ -4,7 +4,7 @@ const AsyncStorage = {
   removeItem: async (_key: string) => {},
   clear: async () => {},
   multiGet: async (_keys: string[]) => [],
-  multiSet: async (_entries: Array<[string, string]>) => {},
+  multiSet: async (_entries: [string, string][]) => {},
   multiRemove: async (_keys: string[]) => {},
 }
 

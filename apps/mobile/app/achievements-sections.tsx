@@ -1,65 +1,138 @@
 import { View, Text, StyleSheet } from 'react-native'
+import { Lock } from 'lucide-react-native'
 import type { Achievement } from '@orbit/shared/types/gamification'
-import { AchievementCard } from '@/components/gamification/achievement-card'
-import { createColors } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 
-type AppColors = ReturnType<typeof createColors>
+type Tokens = ReturnType<typeof createTokensV2>
+type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
-type AchievementCategoryView = {
+export type AchievementCategoryView = {
   key: string
   items: Achievement[]
 }
 
+const RARITY_GLYPHS: Record<string, string> = {
+  common: '◇',
+  uncommon: '◈',
+  rare: '◆',
+  epic: '★',
+  legendary: '✦',
+}
+
+function rarityGlyph(rarity: string): string {
+  return RARITY_GLYPHS[rarity.toLowerCase()] ?? '◇'
+}
+
 interface AchievementCategorySectionProps {
   category: AchievementCategoryView
-  t: (key: string) => string
-  styles: ReturnType<typeof createAchievementsScreenStyles>
+  t: TranslationFn
+  tokens: Tokens
 }
 
 export function AchievementCategorySection({
   category,
   t,
-  styles,
-}: AchievementCategorySectionProps) {
+  tokens,
+}: Readonly<AchievementCategorySectionProps>) {
   return (
-    <View style={styles.categorySection}>
-      <Text style={styles.categoryLabel}>
-        {t(`gamification.categories.${category.key}`).toUpperCase()}
-      </Text>
-      <View style={styles.achievementGrid}>
-        {category.items.map((achievement) => (
-          <View key={achievement.id} style={styles.achievementItem}>
-            <AchievementCard
+    <>
+      <SectionLabel>{t(`gamification.categories.${category.key}`)}</SectionLabel>
+      <View style={styles.groupWrap}>
+        <SettingsGroup>
+          {category.items.map((achievement) => (
+            <AchievementRow
+              key={achievement.id}
               achievement={achievement}
-              earned={achievement.isEarned}
-              earnedDate={achievement.earnedAtUtc}
+              t={t}
+              tokens={tokens}
             />
-          </View>
-        ))}
+          ))}
+        </SettingsGroup>
       </View>
+    </>
+  )
+}
+
+interface AchievementRowProps {
+  achievement: Achievement
+  t: TranslationFn
+  tokens: Tokens
+}
+
+function AchievementRow({
+  achievement,
+  t,
+  tokens,
+}: Readonly<AchievementRowProps>) {
+  const earned = achievement.isEarned
+  const glyph = rarityGlyph(achievement.rarity)
+  const name = t(`gamification.achievements.${achievement.id}.name`)
+  const description = t(`gamification.achievements.${achievement.id}.description`)
+
+  return (
+    <View style={styles.row}>
+      <Text style={[styles.glyph, { color: earned ? tokens.fg1 : tokens.fg4 }]}>
+        {glyph}
+      </Text>
+      <View style={styles.body}>
+        <Text
+          style={[
+            styles.name,
+            {
+              color: earned ? tokens.fg1 : tokens.fg3,
+              fontWeight: earned ? '500' : '400',
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {name}
+        </Text>
+        <Text
+          style={[styles.subtitle, { color: tokens.fg3 }]}
+          numberOfLines={2}
+        >
+          {description}
+        </Text>
+      </View>
+      {!earned ? (
+        <Lock size={14} color={tokens.fg4} strokeWidth={1.5} />
+      ) : null}
     </View>
   )
 }
 
-export function createAchievementsScreenStyles(colors: AppColors) {
-  return StyleSheet.create({
-    categorySection: {
-      marginTop: 24,
-      gap: 12,
-    },
-    categoryLabel: {
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 1,
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-    },
-    achievementGrid: {
-      flexDirection: 'column',
-      gap: 12,
-    },
-    achievementItem: {
-      width: '100%',
-    },
-  })
-}
+const styles = StyleSheet.create({
+  groupWrap: {
+    paddingHorizontal: 20,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 56,
+  },
+  glyph: {
+    fontFamily: 'GeistMono',
+    fontSize: 16,
+    width: 20,
+    textAlign: 'center',
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  name: {
+    fontFamily: 'Geist',
+    fontSize: 15,
+  },
+  subtitle: {
+    fontFamily: 'Geist',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+})

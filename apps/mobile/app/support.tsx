@@ -1,37 +1,99 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  View,
-  Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  ActivityIndicator,
+  Text,
+  TextInput,
+  View,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Send } from 'lucide-react-native'
+import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
-import { createColors, spacing } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { AppBar } from '@/components/ui/app-bar'
 
-type AppColors = ReturnType<typeof createColors>
+type Tokens = ReturnType<typeof createTokensV2>
+
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
+
+interface UnderlinedInputProps {
+  label: string
+  value: string
+  onChangeText: (v: string) => void
+  placeholder: string
+  multiline?: boolean
+  keyboardType?: 'default' | 'email-address'
+  autoCapitalize?: 'none' | 'sentences'
+  mono?: boolean
+  error?: string | null
+  tokens: Tokens
+}
+
+function UnderlinedInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  multiline = false,
+  keyboardType = 'default',
+  autoCapitalize = 'sentences',
+  mono = false,
+  error,
+  tokens,
+}: Readonly<UnderlinedInputProps>) {
+  return (
+    <View style={styles.fieldWrap}>
+      <Text style={[styles.fieldLabel, { color: tokens.fg3 }]}>
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={tokens.fg4}
+        multiline={multiline}
+        numberOfLines={multiline ? 6 : 1}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        textAlignVertical={multiline ? 'top' : 'auto'}
+        style={[
+          mono ? styles.inputMono : styles.input,
+          {
+            color: tokens.fg1,
+            borderBottomColor: error ? tokens.statusBad : tokens.hairlineStrong,
+            minHeight: multiline ? 110 : 36,
+          },
+        ]}
+      />
+      {error ? (
+        <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  )
+}
 
 export default function SupportScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { isOnline } = useOffline()
-  const styles = useMemo(() => createStyles(colors), [colors])
   const { profile } = useProfile()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -45,11 +107,9 @@ export default function SupportScreen() {
 
   useEffect(() => {
     let isMounted = true
-
     void AsyncStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
       .then((storedDraft) => {
         if (!isMounted || !storedDraft) return
-
         try {
           const draft = JSON.parse(storedDraft) as Partial<
             Record<'name' | 'email' | 'subject' | 'message', string>
@@ -63,7 +123,6 @@ export default function SupportScreen() {
         }
       })
       .catch(() => {})
-
     return () => {
       isMounted = false
     }
@@ -71,6 +130,7 @@ export default function SupportScreen() {
 
   useEffect(() => {
     if (profile) {
+       
       setName((current) => current || profile.name || '')
       setEmail((current) => current || profile.email || '')
     }
@@ -86,11 +146,10 @@ export default function SupportScreen() {
       void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
       return
     }
-
     void AsyncStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
   }, [email, message, name, subject])
 
-  function validateForm(): boolean {
+  const validateForm = useCallback((): boolean => {
     setNameError(null)
     setEmailError(null)
     let valid = true
@@ -109,16 +168,14 @@ export default function SupportScreen() {
       setEmailError(t('profile.support.emailInvalid'))
       valid = false
     }
-
     return valid
-  }
+  }, [email, name, profile?.email, profile?.name, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
       setError(t('calendarSync.notConnected'))
       return
     }
-
     if (!subject.trim() || !message.trim()) return
     if (!validateForm()) return
 
@@ -130,15 +187,9 @@ export default function SupportScreen() {
       await apiClient(API.support.send, {
         method: 'POST',
         body: JSON.stringify(
-          buildSupportRequestBody(profile, {
-            name,
-            email,
-            subject,
-            message,
-          }),
+          buildSupportRequestBody(profile, { name, email, subject, message }),
         ),
       })
-
       setSuccess(true)
       setSubject('')
       setMessage('')
@@ -148,10 +199,22 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [email, isOnline, message, name, profile, subject, t])
+  }, [email, isOnline, message, name, profile, subject, t, validateForm])
+
+  const canSend =
+    subject.trim().length > 0 && message.trim().length > 0 && isOnline && !sending
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
+      edges={['top']}
+    >
+      <AppBar
+        back
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('profile.support.title')}
+        backLabel={t('common.goBack')}
+      />
       <KeyboardAwareScrollView
         style={styles.container}
         containerStyle={styles.container}
@@ -159,227 +222,184 @@ export default function SupportScreen() {
         showsVerticalScrollIndicator={false}
         keyboardVerticalOffset={12}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBackOrFallback('/profile')}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.goBack')}
-          >
-            <ArrowLeft size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('profile.support.title')}</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardDescription}>
-            {t('profile.support.description')}
-          </Text>
-          {!isOnline && (
-            <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
-              compact
-            />
-          )}
-
-          {success && (
-            <View style={styles.successBanner}>
-              <Text style={styles.successBannerText}>
-                {t('profile.support.success')}
-              </Text>
-            </View>
-          )}
-
-          {error && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{error}</Text>
-            </View>
-          )}
-
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <AppTextInput
-                style={[styles.input, nameError ? styles.inputError : null]}
-                value={name}
-                onChangeText={setName}
-                placeholder={t('profile.support.namePlaceholder')}
-                placeholderTextColor={colors.textMuted}
-              />
-              {nameError && <Text style={styles.inlineError}>{nameError}</Text>}
-            </View>
-            <View style={styles.halfField}>
-              <AppTextInput
-                style={[styles.input, emailError ? styles.inputError : null]}
-                value={email}
-                onChangeText={setEmail}
-                placeholder={t('profile.support.emailPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              {emailError && (
-                <Text style={styles.inlineError}>{emailError}</Text>
-              )}
-            </View>
+        {success ? (
+          <View style={styles.successBlock}>
+            <Check size={28} color={tokens.primary} strokeWidth={1.7} />
+            <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
+              {t('profile.support.success')}
+            </Text>
+            <Text style={[styles.successHint, { color: tokens.fg3 }]}>
+              {t('profile.support.successHint')}
+            </Text>
           </View>
-
-          <AppTextInput
-            style={styles.input}
-            value={subject}
-            onChangeText={setSubject}
-            placeholder={t('profile.support.subjectPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            maxLength={100}
-          />
-
-          <AppTextInput
-            style={[styles.input, styles.textArea]}
-            value={message}
-            onChangeText={setMessage}
-            placeholder={t('profile.support.messagePlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            multiline
-            numberOfLines={6}
-            textAlignVertical="top"
-            maxLength={2000}
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!subject.trim() || !message.trim() || sending || !isOnline) &&
-                styles.sendButtonDisabled,
-            ]}
-            onPress={handleSend}
-            disabled={
-              !subject.trim() || !message.trim() || sending || !isOnline
-            }
-            activeOpacity={0.8}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Send size={16} color="#fff" />
-                <Text style={styles.sendButtonText}>
+        ) : (
+          <View style={styles.formBlock}>
+            {!isOnline ? (
+              <OfflineUnavailableState
+                title={t('calendarSync.notConnected')}
+                description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
+                compact
+              />
+            ) : null}
+            <View style={styles.rowPair}>
+              <View style={styles.halfField}>
+                <UnderlinedInput
+                  label={t('profile.support.name')}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder={t('profile.support.namePlaceholder')}
+                  error={nameError}
+                  tokens={tokens}
+                />
+              </View>
+              <View style={styles.halfField}>
+                <UnderlinedInput
+                  label={t('profile.support.email')}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder={t('profile.support.emailPlaceholder')}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  mono
+                  error={emailError}
+                  tokens={tokens}
+                />
+              </View>
+            </View>
+            <UnderlinedInput
+              label={t('profile.support.subject')}
+              value={subject}
+              onChangeText={setSubject}
+              placeholder={t('profile.support.subjectPlaceholder')}
+              tokens={tokens}
+            />
+            <UnderlinedInput
+              label={t('profile.support.message')}
+              value={message}
+              onChangeText={setMessage}
+              placeholder={t('profile.support.messagePlaceholder')}
+              multiline
+              tokens={tokens}
+            />
+            {error ? (
+              <Text style={[styles.fieldErrorText, { color: tokens.statusOverdue }]}>
+                {error}
+              </Text>
+            ) : null}
+            <View style={styles.actionPad}>
+              <Pressable
+                onPress={() => {
+                  void handleSend()
+                }}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.support.send')}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  {
+                    backgroundColor: pressed
+                      ? tokens.primaryPressed
+                      : tokens.primary,
+                  },
+                  !canSend && { opacity: 0.5 },
+                ]}
+              >
+                <Text
+                  style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}
+                >
                   {t('profile.support.send')}
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+              </Pressable>
+            </View>
+          </View>
+        )}
+        <View style={{ height: 24 }} />
       </KeyboardAwareScrollView>
     </SafeAreaView>
   )
 }
 
-function createStyles(colors: AppColors) {
-  return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: colors.background },
-    container: { flex: 1 },
-    scrollContent: {
-      paddingHorizontal: spacing.pageX,
-      paddingBottom: spacing.pageBottom,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.cardGap,
-      paddingTop: spacing.sectionGap * 2,
-      paddingBottom: spacing.cardGap * 2,
-    },
-    backButton: { padding: 8, marginLeft: -8 },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
-    },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: spacing.cardPadding,
-      gap: spacing.cardGap,
-    },
-    cardDescription: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      lineHeight: 20,
-    },
-    successBanner: {
-      backgroundColor: colors.emerald500_10,
-      borderWidth: 1,
-      borderColor: colors.emerald500_30,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-    },
-    successBannerText: {
-      fontSize: 14,
-      color: colors.emerald400,
-    },
-    errorBanner: {
-      backgroundColor: colors.red500_10,
-      borderWidth: 1,
-      borderColor: colors.red500_30,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-    },
-    errorBannerText: {
-      fontSize: 14,
-      color: colors.red400,
-    },
-    row: {
-      flexDirection: 'row',
-      gap: spacing.cardGap,
-    },
-    halfField: {
-      flex: 1,
-    },
-    input: {
-      backgroundColor: colors.background,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      fontSize: 14,
-      color: colors.textPrimary,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    inputError: {
-      borderColor: colors.red500,
-    },
-    textArea: {
-      minHeight: 120,
-      paddingTop: 12,
-    },
-    inlineError: {
-      fontSize: 11,
-      color: colors.red400,
-      marginTop: 4,
-      paddingHorizontal: 4,
-    },
-    sendButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      backgroundColor: colors.primary,
-      borderRadius: 20,
-      paddingVertical: 14,
-    },
-    sendButtonDisabled: {
-      opacity: 0.5,
-    },
-    sendButtonText: {
-      fontSize: 15,
-      fontWeight: '700',
-      color: '#fff',
-    },
-  })
-}
+const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 40 },
+  formBlock: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 14,
+  },
+  rowPair: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  halfField: { flex: 1 },
+  fieldWrap: {
+    gap: 4,
+  },
+  fieldLabel: {
+    fontFamily: 'GeistMono',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  input: {
+    fontFamily: 'Geist',
+    fontSize: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  inputMono: {
+    fontFamily: 'GeistMono',
+    fontSize: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    fontVariant: ['tabular-nums'],
+  },
+  errorText: {
+    fontFamily: 'Geist',
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  fieldErrorText: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  actionPad: {
+    paddingTop: 8,
+  },
+  primaryBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnText: {
+    fontFamily: 'Geist',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  successBlock: {
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+    alignItems: 'center',
+    gap: 14,
+  },
+  successTitle: {
+    fontFamily: 'Geist',
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.17,
+  },
+  successHint: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+})

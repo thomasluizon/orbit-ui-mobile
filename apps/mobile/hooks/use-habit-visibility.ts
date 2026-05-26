@@ -9,10 +9,6 @@ export type {
   HabitVisibilityOptions,
 } from '@orbit/shared/utils/habit-visibility'
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function useHabitVisibility({
   habitsById,
   childrenByParent,

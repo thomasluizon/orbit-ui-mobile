@@ -1,11 +1,11 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { gamificationKeys, profileKeys } from '@orbit/shared/query'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { gamificationKeys, profileKeys , QUERY_STALE_TIMES } from '@orbit/shared/query'
+
 import { API } from '@orbit/shared/api'
 import type {
   GamificationProfile,
@@ -18,10 +18,6 @@ import {
   deriveStreakFreezeState,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
-
-// ---------------------------------------------------------------------------
-// Gamification profile query
-// ---------------------------------------------------------------------------
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
@@ -44,27 +40,32 @@ export function useGamificationProfile(enabled = true) {
     achievementsByCategory,
   } = useMemo(() => deriveGamificationProfileState(profile), [profile])
 
-  // Detect level-ups and new achievements
-  const { leveledUp, newLevel, newAchievements } = useMemo(() => {
-    const nextMilestones = detectGamificationMilestones(
+  // Detect level-ups + new achievements. Refs hold the previous-render snapshot
+  // and are mutated inside an effect — React 19 forbids reading or writing refs
+  // during render. We keep the milestone output in state so consumers see a
+  // stable value across renders until the next effect tick advances it.
+  const [milestones, setMilestones] = useState(() =>
+    detectGamificationMilestones(profile, null, new Set<string>(), acknowledgedLevel),
+  )
+
+  useEffect(() => {
+    const next = detectGamificationMilestones(
       profile,
       previousLevelRef.current,
       previousAchievementIdsRef.current,
       acknowledgedLevel,
     )
-
     previousLevelRef.current = profile?.level ?? null
-    previousAchievementIdsRef.current = nextMilestones.currentEarnedAchievementIds
-
-    return nextMilestones
+    previousAchievementIdsRef.current = next.currentEarnedAchievementIds
+    setMilestones(next)
   }, [profile, acknowledgedLevel])
 
-  // Clear level-up after overlay dismisses
+  const { leveledUp, newLevel, newAchievements } = milestones
+
   const clearLevelUp = useCallback(() => {
     setAcknowledgedLevel(profile?.level ?? null)
   }, [profile?.level])
 
-  // Invalidation helper
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
@@ -84,10 +85,6 @@ export function useGamificationProfile(enabled = true) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Streak info query
-// ---------------------------------------------------------------------------
-
 export function useStreakInfo() {
   return useQuery({
     queryKey: gamificationKeys.streak(),
@@ -95,10 +92,6 @@ export function useStreakInfo() {
     staleTime: QUERY_STALE_TIMES.gamification,
   })
 }
-
-// ---------------------------------------------------------------------------
-// Streak freeze mutation
-// ---------------------------------------------------------------------------
 
 export function useActivateStreakFreeze() {
   const queryClient = useQueryClient()
@@ -134,10 +127,6 @@ export function useActivateStreakFreeze() {
     },
   })
 }
-
-// ---------------------------------------------------------------------------
-// Derived selectors
-// ---------------------------------------------------------------------------
 
 export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null) {
   const streakQuery = useStreakInfo()

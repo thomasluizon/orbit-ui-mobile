@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Animated,
   Dimensions,
@@ -42,10 +42,11 @@ export function AnchoredMenu({
   const styles = useMemo(() => createStyles(theme), [theme])
   const [menuHeight, setMenuHeight] = useState(estimatedHeight)
   const [shouldRender, setShouldRender] = useState(visible)
-  const progress = useRef(new Animated.Value(0)).current
+  const progress = useMemo(() => new Animated.Value(0), [])
 
   useEffect(() => {
     if (visible) {
+       
       setMenuHeight(estimatedHeight)
     }
   }, [estimatedHeight, visible])
@@ -61,6 +62,7 @@ export function AnchoredMenu({
 
   useEffect(() => {
     if (visible) {
+       
       setShouldRender(true)
       Animated.timing(progress, {
         toValue: 1,

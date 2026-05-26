@@ -46,9 +46,15 @@ export function applyThemeTokensToDOM(
 
   if (theme === 'dark') {
     root.classList.add('dark')
+    root.classList.remove('light')
   } else {
+    root.classList.add('light')
     root.classList.remove('dark')
   }
+
+  // v2: scheme class drives OKLCH neutrals via .scheme-{name}.dark|.light rules.
+  for (const s of VALID_COLOR_SCHEMES) root.classList.remove(`scheme-${s}`)
+  root.classList.add(`scheme-${scheme}`)
 
   root.style.setProperty('color-scheme', theme)
 
@@ -64,7 +70,7 @@ export function applyThemeTokensToDOM(
   root.style.setProperty('--color-border', colors.border)
   root.style.setProperty('--color-border-muted', colors.borderMuted)
   root.style.setProperty('--color-border-emphasis', colors.borderEmphasis)
-  root.style.setProperty('--color-text-primary', colors.textPrimary)
+  root.style.setProperty('--color-text-[var(--primary)]', colors.textPrimary)
   root.style.setProperty('--color-text-secondary', colors.textSecondary)
   root.style.setProperty('--color-text-muted', colors.textMuted)
   root.style.setProperty('--color-text-faded', colors.textFaded)

@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { versionCheckKeys } from '@orbit/shared/query'
 
+import {
+  installAndroidUpdate,
+  startAndroidUpdate,
+  useVersionCheck,
+} from '@/hooks/use-version-check'
+
 type QueryResult = {
   androidCheck: {
     shouldUpdate: boolean
@@ -99,12 +105,6 @@ vi.mock('expo-constants', () => ({
     },
   },
 }))
-
-import {
-  installAndroidUpdate,
-  startAndroidUpdate,
-  useVersionCheck,
-} from '@/hooks/use-version-check'
 
 describe('useVersionCheck', () => {
   beforeEach(() => {

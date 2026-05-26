@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAppToastStore } from '@/stores/app-toast-store'
+
 const triggerHaptic = vi.hoisted(() => vi.fn(async () => {}))
 
 vi.mock('@/lib/haptics', () => ({
   triggerHaptic,
 }))
-
-import { useAppToastStore } from '@/stores/app-toast-store'
 
 describe('app toast store', () => {
   beforeEach(() => {

@@ -111,19 +111,19 @@ describe('MessageBubble', () => {
     expect(document.querySelector('img')).not.toBeInTheDocument()
   })
 
-  it('applies gradient background to user messages', () => {
+  it('marks user messages with bubble role', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'user' })} />,
     )
-    const bubble = container.querySelector('.bg-linear-to-br')
+    const bubble = container.querySelector('[data-bubble-role="user"]')
     expect(bubble).toBeInTheDocument()
   })
 
-  it('applies elevated background to AI messages', () => {
+  it('marks AI messages with bubble role', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'ai' })} />,
     )
-    const bubble = container.querySelector('.bg-surface-elevated')
+    const bubble = container.querySelector('[data-bubble-role="ai"]')
     expect(bubble).toBeInTheDocument()
   })
 

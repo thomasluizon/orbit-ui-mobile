@@ -1,6 +1,8 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { PushPrompt } from '@/components/ui/push-prompt'
+
 const TestRenderer = require('react-test-renderer')
 
 const storage = new Map<string, string>()
@@ -77,8 +79,6 @@ vi.mock('react-native', async (importOriginal) => {
     },
   }
 })
-
-import { PushPrompt } from '@/components/ui/push-prompt'
 
 function findPressableByText(root: any, label: string) {
   return root.find(

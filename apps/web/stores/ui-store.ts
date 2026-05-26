@@ -31,6 +31,10 @@ export const useUIStore = create<UIStoreState>()(
       ),
       migrate: migratePersistedUIState,
       partialize: getPersistedUIState,
+      // SSR safety: don't auto-read localStorage on first client render. Both SSR and
+      // first client render use the in-memory defaults; Providers triggers rehydrate()
+      // in a mount effect so persisted state lands after hydration matches.
+      skipHydration: true,
     },
   ),
 )

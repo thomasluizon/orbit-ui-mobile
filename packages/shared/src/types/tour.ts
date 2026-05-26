@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Tour types -- shared across web and mobile
-// ---------------------------------------------------------------------------
-
 export type TourSection = 'habits' | 'goals' | 'chat' | 'calendar' | 'profile'
 
 export type TourPlacement = 'top' | 'bottom' | 'left' | 'right'

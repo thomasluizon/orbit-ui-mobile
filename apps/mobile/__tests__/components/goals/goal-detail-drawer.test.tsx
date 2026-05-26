@@ -27,12 +27,13 @@ const listGoal = {
   linkedHabits: [],
 }
 
-let detailGoal = { ...listGoal, progressHistory: [] as Array<unknown> }
+let detailGoal = { ...listGoal, progressHistory: [] as unknown[] }
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: 'en-US' },
   }),
 }))
 
@@ -52,13 +53,11 @@ vi.mock('@/hooks/use-ad-mob', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-device-locale', () => ({
-  useDeviceLocale: () => 'en-US',
-}))
-
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    currentScheme: 'purple',
+    currentTheme: 'dark',
   }),
 }))
 
@@ -94,9 +93,11 @@ vi.mock('lucide-react-native', () => {
   return {
     ArchiveX: createIcon('ArchiveX'),
     CheckCircle2: createIcon('CheckCircle2'),
+    ChevronRight: createIcon('ChevronRight'),
     Flame: createIcon('Flame'),
     PencilLine: createIcon('PencilLine'),
     RotateCw: createIcon('RotateCw'),
+    Sparkles: createIcon('Sparkles'),
     Trash2: createIcon('Trash2'),
   }
 })

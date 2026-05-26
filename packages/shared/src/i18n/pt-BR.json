@@ -14,6 +14,7 @@
     },
     "notifications": {
       "title": "Notificações Push",
+      "allowed": "Notificações push",
       "description": "Receba lembretes e atualizações mesmo quando o app estiver fechado",
       "enabled": "Notificações estão ativadas",
       "disabled": "Notificações estão desativadas",
@@ -51,6 +52,7 @@
     }
   },
   "pushPrompt": {
+    "eyebrow": "Notificações",
     "title": "Mantenha o foco",
     "description": "Ative notificações para receber lembretes dos seus hábitos",
     "enable": "Ativar",
@@ -58,6 +60,7 @@
     "retryHint": "Falha ao configurar notificações. Toque em Ativar para tentar novamente."
   },
   "updatePrompt": {
+    "eyebrow": "Atualização disponível",
     "title": "Atualização disponível",
     "description": "Uma nova versão do Orbit está disponível com melhorias e correções",
     "update": "Atualizar",
@@ -84,9 +87,11 @@
     "daysAgo": "{n}d atrás"
   },
   "welcome": {
-    "backMessage": "Bem-vindo de volta! Sua sequência está em {streak} dias."
+    "backMessage": "Sua sequência de {streak} dias continua viva.",
+    "eyebrow": "Bem-vindo de volta"
   },
   "common": {
+    "appName": "Orbit",
     "save": "Salvar",
     "add": "Adicionar",
     "back": "Voltar",
@@ -121,6 +126,12 @@
     "no": "Não",
     "all": "Todos",
     "select": "Selecionar",
+    "previous": "Anterior",
+    "previousPage": "Página anterior",
+    "next": "Próximo",
+    "nextPage": "Próxima página",
+    "codePlaceholder": "123456",
+    "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
     "yearlyBadge": "Anual",
     "required": "é obrigatório",
@@ -146,7 +157,10 @@
     "chat": "Chat",
     "createHabit": "Criar hábito",
     "profile": "Perfil",
-    "skipToContent": "Pular para o conteúdo principal"
+    "home": "Início",
+    "astra": "Astra",
+    "you": "Você",
+    "create": "Criar"
   },
   "reviewPrompt": {
     "title": "Está curtindo o Orbit?",
@@ -181,6 +195,8 @@
   },
   "auth": {
     "welcomeBack": "Bem-vindo",
+    "signIn": "Entrar",
+    "enterCode": "Digite o código",
     "email": "E-mail",
     "emailPlaceholder": "você@exemplo.com",
     "sendCode": "Enviar Código",
@@ -188,6 +204,7 @@
     "codeSentTo": "Enviamos um código de 6 dígitos para",
     "verify": "Verificar",
     "resendCode": "Reenviar código",
+    "resendIn": "Reenviar em {seconds}s",
     "changeEmail": "Alterar e-mail",
     "genericError": "Ocorreu um erro. Tente novamente.",
     "orContinueWith": "ou continue com",
@@ -198,11 +215,16 @@
     "errorReference": "Código de referência: {requestId}",
     "backToLogin": "Voltar ao login",
     "sessionExpiring": "Sua sessão expira em {minutes} minutos. Salve seu trabalho.",
+    "sessionExpiringPrefix": "Sessão expira em",
     "sessionExpired": "Sua sessão expirou. Faça login novamente.",
     "refresh": "Atualizar",
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
     "tagline": "Acompanhe seus hábitos, construa suas sequências",
+    "legalPrefix": "Ao entrar, você concorda com os",
+    "legalConjunction": "e a",
+    "terms": "Termos",
+    "privacy": "Privacidade",
     "errors": {
       "invalidEmail": "Esse e-mail não parece válido. Verifique e tente de novo.",
       "emailNotFound": "Não encontramos uma conta com esse e-mail.",
@@ -223,6 +245,7 @@
   },
   "habits": {
     "title": "Meus Hábitos",
+    "emptyState": "Nenhum hábito ainda",
     "count": "nenhum hábito | um hábito | {n} hábitos",
     "dueToday": "Vence hoje",
     "overdue": "Atrasado",
@@ -255,6 +278,9 @@
     "viewToday": "Hoje",
     "viewAll": "Todos",
     "viewGeneral": "Geral",
+    "today": "Hoje",
+    "sectionLabel": "Hábitos",
+    "frequencyFilter": "Filtrar por frequência",
     "searchPlaceholder": "Buscar hábitos...",
     "showCompleted": "Mostrar concluídos",
     "collapseAll": "Recolher todos",
@@ -502,7 +528,14 @@
       "activity": "Atividade",
       "streakDays": "{n}d",
       "stats": "Estatísticas",
-      "noDataYet": "Nenhum dado ainda"
+      "noDataYet": "Nenhum dado ainda",
+      "reminders": "Lembretes",
+      "linkedGoal": "Meta vinculada",
+      "children": "Sub-hábitos",
+      "askAstraAbout": "Pergunte ao Astra sobre isto",
+      "askAstraEyebrow": "PERGUNTE AO ASTRA",
+      "askAstraSubHabits": "Quer dividir isto em passos menores?",
+      "askAstraDefault": "Quer uma perspectiva sobre este hábito?"
     },
     "filter": {
       "daily": "Diário",
@@ -535,7 +568,15 @@
       "errorAlreadyResolved": "Já resolvido. Pergunte novamente, por favor.",
       "errorGeneric": "Algo deu errado. Tente novamente."
     },
-    "subHabitPlaceholder": "Título do sub-hábito..."
+    "subHabitPlaceholder": "Título do sub-hábito...",
+    "statusDot": {
+      "done": "Feito",
+      "empty": "Não feito",
+      "skip": "Pulado",
+      "overdue": "Atrasado",
+      "bad": "Deslize",
+      "frozen": "Congelado"
+    }
   },
   "calendar": {
     "legend": {
@@ -543,8 +584,12 @@
       "upcoming": "Próximo",
       "missed": "Perdido"
     },
+    "thisMonth": "Este mês",
+    "bestStreak": "Melhor sequência",
+    "totalLogs": "Total de registros",
+    "missedCount": "Perdidos",
     "summary": {
-      "days": "dias completados"
+      "days": "dia completado | dias completados"
     },
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
@@ -625,8 +670,18 @@
     }
   },
   "chat": {
-    "title": "Chat com Orbit",
-    "placeholder": "Diga ao Orbit o que você fez...",
+    "title": "Astra",
+    "pendingOp": {
+      "risk": {
+        "high": "Risco alto",
+        "destructive": "Destrutivo",
+        "low": "Risco baixo"
+      }
+    },
+    "empty": {
+      "title": "Como o dia foi?"
+    },
+    "placeholder": "Pergunte à Astra",
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
     "removeImage": "Remover imagem",
@@ -643,7 +698,7 @@
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
     "aiError": "Desculpe, algo deu errado. Tente novamente.",
     "suggestion": {
-      "prompt": "Peça para criar hábitos, registrar conclusões ou gerenciar sua rotina",
+      "prompt": "Posso resumir, planejar ou ajudar você a ajustar um hábito.",
       "meditated": "Eu meditei hoje",
       "exercise": "Criar um hábito de exercício toda manhã",
       "groceries": "Preciso comprar mantimentos amanhã"
@@ -675,7 +730,7 @@
     "messagesUsed": "mensagens usadas neste mês",
     "imageFallback": "Imagem",
     "senderYou": "Você",
-    "senderOrbit": "Orbit",
+    "senderOrbit": "Astra",
     "unknownEntity": "Desconhecido",
     "starterChips": {
       "logHabit": "Registrar um hábito",
@@ -694,7 +749,8 @@
       "notifications": "Notificações",
       "aboutHelp": "Sobre e Ajuda",
       "advanced": "Avançado",
-      "accountActions": "Conta",
+      "accountActions": "Ações da conta",
+      "subscription": "Assinatura",
       "preferencesHint": "Idioma, cores, notificações",
       "aiFeaturesHint": "Memória, resumo diário",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
@@ -730,11 +786,12 @@
       "disabled": "Resumo diário está desativado"
     },
     "facts": {
-      "title": "O que o Orbit Sabe Sobre Você",
-      "empty": "Converse com o Orbit para construir seu perfil",
+      "title": "O que a Astra sabe",
+      "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar.",
       "add": "Adicionar Fato",
       "save": "Salvar",
       "cancel": "Cancelar",
+      "delete": "Excluir",
       "factPlaceholder": "Digite um fato sobre você...",
       "category": "Categoria",
       "preference": "Preferência",
@@ -742,23 +799,31 @@
       "context": "Contexto",
       "none": "Nenhuma",
       "select": "Selecionar",
-      "selectAll": "Selecionar Tudo",
-      "deselectAll": "Desmarcar Tudo",
+      "selectAll": "Selecionar tudo",
+      "deselectAll": "Limpar",
+      "selectedCount": "{n} selecionado(s)",
       "deleteSelected": "Excluir ({n})",
+      "deleteSelectedShort": "Excluir selecionados",
       "confirmBulkDelete": "Excluir {n} fatos?",
       "count": "{n} / {max}",
-      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos."
+      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos.",
+      "lockedHint": "Faça upgrade para Pro para a Astra lembrar dos fatos que você compartilha no chat."
     },
     "support": {
       "title": "Suporte",
       "hint": "Dúvidas, bugs ou feedback",
       "description": "Tem uma pergunta, bug ou feedback? Envie uma mensagem.",
+      "name": "Nome",
+      "email": "E-mail",
+      "subject": "Assunto",
+      "message": "Mensagem",
       "namePlaceholder": "Seu nome",
       "emailPlaceholder": "Seu e-mail",
       "subjectPlaceholder": "Assunto",
       "messagePlaceholder": "Descreva seu problema ou feedback...",
-      "send": "Enviar Mensagem",
-      "success": "Mensagem enviada! Retornaremos em breve.",
+      "send": "Enviar",
+      "success": "Enviado.",
+      "successHint": "Respondemos em até um dia.",
       "nameRequired": "Nome é obrigatório.",
       "emailRequired": "E-mail é obrigatório.",
       "emailInvalid": "Por favor, insira um endereço de e-mail válido."
@@ -781,6 +846,7 @@
       "feature4": "Mostra automaticamente os hábitos de amanhã quando hoje está livre"
     },
     "subscription": {
+      "plan": "Plano",
       "pro": "Orbit Pro",
       "proHint": "Gerencie sua assinatura",
       "free": "Plano Grátis",
@@ -788,11 +854,16 @@
       "trial": "Teste Pro",
       "trialDaysLeft": "{days} dia restante | {days} dias restantes",
       "trialEnded": "Teste Encerrado",
-      "trialEndedHint": "Faça upgrade para recuperar os recursos Pro"
+      "trialEndedHint": "Faça upgrade para recuperar os recursos Pro",
+      "manage": "Gerenciar"
     },
     "freshStart": {
       "button": "Novo Começo",
       "title": "Novo Começo",
+      "heading": "Novo Começo",
+      "confirmHeading": "Tem certeza?",
+      "willDelete": "O que será excluído",
+      "willKeep": "O que permanece",
       "description": "Recomece sua jornada com uma página em branco. Isso excluirá permanentemente todos os seus dados.",
       "whatDeleted": "O que será excluído:",
       "deleteHabits": "Todos os hábitos, sub-hábitos e histórico de conclusão",
@@ -819,6 +890,9 @@
     "deleteAccount": {
       "button": "Excluir conta",
       "title": "Excluir Conta",
+      "headingAreYouSure": "Tem certeza?",
+      "headingConfirmCode": "Confirme com código",
+      "headingDeactivated": "Conta desativada",
       "warning": "Esta ação é irreversível.",
       "warningFree": "Sua conta será desativada e permanentemente excluída após 7 dias. Faça login novamente antes disso para cancelar.",
       "warningPro": "Sua conta será desativada e permanentemente excluída 7 dias após seu plano expirar em {date}. Faça login novamente antes disso para cancelar.",
@@ -834,7 +908,8 @@
     }
   },
   "referral": {
-    "applied": "Indicação aplicada! Vocês dois ganham desconto.",
+    "applied": "Indicação aplicada. Vocês dois ganharam desconto.",
+    "eyebrow": "Indicação aplicada",
     "card": {
       "title": "Convidar Amigos",
       "hint": "Ganhe cupons de desconto para você e seus amigos",
@@ -913,11 +988,16 @@
   "trial": {
     "proBadge": "Período de teste",
     "banner": {
+      "trialEyebrow": "Teste Pro",
       "daysLeft": "Teste Pro - {days} dia restante | Teste Pro - {days} dias restantes",
       "lastDay": "O teste acaba hoje!",
       "upgrade": "Upgrade"
     },
     "expired": {
+      "eyebrow": "Teste encerrado",
+      "heading": "Seu Teste Pro Acabou",
+      "paused": "Pausado",
+      "subtitleQuiet": "Estes recursos Pro pausarão a não ser que você assine.",
       "title": "Seu Teste Pro Acabou",
       "subtitle": "Você teve {days} dia de acesso Pro completo. Não perca o que construiu. | Você teve {days} dias de acesso Pro completo. Não perca o que construiu.",
       "dontLose": "Não perca acesso a:",
@@ -948,7 +1028,10 @@
     "title": "Seu Dia",
     "loading": "Vendo o que temos pra hoje...",
     "error": "Não foi possível carregar seu resumo.",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "askAstra": "Pergunte à Astra",
+    "upgrade": "Fazer upgrade",
+    "freePrompt": "O Pro recebe um resumo diário dos seus hábitos."
   },
   "retrospective": {
     "title": "Retrospectiva",
@@ -960,8 +1043,10 @@
     "generate": "Gerar Retrospectiva",
     "generating": "Analisando seus hábitos...",
     "error": "Não foi possível gerar sua retrospectiva.",
-    "empty": "Escolha um período e gere uma retrospectiva para ver insights da IA sobre seus hábitos.",
+    "empty": "Escolha um período e gere uma retrospectiva para ver os insights da Astra sobre seus hábitos.",
     "cached": "Carregado do cache",
+    "astraEyebrow": "Astra",
+    "regenerate": "Regenerar",
     "periods": {
       "week": "Semana",
       "month": "Mês",
@@ -974,8 +1059,14 @@
     "flow": {
       "step": "{current} de {total}",
       "skip": "Pular",
-      "next": "Próximo",
+      "next": "Continuar",
+      "begin": "Começar",
       "back": "Voltar",
+      "finish": "Concluir",
+      "meetAstra": {
+        "title": "Conheça a Astra.",
+        "subtitle": "A assistente do Orbit. Cria hábitos, resume o seu dia, planeja o futuro e reflete sobre o que está fora do eixo. Pergunte com naturalidade. Ela escuta."
+      },
       "welcome": {
         "title": "Bem-vindo ao Orbit",
         "subtitle": "Vamos configurar sua experiência e criar seu primeiro hábito.",
@@ -989,6 +1080,8 @@
         "create": "Criar Hábito",
         "creating": "Criando...",
         "success": "Hábito criado!",
+        "useForm": "Usar formulário",
+        "starters": "Ou experimente",
         "frequency": {
           "daily": "Diário",
           "weekly": "Semanal",
@@ -1010,6 +1103,8 @@
       "createGoal": {
         "title": "Defina uma meta",
         "optional": "Opcional",
+        "proTag": "PRO",
+        "starters": "Ou experimente",
         "subtitle": "Metas dão um propósito maior aos seus hábitos.",
         "descriptionPlaceholder": "ex: Ler 12 livros este ano",
         "targetPlaceholder": "Quantidade",
@@ -1052,7 +1147,8 @@
         "recap": {
           "habit": "Hábito criado",
           "goal": "Meta criada",
-          "theme": "Tema personalizado"
+          "theme": "Tema personalizado",
+          "astra": "Assistente de IA"
         },
         "trialTitle": "Seu Teste Pro está Ativo",
         "trialDesc": "Aproveite o acesso Pro completo até {date}."
@@ -1224,6 +1320,9 @@
     "feature": "Recurso",
     "free": "Grátis",
     "subscribe": "Assinar Pro",
+    "plan": "Plano",
+    "currentPlan": "Plano atual",
+    "restorePurchase": "Restaurar compra",
     "categories": {
       "habits": "Hábitos",
       "ai": "Recursos de IA",
@@ -1461,6 +1560,8 @@
   "goals": {
     "completedCelebrationTitle": "Meta alcançada!",
     "completedCelebrationSubtitle": "Você concluiu {name}",
+    "completedCelebrationLabel": "Meta · {name}",
+    "completedCelebrationFiled": "Arquivada.",
     "title": "Metas",
     "tab": "Metas",
     "empty": "Nenhuma meta ainda",
@@ -1498,7 +1599,8 @@
       "streakTarget": "Meta de dias",
       "streakTargetPlaceholder": "ex. 30, 60, 90",
       "streakUnit": "dias consecutivos",
-      "streakRequiresHabit": "Metas de sequência precisam de um hábito vinculado"
+      "streakRequiresHabit": "Metas de sequência precisam de um hábito vinculado",
+      "target": "Meta"
     },
     "streak": {
       "dayCount": "sequência de {count} dia",
@@ -1530,13 +1632,17 @@
       "edit": "Editar Meta",
       "loadError": "Não foi possível carregar os detalhes completos. Exibindo dados em cache.",
       "showAllHistory": "Ver todos",
-      "showLessHistory": "Ver menos"
+      "showLessHistory": "Ver menos",
+      "askAstraDefault": "Quer um plano de check-in semanal para isto?",
+      "askAstraEyebrow": "PERGUNTE AO ASTRA",
+      "statusLabel": "Status"
     },
     "filters": {
       "all": "Todas",
       "active": "Ativas",
       "completed": "Concluídas",
-      "abandoned": "Abandonadas"
+      "abandoned": "Abandonadas",
+      "statusFilter": "Filtrar por status"
     },
     "deadline": {
       "due": "Prazo {date}",
@@ -1571,6 +1677,7 @@
   "gamification": {
     "xpReward": "+{n} XP",
     "title": "Conquistas & Nível",
+    "locked": "Bloqueada",
     "profileCard": {
       "title": "Conquistas & Nível",
       "hint": "Acompanhe seu progresso e desbloqueie conquistas",
@@ -1584,8 +1691,7 @@
       "lockedTitle": "Desbloqueie Conquistas",
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
       "upgradeButton": "Assinar Pro",
-      "emptyEarned": "Complete hábitos para começar a ganhar conquistas!",
-      "earnedOn": "Conquistado em {date}"
+      "emptyEarned": "Complete hábitos para começar a ganhar conquistas!"
     },
     "streak": {
       "current": "dias seguidos",
@@ -1621,6 +1727,7 @@
       "epic": "Épico",
       "legendary": "Lendário"
     },
+    "rarityLocked": "Bloqueado",
     "achievements": {
       "first_orbit": {
         "name": "Primeira Órbita",
@@ -1725,12 +1832,14 @@
     },
     "toast": {
       "achievementUnlocked": "Conquista Desbloqueada!",
-      "xpEarned": "+{xp} XP"
+      "xpEarned": "+{xp} XP",
+      "achievementEyebrow": "Conquista · +{xp} XP"
     },
     "levelUp": {
-      "title": "Subiu de Nível!",
+      "title": "Subiu de nível",
       "newLevel": "Nível {level}",
-      "subtitle": "Você agora é um {title}"
+      "subtitle": "Você agora é um {title}",
+      "steadyHand": "Mão firme."
     }
   },
   "toast": {
@@ -1746,9 +1855,12 @@
     }
   },
   "streakDisplay": {
+    "title": "Sequência",
+    "daysSuffix": "dia | dias",
     "celebration": {
       "title": "Sequência!",
-      "subtitle": "Sequência de {count} dia | Sequência de {count} dias",
+      "eyebrow": "Sequência",
+      "subtitle": "{count} dia. | {count} dias.",
       "milestone": "Marco incrível!",
       "keepGoing": "Continue assim!"
     },
@@ -1779,12 +1891,14 @@
       "recentLabel": "Usados recentemente",
       "completedToday": "Você já completou um hábito hoje. Não precisa congelar!",
       "celebrationTitle": "Sequência salva!",
-      "celebrationSubtitle": "Seu congelamento protegeu sua sequência.",
+      "celebrationSubtitle": "Sua sequência continua.",
+      "eyebrow": "Congelado · {date}",
       "progressTitle": "Ganhe seu próximo congelamento",
       "progressSubtitle": "Mais 1 dia de atividade libera seu próximo congelamento | Mais {days} dias de atividade liberam seu próximo congelamento",
       "progressReady": "Seu próximo congelamento está pronto!",
       "maxAccumulated": "Você atingiu o máximo de {max} congelamentos. Use um antes de ganhar mais.",
       "monthlyUsage": "{used} de {max} usados este mês",
+      "monthlyUsageLabel": "Este mês",
       "monthlyLimit": "Você já usou os {max} congelamentos deste mês",
       "accumulatedLabel": "Congelamentos guardados",
       "accumulatedShort": "{count}/{max}",
@@ -1800,6 +1914,10 @@
       "stats": "Estatísticas",
       "currentStreak": "Atual",
       "longestStreak": "Maior",
+      "tierLegendary": "Lendário",
+      "tierStrong": "Forte",
+      "tierSteady": "Constante",
+      "tierNormal": "Normal",
       "dayActive": "Ativo",
       "dayFrozen": "Congelado",
       "dayMissed": "Perdido",
@@ -1810,10 +1928,13 @@
   },
   "orbitMcp": {
     "title": "Para Desenvolvedores",
+    "copy": "Copiar",
     "description": "Conecte ferramentas de IA como Claude a sua conta Orbit via MCP",
     "apiKeys": "Chaves de API",
     "apiKeysDescription": "Chaves de API permitem que ferramentas externas acessem seus dados do Orbit",
     "createKey": "Criar Chave de API",
+    "createHeading": "Criar Chave de API",
+    "revealHeading": "Chave de API Criada",
     "noKeys": "Nenhuma chave de API ainda",
     "keyName": "Nome da Chave",
     "keyNamePlaceholder": "ex. Claude Desktop",
@@ -1878,7 +1999,9 @@
     "title": "Sobre e Ajuda"
   },
   "advancedSettings": {
-    "title": "Avançado"
+    "title": "Avançado",
+    "widgetSection": "Widget",
+    "developersSection": "Desenvolvedores"
   },
   "calendarSync": {
     "title": "Sincronização de Calendário",
@@ -1994,10 +2117,6 @@
       "card": {
         "title": "Cartão de Hábito",
         "description": "Cada hábito mostra seu status, tags e frequência. Toque no círculo para marcar como concluído, ou use o menu para mais opções como editar, pular ou excluir."
-      },
-      "tags": {
-        "title": "Tags",
-        "description": "Tags ajudam a organizar hábitos por categoria. Você pode filtrar por tags e atribuir cores para manter tudo visualmente organizado."
       },
       "tabs": {
         "title": "Abas de Visualização",

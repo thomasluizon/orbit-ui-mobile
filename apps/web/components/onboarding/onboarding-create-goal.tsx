@@ -12,6 +12,9 @@ import {
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
+import { Chip } from '@/components/ui/chip'
+import { SectionLabel } from '@/components/ui/section-label'
+import { UnderlinedInput } from '@/components/ui/underlined-input'
 
 interface GoalSuggestion {
   key: string
@@ -25,11 +28,13 @@ interface OnboardingCreateGoalProps {
   onSkip: () => void
 }
 
-export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingCreateGoalProps>) {
+export function OnboardingCreateGoal({
+  onCreated,
+  onSkip,
+}: Readonly<OnboardingCreateGoalProps>) {
   const t = useTranslations()
   const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) =>
-      t(key, values),
+    (key: string, values?: Record<string, string | number | Date>) => t(key, values),
     [t],
   )
   const [description, setDescription] = useState('')
@@ -61,7 +66,8 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
   }
 
   const parsedTargetValue = parseGoalTargetValue(targetValue)
-  const canCreate = !!parsedTargetValue && parsedTargetValue > 0 && unit.trim().length > 0
+  const canCreate =
+    !!parsedTargetValue && parsedTargetValue > 0 && unit.trim().length > 0
 
   const handleCreate = useCallback(async () => {
     if (!canCreate || isCreating) return
@@ -92,112 +98,183 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
           }, 1500)
         },
         onError: (err: unknown) => {
-          showError(getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'))
+          showError(
+            getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'),
+          )
         },
       },
     )
-  }, [canCreate, createGoal, description, isCreating, onCreated, parsedTargetValue, showError, targetValue, translate, unit])
+  }, [
+    canCreate,
+    createGoal,
+    description,
+    isCreating,
+    onCreated,
+    parsedTargetValue,
+    showError,
+    targetValue,
+    translate,
+    unit,
+  ])
 
   if (isCreated) {
     return (
-      <div className="text-center">
-        <div className="animate-[slide-up-fade_400ms_cubic-bezier(0.16,1,0.3,1)]">
-          <div className="bg-surface-elevated rounded-[var(--radius-xl)] border border-border p-6">
-            <div className="flex justify-center mb-4">
-              <div className="size-14 rounded-full bg-success/10 flex items-center justify-center animate-complete-pop">
-                <Check className="size-7 text-success" />
-              </div>
-            </div>
-            <p className="text-lg font-bold text-text-primary">{targetValue} {unit}</p>
-            {description.trim() && (
-              <p className="text-xs text-text-secondary mt-1">{description}</p>
-            )}
-            <p className="text-sm text-success font-medium mt-3">
-              {t('onboarding.flow.createGoal.success')}
-            </p>
+      <div
+        className="flex flex-col items-center"
+        style={{ gap: 16, padding: '32px 0' }}
+      >
+        <div
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 56,
+            height: 56,
+            background: 'var(--primary)',
+          }}
+        >
+          <Check
+            className="size-7"
+            style={{ color: 'var(--fg-on-primary)' }}
+            strokeWidth={2.4}
+          />
+        </div>
+        <div
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-family-mono)',
+            fontSize: 17,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {targetValue} {unit}
+        </div>
+        {description.trim() && (
+          <div
+            className="text-center"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              fontStyle: 'italic',
+              color: 'var(--fg-3)',
+            }}
+          >
+            {description}
           </div>
+        )}
+        <div
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontStyle: 'italic',
+            color: 'var(--primary)',
+          }}
+        >
+          {t('onboarding.flow.createGoal.success')}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="text-center">
-      {/* Form state */}
-      <div className="flex items-center justify-center gap-2 mb-2">
-        <h1 className="text-2xl font-bold text-text-primary">
-          {t('onboarding.flow.createGoal.title')}
-        </h1>
-        <span className="text-xs font-medium text-text-muted bg-surface-elevated px-2.5 py-1 rounded-full">
-          {t('onboarding.flow.createGoal.optional')}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 0' }}>
+      <div className="flex justify-center" style={{ paddingTop: 4 }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 10,
+            fontWeight: 600,
+            color: 'var(--fg-on-primary)',
+            background: 'var(--primary)',
+            padding: '2px 8px',
+            borderRadius: 4,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {t('onboarding.flow.createGoal.proTag')}
         </span>
       </div>
-      <p className="text-sm text-text-secondary leading-relaxed mb-6">
-        {t('onboarding.flow.createGoal.subtitle')}
-      </p>
-
-      {/* Suggestion chips */}
-      <div className="flex flex-wrap gap-2 justify-center mb-6">
-        {suggestions.map((suggestion) => (
-          <button
-            key={suggestion.key}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 ${
-              selectedSuggestion === suggestion.key
-                ? 'bg-primary/10 border border-primary/30 text-primary'
-                : 'bg-surface-elevated border border-border-muted text-text-secondary hover:border-primary/30 hover:text-text-primary hover:bg-primary/5'
-            }`}
-            onClick={() => selectSuggestion(suggestion)}
-          >
-            {suggestion.title}
-          </button>
-        ))}
+      <div
+        className="text-center"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 22,
+          fontWeight: 600,
+          letterSpacing: '-0.015em',
+          lineHeight: 1.15,
+          color: 'var(--fg-1)',
+        }}
+      >
+        {t('onboarding.flow.createGoal.title')}
       </div>
 
-      {/* Form */}
-      <div className="space-y-3 text-left">
-        <div className="grid grid-cols-2 gap-3">
-          <input
+      <UnderlinedInput
+        large
+        value={description}
+        onChange={setDescription}
+        placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
+        maxLength={200}
+        disabled={isCreating}
+      />
+
+      <div className="flex" style={{ gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <UnderlinedInput
+            mono
             type="number"
+            inputMode="numeric"
             value={targetValue}
-            onChange={(e) => setTargetValue(e.target.value)}
-            className="form-input w-full"
+            onChange={setTargetValue}
             placeholder={t('onboarding.flow.createGoal.targetPlaceholder')}
-            min={1}
             disabled={isCreating}
           />
-          <input
-            type="text"
+        </div>
+        <div style={{ flex: 1 }}>
+          <UnderlinedInput
             value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            className="form-input w-full"
+            onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
             maxLength={50}
             disabled={isCreating}
           />
         </div>
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="form-input w-full"
-          placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
-          maxLength={200}
-          disabled={isCreating}
-        />
       </div>
 
-      {/* Create button */}
+      <SectionLabel top={4} bottom={6}>
+        {t('onboarding.flow.createGoal.starters')}
+      </SectionLabel>
+      <div className="flex flex-wrap" style={{ gap: 6 }}>
+        {suggestions.map((suggestion) => (
+          <Chip
+            key={suggestion.key}
+            active={selectedSuggestion === suggestion.key}
+            onClick={() => selectSuggestion(suggestion)}
+          >
+            {suggestion.title}
+          </Chip>
+        ))}
+      </div>
+
       <button
-        className={`w-full mt-6 py-3.5 rounded-[var(--radius-xl)] font-bold text-base transition-all active:scale-[0.98] ${
-          canCreate
-            ? 'bg-primary text-white shadow-[var(--shadow-glow)] hover:bg-primary/90'
-            : 'bg-primary/50 text-white/50 cursor-not-allowed'
-        }`}
+        type="button"
+        className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
         disabled={!canCreate || isCreating}
         onClick={handleCreate}
+        style={{
+          padding: '12px 18px',
+          marginTop: 12,
+          background: 'var(--primary)',
+          color: 'var(--fg-on-primary)',
+          borderRadius: 10,
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontWeight: 600,
+        }}
       >
         {isCreating ? (
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center justify-center" style={{ gap: 8 }}>
             <Loader2 className="size-4 animate-spin" />
             {t('onboarding.flow.createGoal.creating')}
           </span>
@@ -206,11 +283,17 @@ export function OnboardingCreateGoal({ onCreated, onSkip }: Readonly<OnboardingC
         )}
       </button>
 
-      {/* Skip button */}
       <button
-        className="w-full py-3 text-text-secondary text-sm font-medium hover:text-text-primary transition-colors mt-2"
+        type="button"
+        className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
         disabled={isCreating}
         onClick={onSkip}
+        style={{
+          padding: 6,
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 13,
+          color: 'var(--fg-3)',
+        }}
       >
         {t('onboarding.flow.createGoal.skipStep')}
       </button>

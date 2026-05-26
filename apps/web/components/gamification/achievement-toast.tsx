@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useGamificationProfile } from '@/hooks/use-gamification'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 
 export function AchievementToast() {
@@ -12,7 +13,7 @@ export function AchievementToast() {
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [currentAchievement, setCurrentAchievement] = useState<{
     id: string
     achievementId: string
@@ -23,13 +24,22 @@ export function AchievementToast() {
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeAchievement =
-    activeCelebration?.kind === 'achievement'
-      ? activeCelebration
-      : null
+    activeCelebration?.kind === 'achievement' ? activeCelebration : null
+  const [previousActiveAchievement, setPreviousActiveAchievement] = useState<
+    typeof activeAchievement | undefined
+  >(undefined)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  if (activeAchievement !== previousActiveAchievement) {
+    setPreviousActiveAchievement(activeAchievement)
+    if (activeAchievement) {
+      setCurrentAchievement({
+        id: activeAchievement.id,
+        achievementId: activeAchievement.payload.achievementId,
+        xpReward: activeAchievement.payload.xpReward,
+      })
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
     if (newAchievements.length === 0) return
@@ -44,29 +54,26 @@ export function AchievementToast() {
     invalidate()
   }, [enqueueCelebration, invalidate, newAchievements])
 
-  const dismiss = useCallback((achievementId?: string) => {
-    if (!achievementId) return
+  const dismiss = useCallback(
+    (achievementId?: string) => {
+      if (!achievementId) return
 
-    if (showTimerRef.current) clearTimeout(showTimerRef.current)
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      if (showTimerRef.current) clearTimeout(showTimerRef.current)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
 
-    setIsVisible(false)
-    hideTimerRef.current = setTimeout(() => {
-      setShouldRender(false)
-      setCurrentAchievement(null)
-      completeActiveCelebration(achievementId)
-    }, 400)
-  }, [completeActiveCelebration])
+      setIsVisible(false)
+      hideTimerRef.current = setTimeout(() => {
+        setShouldRender(false)
+        setCurrentAchievement(null)
+        completeActiveCelebration(achievementId)
+      }, 400)
+    },
+    [completeActiveCelebration],
+  )
 
   useEffect(() => {
     if (!activeAchievement) return
 
-    setCurrentAchievement({
-      id: activeAchievement.id,
-      achievementId: activeAchievement.payload.achievementId,
-      xpReward: activeAchievement.payload.xpReward,
-    })
-    setShouldRender(true)
     requestAnimationFrame(() => setIsVisible(true))
 
     if (showTimerRef.current) clearTimeout(showTimerRef.current)
@@ -75,7 +82,6 @@ export function AchievementToast() {
     }, 4000)
   }, [activeAchievement, dismiss])
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (showTimerRef.current) clearTimeout(showTimerRef.current)
@@ -90,33 +96,99 @@ export function AchievementToast() {
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="fixed top-6 left-1/2 z-[10000] max-w-sm w-[calc(100%-2rem)]"
+      className="fixed left-1/2"
       style={{
-        transition: 'opacity 0.4s var(--ease-spring), transform 0.4s var(--ease-spring)',
+        top: 56,
+        maxWidth: 380,
+        width: 'calc(100% - 32px)',
+        transition: 'opacity 400ms ease-out, transform 400ms ease-out',
         opacity: isVisible ? 1 : 0,
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'
-          : 'translate(-50%, -100%) scale(0.95)',
+          : 'translate(-50%, -100%) scale(0.96)',
+        zIndex: 10000,
       }}
     >
-        <div className="bg-surface-overlay border border-primary/30 rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-lg)] flex items-center gap-3">
-          <span className="text-3xl shrink-0" aria-hidden="true">{'\u2B50'}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              {t('gamification.toast.achievementUnlocked')}
-            </p>
-            <p className="text-sm font-bold text-text-primary truncate">
-              {t(`gamification.achievements.${currentAchievement.achievementId}.name`)}
-            </p>
-            <p className="text-xs text-text-secondary truncate">
-              {t(`gamification.achievements.${currentAchievement.achievementId}.description`)}
-            </p>
-          </div>
-          <span className="shrink-0 px-2 py-1 rounded-xl text-xs font-bold text-primary bg-primary/15">
-            {t('gamification.toast.xpEarned', { xp: currentAchievement.xpReward })}
+      <div
+        className="flex items-start"
+        style={{
+          padding: '12px 14px',
+          background: 'var(--bg-elev)',
+          borderRadius: 10,
+          boxShadow:
+            '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
+          gap: 12,
+        }}
+      >
+        {/* Hairline-ringed glyph */}
+        <div
+          className="relative flex items-center justify-center"
+          style={{ width: 32, height: 32, flexShrink: 0 }}
+        >
+          <svg
+            width={32}
+            height={32}
+            aria-hidden="true"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <circle
+              cx={16}
+              cy={16}
+              r={14}
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth={1}
+            />
+          </svg>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 16,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {'◆'}
           </span>
         </div>
-      </div>,
-      document.body
+        <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'var(--fg-3)',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {t('gamification.toast.achievementEyebrow', {
+              xp: currentAchievement.xpReward,
+            })}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 15,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {t(`gamification.achievements.${currentAchievement.achievementId}.name`)}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {t(
+              `gamification.achievements.${currentAchievement.achievementId}.description`,
+            )}
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }

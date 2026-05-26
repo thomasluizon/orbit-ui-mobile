@@ -10,30 +10,31 @@ interface ProfileActionButtonProps {
   compact?: boolean
 }
 
+/** v8 flush row action — `danger` tone colors the label red; `compact` renders smaller italic for quieter destructive actions. */
 export function ProfileActionButton({
-  icon,
   label,
   onClick,
   tone = 'default',
   compact = false,
 }: Readonly<ProfileActionButtonProps>) {
-  const baseClass =
-    'w-full rounded-[var(--radius-xl)] font-bold transition-all duration-200 flex items-center justify-center gap-2'
-
-  let toneClass = 'py-4 border border-border-muted text-text-primary hover:bg-surface-elevated'
-  if (tone === 'primary') {
-    toneClass = 'py-4 border border-primary/30 text-primary hover:bg-primary/10'
-  } else if (tone === 'danger' && compact) {
-    toneClass = 'py-4 text-red-500/60 text-xs hover:text-red-400'
-  } else if (tone === 'danger') {
-    toneClass = 'py-4 border border-red-500/30 text-red-400 hover:bg-red-500/10'
-  }
-
-  const iconSizeClass = compact ? 'size-3.5' : 'size-4'
-
+  const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
   return (
-    <button type="button" className={`${baseClass} ${toneClass}`} onClick={onClick}>
-      <span className={iconSizeClass}>{icon}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
+      style={{
+        appearance: 'none',
+        border: 0,
+        padding: '14px 20px',
+        borderBottom: '1px solid var(--hairline)',
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: compact ? 13 : 15,
+        fontWeight: 400,
+        color,
+        fontStyle: compact ? 'italic' : 'normal',
+      }}
+    >
       {label}
     </button>
   )

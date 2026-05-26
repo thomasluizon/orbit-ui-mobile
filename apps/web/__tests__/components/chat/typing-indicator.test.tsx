@@ -35,7 +35,7 @@ describe('TypingIndicator', () => {
 
   it('renders AI avatar with sparkles icon', () => {
     const { container } = render(<TypingIndicator />)
-    const avatar = container.querySelector('.bg-primary\\/20')
+    const avatar = container.querySelector('[data-slot="ai-avatar"]')
     expect(avatar).toBeInTheDocument()
     const svg = avatar?.querySelector('svg')
     expect(svg).toBeInTheDocument()

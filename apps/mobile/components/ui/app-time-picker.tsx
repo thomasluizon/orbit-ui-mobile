@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,16 +14,20 @@ import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker'
-import { Clock3 } from 'lucide-react-native'
+import { Clock3, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
-import { radius, type AppColors, type AppShadows } from '@/lib/theme'
+import { createTokensV2, radius, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AppTimePickerProps {
   value: string
   onChange: (value: string) => void
+  /** Optional clear callback. When provided and value is set, a clear (X)
+   *  button replaces the clock icon and tapping it invokes onClear. */
+  onClear?: () => void
   placeholder?: string
   accessibilityLabel?: string
   disabled?: boolean
@@ -49,15 +54,20 @@ function formatApiTime(date: Date): string {
 export function AppTimePicker({
   value,
   onChange,
+  onClear,
   placeholder,
   accessibilityLabel,
   disabled = false,
   containerStyle,
 }: Readonly<AppTimePickerProps>) {
-  const { t } = useTranslation()
-  const locale = useDeviceLocale()
-  const { colors, shadows, currentTheme } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
   const [isOpen, setIsOpen] = useState(false)
   const [draftValue, setDraftValue] = useState(() => parseTimeValue(value))
   const is24Hour = detectDefaultTimeFormat(locale) === '24h'
@@ -86,32 +96,57 @@ export function AppTimePicker({
     setIsOpen(true)
   }, [disabled, is24Hour, onChange, value])
 
+  const canClear = !disabled && !!value && !!onClear
+
   return (
     <>
-      <TouchableOpacity
+      <View
         style={[styles.trigger, containerStyle, disabled && styles.triggerDisabled]}
-        onPress={openPicker}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={
-          accessibilityLabel ??
-          (displayValue
-            ? t('common.selectedTime', { time: displayValue })
-            : placeholder ?? t('common.selectTime'))
-        }
       >
-        <Text
-          style={[
-            styles.triggerText,
-            !displayValue && styles.triggerPlaceholder,
-            disabled && styles.triggerTextDisabled,
-          ]}
-          numberOfLines={1}
+        <Pressable
+          onPress={openPicker}
+          disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={
+            accessibilityLabel ??
+            (displayValue
+              ? t('common.selectedTime', { time: displayValue })
+              : placeholder ?? t('common.selectTime'))
+          }
+          style={styles.triggerTextArea}
         >
-          {displayValue || placeholder || t('common.selectTime')}
-        </Text>
-        <Clock3 size={16} color={disabled ? colors.textMuted : colors.textSecondary} />
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.triggerText,
+              !displayValue && styles.triggerPlaceholder,
+              disabled && styles.triggerTextDisabled,
+            ]}
+            numberOfLines={1}
+          >
+            {displayValue || placeholder || t('common.selectTime')}
+          </Text>
+        </Pressable>
+        {canClear ? (
+          <Pressable
+            onPress={onClear}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.clear')}
+            style={styles.iconButton}
+          >
+            <X size={16} color={tokens.fg2} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={openPicker}
+            disabled={disabled}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            style={styles.iconButton}
+          >
+            <Clock3 size={16} color={disabled ? tokens.fg3 : tokens.fg2} />
+          </Pressable>
+        )}
+      </View>
 
       {Platform.OS === 'ios' ? (
         <Modal
@@ -168,34 +203,41 @@ export function AppTimePicker({
   )
 }
 
-function createStyles(colors: AppColors, shadows: AppShadows) {
+function createStyles(tokens: AppTokens, shadows: AppShadows) {
   return StyleSheet.create({
     trigger: {
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       borderRadius: radius.sm,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
     },
     triggerDisabled: {
       opacity: 0.6,
     },
-    triggerText: {
+    triggerTextArea: {
       flex: 1,
-      color: colors.textPrimary,
+      paddingVertical: 12,
+      paddingLeft: 16,
+      paddingRight: 8,
+    },
+    iconButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    triggerText: {
+      color: tokens.fg1,
       fontSize: 14,
-      marginRight: 8,
     },
     triggerTextDisabled: {
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     triggerPlaceholder: {
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,
@@ -208,7 +250,7 @@ function createStyles(colors: AppColors, shadows: AppShadows) {
       width: '100%',
       maxWidth: 360,
       borderRadius: radius.xl,
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       padding: 16,
       gap: 12,
       ...shadows.cardParent,
@@ -222,12 +264,12 @@ function createStyles(colors: AppColors, shadows: AppShadows) {
     dialogTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     dialogAction: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.primary,
+      color: tokens.primary,
     },
   })
 }

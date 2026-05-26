@@ -11,10 +11,7 @@ import {
   QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type {
-  NotificationItem,
-  NotificationsResponse,
-} from '@orbit/shared/types/notification'
+import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { apiClient } from '@/lib/api-client'
 import {
   createEmptyNotificationsResponse,
@@ -31,10 +28,6 @@ import {
   isQueuedResult,
   queueOrExecute,
 } from '@/lib/offline-mutations'
-
-// ---------------------------------------------------------------------------
-// Notifications list query
-// ---------------------------------------------------------------------------
 
 export function useNotifications() {
   const queryClient = useQueryClient()
@@ -90,10 +83,6 @@ export function useNotifications() {
     unreadCount,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()

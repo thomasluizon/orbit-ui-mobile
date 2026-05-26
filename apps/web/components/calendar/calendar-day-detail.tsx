@@ -11,10 +11,6 @@ import { parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { AppOverlay } from '@/components/ui/app-overlay'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface CalendarDayDetailProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -22,31 +18,21 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function statusBadgeClass(entry: CalendarDayEntry): string {
   if (entry.isBadHabit) {
-    if (entry.status === 'completed') return 'text-red-400 bg-red-400/10'
-    if (entry.status === 'missed') return 'text-emerald-400 bg-emerald-400/10'
-    return 'text-primary bg-primary/10'
+    if (entry.status === 'completed') return 'text-[var(--status-bad)] border border-[var(--hairline)]'
+    if (entry.status === 'missed') return 'text-[var(--status-done)] border border-[var(--hairline)]'
+    return 'text-[var(--fg-2)] border border-[var(--hairline)]'
   }
-  if (entry.status === 'completed') return 'text-emerald-400 bg-emerald-400/10'
-  if (entry.status === 'missed') return 'text-orange-400 bg-orange-400/10'
-  return 'text-primary bg-primary/10'
+  if (entry.status === 'completed') return 'text-[var(--status-done)] border border-[var(--hairline)]'
+  if (entry.status === 'missed') return 'text-[var(--status-overdue)] border border-[var(--hairline)]'
+  return 'text-[var(--fg-2)] border border-[var(--hairline)]'
 }
 
 function statusIconBg(entry: CalendarDayEntry): string {
-  if (entry.status === 'completed') return 'bg-emerald-500/20 border-emerald-500/30'
-  return 'border-text-faded/30'
+  if (entry.status === 'completed') return 'bg-[var(--bg-elev)] border-[var(--status-done)]'
+  return 'border-[var(--hairline-strong)]'
 }
-
-// formatDueTime is now handled by useTimeFormat hook
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function CalendarDayDetail({
   open,
@@ -91,7 +77,7 @@ export function CalendarDayDetail({
       footer={
         <Link
           href={`/?date=${dateStr ?? ''}`}
-          className="w-full py-3 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)]"
+          className="w-full py-3 rounded-[var(--radius-lg)] bg-[var(--primary)] text-[var(--fg-on-primary)] font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[var(--primary-pressed)] transition-[background-color,transform] duration-150 active:scale-[0.98]"
           onClick={() => onOpenChange(false)}
         >
           <ArrowRight className="size-4" />
@@ -100,31 +86,31 @@ export function CalendarDayDetail({
       }
     >
       {entries.length === 0 ? (
-        <div className="text-text-muted text-sm text-center py-8">
+        <div className="text-[var(--fg-3)] text-sm text-center py-8">
           {t('calendar.noHabitsScheduled')}
         </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-text-faded">
+            <p className="text-sm text-[var(--fg-3)]">
               {plural(t('calendar.dayDetail.completionSummary', {
                 done: completedCount,
                 total: filteredEntries.length,
               }), filteredEntries.length)}
             </p>
-            <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer">
               <input
                 type="checkbox"
                 checked={showRecurring}
                 onChange={(e) => setShowRecurring(e.target.checked)}
-                className="accent-primary"
+                className="accent-[var(--primary)]"
               />
               {t('calendar.showRecurring')}
             </label>
           </div>
 
           {filteredEntries.length === 0 && (
-            <div className="text-text-muted text-sm text-center py-6">
+            <div className="text-[var(--fg-3)] text-sm text-center py-6">
               {t('calendar.noHabitsScheduled')}
             </div>
           )}
@@ -132,40 +118,36 @@ export function CalendarDayDetail({
           {filteredEntries.map((entry, i) => (
             <div key={entry.habitId}>
               <div className="flex items-center gap-3 py-3">
-                {/* Status circle */}
                 <div
                   className={`shrink-0 size-6 rounded-full border flex items-center justify-center ${statusIconBg(entry)}`}
                 >
                   {entry.status === 'completed' && (
-                    <Check className="size-3 text-emerald-400" />
+                    <Check className="size-3 text-[var(--status-done)]" />
                   )}
                 </div>
 
-                {/* Habit info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2">
                     <span
-                      className={`text-sm font-medium text-text-primary truncate ${entry.status === 'completed' ? 'opacity-60' : ''}`}
+                      className={`text-sm font-medium text-[var(--fg-1)] truncate ${entry.status === 'completed' ? 'opacity-60' : ''}`}
                     >
                       {entry.title}
                     </span>
                     {entry.dueTime && (
-                      <span className="shrink-0 text-[11px] font-semibold text-text-secondary">
+                      <span className="shrink-0 text-[11px] font-semibold text-[var(--fg-2)]">
                         {displayTime(entry.dueTime)}
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Status badge */}
                 <span
                   className={`shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusBadgeClass(entry)}`}
                 >
                   {statusLabel(entry)}
                 </span>
               </div>
-              {/* Divider */}
-              {i < filteredEntries.length - 1 && <div className="h-px bg-border/30" />}
+              {i < filteredEntries.length - 1 && <div className="h-px bg-[var(--hairline)]" />}
             </div>
           ))}
         </div>

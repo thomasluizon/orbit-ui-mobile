@@ -7,6 +7,13 @@ import {
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { formatAPIDate } from "@orbit/shared/utils";
 
+import TodayScreen, {
+  resolveBulkActionBarEnterShift,
+  resolveTodayView,
+  shouldRedirectGoalsTab,
+} from "@/app/(tabs)/index";
+
+
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedNode = {
   props: Record<string, unknown>;
@@ -63,7 +70,6 @@ const surfacesMock = {
   card: createSurfaceLayer(),
   elevated: createSurfaceLayer(),
   overlay: createSurfaceLayer(),
-  primaryTint: createSurfaceLayer(),
   glow: {
     subtle: shadowStub,
     base: shadowStub,
@@ -230,6 +236,34 @@ vi.mock("@/components/habits/edit-habit-modal", () => ({
   EditHabitModal: () => null,
 }));
 
+vi.mock("@/components/habits/today-ai-summary", () => ({
+  TodayAISummary: () => null,
+}));
+
+vi.mock("@/components/habits/bulk-action-bar-v2", () => ({
+  BulkActionBarV2: (props: Record<string, unknown>) =>
+    React.createElement("BulkActionBarV2", props),
+}));
+
+vi.mock("@/components/ui/chip", () => ({
+  Chip: (props: Record<string, unknown>) =>
+    React.createElement("Chip", props, props.children as React.ReactNode),
+}));
+
+vi.mock("@/components/ui/tag-chip", () => ({
+  TagChip: (props: Record<string, unknown>) =>
+    React.createElement("TagChip", props),
+}));
+
+vi.mock("@/components/ui/section-label", () => ({
+  SectionLabel: (props: Record<string, unknown>) =>
+    React.createElement(
+      "SectionLabel",
+      props,
+      props.children as React.ReactNode,
+    ),
+}));
+
 vi.mock("@/components/habits/habit-summary-card", () => ({
   HabitSummaryCard: () => null,
 }));
@@ -280,6 +314,7 @@ vi.mock("@/lib/habit-selection-state", () => ({
 
 vi.mock("@/lib/theme", () => ({
   createColors: () => colorProxy,
+  createTokensV2: () => colorProxy,
   radius: {
     full: 999,
     lg: 16,
@@ -297,12 +332,37 @@ vi.mock("@/lib/theme", () => ({
   shadows: {
     lg: {},
   },
+  shadowsV2: {
+    shadow1: {
+      shadowColor: "#111111",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      elevation: 0,
+    },
+    shadow2: {
+      shadowColor: "#111111",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      elevation: 0,
+    },
+    shadow3: {
+      shadowColor: "#111111",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      elevation: 0,
+    },
+  },
 }));
 
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({
     colors: colorProxy,
     surfaces: surfacesMock,
+    currentScheme: "purple",
+    currentTheme: "dark",
   }),
 }));
 
@@ -318,6 +378,7 @@ vi.mock("lucide-react-native", () => {
     ChevronsUpDown: createIcon("ChevronsUpDown"),
     Eye: createIcon("Eye"),
     FastForward: createIcon("FastForward"),
+    Filter: createIcon("Filter"),
     MinusCircle: createIcon("MinusCircle"),
     MoreVertical: createIcon("MoreVertical"),
     PlusCircle: createIcon("PlusCircle"),
@@ -327,13 +388,6 @@ vi.mock("lucide-react-native", () => {
     X: createIcon("X"),
   };
 });
-
-import TodayScreen from "@/app/(tabs)/index";
-import {
-  resolveBulkActionBarEnterShift,
-  resolveTodayView,
-  shouldRedirectGoalsTab,
-} from "@/app/(tabs)/index";
 
 async function renderTodayScreen(): Promise<RenderedTree> {
   let tree: unknown = null;

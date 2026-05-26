@@ -4,6 +4,8 @@ import { formatHabitTimeInput } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
+import { HabitFormFields } from '@/components/habits/habit-form-fields'
+
 const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
@@ -66,8 +68,6 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
 vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('View'),
 }))
-
-import { HabitFormFields } from '@/components/habits/habit-form-fields'
 
 type MockControl = {
   values: Record<string, unknown>

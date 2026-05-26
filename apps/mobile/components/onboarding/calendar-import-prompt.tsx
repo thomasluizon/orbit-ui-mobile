@@ -1,23 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { CalendarDays } from 'lucide-react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { radius, shadows } from '@/lib/theme'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+/**
+ * v8 calendar-import prompt: bottom sheet with quiet eyebrow, large title,
+ * italic body, primary CTA, italic "Not now" link.
+ */
 export function CalendarImportPrompt() {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const { profile, invalidate } = useProfile()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
 
   const shouldShow = Boolean(
@@ -29,6 +35,7 @@ export function CalendarImportPrompt() {
 
   useEffect(() => {
     if (profile?.hasImportedCalendar) {
+       
       setDismissed(true)
     }
   }, [profile?.hasImportedCalendar])
@@ -66,83 +73,98 @@ export function CalendarImportPrompt() {
         void dismissPrompt()
       }}
       title={t('onboarding.wizard.calendarTitle')}
-      snapPoints={['42%']}
+      snapPoints={['50%']}
     >
       <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <CalendarDays size={24} color={colors.primary} />
-        </View>
+        <Text style={styles.eyebrow}>{t('common.later')}</Text>
+        <Text style={styles.title}>
+          {t('onboarding.wizard.calendarTitle')}
+        </Text>
         <Text style={styles.description}>
           {t('onboarding.wizard.calendarDescription')}
         </Text>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
+        <View style={styles.spacer} />
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryButton,
+            {
+              backgroundColor: pressed
+                ? tokens.primaryPressed
+                : tokens.primary,
+            },
+          ]}
           onPress={handleImport}
         >
-          <Text style={styles.primaryButtonText}>
+          <Text style={[styles.primaryButtonText, { color: tokens.fgOnPrimary }]}>
             {t('onboarding.wizard.calendarButton')}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          activeOpacity={0.75}
+        </Pressable>
+        <Pressable
+          style={styles.quietRow}
           onPress={() => {
             void dismissPrompt()
           }}
         >
-          <Text style={styles.secondaryButtonText}>{t('common.later')}</Text>
-        </TouchableOpacity>
+          <Text style={styles.quietText}>{t('common.later')}</Text>
+        </Pressable>
       </View>
     </BottomSheetModal>
   )
 }
 
-function createStyles(colors: ThemeContextValue['colors']) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      alignItems: 'center',
-      gap: 18,
-      paddingHorizontal: 20,
+      gap: 14,
+      paddingHorizontal: 24,
+      paddingTop: 10,
       paddingBottom: 8,
     },
-    iconCircle: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: colors.primary_10,
+    eyebrow: {
+      fontFamily: 'Geist',
+      fontSize: 12,
+      fontWeight: '600',
+      color: tokens.fg3,
+      textAlign: 'center',
+    },
+    title: {
+      fontFamily: 'Geist',
+      fontSize: 22,
+      fontWeight: '600',
+      letterSpacing: -0.33,
+      lineHeight: 25,
+      color: tokens.fg1,
+    },
+    description: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      lineHeight: 22,
+      color: tokens.fg2,
+    },
+    spacer: {
+      height: 16,
+    },
+    primaryButton: {
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 18,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    description: {
-      fontSize: 14,
-      lineHeight: 20,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    primaryButton: {
-      width: '100%',
-      borderRadius: radius.xl,
-      backgroundColor: colors.primary,
-      paddingVertical: 14,
-      alignItems: 'center',
-      ...shadows.sm,
-      elevation: 3,
-    },
     primaryButtonText: {
-      color: colors.white,
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    secondaryButton: {
-      paddingVertical: 4,
-      paddingHorizontal: 8,
-    },
-    secondaryButtonText: {
-      color: colors.textSecondary,
+      fontFamily: 'Geist',
       fontSize: 14,
       fontWeight: '600',
     },
+    quietRow: {
+      alignItems: 'center',
+      paddingVertical: 8,
+      paddingBottom: 18,
+    },
+    quietText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
+    },
   })
 }
-

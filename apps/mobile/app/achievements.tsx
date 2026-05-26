@@ -1,325 +1,314 @@
+import { useEffect, useMemo } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-} from "react-native";
-import { useEffect, useMemo } from "react";
-import { useRouter } from "expo-router";
-import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Lock } from "lucide-react-native";
-import { createColors, spacing } from "@/lib/theme";
-import { buildUpgradeHref } from "@/lib/upgrade-route";
-import { useProfile, useHasProAccess } from "@/hooks/use-profile";
-import { useGamificationProfile } from "@/hooks/use-gamification";
+  Pressable,
+} from 'react-native'
+import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { Lock } from 'lucide-react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import {
   AchievementCategorySection,
-  createAchievementsScreenStyles,
-} from "./achievements-sections";
-import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
-import { useAppTheme } from "@/lib/use-app-theme";
-import { ProBadge } from "@/components/ui/pro-badge";
+  type AchievementCategoryView,
+} from './achievements-sections'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { AppBar } from '@/components/ui/app-bar'
 
-type AppColors = ReturnType<typeof createColors>;
+type Tokens = ReturnType<typeof createTokensV2>
 
 export default function AchievementsScreen() {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const goBackOrFallback = useGoBackOrFallback();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const categoryStyles = useMemo(
-    () => createAchievementsScreenStyles(colors),
-    [colors],
-  );
-  const { profile: accountProfile, isLoading: profileLoading } = useProfile();
-  const hasProAccess = useHasProAccess();
+  const { t, i18n } = useTranslation()
+  const formatNum = (n: number) => new Intl.NumberFormat(i18n.language).format(n)
+  const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const { profile: accountProfile, isLoading: profileLoading } = useProfile()
+  const hasProAccess = useHasProAccess()
   const { profile, isLoading, xpProgress, achievementsByCategory } =
-    useGamificationProfile(hasProAccess);
+    useGamificationProfile(hasProAccess)
 
   useEffect(() => {
     if (accountProfile && !hasProAccess) {
-      router.replace("/upgrade");
+      router.replace('/upgrade')
     }
-  }, [accountProfile, hasProAccess, router]);
+  }, [accountProfile, hasProAccess, router])
+
+  const levelSubtitle = profile
+    ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
+    : undefined
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
+      edges={['top']}
+    >
+      <AppBar
+        back
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('gamification.title')}
+        subtitle={levelSubtitle}
+        backLabel={t('common.goBack')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBackOrFallback("/profile")}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>{t("gamification.title")}</Text>
-            <ProBadge alwaysVisible />
-          </View>
-        </View>
-
         {!profileLoading && !hasProAccess ? (
-          <View style={styles.lockedCard}>
-            <View style={styles.lockedIconCircle}>
-              <Lock size={32} color={colors.primary} />
-            </View>
-            <Text style={styles.lockedTitle}>
-              {t("gamification.page.lockedTitle")}
-            </Text>
-            <Text style={styles.lockedDescription}>
-              {t("gamification.page.lockedDescription")}
-            </Text>
-            <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={() => router.push(buildUpgradeHref("/achievements"))}
-              activeOpacity={0.8}
+          <View style={styles.lockedBlock}>
+            <View
+              style={[
+                styles.lockedIconCircle,
+                { backgroundColor: tokens.bgSunk },
+              ]}
             >
-              <Text style={styles.upgradeButtonText}>
-                {t("gamification.page.upgradeButton")}
+              <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
+            </View>
+            <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
+              {t('gamification.page.lockedTitle')}
+            </Text>
+            <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
+              {t('gamification.page.lockedDescription')}
+            </Text>
+            <Pressable
+              onPress={() => router.push(buildUpgradeHref('/achievements'))}
+              accessibilityRole="button"
+              accessibilityLabel={t('gamification.page.upgradeButton')}
+              style={({ pressed }) => [
+                styles.upgradeButton,
+                {
+                  backgroundColor: pressed
+                    ? tokens.primaryPressed
+                    : tokens.primary,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.upgradeButtonText, { color: tokens.fgOnPrimary }]}
+              >
+                {t('gamification.page.upgradeButton')}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        ) : (
+        ) : null}
+
+        {!profileLoading && hasProAccess && isLoading && !profile ? (
+          <View style={styles.skeletonStack}>
+            <View
+              style={[
+                styles.skeletonBar,
+                { width: 128, height: 32, backgroundColor: tokens.bgSunk },
+              ]}
+            />
+            <View
+              style={[
+                styles.skeletonBar,
+                { width: 192, height: 16, backgroundColor: tokens.bgSunk },
+              ]}
+            />
+            <View
+              style={[
+                styles.skeletonBarFull,
+                { backgroundColor: tokens.bgSunk },
+              ]}
+            />
+          </View>
+        ) : null}
+
+        {hasProAccess && profile ? (
           <>
-            {isLoading && !profile ? (
-              <View style={styles.loadingCard}>
-                <View
-                  style={[styles.skeletonBar, { width: 128, height: 32 }]}
-                />
-                <View
-                  style={[styles.skeletonBar, { width: 192, height: 16 }]}
-                />
-                <View
-                  style={[
-                    styles.skeletonBar,
-                    { width: "100%", height: 10, borderRadius: 999 },
-                  ]}
-                />
-              </View>
-            ) : null}
-
-            {profile ? (
-              <>
-                <View style={styles.levelCard}>
-                  <View style={styles.levelRow}>
-                    <View style={styles.levelCircle}>
-                      <Text style={styles.levelNumber}>{profile.level}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.levelTitle}>
-                        {profile.levelTitle}
-                      </Text>
-                      <Text style={styles.levelSubtitle}>
-                        {t("gamification.profileCard.level", {
-                          level: profile.level,
-                        })}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={{ gap: 6 }}>
-                    <View style={styles.xpBarTrack}>
-                      <View
-                        style={[styles.xpBarFill, { width: `${xpProgress}%` }]}
-                      />
-                    </View>
-                    <View style={styles.xpTextRow}>
-                      <Text style={styles.xpText}>
-                        {t("gamification.profileCard.xp", {
-                          current: profile.totalXp.toLocaleString(),
-                          next: profile.xpForNextLevel.toLocaleString(),
-                        })}
-                      </Text>
-                      <Text style={styles.xpTotal}>
-                        {t("gamification.profileCard.totalXp", {
-                          total: profile.totalXp.toLocaleString(),
-                        })}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.earnedCount}>
-                    {t("gamification.profileCard.earned", {
-                      count: profile.achievementsEarned,
-                      total: profile.achievementsTotal,
+            <View style={styles.levelBlock}>
+              <View style={styles.levelRow}>
+                <View>
+                  <Text style={[styles.levelEyebrow, { color: tokens.fg3 }]}>
+                    {t('gamification.profileCard.level', {
+                      level: profile.level,
+                    }).toUpperCase()}
+                  </Text>
+                  <Text style={[styles.levelNumber, { color: tokens.fg1 }]}>
+                    {profile.level}
+                  </Text>
+                </View>
+                <View style={styles.levelMetaCol}>
+                  <Text
+                    style={[styles.levelTitle, { color: tokens.fg1 }]}
+                    numberOfLines={1}
+                  >
+                    {profile.levelTitle}
+                  </Text>
+                  <Text style={[styles.levelMeta, { color: tokens.fg3 }]}>
+                    {t('gamification.profileCard.xp', {
+                      current: formatNum(profile.totalXp),
+                      next: formatNum(profile.xpForNextLevel),
                     })}
                   </Text>
                 </View>
+              </View>
 
-                {achievementsByCategory.map((category) => (
-                  <AchievementCategorySection
-                    key={category.key}
-                    category={category}
-                    t={t}
-                    styles={categoryStyles}
-                  />
-                ))}
-              </>
-            ) : null}
+              <View
+                style={[styles.xpTrack, { backgroundColor: tokens.bgSunk }]}
+              >
+                <View
+                  style={[
+                    styles.xpFill,
+                    {
+                      width: `${xpProgress}%`,
+                      backgroundColor: tokens.primary,
+                    },
+                  ]}
+                />
+              </View>
+
+              <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
+                {t('gamification.profileCard.earned', {
+                  count: profile.achievementsEarned,
+                  total: profile.achievementsTotal,
+                })}
+              </Text>
+            </View>
+
+            {achievementsByCategory.map(
+              (category: AchievementCategoryView) => (
+                <AchievementCategorySection
+                  key={category.key}
+                  category={category}
+                  t={t}
+                  tokens={tokens}
+                />
+              ),
+            )}
           </>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
-  );
+  )
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(_tokens: Tokens) {
   return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: colors.background },
+    safeArea: { flex: 1 },
     container: { flex: 1 },
     scrollContent: {
-      paddingHorizontal: spacing.pageX,
-      paddingBottom: spacing.pageBottom,
+      paddingBottom: 40,
     },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.cardGap,
-      paddingTop: spacing.sectionGap * 2,
-      paddingBottom: spacing.cardGap * 2,
-    },
-    backButton: { padding: 8, marginLeft: -8, borderRadius: 999 },
-    headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: "700",
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
-    },
-    lockedCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      padding: spacing.cardPadding + 4,
-      alignItems: "center",
-      gap: spacing.sectionGap,
-    },
-    lockedIconCircle: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: colors.primary_20,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    lockedTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    lockedDescription: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: "center",
-    },
-    upgradeButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 20,
-      paddingHorizontal: 24,
-      paddingVertical: 14,
-    },
-    upgradeButtonText: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: "#fff",
-    },
-    loadingCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      padding: 20,
+    skeletonStack: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
       gap: 12,
     },
     skeletonBar: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 8,
+      borderRadius: 4,
     },
-    levelCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      padding: 20,
+    skeletonBarFull: {
+      height: 10,
+      borderRadius: 999,
+      width: '100%',
+    },
+    lockedBlock: {
+      paddingHorizontal: 24,
+      paddingVertical: 40,
+      alignItems: 'center',
+      gap: 14,
+    },
+    lockedIconCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lockedTitle: {
+      fontFamily: 'Geist',
+      fontSize: 17,
+      fontWeight: '600',
+      letterSpacing: -0.17,
+      textAlign: 'center',
+    },
+    lockedDescription: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      lineHeight: 22,
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+    upgradeButton: {
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      borderRadius: 8,
+      marginTop: 4,
+    },
+    upgradeButtonText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    levelBlock: {
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 12,
       gap: 12,
     },
     levelRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 16,
     },
-    levelCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.primary_20,
-      alignItems: "center",
-      justifyContent: "center",
+    levelEyebrow: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '500',
+      letterSpacing: 0.66,
     },
     levelNumber: {
-      fontSize: 18,
-      fontWeight: "800",
-      color: colors.primary,
+      fontFamily: 'GeistMono',
+      fontSize: 56,
+      fontWeight: '500',
+      letterSpacing: -2,
+      lineHeight: 56,
+      fontVariant: ['tabular-nums'],
+    },
+    levelMetaCol: {
+      flex: 1,
+      paddingBottom: 6,
     },
     levelTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: colors.textPrimary,
+      fontFamily: 'Geist',
+      fontSize: 17,
+      fontWeight: '600',
+      letterSpacing: -0.17,
     },
-    levelSubtitle: {
-      fontSize: 12,
-      color: colors.textSecondary,
-    },
-    xpBarTrack: {
-      height: 10,
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 999,
-      overflow: "hidden",
-    },
-    xpBarFill: {
-      height: "100%",
-      backgroundColor: colors.primary,
-      borderRadius: 999,
-    },
-    xpTextRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    xpText: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    xpTotal: {
-      fontSize: 10,
-      color: colors.textMuted,
-    },
-    earnedCount: {
-      fontSize: 12,
-      color: colors.textSecondary,
+    levelMeta: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontVariant: ['tabular-nums'],
       marginTop: 4,
     },
-    categorySection: {
-      marginTop: 24,
-      gap: 12,
+    xpTrack: {
+      height: 3,
+      borderRadius: 999,
+      overflow: 'hidden',
     },
-    categoryLabel: {
+    xpFill: {
+      height: '100%',
+      borderRadius: 999,
+    },
+    earnedCount: {
+      fontFamily: 'GeistMono',
       fontSize: 11,
-      fontWeight: "700",
-      letterSpacing: 1,
-      color: colors.textMuted,
-      textTransform: "uppercase",
+      fontVariant: ['tabular-nums'],
     },
-    achievementGrid: {
-      flexDirection: "column",
-      gap: 12,
-    },
-    achievementItem: {
-      width: "100%",
-    },
-  });
+  })
 }

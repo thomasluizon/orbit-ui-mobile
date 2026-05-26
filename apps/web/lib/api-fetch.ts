@@ -4,17 +4,13 @@ import { toast } from 'sonner'
 import { buildClientTimeZoneHeaders, extractBackendError } from '@orbit/shared/utils'
 
 /**
- * Centralized API fetch with error categorization matching Nuxt's api.ts plugin.
+ * Centralized API fetch with error categorization.
  *
  * Handles:
  * - 401: auto-logout (no toast)
  * - 403: redirect to /upgrade (no toast)
  * - 400/404/409/429/5xx: categorized error toast
  */
-
-// ---------------------------------------------------------------------------
-// i18n adapter -- set once at app startup via <ApiFetchI18nProvider />
-// ---------------------------------------------------------------------------
 
 type TranslateFn = (key: string) => string
 
@@ -51,10 +47,6 @@ function getToastTitle(status: number): string {
   if (status >= 500) return _translate('toast.errors.server')
   return _translate(TRANSLATED_TOAST_TITLE_KEYS[status] ?? 'toast.errors.unknown')
 }
-
-// ---------------------------------------------------------------------------
-// ApiError
-// ---------------------------------------------------------------------------
 
 export class ApiError extends Error {
   status: number
@@ -111,10 +103,8 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
       throw statusError
     }
 
-    // Extract backend error message
     const backendMsg = extractBackendError({ data: body })
 
-    // Categorized error toast
     const title = getToastTitle(status)
 
     toast.error(title, {

@@ -46,7 +46,7 @@ export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProp
   return (
     <div
       className={[
-        'bg-surface rounded-[var(--radius-xl)] border border-border-muted p-5 space-y-3',
+        'bg-[var(--bg-elev)] rounded-[12px] border border-[var(--hairline)] p-5 space-y-3',
         className,
       ]
         .filter(Boolean)

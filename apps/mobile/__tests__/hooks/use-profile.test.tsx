@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
+import { useProfile } from '@/hooks/use-profile'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -45,15 +47,13 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
 }))
 
-vi.mock('i18next', () => ({
-  default: mocks.i18n,
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ i18n: mocks.i18n, t: (key: string) => key }),
 }))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
-
-import { useProfile } from '@/hooks/use-profile'
 
 function renderHookHarness() {
   function Harness() {

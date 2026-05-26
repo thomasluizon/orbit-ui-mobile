@@ -1,32 +1,27 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Animated,
-  StyleSheet,
-} from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { BellRing, X } from 'lucide-react-native'
+import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { shouldShowNativePushPrompt } from '@orbit/shared/utils'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
-import { radius } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
+/**
+ * v8 push prompt: bottom edge banner with mono "Permissions" eyebrow, plain
+ * title, italic body, italic Later / underlined Enable links.
+ */
 export function PushPrompt() {
   const { t } = useTranslation()
-  const { colors, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const {
     isEnabled,
     isRegistered,
@@ -39,7 +34,6 @@ export function PushPrompt() {
   const [isDismissed, setIsDismissed] = useState<boolean | null>(null)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
   const showRetryHint =
     registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
 
@@ -67,6 +61,7 @@ export function PushPrompt() {
     })
 
     if (!shouldShow) {
+       
       setShow(false)
       return
     }
@@ -130,130 +125,91 @@ export function PushPrompt() {
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
+          backgroundColor: tokens.bgElev,
+          borderTopColor: tokens.hairline,
         },
       ]}
     >
-      <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <BellRing size={20} color={colors.primary} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>{t('pushPrompt.title')}</Text>
-          <Text style={styles.description}>{t('pushPrompt.description')}</Text>
-          {showRetryHint && (
-            <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
-          )}
-          <View style={styles.buttons}>
-            <TouchableOpacity
-              style={styles.enableBtn}
-              activeOpacity={0.8}
-              onPress={handleEnable}
-            >
-              <Text style={styles.enableBtnText}>{t('pushPrompt.enable')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.laterBtn}
-              activeOpacity={0.7}
-              onPress={dismiss}
-            >
-              <Text style={styles.laterBtnText}>{t('pushPrompt.later')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={styles.closeBtn}
-          activeOpacity={0.7}
-          onPress={dismiss}
-        >
-          <X size={16} color={colors.textMuted} />
-        </TouchableOpacity>
+      <View style={styles.headerRow}>
+        <Text style={styles.eyebrow}>Permissions</Text>
+        <Pressable onPress={dismiss} hitSlop={8}>
+          <X size={14} color={tokens.fg3} strokeWidth={1.6} />
+        </Pressable>
+      </View>
+      <Text style={styles.title}>{t('pushPrompt.title')}</Text>
+      <Text style={styles.description}>{t('pushPrompt.description')}</Text>
+      {showRetryHint && (
+        <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
+      )}
+      <View style={styles.buttons}>
+        <Pressable onPress={dismiss} hitSlop={6}>
+          <Text style={styles.laterText}>{t('pushPrompt.later')}</Text>
+        </Pressable>
+        <Pressable onPress={handleEnable} hitSlop={6}>
+          <Text style={styles.enableText}>{t('pushPrompt.enable')}</Text>
+        </Pressable>
       </View>
     </Animated.View>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     wrapper: {
       position: 'absolute',
-      bottom: 96,
-      left: 16,
-      right: 16,
+      bottom: 80,
+      left: 0,
+      right: 0,
       zIndex: 50,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      gap: 8,
     },
-    card: {
+    headerRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-      backgroundColor: colors.surfaceOverlay,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      borderRadius: radius.lg,
-      padding: 16,
-      ...shadows.lg,
-      elevation: 8,
-    },
-    iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.primary_10,
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
     },
-    textContainer: {
-      flex: 1,
+    eyebrow: {
+      fontFamily: 'Geist',
+      fontSize: 12,
+      fontWeight: '600',
+      color: tokens.fg3,
     },
     title: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textPrimary,
+      fontFamily: 'Geist',
+      fontSize: 16,
+      color: tokens.fg1,
     },
     description: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginTop: 2,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      lineHeight: 19,
+      color: tokens.fg3,
     },
     retryText: {
+      fontFamily: 'Geist',
       fontSize: 12,
-      color: colors.red400,
-      marginTop: 6,
+      color: tokens.statusOverdue,
     },
     buttons: {
       flexDirection: 'row',
-      gap: 8,
-      marginTop: 12,
+      justifyContent: 'flex-end',
+      gap: 22,
+      paddingTop: 4,
     },
-    enableBtn: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: radius.full,
-      backgroundColor: colors.primary,
+    laterText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
     },
-    enableBtnText: {
-      color: colors.white,
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    laterBtn: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: radius.full,
-    },
-    laterBtnText: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    closeBtn: {
-      padding: 4,
+    enableText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg1,
+      textDecorationLine: 'underline',
     },
   })
 }

@@ -27,10 +27,6 @@ function withChildren<T extends ChildContainer>(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Toggle completion
-// ---------------------------------------------------------------------------
-
 /** Toggle isCompleted on a single habit item, resetting checklist if needed */
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
   const wasCompleted = item.isCompleted
@@ -80,10 +76,6 @@ export function optimisticToggleCompletion(
   })
 }
 
-// ---------------------------------------------------------------------------
-// Update checklist
-// ---------------------------------------------------------------------------
-
 function updateChecklistInChild(
   child: HabitScheduleChild,
   habitId: string,
@@ -115,10 +107,6 @@ export function optimisticUpdateChecklist(
     )
   })
 }
-
-// ---------------------------------------------------------------------------
-// General tree helpers
-// ---------------------------------------------------------------------------
 
 function patchChildHabit(
   child: HabitScheduleChild,
@@ -226,7 +214,7 @@ function reorderChildHabit(
 /** Optimistically apply position updates from a reorder request */
 export function optimisticReorderHabits(
   items: HabitScheduleItem[],
-  positions: Array<{ habitId: string; position: number }>,
+  positions: { habitId: string; position: number }[],
 ): HabitScheduleItem[] {
   const positionMap = new Map(positions.map((item) => [item.habitId, item.position]))
 

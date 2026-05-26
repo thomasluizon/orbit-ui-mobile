@@ -52,6 +52,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     gap: 12,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
 })

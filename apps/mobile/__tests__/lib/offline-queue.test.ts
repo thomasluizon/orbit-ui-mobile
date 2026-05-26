@@ -1,6 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
+import {
+  clear,
+  count,
+  dequeue,
+  enqueue,
+  getAll,
+  incrementRetries,
+  replaceEntityReferences,
+  remove,
+  subscribeQueueCount,
+  update,
+} from '@/lib/offline-queue'
+
 vi.mock('expo-sqlite', () => {
   interface StoredRow {
     id: string
@@ -89,19 +102,6 @@ vi.mock('expo-sqlite', () => {
     }),
   }
 })
-
-import {
-  clear,
-  count,
-  dequeue,
-  enqueue,
-  getAll,
-  incrementRetries,
-  replaceEntityReferences,
-  remove,
-  subscribeQueueCount,
-  update,
-} from '@/lib/offline-queue'
 
 function makeMutation(overrides: Partial<QueuedMutation> = {}): QueuedMutation {
   return {

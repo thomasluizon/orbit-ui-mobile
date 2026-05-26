@@ -204,10 +204,6 @@ function buildOptimisticHabitPatch(
   return patch
 }
 
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
-
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
@@ -225,12 +221,10 @@ export function useLogHabit() {
       // Start cancelling refetches, but don't delay the optimistic completion state on it.
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
-      // Snapshot all list queries for rollback
       const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
         queryKey: habitKeys.lists(),
       })
 
-      // Optimistic toggle via extracted helper (reduces nesting depth - S2004)
       if (!date) {
         queryClient.setQueriesData<HabitScheduleItem[]>(
           { queryKey: habitKeys.lists() },
@@ -242,7 +236,6 @@ export function useLogHabit() {
     },
 
     onError: (_err, _vars, context) => {
-      // Rollback optimistic update
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -282,7 +275,6 @@ export function useLogHabit() {
         })
       }
 
-      // Check all-done celebration
       const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
         habitKeys.list(activeFilters as Record<string, unknown>),
       )
@@ -502,10 +494,6 @@ export function useUpdateChecklist() {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Sub-habit and parent mutations
-// ---------------------------------------------------------------------------
-
 export function useCreateSubHabit() {
   const queryClient = useQueryClient()
 
@@ -543,10 +531,6 @@ export function useMoveHabitParent() {
     },
   })
 }
-
-// ---------------------------------------------------------------------------
-// Bulk operations
-// ---------------------------------------------------------------------------
 
 export function useBulkCreateHabits() {
   const queryClient = useQueryClient()

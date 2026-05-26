@@ -3,17 +3,18 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Lock } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection } from './_components/achievement-category-section'
+import { AppBar } from '@/components/ui/app-bar'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { SkeletonCard } from '@/components/ui/skeleton'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 export default function AchievementsPage() {
   const t = useTranslations()
+  const locale = useLocale()
+  const formatNum = (n: number) => new Intl.NumberFormat(locale).format(n)
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile: accountProfile, isLoading: profileLoading } = useProfile()
@@ -31,104 +32,167 @@ export default function AchievementsPage() {
     }
   }, [accountProfile, hasProAccess, router])
 
+  const subtitle = profile
+    ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
+    : undefined
+
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-        <button
-          type="button"
-          aria-label={t('common.backToProfile')}
-          className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
-          onClick={() => goBackOrFallback('/profile')}
-        >
-          <ArrowLeft className="size-5 text-text-primary" />
-        </button>
-        <div className="flex items-center gap-2">
-          <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-            {t('gamification.title')}
-          </h1>
-          <ProBadge />
-        </div>
-      </header>
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('gamification.title')}
+        subtitle={subtitle}
+        trailing={<ProBadge />}
+      />
 
-      {/* Locked state for non-Pro users */}
-      {!profileLoading && !hasProAccess ? (
-        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center space-y-4">
-          <div className="bg-primary/20 rounded-full size-16 flex items-center justify-center mx-auto">
-            <Lock className="size-8 text-primary" />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {!profileLoading && !hasProAccess ? (
+          <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 16,
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {t('gamification.page.lockedTitle')}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontStyle: 'italic',
+                color: 'var(--fg-3)',
+                lineHeight: 1.55,
+              }}
+            >
+              {t('gamification.page.lockedDescription')}
+            </span>
+            <Link
+              href="/upgrade"
+              className="transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
+              style={{
+                marginTop: 8,
+                padding: '10px 16px',
+                borderRadius: 8,
+                background: 'var(--primary)',
+                color: 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              {t('gamification.page.upgradeButton')}
+            </Link>
           </div>
-          <h2 className="text-lg font-bold text-text-primary">{t('gamification.page.lockedTitle')}</h2>
-          <p className="text-sm text-text-secondary">{t('gamification.page.lockedDescription')}</p>
-          <Link
-            href="/upgrade"
-            className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
-          >
-            {t('gamification.page.upgradeButton')}
-          </Link>
-        </div>
-      ) : (
-        <>
-          {/* Loading state */}
-          {isLoading && !profile && (
-            <div className="space-y-4">
-              <SkeletonCard lines={3} />
-            </div>
-          )}
+        ) : (
+          <>
+            {isLoading && !profile && (
+              <div className="px-5 py-6 space-y-4">
+                <div className="h-12 w-full rounded-md skeleton-shimmer" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-6 w-32 rounded-md skeleton-shimmer" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-24 w-full rounded-md skeleton-shimmer" style={{ background: 'var(--bg-elev)' }} />
+              </div>
+            )}
 
-          {/* Profile loaded */}
-          {profile && (
-            <>
-              {/* Level header section */}
-              <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <span className="text-lg font-extrabold text-primary">{profile.level}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-lg font-bold text-text-primary">
-                      {profile.levelTitle}
-                    </p>
-                    <p className="text-xs text-text-secondary">
-                      {t('gamification.profileCard.level', { level: profile.level })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* XP progress bar */}
-                <div className="space-y-1.5">
-                  <div className="h-2.5 bg-surface-elevated rounded-full overflow-hidden">
+            {profile && (
+              <>
+                <div
+                  style={{
+                    padding: '20px 20px 12px',
+                  }}
+                >
+                  <div className="flex items-center" style={{ gap: 16 }}>
                     <div
-                      className="h-full bg-primary rounded-full transition-all duration-500"
-                      style={{ width: `${xpProgress}%` }}
+                      className="flex items-center justify-center shrink-0 size-14 rounded-full"
+                      style={{
+                        boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+                        fontFamily: 'var(--font-family-mono)',
+                        fontSize: 22,
+                        fontWeight: 500,
+                        color: 'var(--fg-1)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {profile.level}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-family-sans)',
+                          fontSize: 16,
+                          fontWeight: 600,
+                          color: 'var(--fg-1)',
+                        }}
+                      >
+                        {profile.levelTitle}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-family-mono)',
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: 'var(--fg-3)',
+                          marginTop: 2,
+                          fontVariantNumeric: 'tabular-nums',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {t('gamification.profileCard.xp', {
+                          current: formatNum(profile.totalXp),
+                          next: formatNum(profile.xpForNextLevel),
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className="relative w-full"
+                    style={{
+                      marginTop: 14,
+                      height: 3,
+                      background: 'var(--bg-sunk)',
+                      borderRadius: 999,
+                    }}
+                  >
+                    <div
+                      className="absolute left-0 top-0 bottom-0 rounded-full"
+                      style={{
+                        width: `${xpProgress}%`,
+                        background: 'var(--primary)',
+                      }}
                     />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-text-primary">
-                      {t('gamification.profileCard.xp', {
-                        current: profile.totalXp.toLocaleString(),
-                        next: profile.xpForNextLevel.toLocaleString(),
-                      })}
-                    </p>
-                    <p className="text-[10px] text-text-muted">
+
+                  <div
+                    className="flex items-center justify-between"
+                    style={{
+                      marginTop: 10,
+                      fontFamily: 'var(--font-family-mono)',
+                      fontSize: 11,
+                      color: 'var(--fg-3)',
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    <span>
                       {t('gamification.profileCard.totalXp', {
-                        total: profile.totalXp.toLocaleString(),
+                        total: formatNum(profile.totalXp),
                       })}
-                    </p>
+                    </span>
+                    <span>
+                      {t('gamification.profileCard.earned', {
+                        count: profile.achievementsEarned,
+                        total: profile.achievementsTotal,
+                      })}
+                    </span>
                   </div>
                 </div>
 
-                {/* Earned count */}
-                <div className="flex items-center gap-2 pt-1">
-                  <span className="text-xs text-text-secondary">
-                    {t('gamification.profileCard.earned', {
-                      count: profile.achievementsEarned,
-                      total: profile.achievementsTotal,
-                    })}
-                  </span>
-                </div>
-              </div>
-
-              {/* Achievement grid by category */}
-              <div className="space-y-6 mt-6">
                 {achievementsByCategory.map((category) => (
                   <AchievementCategorySection
                     key={category.key}
@@ -136,11 +200,11 @@ export default function AchievementsPage() {
                     t={t}
                   />
                 ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

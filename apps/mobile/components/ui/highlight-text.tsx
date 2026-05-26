@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import { Text, type TextStyle } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HighlightTextProps {
@@ -45,7 +47,11 @@ function highlightText(text: string, query: string): Segment[] {
 }
 
 export function HighlightText({ text, query, style }: Readonly<HighlightTextProps>) {
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const segments = highlightText(text, query)
 
   return (
@@ -55,7 +61,7 @@ export function HighlightText({ text, query, style }: Readonly<HighlightTextProp
           <Text
             key={`segment-${i}-${seg.text}`}
             style={{
-              backgroundColor: colors.primary_30,
+              backgroundColor: tokens.hairlineStrong,
               borderRadius: 2,
               paddingHorizontal: 1,
             }}

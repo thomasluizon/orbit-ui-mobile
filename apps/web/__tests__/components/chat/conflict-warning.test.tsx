@@ -23,7 +23,7 @@ describe('ConflictWarning', () => {
       <ConflictWarning warning={makeWarning({ severity: 'HIGH' })} />,
     )
     const wrapper = container.firstElementChild
-    expect(wrapper?.className).toContain('border-red-500')
+    expect(wrapper?.getAttribute('data-severity')).toBe('HIGH')
   })
 
   it('renders with MEDIUM severity styling', () => {
@@ -31,7 +31,7 @@ describe('ConflictWarning', () => {
       <ConflictWarning warning={makeWarning({ severity: 'MEDIUM' })} />,
     )
     const wrapper = container.firstElementChild
-    expect(wrapper?.className).toContain('border-amber-500')
+    expect(wrapper?.getAttribute('data-severity')).toBe('MEDIUM')
   })
 
   it('renders with LOW severity styling', () => {
@@ -39,7 +39,7 @@ describe('ConflictWarning', () => {
       <ConflictWarning warning={makeWarning({ severity: 'LOW' })} />,
     )
     const wrapper = container.firstElementChild
-    expect(wrapper?.className).toContain('border-blue-500')
+    expect(wrapper?.getAttribute('data-severity')).toBe('LOW')
   })
 
   it('renders conflicting habits', () => {

@@ -6,15 +6,12 @@ import { useTranslations } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
+import { LocalImage } from '@/components/ui/local-image'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
 import { formatChatMessage } from './format-chat-message'
 import { PendingOperationCard } from './pending-operation-card'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -34,10 +31,6 @@ interface MessageBubbleProps {
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
   onUpgradeClick?: () => void
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function MessageBubble({
   message,
@@ -87,34 +80,32 @@ export function MessageBubble({
       className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
       aria-label={isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
     >
-      {/* AI avatar */}
       {!isUser && (
         <div
-          className="shrink-0 size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center self-end"
+          className="shrink-0 size-10 rounded-full bg-[var(--bg-elev)] border border-[var(--hairline-strong)] flex items-center justify-center self-end"
           aria-hidden="true"
         >
-          <Sparkles className="size-5 text-primary" />
+          <Sparkles className="size-5 text-[var(--primary)]" />
         </div>
       )}
 
       <div
         className={`max-w-[70%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
       >
-        {/* Sender label */}
-        <span className="text-[11px] font-medium text-text-secondary mb-1 px-2">
+        <span className="text-[11px] font-medium text-[var(--fg-2)] mb-1 px-2">
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
         <div
+          data-bubble-role={isUser ? 'user' : 'ai'}
           className={`px-4 py-3 text-sm ${
             isUser
-              ? 'bg-linear-to-br from-primary to-primary/80 text-white rounded-2xl rounded-br-md shadow-[var(--shadow-sm)]'
-              : 'bg-surface-elevated text-text-primary rounded-2xl rounded-bl-md shadow-[var(--shadow-sm)]'
+              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] rounded-[12px] rounded-br-[4px]'
+              : 'bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-[12px] rounded-bl-[4px]'
           }`}
         >
-          {/* User-attached image */}
           {message.imageUrl && (
-            <img
+            <LocalImage
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
               className="rounded-xl max-h-48 mb-2"
@@ -128,12 +119,10 @@ export function MessageBubble({
           />
         </div>
 
-        {/* Action chips for AI messages */}
         {!isUser && nonSuggestionActions.length > 0 && (
           <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />
         )}
 
-        {/* Breakdown suggestions */}
         {!isUser && suggestionActions.length > 0 && (
           <div className="space-y-3 mt-3 w-full">
             {suggestionActions.map((action) => {
@@ -151,7 +140,6 @@ export function MessageBubble({
           </div>
         )}
 
-        {/* Clarification cards */}
         {!isUser && clarificationActions.length > 0 && (
           <div className="space-y-3 mt-3 w-full">
             {clarificationActions.map((action) => (
@@ -186,15 +174,15 @@ export function MessageBubble({
               return (
                 <div
                   key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  className="rounded-[var(--radius-xl)] border border-red-500/20 bg-red-500/8 px-3 py-2"
+                  className="rounded-[12px] border border-[var(--status-bad)]/20 bg-[var(--status-bad)]/8 px-3 py-2"
                 >
-                  <p className="text-xs font-medium text-red-300">{denial.sourceName}</p>
-                  <p className="mt-1 text-[11px] text-red-200/90">{denial.reason}</p>
+                  <p className="text-xs font-medium text-[var(--status-bad)]">{denial.sourceName}</p>
+                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">{denial.reason}</p>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick && (
                     <button
                       type="button"
                       onClick={onUpgradeClick}
-                      className="mt-3 inline-flex items-center rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-primary/90"
+                      className="mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--primary-pressed)]"
                     >
                       {t('upgrade.subscribe')}
                     </button>
@@ -206,13 +194,12 @@ export function MessageBubble({
         )}
       </div>
 
-      {/* User avatar */}
       {isUser && (
         <div
-          className="shrink-0 size-10 rounded-full border-2 border-primary/20 bg-surface-elevated flex items-center justify-center self-end"
+          className="shrink-0 size-10 rounded-full border-2 border-[var(--hairline-strong)] bg-[var(--bg-elev)] flex items-center justify-center self-end"
           aria-hidden="true"
         >
-          <User className="size-5 text-text-secondary" />
+          <User className="size-5 text-[var(--fg-2)]" />
         </div>
       )}
     </div>

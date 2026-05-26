@@ -35,11 +35,11 @@ describe('LevelUpOverlay', () => {
     expect(alert).toBeInTheDocument()
   })
 
-  it('displays the new level number', () => {
+  it('displays the new level number padded to two digits', () => {
     render(
       <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
     )
-    expect(document.body.textContent).toContain('5')
+    expect(document.body.textContent).toContain('05')
   })
 
   it('displays level up title', () => {
@@ -49,18 +49,18 @@ describe('LevelUpOverlay', () => {
     expect(document.body.textContent).toContain('gamification.levelUp.title')
   })
 
-  it('displays new level message', () => {
+  it('displays steady hand quiet copy', () => {
     render(
       <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
     )
-    expect(document.body.textContent).toContain('gamification.levelUp.newLevel')
+    expect(document.body.textContent).toContain('gamification.levelUp.steadyHand')
   })
 
-  it('displays subtitle with level title', () => {
+  it('renders the rotating orbit ring SVG', () => {
     render(
       <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
     )
-    expect(document.body.textContent).toContain('gamification.levelUp.subtitle')
+    expect(document.querySelector('ellipse')).toBeInTheDocument()
   })
 
   it('has alert role with aria-atomic for accessibility', () => {

@@ -2,10 +2,6 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface PopoverPosition {
   top: number
   left: number
@@ -32,19 +28,15 @@ export interface UsePopoverMenuReturn {
   open: () => void
   close: () => void
   toggle: () => void
-  triggerRef: React.RefObject<HTMLButtonElement | null>
+  triggerRef: React.RefObject<HTMLDivElement | null>
   panelRef: React.RefObject<HTMLDivElement | null>
   position: PopoverPosition
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverMenuReturn {
   const { placement = 'bottom-start', offset = 8, margin = 12 } = options
 
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const triggerRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState<PopoverPosition>({ top: 0, left: 0 })

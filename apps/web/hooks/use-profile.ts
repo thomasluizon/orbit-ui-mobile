@@ -50,12 +50,10 @@ export function useProfile() {
     detectAndSaveThemeIfNeeded,
   ])
 
-  // Invalidation helper for external consumers
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: profileKeys.all })
   }, [queryClient])
 
-  // Optimistic patch helper used by mutation hooks
   const patchProfile = useCallback(
     (patch: Partial<Profile>) => {
       queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
@@ -72,10 +70,6 @@ export function useProfile() {
     patchProfile,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Derived selectors -- thin hooks that select from the profile query cache
-// ---------------------------------------------------------------------------
 
 /** Computed: does the user currently have Pro-level access? */
 export function useHasProAccess(): boolean {

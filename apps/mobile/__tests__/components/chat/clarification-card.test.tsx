@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ClarificationRequest } from '@orbit/shared/types'
 
+import { ClarificationCard } from '@/components/chat/clarification-card'
+
 // react-test-renderer ships as CJS-only and doesn't surface ESM-friendly types
 // for the bits we use, so we declare a local shape and require() it the same
 // way the sibling pending-operation-card.test.tsx does.
@@ -26,7 +28,7 @@ interface TestRendererApi {
   act(callback: () => Promise<void> | void): Promise<void>
 }
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
 interface ColorRecord {
@@ -52,16 +54,24 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    currentScheme: 'purple',
+    currentTheme: 'dark',
   }),
 }))
 
 vi.mock('@/lib/theme', () => ({
   radius: { xl: 20, full: 9999 },
   shadows: { sm: {} },
+  createTokensV2: () => new Proxy({}, {
+    get: (_target, prop) => {
+      if (prop === 'fgOnPrimary') return '#ffffff'
+      return '#111111'
+    },
+  }),
 }))
 
 vi.mock('lucide-react-native', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const React = require('react')
   return {
     Check: (props: Record<string, unknown>) => React.createElement('Check', props),
@@ -79,8 +89,6 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
     },
   }),
 }))
-
-import { ClarificationCard } from '@/components/chat/clarification-card'
 
 function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(

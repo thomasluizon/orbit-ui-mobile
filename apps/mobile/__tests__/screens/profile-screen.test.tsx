@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
+import ProfileScreen from '@/app/(tabs)/profile'
+
 const TestRenderer = require('react-test-renderer')
 
 const { mockUseGamificationProfile } = vi.hoisted(() => ({
@@ -56,11 +58,14 @@ vi.mock('@/hooks/use-offline', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
+    currentScheme: 'purple',
+    currentTheme: 'dark',
   }),
 }))
 
 vi.mock('@/lib/theme', () => ({
   createColors: () => new Proxy({}, { get: () => '#111111' }),
+  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
   spacing: {
     pageX: 20,
     pageBottom: 40,
@@ -68,6 +73,34 @@ vi.mock('@/lib/theme', () => ({
     cardPadding: 20,
     cardGap: 12,
     itemGap: 8,
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 20,
+    '2xl': 24,
+    full: 9999,
+  },
+  shadows: {
+    sm: {},
+    md: {},
+    lg: {},
+    cardParent: {},
+    cardParentHover: {},
+    cardChild: {},
+    glow: () => ({}),
+    glowSm: () => ({}),
+    glowLg: () => ({}),
+  },
+  shadowsV2: {
+    shadow1: {},
+    shadow2: {},
+    shadow3: {},
+  },
+  gradients: {
+    surfaceSheen: ['transparent', 'transparent'],
+    surfaceSheenLocations: [0, 0.4],
   },
 }))
 
@@ -139,6 +172,29 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
+vi.mock('@/components/gamification/streak-badge', () => ({
+  StreakBadge: () => null,
+}))
+
+vi.mock('@/components/navigation/notification-bell', () => ({
+  NotificationBell: () => null,
+}))
+
+vi.mock('@/components/ui/app-bar', () => ({
+  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => (
+    <>{trailing}</>
+  ),
+}))
+
+vi.mock('@/components/ui/section-label', () => ({
+  SectionLabel: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/ui/settings-group', () => ({
+  SettingsGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SettingsGroupRow: () => null,
+}))
+
 vi.mock('lucide-react-native', () => {
   const createIcon = (name: string) => () => React.createElement(name)
   return {
@@ -152,6 +208,9 @@ vi.mock('lucide-react-native', () => {
     X: createIcon('X'),
     Check: createIcon('Check'),
     Compass: createIcon('Compass'),
+    User: createIcon('User'),
+    ChevronLeft: createIcon('ChevronLeft'),
+    Flame: createIcon('Flame'),
   }
 })
 
@@ -164,8 +223,6 @@ vi.mock('react-native-svg', () => ({
   Stop: () => null,
   Rect: () => null,
 }))
-
-import ProfileScreen from '@/app/(tabs)/profile'
 
 describe('ProfileScreen', () => {
   beforeEach(() => {

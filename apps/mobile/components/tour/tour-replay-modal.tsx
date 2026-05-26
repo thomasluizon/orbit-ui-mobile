@@ -21,10 +21,10 @@ import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createColors } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 
-type AppColors = ReturnType<typeof createColors>
+type AppTokens = ReturnType<typeof createTokensV2>
 
 const SECTION_ICON_MAP = {
   'check-circle': CheckCircle,
@@ -41,8 +41,12 @@ interface TourReplayModalProps {
 
 export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createModalStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createModalStyles(tokens), [tokens])
   const queryClient = useQueryClient()
   const { startFullTour, startSectionReplay } = useTourStore()
   const { profile } = useProfile()
@@ -105,73 +109,74 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
       <View style={styles.backdrop}>
         <Pressable style={styles.backdropTouch} onPress={onClose} />
         <View style={styles.sheet}>
-          {/* Handle */}
           <View style={styles.handle} />
 
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>
               {t('tour.replay.modalTitle')}
             </Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color={colors.textSecondary} />
+              <X size={20} color={tokens.fg2} />
             </Pressable>
           </View>
 
-          {/* Replay all */}
           <Pressable style={styles.replayAllButton} onPress={handleReplayAll}>
-            <RotateCcw size={16} color={colors.white} />
+            <RotateCcw size={16} color={tokens.fgOnPrimary} />
             <Text style={styles.replayAllText}>
               {t('tour.replay.replayAll')}
             </Text>
           </Pressable>
 
-          {/* Divider */}
-          <View style={styles.divider} />
+          <View style={styles.sectionList}>
+            {availableSections.map((section, index) => {
+              const iconKey = TOUR_SECTION_ICONS[section]
+              const Icon =
+                SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
+              const stepCount = getSectionStepCount(section)
+              const completed = sectionCompletion[section]
 
-          {/* Section cards */}
-          {availableSections.map((section) => {
-            const iconKey = TOUR_SECTION_ICONS[section]
-            const Icon =
-              SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
-            const stepCount = getSectionStepCount(section)
-            const completed = sectionCompletion[section]
-
-            return (
-              <Pressable
-                key={section}
-                style={({ pressed }) => [
-                  styles.sectionCard,
-                  pressed && styles.sectionCardPressed,
-                ]}
-                onPress={() => handleReplaySection(section)}
-              >
-                <View style={styles.sectionIcon}>
-                  {Icon && <Icon size={16} color={colors.primary} />}
+              return (
+                <View key={section}>
+                  {index > 0 ? <View style={styles.sectionDivider} /> : null}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.sectionRow,
+                      pressed && styles.sectionRowPressed,
+                    ]}
+                    onPress={() => handleReplaySection(section)}
+                  >
+                    {Icon ? (
+                      <Icon
+                        size={18}
+                        color={tokens.fg3}
+                        strokeWidth={1.6}
+                      />
+                    ) : null}
+                    <View style={styles.sectionBody}>
+                      <Text style={styles.sectionTitle}>
+                        {t(`tour.sections.${section}`)}
+                      </Text>
+                      <Text style={styles.sectionSteps}>
+                        {t('tour.replay.steps', { count: stepCount })}
+                      </Text>
+                    </View>
+                    {completed ? (
+                      <CheckCircle size={16} color={tokens.statusDone} />
+                    ) : (
+                      <Play size={16} color={tokens.fg3} />
+                    )}
+                  </Pressable>
                 </View>
-                <View style={styles.sectionBody}>
-                  <Text style={styles.sectionTitle}>
-                    {t(`tour.sections.${section}`)}
-                  </Text>
-                  <Text style={styles.sectionSteps}>
-                    {t('tour.replay.steps', { count: stepCount })}
-                  </Text>
-                </View>
-                {completed ? (
-                  <CheckCircle size={16} color="#22c55e" />
-                ) : (
-                  <Play size={16} color={colors.textMuted} />
-                )}
-              </Pressable>
-            )
-          })}
+              )
+            })}
+          </View>
         </View>
       </View>
     </Modal>
   )
 }
 
-function createModalStyles(colors: AppColors) {
+function createModalStyles(tokens: AppTokens) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
@@ -182,9 +187,9 @@ function createModalStyles(colors: AppColors) {
       backgroundColor: 'rgba(0,0,0,0.4)',
     },
     sheet: {
-      backgroundColor: colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      backgroundColor: tokens.bgElev,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
       paddingHorizontal: 20,
       paddingBottom: 40,
     },
@@ -192,7 +197,7 @@ function createModalStyles(colors: AppColors) {
       width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: colors.borderMuted,
+      backgroundColor: tokens.hairline,
       alignSelf: 'center',
       marginTop: 12,
       marginBottom: 16,
@@ -206,59 +211,53 @@ function createModalStyles(colors: AppColors) {
     headerTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     replayAllButton: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      backgroundColor: colors.primary,
-      borderRadius: 16,
+      backgroundColor: tokens.primary,
+      borderRadius: 8,
       paddingVertical: 14,
-      marginBottom: 16,
+      marginBottom: 20,
     },
     replayAllText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.white,
+      color: tokens.fgOnPrimary,
     },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginBottom: 12,
+    sectionList: {
+      gap: 0,
     },
-    sectionCard: {
+    sectionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      backgroundColor: colors.surface,
-      marginBottom: 8,
+      gap: 14,
+      paddingVertical: 14,
     },
-    sectionCardPressed: {
-      opacity: 0.7,
+    sectionRowPressed: {
+      opacity: 0.6,
     },
-    sectionIcon: {
-      borderRadius: 12,
-      backgroundColor: colors.primary_10,
-      padding: 10,
-      marginRight: 12,
+    sectionDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: tokens.hairline,
     },
     sectionBody: {
       flex: 1,
+      gap: 2,
     },
     sectionTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textPrimary,
+      fontFamily: 'Geist',
+      fontSize: 15,
+      fontWeight: '500',
+      color: tokens.fg1,
     },
     sectionSteps: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginTop: 2,
+      fontFamily: 'Geist',
+      fontSize: 13,
+      color: tokens.fg3,
     },
   })
 }

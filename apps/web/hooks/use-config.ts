@@ -5,10 +5,6 @@ import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
 
-// ---------------------------------------------------------------------------
-// useConfig -- TanStack Query hook for the global app config
-// ---------------------------------------------------------------------------
-
 async function fetchConfig(): Promise<AppConfig> {
   const res = await fetch(API.config.get)
   if (!res.ok) {

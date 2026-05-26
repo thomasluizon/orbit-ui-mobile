@@ -152,11 +152,22 @@ export function useChatComposer() {
   const langPickerRef = useRef<HTMLDivElement>(null)
   const prevIsRecording = useRef(false)
 
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState<string>(() => {
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return ''
+    return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
+  })
   const [sendError, setSendError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [showLangPicker, setShowLangPicker] = useState(false)
+  const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
+
+  if (speechError !== previousSpeechError) {
+    setPreviousSpeechError(speechError)
+    if (speechError) {
+      setSendError(speechError)
+    }
+  }
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
@@ -306,13 +317,6 @@ export function useChatComposer() {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
   }, [input])
 
-  useEffect(() => {
-    if (globalThis.localStorage === undefined) return
-    const storedDraft = globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)
-    if (storedDraft) {
-      setInput(storedDraft)
-    }
-  }, [])
 
   useEffect(() => {
     if (globalThis.localStorage === undefined) return
@@ -333,8 +337,6 @@ export function useChatComposer() {
 
   useEffect(() => {
     if (!speechError) return
-
-    setSendError(speechError)
     const timer = globalThis.setTimeout(() => {
       setSendError((current) => (current === speechError ? null : current))
     }, 4000)
@@ -478,7 +480,6 @@ export function useChatComposer() {
     },
     [
       addMessage,
-      hasProAccess,
       imagePreview,
       input,
       handleFailedSend,

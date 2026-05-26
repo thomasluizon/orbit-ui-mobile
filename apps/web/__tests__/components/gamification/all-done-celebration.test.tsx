@@ -54,26 +54,13 @@ describe('AllDoneCelebration', () => {
     expect(document.body.textContent).toContain('habits.allDoneCelebrationSubtitle')
   })
 
-  it('renders starburst rays', () => {
+  it('renders Saturn-ring concentric rings via RingMotif', () => {
     mockAllDoneCelebration = true
     render(<AllDoneCelebration />)
-    const rays = document.querySelectorAll('.all-done-starburst-ray')
-    expect(rays.length).toBe(12)
-  })
-
-  it('renders confetti particles', () => {
-    mockAllDoneCelebration = true
-    render(<AllDoneCelebration />)
-    const confetti = document.querySelectorAll('.all-done-confetti')
-    expect(confetti.length).toBe(24)
-  })
-
-  it('renders orbit ring shockwaves', () => {
-    mockAllDoneCelebration = true
-    render(<AllDoneCelebration />)
-    expect(document.querySelector('.all-done-ring-1')).toBeInTheDocument()
-    expect(document.querySelector('.all-done-ring-2')).toBeInTheDocument()
-    expect(document.querySelector('.all-done-ring-3')).toBeInTheDocument()
+    // v8 RingMotif draws 3 concentric hairline rings as aria-hidden spans.
+    const aria = document.querySelector('[aria-hidden="true"]')
+    expect(aria).toBeInTheDocument()
+    expect(aria?.querySelectorAll('span').length).toBe(3)
   })
 
   it('dismisses on click', () => {

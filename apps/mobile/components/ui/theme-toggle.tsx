@@ -1,58 +1,33 @@
-import { useState, useCallback } from 'react'
-import { TouchableOpacity, Animated, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 import { Sun, Moon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+/** v8 icon button: 36x36, transparent, fg-2 icon. */
 export function ThemeToggle() {
   const { t } = useTranslation()
-  const { currentTheme, toggleTheme, colors } = useAppTheme()
-  const [rotateAnim] = useState(() => new Animated.Value(0))
-
-  const handleToggle = useCallback(() => {
-    Animated.timing(rotateAnim, {
-      toValue: 1,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      rotateAnim.setValue(0)
-    })
-
-    toggleTheme()
-  }, [rotateAnim, toggleTheme])
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '90deg'],
-  })
-
+  const { currentTheme, toggleTheme, currentScheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const isDark = currentTheme === 'dark'
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.button,
-        {
-          backgroundColor: colors.surfaceElevated,
-          borderColor: colors.borderMuted,
-        },
-      ]}
-      activeOpacity={0.7}
-      onPress={handleToggle}
+    <Pressable
+      accessibilityRole="button"
       accessibilityLabel={
         isDark
           ? t('settings.theme.switchToLight')
           : t('settings.theme.switchToDark')
       }
+      onPress={toggleTheme}
+      style={styles.button}
     >
-      <Animated.View style={{ transform: [{ rotate: spin }] }}>
-        {isDark ? (
-          <Sun size={16} color={colors.textSecondary} />
-        ) : (
-          <Moon size={16} color={colors.textSecondary} />
-        )}
-      </Animated.View>
-    </TouchableOpacity>
+      {isDark ? (
+        <Sun size={17} color={tokens.fg2} strokeWidth={1.5} />
+      ) : (
+        <Moon size={17} color={tokens.fg2} strokeWidth={1.5} />
+      )}
+    </Pressable>
   )
 }
 
@@ -60,11 +35,8 @@ const styles = StyleSheet.create({
   button: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
 })
-

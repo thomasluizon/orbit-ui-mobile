@@ -24,10 +24,6 @@ export const calendarDayEntrySchema = z.object({
 
 export type CalendarDayEntry = z.infer<typeof calendarDayEntrySchema>
 
-// ---------------------------------------------------------------------------
-// Google Calendar auto-sync
-// ---------------------------------------------------------------------------
-
 export const calendarSyncEventSchema = z.object({
   id: z.string(),
   title: z.string(),

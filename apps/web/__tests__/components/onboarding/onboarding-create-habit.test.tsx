@@ -41,8 +41,9 @@ describe('OnboardingCreateHabit', () => {
     expect(input).toHaveValue('onboarding.flow.createHabit.suggestions.water')
   })
 
-  it('renders frequency buttons', () => {
+  it('reveals frequency buttons after the form toggle', () => {
     render(<OnboardingCreateHabit onCreated={onCreated} />)
+    fireEvent.click(screen.getByText('onboarding.flow.createHabit.useForm'))
     expect(screen.getByText('onboarding.flow.createHabit.frequency.daily')).toBeInTheDocument()
     expect(screen.getByText('onboarding.flow.createHabit.frequency.weekly')).toBeInTheDocument()
     expect(screen.getByText('onboarding.flow.createHabit.frequency.oneTime')).toBeInTheDocument()

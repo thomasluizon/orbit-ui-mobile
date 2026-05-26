@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
-import { View, Text, TouchableOpacity } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ClipboardList, CheckCircle2 } from 'lucide-react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { SectionLabel } from '@/components/ui/section-label'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface HabitListDateGroup {
   key: string
@@ -16,19 +19,6 @@ interface HabitListEmptyStateProps {
   actionLabel?: string
   onAction?: () => void
   variant?: 'primary' | 'secondary'
-  styles: {
-    sectionInset: object
-    emptyState: object
-    emptyIconContainer: object
-    emptySubtitle: object
-    createButton: object
-    createButtonText: object
-  }
-  colors: {
-    textMuted: string
-    primary: string
-    textSecondary: string
-  }
 }
 
 export function HabitListEmptyState({
@@ -36,57 +26,50 @@ export function HabitListEmptyState({
   description,
   actionLabel,
   onAction,
-  variant = 'primary',
-  styles,
-  colors,
+  variant: _variant = 'primary',
 }: HabitListEmptyStateProps) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const allDoneToday = title === 'habits.allDoneToday'
 
   return (
-    <View style={styles.sectionInset}>
-      <View style={styles.emptyState}>
-        <View style={styles.emptyIconContainer}>
-          {allDoneToday ? (
-            <CheckCircle2 size={40} color={colors.textMuted} />
-          ) : (
-            <ClipboardList size={40} color={colors.textMuted} />
-          )}
-        </View>
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIconWrap}>
         {allDoneToday ? (
-          <Text
-            style={{
-              color: colors.primary,
-              fontSize: 18,
-              fontWeight: '700',
-              marginBottom: 4,
-            }}
-          >
-            {title}
-          </Text>
-        ) : null}
-        <Text style={styles.emptySubtitle}>{description}</Text>
-        {actionLabel ? (
-          <TouchableOpacity
-            style={[
-              styles.createButton,
-              variant === 'secondary'
-                ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary }
-                : null,
-            ]}
-            onPress={onAction}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={[
-                styles.createButtonText,
-                variant === 'secondary' ? { color: colors.primary } : null,
-              ]}
-            >
-              {actionLabel}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+          <CheckCircle2 size={28} color={tokens.fg3} strokeWidth={1.4} />
+        ) : (
+          <ClipboardList size={28} color={tokens.fg3} strokeWidth={1.4} />
+        )}
       </View>
+      {allDoneToday ? (
+        <Text style={[styles.emptyTitle, { color: tokens.fg1 }]}>{title}</Text>
+      ) : null}
+      <Text style={[styles.emptyDescription, { color: tokens.fg3 }]}>
+        {description}
+      </Text>
+      {actionLabel ? (
+        <Pressable
+          onPress={onAction}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          style={({ pressed }) => [
+            styles.actionLink,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Text
+            style={[
+              styles.actionLinkText,
+              {
+                color: tokens.fg1,
+                textDecorationColor: tokens.hairlineStrong,
+              },
+            ]}
+          >
+            {actionLabel}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   )
 }
@@ -95,52 +78,61 @@ interface HabitListDateGroupSectionProps {
   group: HabitListDateGroup
   overdueLabel: string
   renderHabit: (habit: NormalizedHabit, index: number) => ReactNode
-  styles: {
-    sectionInset: object
-    groupSection: object
-    groupHeader: object
-    groupLabel: object
-    groupLabelOverdue: object
-    groupDivider: object
-    groupDividerOverdue: object
-    groupItems: object
-    groupItem: object
-  }
 }
 
 export function HabitListDateGroupSection({
   group,
   overdueLabel,
   renderHabit,
-  styles,
 }: HabitListDateGroupSectionProps) {
   return (
-    <View style={styles.sectionInset}>
-      <View style={styles.groupSection}>
-        <View style={styles.groupHeader}>
-          <Text
-            style={[
-              styles.groupLabel,
-              group.isOverdue ? styles.groupLabelOverdue : null,
-            ]}
-          >
-            {group.isOverdue ? overdueLabel : group.label}
-          </Text>
-          <View
-            style={[
-              styles.groupDivider,
-              group.isOverdue ? styles.groupDividerOverdue : null,
-            ]}
-          />
-        </View>
-        <View style={styles.groupItems}>
-          {group.habits.map((habit, index) => (
-            <View key={habit.id} style={styles.groupItem}>
-              {renderHabit(habit, index)}
-            </View>
-          ))}
-        </View>
-      </View>
+    <View>
+      <SectionLabel top={20} bottom={8}>
+        {group.isOverdue ? overdueLabel : group.label}
+      </SectionLabel>
+      {group.habits.map((habit, index) => (
+        <View key={habit.id}>{renderHabit(habit, index)}</View>
+      ))}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 56,
+    gap: 12,
+  },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontFamily: 'Geist',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyDescription: {
+    fontFamily: 'Geist',
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  actionLink: {
+    marginTop: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  actionLinkText: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+})

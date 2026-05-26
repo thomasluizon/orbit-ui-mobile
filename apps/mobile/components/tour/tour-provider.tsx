@@ -2,23 +2,17 @@ import { useEffect, useRef, useCallback } from 'react'
 import { Dimensions, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
-import { useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '@orbit/shared/query'
 import {
   createTourUIState,
   getPersistedUIState,
   type PersistedUIState,
 } from '@orbit/shared/stores'
-import type { Profile } from '@orbit/shared/types'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
 import { useProfile } from '@/hooks/use-profile'
 import { tourTargetRegistry, tourScrollRegistry } from './tour-target-context'
-import { API } from '@orbit/shared/api'
-import { apiClient } from '@/lib/api-client'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 400
@@ -34,7 +28,6 @@ const HABITS_TOUR_SCROLL_Y = 220
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const queryClient = useQueryClient()
   const insets = useSafeAreaInsets()
   const { inject, restore } = useTourMockData()
   const { profile } = useProfile()
@@ -46,7 +39,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     getCurrentStep,
     setTargetRect,
     setNavigating,
-    endTour,
     nextStep,
     setHiddenSections,
   } = store
@@ -135,40 +127,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       restoreTourSession()
     }
   }, [isActive, inject, resetSessionState, restoreTourSession])
-
-  // Handle tour end
-  const handleEndTour = useCallback(async () => {
-    endTour()
-
-    try {
-      await apiClient(API.profile.tour, { method: 'PUT' })
-    } catch {
-      // Silently fail
-    }
-
-    queryClient.setQueryData(
-      profileKeys.detail(),
-      (old: Profile | undefined) => {
-        if (!old) return old
-        return { ...old, hasCompletedTour: true }
-      },
-    )
-
-    try {
-      await AsyncStorage.setItem(
-        'orbit_tour_sections',
-        JSON.stringify({
-          habits: true,
-          goals: true,
-          chat: true,
-          calendar: true,
-          profile: true,
-        }),
-      )
-    } catch {
-      // Storage unavailable
-    }
-  }, [endTour, queryClient])
 
   const executePreAction = useCallback(
     (preAction: string) => {

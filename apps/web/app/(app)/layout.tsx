@@ -1,15 +1,18 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CalendarDays } from 'lucide-react'
 import { Providers } from '@/lib/providers'
-import { BottomNav } from '@/components/navigation/bottom-nav'
+import { WebNav } from '@/components/navigation/web-nav'
+import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
@@ -46,27 +49,34 @@ export default function AppLayout({
   )
 }
 
+function pathnameToTab(pathname: string): BottomTab {
+  if (pathname === '/' || pathname === '/today') return 'today'
+  if (pathname.startsWith('/chat')) return 'chat'
+  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar'
+  return 'profile'
+}
+
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
-  const t = useTranslations()
   const router = useRouter()
+  const pathname = usePathname()
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
   const hasProAccess = profile?.hasProAccess ?? false
   const totalHabitCount = useTotalHabitCount()
 
-  // Start session expiry monitor
   useEffect(() => {
     const cleanup = useAuthStore.getState().startExpiryMonitor()
     return cleanup
   }, [])
   const activeView = useUIStore((s) => s.activeView)
+  const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
+  const selectedDate = useUIStore((s) => s.selectedDate)
 
-  // Streak freeze ref
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
-  // Google Calendar import prompt state
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
 
   // Auto-trigger feature tour for users who completed onboarding but haven't seen the tour
@@ -84,20 +94,21 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
   }, [profile])
 
-  useEffect(() => {
-    if (
-      profile &&
-      profile.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
-      !profile.hasImportedCalendar
-    ) {
-      setShowCalendarPrompt(true)
-    }
-  }, [profile])
+  // Show the calendar import prompt once the profile meets the criteria.
+  // "Adjusting state when a prop changes" pattern: detect the criteria
+  // transitioning from false -> true during render.
+  const calendarPromptCriteriaMet = !!(
+    profile &&
+    profile.hasCompletedOnboarding &&
+    profile.hasCompletedTour &&
+    !profile.hasImportedCalendar
+  )
+  const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
+  if (calendarPromptCriteriaMet !== previousCriteriaMet) {
+    setPreviousCriteriaMet(calendarPromptCriteriaMet)
+    if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
+  }
 
-  // ---------------------------------------------------------------------------
-  // handleCreate -- mirrors Nuxt default.vue logic
-  // ---------------------------------------------------------------------------
   const handleCreate = useCallback(() => {
     if (activeView === 'goals') {
       if (!hasProAccess) {
@@ -116,9 +127,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     setShowCreateModal(true)
   }, [activeView, hasProAccess, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
 
-  // ---------------------------------------------------------------------------
-  // Calendar import prompt handlers
-  // ---------------------------------------------------------------------------
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport().catch(() => {})
@@ -145,7 +153,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     })
   }, [profile?.hasGoogleConnection, router])
 
-  // Track when calendar prompt is closed via overlay X button
   const handleCalendarPromptOpenChange = useCallback(
     (open: boolean) => {
       if (!open && showCalendarPrompt) {
@@ -156,17 +163,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-hidden bg-background text-text-primary pb-28 pt-[var(--safe-top)] ambient-glow">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[99999] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded"
-      >
-        {t('nav.skipToContent')}
-      </a>
-
-      {/* Main content - full width mobile, max-w on desktop */}
+    <div className="relative isolate min-h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] ambient-glow">
       <main
-        id="main-content"
         className="relative z-10 mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
       >
         <TrialBanner />
@@ -175,8 +173,28 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         </RouteTransitionShell>
       </main>
 
-      {/* Bottom navigation */}
-      <BottomNav onCreate={handleCreate} />
+      {/* Bottom-fixed nav. Bar bg + hairline extend full-width so the bar reads as a system bezel,
+          while the tabs/FAB stay phone-width centered via the inner max-w wrapper. */}
+      <div
+        data-bottom-nav=""
+        className="fixed bottom-0 left-0 right-0 z-40"
+        style={{
+          paddingBottom: 'var(--safe-bottom)',
+          background: 'var(--bg)',
+          borderTop: '1px solid var(--hairline)',
+        }}
+      >
+        <div className="max-w-[var(--app-max-w)] mx-auto">
+          <WebNav
+            active={pathnameToTab(pathname ?? '/')}
+            onTab={(id) => {
+              if (id === 'today') router.push('/')
+              else router.push(`/${id}`)
+            }}
+            onFab={handleCreate}
+          />
+        </div>
+      </div>
 
       <GlobalOverlays
         profile={profile}
@@ -187,6 +205,20 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         onCalendarImport={handleCalendarImport}
         onDismissCalendarPrompt={handleDismissCalendarPrompt}
       />
+
+      {showCreateModal && (
+        <CreateHabitModal
+          open={showCreateModal}
+          onOpenChange={setShowCreateModal}
+          initialDate={activeView === 'today' && pathname === '/' ? selectedDate : null}
+        />
+      )}
+      {showCreateGoalModal && (
+        <CreateGoalModal
+          open={showCreateGoalModal}
+          onOpenChange={setShowCreateGoalModal}
+        />
+      )}
 
       <ApiFetchI18nProvider />
       <TourProvider />
@@ -241,21 +273,21 @@ function GlobalOverlays({
         title={t('onboarding.wizard.calendarTitle')}
       >
         <div className="flex flex-col items-center text-center gap-5 py-2">
-          <div className="size-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <CalendarDays className="size-8 text-primary" />
+          <div className="size-16 rounded-full bg-[var(--bg-sunk)] flex items-center justify-center">
+            <CalendarDays className="size-8 text-[var(--primary)]" />
           </div>
-          <p className="text-sm text-text-secondary leading-relaxed">
+          <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.calendarDescription')}
           </p>
           <div className="flex flex-col gap-3 w-full">
             <button
-              className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center shadow-[var(--shadow-glow)] transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-primary/90 active:scale-[0.98]"
+              className="w-full py-3.5 rounded-[12px] bg-[var(--primary)] text-white font-bold text-sm text-center transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-[var(--primary-pressed)] active:scale-[0.98]"
               onClick={onCalendarImport}
             >
               {t('onboarding.wizard.calendarButton')}
             </button>
             <button
-              className="w-full py-3 text-text-secondary text-sm font-medium hover:text-text-primary transition-colors"
+              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
               onClick={onDismissCalendarPrompt}
             >
               {t('common.later')}

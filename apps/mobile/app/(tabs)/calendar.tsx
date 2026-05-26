@@ -1,11 +1,10 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import {
-  Animated,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Switch,
@@ -35,21 +34,18 @@ import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
-import { createColors, spacing } from "@/lib/theme";
-import { usePrefersReducedMotion } from "@/lib/motion";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
+import { SectionLabel } from "@/components/ui/section-label";
+import { SettingsRow } from "@/components/ui/settings-row";
+import type { StatusDotState } from "@/components/ui/status-dot";
 import {
   CalendarHeader,
   CalendarLegend,
-  CalendarLoadingSkeleton,
 } from "./calendar/_components/calendar-shell";
 import { CalendarDayEntryRow } from "./calendar/_components/calendar-day-entry";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface GridDay {
   date: Date;
@@ -63,116 +59,24 @@ interface GridDay {
   completionRatio: number;
 }
 
-type DayStatus = "empty" | "done" | "missed" | "upcoming";
-type AppColors = ReturnType<typeof createColors>;
-
-// ---------------------------------------------------------------------------
-// Helpers (matching web CalendarGrid logic exactly)
-// ---------------------------------------------------------------------------
+type Tokens = ReturnType<typeof createTokensV2>;
+type DayStatus = "none" | "full" | "partial" | "upcoming";
 
 function dayStatus(cell: GridDay): DayStatus {
-  if (!cell.isCurrentMonth || cell.totalCount === 0) return "empty";
-  if (cell.completedCount === cell.totalCount) return "done";
+  if (!cell.isCurrentMonth || cell.totalCount === 0) return "none";
+  if (cell.completedCount === cell.totalCount) return "full";
   const hasMissed = cell.entries.some(
     (entry: CalendarDayEntry) => entry.status === "missed",
   );
-  if (hasMissed) return "missed";
+  if (hasMissed) return "partial";
   return "upcoming";
 }
 
-function getDayBgColor(cell: GridDay, colors: AppColors): string {
-  const status = dayStatus(cell);
-  switch (status) {
-    case "done":
-      return cell.completionRatio >= 0.9
-        ? colors.green500bg
-        : colors.green500_60;
-    case "missed":
-      return colors.orange500_30;
-    case "upcoming":
-      return colors.primary_20;
-    default:
-      return cell.isCurrentMonth ? colors.surfaceGround : "transparent";
-  }
-}
-
-function getDayTextColor(cell: GridDay, colors: AppColors): string {
-  if (!cell.isCurrentMonth) return colors.textFaded40;
-  const status = dayStatus(cell);
-  switch (status) {
-    case "done":
-      return "#ffffff";
-    case "missed":
-      return colors.orange300;
-    case "upcoming":
-      return colors.textPrimary;
-    default:
-      return colors.textFaded;
-  }
-}
-
-function getDayFontWeight(cell: GridDay): "400" | "500" | "700" {
-  if (!cell.isCurrentMonth) return "400";
-  const status = dayStatus(cell);
-  switch (status) {
-    case "done":
-      return "700";
-    case "missed":
-    case "upcoming":
-      return "500";
-    default:
-      return "400";
-  }
-}
-
-function getDotColor(cell: GridDay, colors: AppColors): string | null {
-  const status = dayStatus(cell);
-  switch (status) {
-    case "done":
-      return colors.green400;
-    case "missed":
-      return colors.orange400;
-    case "upcoming":
-      return colors.primary400;
-    default:
-      return null;
-  }
-}
-
-function statusBadgeColors(
-  entry: CalendarDayEntry,
-  colors: AppColors,
-): { text: string; bg: string } {
-  if (entry.isBadHabit) {
-    if (entry.status === "completed")
-      return { text: colors.red400, bg: colors.red400_10 };
-    if (entry.status === "missed")
-      return { text: colors.emerald400, bg: colors.emerald400_10 };
-    return { text: colors.primary, bg: colors.primary_10 };
-  }
-  if (entry.status === "completed")
-    return { text: colors.emerald400, bg: colors.emerald400_10 };
-  if (entry.status === "missed")
-    return { text: colors.orange400, bg: colors.orange400_10 };
-  return { text: colors.primary, bg: colors.primary_10 };
-}
-
-function statusIconBgColor(
-  entry: CalendarDayEntry,
-  colors: AppColors,
-): {
-  bg: string;
-  border: string;
-  showCheck: boolean;
-} {
-  if (entry.status === "completed") {
-    return {
-      bg: colors.emerald500_20,
-      border: colors.emerald500_30,
-      showCheck: true,
-    };
-  }
-  return { bg: "transparent", border: colors.borderFaded30, showCheck: false };
+function entryDotState(entry: CalendarDayEntry): StatusDotState {
+  if (entry.status === "completed") return "done";
+  if (entry.status === "missed") return "overdue";
+  if (entry.isBadHabit) return "bad";
+  return "empty";
 }
 
 function statusLabel(
@@ -180,108 +84,27 @@ function statusLabel(
   t: (key: string) => string,
 ): string {
   if (entry.isBadHabit) {
-    if (entry.status === "completed")
-      return t("calendar.status.indulged").toUpperCase();
-    if (entry.status === "missed")
-      return t("calendar.status.resisted").toUpperCase();
+    if (entry.status === "completed") return t("calendar.status.indulged").toUpperCase();
+    if (entry.status === "missed") return t("calendar.status.resisted").toUpperCase();
     return t("calendar.status.scheduled").toUpperCase();
   }
-  if (entry.status === "completed")
-    return t("calendar.status.completed").toUpperCase();
-  if (entry.status === "missed")
-    return t("calendar.status.missed").toUpperCase();
+  if (entry.status === "completed") return t("calendar.status.completed").toUpperCase();
+  if (entry.status === "missed") return t("calendar.status.missed").toUpperCase();
   return t("calendar.status.upcoming").toUpperCase();
 }
-
-function PerfectDayDot({ color }: { color: string }) {
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const opacity = useRef(new Animated.Value(0.72)).current;
-  const scale = useRef(new Animated.Value(0.9)).current;
-
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      opacity.setValue(1);
-      scale.setValue(1);
-      return undefined;
-    }
-
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(opacity, {
-            toValue: 0.72,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 0.9,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [opacity, prefersReducedMotion, scale]);
-
-  if (prefersReducedMotion) {
-    return (
-      <View
-        style={{
-          width: 4,
-          height: 4,
-          borderRadius: 2,
-          marginTop: 4,
-          backgroundColor: color,
-        }}
-      />
-    );
-  }
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: 4,
-          height: 4,
-          borderRadius: 2,
-          marginTop: 4,
-        },
-        {
-          backgroundColor: color,
-          opacity,
-          transform: [{ scale }],
-        },
-      ]}
-    />
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Calendar Screen
-// ---------------------------------------------------------------------------
 
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { profile } = useProfile();
   const { displayTime } = useTimeFormat();
-  const { colors } = useAppTheme();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
   const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1;
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
   const calendarScrollRef = useRef<ScrollView>(null);
@@ -302,7 +125,7 @@ export default function CalendarScreen() {
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
 
-  const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth);
+  const { dayMap, isLoading } = useCalendarData(currentMonth);
 
   const monthLabel = useMemo(
     () =>
@@ -325,16 +148,12 @@ export default function CalendarScreen() {
     onSwipeRight: prevMonth,
   });
 
-  const goToToday = useCallback(() => {
-    setCurrentMonth(startOfMonth(new Date()));
-  }, []);
-
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
     setShowDayDetail(true);
   }, []);
 
-  // Build weekday headers (matching web CalendarGrid: localized, respecting weekStartDay)
+  // Weekday headers — short localized labels via shared i18n.
   const weekdayHeaders = useMemo(() => {
     const mondayFirst = [
       { key: "monday", label: t("dates.daysShort.monday") },
@@ -349,9 +168,8 @@ export default function CalendarScreen() {
       return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)];
     }
     return mondayFirst;
-  }, [weekStartsOn, t]);
+  }, [t, weekStartsOn]);
 
-  // Build grid days (matching web CalendarGrid exactly)
   const gridDays = useMemo<GridDay[]>(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -385,15 +203,6 @@ export default function CalendarScreen() {
     return days;
   }, [currentMonth, dayMap, weekStartsOn]);
 
-  // Chunk grid days into weeks (rows of 7)
-  const calendarWeeks = useMemo(() => {
-    const weeks: GridDay[][] = [];
-    for (let i = 0; i < gridDays.length; i += 7) {
-      weeks.push(gridDays.slice(i, i + 7));
-    }
-    return weeks;
-  }, [gridDays]);
-
   // Selected day entries
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return [];
@@ -417,118 +226,143 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  // Stats: this month's best streak / total logs / missed (lightweight summary).
+  // The previous implementation computed only "current month" granularity; we
+  // keep that scope and surface the counts via SettingsRow below the legend.
+  const monthStats = useMemo(() => {
+    const monthDays = gridDays.filter((d) => d.isCurrentMonth);
+    const totalLogs = monthDays.reduce(
+      (acc, d) => acc + d.completedCount,
+      0,
+    );
+    const missed = monthDays.reduce(
+      (acc, d) =>
+        acc +
+        d.entries.filter((e: CalendarDayEntry) => e.status === "missed").length,
+      0,
+    );
+    let bestStreak = 0;
+    let currentStreak = 0;
+    for (const d of monthDays) {
+      if (d.totalCount > 0 && d.completedCount === d.totalCount) {
+        currentStreak += 1;
+        if (currentStreak > bestStreak) bestStreak = currentStreak;
+      } else {
+        currentStreak = 0;
+      }
+    }
+    return { totalLogs, missed, bestStreak };
+  }, [gridDays]);
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <CalendarHeader
+        title={t("nav.calendar")}
+        monthLabel={monthLabel}
+        previousMonthLabel={t("common.previousMonth")}
+        nextMonthLabel={t("common.nextMonth")}
+        onPreviousMonth={prevMonth}
+        onNextMonth={nextMonth}
+        tokens={tokens}
+      />
       <ScrollView
         ref={calendarScrollRef}
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         onScroll={onCalendarTourScroll}
         scrollEventThrottle={16}
       >
-        <CalendarHeader
-          title={t("nav.calendar")}
-          monthLabel={monthLabel}
-          goToTodayLabel={t("dates.goToToday")}
-          previousMonthLabel={t("common.previousMonth")}
-          nextMonthLabel={t("common.nextMonth")}
-          onGoToToday={goToToday}
-          onPreviousMonth={prevMonth}
-          onNextMonth={nextMonth}
-          colors={colors}
-        />
-
-        {isLoading && <CalendarLoadingSkeleton colors={colors} />}
-
         <View
-          style={[
-            styles.fetchingBar,
-            isFetching && !isLoading
-              ? styles.fetchingBarVisible
-              : styles.fetchingBarHidden,
-          ]}
-        />
-
-        {!isLoading && (
-          <View
-            ref={calendarGridRef}
-            style={[
-              styles.calendarCard,
-              isFetching && !isLoading ? styles.calendarCardFetching : null,
-            ]}
-            {...swipePanResponder.panHandlers}
-          >
-            <View style={styles.weekDayRow}>
-              {weekdayHeaders.map((d) => (
-                <View key={d.key} style={styles.weekDayCell}>
-                  <Text style={styles.weekDayText}>{d.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            {calendarWeeks.map((week, wi) => (
-              <View key={wi} style={styles.weekRow}>
-                {week.map((cell) => {
-                  const bgColor = getDayBgColor(cell, colors);
-                  const textColor = getDayTextColor(cell, colors);
-                  const fontWeight = getDayFontWeight(cell);
-                  const dotColor = getDotColor(cell, colors);
-                  const canSelect = cell.isCurrentMonth;
-
-                  return (
-                    <TouchableOpacity
-                      key={cell.dateStr}
-                      ref={cell.isToday ? calendarDayRef : undefined}
-                      style={[
-                        styles.dayCell,
-                        { backgroundColor: bgColor },
-                        cell.isToday && styles.dayCellToday,
-                      ]}
-                      onPress={() => canSelect && onSelectDay(cell.dateStr)}
-                      activeOpacity={canSelect ? 0.6 : 1}
-                      disabled={!canSelect}
-                      hitSlop={
-                        canSelect
-                          ? { top: 4, bottom: 4, left: 4, right: 4 }
-                          : undefined
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.dayText,
-                          { color: textColor, fontWeight },
-                        ]}
-                      >
-                        {cell.day}
-                      </Text>
-                      {cell.isCurrentMonth &&
-                        cell.totalCount > 0 &&
-                        dotColor &&
-                        (dayStatus(cell) === "done" ? (
-                          <PerfectDayDot color={dotColor} />
-                        ) : (
-                          <View
-                            style={[
-                              styles.dayDot,
-                              { backgroundColor: dotColor },
-                            ]}
-                          />
-                        ))}
-                    </TouchableOpacity>
-                  );
-                })}
+          ref={calendarGridRef}
+          collapsable={false}
+          style={styles.calendarGrid}
+          {...swipePanResponder.panHandlers}
+        >
+          <View style={styles.weekDayRow}>
+            {weekdayHeaders.map((d) => (
+              <View key={d.key} style={styles.weekDayCell}>
+                <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
+                  {d.label}
+                </Text>
               </View>
             ))}
           </View>
-        )}
+
+          <View style={styles.daysGrid}>
+            {gridDays.map((cell) => {
+              const status = dayStatus(cell);
+              const canSelect = cell.isCurrentMonth;
+
+              return (
+                <Pressable
+                  key={cell.dateStr}
+                  ref={cell.isToday ? calendarDayRef : undefined}
+                  onPress={() => canSelect && onSelectDay(cell.dateStr)}
+                  disabled={!canSelect}
+                  hitSlop={4}
+                  style={({ pressed }) => [
+                    styles.dayCell,
+                    pressed && canSelect && {
+                      backgroundColor: tokens.bgElev,
+                      borderRadius: 6,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayText,
+                      {
+                        color:
+                          status === "none" && !cell.isToday
+                            ? tokens.fg3
+                            : cell.isCurrentMonth
+                              ? tokens.fg1
+                              : tokens.fg4,
+                        fontWeight: cell.isToday ? "600" : "400",
+                      },
+                    ]}
+                  >
+                    {cell.day}
+                  </Text>
+                  {isLoading ? (
+                    <View style={styles.dayDotSkeleton} />
+                  ) : (
+                    <DayDot status={status} isToday={cell.isToday} tokens={tokens} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         <CalendarLegend
-          doneLabel={t("calendar.legend.done")}
-          upcomingLabel={t("calendar.legend.upcoming")}
-          missedLabel={t("calendar.legend.missed")}
-          colors={colors}
+          fullLabel={t("calendar.legend.done")}
+          partialLabel={t("calendar.legend.upcoming")}
+          noneLabel={t("calendar.legend.missed")}
+          tokens={tokens}
         />
+
+        <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
+        <SettingsRow
+          label={t("calendar.bestStreak")}
+          value={String(monthStats.bestStreak)}
+          accessory="none"
+          mono
+        />
+        <SettingsRow
+          label={t("calendar.totalLogs")}
+          value={String(monthStats.totalLogs)}
+          accessory="none"
+          mono
+        />
+        <SettingsRow
+          label={t("calendar.missedCount")}
+          value={String(monthStats.missed)}
+          accessory="none"
+          mono
+        />
+
+        <View style={{ height: 24 }} />
       </ScrollView>
 
       <BottomSheetModal
@@ -539,20 +373,18 @@ export default function CalendarScreen() {
       >
         {selectedEntries.length === 0 ? (
           <View style={styles.emptyDay}>
-            <Text style={styles.emptyDayText}>
+            <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
               {t("calendar.noHabitsScheduled")}
             </Text>
           </View>
         ) : (
           <BottomSheetScrollView
             style={styles.dayDetailScroll}
-            contentContainerStyle={withDrawerContentInset(
-              styles.dayDetailContent,
-            )}
+            contentContainerStyle={withDrawerContentInset(styles.dayDetailContent)}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryText}>
+              <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
                 {plural(
                   t("calendar.dayDetail.completionSummary", {
                     done: completedCount,
@@ -566,12 +398,12 @@ export default function CalendarScreen() {
                   value={showRecurring}
                   onValueChange={setShowRecurring}
                   trackColor={{
-                    false: colors.surfaceElevated,
-                    true: colors.primary,
+                    false: tokens.bgSunk,
+                    true: tokens.primary,
                   }}
-                  thumbColor={colors.white}
+                  thumbColor={tokens.fgOnPrimary}
                 />
-                <Text style={styles.recurringToggleText}>
+                <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
                   {t("calendar.showRecurring")}
                 </Text>
               </View>
@@ -579,43 +411,43 @@ export default function CalendarScreen() {
 
             {filteredEntries.length === 0 ? (
               <View style={styles.emptyDay}>
-                <Text style={styles.emptyDayText}>
+                <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
                   {t("calendar.noHabitsScheduled")}
                 </Text>
               </View>
             ) : null}
 
-            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
-              const badge = statusBadgeColors(entry, colors);
-              const icon = statusIconBgColor(entry, colors);
+            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => (
+              <CalendarDayEntryRow
+                key={`${entry.habitId}-${idx}`}
+                entry={entry}
+                tokens={tokens}
+                dotState={entryDotState(entry)}
+                statusText={statusLabel(entry, t)}
+                displayTime={displayTime}
+                isLast={idx === filteredEntries.length - 1}
+              />
+            ))}
 
-              return (
-                <CalendarDayEntryRow
-                  key={`${entry.habitId}-${idx}`}
-                  entry={entry}
-                  colors={colors}
-                  badge={badge}
-                  icon={icon}
-                  statusText={statusLabel(entry, t)}
-                  displayTime={displayTime}
-                  isLast={idx === filteredEntries.length - 1}
-                />
-              );
-            })}
-
-            <TouchableOpacity
-              style={styles.goToDayButton}
+            <Pressable
               onPress={() => {
                 if (!selectedDay) return;
                 setShowDayDetail(false);
                 router.push(`/?date=${selectedDay}`);
               }}
-              activeOpacity={0.8}
+              style={({ pressed }) => [
+                styles.goToDayButton,
+                {
+                  backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("calendar.goToDay")}
             >
-              <Text style={styles.goToDayButtonText}>
+              <Text style={[styles.goToDayButtonText, { color: tokens.fgOnPrimary }]}>
                 {t("calendar.goToDay")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </BottomSheetScrollView>
         )}
       </BottomSheetModal>
@@ -623,238 +455,149 @@ export default function CalendarScreen() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
+function DayDot({
+  status,
+  isToday,
+  tokens,
+}: Readonly<{
+  status: DayStatus;
+  isToday: boolean;
+  tokens: Tokens;
+}>) {
+  if (isToday) {
+    return (
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 999,
+          backgroundColor: tokens.primary,
+        }}
+      />
+    );
+  }
+  if (status === "full") {
+    return (
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 999,
+          backgroundColor: tokens.fg1,
+        }}
+      />
+    );
+  }
+  if (status === "partial") {
+    return (
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 999,
+          backgroundColor: tokens.statusOverdue,
+        }}
+      />
+    );
+  }
+  if (status === "upcoming") {
+    return (
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: tokens.fg3,
+        }}
+      />
+    );
+  }
+  return <View style={{ width: 5, height: 5 }} />;
+}
 
-function createStyles(colors: AppColors) {
+function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    container: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: spacing.pageX,
-      paddingBottom: spacing.pageBottom,
+    safeArea: { flex: 1 },
+    container: { flex: 1 },
+
+    calendarGrid: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 8,
     },
 
-    // Header
-    header: {
-      paddingTop: spacing.sectionGap * 2,
-      paddingBottom: spacing.itemGap,
-      gap: spacing.sectionGap,
-    },
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: "700",
-      color: colors.textPrimary,
-      letterSpacing: -0.5,
-    },
-    searchButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    // Month navigation pill
-    monthNav: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: colors.surfaceGround,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 4,
-      // shadow-sm equivalent
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.18,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    monthNavButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surface,
-    },
-    monthLabel: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: colors.textPrimary,
-    },
-
-    // Loading
-    loadingContainer: {
-      paddingVertical: 16,
-    },
-    loadingGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    loadingCell: {
-      width: "13.28%",
-      aspectRatio: 1,
-      borderRadius: 16,
-      backgroundColor: colors.surfaceGround,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-    },
-    fetchingBar: {
-      height: 2,
-      borderRadius: 999,
-      backgroundColor: colors.primary,
-      marginTop: 8,
-      marginBottom: 8,
-    },
-    fetchingBarVisible: {
-      opacity: 1,
-    },
-    fetchingBarHidden: {
-      opacity: 0,
-      height: 0,
-      marginTop: 0,
-      marginBottom: 0,
-    },
-
-    // Calendar card
-    calendarCard: {
-      backgroundColor: colors.surfaceGround,
-      borderRadius: 24,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 10,
-      marginTop: spacing.itemGap,
-      // shadow-sm equivalent
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    calendarCardFetching: {
-      opacity: 0.4,
-    },
-
-    // Weekday headers
     weekDayRow: {
       flexDirection: "row",
-      marginBottom: 8,
+      marginBottom: 12,
     },
     weekDayCell: {
       flex: 1,
       alignItems: "center",
     },
     weekDayText: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.textFaded,
+      fontFamily: "GeistMono",
+      fontSize: 11,
+      fontWeight: "500",
+      letterSpacing: 0.44,
     },
 
-    // Day rows
-    weekRow: {
+    daysGrid: {
       flexDirection: "row",
-      gap: 4,
-      marginBottom: 4,
+      flexWrap: "wrap",
+      rowGap: 6,
     },
     dayCell: {
-      flex: 1,
+      width: "14.2857%",
+      height: 40,
       alignItems: "center",
       justifyContent: "center",
-      aspectRatio: 1,
-      minHeight: 44,
-      borderRadius: 16,
-      gap: 2,
-    },
-    dayCellToday: {
-      borderWidth: 2,
-      borderColor: colors.primary,
+      gap: 3,
     },
     dayText: {
-      fontSize: 14,
+      fontFamily: "GeistMono",
+      fontSize: 13,
+      fontVariant: ["tabular-nums"],
     },
-    dayDot: {
-      width: 4,
-      height: 4,
-      borderRadius: 2,
-    },
-
-    // Legend
-    legend: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 24,
-      paddingVertical: 14,
-      marginTop: 12,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceGround,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-    },
-    legendItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    legendDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
-    legendText: {
-      fontSize: 12,
-      color: colors.textSecondary,
+    dayDotSkeleton: {
+      width: 5,
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: tokens.hairline,
+      opacity: 0.5,
     },
 
-    // Day detail: empty
     emptyDay: {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 32,
-      paddingHorizontal: spacing.pageX,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceGround,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
+      paddingHorizontal: 20,
     },
     emptyDayText: {
+      fontFamily: "Geist",
       fontSize: 14,
-      color: colors.textMuted,
+      fontStyle: "italic",
+      textAlign: "center",
     },
-    dayDetailScroll: {
-      flex: 1,
-    },
+
+    dayDetailScroll: { flex: 1 },
     dayDetailContent: {
-      paddingHorizontal: spacing.pageX,
       paddingBottom: 32,
     },
 
-    // Day detail: summary
     summaryText: {
+      fontFamily: "Geist",
       fontSize: 14,
-      color: colors.textFaded,
       flex: 1,
     },
     summaryRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      marginBottom: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
     recurringToggleRow: {
       flexDirection: "row",
@@ -862,73 +605,21 @@ function createStyles(colors: AppColors) {
       gap: 8,
     },
     recurringToggleText: {
+      fontFamily: "Geist",
       fontSize: 12,
-      color: colors.textSecondary,
     },
 
-    // Day detail: entries
-    dayEntryRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: 12,
-      gap: 12,
-    },
-    statusCircle: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    dayEntryContent: {
-      flex: 1,
-      minWidth: 0,
-    },
-    dayEntryTitleRow: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      gap: 8,
-    },
-    dayEntryTitle: {
-      fontSize: 14,
-      fontWeight: "500",
-      color: colors.textPrimary,
-      flexShrink: 1,
-    },
-    dayEntryTitleCompleted: {
-      opacity: 0.6,
-    },
-    dayEntryTime: {
-      fontSize: 11,
-      fontWeight: "600",
-      color: colors.textSecondary,
-    },
-    statusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 8,
-    },
-    statusBadgeText: {
-      fontSize: 10,
-      fontWeight: "700",
-      letterSpacing: 0.5,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: colors.borderDivider,
-    },
     goToDayButton: {
+      marginHorizontal: 20,
       marginTop: 16,
-      borderRadius: 16,
-      backgroundColor: colors.primary,
-      paddingVertical: 14,
+      borderRadius: 8,
+      paddingVertical: 12,
       alignItems: "center",
     },
     goToDayButtonText: {
+      fontFamily: "Geist",
       fontSize: 14,
-      fontWeight: "700",
-      color: colors.white,
+      fontWeight: "500",
     },
   });
 }

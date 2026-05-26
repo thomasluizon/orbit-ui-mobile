@@ -1,7 +1,17 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const TestRenderer = require('react-test-renderer')
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+
+import {
+  useCurrentPlan,
+  useHasProAccess,
+  useIsYearlyPro,
+  useProfile,
+  useTrialDaysLeft,
+  useTrialExpired,
+  useTrialUrgent,
+} from '@/hooks/use-profile'
+const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -48,16 +58,6 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mocks.performQueuedApiMutation,
 }))
-
-import {
-  useCurrentPlan,
-  useHasProAccess,
-  useIsYearlyPro,
-  useProfile,
-  useTrialDaysLeft,
-  useTrialExpired,
-  useTrialUrgent,
-} from '@/hooks/use-profile'
 
 async function renderHookValue<T>(hook: () => T): Promise<T> {
   let latestValue: T | undefined

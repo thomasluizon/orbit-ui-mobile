@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
   Easing,
@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 type Variant = 'danger' | 'warning' | 'success'
 
@@ -40,42 +41,30 @@ export function ConfirmDialog({
   variant = 'danger',
 }: Readonly<ConfirmDialogProps>) {
   const { t } = useTranslation()
-  const theme = useAppTheme()
-  const { colors } = theme
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const dialogMotion = useResolvedMotionPreset('dialog')
-  const progress = useRef(new Animated.Value(0)).current
+  const progress = useMemo(() => new Animated.Value(0), [])
   const [visible, setVisible] = useState(open)
 
-  const config = useMemo(() => {
+  const accentColor = useMemo(() => {
     switch (variant) {
       case 'warning':
-        return {
-          icon: AlertCircle,
-          iconColor: colors.amber400,
-          iconBg: 'rgba(251, 191, 36, 0.10)',
-          btnColor: colors.amber500,
-        }
+        return tokens.statusOverdue
       case 'success':
-        return {
-          icon: CheckCircle2,
-          iconColor: colors.green400,
-          iconBg: colors.emerald400_10,
-          btnColor: colors.green500,
-        }
+        return tokens.statusDone
       default:
-        return {
-          icon: AlertTriangle,
-          iconColor: colors.red400,
-          iconBg: colors.red400_10,
-          btnColor: colors.red500,
-        }
+        return tokens.statusBad
     }
-  }, [colors, variant])
-  const Icon = config.icon
-  const styles = useMemo(() => createStyles(theme), [theme])
+  }, [tokens, variant])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
     if (open) {
+       
       setVisible(true)
       Animated.timing(progress, {
         toValue: 1,
@@ -151,13 +140,7 @@ export function ConfirmDialog({
           ]}
           onStartShouldSetResponder={() => true}
         >
-          <View style={styles.header}>
-            <View style={[styles.iconCircle, { backgroundColor: config.iconBg }]}>
-              <Icon size={20} color={config.iconColor} />
-            </View>
-            <Text style={styles.title}>{title}</Text>
-          </View>
-
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
 
           <View style={styles.actions}>
@@ -177,12 +160,12 @@ export function ConfirmDialog({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: config.btnColor }]}
+              style={[styles.confirmButton, { backgroundColor: accentColor }]}
               onPress={handleConfirm}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               <Text
-                style={styles.confirmLabel}
+                style={[styles.confirmLabel, { color: tokens.fgOnPrimary }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
@@ -197,9 +180,7 @@ export function ConfirmDialog({
   )
 }
 
-function createStyles(theme: ReturnType<typeof useAppTheme>) {
-  const { colors, shadows, surfaces } = theme
-
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -214,56 +195,49 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     dialog: {
       width: '100%',
       maxWidth: 360,
-      backgroundColor: surfaces.overlay.backgroundColor,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: surfaces.overlay.borderColor,
+      backgroundColor: tokens.bgElev,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairline,
       padding: 20,
-      ...surfaces.overlay.shadow,
-      elevation: Math.max(12, surfaces.overlay.elevation),
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 12,
-    },
-    iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.35,
+      shadowOffset: { width: 0, height: 12 },
+      shadowRadius: 40,
+      elevation: 10,
     },
     title: {
-      flex: 1,
-      color: colors.textPrimary,
-      fontSize: 16,
+      fontFamily: 'Geist',
+      color: tokens.fg1,
+      fontSize: 17,
       fontWeight: '600',
+      letterSpacing: -0.17,
+      marginBottom: 6,
     },
     description: {
-      color: colors.textSecondary,
+      fontFamily: 'Geist',
+      color: tokens.fg2,
       fontSize: 14,
-      lineHeight: 20,
+      lineHeight: 21,
       marginBottom: 20,
     },
     actions: {
       flexDirection: 'row',
-      gap: 12,
+      gap: 8,
     },
     cancelButton: {
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 8,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: surfaces.ground.borderColor,
-      backgroundColor: surfaces.ground.backgroundColor,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: tokens.hairlineStrong,
       alignItems: 'center',
       justifyContent: 'center',
     },
     cancelLabel: {
-      color: colors.textSecondary,
+      fontFamily: 'Geist',
+      color: tokens.fg2,
       fontSize: 14,
       fontWeight: '500',
       textAlign: 'center',
@@ -272,16 +246,14 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 8,
-      borderRadius: radius.md,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
-      ...shadows.sm,
-      elevation: 3,
     },
     confirmLabel: {
-      color: colors.white,
+      fontFamily: 'Geist',
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: '600',
       textAlign: 'center',
     },
   })

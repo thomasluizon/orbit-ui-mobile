@@ -1,8 +1,10 @@
-import i18n from 'i18next'
+import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveSystemLocale } from '@orbit/shared/utils'
+
+const i18n = i18next
 
 function detectInitialLocale() {
   try {

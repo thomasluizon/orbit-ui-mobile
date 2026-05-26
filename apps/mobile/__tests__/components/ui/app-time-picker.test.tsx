@@ -1,10 +1,13 @@
 import React from 'react'
+import { Pressable } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
   dateTimePickerOpenCalls,
   resetDateTimePickerMock,
 } from '@/test-mocks/react-native-datetimepicker'
+
+import { AppTimePicker } from '@/components/ui/app-time-picker'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -15,12 +18,6 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'pt-BR' },
   }),
 }))
-
-vi.mock('@/hooks/use-device-locale', () => ({
-  useDeviceLocale: () => 'pt-BR',
-}))
-
-import { AppTimePicker } from '@/components/ui/app-time-picker'
 
 describe('AppTimePicker', () => {
   beforeEach(() => {
@@ -37,16 +34,61 @@ describe('AppTimePicker', () => {
       )
     })
 
-    const trigger = tree.root.findByType('TouchableOpacity')
+    const [textTrigger] = tree.root.findAllByType(Pressable)
     const label = tree.root.findByType('Text')
 
     expect(label.props.children).toBe(formatLocaleTime('14:30', 'pt-BR'))
 
     await TestRenderer.act(async () => {
-      trigger.props.onPress()
+      textTrigger.props.onPress()
     })
 
     expect(dateTimePickerOpenCalls).toHaveLength(1)
     expect(dateTimePickerOpenCalls[0]?.is24Hour).toBe(true)
+  })
+
+  it('renders a clear button when value is set and onClear is provided', async () => {
+    const onClear = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <AppTimePicker
+          value="14:30"
+          onChange={vi.fn()}
+          onClear={onClear}
+        />,
+      )
+    })
+
+    const pressables = tree.root.findAllByType(Pressable)
+    const clearButton = pressables.find(
+      (p: any) => p.props.accessibilityLabel === 'common.clear',
+    )
+
+    expect(clearButton).toBeDefined()
+
+    await TestRenderer.act(async () => {
+      clearButton.props.onPress()
+    })
+
+    expect(onClear).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not render a clear button when value is empty', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <AppTimePicker value="" onChange={vi.fn()} onClear={vi.fn()} />,
+      )
+    })
+
+    const pressables = tree.root.findAllByType(Pressable)
+    const clearButton = pressables.find(
+      (p: any) => p.props.accessibilityLabel === 'common.clear',
+    )
+
+    expect(clearButton).toBeUndefined()
   })
 })

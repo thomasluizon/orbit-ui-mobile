@@ -35,14 +35,6 @@ export function useColorScheme() {
   )
 
   useEffect(() => {
-    const scheme = normalizeColorScheme(getCookie('orbit_color_scheme'))
-    const theme = normalizeThemeMode(getCookie('orbit_theme_mode'))
-    setCurrentScheme(scheme)
-    setCurrentTheme(theme)
-    applyThemeTokensToDOM(scheme, theme, false)
-  }, [])
-
-  useEffect(() => {
     applyThemeTokensToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
 

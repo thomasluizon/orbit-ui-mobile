@@ -24,10 +24,10 @@ describe('OnboardingCreateGoal', () => {
     defaultProps.onSkip.mockClear()
   })
 
-  it('renders the title with optional badge', () => {
+  it('renders the title with Pro Optional badge', () => {
     render(<OnboardingCreateGoal {...defaultProps} />)
     expect(screen.getByText('onboarding.flow.createGoal.title')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.flow.createGoal.optional')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.flow.createGoal.proTag')).toBeInTheDocument()
   })
 
   it('renders suggestion chips', () => {

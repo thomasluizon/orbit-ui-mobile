@@ -129,29 +129,28 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/habits/habit-card', () => ({
-  HabitCard: ({
+vi.mock('@/components/habits/habit-row', () => ({
+  HabitRow: ({
     habit,
-    childrenDone,
-    childrenTotal,
-    isRecentlyCompleted,
-    isDrillCard,
+    childProgress,
     tourTargetId,
+    state,
     actions,
   }: {
     habit: NormalizedHabit
-    childrenDone?: number
-    childrenTotal?: number
-    isRecentlyCompleted?: boolean
-    isDrillCard?: boolean
+    childProgress?: { done: number; total: number }
     tourTargetId?: string
+    state?: string
     actions?: { onForceLogParent?: () => void; onLog?: () => void; onEdit?: () => void }
   }) => (
-    <div data-testid={`habit-card-${habit.id}`} data-tour-target={tourTargetId}>
+    <div data-testid={`habit-card-${habit.id}`} data-tour={tourTargetId}>
       <span>{habit.title}</span>
-      <span data-testid={`habit-progress-${habit.id}`}>{childrenDone ?? 0}/{childrenTotal ?? 0}</span>
-      <span data-testid={`recent-${habit.id}`}>{isRecentlyCompleted ? 'yes' : 'no'}</span>
-      <span data-testid={`drill-${habit.id}`}>{isDrillCard ? 'yes' : 'no'}</span>
+      <span data-testid={`habit-progress-${habit.id}`}>
+        {childProgress?.done ?? 0}/{childProgress?.total ?? 0}
+      </span>
+      <span data-testid={`recent-${habit.id}`}>
+        {state === 'done' ? 'yes' : 'no'}
+      </span>
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
       </button>
@@ -356,12 +355,12 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
     expect(screen.getByTestId('habit-card-tour-habit-1')).not.toHaveAttribute(
-      'data-tour-target',
+      'data-tour',
       'tour-habit-card',
     )
     expect(
       screen.getByTestId(`habit-card-${TOUR_FEATURED_HABIT_ID}`),
-    ).toHaveAttribute('data-tour-target', 'tour-habit-card')
+    ).toHaveAttribute('data-tour', 'tour-habit-card')
   })
 
   it('hides only completed one-time habits in all view when showCompleted is false', () => {

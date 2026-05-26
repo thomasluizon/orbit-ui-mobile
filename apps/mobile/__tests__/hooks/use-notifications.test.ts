@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 
+import {
+  useDeleteNotification,
+  useMarkNotificationRead,
+} from '@/hooks/use-notifications'
+
 const mocks = vi.hoisted(() => {
   const state = {
     notifications: undefined as NotificationsResponse | undefined,
@@ -84,11 +89,6 @@ vi.mock('@/lib/offline-mutations', () => ({
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
 }))
-
-import {
-  useDeleteNotification,
-  useMarkNotificationRead,
-} from '@/hooks/use-notifications'
 
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>

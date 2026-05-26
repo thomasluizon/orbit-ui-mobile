@@ -1,229 +1,217 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TouchableOpacity,
   View,
-} from "react-native";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Bell,
-  CalendarDays,
-  Check,
-  Link,
-  Loader2,
-  RefreshCw,
-} from "lucide-react-native";
-import { API } from "@orbit/shared/api";
-import { calendarKeys } from "@orbit/shared/query";
+} from 'react-native'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
+import { WifiOff } from 'lucide-react-native'
+import { API } from '@orbit/shared/api'
+import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
-  formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  formatLocaleDate,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   type CalendarSyncEvent,
-} from "@orbit/shared/utils";
-import { getErrorMessage } from "@orbit/shared/utils/error-utils";
-import { useQueryClient } from "@tanstack/react-query";
-import { useProfile } from "@/hooks/use-profile";
-import { useBulkCreateHabits } from "@/hooks/use-habits";
+} from '@orbit/shared/utils'
+import { getErrorMessage } from '@orbit/shared/utils/error-utils'
+import { useQueryClient } from '@tanstack/react-query'
+import { useProfile } from '@/hooks/use-profile'
+import { useBulkCreateHabits } from '@/hooks/use-habits'
 import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
   useRunCalendarSyncNow,
   useSetCalendarAutoSync,
-} from "@/hooks/use-calendar-auto-sync";
-import { apiClient } from "@/lib/api-client";
-import { radius, shadows } from "@/lib/theme";
-import { plural } from "@/lib/plural";
-import { startMobileGoogleAuth } from "@/lib/google-auth";
-import { useAppTheme } from "@/lib/use-app-theme";
-import { useOffline } from "@/hooks/use-offline";
-import { useAppToast } from "@/hooks/use-app-toast";
-import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
-import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
+} from '@/hooks/use-calendar-auto-sync'
+import { apiClient } from '@/lib/api-client'
+import { plural } from '@/lib/plural'
+import { startMobileGoogleAuth } from '@/lib/google-auth'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { useOffline } from '@/hooks/use-offline'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { SelectCheck } from '@/components/ui/select-check'
+import { MonoToggle } from '@/components/ui/mono-toggle'
 
 type Step =
-  | "loading"
-  | "select"
-  | "importing"
-  | "done"
-  | "error"
-  | "not-connected"
-  | "offline";
+  | 'loading'
+  | 'select'
+  | 'importing'
+  | 'done'
+  | 'error'
+  | 'not-connected'
+  | 'offline'
 
-type CalendarEvent = CalendarSyncEvent;
+type CalendarEvent = CalendarSyncEvent
 
 interface ImportResult {
-  imported: number;
-  habits: { id: string; title: string }[];
+  imported: number
+  habits: { id: string; title: string }[]
 }
 
 async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   try {
-    const data = await apiClient<CalendarEvent[]>(API.calendar.events);
-    return Array.isArray(data) ? data : [];
+    const data = await apiClient<CalendarEvent[]>(API.calendar.events)
+    return Array.isArray(data) ? data : []
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "";
+    const message = err instanceof Error ? err.message : ''
     if (
-      message === "Unauthorized" ||
+      message === 'Unauthorized' ||
       isCalendarSyncNotConnectedMessage(message)
     ) {
-      throw new Error("__NOT_CONNECTED__");
+      throw new Error('__NOT_CONNECTED__')
     }
-
-    throw err;
+    throw err
   }
 }
 
 export default function CalendarSyncScreen() {
-  const router = useRouter();
-  const goBackOrFallback = useGoBackOrFallback();
-  const params = useLocalSearchParams<{ mode?: string }>();
-  const isReviewMode = params.mode === "review";
-  const { t } = useTranslation();
-  const { profile, isLoading: isProfileLoading } = useProfile();
-  const { colors } = useAppTheme();
-  const { isOnline } = useOffline();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const bulkCreateHabits = useBulkCreateHabits();
-  const queryClient = useQueryClient();
-  const { showError } = useAppToast();
+  const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
+  const params = useLocalSearchParams<{ mode?: string }>()
+  const isReviewMode = params.mode === 'review'
+  const { t, i18n } = useTranslation()
+  const { profile, isLoading: isProfileLoading } = useProfile()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const { isOnline } = useOffline()
+  const styles = useMemo(() => createStyles(), [])
+  const bulkCreateHabits = useBulkCreateHabits()
+  const queryClient = useQueryClient()
+  const { showError } = useAppToast()
 
   const autoSyncStateQuery = useCalendarAutoSyncState({
     enabled: profile?.hasProAccess ?? false,
-  });
+  })
   const suggestionsQuery = useCalendarSyncSuggestions({
     enabled: (profile?.hasProAccess ?? false) && isReviewMode,
-  });
-  const setAutoSyncMutation = useSetCalendarAutoSync();
-  const runSyncNowMutation = useRunCalendarSyncNow();
+  })
+  const setAutoSyncMutation = useSetCalendarAutoSync()
+  const runSyncNowMutation = useRunCalendarSyncNow()
 
-  const autoSyncState = autoSyncStateQuery.data;
+  const autoSyncState = autoSyncStateQuery.data
   const suggestions = useMemo(
     () => suggestionsQuery.data ?? [],
     [suggestionsQuery.data],
-  );
+  )
 
-  const [step, setStep] = useState<Step>("loading");
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [errorMessage, setErrorMessage] = useState("");
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const fetchErrorText = t("calendar.fetchError");
+  const [step, setStep] = useState<Step>('loading')
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [errorMessage, setErrorMessage] = useState('')
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const fetchErrorText = t('calendar.fetchError')
 
-  const allSelected = events.length > 0 && selectedIds.size === events.length;
+  const allSelected = events.length > 0 && selectedIds.size === events.length
 
   const selectedEvents = useMemo(
     () => events.filter((event) => selectedIds.has(event.id)),
     [events, selectedIds],
-  );
+  )
 
-  const selectedCount = selectedIds.size;
+  const selectedCount = selectedIds.size
 
   const fetchManualEvents = useCallback(async () => {
     if (!isOnline) {
-      setStep("offline");
-      return;
+      setStep('offline')
+      return
     }
 
-    setStep("loading");
-    setErrorMessage("");
+    setStep('loading')
+    setErrorMessage('')
 
     try {
-      const nextEvents = await fetchCalendarEvents();
-      setEvents(nextEvents);
-      setSelectedIds(new Set(nextEvents.map((event) => event.id)));
-      setStep("select");
+      const nextEvents = await fetchCalendarEvents()
+      setEvents(nextEvents)
+      setSelectedIds(new Set(nextEvents.map((event) => event.id)))
+      setStep('select')
     } catch (err: unknown) {
-      if (err instanceof Error && err.message === "__NOT_CONNECTED__") {
-        setStep("not-connected");
-        return;
+      if (err instanceof Error && err.message === '__NOT_CONNECTED__') {
+        setStep('not-connected')
+        return
       }
-
-      setErrorMessage(getErrorMessage(err, fetchErrorText));
-      setStep("error");
+      setErrorMessage(getErrorMessage(err, fetchErrorText))
+      setStep('error')
     }
-  }, [fetchErrorText, isOnline]);
+  }, [fetchErrorText, isOnline])
 
   useFocusEffect(
     useCallback(() => {
-      if (!profile) return;
+      if (!profile) return
 
       if (!profile.hasProAccess) {
-        router.replace("/upgrade");
-        return;
+        router.replace('/upgrade')
+        return
       }
       if (!isOnline) {
-        setStep("offline");
-        return;
+        setStep('offline')
+        return
       }
 
       void queryClient.invalidateQueries({
         queryKey: calendarKeys.autoSyncState(),
-      });
+      })
       if (isReviewMode) {
         void queryClient.invalidateQueries({
           queryKey: calendarKeys.syncSuggestions(),
-        });
-        return;
+        })
+        return
       }
 
-      void fetchManualEvents();
-    }, [
-      fetchManualEvents,
-      isOnline,
-      isReviewMode,
-      profile?.hasProAccess,
-      queryClient,
-      router,
-    ]),
-  );
+      void fetchManualEvents()
+    }, [fetchManualEvents, isOnline, isReviewMode, profile, queryClient, router]),
+  )
 
   useEffect(() => {
-    if (!isReviewMode) return;
+    if (!isReviewMode) return
     if (!isOnline) {
-      setStep("offline");
-      return;
+       
+      setStep('offline')
+      return
     }
     if (suggestionsQuery.isLoading) {
-      setStep("loading");
-      return;
+      setStep('loading')
+      return
     }
     if (suggestionsQuery.isError) {
-      setErrorMessage(getErrorMessage(suggestionsQuery.error, fetchErrorText));
-      setStep("error");
-      return;
+      setErrorMessage(getErrorMessage(suggestionsQuery.error, fetchErrorText))
+      setStep('error')
+      return
     }
 
     const nextEvents: CalendarEvent[] = suggestions.map(
       (suggestion) => suggestion.event,
-    );
-    setEvents(nextEvents);
+    )
+    setEvents(nextEvents)
     setSelectedIds((prev) => {
       if (prev.size === 0) {
-        return new Set(nextEvents.map((event) => event.id));
+        return new Set(nextEvents.map((event) => event.id))
       }
-
-      const next = new Set<string>();
+      const next = new Set<string>()
       for (const event of nextEvents) {
         if (prev.has(event.id)) {
-          next.add(event.id);
+          next.add(event.id)
         }
       }
-      return next;
-    });
-    setStep("select");
+      return next
+    })
+    setStep('select')
   }, [
     isOnline,
     isReviewMode,
@@ -232,102 +220,96 @@ export default function CalendarSyncScreen() {
     suggestionsQuery.isError,
     suggestionsQuery.isLoading,
     fetchErrorText,
-  ]);
+  ])
 
   const handleBack = useCallback(() => {
-    goBackOrFallback("/profile");
-  }, [goBackOrFallback]);
+    goBackOrFallback('/profile')
+  }, [goBackOrFallback])
 
   const toggleAll = useCallback(() => {
-    setSelectedIds((prev) => {
-      if (allSelected) return new Set();
-      return new Set(events.map((event) => event.id));
-    });
-  }, [allSelected, events]);
+    setSelectedIds(() => {
+      if (allSelected) return new Set()
+      return new Set(events.map((event) => event.id))
+    })
+  }, [allSelected, events])
 
   const toggleEvent = useCallback((id: string) => {
     setSelectedIds((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev)
       if (next.has(id)) {
-        next.delete(id);
+        next.delete(id)
       } else {
-        next.add(id);
+        next.add(id)
       }
-      return next;
-    });
-  }, []);
+      return next
+    })
+  }, [])
 
   const handleConnect = useCallback(async () => {
     if (!isOnline) {
-      setStep("offline");
-      return;
+      setStep('offline')
+      return
     }
+    if (isConnecting) return
 
-    if (isConnecting) return;
-
-    setIsConnecting(true);
-    setErrorMessage("");
+    setIsConnecting(true)
+    setErrorMessage('')
 
     try {
       const result = await startMobileGoogleAuth({
         returnUrl: isReviewMode
-          ? "/calendar-sync?mode=review"
-          : "/calendar-sync",
+          ? '/calendar-sync?mode=review'
+          : '/calendar-sync',
         forceConsent: true,
-      });
-
-      if (result.type !== "success") return;
-
-      router.replace("/auth-callback");
+      })
+      if (result.type !== 'success') return
+      router.replace('/auth-callback')
     } catch {
-      setErrorMessage(t("auth.googleError"));
+      setErrorMessage(t('auth.googleError'))
     } finally {
-      setIsConnecting(false);
+      setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, isReviewMode, router, t]);
+  }, [isConnecting, isOnline, isReviewMode, router, t])
 
   const handleToggleAutoSync = useCallback(
     (enabled: boolean) => {
       if (!isOnline) {
-        showError(t("calendarSync.notConnected"));
-        return;
+        showError(t('calendarSync.notConnected'))
+        return
       }
-
       setAutoSyncMutation.mutate(
         { enabled },
         {
           onError: (err: unknown) => {
-            showError(getErrorMessage(err, t("calendar.autoSync.syncFailed")));
+            showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
           },
         },
-      );
+      )
     },
     [isOnline, setAutoSyncMutation, showError, t],
-  );
+  )
 
   const handleSyncNow = useCallback(() => {
     if (!isOnline) {
-      showError(t("calendarSync.notConnected"));
-      return;
+      showError(t('calendarSync.notConnected'))
+      return
     }
-
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
-        showError(getErrorMessage(err, t("calendar.autoSync.syncFailed")));
+        showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
       },
-    });
-  }, [isOnline, runSyncNowMutation, showError, t]);
+    })
+  }, [isOnline, runSyncNowMutation, showError, t])
 
   const handleImportSelected = useCallback(async () => {
     if (!isOnline) {
-      setStep("offline");
-      return;
+      setStep('offline')
+      return
     }
+    if (selectedCount === 0) return
 
-    if (selectedCount === 0) return;
-
-    setStep("importing");
-    setErrorMessage("");
+    setStep('importing')
+    setErrorMessage('')
 
     try {
       const request = isReviewMode
@@ -336,50 +318,50 @@ export default function CalendarSyncScreen() {
               selectedIds.has(suggestion.event.id),
             ),
           )
-        : buildCalendarSyncImportRequest(selectedEvents);
-      const result = await bulkCreateHabits.mutateAsync(request);
+        : buildCalendarSyncImportRequest(selectedEvents)
+      const result = await bulkCreateHabits.mutateAsync(request)
 
       const successCount = result.results.filter(
-        (item) => item.status === "Success",
-      ).length;
+        (item) => item.status === 'Success',
+      ).length
       const failedItems = result.results.filter(
-        (item) => item.status !== "Success",
-      );
+        (item) => item.status !== 'Success',
+      )
 
       if (failedItems.length > 0 && successCount === 0) {
         setErrorMessage(
           failedItems
             .map(
               (item) =>
-                `${item.title ?? t("common.unknown")}: ${item.error ?? t("common.failed")}`,
+                `${item.title ?? t('common.unknown')}: ${item.error ?? t('common.failed')}`,
             )
-            .join(", "),
-        );
-        setStep("error");
-        return;
+            .join(', '),
+        )
+        setStep('error')
+        return
       }
 
       setImportResult({
         imported: successCount,
         habits: result.results
           .filter(
-            (item) => item.status === "Success" && item.habitId && item.title,
+            (item) => item.status === 'Success' && item.habitId && item.title,
           )
           .map((item) => ({
             id: item.habitId as string,
             title: item.title as string,
           })),
-      });
-      setStep("done");
+      })
+      setStep('done')
 
       if (isReviewMode) {
         void queryClient.invalidateQueries({
           queryKey: calendarKeys.syncSuggestions(),
-        });
+        })
       }
     } catch (err: unknown) {
-      setErrorMessage(getErrorMessage(err, t("calendar.importError")));
-      setStep("error");
+      setErrorMessage(getErrorMessage(err, t('calendar.importError')))
+      setStep('error')
     }
   }, [
     bulkCreateHabits,
@@ -391,813 +373,466 @@ export default function CalendarSyncScreen() {
     selectedIds,
     suggestions,
     t,
-  ]);
+  ])
 
   const handleRetry = useCallback(() => {
     if (!isOnline) {
-      setStep("offline");
-      return;
+      setStep('offline')
+      return
     }
-
     if (isReviewMode) {
-      setStep("loading");
-      setErrorMessage("");
+      setStep('loading')
+      setErrorMessage('')
       void queryClient.invalidateQueries({
         queryKey: calendarKeys.syncSuggestions(),
-      });
-      return;
+      })
+      return
     }
+    void fetchManualEvents()
+  }, [fetchManualEvents, isOnline, isReviewMode, queryClient])
 
-    void fetchManualEvents();
-  }, [fetchManualEvents, isOnline, isReviewMode, queryClient]);
-
-  const renderEventCard = (event: CalendarEvent) => {
-    const selected = selectedIds.has(event.id);
+  function renderEventRow(event: CalendarEvent) {
+    const selected = selectedIds.has(event.id)
     const recurrenceLabel = formatCalendarSyncRecurrenceLabel(
       event.recurrenceRule,
       {
         translate: (key, values) => t(key, values),
         pluralize: plural,
       },
-    );
-    const dateLabel = event.startDate ?? "";
+    )
+    const dateLabel = event.startDate ?? ''
     const timeLabel = event.startTime
-      ? `${event.startTime}${event.endTime ? ` - ${event.endTime}` : ""}`
-      : "";
+      ? `${event.startTime}${event.endTime ? `–${event.endTime}` : ''}`
+      : ''
+    const meta = [dateLabel, timeLabel, event.isRecurring ? recurrenceLabel : null]
+      .filter(Boolean)
+      .join(' · ')
 
     return (
-      <TouchableOpacity
+      <Pressable
         key={event.id}
-        style={[
-          styles.eventCard,
-          selected ? styles.eventCardSelected : styles.eventCardUnselected,
-        ]}
         onPress={() => toggleEvent(event.id)}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: selected }}
+        style={({ pressed }) => [
+          styles.eventRow,
+          {
+            borderBottomColor: tokens.hairline,
+            backgroundColor: pressed
+              ? tokens.bgElev
+              : selected
+                ? tokens.bgSunk
+                : 'transparent',
+          },
+        ]}
       >
-        <View style={styles.eventRow}>
-          <View
-            style={[
-              styles.checkbox,
-              selected ? styles.checkboxSelected : styles.checkboxUnselected,
-            ]}
-          >
-            {selected && <Check size={12} color={colors.white} />}
-          </View>
-
-          <View style={styles.eventContent}>
-            <View style={styles.eventTitleRow}>
-              <Text style={styles.eventTitle} numberOfLines={1}>
-                {event.title}
-              </Text>
-              {event.isRecurring && (
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>
-                    {recurrenceLabel || t("calendar.recurring")}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.metaRow}>
-              {dateLabel ? (
-                <Text style={styles.metaText}>{dateLabel}</Text>
-              ) : null}
-              {timeLabel ? (
-                <Text style={styles.metaTextMuted}>{timeLabel}</Text>
-              ) : null}
-              {event.reminders.length > 0 ? (
-                <View style={styles.reminderCount}>
-                  <Bell size={11} color={colors.textMuted} />
-                  <Text style={styles.reminderCountText}>
-                    {event.reminders.length}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            {event.description ? (
-              <Text style={styles.description} numberOfLines={1}>
-                {event.description}
-              </Text>
-            ) : null}
-          </View>
+        <View style={styles.eventBody}>
+          <Text style={[styles.eventTitle, { color: tokens.fg1 }]} numberOfLines={1}>
+            {event.title}
+          </Text>
+          {meta ? (
+            <Text style={[styles.eventMeta, { color: tokens.fg3 }]} numberOfLines={1}>
+              {meta}
+            </Text>
+          ) : null}
         </View>
-      </TouchableOpacity>
-    );
-  };
+        <SelectCheck selected={selected} onPress={() => toggleEvent(event.id)} />
+      </Pressable>
+    )
+  }
+
+  const subtitle = autoSyncState?.lastSyncedAt
+    ? `Google · ${formatLocaleDate(autoSyncState.lastSyncedAt, i18n.language, { day: 'numeric', month: 'short' })}`
+    : 'Google'
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
+      edges={['top']}
+    >
+      <AppBar
+        back
+        onBack={handleBack}
+        title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
+        subtitle={subtitle}
+        backLabel={t('common.goBack')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBack}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.goBack")}
-          >
-            <ArrowLeft size={18} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {isReviewMode
-              ? t("calendar.autoSync.reviewModeTitle")
-              : t("calendar.title")}
-          </Text>
-        </View>
-
-        {profile?.hasProAccess && !isProfileLoading && (
-          <View style={styles.autoSyncCard}>
-            <View style={styles.toggleHeader}>
-              <View style={styles.autoSyncLabelGroup}>
-                <Text style={styles.autoSyncTitle}>
-                  {t("calendar.autoSync.title")}
-                </Text>
-                <Text style={styles.autoSyncDescription}>
-                  {t("calendar.autoSync.description")}
-                </Text>
-              </View>
-              <Switch
-                value={autoSyncState?.enabled ?? false}
-                onValueChange={handleToggleAutoSync}
-                trackColor={{
-                  false: colors.surfaceElevated,
-                  true: colors.primary,
-                }}
-                thumbColor={colors.white}
+        {profile?.hasProAccess && !isProfileLoading ? (
+          <>
+            <SectionLabel>{t('calendar.autoSync.title')}</SectionLabel>
+            <SettingsRow
+              label={t('calendar.autoSync.title')}
+              accessory="none"
+            >
+              <MonoToggle
+                on={autoSyncState?.enabled ?? false}
+                onPress={() =>
+                  handleToggleAutoSync(!(autoSyncState?.enabled ?? false))
+                }
                 disabled={
                   !autoSyncState?.hasGoogleConnection ||
                   setAutoSyncMutation.isPending ||
                   autoSyncStateQuery.isLoading ||
                   !isOnline
                 }
+                accessibilityLabel={t('calendar.autoSync.title')}
               />
-            </View>
-
-            {!autoSyncState?.hasGoogleConnection && (
-              <Text style={styles.autoSyncHint}>
-                {t("calendar.autoSync.connectGoogleFirst")}
-              </Text>
-            )}
-
-            {autoSyncState?.hasGoogleConnection && (
-              <View style={styles.autoSyncMetaRow}>
-                <Text style={styles.autoSyncMetaText}>
-                  {formatCalendarAutoSyncLastSynced(
-                    autoSyncState.lastSyncedAt ?? null,
-                    (key, values) => {
-                      const raw = t(key, values);
-                      const count =
-                        typeof values?.n === "number" ? values.n : 1;
-                      return plural(raw, count);
-                    },
-                  )}
+            </SettingsRow>
+            {!autoSyncState?.hasGoogleConnection ? (
+              <View
+                style={[
+                  styles.italicBlock,
+                  { borderBottomColor: tokens.hairline },
+                ]}
+              >
+                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+                  {t('calendar.autoSync.connectGoogleFirst')}
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.syncNowButton,
-                    (runSyncNowMutation.isPending || !isOnline) &&
-                      styles.buttonDisabled,
-                  ]}
-                  onPress={handleSyncNow}
-                  disabled={runSyncNowMutation.isPending || !isOnline}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("calendar.autoSync.syncNow")}
-                >
-                  {runSyncNowMutation.isPending ? (
-                    <ActivityIndicator size="small" color={colors.primary400} />
-                  ) : (
-                    <RefreshCw size={13} color={colors.primary400} />
-                  )}
-                  <Text style={styles.syncNowButtonText}>
-                    {runSyncNowMutation.isPending
-                      ? t("calendar.autoSync.syncNowRunning")
-                      : t("calendar.autoSync.syncNow")}
-                  </Text>
-                </TouchableOpacity>
               </View>
+            ) : (
+              <SettingsRow
+                label={t('calendar.autoSync.syncNow')}
+                onPress={handleSyncNow}
+                accessory="chevron"
+              />
             )}
-
-            {isCalendarAutoSyncStatusReconnectRequired(
-              autoSyncState?.status,
-            ) && (
-              <View style={styles.reconnectBanner}>
-                <AlertTriangle size={16} color={colors.amber} />
-                <View style={styles.reconnectBannerBody}>
-                  <Text style={styles.reconnectBannerTitle}>
-                    {t("calendar.autoSync.reconnectTitle")}
-                  </Text>
-                  <Text style={styles.reconnectBannerText}>
-                    {t("calendar.autoSync.reconnectBody")}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.reconnectButton}
+            {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
+              <View
+                style={[
+                  styles.italicBlock,
+                  { borderBottomColor: tokens.hairline },
+                ]}
+              >
+                <Text
+                  style={[styles.italicText, { color: tokens.statusOverdue }]}
+                >
+                  {t('calendar.autoSync.reconnectBody')}
+                </Text>
+                <Pressable
                   onPress={handleConnect}
                   disabled={isConnecting}
-                  activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel={t("calendar.autoSync.reconnectCta")}
+                  style={styles.linkPress}
                 >
-                  <Text style={styles.reconnectButtonText}>
-                    {t("calendar.autoSync.reconnectCta")}
+                  <Text style={[styles.linkText, { color: tokens.fg1 }]}>
+                    {t('calendar.autoSync.reconnectCta')}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
-            )}
+            ) : null}
+          </>
+        ) : null}
+
+        {(isProfileLoading || step === 'loading') && (
+          <View
+            style={styles.centerBlock}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendar.fetchingEvents')}
+          >
+            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+              {t('calendar.fetchingEvents')}
+            </Text>
           </View>
         )}
 
-        {(isProfileLoading || step === "loading") && (
+        {step === 'not-connected' && !isProfileLoading && (
           <View
-            style={styles.centerState}
+            style={styles.centerBlock}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={t("calendar.fetchingEvents")}
+            accessibilityLabel={t('calendar.notConnectedTitle')}
           >
-            <View style={styles.stateIcon}>
-              <Loader2 size={26} color={colors.primary400} />
-            </View>
-            <Text style={styles.stateTitle}>
-              {t("calendar.fetchingEvents")}
+            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+              {t('calendar.notConnectedDesc')}
             </Text>
-          </View>
-        )}
-
-        {step === "not-connected" && !isProfileLoading && (
-          <View
-            style={styles.centerState}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t("calendar.notConnectedTitle")}
-          >
-            <View style={[styles.stateIcon, styles.stateIconPrimary]}>
-              <Link size={26} color={colors.primary400} />
-            </View>
-            <Text style={styles.stateTitle}>
-              {t("calendar.notConnectedTitle")}
-            </Text>
-            <Text style={styles.stateDescription}>
-              {t("calendar.notConnectedDesc")}
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                isConnecting && styles.buttonDisabled,
-              ]}
+            <Pressable
               onPress={handleConnect}
               disabled={isConnecting}
-              activeOpacity={0.85}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                {
+                  backgroundColor: pressed
+                    ? tokens.primaryPressed
+                    : tokens.primary,
+                  opacity: isConnecting ? 0.5 : 1,
+                },
+              ]}
             >
-              {isConnecting ? <ActivityIndicator color={colors.white} /> : null}
-              <Text style={styles.primaryButtonText}>
-                {t("auth.signInWithGoogle")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {step === "offline" && !isProfileLoading && (
-          <View
-            style={styles.centerState}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t("calendarSync.notConnected")}
-          >
-            <OfflineUnavailableState
-              title={t("calendarSync.notConnected")}
-              description={`${t("calendarSync.connect")} / ${t("calendar.importButton", { count: 1 })}`}
-              actionLabel={t("calendar.retry")}
-              onAction={handleRetry}
-              disabled={!isOnline}
-            />
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleBack}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {t("common.goBack")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {step === "select" && (
-          <View style={styles.contentStack}>
-            {!isOnline && (
-              <OfflineUnavailableState
-                title={t("calendarSync.notConnected")}
-                description={`${t("calendarSync.connect")} / ${t("calendar.importButton", { count: selectedCount || 1 })}`}
-                compact
-              />
-            )}
-            {events.length === 0 ? (
-              <View
-                style={styles.centerState}
-                accessibilityLiveRegion="polite"
-                accessibilityLabel={
-                  isReviewMode
-                    ? t("calendar.autoSync.reviewModeEmpty")
-                    : t("calendar.noEvents")
-                }
+              <Text
+                style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}
               >
-                <View style={styles.stateIcon}>
-                  <CalendarDays size={26} color={colors.textMuted} />
-                </View>
-                <Text style={styles.stateTitle}>
+                {t('auth.signInWithGoogle')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {step === 'offline' && !isProfileLoading && (
+          <View
+            style={styles.centerBlock}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendarSync.notConnected')}
+          >
+            <WifiOff size={28} color={tokens.fg3} strokeWidth={1.4} />
+            <Text style={[styles.italicText, { color: tokens.fg2 }]}>
+              {t('calendarSync.notConnected')}
+            </Text>
+            <Pressable
+              onPress={handleRetry}
+              accessibilityRole="button"
+              style={styles.linkPress}
+            >
+              <Text style={[styles.linkText, { color: tokens.fg1 }]}>
+                {t('calendar.retry')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {step === 'select' && (
+          <>
+            {events.length === 0 ? (
+              <View style={styles.centerBlock}>
+                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
                   {isReviewMode
-                    ? t("calendar.autoSync.reviewModeEmpty")
-                    : t("calendar.noEvents")}
+                    ? t('calendar.autoSync.reviewModeEmpty')
+                    : t('calendar.noEvents')}
                 </Text>
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={handleBack}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.secondaryButtonText}>
-                    {t("common.goBack")}
-                  </Text>
-                </TouchableOpacity>
               </View>
             ) : (
               <>
-                <View style={styles.selectionBar}>
-                  <Text style={styles.selectionCount}>
-                    {plural(
-                      t("calendar.eventsFound", { count: events.length }),
-                      events.length,
-                    )}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={toggleAll}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: allSelected }}
-                  >
-                    <Text style={styles.selectAllText}>
-                      {allSelected
-                        ? t("calendar.deselectAll")
-                        : t("calendar.selectAll")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.eventList}>
-                  {events.map(renderEventCard)}
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    (selectedCount === 0 || !isOnline) && styles.buttonDisabled,
-                  ]}
-                  onPress={handleImportSelected}
-                  disabled={selectedCount === 0 || !isOnline}
-                  activeOpacity={0.85}
+                <SectionLabel
+                  trailing={
+                    <View style={styles.selectAllRow}>
+                      <Pressable
+                        onPress={toggleAll}
+                        accessibilityRole="button"
+                        style={styles.linkPress}
+                      >
+                        <Text
+                          style={[styles.linkText, { color: tokens.fg1 }]}
+                        >
+                          {allSelected
+                            ? t('calendar.deselectAll')
+                            : t('calendar.selectAll')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  }
                 >
-                  <Text style={styles.primaryButtonText}>
-                    {plural(
-                      t("calendar.importButton", { count: selectedCount }),
-                      selectedCount,
-                    )}
-                  </Text>
-                </TouchableOpacity>
+                  {plural(
+                    t('calendar.eventsFound', { count: events.length }),
+                    events.length,
+                  )}
+                </SectionLabel>
+                {events.map(renderEventRow)}
+                <View style={styles.actionPad}>
+                  <Pressable
+                    onPress={handleImportSelected}
+                    disabled={selectedCount === 0 || !isOnline}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.primaryBtn,
+                      {
+                        backgroundColor: pressed
+                          ? tokens.primaryPressed
+                          : tokens.primary,
+                        opacity:
+                          selectedCount === 0 || !isOnline ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.primaryBtnText,
+                        { color: tokens.fgOnPrimary },
+                      ]}
+                    >
+                      {plural(
+                        t('calendar.importButton', { count: selectedCount }),
+                        selectedCount,
+                      )}
+                    </Text>
+                  </Pressable>
+                </View>
               </>
             )}
+          </>
+        )}
+
+        {step === 'importing' && (
+          <View
+            style={styles.centerBlock}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={t('calendar.importing')}
+          >
+            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+              {t('calendar.importing')}
+            </Text>
+            <View
+              style={[styles.progressTrack, { backgroundColor: tokens.bgSunk }]}
+            >
+              <View
+                style={[styles.progressFill, { backgroundColor: tokens.primary }]}
+              />
+            </View>
           </View>
         )}
 
-        {step === "importing" && (
-          <View
-            style={styles.centerState}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t("calendar.importing")}
-          >
-            <View style={styles.stateIcon}>
-              <ActivityIndicator color={colors.primary400} />
-            </View>
-            <Text style={styles.stateTitle}>{t("calendar.importing")}</Text>
-          </View>
-        )}
-
-        {step === "done" && (
-          <View
-            style={styles.centerState}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t("calendar.importDone")}
-          >
-            <View style={[styles.stateIcon, styles.stateIconSuccess]}>
-              <Check size={26} color={colors.green400} />
-            </View>
-            <Text style={styles.stateTitle}>{t("calendar.importDone")}</Text>
-            <Text style={styles.stateDescription}>
+        {step === 'done' && (
+          <>
+            <SectionLabel>
               {plural(
-                t("calendar.importedCount", {
+                t('calendar.importedCount', {
                   count: importResult?.imported ?? 0,
                 }),
                 importResult?.imported ?? 0,
               )}
-            </Text>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => router.replace("/")}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryButtonText}>
-                {t("calendar.goToHabits")}
-              </Text>
-            </TouchableOpacity>
-          </View>
+            </SectionLabel>
+            {importResult?.habits.map((habit) => (
+              <SettingsRow
+                key={habit.id}
+                label={habit.title}
+                onPress={() => router.push('/')}
+                accessory="chevron"
+              />
+            ))}
+            <View style={styles.actionPad}>
+              <Pressable
+                onPress={() => router.replace('/')}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  {
+                    backgroundColor: pressed
+                      ? tokens.primaryPressed
+                      : tokens.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}
+                >
+                  {t('calendar.goToHabits')}
+                </Text>
+              </Pressable>
+            </View>
+          </>
         )}
 
-        {step === "error" && (
+        {step === 'error' && (
           <View
-            style={styles.centerState}
+            style={styles.centerBlock}
             accessibilityRole="alert"
             accessibilityLiveRegion="assertive"
           >
-            <View style={[styles.stateIcon, styles.stateIconError]}>
-              <AlertTriangle size={26} color={colors.red400} />
-            </View>
-            <Text style={styles.stateTitle}>{t("calendar.errorTitle")}</Text>
-            <Text style={styles.stateDescription}>{errorMessage}</Text>
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleRetry}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {t("calendar.retry")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleBack}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.secondaryButtonText}>
-                  {t("common.goBack")}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
+              {errorMessage || t('calendar.errorTitle')}
+            </Text>
+            <Pressable
+              onPress={handleRetry}
+              accessibilityRole="button"
+              style={styles.linkPress}
+            >
+              <Text style={[styles.linkText, { color: tokens.fg1 }]}>
+                {t('calendar.retry')}
+              </Text>
+            </Pressable>
           </View>
         )}
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
-  );
+  )
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles() {
   return StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    container: {
-      flex: 1,
-    },
-    scrollContent: {
-      flexGrow: 1,
+    safeArea: { flex: 1 },
+    container: { flex: 1 },
+    scrollContent: { paddingBottom: 40 },
+    italicBlock: {
       paddingHorizontal: 20,
-      paddingBottom: 36,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      gap: 8,
     },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
-      paddingTop: 20,
-      paddingBottom: 20,
-    },
-    backButton: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      ...shadows.sm,
-      elevation: 2,
-    },
-    headerTitle: {
-      flex: 1,
-      fontSize: 28,
-      fontWeight: "800",
-      color: colors.textPrimary,
-      letterSpacing: -0.6,
-    },
-    centerState: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 40,
-      gap: 14,
-    },
-    stateIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: 22,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      ...shadows.sm,
-      elevation: 2,
-    },
-    stateIconPrimary: {
-      backgroundColor: colors.primary_10,
-      borderColor: colors.primary_20,
-    },
-    stateIconSuccess: {
-      backgroundColor: "rgba(52, 211, 153, 0.10)",
-      borderColor: "rgba(52, 211, 153, 0.20)",
-    },
-    stateIconError: {
-      backgroundColor: colors.redBg,
-      borderColor: colors.redBorder,
-    },
-    stateTitle: {
-      fontSize: 18,
-      fontWeight: "800",
-      color: colors.textPrimary,
-      textAlign: "center",
-    },
-    stateDescription: {
+    italicText: {
+      fontFamily: 'Geist',
       fontSize: 13,
-      lineHeight: 19,
-      color: colors.textSecondary,
-      textAlign: "center",
-      maxWidth: 360,
+      fontStyle: 'italic',
     },
-    contentStack: {
-      gap: 14,
-    },
-    selectionBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 2,
-    },
-    selectionCount: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      fontWeight: "500",
-    },
-    selectAllText: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.primary400,
-    },
-    eventList: {
-      gap: 10,
-    },
-    eventCard: {
-      borderRadius: radius.xl,
-      padding: 16,
-      borderWidth: 1,
-    },
-    eventCardSelected: {
-      backgroundColor: colors.primary_10,
-      borderColor: colors.primary_30,
-    },
-    eventCardUnselected: {
-      backgroundColor: colors.surface,
-      borderColor: colors.borderMuted,
+    centerBlock: {
+      paddingHorizontal: 24,
+      paddingVertical: 32,
+      alignItems: 'center',
+      gap: 12,
     },
     eventRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    checkbox: {
-      width: 22,
-      height: 22,
-      borderRadius: 7,
-      borderWidth: 2,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 2,
-    },
-    checkboxSelected: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    checkboxUnselected: {
-      backgroundColor: "transparent",
-      borderColor: colors.borderEmphasis,
-    },
-    eventContent: {
+    eventBody: {
       flex: 1,
-      minWidth: 0,
-      gap: 6,
-    },
-    eventTitleRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 8,
-    },
-    eventTitle: {
-      flex: 1,
-      minWidth: 0,
-      fontSize: 15,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    pill: {
-      alignSelf: "flex-start",
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 999,
-      backgroundColor: colors.primary_15,
-    },
-    pillText: {
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 0.5,
-      color: colors.primary400,
-      textTransform: "uppercase",
-    },
-    metaRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "center",
-      gap: 8,
-    },
-    metaText: {
-      fontSize: 12,
-      color: colors.textSecondary,
-    },
-    metaTextMuted: {
-      fontSize: 12,
-      color: colors.textMuted,
-    },
-    reminderCount: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-    },
-    reminderCountText: {
-      fontSize: 10,
-      color: colors.textMuted,
-    },
-    description: {
-      fontSize: 12,
-      lineHeight: 17,
-      color: colors.textSecondary,
-    },
-    primaryButton: {
-      minHeight: 48,
-      borderRadius: radius.xl,
-      paddingHorizontal: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 8,
-      backgroundColor: colors.primary,
-      ...shadows.lg,
-      shadowColor: colors.primary,
-      elevation: 5,
-    },
-    primaryButtonText: {
-      fontSize: 14,
-      fontWeight: "800",
-      color: colors.white,
-    },
-    secondaryButton: {
-      minHeight: 48,
-      borderRadius: radius.xl,
-      paddingHorizontal: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.borderEmphasis,
-      backgroundColor: colors.surface,
-    },
-    secondaryButtonText: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.textPrimary,
-    },
-    buttonDisabled: {
-      opacity: 0.5,
-    },
-    buttonRow: {
-      width: "100%",
-      flexDirection: "row",
-      gap: 10,
-      justifyContent: "center",
-      flexWrap: "wrap",
-    },
-    autoSyncCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 18,
-      marginBottom: 16,
-      gap: 12,
-      ...shadows.sm,
-      elevation: 2,
-    },
-    toggleHeader: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    autoSyncLabelGroup: {
-      flex: 1,
-      minWidth: 0,
-      gap: 4,
-    },
-    autoSyncTitle: {
-      fontSize: 15,
-      fontWeight: "800",
-      color: colors.textPrimary,
-    },
-    autoSyncDescription: {
-      fontSize: 12,
-      lineHeight: 17,
-      color: colors.textSecondary,
-    },
-    autoSyncHint: {
-      fontSize: 12,
-      color: colors.textMuted,
-      lineHeight: 17,
-    },
-    autoSyncMetaRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-      flexWrap: "wrap",
-    },
-    autoSyncMetaText: {
-      flex: 1,
-      fontSize: 12,
-      color: colors.textMuted,
-      fontWeight: "500",
-    },
-    syncNowButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 999,
-      backgroundColor: colors.primary_10,
-      borderWidth: 1,
-      borderColor: colors.primary_20,
-    },
-    syncNowButtonText: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.primary400,
-    },
-    reconnectBanner: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 10,
-      padding: 12,
-      borderRadius: radius.lg,
-      backgroundColor: "rgba(251, 191, 36, 0.10)",
-      borderWidth: 1,
-      borderColor: "rgba(251, 191, 36, 0.30)",
-    },
-    reconnectBannerBody: {
-      flex: 1,
-      minWidth: 0,
       gap: 2,
     },
-    reconnectBannerTitle: {
-      fontSize: 13,
-      fontWeight: "800",
-      color: colors.textPrimary,
+    eventTitle: {
+      fontFamily: 'Geist',
+      fontSize: 15,
     },
-    reconnectBannerText: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      lineHeight: 16,
-    },
-    reconnectButton: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 999,
-      backgroundColor: colors.amber,
-    },
-    reconnectButtonText: {
+    eventMeta: {
+      fontFamily: 'GeistMono',
       fontSize: 11,
-      fontWeight: "800",
-      color: colors.white,
     },
-  });
+    selectAllRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    linkPress: { padding: 4 },
+    linkText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+      textDecorationLine: 'underline',
+    },
+    actionPad: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    primaryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 18,
+      borderRadius: 8,
+      alignSelf: 'stretch',
+    },
+    primaryBtnText: {
+      fontFamily: 'Geist',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    progressTrack: {
+      width: 200,
+      height: 3,
+      borderRadius: 999,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      width: '60%',
+      height: '100%',
+      borderRadius: 999,
+    },
+  })
 }

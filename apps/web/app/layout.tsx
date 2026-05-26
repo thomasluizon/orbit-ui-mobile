@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Manrope } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Toaster } from 'sonner'
@@ -9,9 +9,15 @@ import { schemes } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import './globals.css'
 
-const manrope = Manrope({
+const geistSans = Geist({
   subsets: ['latin'],
-  variable: '--font-manrope',
+  variable: '--font-geist-sans',
+  display: 'swap',
+})
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
   display: 'swap',
 })
 
@@ -53,28 +59,23 @@ export default async function RootLayout({
 
       if (themeName === 'dark') {
         root.classList.add('dark')
+        root.classList.remove('light')
       } else {
+        root.classList.add('light')
         root.classList.remove('dark')
       }
 
-      const primary = themeName === 'light' ? def.primaryLight : def.primary
+      // v2: scheme class enables OKLCH neutrals via .scheme-{name}.dark|.light rules.
+      const schemeNames = ['purple','blue','green','rose','orange','cyan']
+      schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
+      const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
+      root.classList.add('scheme-' + activeScheme)
+
+      // v8 migration: --color-* tokens are aliased to v8 vars (--bg, --fg-1, ...) in
+      // globals.css @theme, so we no longer overwrite them here. Per-scheme --primary
+      // is driven by the .scheme-{name} class added above. We still inject the shadow
+      // and nav-glass tokens since those are not yet aliased to v8.
       root.style.setProperty('color-scheme', themeName)
-      root.style.setProperty('--color-primary', primary)
-      root.style.setProperty('--color-background', colors.background)
-      root.style.setProperty('--color-surface-ground', colors.surfaceGround)
-      root.style.setProperty('--color-surface', colors.surface)
-      root.style.setProperty('--color-surface-elevated', colors.surfaceElevated)
-      root.style.setProperty('--color-surface-overlay', colors.surfaceOverlay)
-      root.style.setProperty('--color-card', colors.surface)
-      root.style.setProperty('--color-card-border', colors.surfaceElevated)
-      root.style.setProperty('--color-border', colors.border)
-      root.style.setProperty('--color-border-muted', colors.borderMuted)
-      root.style.setProperty('--color-border-emphasis', colors.borderEmphasis)
-      root.style.setProperty('--color-text-primary', colors.textPrimary)
-      root.style.setProperty('--color-text-secondary', colors.textSecondary)
-      root.style.setProperty('--color-text-muted', colors.textMuted)
-      root.style.setProperty('--color-text-faded', colors.textFaded)
-      root.style.setProperty('--color-text-inverse', colors.textInverse)
       root.style.setProperty('--shadow-sm', colors.shadowSm)
       root.style.setProperty('--shadow-md', colors.shadowMd)
       root.style.setProperty('--shadow-lg', colors.shadowLg)
@@ -115,7 +116,7 @@ export default async function RootLayout({
   `
 
   return (
-    <html lang={locale} className={`dark ${manrope.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`dark scheme-purple ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -123,7 +124,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className="bg-background text-text-primary font-sans antialiased">
+      <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <NavigationHistoryTracker />
           {children}
@@ -131,10 +132,15 @@ export default async function RootLayout({
             theme="dark"
             position="top-center"
             toastOptions={{
+              // v8 toast chrome: flat bg-elev, hairline inset shadow, no corner glow.
               style: {
-                background: 'var(--color-surface-elevated)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text-primary)',
+                background: 'var(--bg-elev)',
+                boxShadow:
+                  '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
+                border: 'none',
+                color: 'var(--fg-1)',
+                borderRadius: 10,
+                fontFamily: 'var(--font-family-sans)',
               },
             }}
           />

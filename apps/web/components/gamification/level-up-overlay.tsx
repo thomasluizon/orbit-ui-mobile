@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
-import './level-up-overlay.css'
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -12,25 +12,36 @@ interface LevelUpOverlayProps {
   onClear: () => void
 }
 
-export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelUpOverlayProps>) {
+export function LevelUpOverlay({
+  leveledUp,
+  newLevel,
+  onClear,
+}: Readonly<LevelUpOverlayProps>) {
   const t = useTranslations()
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
   const [level, setLevel] = useState(0)
-  const [title, setTitle] = useState('')
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsClient()
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
-    activeCelebration?.kind === 'level-up'
-      ? activeCelebration
-      : null
+    activeCelebration?.kind === 'level-up' ? activeCelebration : null
+  const [previousActiveLevelUp, setPreviousActiveLevelUp] = useState<
+    typeof activeLevelUp | undefined
+  >(undefined)
+
+  if (activeLevelUp !== previousActiveLevelUp) {
+    setPreviousActiveLevelUp(activeLevelUp)
+    if (activeLevelUp) {
+      setLevel(activeLevelUp.payload.level)
+      setShouldRender(true)
+    }
+  }
 
   useEffect(() => {
-    setMounted(true)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
@@ -43,31 +54,31 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
     }
   }, [enqueueCelebration, leveledUp, newLevel])
 
-  const dismiss = useCallback((id?: string) => {
-    if (!id) return
+  const dismiss = useCallback(
+    (id?: string) => {
+      if (!id) return
 
-    if (timerRef.current) clearTimeout(timerRef.current)
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
 
-    setIsVisible(false)
-    hideTimerRef.current = setTimeout(() => {
-      setShouldRender(false)
-      completeActiveCelebration(id)
-      onClear()
-    }, 400)
-  }, [completeActiveCelebration, onClear])
+      setIsVisible(false)
+      hideTimerRef.current = setTimeout(() => {
+        setShouldRender(false)
+        completeActiveCelebration(id)
+        onClear()
+      }, 400)
+    },
+    [completeActiveCelebration, onClear],
+  )
 
   useEffect(() => {
     if (!activeLevelUp) return
 
-    setLevel(activeLevelUp.payload.level)
-    setTitle(t(`gamification.levels.${activeLevelUp.payload.level}`))
-    setShouldRender(true)
     requestAnimationFrame(() => setIsVisible(true))
     timerRef.current = setTimeout(() => {
       dismiss(activeLevelUp.id)
     }, 3000)
-  }, [activeLevelUp, dismiss, t])
+  }, [activeLevelUp, dismiss])
 
   if (!mounted || !shouldRender) return null
 
@@ -75,39 +86,83 @@ export function LevelUpOverlay({ leveledUp, newLevel, onClear }: Readonly<LevelU
     <div
       role="alert"
       aria-atomic="true"
-      className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70"
+      className="fixed inset-0 z-[10001] flex items-center justify-center"
       style={{
-        transition: 'opacity 0.5s var(--ease-spring)',
+        background: 'rgba(0,0,0,0.85)',
+        transition: 'opacity 300ms ease-out',
         opacity: isVisible ? 1 : 0,
       }}
     >
-      <div className="text-center space-y-4 level-up-content">
-        {/* Orbital ring animation */}
-        <div className="relative mx-auto size-32">
-          <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-spin-slow shadow-[var(--shadow-glow)]" />
-          <div
-            className="absolute inset-2 rounded-full border-2 border-primary/50 shadow-[var(--shadow-glow-sm)]"
-            style={{ animation: 'spin 6s linear infinite reverse' }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-5xl font-extrabold text-primary">{level}</span>
-          </div>
+      <div
+        className="flex flex-col items-center"
+        style={{ gap: 14 }}
+      >
+        {/* Eyebrow */}
+        <div
+          style={{
+            fontFamily: 'var(--font-family-mono)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.7)',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {t('gamification.levelUp.title')}
         </div>
 
-        {/* Text */}
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest text-primary">
-            {t('gamification.levelUp.title')}
-          </p>
-          <p className="text-2xl font-extrabold text-text-primary mt-1">
-            {t('gamification.levelUp.newLevel', { level })}
-          </p>
-          <p className="text-sm text-text-secondary mt-1">
-            {t('gamification.levelUp.subtitle', { title })}
-          </p>
+        {/* Rotating orbit ellipse + level number */}
+        <div
+          className="relative flex items-center justify-center"
+          style={{ width: 130, height: 130 }}
+        >
+          <svg
+            width={130}
+            height={130}
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              animation: 'spin 8s linear infinite',
+              transform: 'rotate(-18deg)',
+            }}
+          >
+            <ellipse
+              cx={65}
+              cy={65}
+              rx={62}
+              ry={22}
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth={1.5}
+            />
+          </svg>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 80,
+              fontWeight: 500,
+              color: 'white',
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '-0.04em',
+            }}
+          >
+            {String(level).padStart(2, '0')}
+          </span>
+        </div>
+
+        <div
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 16,
+            fontStyle: 'italic',
+            color: 'rgba(255,255,255,0.85)',
+          }}
+        >
+          {t('gamification.levelUp.steadyHand')}
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }

@@ -3,11 +3,10 @@ import { Text, StyleSheet } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface DescriptionViewerProps {
   open: boolean;
@@ -16,18 +15,18 @@ interface DescriptionViewerProps {
   description: string;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function DescriptionViewer({
   open,
   onClose,
   title,
   description,
 }: Readonly<DescriptionViewerProps>) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -51,11 +50,7 @@ export function DescriptionViewer({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     scrollContainer: {
       flex: 1,
@@ -67,7 +62,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>["colors"]) {
     descriptionText: {
       fontSize: 14,
       lineHeight: 22,
-      color: colors.textSecondary,
+      color: tokens.fg2,
     },
   });
 }

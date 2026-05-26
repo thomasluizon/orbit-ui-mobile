@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Clipboard, Check, AlertTriangle } from 'lucide-react'
+import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { Chip } from '@/components/ui/chip'
+import { SectionLabel } from '@/components/ui/section-label'
+import { UnderlinedInput } from '@/components/ui/underlined-input'
 
 interface ScopeOption {
   scope: string
@@ -30,14 +32,16 @@ function parseUtcDateTimeLocal(value: string): Date | null {
   }
 
   const [, year, month, day, hour, minute, second] = match
-  const parsed = new Date(Date.UTC(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second ?? '0'),
-  ))
+  const parsed = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second ?? '0'),
+    ),
+  )
 
   if (
     parsed.getUTCFullYear() !== Number(year) ||
@@ -72,7 +76,9 @@ export function CreateApiKeyModal({
   const [copied, setCopied] = useState(false)
 
   const isRevealState = createdKey !== null
-  const overlayTitle = isRevealState ? t('orbitMcp.keyCreated') : t('orbitMcp.createKey')
+  const overlayTitle = isRevealState
+    ? t('orbitMcp.revealHeading')
+    : t('orbitMcp.createHeading')
 
   function resetForm() {
     setKeyName('')
@@ -85,13 +91,14 @@ export function CreateApiKeyModal({
     setCopied(false)
   }
 
-  useEffect(() => {
-    if (!open) {
-      resetForm()
-    }
-  }, [open])
+  // Reset form fields when the modal transitions from open -> closed.
+  const [previousOpen, setPreviousOpen] = useState(open)
+  if (open !== previousOpen) {
+    setPreviousOpen(open)
+    if (!open) resetForm()
+  }
 
-  function validate(): boolean {
+  const validate = useCallback((): boolean => {
     setValidationError('')
     const trimmed = keyName.trim()
     if (!trimmed) {
@@ -109,7 +116,7 @@ export function CreateApiKeyModal({
       }
     }
     return true
-  }
+  }, [keyName, expiresAt, t])
 
   function toggleScope(scope: string) {
     setSelectedScopes((current) =>
@@ -119,30 +126,33 @@ export function CreateApiKeyModal({
     )
   }
 
-  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(async (e) => {
-    e.preventDefault()
-    if (!validate()) return
+  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
+    async (e) => {
+      e.preventDefault()
+      if (!validate()) return
 
-    setIsSubmitting(true)
-    try {
-      const expiresAtUtc = expiresAt.trim()
-        ? parseUtcDateTimeLocal(expiresAt)?.toISOString() ?? null
-        : null
+      setIsSubmitting(true)
+      try {
+        const expiresAtUtc = expiresAt.trim()
+          ? parseUtcDateTimeLocal(expiresAt)?.toISOString() ?? null
+          : null
 
-      const result = await onCreateKey({
-        name: keyName.trim(),
-        scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
-        isReadOnly,
-        expiresAtUtc,
-      })
-      if (result) {
-        setCreatedKey(result)
-        onCreated?.()
+        const result = await onCreateKey({
+          name: keyName.trim(),
+          scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
+          isReadOnly,
+          expiresAtUtc,
+        })
+        if (result) {
+          setCreatedKey(result)
+          onCreated?.()
+        }
+      } finally {
+        setIsSubmitting(false)
       }
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes])
+    },
+    [expiresAt, isReadOnly, keyName, onCreateKey, onCreated, selectedScopes, validate],
+  )
 
   async function copyKey() {
     if (!createdKey) return
@@ -151,7 +161,7 @@ export function CreateApiKeyModal({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Clipboard API not available
+      // Clipboard API unavailable.
     }
   }
 
@@ -166,175 +176,343 @@ export function CreateApiKeyModal({
       title={overlayTitle}
       dismissible={!isRevealState}
     >
-      {/* Create Form */}
       {isRevealState ? (
-        <div className="space-y-5">
-          {/* Warning */}
-          <div className="flex items-start gap-2.5 rounded-[var(--radius-lg)] bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
-            <AlertTriangle className="size-4 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-300 leading-relaxed font-medium">
-              {t('orbitMcp.keyCreatedWarning')}
-            </p>
-          </div>
-
-          {/* Key Display */}
-          <div className="relative group">
-            <div className="rounded-[var(--radius-lg)] bg-background border border-border p-4 font-mono text-sm text-text-primary break-all leading-relaxed select-all">
-              {createdKey?.key}
-            </div>
-            <button
-              type="button"
-              className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-surface-elevated/80 backdrop-blur-sm text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-all"
-              onClick={copyKey}
-            >
-              {copied ? (
-                <Check className="size-4 text-emerald-400 transition-all" />
-              ) : (
-                <Clipboard className="size-4 transition-all" />
-              )}
-            </button>
-          </div>
-
-          {/* Copied feedback */}
-          {copied && (
-            <p className="text-xs text-emerald-400 font-medium text-center">
-              {t('orbitMcp.copied')}
-            </p>
-          )}
-
-          <div className="rounded-[var(--radius-lg)] border border-border bg-background px-4 py-3 text-xs text-text-secondary space-y-1">
-            <p>
-              <span className="font-semibold text-text-primary">{t('orbitMcp.scopesLabel')}</span>{' '}
-              {createdKey?.scopes.length ? createdKey.scopes.join(', ') : t('orbitMcp.noScopes')}
-            </p>
-            <p>
-              <span className="font-semibold text-text-primary">{t('orbitMcp.readOnlyLabel')}</span>{' '}
-              {createdKey?.isReadOnly ? t('common.yes') : t('common.no')}
-            </p>
-            {createdKey?.expiresAtUtc && (
-              <p>
-                <span className="font-semibold text-text-primary">{t('orbitMcp.expiresLabel')}</span>{' '}
-                {createdKey.expiresAtUtc}
-              </p>
-            )}
-          </div>
-
-          {/* Done button */}
-          <button
-            type="button"
-            className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)]"
-            onClick={handleDone}
-          >
-            {t('orbitMcp.done')}
-          </button>
-        </div>
+        <RevealStep
+          createdKey={createdKey}
+          copied={copied}
+          onCopy={copyKey}
+          onDone={handleDone}
+        />
       ) : (
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="api-key-name" className="form-label">
-              {t('orbitMcp.keyName')}
-            </label>
-            <input
-              id="api-key-name"
-              type="text"
-              value={keyName}
-              onChange={(e) => setKeyName(e.target.value)}
-              className="form-input"
-              placeholder={t('orbitMcp.keyNamePlaceholder')}
-              maxLength={50}
-            />
-            {validationError && (
-              <p className="mt-1.5 text-xs text-red-400">{validationError}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p id="api-key-scopes-label" className="form-label mb-0">
-                {t('orbitMcp.apiKeys')}
-              </p>
-              <div className="flex items-center gap-2 text-[11px]">
-                <button
-                  type="button"
-                  className="text-text-secondary hover:text-text-primary transition-colors"
-                  onClick={() => setSelectedScopes(availableScopes.map((scope) => scope.scope))}
-                >
-                  {t('common.selectAll')}
-                </button>
-                <button
-                  type="button"
-                  className="text-text-secondary hover:text-text-primary transition-colors"
-                  onClick={() => setSelectedScopes([])}
-                >
-                  {t('common.clear')}
-                </button>
-              </div>
-            </div>
-            <div
-              role="group"
-              aria-labelledby="api-key-scopes-label"
-              className="max-h-48 overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-background p-2 space-y-2"
-            >
-              {availableScopes.map((scope) => (
-                <label
-                  key={scope.scope}
-                  className="flex items-start gap-3 rounded-[var(--radius-lg)] px-2 py-2 hover:bg-surface-elevated"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedScopes.includes(scope.scope)}
-                    onChange={() => toggleScope(scope.scope)}
-                    className="mt-0.5 accent-primary"
-                  />
-                  <span className="space-y-0.5">
-                    <span className="block text-xs font-semibold text-text-primary">
-                      {scope.scope}
-                    </span>
-                    <span className="block text-[11px] text-text-secondary">
-                      {scope.description}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <label className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-background px-3 py-3">
-            <input
-              type="checkbox"
-              checked={isReadOnly}
-              onChange={(event) => setIsReadOnly(event.target.checked)}
-              className="accent-primary"
-            />
-            <span className="text-xs text-text-primary">{t('orbitMcp.readOnlyKeyLabel')}</span>
-          </label>
-
-          <div>
-            <label htmlFor="api-key-expiry" className="form-label">
-              {t('orbitMcp.expiresAtLabel')}
-            </label>
-            <input
-              id="api-key-expiry"
-              type="datetime-local"
-              value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-              className="form-input"
-            />
-          </div>
-
-          {apiError && (
-            <p className="text-xs text-red-400">{apiError}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3.5 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm text-center hover:bg-primary/90 transition-all duration-150 active:scale-[0.98] shadow-[var(--shadow-glow)] disabled:opacity-50"
-          >
-            {isSubmitting ? '...' : t('orbitMcp.createKey')}
-          </button>
-        </form>
+        <CreateStep
+          keyName={keyName}
+          onKeyNameChange={setKeyName}
+          availableScopes={availableScopes}
+          selectedScopes={selectedScopes}
+          onToggleScope={toggleScope}
+          onSelectAll={() =>
+            setSelectedScopes(availableScopes.map((scope) => scope.scope))
+          }
+          onClear={() => setSelectedScopes([])}
+          isReadOnly={isReadOnly}
+          onIsReadOnlyChange={setIsReadOnly}
+          expiresAt={expiresAt}
+          onExpiresAtChange={setExpiresAt}
+          validationError={validationError}
+          apiError={apiError ?? null}
+          isSubmitting={isSubmitting}
+          onSubmit={handleSubmit}
+        />
       )}
     </AppOverlay>
+  )
+}
+
+interface CreateStepProps {
+  keyName: string
+  onKeyNameChange: (value: string) => void
+  availableScopes: ScopeOption[]
+  selectedScopes: string[]
+  onToggleScope: (scope: string) => void
+  onSelectAll: () => void
+  onClear: () => void
+  isReadOnly: boolean
+  onIsReadOnlyChange: (value: boolean) => void
+  expiresAt: string
+  onExpiresAtChange: (value: string) => void
+  validationError: string
+  apiError: string | null
+  isSubmitting: boolean
+  onSubmit: React.FormEventHandler<HTMLFormElement>
+}
+
+function CreateStep(props: Readonly<CreateStepProps>) {
+  const t = useTranslations()
+  const {
+    keyName,
+    onKeyNameChange,
+    availableScopes,
+    selectedScopes,
+    onToggleScope,
+    onSelectAll,
+    onClear,
+    isReadOnly,
+    onIsReadOnlyChange,
+    expiresAt,
+    onExpiresAtChange,
+    validationError,
+    apiError,
+    isSubmitting,
+    onSubmit,
+  } = props
+
+  return (
+    <form className="flex flex-col" style={{ gap: 18 }} onSubmit={onSubmit}>
+      <UnderlinedInput
+        id="api-key-name"
+        large
+        label={t('orbitMcp.keyName')}
+        value={keyName}
+        onChange={onKeyNameChange}
+        placeholder={t('orbitMcp.keyNamePlaceholder')}
+        maxLength={50}
+      />
+      {validationError && (
+        <p
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {validationError}
+        </p>
+      )}
+
+      <div>
+        <SectionLabel top={6} bottom={6}>
+          {t('orbitMcp.scopesLabel')}
+        </SectionLabel>
+        <div className="flex flex-wrap" style={{ gap: 6 }}>
+          {availableScopes.map((scope) => (
+            <Chip
+              key={scope.scope}
+              active={selectedScopes.includes(scope.scope)}
+              onClick={() => onToggleScope(scope.scope)}
+            >
+              {scope.scope}
+            </Chip>
+          ))}
+        </div>
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: '12px 0',
+            borderBottom: '1px solid var(--hairline)',
+          }}
+        >
+          <button
+            type="button"
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
+            onClick={onSelectAll}
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              color: 'var(--fg-1)',
+              padding: 6,
+            }}
+          >
+            {t('common.selectAll')}
+          </button>
+          <button
+            type="button"
+            className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+            onClick={onClear}
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+              padding: 6,
+            }}
+          >
+            {t('common.clear')}
+          </button>
+        </div>
+      </div>
+
+      <label
+        className="flex items-center justify-between"
+        style={{ padding: '12px 0', borderBottom: '1px solid var(--hairline)' }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 15,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {t('orbitMcp.readOnlyKeyLabel')}
+        </span>
+        <input
+          type="checkbox"
+          checked={isReadOnly}
+          onChange={(event) => onIsReadOnlyChange(event.target.checked)}
+          className="accent-[var(--primary)]"
+        />
+      </label>
+
+      <div className="flex flex-col" style={{ gap: 4 }}>
+        <label
+          htmlFor="api-key-expiry"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('orbitMcp.expiresAtLabel')}
+        </label>
+        <input
+          id="api-key-expiry"
+          type="datetime-local"
+          value={expiresAt}
+          onChange={(event) => onExpiresAtChange(event.target.value)}
+          style={{
+            appearance: 'none',
+            border: 0,
+            background: 'transparent',
+            outline: 'none',
+            fontFamily: 'var(--font-family-mono)',
+            fontSize: 13,
+            color: 'var(--fg-1)',
+            padding: '6px 0',
+            borderBottom: '1px solid var(--hairline-strong)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        />
+      </div>
+
+      {apiError && (
+        <p
+          role="alert"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontStyle: 'italic',
+            color: 'var(--status-overdue)',
+          }}
+        >
+          {apiError}
+        </p>
+      )}
+
+      <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-3)',
+            padding: 6,
+          }}
+          disabled={isSubmitting}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="submit"
+          className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
+          disabled={isSubmitting}
+          style={{
+            padding: '10px 18px',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            borderRadius: 10,
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {isSubmitting ? t('common.loading') : t('orbitMcp.createKey')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+interface RevealStepProps {
+  createdKey: ApiKeyCreateResponse | null
+  copied: boolean
+  onCopy: () => void
+  onDone: () => void
+}
+
+function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepProps>) {
+  const t = useTranslations()
+  if (!createdKey) return null
+
+  return (
+    <div className="flex flex-col" style={{ gap: 12 }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: 'var(--status-overdue)',
+        }}
+      >
+        {t('orbitMcp.keyCreatedWarning')}
+      </p>
+      <div
+        className="relative"
+        style={{
+          padding: '12px 14px',
+          borderRadius: 8,
+          background: 'var(--bg-sunk)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 13,
+          color: 'var(--fg-1)',
+          lineHeight: 1.5,
+          wordBreak: 'break-all',
+        }}
+      >
+        <button
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer"
+          onClick={onCopy}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 10,
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            color: 'var(--fg-3)',
+            textDecoration: 'underline',
+          }}
+        >
+          {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
+        </button>
+        {createdKey.key}
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {t('orbitMcp.revealSummary', {
+          scopes: createdKey.scopes.length || 0,
+          readOnly: createdKey.isReadOnly
+            ? t('common.yes')
+            : t('common.no'),
+          expires: createdKey.expiresAtUtc ?? t('common.never'),
+        })}
+      </div>
+      <div className="flex items-center justify-end" style={{ paddingTop: 8 }}>
+        <button
+          type="button"
+          className="appearance-none border-0 cursor-pointer"
+          onClick={onDone}
+          style={{
+            padding: '10px 18px',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            borderRadius: 10,
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {t('orbitMcp.done')}
+        </button>
+      </div>
+    </div>
   )
 }

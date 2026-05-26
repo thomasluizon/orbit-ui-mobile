@@ -108,10 +108,10 @@ describe('use-push-notification-preferences helpers', () => {
   })
 
   it('maps push statuses to the expected tone classes', () => {
-    expect(getPushStatusTone('denied')).toBe('text-red-400')
-    expect(getPushStatusTone('sync-failed')).toBe('text-red-400')
-    expect(getPushStatusTone('registered')).toBe('text-primary')
-    expect(getPushStatusTone('not-registered')).toBe('text-text-muted')
+    expect(getPushStatusTone('denied')).toBe('text-[var(--status-bad)]')
+    expect(getPushStatusTone('sync-failed')).toBe('text-[var(--status-bad)]')
+    expect(getPushStatusTone('registered')).toBe('text-[var(--primary)]')
+    expect(getPushStatusTone('not-registered')).toBe('text-[var(--fg-3)]')
   })
 
   it('maps push statuses to the expected translation keys', () => {

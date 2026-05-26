@@ -8,9 +8,10 @@ import {
   View,
 } from 'react-native'
 import { AlertCircle, CheckCircle2, Clock3, Info } from 'lucide-react-native'
+import type { LucideIcon } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { radius } from '@/lib/theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -18,16 +19,32 @@ const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 420)
 const TOAST_DURATION_MS = 4500
 const ACTION_TOAST_DURATION_MS = 6000
 
+type Variant = 'success' | 'error' | 'info' | 'queued'
+
+interface VariantStyle {
+  icon: LucideIcon
+  accent: string
+  eyebrow: string
+}
+
+/**
+ * v8 AppToast: 4 kinds (success / error / info / queued · undo) with a colored
+ * left stripe, hairline ring, and uppercase mono eyebrow. Preserves the
+ * existing store contract.
+ */
 export function AppToast() {
   const insets = useSafeAreaInsets()
-  const { colors, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const currentToast = useAppToastStore((state) => state.currentToast)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
-  const translateY = useRef(new Animated.Value(-48)).current
-  const opacity = useRef(new Animated.Value(0)).current
-  const scale = useRef(new Animated.Value(0.96)).current
+  const translateY = useMemo(() => new Animated.Value(-48), [])
+  const opacity = useMemo(() => new Animated.Value(0), [])
+  const scale = useMemo(() => new Animated.Value(0.96), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearTimer = useCallback(() => {
@@ -102,8 +119,8 @@ export function AppToast() {
 
   if (!currentToast) return null
 
-  const variantConfig = getVariantConfig(currentToast.variant, colors)
-  const Icon = variantConfig.icon
+  const variantStyle = getVariantStyle(currentToast.variant, tokens)
+  const Icon = variantStyle.icon
 
   return (
     <Animated.View
@@ -119,15 +136,34 @@ export function AppToast() {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <Pressable style={styles.toast} onPress={hideToast}>
-        <View style={[styles.iconWrap, { backgroundColor: variantConfig.iconBackground }]}>
-          <Icon size={18} color={variantConfig.iconColor} />
-        </View>
-        <View style={styles.messageWrap}>
-          <Text style={styles.message}>{currentToast.message}</Text>
+      <Pressable
+        style={[
+          styles.toast,
+          {
+            backgroundColor: tokens.bgElev,
+            borderColor: tokens.hairline,
+          },
+        ]}
+        onPress={hideToast}
+      >
+        <View
+          style={[styles.stripe, { backgroundColor: variantStyle.accent }]}
+        />
+        <View style={styles.body}>
+          <View style={styles.iconWrap}>
+            <Icon size={16} color={variantStyle.accent} strokeWidth={1.6} />
+          </View>
+          <View style={styles.messageWrap}>
+            <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+              {variantStyle.eyebrow}
+            </Text>
+            <Text style={[styles.message, { color: tokens.fg1 }]}>
+              {currentToast.message}
+            </Text>
+          </View>
           {currentToast.actionLabel ? (
             <Pressable onPress={triggerAction} style={styles.actionButton}>
-              <Text style={[styles.actionText, { color: variantConfig.actionColor }]}>
+              <Text style={[styles.actionText, { color: tokens.fg1 }]}>
                 {currentToast.actionLabel}
               </Text>
             </Pressable>
@@ -138,92 +174,93 @@ export function AppToast() {
   )
 }
 
-function createStyles(
-  colors: ReturnType<typeof useAppTheme>['colors'],
-  shadows: ReturnType<typeof useAppTheme>['shadows'],
-) {
-  return StyleSheet.create({
-    container: {
-      position: 'absolute',
-      left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-      width: TOAST_WIDTH,
-      zIndex: 10000,
-    },
-    toast: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-      backgroundColor: colors.surfaceOverlay,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.xl,
-      paddingHorizontal: 18,
-      paddingVertical: 15,
-      ...shadows.lg,
-    },
-    iconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: radius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 1,
-    },
-    messageWrap: {
-      flex: 1,
-      gap: 10,
-    },
-    message: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textPrimary,
-    },
-    actionButton: {
-      alignSelf: 'flex-start',
-    },
-    actionText: {
-      fontSize: 13,
-      fontWeight: '700',
-    },
-  })
-}
-
-function getVariantConfig(
-  variant: ReturnType<typeof useAppToastStore.getState>['currentToast'] extends infer T
-    ? T extends { variant: infer V }
-      ? V
-      : never
-    : never,
-  colors: ReturnType<typeof useAppTheme>['colors'],
-) {
+function getVariantStyle(variant: Variant, tokens: AppTokensV2): VariantStyle {
   switch (variant) {
     case 'success':
       return {
         icon: CheckCircle2,
-        iconColor: colors.green400,
-        iconBackground: colors.emerald400_10,
-        actionColor: colors.green400,
+        accent: tokens.statusDone,
+        eyebrow: 'Created',
       }
     case 'info':
       return {
         icon: Info,
-        iconColor: colors.primary,
-        iconBackground: colors.primary_10,
-        actionColor: colors.primary,
+        accent: tokens.primary,
+        eyebrow: 'Heads up',
       }
     case 'queued':
       return {
         icon: Clock3,
-        iconColor: colors.amber400,
-        iconBackground: 'rgba(245, 158, 11, 0.10)',
-        actionColor: colors.amber400,
+        accent: tokens.statusSkip,
+        eyebrow: 'Queued',
       }
     default:
       return {
         icon: AlertCircle,
-        iconColor: colors.red400,
-        iconBackground: colors.red500_10,
-        actionColor: colors.red400,
+        accent: tokens.statusOverdue,
+        eyebrow: 'Error',
       }
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
+    width: TOAST_WIDTH,
+    zIndex: 10000,
+  },
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+    ...shadowsV2.shadow2,
+  },
+  stripe: {
+    width: 3,
+  },
+  body: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  iconWrap: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  messageWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  eyebrow: {
+    fontFamily: 'Geist',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  message: {
+    fontFamily: 'Geist',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  actionButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 4,
+    paddingTop: 2,
+  },
+  actionText: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+})

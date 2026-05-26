@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -52,24 +51,58 @@ export function ExpiryWarning() {
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
-      className="fixed top-0 left-0 right-0 z-[9998] mx-auto max-w-[var(--app-max-w)]"
+      className="fixed left-0 right-0 z-[9998] mx-auto"
+      style={{ top: 0, maxWidth: 'var(--app-max-w)' }}
     >
       <div
-        className={`mx-4 mt-[calc(var(--safe-top)+0.5rem)] rounded-[var(--radius-lg)] px-4 py-3 flex items-center gap-3 border shadow-[var(--shadow-lg)] backdrop-blur-sm ${
-          isExpired
-            ? 'bg-red-500/10 border-red-500/20 text-red-400'
-            : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-        }`}
+        className="flex items-center"
+        style={{
+          padding: '8px 14px',
+          marginTop: 'calc(var(--safe-top) + 0.25rem)',
+          background: 'var(--bg-elev)',
+          borderTop: '1px solid var(--hairline)',
+          borderBottom: '1px solid var(--hairline)',
+          gap: 12,
+        }}
       >
-        <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-        <span className="text-sm font-medium flex-1">
-          {isExpired
-            ? t('auth.sessionExpired')
-            : t('auth.sessionExpiring', { minutes: minutesLeft ?? 0 })}
+        <span
+          className="flex-1"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            color: 'var(--fg-2)',
+          }}
+        >
+          {isExpired ? (
+            <span style={{ color: 'var(--status-overdue)', fontStyle: 'italic' }}>
+              {t('auth.sessionExpired')}
+            </span>
+          ) : (
+            <>
+              {t('auth.sessionExpiringPrefix')}{' '}
+              <span
+                style={{
+                  color: 'var(--fg-1)',
+                  fontFamily: 'var(--font-family-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {t('auth.minutesShort', { minutes: minutesLeft ?? 0 })}
+              </span>
+            </>
+          )}
         </span>
         <button
-          className="text-xs font-bold shrink-0 hover:underline"
+          type="button"
+          className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
           onClick={handleLogin}
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            padding: 4,
+          }}
         >
           {isExpired ? t('auth.login') : t('auth.refresh')}
         </button>

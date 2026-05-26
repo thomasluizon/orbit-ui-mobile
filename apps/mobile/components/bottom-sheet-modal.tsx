@@ -9,7 +9,7 @@ import {
 import { ReduceMotion } from 'react-native-reanimated'
 import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { ThemeContextValue } from '@/lib/theme-provider'
+import { createTokensV2 } from '@/lib/theme'
 import {
   createBottomSheetOverlayState,
   requestBottomSheetClose,
@@ -20,9 +20,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface BottomSheetModalProps {
   open: boolean
@@ -38,9 +36,7 @@ interface BottomSheetModalProps {
   children: ReactNode
 }
 
-// ---------------------------------------------------------------------------
-// BottomSheetModal -- wrapper around @gorhom/bottom-sheet
-// ---------------------------------------------------------------------------
+const DEFAULT_SNAP_POINTS: (string | number)[] = ['50%', '80%']
 
 export function BottomSheetModal({
   open,
@@ -54,23 +50,30 @@ export function BottomSheetModal({
   onAttemptDismiss,
   children,
 }: BottomSheetModalProps) {
-  const theme = useAppTheme()
-  const { colors } = theme
+  const { currentScheme, currentTheme, surfaces } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const prefersReducedMotion = usePrefersReducedMotion()
   const insets = useSafeAreaInsets()
-  const styles = useMemo(() => createStyles(theme), [theme])
+  const styles = useMemo(() => createStyles(tokens, surfaces), [tokens, surfaces])
   const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
   const isOpenRef = useRef(open)
   const overlayStateRef = useRef(createBottomSheetOverlayState())
-  const overlayIdRef = useRef(`sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  // Lazy useState keeps Date.now() / Math.random() out of render (purity rule).
+  const [overlayId] = useState(
+    () => `sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  )
+  const overlayIdRef = useRef(overlayId)
   const [isPresented, setIsPresented] = useState(false)
 
-  const snapPointsKey = (snapPointsProp ?? ['50%', '80%']).join('|')
-  const snapPoints = useMemo(
-    () => snapPointsProp ?? ['50%', '80%'],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [snapPointsKey],
-  )
+  const desiredSnapPoints = snapPointsProp ?? DEFAULT_SNAP_POINTS
+  const snapPointsRef = useRef<(string | number)[]>(desiredSnapPoints)
+  if (snapPointsRef.current.join('|') !== desiredSnapPoints.join('|')) {
+    snapPointsRef.current = desiredSnapPoints
+  }
+  const snapPoints = snapPointsRef.current
 
   const requestClose = useCallback(
     (reason: 'backdrop' | 'close-button' | 'navigation' | 'system-back') => {
@@ -201,7 +204,7 @@ export function BottomSheetModal({
             onPress={() => requestClose('close-button')}
             activeOpacity={0.7}
           >
-            <X size={18} color={colors.textMuted} />
+            <X size={18} color={tokens.fg3} />
           </TouchableOpacity>
         </View>
       ) : null}
@@ -211,16 +214,10 @@ export function BottomSheetModal({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-function createStyles(theme: ThemeContextValue) {
-  const { colors, surfaces } = theme
-
+function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme>['surfaces']) {
   return StyleSheet.create({
     handleIndicator: {
-      backgroundColor: colors.primaryTintBorder,
+      backgroundColor: tokens.hairlineStrong,
       width: 42,
       height: 4,
     },
@@ -237,7 +234,7 @@ function createStyles(theme: ThemeContextValue) {
       flex: 1,
       fontSize: 18,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     closeButton: {
       width: 48,

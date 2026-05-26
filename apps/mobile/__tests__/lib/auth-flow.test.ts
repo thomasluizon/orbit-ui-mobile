@@ -1,19 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getItemMock, setItemMock, removeItemMock } = vi.hoisted(() => ({
-  getItemMock: vi.fn(),
-  setItemMock: vi.fn(),
-  removeItemMock: vi.fn(),
-}))
-
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: getItemMock,
-    setItem: setItemMock,
-    removeItem: removeItemMock,
-  },
-}))
-
 import {
   clearStoredAuthReturnUrl,
   clearStoredReferralCode,
@@ -28,6 +14,20 @@ import {
   storeAuthReturnUrl,
   storeReferralCode,
 } from '@/lib/auth-flow'
+
+const { getItemMock, setItemMock, removeItemMock } = vi.hoisted(() => ({
+  getItemMock: vi.fn(),
+  setItemMock: vi.fn(),
+  removeItemMock: vi.fn(),
+}))
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: getItemMock,
+    setItem: setItemMock,
+    removeItem: removeItemMock,
+  },
+}))
 
 describe('mobile auth flow helpers', () => {
   beforeEach(() => {

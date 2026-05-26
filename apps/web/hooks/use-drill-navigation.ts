@@ -7,10 +7,6 @@ import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigati
 import { getErrorMessage, API } from '@orbit/shared/api'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 
-// ---------------------------------------------------------------------------
-// Helper: fetch habit detail from the BFF proxy
-// ---------------------------------------------------------------------------
-
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   const res = await fetch(API.habits.get(habitId))
   if (!res.ok) {
@@ -19,10 +15,6 @@ async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   }
   return res.json() as Promise<HabitDetail>
 }
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface DrillNavigationState {
   drillStack: string[]
@@ -37,10 +29,6 @@ export interface DrillNavigationState {
   refreshCurrent: () => Promise<void>
   getDrillChildren: (parentId: string) => NormalizedHabit[]
 }
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 /**
  * Manages sub-habit drill-down navigation.
@@ -135,15 +123,12 @@ export function useDrillNavigation(
     [drillChildrenMap],
   )
 
-  // Auto-refresh drill children when store data updates
   const lastUpdatedRef = useRef(lastUpdated)
   useEffect(() => {
-    if (lastUpdated !== lastUpdatedRef.current) {
-      lastUpdatedRef.current = lastUpdated
-      if (currentParentId) {
-        fetchDrillChildren(currentParentId, true)
-      }
-    }
+    if (lastUpdated === lastUpdatedRef.current) return
+    lastUpdatedRef.current = lastUpdated
+    if (!currentParentId) return
+    void Promise.resolve().then(() => fetchDrillChildren(currentParentId, true))
   }, [lastUpdated, currentParentId, fetchDrillChildren])
 
   return {

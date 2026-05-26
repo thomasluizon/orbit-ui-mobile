@@ -58,19 +58,11 @@ describe('ReferralCard', () => {
     expect(onOpen).toHaveBeenCalled()
   })
 
-  it('renders Gift icon', () => {
+  it('renders chevron icon', () => {
     mockIsLoading = false
     mockStats = null
     const { container } = render(<ReferralCard onOpen={vi.fn()} />)
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
-  })
-
-  it('renders chevron icon', () => {
-    mockIsLoading = false
-    mockStats = null
-    const { container } = render(<ReferralCard onOpen={vi.fn()} />)
-    const svgs = container.querySelectorAll('svg')
-    expect(svgs.length).toBeGreaterThanOrEqual(2)
   })
 })

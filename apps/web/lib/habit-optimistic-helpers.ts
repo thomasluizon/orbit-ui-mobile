@@ -1,8 +1,8 @@
 /**
  * Optimistic update helpers for habit list cache mutations.
  *
- * Extracted from use-habits.ts to reduce nesting depth (SonarQube S2004)
- * and cognitive complexity (S3776).
+ * Extracted from use-habits.ts to reduce nesting depth and cognitive
+ * complexity.
  */
 
 import type {
@@ -26,10 +26,6 @@ function withChildren<T extends ChildContainer>(
     hasSubHabits: children.length > 0 || (node.hasSubHabits && node.children.length === 0),
   }
 }
-
-// ---------------------------------------------------------------------------
-// Toggle completion
-// ---------------------------------------------------------------------------
 
 /** Toggle isCompleted on a single habit item, resetting checklist if needed */
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
@@ -71,10 +67,6 @@ export function optimisticToggleCompletion(
     return item
   })
 }
-
-// ---------------------------------------------------------------------------
-// Update checklist
-// ---------------------------------------------------------------------------
 
 /** Optimistically update checklist items for a habit in a list */
 export function optimisticUpdateChecklist(

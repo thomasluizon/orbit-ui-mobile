@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { ClipboardList, CheckCircle2 } from 'lucide-react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 export interface HabitListDateGroup {
@@ -19,6 +18,9 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
+/** v8 empty state — italic title, optional Astra pill or quiet link.
+ *  Description renders only when it's a distinct sentence from the title
+ *  (avoids the legacy "title and description share the same key" double-render). */
 export function HabitListEmptyState({
   title,
   description,
@@ -26,35 +28,80 @@ export function HabitListEmptyState({
   onAction,
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
-  const allDoneToday = title === 'habits.allDoneToday'
+  const isAstraPrompt = variant === 'primary'
+  const hasDistinctDescription =
+    Boolean(description) && description !== title
 
   return (
-    <div className="text-center py-16">
-      <div className="bg-surface-ground rounded-full size-20 flex items-center justify-center mx-auto mb-4 border border-border-muted">
-        {allDoneToday ? (
-          <CheckCircle2 className="size-10 text-success" />
-        ) : (
-          <ClipboardList className="size-10 text-text-muted" />
-        )}
+    <div
+      className="flex flex-col items-center justify-center"
+      style={{ padding: '60px 24px', gap: 16 }}
+    >
+      <div
+        className="text-center"
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 17,
+          color: 'var(--fg-2)',
+          fontStyle: 'italic',
+        }}
+      >
+        {title}
       </div>
-      {allDoneToday ? (
-        <p className="text-text-primary font-bold text-lg mb-1">{title}</p>
-      ) : null}
-      <p className={allDoneToday ? 'text-text-secondary text-sm mb-6' : 'text-text-secondary mb-6'}>
-        {description}
-      </p>
-      {actionLabel ? (
-        <button
-          className={
-            variant === 'secondary'
-              ? 'px-6 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-sm hover:bg-primary/15 transition-all active:scale-95'
-              : 'px-6 py-3 rounded-xl bg-primary text-white font-bold text-sm shadow-[var(--shadow-glow)] active:scale-95 transition-transform'
-          }
-          onClick={onAction}
+      {hasDistinctDescription && (
+        <div
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            color: 'var(--fg-3)',
+            maxWidth: 280,
+            lineHeight: 1.5,
+          }}
         >
-          {actionLabel}
-        </button>
-      ) : null}
+          {description}
+        </div>
+      )}
+      {actionLabel && (
+        isAstraPrompt ? (
+          <button
+            type="button"
+            onClick={onAction}
+            className="appearance-none border-0 cursor-pointer inline-flex items-center"
+            style={{
+              background: 'var(--primary)',
+              color: 'var(--fg-on-primary)',
+              padding: '8px 14px',
+              borderRadius: 999,
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              fontWeight: 500,
+              gap: 8,
+            }}
+          >
+            {actionLabel}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onAction}
+            className="appearance-none border-0 bg-transparent cursor-pointer"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
+              padding: 0,
+              textDecoration: 'underline',
+              textUnderlineOffset: 4,
+              textDecorationThickness: 1,
+              textDecorationColor: 'var(--hairline-strong)',
+            }}
+          >
+            {actionLabel}
+          </button>
+        )
+      )}
     </div>
   )
 }
@@ -65,26 +112,44 @@ interface HabitListDateGroupSectionProps {
   children: ReactNode
 }
 
+/** v8 date-group header: 13px/600 muted label (overdue uses --status-overdue). */
 export function HabitListDateGroupSection({
   group,
   overdueLabel,
   children,
 }: Readonly<HabitListDateGroupSectionProps>) {
   return (
-    <div key={group.key} className="mb-4">
-      <div className="flex items-center gap-3 mb-2 mt-2">
+    <div key={group.key}>
+      <div
+        className="flex items-center"
+        style={{
+          padding: '16px 20px 8px',
+          gap: 8,
+        }}
+      >
         <span
-          className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${
-            group.isOverdue ? 'text-red-400' : 'text-text-muted'
-          }`}
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 13,
+            fontWeight: 600,
+            color: group.isOverdue ? 'var(--status-overdue)' : 'var(--fg-3)',
+            whiteSpace: 'nowrap',
+          }}
         >
           {group.isOverdue ? overdueLabel : group.label}
         </span>
         <div
-          className={`flex-1 h-px ${group.isOverdue ? 'bg-red-500/20' : 'bg-border'}`}
+          className="flex-1"
+          style={{
+            height: 1,
+            background: group.isOverdue
+              ? 'var(--status-overdue)'
+              : 'var(--hairline)',
+            opacity: group.isOverdue ? 0.32 : 1,
+          }}
         />
       </div>
-      <div className="space-y-2.5">{children}</div>
+      <div>{children}</div>
     </div>
   )
 }

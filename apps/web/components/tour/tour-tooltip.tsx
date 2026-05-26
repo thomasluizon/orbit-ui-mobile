@@ -227,7 +227,6 @@ export function TourTooltip({
   }, [targetRect, step.placement])
 
   useEffect(() => {
-    layout()
     window.addEventListener('resize', layout)
     return () => window.removeEventListener('resize', layout)
   }, [layout])
@@ -237,10 +236,8 @@ export function TourTooltip({
     return () => cancelAnimationFrame(frame)
   }, [layout])
 
-  // Auto-focus "Next" button on step change
   const nextButtonRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    // Delay focus to allow layout to settle
     const timer = setTimeout(() => nextButtonRef.current?.focus(), 100)
     return () => clearTimeout(timer)
   }, [step])
@@ -250,9 +247,9 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[340px] rounded-2xl border border-border bg-surface p-5 shadow-2xl'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-2xl border-b border-border bg-surface p-5 pt-3 shadow-2xl'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl border-t border-border bg-surface p-5 pb-8 shadow-2xl'
+    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[12px] border-b border-[var(--hairline)] bg-[var(--bg-elev)] px-6 pt-3 pb-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))] shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
   })()
 
   const floatStyle = (() => {
@@ -270,59 +267,53 @@ export function TourTooltip({
       aria-modal="true"
       aria-label={t(step.titleKey)}
     >
-      {/* Drag handle on mobile */}
       {mode !== 'float' && (
-        <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-border" />
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--hairline-strong)]" />
       )}
 
-      {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        {SectionIcon && <SectionIcon className="size-4 text-primary" />}
-        <span className="text-xs font-medium text-text-secondary">{sectionName}</span>
-        <span className="text-xs text-text-muted">
+        {SectionIcon && <SectionIcon className="size-4 text-[var(--primary)]" />}
+        <span className="text-xs italic text-[var(--fg-2)]">{sectionName}</span>
+        <span className="font-[var(--font-family-mono)] text-[11px] uppercase tracking-[0.04em] text-[var(--fg-3)]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,
           })}
         </span>
         {step.proBadge && (
-          <span className="ml-auto rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+          <span className="ml-auto rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--primary)]">
             {t('tour.ui.pro')}
           </span>
         )}
       </div>
 
-      {/* Title */}
-      <h3 className="mb-1.5 text-base font-semibold text-text-primary">
+      <h3 className="mb-1.5 text-[length:var(--text-fluid-xl)] font-extrabold tracking-tight text-[var(--fg-1)]">
         {t(step.titleKey)}
       </h3>
 
-      {/* Description */}
-      <p className="mb-4 text-sm leading-relaxed text-text-secondary">
+      <p className="mb-4 text-sm italic leading-relaxed text-[var(--fg-2)]">
         {t(step.descriptionKey)}
       </p>
 
-      {/* Progress dots */}
       <div className="mb-4 flex items-center justify-center gap-1">
         {Array.from({ length: sectionProgress.total }).map((_, i) => {
           let dotClass: string
           if (i === sectionProgress.current - 1) {
-            dotClass = 'w-4 bg-primary'
+            dotClass = 'w-4 bg-[var(--primary)]'
           } else if (i < sectionProgress.current - 1) {
-            dotClass = 'w-1.5 bg-primary/40'
+            dotClass = 'w-1.5 bg-[var(--primary)]/40'
           } else {
-            dotClass = 'w-1.5 bg-border'
+            dotClass = 'w-1.5 bg-[var(--hairline)]'
           }
           return (
             <div
               key={`progress-dot-${sectionProgress.section}-${i}`}
-              className={`h-1.5 rounded-full transition-all duration-200 ${dotClass}`}
+              className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ${dotClass}`}
             />
           )
         })}
       </div>
 
-      {/* Navigation */}
       <div className="flex items-center gap-2">
         {isFirstStep ? (
           <div />
@@ -330,7 +321,7 @@ export function TourTooltip({
           <button
             type="button"
             onClick={onPrev}
-            className="flex items-center gap-1 rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary"
+            className="flex items-center gap-1 rounded-[10px] px-3 py-2.5 text-sm italic text-[var(--fg-2)] transition-colors duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)]"
           >
             <ChevronLeft className="size-4" />
             {t('tour.ui.back')}
@@ -341,18 +332,17 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex items-center gap-1 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+          className="flex items-center gap-1 rounded-[10px] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-[var(--fg-on-primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" />}
         </button>
       </div>
 
-      {/* Skip */}
       <button
         type="button"
         onClick={onSkip}
-        className="mt-2 w-full text-center text-xs text-text-muted transition-colors hover:text-text-secondary"
+        className="mt-3 w-full text-center text-xs italic text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-2)]"
       >
         {t('tour.ui.skip')}
       </button>

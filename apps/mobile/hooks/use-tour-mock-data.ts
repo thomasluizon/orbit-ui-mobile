@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { habitKeys, goalKeys, tagKeys, gamificationKeys } from '@orbit/shared/query'
 import { createTourMockHabits, createTourMockGoals, createTourMockTags } from '@orbit/shared/tour'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { HabitScheduleItem } from '@orbit/shared/types'
-import type { Goal, StreakInfo } from '@orbit/shared/types'
+import type { HabitScheduleItem , Goal, StreakInfo } from '@orbit/shared/types'
+
 
 /**
  * Injects/restores mock data into TanStack Query cache during the tour.

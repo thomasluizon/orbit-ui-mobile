@@ -10,8 +10,10 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClarificationRequest } from '@orbit/shared/types'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
-import { radius, shadows } from '@/lib/theme'
+import { createTokensV2, radius, shadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface ClarificationCardProps {
   clarificationRequest: ClarificationRequest
@@ -23,9 +25,13 @@ export function ClarificationCard({
   entityName,
 }: Readonly<ClarificationCardProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const resolve = useResolveClarification()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const [activeValue, setActiveValue] = useState<string | null>(null)
   const [resolved, setResolved] = useState(false)
@@ -75,7 +81,7 @@ export function ClarificationCard({
       <View style={styles.card}>
         <View style={styles.successRow}>
           <View style={styles.successIcon}>
-            <Check size={14} color={colors.emerald400} />
+            <Check size={14} color={tokens.statusDone} />
           </View>
           <Text style={styles.successText}>
             {t('habits.clarification.successCreated', {
@@ -109,7 +115,7 @@ export function ClarificationCard({
               disabled={disabled}
               onPress={() => handleSelect(label, action.value)}
             >
-              {isActive && <ActivityIndicator size="small" color={colors.primary} />}
+              {isActive && <ActivityIndicator size="small" color={tokens.primary} />}
               <Text style={styles.chipText}>{label}</Text>
             </TouchableOpacity>
           )
@@ -134,12 +140,12 @@ function mapStatusToErrorKey(status: number): string {
   return 'habits.clarification.errorGeneric'
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     card: {
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       borderRadius: radius.xl,
       padding: 16,
       gap: 12,
@@ -149,7 +155,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     questionText: {
       fontSize: 14,
       fontWeight: '500',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -163,13 +169,13 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: radius.full,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
     },
     chipActive: {
-      borderColor: colors.primary_30,
-      backgroundColor: colors.primary_20,
+      borderColor: tokens.hairlineStrong,
+      backgroundColor: tokens.bgElev,
     },
     chipDisabled: {
       opacity: 0.5,
@@ -177,11 +183,11 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     chipText: {
       fontSize: 12,
       fontWeight: '500',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     errorText: {
       fontSize: 12,
-      color: colors.red400,
+      color: tokens.statusBad,
     },
     successRow: {
       flexDirection: 'row',
@@ -193,14 +199,14 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       width: 24,
       height: 24,
       borderRadius: 12,
-      backgroundColor: colors.emerald500_20,
+      backgroundColor: tokens.bgElev,
       alignItems: 'center',
       justifyContent: 'center',
     },
     successText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.emerald400,
+      color: tokens.statusDone,
     },
   })
 }

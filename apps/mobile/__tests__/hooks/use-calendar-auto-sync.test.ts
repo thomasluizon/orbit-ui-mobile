@@ -6,6 +6,12 @@ import type {
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
 
+import {
+  useCalendarAutoSyncState,
+  useDismissCalendarSuggestion,
+  useSetCalendarAutoSync,
+} from '@/hooks/use-calendar-auto-sync'
+
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
@@ -83,12 +89,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-import {
-  useCalendarAutoSyncState,
-  useDismissCalendarSuggestion,
-  useSetCalendarAutoSync,
-} from '@/hooks/use-calendar-auto-sync'
 
 // ---------------------------------------------------------------------------
 // Fixtures + helpers

@@ -24,6 +24,11 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+const mockRouterPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush, replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
+}))
+
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({
     displayTime: (time: string) => time,

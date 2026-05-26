@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react'
-import type { ReactNode } from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import type { Goal } from '@orbit/shared/types/goal'
-import type { ThemeContextValue } from '@/lib/theme-provider'
-
-type AppColors = ThemeContextValue['colors']
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const HISTORY_PREVIEW_COUNT = 3
 
@@ -16,26 +14,23 @@ interface GoalProgressHistoryEntry {
 }
 
 interface GoalProgressHistorySectionProps {
-  title: string
   entries: GoalProgressHistoryEntry[]
   formatDate: (dateStr: string) => string
   renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
   showAllLabel: string
   showLessLabel: string
-  primaryColor: string
-  styles: Record<string, object>
 }
 
 export function GoalProgressHistorySection({
-  title,
   entries,
   formatDate,
   renderEntryLabel,
   showAllLabel,
   showLessLabel,
-  primaryColor,
-  styles,
 }: Readonly<GoalProgressHistorySectionProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [showAllHistory, setShowAllHistory] = useState(false)
 
   const visibleEntries = useMemo(
@@ -43,46 +38,41 @@ export function GoalProgressHistorySection({
     [entries, showAllHistory],
   )
 
-  if (entries.length === 0) {
-    return null
-  }
+  if (entries.length === 0) return null
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.historyList}>
-        {visibleEntries.map((entry) => (
-          <View
-            key={`${entry.createdAtUtc}-${entry.value}`}
-            style={styles.historyEntry}
-          >
-            <View style={styles.historyEntryLeft}>
-              <Text style={styles.historyEntryValue}>
-                {renderEntryLabel(entry)}
-              </Text>
-              {entry.note && (
-                <Text style={styles.historyEntryNote}>{entry.note}</Text>
-              )}
-            </View>
-            <Text style={styles.historyEntryDate}>
+      {visibleEntries.map((entry) => (
+        <View
+          key={`${entry.createdAtUtc}-${entry.value}`}
+          style={styles.historyEntry}
+        >
+          <View style={styles.historyEntryHeader}>
+            <Text style={styles.historyDate}>
               {formatDate(entry.createdAtUtc)}
             </Text>
+            <Text style={styles.historyValue}>{renderEntryLabel(entry)}</Text>
           </View>
-        ))}
-      </View>
-      {entries.length > HISTORY_PREVIEW_COUNT && (
+          {entry.note ? (
+            <Text style={styles.historyNote}>{entry.note}</Text>
+          ) : null}
+        </View>
+      ))}
+      {entries.length > HISTORY_PREVIEW_COUNT ? (
         <TouchableOpacity
           onPress={() => setShowAllHistory((prev) => !prev)}
           activeOpacity={0.7}
-          style={{ marginTop: 8 }}
+          style={styles.toggleAll}
+          accessibilityRole="button"
+          accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}
         >
-          <Text style={{ fontSize: 12, fontWeight: '600', color: primaryColor }}>
+          <Text style={styles.toggleAllText}>
             {showAllHistory
               ? showLessLabel
               : `${showAllLabel} (${entries.length})`}
           </Text>
         </TouchableOpacity>
-      )}
+      ) : null}
     </View>
   )
 }
@@ -90,61 +80,97 @@ export function GoalProgressHistorySection({
 interface GoalLinkedHabitsSectionProps {
   title: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
-  styles: Record<string, object>
 }
 
 export function GoalLinkedHabitsSection({
   title,
   linkedHabits,
-  styles,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
-  if (linkedHabits.length === 0) {
-    return null
-  }
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+
+  if (linkedHabits.length === 0) return null
 
   return (
-    <View style={styles.linkedHabitsSection}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.linkedHabitsList}>
-        {linkedHabits.map((habit) => (
-          <View key={habit.id} style={styles.linkedHabitChip}>
-            <Text style={styles.linkedHabitText}>{habit.title}</Text>
-          </View>
-        ))}
-      </View>
+    <View
+      style={styles.linkedList}
+      accessibilityRole="list"
+      accessibilityLabel={title}
+    >
+      {linkedHabits.map((habit) => (
+        <View key={habit.id} style={styles.linkedRow}>
+          <Text style={styles.linkedTitle} numberOfLines={1}>
+            {habit.title}
+          </Text>
+        </View>
+      ))}
     </View>
   )
 }
 
-interface GoalActionButtonProps {
-  icon: ReactNode
-  label: string
-  onPress: () => void
-  color: string
-  styles: Record<string, object>
-  disabled?: boolean
-}
-
-export function GoalActionButton({
-  icon,
-  label,
-  onPress,
-  color,
-  styles,
-  disabled = false,
-}: Readonly<GoalActionButtonProps>) {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.actionButton,
-        disabled ? styles.buttonDisabled : null,
-      ]}
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.7}
-    >
-      {icon}
-      <Text style={[styles.actionText, { color }]}>{label}</Text>
-    </TouchableOpacity>
-  )
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
+  return StyleSheet.create({
+    historyEntry: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
+      gap: 3,
+    },
+    historyEntryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    historyDate: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
+    },
+    historyValue: {
+      fontFamily: 'GeistMono',
+      fontSize: 12,
+      fontWeight: '500',
+      color: tokens.fg1,
+      fontVariant: ['tabular-nums'],
+    },
+    historyNote: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: tokens.fg2,
+    },
+    toggleAll: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    toggleAllText: {
+      fontFamily: 'Geist',
+      fontSize: 13,
+      fontWeight: '500',
+      color: tokens.fg1,
+    },
+    linkedList: {
+      // Linked habits render as rows; container has no extra padding so
+      // SettingsRow's own paddingHorizontal carries the layout.
+    },
+    linkedRow: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    linkedTitle: {
+      flex: 1,
+      fontFamily: 'Geist',
+      fontSize: 14,
+      color: tokens.fg1,
+    },
+  })
 }

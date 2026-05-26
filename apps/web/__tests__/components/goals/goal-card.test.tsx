@@ -111,9 +111,9 @@ describe('GoalCard', () => {
     expect(screen.getByTestId('goal-detail-drawer')).toBeInTheDocument()
   })
 
-  it('uses green progress bar for high progress', () => {
+  it('marks high progress with the completion state', () => {
     render(<GoalCard goal={makeGoal({ progressPercentage: 80 })} />)
-    const bar = document.querySelector('.bg-success')
+    const bar = document.querySelector('[data-progress-state="high"]')
     expect(bar).toBeInTheDocument()
   })
 

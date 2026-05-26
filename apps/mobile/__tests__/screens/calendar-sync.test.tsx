@@ -2,6 +2,8 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 
+import CalendarSyncScreen from "@/app/calendar-sync";
+
 const TestRenderer = require("react-test-renderer");
 
 const colorProxy: any = new Proxy(
@@ -97,11 +99,29 @@ vi.mock("@/lib/google-auth", () => ({
   startMobileGoogleAuth: vi.fn(),
 }));
 
+const tokensV2Proxy: any = new Proxy(
+  {},
+  {
+    get: (_target, prop) => (prop === "fgOnPrimary" ? "#ffffff" : "#111111"),
+  },
+);
+
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({
     colors: colorProxy,
+    currentScheme: "purple",
+    currentTheme: "dark",
   }),
 }));
+
+vi.mock("@/lib/theme", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    createColors: () => colorProxy,
+    createTokensV2: () => tokensV2Proxy,
+  };
+});
 
 vi.mock("@/hooks/use-offline", () => ({
   useOffline: () => ({
@@ -129,11 +149,35 @@ vi.mock("lucide-react-native", () => {
     Bell: createIcon("Bell"),
     CalendarDays: createIcon("CalendarDays"),
     Check: createIcon("Check"),
+    ChevronLeft: createIcon("ChevronLeft"),
+    ChevronRight: createIcon("ChevronRight"),
     Link: createIcon("Link"),
     Loader2: createIcon("Loader2"),
     RefreshCw: createIcon("RefreshCw"),
+    WifiOff: createIcon("WifiOff"),
   };
 });
+
+// Phase 5 v8 primitives consumed by the migrated calendar-sync screen.
+vi.mock("@/components/ui/app-bar", () => ({
+  AppBar: () => null,
+}));
+
+vi.mock("@/components/ui/section-label", () => ({
+  SectionLabel: ({ children }: { children?: unknown }) => React.createElement("SectionLabel", null, children as never),
+}));
+
+vi.mock("@/components/ui/settings-row", () => ({
+  SettingsRow: () => null,
+}));
+
+vi.mock("@/components/ui/select-check", () => ({
+  SelectCheck: () => null,
+}));
+
+vi.mock("@/components/ui/mono-toggle", () => ({
+  MonoToggle: () => null,
+}));
 
 vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
@@ -143,8 +187,6 @@ vi.mock("react-native", async (importOriginal) => {
       React.createElement("Switch", props),
   };
 });
-
-import CalendarSyncScreen from "@/app/calendar-sync";
 
 describe("CalendarSyncScreen", () => {
   beforeEach(() => {

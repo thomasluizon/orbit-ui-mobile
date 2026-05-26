@@ -5,10 +5,6 @@ import { useTranslations } from 'next-intl'
 import type { ActionResult } from '@orbit/shared/types/chat'
 import { ConflictWarning } from './conflict-warning'
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const ACTION_LABELS: Record<string, string> = {
   log_habit: 'chat.action.logged',
   create_habit: 'chat.action.created',
@@ -54,37 +50,29 @@ const CHIP_STYLES: Record<
   { text: string; bg: string; border: string; Icon: typeof CheckCircle }
 > = {
   Success: {
-    text: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/30',
+    text: 'text-[var(--status-done)]',
+    bg: 'bg-[var(--status-done)]/10',
+    border: 'border-[var(--status-done)]/30',
     Icon: CheckCircle,
   },
   Failed: {
-    text: 'text-red-400',
-    bg: 'bg-red-500/10',
-    border: 'border-red-500/30',
+    text: 'text-[var(--status-bad)]',
+    bg: 'bg-[var(--status-bad)]/10',
+    border: 'border-[var(--status-bad)]/30',
     Icon: XCircle,
   },
 }
 
 const DEFAULT_CHIP_STYLE = {
-  text: 'text-blue-400',
-  bg: 'bg-blue-500/10',
-  border: 'border-blue-500/30',
+  text: 'text-[var(--fg-2)]',
+  bg: 'bg-[var(--bg-elev)]',
+  border: 'border-[var(--hairline)]',
   Icon: Info,
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function chipStyle(action: ActionResult) {
   return CHIP_STYLES[action.status] ?? DEFAULT_CHIP_STYLE
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface ActionChipsProps {
   actions: ActionResult[]
@@ -118,12 +106,13 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
         const style = chipStyle(action)
         const IconComponent = style.Icon
         const navigable = isNavigable(action, !!onChipClick)
-        const chipClassName = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border hover:scale-[1.02] transition-all duration-150 ${style.text} ${style.bg} ${style.border}`
+        const chipClassName = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border hover:scale-[1.02] transition-[background-color,border-color,color,transform] duration-150 ${style.text} ${style.bg} ${style.border}`
 
         return (
           <div
             key={`${action.type}-${action.entityId || index}`}
             className="animate-chip-in"
+            data-action-status={action.status}
             style={{ animationDelay: `${index * 80}ms` }}
           >
             {navigable ? (
@@ -144,7 +133,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
             )}
 
             {action.status === 'Failed' && action.error && (
-              <p className="text-xs text-red-400 mt-1 pl-1">{action.error}</p>
+              <p className="text-xs text-[var(--status-bad)] mt-1 pl-1">{action.error}</p>
             )}
 
             {action.conflictWarning?.hasConflict && (

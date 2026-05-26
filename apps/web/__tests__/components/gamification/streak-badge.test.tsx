@@ -36,40 +36,15 @@ describe('StreakBadge', () => {
     expect(document.body.textContent).toContain('5')
   })
 
-  it('applies normal tier for streak < 7', () => {
-    render(<StreakBadge streak={3} />)
-    const badge = document.querySelector('.streak-badge--normal')
-    expect(badge).toBeInTheDocument()
-  })
-
-  it('applies strong tier for streak >= 7', () => {
-    render(<StreakBadge streak={7} />)
-    const badge = document.querySelector('.streak-badge--strong')
-    expect(badge).toBeInTheDocument()
-  })
-
-  it('applies intense tier for streak >= 30', () => {
-    render(<StreakBadge streak={30} />)
-    const badge = document.querySelector('.streak-badge--intense')
-    expect(badge).toBeInTheDocument()
-  })
-
-  it('applies legendary tier for streak >= 100', () => {
-    render(<StreakBadge streak={100} />)
-    const badge = document.querySelector('.streak-badge--legendary')
-    expect(badge).toBeInTheDocument()
-  })
-
   it('shows frozen icon when isFrozen is true', () => {
-    render(<StreakBadge streak={5} isFrozen={true} />)
-    const frozen = document.querySelector('.streak-badge__frozen')
-    expect(frozen).toBeInTheDocument()
+    // Frozen variant draws a snowflake on a 12x14 viewBox; flame uses 24x24.
+    const { container } = render(<StreakBadge streak={5} isFrozen={true} />)
+    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 12 14')
   })
 
   it('does not show frozen icon by default', () => {
-    render(<StreakBadge streak={5} />)
-    const frozen = document.querySelector('.streak-badge__frozen')
-    expect(frozen).not.toBeInTheDocument()
+    const { container } = render(<StreakBadge streak={5} />)
+    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 24 24')
   })
 
   it('has accessible aria-label', () => {

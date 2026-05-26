@@ -2,6 +2,19 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { QueryClientProvider } from '@tanstack/react-query'
 import Animated from 'react-native-reanimated'
+import {
+  useFonts,
+  Geist_300Light,
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+} from '@expo-google-fonts/geist'
+import {
+  GeistMono_400Regular,
+  GeistMono_500Medium,
+  GeistMono_600SemiBold,
+} from '@expo-google-fonts/geist-mono'
 import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
@@ -56,6 +69,16 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const [ready, setReady] = useState(false)
   const runtimeTheme = getRuntimeTheme()
   const runtimeColors = createColors(runtimeTheme.scheme, runtimeTheme.themeMode)
+  const [fontsLoaded] = useFonts({
+    Geist_300Light,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+    GeistMono_600SemiBold,
+  })
 
   useEffect(() => {
     async function boot() {
@@ -92,7 +115,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
     return () => subscription.remove()
   }, [])
 
-  if (!ready) {
+  if (!ready || !fontsLoaded) {
     return (
       <View style={{ flex: 1, backgroundColor: runtimeColors.background, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={runtimeColors.primary} />

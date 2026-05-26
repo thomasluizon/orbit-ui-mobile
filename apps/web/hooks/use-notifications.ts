@@ -31,10 +31,6 @@ import {
 } from '@/app/actions/notifications'
 import { fetchJson } from '@/lib/api-fetch'
 
-// ---------------------------------------------------------------------------
-// Notifications list query
-// ---------------------------------------------------------------------------
-
 export function useNotifications() {
   const query = useQuery({
     queryKey: notificationKeys.lists(),
@@ -54,10 +50,6 @@ export function useNotifications() {
     unreadCount,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()

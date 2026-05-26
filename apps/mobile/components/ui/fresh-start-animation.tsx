@@ -1,46 +1,42 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   View,
   Text,
   Modal,
   Animated,
   StyleSheet,
-  Dimensions,
 } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface FreshStartAnimationProps {
   onComplete: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimationProps>) {
   const { t } = useTranslation()
-  const { colors } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const [visible, setVisible] = useState(true)
 
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const scaleAnim = useRef(new Animated.Value(0.3)).current
-  const ringScale1 = useRef(new Animated.Value(0.5)).current
-  const ringOpacity1 = useRef(new Animated.Value(0.6)).current
-  const ringScale2 = useRef(new Animated.Value(0.5)).current
-  const ringOpacity2 = useRef(new Animated.Value(0.4)).current
-  const textOpacity = useRef(new Animated.Value(0)).current
-  const textSlide = useRef(new Animated.Value(20)).current
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const fadeAnim = useMemo(() => new Animated.Value(0), [])
+  const scaleAnim = useMemo(() => new Animated.Value(0.3), [])
+  const ringScale1 = useMemo(() => new Animated.Value(0.5), [])
+  const ringOpacity1 = useMemo(() => new Animated.Value(0.6), [])
+  const ringScale2 = useMemo(() => new Animated.Value(0.5), [])
+  const ringOpacity2 = useMemo(() => new Animated.Value(0.4), [])
+  const textOpacity = useMemo(() => new Animated.Value(0), [])
+  const textSlide = useMemo(() => new Animated.Value(20), [])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
-    // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -55,7 +51,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }),
     ]).start()
 
-    // Ring animation
     Animated.loop(
       Animated.parallel([
         Animated.sequence([
@@ -116,7 +111,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       ]),
     ).start()
 
-    // Text entrance
     Animated.parallel([
       Animated.timing(textOpacity, {
         toValue: 1,
@@ -132,7 +126,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }),
     ]).start()
 
-    // Fade out at 2s
     const fadeTimer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -141,7 +134,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }).start()
     }, 2000)
 
-    // Complete at 2.5s
     const completeTimer = setTimeout(() => {
       setVisible(false)
       onComplete()
@@ -158,12 +150,9 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   return (
     <Modal visible transparent animationType="none">
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        {/* Backdrop */}
         <View style={styles.backdrop} />
 
-        {/* Center content */}
         <View style={styles.center}>
-          {/* Rings */}
           <Animated.View
             style={[
               styles.ring,
@@ -183,17 +172,15 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
             ]}
           />
 
-          {/* Center orb */}
           <Animated.View
             style={[
               styles.orb,
               { transform: [{ scale: scaleAnim }] },
             ]}
           >
-            <RefreshCw size={32} color={colors.textPrimary} />
+            <RefreshCw size={32} color={tokens.fg1} />
           </Animated.View>
 
-          {/* Text */}
           <Animated.View
             style={[
               styles.textContainer,
@@ -216,20 +203,14 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   )
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: `${colors.background}E6`,
+      backgroundColor: `${tokens.bg}E6`,
     },
     center: {
       flex: 1,
@@ -243,17 +224,17 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       height: 80,
       borderRadius: 40,
       borderWidth: 2,
-      borderColor: colors.primary_30,
+      borderColor: tokens.hairlineStrong,
     },
     orb: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: colors.primary_20,
+      backgroundColor: tokens.bgElev,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.primary_30,
+      borderColor: tokens.hairlineStrong,
     },
     textContainer: {
       marginTop: 40,
@@ -262,13 +243,13 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     titleText: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
       textAlign: 'center',
       letterSpacing: -0.5,
     },
     subtitleText: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       textAlign: 'center',
       marginTop: 8,
     },

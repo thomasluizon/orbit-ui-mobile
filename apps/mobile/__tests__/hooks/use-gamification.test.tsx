@@ -1,10 +1,17 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const TestRenderer = require('react-test-renderer')
 import { API } from '@orbit/shared/api'
 import { createMockGamificationProfile } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { StreakInfo, StreakFreezeResponse } from '@orbit/shared/types/gamification'
+
+import {
+  useActivateStreakFreeze,
+  useGamificationProfile,
+  useStreakFreeze,
+  useStreakInfo,
+} from '@/hooks/use-gamification'
+const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -81,13 +88,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-import {
-  useActivateStreakFreeze,
-  useGamificationProfile,
-  useStreakFreeze,
-  useStreakInfo,
-} from '@/hooks/use-gamification'
 
 async function renderHookValue<T>(hook: () => T): Promise<{
   readonly value: T

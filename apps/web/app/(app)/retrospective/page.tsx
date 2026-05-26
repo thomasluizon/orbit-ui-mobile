@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Lock, BarChart3 } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
 import { RETROSPECTIVE_PERIODS } from '@orbit/shared/utils/retrospective'
@@ -12,6 +12,9 @@ import { useOffline } from '@/hooks/use-offline'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { getErrorMessage } from '@orbit/shared/utils'
 import { openCustomerPortal } from '@/app/actions/subscription'
+import { AppBar } from '@/components/ui/app-bar'
+import { Chip } from '@/components/ui/chip'
+import { PullQuote } from '@/components/chat/pull-quote'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
@@ -26,10 +29,10 @@ function escapeHtml(text: string): string {
 
 function renderMarkdown(text: string): string {
   const result = escapeHtml(text)
-    .replaceAll(/\*\*(.+?)\*\*/g, '<strong class="text-text-primary font-bold block mt-4 mb-1">$1</strong>')
+    .replaceAll(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replaceAll('\n', '<br>')
 
-  return DOMPurify.sanitize(result, { ALLOWED_TAGS: ['strong', 'br'], ALLOWED_ATTR: ['class'] })
+  return DOMPurify.sanitize(result, { ALLOWED_TAGS: ['strong', 'br'], ALLOWED_ATTR: [] })
 }
 
 export default function RetrospectivePage() {
@@ -94,166 +97,301 @@ export default function RetrospectivePage() {
   const isLoaded = !!profile
 
   return (
-    <div className="pb-8">
-      <header className="pt-8 pb-6 flex items-center gap-3">
-            <button
-              type="button"
-              aria-label={t('common.backToProfile')}
-              className="p-2 -ml-2 rounded-full hover:bg-surface transition-colors"
-              onClick={() => goBackOrFallback('/profile')}
-            >
-              <ArrowLeft className="size-5 text-text-primary" />
-            </button>
-        <div className="flex items-center gap-2">
-          <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-            {t('retrospective.title')}
-          </h1>
-          <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-            {t('common.yearlyBadge')}
-          </span>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-[100dvh]">
+      <AppBar
+        back
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('retrospective.title')}
+      />
 
-      {/* Locked state for non-Pro users */}
       {isLoaded && !hasProAccess && (
-        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center space-y-4">
-          <div className="bg-primary/20 rounded-full size-16 flex items-center justify-center mx-auto">
-            <Lock className="size-8 text-primary" />
-          </div>
-          <h2 className="text-lg font-bold text-text-primary">{t('retrospective.locked')}</h2>
-          <p className="text-sm text-text-secondary">{t('retrospective.lockedHint')}</p>
+        <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {t('retrospective.locked')}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontStyle: 'italic',
+              color: 'var(--fg-3)',
+              lineHeight: 1.55,
+            }}
+          >
+            {t('retrospective.lockedHint')}
+          </span>
           <Link
             href="/upgrade"
-            className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
+            style={{
+              marginTop: 8,
+              padding: '10px 16px',
+              borderRadius: 8,
+              background: 'var(--primary)',
+              color: 'var(--fg-on-primary)',
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
           >
             {t('upgrade.subscribe')}
           </Link>
         </div>
       )}
 
-      {/* Locked state for non-yearly Pro users */}
       {isLoaded && hasProAccess && !isYearlyPro && (
-        <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center space-y-4">
-          <div className="bg-primary/20 rounded-full size-16 flex items-center justify-center mx-auto">
-            <Lock className="size-8 text-primary" />
-          </div>
-          <h2 className="text-lg font-bold text-text-primary">{t('retrospective.lockedYearly')}</h2>
-          <p className="text-sm text-text-secondary">{t('retrospective.lockedYearlyHint')}</p>
+        <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {t('retrospective.lockedYearly')}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 14,
+              fontStyle: 'italic',
+              color: 'var(--fg-3)',
+              lineHeight: 1.55,
+            }}
+          >
+            {t('retrospective.lockedYearlyHint')}
+          </span>
           {profile?.isTrialActive ? (
             <Link
               href="/upgrade"
-              className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
+              style={{
+                marginTop: 8,
+                padding: '10px 16px',
+                borderRadius: 8,
+                background: 'var(--primary)',
+                color: 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
             >
               {t('upgrade.subscribe')}
             </Link>
           ) : (
             <button
-              className="inline-block px-6 py-3 rounded-[var(--radius-xl)] bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all duration-200 shadow-[var(--shadow-glow-sm)]"
+              type="button"
               onClick={handleOpenPortal}
+              className="appearance-none border-0 cursor-pointer"
+              style={{
+                marginTop: 8,
+                padding: '10px 16px',
+                borderRadius: 8,
+                background: 'var(--primary)',
+                color: 'var(--fg-on-primary)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+              }}
             >
               {t('retrospective.changePlan')}
             </button>
           )}
           {portalError && (
-            <p className="text-xs text-red-400 text-center mt-2">{portalError}</p>
+            <p style={{ fontSize: 12, color: 'var(--status-overdue)', fontFamily: 'var(--font-family-sans)' }}>
+              {portalError}
+            </p>
           )}
         </div>
       )}
 
-      {/* Yearly Pro user content */}
       {isLoaded && isYearlyPro && (
         <>
-          {/* Period selector */}
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div
+            className="flex items-center"
+            style={{
+              gap: 6,
+              padding: '10px 20px 14px',
+              borderBottom: '1px solid var(--hairline)',
+              overflowX: 'auto',
+            }}
+          >
             {periods.map((p) => (
-              <button
+              <Chip
                 key={p.key}
-                className={`px-3.5 py-2 rounded-[var(--radius-xl)] text-sm font-semibold transition-all duration-200 ${
-                  period === p.key
-                    ? 'bg-primary text-white shadow-[var(--shadow-glow-sm)]'
-                    : 'bg-surface border border-border text-text-secondary hover:text-text-primary'
-                }`}
+                active={period === p.key}
                 onClick={() => selectPeriod(p.key)}
+                ariaLabel={p.label}
               >
                 {p.label}
-              </button>
+              </Chip>
             ))}
           </div>
 
-          {/* Generate button */}
-          <button
-            className="w-full py-4 rounded-[var(--radius-xl)] bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[var(--shadow-glow-lg)] disabled:opacity-50 flex items-center justify-center gap-2 mb-6"
-            disabled={isLoading || !isOnline}
-            onClick={generate}
-          >
-            {isLoading && <Loader2 className="size-4 animate-spin" />}
-            {isLoading ? t('retrospective.generating') : t('retrospective.generate')}
-          </button>
-          {!isOnline && (
-            <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
-              compact
-            />
-          )}
-
-          {/* Loading skeleton */}
-          {isLoading && (
-            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 space-y-4">
-              <div className="h-5 w-32 bg-surface-elevated rounded animate-pulse" />
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
-                <div className="h-4 w-5/6 bg-surface-elevated rounded animate-pulse" />
-                <div className="h-4 w-4/6 bg-surface-elevated rounded animate-pulse" />
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {isLoading && (
+              <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 14,
+                    fontStyle: 'italic',
+                    color: 'var(--fg-3)',
+                    textAlign: 'center',
+                  }}
+                >
+                  {t('retrospective.generating')}
+                </span>
+                <div style={{ width: '60%', height: 7, background: 'var(--bg-sunk)', borderRadius: 4 }} />
+                <div style={{ width: '80%', height: 7, background: 'var(--bg-sunk)', borderRadius: 4 }} />
+                <div style={{ width: '40%', height: 7, background: 'var(--bg-sunk)', borderRadius: 4 }} />
               </div>
-              <div className="h-5 w-40 bg-surface-elevated rounded animate-pulse" />
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
-                <div className="h-4 w-3/4 bg-surface-elevated rounded animate-pulse" />
-              </div>
-              <div className="h-5 w-24 bg-surface-elevated rounded animate-pulse" />
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-surface-elevated rounded animate-pulse" />
-                <div className="h-4 w-2/3 bg-surface-elevated rounded animate-pulse" />
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Result */}
-          {!isLoading && retrospective && (
-            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5">
-              <div
-                className="text-sm text-text-secondary leading-relaxed whitespace-pre-line [&_strong]:block [&_strong]:mt-4 [&_strong]:mb-1 [&_strong]:font-bold [&_strong]:text-text-primary [&_strong:first-child]:mt-0"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(retrospective) }}
-              />
-              {fromCache && (
-                <p className="text-xs text-text-muted mt-4">{t('retrospective.cached')}</p>
-              )}
-            </div>
-          )}
-
-          {/* Error */}
-          {!isLoading && error && (
-            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-5 text-center space-y-3">
-              <p className="text-sm text-red-400">{t('retrospective.error')}</p>
-              <button
-                className="text-sm text-primary font-semibold hover:text-primary/80 transition-colors"
-                onClick={generate}
-              >
-                {t('common.retry')}
-              </button>
-            </div>
-          )}
-
-          {/* Empty state (before first generation) */}
-          {!isLoading && !retrospective && !error && (
-            <div className="bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-sm)] p-6 text-center">
-              <div className="bg-primary/10 rounded-full size-12 flex items-center justify-center mx-auto mb-3">
-                <BarChart3 className="size-6 text-primary" />
+            {!isLoading && retrospective && (
+              <div style={{ padding: '14px 0' }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    color: 'var(--fg-3)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    padding: '0 20px 6px 22px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Sparkles size={11} strokeWidth={1.7} color="var(--primary)" />
+                  {t('retrospective.astraEyebrow')}
+                </div>
+                <div
+                  className="relative"
+                  style={{
+                    padding: '0 20px 24px 22px',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="absolute"
+                    style={{
+                      left: 8,
+                      top: 0,
+                      bottom: 12,
+                      width: 2,
+                      background: 'var(--primary)',
+                      borderRadius: 1,
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 15,
+                      lineHeight: 1.6,
+                      color: 'var(--fg-2)',
+                    }}
+                    className="[&_strong]:block [&_strong]:mt-4 [&_strong]:font-semibold [&_strong]:text-[var(--fg-1)] [&_strong:first-child]:mt-0"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(retrospective) }}
+                  />
+                  {fromCache && (
+                    <p
+                      style={{
+                        marginTop: 16,
+                        fontFamily: 'var(--font-family-sans)',
+                        fontSize: 12,
+                        fontStyle: 'italic',
+                        color: 'var(--fg-4)',
+                      }}
+                    >
+                      {t('retrospective.cached')}
+                    </p>
+                  )}
+                </div>
               </div>
-              <p className="text-sm text-text-secondary">{t('retrospective.empty')}</p>
-            </div>
-          )}
+            )}
+
+            {!isLoading && error && (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <p style={{ fontFamily: 'var(--font-family-sans)', fontSize: 14, color: 'var(--status-overdue)' }}>
+                  {t('retrospective.error')}
+                </p>
+                <button
+                  type="button"
+                  onClick={generate}
+                  className="appearance-none border-0 bg-transparent cursor-pointer"
+                  style={{
+                    marginTop: 8,
+                    fontFamily: 'var(--font-family-sans)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--fg-1)',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 3,
+                    textDecorationColor: 'var(--hairline-strong)',
+                  }}
+                >
+                  {t('common.retry')}
+                </button>
+              </div>
+            )}
+
+            {!isLoading && !retrospective && !error && (
+              <div style={{ padding: '20px 0 0' }}>
+                <PullQuote
+                  italic
+                  eyebrow={
+                    <>
+                      <Sparkles size={11} strokeWidth={1.7} color="var(--primary)" />
+                      {t('retrospective.astraEyebrow')}
+                    </>
+                  }
+                >
+                  {t('retrospective.empty')}
+                </PullQuote>
+                {!isOnline && (
+                  <div style={{ padding: '8px 20px 0' }}>
+                    <OfflineUnavailableState
+                      title={t('calendarSync.notConnected')}
+                      description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                      compact
+                    />
+                  </div>
+                )}
+                <div style={{ padding: '14px 20px 24px' }}>
+                  <button
+                    type="button"
+                    disabled={isLoading || !isOnline}
+                    onClick={generate}
+                    className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 w-full"
+                    style={{
+                      height: 44,
+                      borderRadius: 8,
+                      background: 'var(--primary)',
+                      color: 'var(--fg-on-primary)',
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      opacity: !isOnline ? 0.5 : 1,
+                    }}
+                  >
+                    <Sparkles size={14} strokeWidth={1.7} />
+                    {t('retrospective.generate')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

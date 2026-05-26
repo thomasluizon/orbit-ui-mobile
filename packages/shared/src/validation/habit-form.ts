@@ -12,8 +12,6 @@ import {
   MAX_TAGS_PER_HABIT,
 } from './constants'
 
-// --- Habit form schema ---
-
 export const habitFormSchema = z.object({
   title: z
     .string()
@@ -47,8 +45,6 @@ export const habitFormSchema = z.object({
 })
 
 export type HabitFormData = z.infer<typeof habitFormSchema>
-
-// --- Cross-field validation (returns i18n keys, not translated strings) ---
 
 /**
  * Validate that endDate is not before dueDate.

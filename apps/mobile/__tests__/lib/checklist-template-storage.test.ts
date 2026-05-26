@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  CHECKLIST_TEMPLATE_STORAGE_KEY,
+  LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY,
+} from '@orbit/shared/utils'
+import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
+
 const storage = new Map<string, string>()
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -13,12 +19,6 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     }),
   },
 }))
-
-import {
-  CHECKLIST_TEMPLATE_STORAGE_KEY,
-  LEGACY_CHECKLIST_TEMPLATE_STORAGE_KEY,
-} from '@orbit/shared/utils'
-import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
 
 describe('checklist template storage', () => {
   beforeEach(() => {

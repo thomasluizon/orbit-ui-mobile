@@ -32,8 +32,11 @@ function makeQueryClient() {
 }
 
 function wrapperFor(client: QueryClient) {
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children)
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client }, children)
+  }
+  Wrapper.displayName = 'TestQueryClientProvider'
+  return Wrapper
 }
 
 describe('useChecklistTemplates', () => {

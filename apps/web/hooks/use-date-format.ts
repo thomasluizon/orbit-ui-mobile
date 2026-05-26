@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
+import { useLocale } from 'next-intl'
 import { formatLocaleDate, formatLocaleDateTime } from '@orbit/shared/utils'
-import { useDeviceLocale } from './use-device-locale'
 
 const DATE_NUMERIC: Intl.DateTimeFormatOptions = {
   year: 'numeric',
@@ -50,7 +50,7 @@ const DATETIME_SHORT: Intl.DateTimeFormatOptions = {
 type DateInput = Date | number | string | null | undefined
 
 export function useDateFormat() {
-  const locale = useDeviceLocale()
+  const locale = useLocale()
 
   const displayDate = useCallback(
     (value: DateInput, options: Intl.DateTimeFormatOptions = DATE_LONG) => {

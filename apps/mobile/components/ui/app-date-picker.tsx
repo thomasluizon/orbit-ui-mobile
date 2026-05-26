@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Modal,
   View,
@@ -23,9 +23,10 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
-import { useDeviceLocale } from '@/hooks/use-device-locale'
-import { radius, type AppColors, type AppShadows } from '@/lib/theme'
+import { createTokensV2, radius, type AppShadows } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AppDatePickerProps {
   value: string
@@ -38,25 +39,33 @@ export function AppDatePicker({
   onChange,
   placeholder,
 }: Readonly<AppDatePickerProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { profile } = useProfile()
-  const { colors, shadows } = useAppTheme()
+  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
-  const locale = useDeviceLocale()
+  const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
   const [viewDate, setViewDate] = useState(new Date())
 
   const selectedDate = value ? parseISO(value) : null
 
-  useEffect(() => {
+  // Mirror controlled `value` prop into local view date.
+  // "Adjust state when prop changes" pattern.
+  const [previousValue, setPreviousValue] = useState(value)
+  if (value !== previousValue) {
+    setPreviousValue(value)
     if (value) setViewDate(parseISO(value))
-  }, [value])
+  }
 
   const monthLabel = formatLocaleDate(viewDate, locale, {
     month: 'long',
     year: 'numeric',
   })
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows])
+  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
 
   const weekDays = useMemo(() => {
     const sundayFirst = [
@@ -129,7 +138,7 @@ export function AppDatePicker({
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
-        <Calendar size={16} color={colors.textMuted} />
+        <Calendar size={16} color={tokens.fg3} />
       </TouchableOpacity>
 
       {/* Calendar modal */}
@@ -155,7 +164,7 @@ export function AppDatePicker({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel={t('common.previousMonth')}
               >
-                <ChevronLeft size={16} color={colors.textMuted} />
+                <ChevronLeft size={16} color={tokens.fg3} />
               </TouchableOpacity>
 
               <Text style={styles.monthLabel}>{monthLabel}</Text>
@@ -165,7 +174,7 @@ export function AppDatePicker({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel={t('common.nextMonth')}
               >
-                <ChevronRight size={16} color={colors.textMuted} />
+                <ChevronRight size={16} color={tokens.fg3} />
               </TouchableOpacity>
             </View>
 
@@ -226,30 +235,27 @@ export function AppDatePicker({
 
 const DAY_SIZE = 36
 
-function createStyles(
-  colors: AppColors,
-  shadows: AppShadows,
-) {
+function createStyles(tokens: AppTokens, shadows: AppShadows) {
   return StyleSheet.create({
     trigger: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.surface,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: tokens.hairline,
       borderRadius: radius.sm,
       paddingVertical: 12,
       paddingHorizontal: 16,
     },
     triggerText: {
       flex: 1,
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 14,
       marginRight: 8,
     },
     triggerPlaceholder: {
-      color: colors.textMuted,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,
@@ -261,10 +267,10 @@ function createStyles(
     dialog: {
       width: '100%',
       maxWidth: 320,
-      backgroundColor: colors.surfaceOverlay,
+      backgroundColor: tokens.bgElev,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.borderMuted,
+      borderColor: tokens.hairline,
       padding: 10,
       ...shadows.lg,
       elevation: 12,
@@ -277,7 +283,7 @@ function createStyles(
       paddingHorizontal: 4,
     },
     monthLabel: {
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 13,
       fontWeight: '500',
       textTransform: 'capitalize',
@@ -287,7 +293,7 @@ function createStyles(
       justifyContent: 'space-around',
     },
     weekDayText: {
-      color: colors.textMuted,
+      color: tokens.fg3,
       fontSize: 12,
       fontWeight: '400',
       textAlign: 'center',
@@ -301,21 +307,21 @@ function createStyles(
       margin: 1,
     },
     dayCellSelected: {
-      backgroundColor: colors.primary,
+      backgroundColor: tokens.primary,
     },
     dayCellToday: {
       borderWidth: 1,
-      borderColor: colors.primary_30,
+      borderColor: tokens.hairlineStrong,
     },
     dayText: {
-      color: colors.textPrimary,
+      color: tokens.fg1,
       fontSize: 12,
     },
     dayTextOutside: {
-      color: colors.textFaded40,
+      color: tokens.fg3,
     },
     dayTextSelected: {
-      color: colors.white,
+      color: tokens.fgOnPrimary,
       fontWeight: '600',
     },
   })

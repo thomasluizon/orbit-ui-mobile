@@ -1,7 +1,10 @@
 import { useMemo } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { WifiOff } from 'lucide-react-native'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface OfflineUnavailableStateProps {
   title: string
@@ -20,8 +23,12 @@ export function OfflineUnavailableState({
   compact = false,
   disabled = false,
 }: Readonly<OfflineUnavailableStateProps>) {
-  const { colors } = useAppTheme()
-  const styles = useMemo(() => createStyles(colors), [colors])
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   return (
     <View
@@ -36,7 +43,7 @@ export function OfflineUnavailableState({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <WifiOff size={compact ? 14 : 18} color={colors.textMuted} />
+        <WifiOff size={compact ? 14 : 18} color={tokens.fg3} />
       </View>
       <View style={styles.content}>
         <Text style={[styles.title, compact ? styles.compactTitle : null]}>{title}</Text>
@@ -64,13 +71,13 @@ export function OfflineUnavailableState({
   )
 }
 
-function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       borderWidth: 1,
-      borderColor: colors.borderMuted,
-      borderRadius: 16,
-      backgroundColor: colors.surface,
+      borderColor: tokens.hairline,
+      borderRadius: 12,
+      backgroundColor: tokens.bgElev,
       flexDirection: 'row',
       gap: 10,
     },
@@ -88,7 +95,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: tokens.bgElev,
       marginTop: 1,
     },
     compactIconWrap: {
@@ -103,14 +110,14 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     title: {
       fontSize: 13,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
     compactTitle: {
       fontSize: 12,
     },
     description: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: tokens.fg2,
       lineHeight: 17,
     },
     compactDescription: {
@@ -123,8 +130,8 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
       paddingVertical: 7,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.borderEmphasis,
-      backgroundColor: colors.surfaceElevated,
+      borderColor: tokens.hairlineStrong,
+      backgroundColor: tokens.bgElev,
     },
     buttonDisabled: {
       opacity: 0.5,
@@ -132,7 +139,7 @@ function createStyles(colors: ReturnType<typeof useAppTheme>['colors']) {
     buttonText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: tokens.fg1,
     },
   })
 }

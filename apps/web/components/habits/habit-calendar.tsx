@@ -26,7 +26,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   const { displayTime } = useTimeFormat()
 
   const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId)
-  const logs = externalLogs ?? fetchedLogs ?? []
+  const logs = useMemo<HabitLog[]>(() => externalLogs ?? fetchedLogs ?? [], [externalLogs, fetchedLogs])
   const { profile } = useProfile()
   const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
 
@@ -91,22 +91,22 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   }
 
   return (
-    <div className="bg-surface-ground border border-border-muted rounded-xl p-4 shadow-[var(--shadow-sm)]">
+    <div className="bg-[var(--bg-sunk)] border border-[var(--hairline)] rounded-xl p-4 shadow-[var(--shadow-sm)]">
       <div className="flex items-center justify-between mb-4">
         <button
-          className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
+          className="p-1.5 rounded-full hover:bg-[var(--bg-elev)]/80 transition-colors duration-150 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
           onClick={prevMonth}
         >
           <ChevronLeft className="size-4" />
         </button>
         <button
-          className="text-sm font-bold text-text-primary capitalize hover:text-primary transition-colors"
+          className="text-sm font-bold text-[var(--fg-1)] capitalize hover:text-[var(--primary-pressed)] transition-colors"
           onClick={goToToday}
         >
           {monthLabel}
         </button>
         <button
-          className="p-1.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
+          className="p-1.5 rounded-full hover:bg-[var(--bg-elev)]/80 transition-colors duration-150 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
           onClick={nextMonth}
         >
           <ChevronRight className="size-4" />
@@ -117,7 +117,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         {weekdays.map((day) => (
           <div
             key={day.key}
-            className="text-center text-[10px] font-bold uppercase tracking-wider text-text-muted py-1"
+            className="text-center text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)] py-1"
           >
             {day.label}
           </div>
@@ -132,9 +132,9 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           >
             {day.isCurrentMonth && day.isCompleted ? (
               <button
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-all cursor-pointer bg-primary text-white hover:brightness-110 ${
+                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-[filter,box-shadow] cursor-pointer bg-[var(--primary)] text-white hover:brightness-110 ${
                   selectedDate === day.dateStr
-                    ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-background'
+                    ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-[var(--bg)]'
                     : ''
                 }`}
                 onClick={() => toggleDay(day.dateStr)}
@@ -143,13 +143,13 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               </button>
             ) : (
               <div
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
+                className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-[opacity,box-shadow,color] ${
                   day.isCurrentMonth ? '' : 'opacity-0'
                 } ${
                   day.isCurrentMonth && day.isToday
-                    ? 'ring-1 ring-primary/50 text-text-primary'
+                    ? 'ring-1 ring-primary/50 text-[var(--fg-1)]'
                     : ''
-                } ${day.isCurrentMonth && !day.isToday ? 'text-text-muted' : ''}`}
+                } ${day.isCurrentMonth && !day.isToday ? 'text-[var(--fg-3)]' : ''}`}
               >
                 {day.dayNum}
               </div>
@@ -159,13 +159,13 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       </div>
 
       {selectedDate && selectedDayLogs.length > 0 && (
-        <div className="mt-3 bg-surface-ground border border-border-muted rounded-lg p-3 overflow-hidden">
+        <div className="mt-3 bg-[var(--bg-sunk)] border border-[var(--hairline)] rounded-lg p-3 overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-text-primary">
+            <span className="text-xs font-bold text-[var(--fg-1)]">
               {displayDate(parseISO(selectedDate))}
             </span>
             <button
-              className="p-0.5 rounded-full hover:bg-surface-elevated/80 transition-all duration-150 text-text-muted hover:text-text-primary"
+              className="p-0.5 rounded-full hover:bg-[var(--bg-elev)]/80 transition-colors duration-150 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
               onClick={() => setSelectedDate(null)}
             >
               <X className="size-3.5" />
@@ -174,7 +174,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           <div className="space-y-2">
             {selectedDayLogs.map((log) => (
               <div key={log.id} className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-muted">
+                <span className="text-[10px] text-[var(--fg-3)]">
                   {t('habits.detail.loggedAt', {
                     time: formatLogTime(log.createdAtUtc),
                   })}
@@ -186,10 +186,10 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       )}
 
       <div className="flex items-center justify-between mt-3 px-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
           {t('calendar.completionHistory')}
         </span>
-        <span className="text-xs font-bold text-primary">
+        <span className="text-xs font-bold text-[var(--primary)]">
           {totalInMonth}{' '}
           {totalInMonth === 1 ? t('habits.detail.day') : t('habits.detail.days')}
         </span>

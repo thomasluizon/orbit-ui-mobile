@@ -35,9 +35,11 @@ describe('OnboardingCompleteHabit', () => {
     expect(screen.getByText('Drink Water')).toBeInTheDocument()
   })
 
-  it('calls logHabit when completion button clicked', () => {
+  it('calls logHabit when completion dot clicked', () => {
     render(<OnboardingCompleteHabit {...defaultProps} />)
-    const completeButton = screen.getByRole('button', { name: '' })
+    const completeButton = screen.getByRole('button', {
+      name: 'onboarding.flow.completeHabit.tapHint',
+    })
     fireEvent.click(completeButton)
     expect(mockMutate).toHaveBeenCalledWith({ habitId: 'h1' })
   })

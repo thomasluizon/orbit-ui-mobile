@@ -18,11 +18,14 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { completeOnboarding } from '@/app/actions/profile'
 import { OnboardingWelcome } from './onboarding-welcome'
+import { OnboardingMeetAstra } from './onboarding-meet-astra'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingCompleteHabit } from './onboarding-complete-habit'
 import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
+
+const WEB_ASTRA_OFFSET = 1
 
 export function OnboardingFlow() {
   const t = useTranslations()
@@ -30,37 +33,56 @@ export function OnboardingFlow() {
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
 
-  const [currentStep, setCurrentStep] = useState(0)
+  const [sharedStep, setSharedStep] = useState(0)
+  const [astraStepShown, setAstraStepShown] = useState(false)
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
   const [createdHabitTitle, setCreatedHabitTitle] = useState('')
   const [createdGoal, setCreatedGoal] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  // SSR guard
   if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) { // NOSONAR - SSR guard
     setMounted(true)
   }
 
-  const displayTotal = getOnboardingDisplayTotal(hasProAccess)
-  const displayStep = useMemo(
-    () => getOnboardingDisplayStep(currentStep, hasProAccess),
-    [currentStep, hasProAccess],
-  )
+  const sharedDisplayTotal = getOnboardingDisplayTotal(hasProAccess)
+  const displayTotal = sharedDisplayTotal + WEB_ASTRA_OFFSET
+  const [viewingAstra, setViewingAstra] = useState(false)
+  const displayStep = useMemo(() => {
+    const sharedDisplay = getOnboardingDisplayStep(sharedStep, hasProAccess)
+    if (viewingAstra) return 2
+    if (astraStepShown) return sharedDisplay + WEB_ASTRA_OFFSET
+    return sharedDisplay
+  }, [sharedStep, hasProAccess, viewingAstra, astraStepShown])
 
-  const hasPrev = currentStep > 0
-  const canAdvance = currentStep !== ONBOARDING_COMPLETE_STEP
+  const hasPrev = sharedStep > 0 || viewingAstra
+  const canAdvance = sharedStep !== ONBOARDING_COMPLETE_STEP
 
   const goNext = useCallback(() => {
-    setCurrentStep((previousStep) =>
-      getOnboardingNextStep(previousStep, hasProAccess),
-    )
-  }, [hasProAccess])
+    if (sharedStep === 0 && !astraStepShown) {
+      setViewingAstra(true)
+      setAstraStepShown(true)
+      return
+    }
+    if (viewingAstra) {
+      setViewingAstra(false)
+      setSharedStep((s) => getOnboardingNextStep(s, hasProAccess))
+      return
+    }
+    setSharedStep((s) => getOnboardingNextStep(s, hasProAccess))
+  }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
 
   const goPrev = useCallback(() => {
-    setCurrentStep((previousStep) =>
-      getOnboardingPreviousStep(previousStep, hasProAccess),
-    )
-  }, [hasProAccess])
+    if (viewingAstra) {
+      setViewingAstra(false)
+      return
+    }
+    if (sharedStep === 1 && astraStepShown) {
+      setViewingAstra(true)
+      setSharedStep(0)
+      return
+    }
+    setSharedStep((s) => getOnboardingPreviousStep(s, hasProAccess))
+  }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
 
   function handleHabitCreated(habitId: string, title: string) {
     setCreatedHabitId(habitId)
@@ -94,15 +116,15 @@ export function OnboardingFlow() {
   }
 
   function handleSkip() {
-    // Jump to the complete step so trial info is shown
-    setCurrentStep(5)
+    setViewingAstra(false)
+    setSharedStep(ONBOARDING_COMPLETE_STEP)
   }
 
-  // Interactive steps that hide the footer nav
-  const hideFooter = shouldHideOnboardingFooter(currentStep)
+  const hideFooter = !viewingAstra && shouldHideOnboardingFooter(sharedStep)
 
   const stepContent = (() => {
-    switch (currentStep) {
+    if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" />
+    switch (sharedStep) {
       case 0:
         return <OnboardingWelcome key="welcome" />
       case 1:
@@ -140,7 +162,6 @@ export function OnboardingFlow() {
     }
   })()
 
-  // Focus trap
   const overlayRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!mounted) return
@@ -167,88 +188,128 @@ export function OnboardingFlow() {
       }
 
     el.addEventListener('keydown', handleKeyDown)
-    // Focus first focusable element
     const firstFocusable = el.querySelector<HTMLElement>('button, [href], input')
     firstFocusable?.focus()
 
     return () => el.removeEventListener('keydown', handleKeyDown)
-  }, [mounted, currentStep])
+  }, [mounted, sharedStep, viewingAstra])
 
   if (!mounted) return null
+
+  const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
+
+  const isFinalStep = sharedStep === ONBOARDING_COMPLETE_STEP
+  const isStarter = sharedStep === 0 && !viewingAstra && !astraStepShown
 
   const overlay = (
     <div
       ref={overlayRef}
       role="dialog"
-      className="fixed inset-0 z-[60] m-0 h-dvh w-screen overflow-y-auto bg-background"
+      className="fixed inset-0 z-[60] m-0 h-dvh w-screen overflow-y-auto"
+      style={{ background: 'var(--bg)' }}
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <div className="flex flex-col min-h-dvh bg-background relative">
-        {/* Ambient glow */}
+      <div className="flex flex-col min-h-dvh relative">
         <div
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{ background: 'radial-gradient(ellipse at center 30%, rgba(var(--primary-shadow), 0.06), transparent 70%)' }}
-        />
-
-        {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-6 pt-6 pb-4">
-          <span id="onboarding-title" className="text-xs text-text-secondary font-medium">
-            {t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
-          </span>
-          <button
-            className="text-sm text-text-secondary hover:text-text-primary transition-colors font-medium"
-            onClick={handleSkip}
+          className="flex items-center justify-between"
+          style={{ padding: '16px 20px' }}
+        >
+          <span
+            id="onboarding-title"
+            style={{
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              letterSpacing: '0.04em',
+              fontVariantNumeric: 'tabular-nums',
+            }}
           >
-            {t('onboarding.flow.skip')}
-          </button>
-        </div>
-
-        {/* Progress bar */}
-        <div className="relative z-10 px-6 mb-8">
-          <progress className="sr-only" value={displayStep} max={displayTotal}>
-            {t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
-          </progress>
-          <div className="h-0.5 rounded-full bg-white/[0.08]" aria-hidden="true">
-            <div
-              className="h-0.5 rounded-full bg-primary transition-all duration-500"
+            {progressLabel}
+          </span>
+          {!isFinalStep && (
+            <button
+              type="button"
+              className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
               style={{
-                width: `${(displayStep / displayTotal) * 100}%`,
-                boxShadow: '0 0 8px rgba(var(--primary-shadow), 0.3)',
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+                padding: 0,
               }}
-            />
-          </div>
+              onClick={handleSkip}
+            >
+              {t('onboarding.flow.skip')}
+            </button>
+          )}
         </div>
 
-        {/* Step content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-8 overflow-y-auto">
-          <div className="w-full max-w-sm">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto"
+          style={{ padding: '0 28px' }}
+        >
+          <div className="w-full max-w-sm mx-auto">
             {stepContent}
           </div>
         </div>
 
-        {/* Footer navigation */}
         {!hideFooter && (
-          <div className="relative z-10 px-6 pb-10 flex items-center justify-between gap-4">
-            {hasPrev ? (
-              <button
-                className="text-text-secondary hover:text-text-primary transition-colors font-medium text-sm px-4 py-2"
-                onClick={goPrev}
-              >
-                {t('onboarding.flow.back')}
-              </button>
-            ) : (
+          <div
+            className="flex flex-col items-center"
+            style={{ padding: '12px 22px 22px', gap: 14 }}
+          >
+            <ProgressDots active={displayStep - 1} total={displayTotal} />
+            <progress
+              className="sr-only"
+              value={displayStep}
+              max={displayTotal}
+            >
+              {t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
+            </progress>
+            <div
+              className="flex items-center justify-between w-full"
+              style={{ gap: 12 }}
+            >
+              <div className="flex-1 flex justify-start">
+                {hasPrev && (
+                  <button
+                    type="button"
+                    className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+                    style={{
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 13,
+                      color: 'var(--fg-3)',
+                      padding: 6,
+                    }}
+                    onClick={goPrev}
+                  >
+                    {t('onboarding.flow.back')}
+                  </button>
+                )}
+              </div>
+              <div className="flex-[2]">
+                {canAdvance && (
+                  <button
+                    type="button"
+                    className="w-full appearance-none border-0 cursor-pointer transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
+                    style={{
+                      padding: '10px 18px',
+                      background: 'var(--primary)',
+                      color: 'var(--fg-on-primary)',
+                      borderRadius: 10,
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                    onClick={goNext}
+                  >
+                    {isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
+                  </button>
+                )}
+              </div>
               <div className="flex-1" />
-            )}
-
-            {canAdvance && (
-              <button
-                className="px-6 py-2.5 bg-primary text-white font-semibold text-sm rounded-[var(--radius-xl)] hover:bg-primary/90 transition-all"
-                onClick={goNext}
-              >
-                {t('onboarding.flow.next')}
-              </button>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -256,4 +317,29 @@ export function OnboardingFlow() {
   )
 
   return createPortal(overlay, document.body)
+}
+
+interface ProgressDotsProps {
+  active: number
+  total: number
+}
+
+function ProgressDots({ active, total }: Readonly<ProgressDotsProps>) {
+  return (
+    <div aria-hidden="true" className="flex items-center" style={{ gap: 6 }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          // NOSONAR -- index is the dot identity (fixed-length array, never reorders)
+          key={`progress-dot-${i}`}
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: 999,
+            background: i <= active ? 'var(--primary)' : 'var(--hairline-strong)',
+            transition: 'background 200ms ease',
+          }}
+        />
+      ))}
+    </div>
+  )
 }

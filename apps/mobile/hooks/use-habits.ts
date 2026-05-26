@@ -7,7 +7,6 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
-  QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
@@ -75,9 +74,7 @@ type CreateSubHabitMutationInput = {
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
-type HabitListSnapshots = ReadonlyArray<
-  readonly [readonly unknown[], HabitScheduleItem[] | undefined]
->
+type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
 
 function getTomorrowDateString(): string {
@@ -134,10 +131,6 @@ export {
 } from './use-habit-queries'
 export { useCalendarData } from './use-calendar-data'
 export { useSummary } from './use-summary'
-
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
@@ -590,10 +583,6 @@ export function useUpdateChecklist() {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Sub-habit and parent mutations
-// ---------------------------------------------------------------------------
-
 export function useCreateSubHabit() {
   const queryClient = useQueryClient()
 
@@ -695,10 +684,6 @@ export function useMoveHabitParent() {
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
   })
 }
-
-// ---------------------------------------------------------------------------
-// Bulk operations
-// ---------------------------------------------------------------------------
 
 export function useBulkCreateHabits() {
   const queryClient = useQueryClient()

@@ -1,72 +1,56 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { AppBar } from '@/components/ui/app-bar'
+
 interface CalendarHeaderProps {
   title: string
   monthLabel: string
   subtitle?: string | null
-  goToTodayLabel: string
   previousMonthLabel: string
   nextMonthLabel: string
-  onGoToToday: () => void
   onPreviousMonth: () => void
   onNextMonth: () => void
 }
 
+/** Calendar AppBar — leading CalendarDays glyph, month subtitle, prev/next trailing. */
 export function CalendarHeader({
   title,
   monthLabel,
   subtitle,
-  goToTodayLabel,
   previousMonthLabel,
   nextMonthLabel,
-  onGoToToday,
   onPreviousMonth,
   onNextMonth,
 }: Readonly<CalendarHeaderProps>) {
   return (
-    <header className="pt-8 pb-2 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[length:var(--text-fluid-2xl)] font-bold text-text-primary tracking-tight">
-          {title}
-        </h1>
-        <button
-          aria-label={goToTodayLabel}
-          className="p-2 rounded-full hover:bg-surface transition-colors"
-          onClick={onGoToToday}
-        >
-          <Search className="size-[18px] text-text-secondary" aria-hidden="true" />
-        </button>
-      </div>
-
-      <div data-tour="tour-calendar-month-nav" className="bg-surface rounded-[var(--radius-xl)] border border-border-muted shadow-[var(--shadow-sm)] flex items-center justify-between p-1">
-        <button
-          aria-label={previousMonthLabel}
-          className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-          onClick={onPreviousMonth}
-        >
-          <ChevronLeft className="size-3 text-text-faded" aria-hidden="true" />
-        </button>
-        <div className="flex flex-col items-center">
+    <AppBar
+      leadingIcon={<CalendarDays size={17} strokeWidth={1.5} color="var(--fg-2)" />}
+      title={title}
+      subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
+      trailing={
+        <>
           <button
-            className="text-base font-semibold text-text-primary hover:text-primary transition-colors"
-            onClick={onGoToToday}
+            type="button"
+            aria-label={previousMonthLabel}
+            onClick={onPreviousMonth}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            style={{ width: 36, height: 36, borderRadius: 8 }}
           >
-            {monthLabel}
+            <ChevronLeft size={17} strokeWidth={1.6} />
           </button>
-          {subtitle && (
-            <span className="text-[10px] text-text-muted font-medium mt-0.5">{subtitle}</span>
-          )}
-        </div>
-        <button
-          aria-label={nextMonthLabel}
-          className="size-10 rounded-[var(--radius-lg)] flex items-center justify-center hover:bg-surface-elevated transition-all duration-150 active:scale-95"
-          onClick={onNextMonth}
-        >
-          <ChevronRight className="size-3 text-text-faded" aria-hidden="true" />
-        </button>
-      </div>
-    </header>
+          <button
+            type="button"
+            aria-label={nextMonthLabel}
+            onClick={onNextMonth}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            style={{ width: 36, height: 36, borderRadius: 8 }}
+          >
+            <ChevronRight size={17} strokeWidth={1.6} />
+          </button>
+        </>
+      }
+    />
   )
 }
 
@@ -76,25 +60,47 @@ interface CalendarLegendProps {
   missedLabel: string
 }
 
+/** v8 calendar legend — inline row of colored dots + labels, no section header. */
 export function CalendarLegend({
   doneLabel,
   upcomingLabel,
   missedLabel,
 }: Readonly<CalendarLegendProps>) {
   return (
-    <div data-tour="tour-calendar-legend" className="flex items-center justify-center gap-6 py-4 text-xs text-text-secondary">
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-green-500" />
-        <span>{doneLabel}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-primary" />
-        <span>{upcomingLabel}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-orange-500" />
-        <span>{missedLabel}</span>
-      </div>
+    <div
+      data-tour="tour-calendar-legend"
+      className="flex flex-wrap items-center"
+      style={{ padding: '12px 20px', gap: 16 }}
+    >
+      <LegendItem dotColor="var(--fg-1)" label={doneLabel} />
+      <LegendItem dotColor="var(--primary)" label={upcomingLabel} />
+      <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
     </div>
+  )
+}
+
+interface LegendItemProps {
+  dotColor: string
+  label: string
+}
+
+function LegendItem({ dotColor, label }: Readonly<LegendItemProps>) {
+  return (
+    <span className="inline-flex items-center" style={{ gap: 6 }}>
+      <span
+        aria-hidden="true"
+        className="rounded-full shrink-0"
+        style={{ width: 6, height: 6, background: dotColor }}
+      />
+      <span
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 13,
+          color: 'var(--fg-2)',
+        }}
+      >
+        {label}
+      </span>
+    </span>
   )
 }

@@ -1,7 +1,15 @@
 import { Platform } from 'react-native'
 import type { OrbitWidgetModuleType } from '../modules/orbit-widget/src/OrbitWidget.types'
 
+declare const require: (id: string) => unknown
+
 let cachedModule: OrbitWidgetModuleType | null | undefined
+
+function isOrbitWidgetModule(value: unknown): value is { default: OrbitWidgetModuleType } {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = (value as { default?: unknown }).default
+  return typeof candidate === 'object' && candidate !== null
+}
 
 function getOrbitWidgetModule(): OrbitWidgetModuleType | null {
   if (Platform.OS !== 'android') {
@@ -13,7 +21,8 @@ function getOrbitWidgetModule(): OrbitWidgetModuleType | null {
   }
 
   try {
-    cachedModule = require('../modules/orbit-widget').default as OrbitWidgetModuleType
+    const loaded = require('../modules/orbit-widget')
+    cachedModule = isOrbitWidgetModule(loaded) ? loaded.default : null
   } catch {
     cachedModule = null
   }

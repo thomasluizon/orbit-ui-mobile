@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTourUIState, getPersistedUIState } from "@orbit/shared/stores";
 
+import { useUIStore } from "@/stores/ui-store";
+
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
 }));
@@ -18,8 +20,6 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
     }),
   },
 }));
-
-import { useUIStore } from "@/stores/ui-store";
 
 describe("mobile ui store", () => {
   beforeEach(() => {

@@ -11,10 +11,7 @@ export {
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
 
-// ---------------------------------------------------------------------------
-// Web Speech API type declarations (not in default TS DOM lib)
-// ---------------------------------------------------------------------------
-
+// Web Speech API type declarations (not in default TS DOM lib).
 interface SpeechRecognitionResult {
   readonly isFinal: boolean
   readonly length: number
@@ -49,22 +46,19 @@ interface SpeechRecognitionInstance extends EventTarget {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance
 
 declare global {
-  // eslint-disable-next-line no-var
   var SpeechRecognition: SpeechRecognitionConstructor | undefined
-  // eslint-disable-next-line no-var
   var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined
 }
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useSpeechToText() {
   const locale = useLocale()
   const t = useTranslations()
 
   const [isRecording, setIsRecording] = useState(false)
-  const [isSupported, setIsSupported] = useState(false)
+  const [isSupported] = useState(() => {
+    if (typeof globalThis === 'undefined') return false
+    return !!(globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition)
+  })
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [selectedLanguage, setSelectedLanguageRaw] = useState(() => { // NOSONAR - setter wrapped by useCallback below
@@ -77,16 +71,12 @@ export function useSpeechToText() {
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Check browser support and create recognition instance
   useEffect(() => {
     const Ctor = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition
-    setIsSupported(!!Ctor)
-
     if (Ctor) {
       const recognition = new Ctor()
       recognition.continuous = true
       recognition.interimResults = true
-      recognition.lang = selectedLanguage
       recognitionRef.current = recognition
     }
 
@@ -94,11 +84,8 @@ export function useSpeechToText() {
       recognitionRef.current?.abort()
       recognitionRef.current = null
     }
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Set language and persist
   const setSelectedLanguage = useCallback((newLang: string) => {
     setSelectedLanguageRaw(newLang)
     localStorage.setItem(CHAT_SPEECH_LANG_KEY, newLang)
@@ -107,7 +94,6 @@ export function useSpeechToText() {
     }
   }, [])
 
-  // Clear the recording timer
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
@@ -115,7 +101,6 @@ export function useSpeechToText() {
     }
   }, [])
 
-  // Start recording timer
   const startTimer = useCallback(() => {
     setRecordingDuration(0)
     timerRef.current = setInterval(() => {
@@ -189,7 +174,6 @@ export function useSpeechToText() {
     }
   }, [isRecording, startRecording, stopRecording])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort()

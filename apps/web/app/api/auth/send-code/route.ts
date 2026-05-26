@@ -1,10 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import {
   buildAuthErrorPayload,
-  buildEmailLogContext,
   buildRequestIdResponseHeaders,
-  extractErrorMessage,
-  isRecord,
   ORBIT_REQUEST_ID_HEADER,
   resolveRequestId,
   resolveResponseRequestId,
@@ -21,7 +18,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json() as unknown
-    const bodyRecord = isRecord(body) ? body : {}
 
     const url = `${apiBase}/api/auth/send-code`
 
@@ -39,14 +35,6 @@ export async function POST(request: NextRequest) {
     responseHeaders.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
 
     if (!response.ok) {
-      console.error('[auth/send-code] backend request failed', {
-        requestId: backendRequestId,
-        status: response.status,
-        error: extractErrorMessage(data) ?? 'Authentication failed',
-        language: typeof bodyRecord.language === 'string' ? bodyRecord.language : undefined,
-        ...buildEmailLogContext(bodyRecord.email),
-      })
-
       return NextResponse.json(buildAuthErrorPayload(data, backendRequestId), {
         status: response.status,
         headers: responseHeaders,
@@ -56,12 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, {
       headers: responseHeaders,
     })
-  } catch (error: unknown) {
-    console.error('[auth/send-code] unexpected error', {
-      requestId,
-      error,
-    })
-
+  } catch {
     return NextResponse.json(
       {
         error: 'Authentication failed',
