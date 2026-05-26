@@ -245,8 +245,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 })
-
-// Legacy TodayShellStyles type is retained for compatibility with any
-// imports that still reference it, though all the styles are now contained
-// in the new primitives. Consumers should no longer reach for these fields.
-export type TodayShellStyles = Record<string, never>

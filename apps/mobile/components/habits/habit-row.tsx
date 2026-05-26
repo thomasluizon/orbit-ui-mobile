@@ -65,8 +65,6 @@ interface HabitRowProps {
   isSelected?: boolean
   hasChildren?: boolean
   isExpanded?: boolean
-  /** Last child in a parent group — accepted for caller compatibility; tree-line visual removed. */
-  isLastChild?: boolean
   childrenDone?: number
   childrenTotal?: number
   actions?: HabitRowActions
@@ -90,7 +88,6 @@ export function HabitRow({
   isSelected = false,
   hasChildren = false,
   isExpanded = false,
-  isLastChild: _isLastChild = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = {},

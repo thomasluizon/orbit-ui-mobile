@@ -132,10 +132,10 @@ export default function StreakScreen() {
 
   const tier = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
-    if (streak >= 100) return 'Legendary'
-    if (streak >= 30) return 'Strong'
-    if (streak >= 7) return 'Steady'
-    return 'Normal'
+    if (streak >= 100) return t('streakDisplay.detail.tierLegendary')
+    if (streak >= 30) return t('streakDisplay.detail.tierStrong')
+    if (streak >= 7) return t('streakDisplay.detail.tierSteady')
+    return t('streakDisplay.detail.tierNormal')
   }, [streak, t])
 
   return (

@@ -111,7 +111,6 @@ interface DragItem {
   parentId: string | null
   hasChildren: boolean
   hasSubHabits: boolean
-  isLastChild: boolean
 }
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
@@ -163,7 +162,6 @@ function buildDragItemsFlat(
       parentId,
       hasChildren: visChildren.length > 0,
       hasSubHabits: habit.hasSubHabits,
-      isLastChild: false,
     })
     if (!collapsedIds.has(habit.id)) {
       for (const child of visChildren) {
@@ -174,14 +172,6 @@ function buildDragItemsFlat(
 
   for (const h of habits) {
     addHabitTree(h, 0, null)
-  }
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    const next = items[i + 1]
-    if (item) {
-      item.isLastChild = !next || next.depth <= item.depth
-    }
   }
 
   return items
@@ -1053,7 +1043,6 @@ const isPostponeAction = useMemo(() => {
     _hasSubHabits: boolean,
     options?: {
       isDrillCard?: boolean
-      isLastChild?: boolean
       isDraggingList?: boolean
     },
   ) {
@@ -1076,7 +1065,6 @@ const isPostponeAction = useMemo(() => {
         streak={habit.currentStreak}
         child={isChild}
         depth={depth}
-        isLastChild={options?.isLastChild ?? false}
         selectMode={isSelectMode}
         selected={selectedHabitIds?.has(habit.id) ?? false}
         hasChildren={hasChildren}
@@ -1121,14 +1109,13 @@ const isPostponeAction = useMemo(() => {
     const children = getVisibleChildren(parentId)
     if (children.length === 0) return null
 
-    return children.map((child, index) => (
+    return children.map((child) => (
       <div key={child.id}>
         {renderHabitCard(
           child,
           depth,
           getVisibleChildren(child.id).length > 0,
           habitsById.get(child.id)?.hasSubHabits ?? false,
-          { isLastChild: index === children.length - 1 },
         )}
         {renderAllViewChildren(child.id, depth + 1)}
       </div>
@@ -1149,7 +1136,7 @@ const isPostponeAction = useMemo(() => {
               0,
               drill.getDrillChildren(child.id).length > 0,
               child.hasSubHabits || drill.getDrillChildren(child.id).length > 0,
-              { isDrillCard: true, isLastChild: false },
+              { isDrillCard: true },
             ),
           )}
           <button
@@ -1288,7 +1275,7 @@ const isPostponeAction = useMemo(() => {
                     item.depth,
                     item.hasChildren,
                     item.hasSubHabits,
-                    { isLastChild: item.isLastChild, isDraggingList: isDragging },
+                    { isDraggingList: isDragging },
                   )}
                 </SortableHabitItem>
               ))}
@@ -1307,7 +1294,6 @@ const isPostponeAction = useMemo(() => {
               item.depth,
               item.hasChildren,
               item.hasSubHabits,
-              { isLastChild: item.isLastChild },
             )}
           </div>
         ))}

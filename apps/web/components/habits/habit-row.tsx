@@ -49,8 +49,6 @@ interface HabitRowProps {
   child?: boolean
   /** Nesting depth (0 = top-level). Drives the left indent so hierarchy is visible. */
   depth?: number
-  /** Last child in a sibling group — kept for compatibility with callers; no longer used for visual treatment. */
-  isLastChild?: boolean
   selectMode?: boolean
   selected?: boolean
   /** Parent expand/collapse. Caller is responsible for managing expanded state. */
@@ -72,7 +70,6 @@ export function HabitRow({
   streak,
   child = false,
   depth = 0,
-  isLastChild: _isLastChild = false,
   selectMode = false,
   selected = false,
   hasChildren = false,
