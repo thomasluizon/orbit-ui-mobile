@@ -97,19 +97,6 @@ export default async function RootLayout({
       root.style.setProperty('--primary-tint-icon-bg', 'rgba(' + def.shadowRgb + ', ' + tint.iconBg + ')')
       root.style.setProperty('--primary-tint-icon-bg-hover', 'rgba(' + def.shadowRgb + ', ' + tint.iconBgHover + ')')
 
-      const scale = def.scale
-      root.style.setProperty('--color-primary-50', scale['50'] ?? '')
-      root.style.setProperty('--color-primary-100', scale['100'] ?? '')
-      root.style.setProperty('--color-primary-200', scale['200'] ?? '')
-      root.style.setProperty('--color-primary-300', scale['300'] ?? '')
-      root.style.setProperty('--color-primary-400', scale['400'] ?? '')
-      root.style.setProperty('--color-primary-500', scale['500'] ?? '')
-      root.style.setProperty('--color-primary-600', scale['600'] ?? '')
-      root.style.setProperty('--color-primary-700', scale['700'] ?? '')
-      root.style.setProperty('--color-primary-800', scale['800'] ?? '')
-      root.style.setProperty('--color-primary-900', scale['900'] ?? '')
-      root.style.setProperty('--color-primary-950', scale['950'] ?? '')
-
       const metaThemeColor = document.querySelector('meta[name="theme-color"]')
       if (metaThemeColor) metaThemeColor.setAttribute('content', colors.background)
     } catch {}
