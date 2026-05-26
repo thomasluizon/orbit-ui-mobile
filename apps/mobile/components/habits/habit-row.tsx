@@ -428,7 +428,7 @@ function HabitRowMenuBody({
       {actions.onDuplicate ? (
         <MenuItem
           icon={Copy}
-          label={t('common.duplicate')}
+          label={t('habits.actions.duplicate')}
           color={tokens.fg1}
           onPress={run(actions.onDuplicate)}
         />
@@ -436,7 +436,7 @@ function HabitRowMenuBody({
       {actions.onAddSubHabit ? (
         <MenuItem
           icon={Plus}
-          label={t('habits.actions.addSubHabit')}
+          label={t('habits.form.addSubHabit')}
           color={tokens.fg1}
           onPress={run(actions.onAddSubHabit)}
         />
@@ -444,7 +444,7 @@ function HabitRowMenuBody({
       {actions.onMoveParent ? (
         <MenuItem
           icon={FolderInput}
-          label={t('habits.actions.moveParent')}
+          label={t('habits.moveParent.button')}
           color={tokens.fg1}
           onPress={run(actions.onMoveParent)}
         />
@@ -460,7 +460,7 @@ function HabitRowMenuBody({
       {actions.onDelete ? (
         <MenuItem
           icon={Trash2}
-          label={t('common.delete')}
+          label={t('habits.deleteHabit')}
           color={tokens.statusOverdue}
           onPress={run(actions.onDelete)}
         />
