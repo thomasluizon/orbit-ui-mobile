@@ -148,6 +148,10 @@ export function HabitRow({
   const [menuAnchorRect, setMenuAnchorRect] = useState<MenuAnchorRect | null>(
     null,
   )
+  // Android nested-Pressable quirk: tapping the kebab can also fire the row's
+  // onPress. Stamping a timestamp on every menu interaction (open + close)
+  // lets handlePress swallow row presses that race the kebab/menu-item taps.
+  const menuActivityAt = useRef(0)
 
   const hasMenuActions =
     !!actions.onEdit ||
@@ -160,15 +164,20 @@ export function HabitRow({
     (hasChildren && !!actions.onDrillInto)
 
   const openMenu = useCallback(() => {
+    menuActivityAt.current = Date.now()
     menuButtonRef.current?.measureInWindow((x, y, width, height) => {
       setMenuAnchorRect({ x, y, width, height })
       setMenuVisible(true)
     })
   }, [])
 
-  const closeMenu = useCallback(() => setMenuVisible(false), [])
+  const closeMenu = useCallback(() => {
+    menuActivityAt.current = Date.now()
+    setMenuVisible(false)
+  }, [])
 
   const handlePress = () => {
+    if (Date.now() - menuActivityAt.current < 500) return
     if (isSelectMode) {
       actions.onToggleSelection?.()
     } else {
@@ -358,6 +367,9 @@ export function HabitRow({
           {!isSelectMode && hasMenuActions ? (
             <View ref={menuButtonRef} collapsable={false}>
               <Pressable
+                onPressIn={() => {
+                  menuActivityAt.current = Date.now()
+                }}
                 onPress={openMenu}
                 hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 accessibilityRole="button"

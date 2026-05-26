@@ -431,7 +431,10 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
     <button
       type="button"
       role="menuitem"
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
       className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)]"
       style={{
         gap: 10,
