@@ -59,10 +59,6 @@ vi.mock('@/components/navigation/notification-bell', () => ({
   NotificationBell: () => null,
 }))
 
-vi.mock('@/components/gamification/profile-streak-card', () => ({
-  ProfileStreakCard: () => null,
-}))
-
 vi.mock('@/app/(app)/profile/_components/subscription-card', () => ({
   SubscriptionCard: () => null,
 }))
