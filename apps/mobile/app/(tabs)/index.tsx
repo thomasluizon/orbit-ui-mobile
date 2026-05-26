@@ -972,10 +972,18 @@ export default function TodayScreen() {
     });
   }, [setSearchQueryStore]);
 
+  const headerTitle = useMemo(() => {
+    if (currentActiveView === "all") return t("habits.viewAll");
+    if (currentActiveView === "general") return t("habits.viewGeneral");
+    if (currentActiveView === "goals") return t("goals.tab");
+    return t("habits.today");
+  }, [currentActiveView, t]);
+
   const sharedHeader = useMemo(
     () => (
       <>
         <TodayHeader
+          title={headerTitle}
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
@@ -1007,6 +1015,7 @@ export default function TodayScreen() {
       dateLong,
       goToToday,
       handleChangeView,
+      headerTitle,
       reviewReminder,
       tabItems,
       t,

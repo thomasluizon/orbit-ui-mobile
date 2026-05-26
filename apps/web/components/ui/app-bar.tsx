@@ -45,20 +45,34 @@ export function AppBar({
         borderBottom: hairline ? '1px solid var(--hairline)' : 'none',
       }}
     >
-      <button
-        type="button"
-        aria-label={resolvedBackLabel}
-        onClick={onBack}
-        className="appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center"
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 8,
-          color: 'var(--fg-2)',
-        }}
-      >
-        {leading ?? <span aria-hidden="true" style={{ width: 18, height: 18 }} />}
-      </button>
+      {back || onBack ? (
+        <button
+          type="button"
+          aria-label={resolvedBackLabel}
+          onClick={onBack}
+          className="appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            color: 'var(--fg-2)',
+          }}
+        >
+          {leading ?? <span aria-hidden="true" style={{ width: 18, height: 18 }} />}
+        </button>
+      ) : (
+        <span
+          aria-hidden="true"
+          className="inline-flex items-center justify-center"
+          style={{
+            width: 36,
+            height: 36,
+            color: 'var(--fg-2)',
+          }}
+        >
+          {leading ?? <span style={{ width: 18, height: 18 }} />}
+        </span>
+      )}
 
       <div
         className="flex flex-col justify-center min-w-0 flex-1"
