@@ -9,13 +9,12 @@ import {
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Trash2, Plus } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitFormFields } from './habit-form-fields'
+import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -40,12 +39,6 @@ import {
 import { habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ProBadge } from '@/components/ui/pro-badge'
-
-interface SubHabitEntry {
-  id: string
-  value: string
-}
 
 let subHabitCounter = 0
 function createSubHabitEntry(value = ''): SubHabitEntry {
@@ -330,6 +323,10 @@ export function CreateHabitModal({
     setSubHabits((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
+  const addSubHabit = useCallback(() => {
+    setSubHabits((prev) => [...prev, createSubHabitEntry()])
+  }, [])
+
   return (
     <>
       <BottomSheetModal
@@ -362,67 +359,15 @@ export function CreateHabitModal({
             onFlushBufferedInputsReady={handleBufferedInputsReady}
           >
             {!isSubHabitMode ? (
-              <View style={styles.subHabitsSection}>
-                <View style={styles.subHabitsHeader}>
-                  <Text style={styles.fieldLabel}>
-                    {t('habits.form.subHabits')}
-                  </Text>
-                  {!hasProAccess ? <ProBadge alwaysVisible /> : null}
-                </View>
-                {!hasProAccess ? (
-                  <Text style={styles.subHabitsHint}>
-                    {t('upgrade.comparison.subHabits.tooltip')}
-                  </Text>
-                ) : null}
-                {subHabits.length > 0 ? (
-                  <View style={styles.subHabitsList}>
-                    {subHabits.map((entry, index) => (
-                      <View key={entry.id} style={styles.subHabitRow}>
-                        <Text style={styles.subHabitIndex}>{index + 1}</Text>
-                        <BottomSheetAppTextInput
-                          value={entry.value}
-                          maxLength={200}
-                          placeholder={t('habits.form.subHabitPlaceholder')}
-                          placeholderTextColor={tokens.fg4}
-                          style={styles.subHabitInput}
-                          onChangeText={(val: string) =>
-                            updateSubHabitValue(entry.id, val)
-                          }
-                        />
-                        <TouchableOpacity
-                          onPress={() => removeSubHabit(entry.id)}
-                          activeOpacity={0.7}
-                          hitSlop={{
-                            top: 6,
-                            bottom: 6,
-                            left: 6,
-                            right: 6,
-                          }}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('common.clear')}
-                        >
-                          <Trash2 size={14} color={tokens.fg4} strokeWidth={1.6} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.addSubHabitButton}
-                  disabled={subHabits.length >= 20}
-                  onPress={() =>
-                    setSubHabits((prev) => [...prev, createSubHabitEntry()])
-                  }
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('habits.form.addSubHabit')}
-                >
-                  <Plus size={14} color={tokens.fg1} strokeWidth={1.6} />
-                  <Text style={styles.addSubHabitText}>
-                    {t('habits.form.addSubHabit')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <SubHabitEditor
+                subHabits={subHabits}
+                hasProAccess={hasProAccess}
+                onUpdateSubHabit={updateSubHabitValue}
+                onRemoveSubHabit={removeSubHabit}
+                onAddSubHabit={addSubHabit}
+                tokens={tokens}
+                styles={styles}
+              />
             ) : null}
           </HabitFormFields>
 
