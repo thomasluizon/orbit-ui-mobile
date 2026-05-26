@@ -2,11 +2,6 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
 import {
-  isToday as isDateToday,
-  isTomorrow,
-  isYesterday,
-} from 'date-fns'
-import {
   ArrowLeft,
   Home,
   Plus,
@@ -17,7 +12,6 @@ import {
   computeHabitReorderPositions,
   collectVisibleHabitTreeIds,
   formatAPIDate,
-  formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -27,13 +21,18 @@ import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
 import {
-  HabitListDateGroupSection,
+  getEmptyHabitsMessage,
   HabitListEmptyState,
+  HabitListSkeleton,
+} from './habit-list/empty-state'
+import {
+  formatDateGroupLabel,
+  HabitListDateGroupSection,
   type HabitListDateGroup,
-} from './habit-list-sections'
+} from './habit-list/date-group-section'
+import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import { computeHabitCardStatus, computeHabitFrequencyLabel } from '@orbit/shared/utils'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import {
   EMPTY_CHILDREN_BY_PARENT,
@@ -115,34 +114,6 @@ interface DragItem {
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
-function formatDateGroupLabel(
-  key: string,
-  locale: string,
-  t: (key: string) => string,
-): string {
-  if (!key) return t('common.unknown')
-
-  const date = new Date(key + 'T00:00:00')
-
-  if (isDateToday(date)) return t('dates.today')
-  if (isTomorrow(date)) return t('dates.tomorrow')
-  if (isYesterday(date)) return t('dates.yesterday')
-
-  return formatLocaleDate(date, locale, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
-}
-
 type HabitView = 'today' | 'all' | 'general'
 
 function buildDragItemsFlat(
@@ -175,43 +146,6 @@ function buildDragItemsFlat(
   }
 
   return items
-}
-
-function HabitListSkeleton() {
-  return (
-    <div>
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex items-center"
-          style={{
-            padding: '16px 20px',
-            gap: 14,
-            borderBottom: '1px solid var(--hairline)',
-          }}
-        >
-          <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
-            <div
-              className="rounded-sm animate-pulse"
-              style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
-            />
-            <div
-              className="rounded-sm animate-pulse"
-              style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
-            />
-          </div>
-          <div
-            className="rounded-full shrink-0"
-            style={{
-              width: 9,
-              height: 9,
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  )
 }
 
 function SortableHabitItem({
@@ -1327,92 +1261,50 @@ const isPostponeAction = useMemo(() => {
         />
       )}
 
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title={t('habits.deleteConfirmTitle')}
-        description={t('habits.deleteConfirmMessage')}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={() => {
+      <HabitListConfirmDialogs
+        t={t}
+        showDeleteConfirm={showDeleteConfirm}
+        onDeleteOpenChange={setShowDeleteConfirm}
+        onConfirmDelete={confirmDelete}
+        onCancelDelete={() => {
           setHabitToDelete(null)
           setShowDeleteConfirm(false)
         }}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        open={showDuplicateConfirm}
-        onOpenChange={(open) => {
+        showDuplicateConfirm={showDuplicateConfirm}
+        onDuplicateOpenChange={(open) => {
           setShowDuplicateConfirm(open)
           if (!open) setHabitToDuplicate(null)
         }}
-        title={t('habits.duplicateConfirmTitle')}
-        description={t('habits.duplicateConfirmMessage', {
-          name: habitToDuplicate?.title ?? '',
-        })}
-        confirmLabel={t('habits.duplicateConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmDuplicate}
-        onCancel={() => {
+        duplicateName={habitToDuplicate?.title ?? ''}
+        onConfirmDuplicate={confirmDuplicate}
+        onCancelDuplicate={() => {
           setHabitToDuplicate(null)
           setShowDuplicateConfirm(false)
         }}
-        variant="success"
-      />
-
-      <ConfirmDialog
-        open={showSkipConfirm}
-        onOpenChange={setShowSkipConfirm}
-        title={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmTitle'
-            : 'habits.skipConfirmTitle',
-        )}
-        description={skipConfirmMessage}
-        confirmLabel={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmButton'
-            : 'habits.skipConfirmButton',
-        )}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmSkip}
-        onCancel={() => {
+        showSkipConfirm={showSkipConfirm}
+        onSkipOpenChange={setShowSkipConfirm}
+        isPostponeAction={isPostponeAction}
+        skipConfirmMessage={skipConfirmMessage}
+        onConfirmSkip={confirmSkip}
+        onCancelSkip={() => {
           setHabitToSkip(null)
           setShowSkipConfirm(false)
         }}
-        variant="warning"
-      />
-
-      <ConfirmDialog
-        open={showForceLogConfirm}
-        onOpenChange={setShowForceLogConfirm}
-        title={t('habits.forceLogTitle')}
-        description={t('habits.forceLogMessage')}
-        confirmLabel={t('habits.forceLogConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmForceLog}
-        onCancel={() => {
+        showForceLogConfirm={showForceLogConfirm}
+        onForceLogOpenChange={setShowForceLogConfirm}
+        onConfirmForceLog={confirmForceLog}
+        onCancelForceLog={() => {
           setForceLogHabitId(null)
           setShowForceLogConfirm(false)
         }}
-        variant="warning"
-      />
-
-      <ConfirmDialog
-        open={showAutoLogParent}
-        onOpenChange={setShowAutoLogParent}
-        title={t('habits.autoLogParentTitle')}
-        description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
-        confirmLabel={t('habits.autoLogParentConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmAutoLogParent}
-        onCancel={() => {
+        showAutoLogParent={showAutoLogParent}
+        onAutoLogParentOpenChange={setShowAutoLogParent}
+        autoLogParentName={autoLogParentHabit?.title ?? ''}
+        onConfirmAutoLogParent={confirmAutoLogParent}
+        onCancelAutoLogParent={() => {
           setAutoLogParentId(null)
           setShowAutoLogParent(false)
         }}
-        variant="success"
       />
 
       <AppOverlay

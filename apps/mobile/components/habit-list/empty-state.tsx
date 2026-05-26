@@ -1,17 +1,8 @@
-import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { ClipboardList, CheckCircle2 } from 'lucide-react-native'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { SectionLabel } from '@/components/ui/section-label'
+import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-export interface HabitListDateGroup {
-  key: string
-  label: string
-  isOverdue: boolean
-  habits: NormalizedHabit[]
-}
 
 interface HabitListEmptyStateProps {
   title: string
@@ -74,27 +65,31 @@ export function HabitListEmptyState({
   )
 }
 
-interface HabitListDateGroupSectionProps {
-  group: HabitListDateGroup
-  overdueLabel: string
-  renderHabit: (habit: NormalizedHabit, index: number) => ReactNode
+interface SkeletonCardStyles {
+  skeletonCard: StyleProp<ViewStyle>
+  skeletonCircle: StyleProp<ViewStyle>
+  skeletonContent: StyleProp<ViewStyle>
+  skeletonTitle: StyleProp<ViewStyle>
+  skeletonSubtitle: StyleProp<ViewStyle>
 }
 
-export function HabitListDateGroupSection({
-  group,
-  overdueLabel,
-  renderHabit,
-}: HabitListDateGroupSectionProps) {
+export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyles }) {
   return (
-    <View>
-      <SectionLabel top={20} bottom={8}>
-        {group.isOverdue ? overdueLabel : group.label}
-      </SectionLabel>
-      {group.habits.map((habit, index) => (
-        <View key={habit.id}>{renderHabit(habit, index)}</View>
-      ))}
+    <View style={cardStyles.skeletonCard}>
+      <View style={cardStyles.skeletonCircle} />
+      <View style={cardStyles.skeletonContent}>
+        <View style={cardStyles.skeletonTitle} />
+        <View style={cardStyles.skeletonSubtitle} />
+      </View>
     </View>
   )
+}
+
+export function getEmptyHabitsMessage(
+  view: 'today' | 'all' | 'general',
+  t: (key: string) => string,
+): string {
+  return t(getHabitEmptyStateKey(view))
 }
 
 const styles = StyleSheet.create({

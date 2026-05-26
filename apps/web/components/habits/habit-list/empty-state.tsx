@@ -1,14 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
-
-export interface HabitListDateGroup {
-  key: string
-  label: string
-  isOverdue: boolean
-  habits: NormalizedHabit[]
-}
+import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 
 interface HabitListEmptyStateProps {
   title: string
@@ -106,50 +98,46 @@ export function HabitListEmptyState({
   )
 }
 
-interface HabitListDateGroupSectionProps {
-  group: HabitListDateGroup
-  overdueLabel: string
-  children: ReactNode
-}
-
-/** v8 date-group header: 13px/600 muted label (overdue uses --status-overdue). */
-export function HabitListDateGroupSection({
-  group,
-  overdueLabel,
-  children,
-}: Readonly<HabitListDateGroupSectionProps>) {
+export function HabitListSkeleton() {
   return (
-    <div key={group.key}>
-      <div
-        className="flex items-center"
-        style={{
-          padding: '16px 20px 8px',
-          gap: 8,
-        }}
-      >
-        <span
+    <div>
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="flex items-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontWeight: 600,
-            color: group.isOverdue ? 'var(--status-overdue)' : 'var(--fg-3)',
-            whiteSpace: 'nowrap',
+            padding: '16px 20px',
+            gap: 14,
+            borderBottom: '1px solid var(--hairline)',
           }}
         >
-          {group.isOverdue ? overdueLabel : group.label}
-        </span>
-        <div
-          className="flex-1"
-          style={{
-            height: 1,
-            background: group.isOverdue
-              ? 'var(--status-overdue)'
-              : 'var(--hairline)',
-            opacity: group.isOverdue ? 0.32 : 1,
-          }}
-        />
-      </div>
-      <div>{children}</div>
+          <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
+            <div
+              className="rounded-sm animate-pulse"
+              style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
+            />
+            <div
+              className="rounded-sm animate-pulse"
+              style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
+            />
+          </div>
+          <div
+            className="rounded-full shrink-0"
+            style={{
+              width: 9,
+              height: 9,
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+            }}
+          />
+        </div>
+      ))}
     </div>
   )
+}
+
+export function getEmptyHabitsMessage(
+  view: 'today' | 'all' | 'general',
+  t: (key: string) => string,
+): string {
+  return t(getHabitEmptyStateKey(view))
 }

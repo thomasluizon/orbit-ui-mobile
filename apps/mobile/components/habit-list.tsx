@@ -24,7 +24,6 @@ import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
-import { isToday as isDateToday, isTomorrow, isYesterday } from 'date-fns'
 import { CheckCircle2, ChevronLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -32,7 +31,6 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
-  formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -62,15 +60,20 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useTourTarget } from '@/hooks/use-tour-target'
+import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
-  HabitListDateGroupSection,
+  getEmptyHabitsMessage,
   HabitListEmptyState,
+  SkeletonCard,
+} from './habit-list/empty-state'
+import {
+  formatDateGroupLabel,
+  HabitListDateGroupSection,
   type HabitListDateGroup,
-} from './habit-list-sections'
+} from './habit-list/date-group-section'
 
 /**
  * Wraps a HabitRow in a measurable View that registers itself with the tour
@@ -129,27 +132,7 @@ export interface HabitListHandle {
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
-type HabitListStyles = ReturnType<typeof createStyles>
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
-function SkeletonCard({ styles }: { styles: HabitListStyles }) {
-  return (
-    <View style={styles.skeletonCard}>
-      <View style={styles.skeletonCircle} />
-      <View style={styles.skeletonContent}>
-        <View style={styles.skeletonTitle} />
-        <View style={styles.skeletonSubtitle} />
-      </View>
-    </View>
-  )
-}
-
-function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
-}
 
 interface MoveParentOption {
   id: string | null
@@ -165,27 +148,6 @@ interface DragItem extends ReorderableHabitItem {
   depth: number
   hasChildren: boolean
   hasSubHabits: boolean
-}
-
-function formatDateGroupLabel(
-  key: string,
-  locale: string,
-  t: (key: string) => string,
-): string {
-  if (!key) return t('common.unknown')
-
-  const date = new Date(`${key}T00:00:00`)
-
-  if (isDateToday(date)) return t('dates.today')
-  if (isTomorrow(date)) return t('dates.tomorrow')
-  if (isYesterday(date)) return t('dates.yesterday')
-
-  return formatLocaleDate(date, locale, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
@@ -1554,101 +1516,57 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           parentHabit={subHabitParent}
         />
 
-        <ConfirmDialog
-          open={showDeleteConfirm}
-          onOpenChange={(open) => {
+        <HabitListConfirmDialogs
+          t={t}
+          showDeleteConfirm={showDeleteConfirm}
+          onDeleteOpenChange={(open) => {
             setShowDeleteConfirm(open)
             if (!open) {
               setHabitToDelete(null)
             }
           }}
-          title={t('habits.deleteConfirmTitle')}
-          description={t('habits.deleteConfirmMessage')}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmDelete}
-          onCancel={() => {
+          onConfirmDelete={confirmDelete}
+          onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)
           }}
-          variant="danger"
-        />
-
-        <ConfirmDialog
-          open={showDuplicateConfirm}
-          onOpenChange={(open) => {
+          showDuplicateConfirm={showDuplicateConfirm}
+          onDuplicateOpenChange={(open) => {
             setShowDuplicateConfirm(open)
             if (!open) {
               setHabitToDuplicate(null)
             }
           }}
-          title={t('habits.duplicateConfirmTitle')}
-          description={t('habits.duplicateConfirmMessage', {
-            name: habitToDuplicate?.title ?? '',
-          })}
-          confirmLabel={t('habits.duplicateConfirm')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmDuplicate}
-          onCancel={() => {
+          duplicateName={habitToDuplicate?.title ?? ''}
+          onConfirmDuplicate={confirmDuplicate}
+          onCancelDuplicate={() => {
             setHabitToDuplicate(null)
             setShowDuplicateConfirm(false)
           }}
-          variant="success"
-        />
-
-        <ConfirmDialog
-          open={showSkipConfirm}
-          onOpenChange={setShowSkipConfirm}
-          title={t(
-            isPostponeAction
-              ? 'habits.postponeConfirmTitle'
-              : 'habits.skipConfirmTitle',
-          )}
-          description={skipConfirmMessage}
-          confirmLabel={t(
-            isPostponeAction
-              ? 'habits.postponeConfirmButton'
-              : 'habits.skipConfirmButton',
-          )}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmSkip}
-          onCancel={() => {
+          showSkipConfirm={showSkipConfirm}
+          onSkipOpenChange={setShowSkipConfirm}
+          isPostponeAction={isPostponeAction}
+          skipConfirmMessage={skipConfirmMessage}
+          onConfirmSkip={confirmSkip}
+          onCancelSkip={() => {
             setHabitToSkip(null)
             setShowSkipConfirm(false)
           }}
-          variant="warning"
-        />
-
-        <ConfirmDialog
-          open={showForceLogConfirm}
-          onOpenChange={setShowForceLogConfirm}
-          title={t('habits.forceLogTitle')}
-          description={t('habits.forceLogMessage')}
-          confirmLabel={t('habits.forceLogConfirm')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmForceLog}
-          onCancel={() => {
+          showForceLogConfirm={showForceLogConfirm}
+          onForceLogOpenChange={setShowForceLogConfirm}
+          onConfirmForceLog={confirmForceLog}
+          onCancelForceLog={() => {
             setForceLogHabitId(null)
             setShowForceLogConfirm(false)
           }}
-          variant="warning"
-        />
-
-        <ConfirmDialog
-          open={showAutoLogParent}
-          onOpenChange={setShowAutoLogParent}
-          title={t('habits.autoLogParentTitle')}
-          description={t('habits.autoLogParentMessage', {
-            name: autoLogParentHabit?.title ?? '',
-          })}
-          confirmLabel={t('habits.autoLogParentConfirm')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmAutoLogParent}
-          onCancel={() => {
+          showAutoLogParent={showAutoLogParent}
+          onAutoLogParentOpenChange={setShowAutoLogParent}
+          autoLogParentName={autoLogParentHabit?.title ?? ''}
+          onConfirmAutoLogParent={confirmAutoLogParent}
+          onCancelAutoLogParent={() => {
             setAutoLogParentId(null)
             setShowAutoLogParent(false)
           }}
-          variant="success"
         />
 
         <Modal
