@@ -499,6 +499,13 @@ export default function TodayScreen() {
     [selectedDate, locale],
   );
 
+  const headerSubtitle = useMemo(() => {
+    if (currentActiveView === "all") return t("habits.viewAll");
+    if (currentActiveView === "general") return t("habits.viewGeneral");
+    if (currentActiveView === "goals") return t("goals.tab");
+    return dateLong;
+  }, [currentActiveView, dateLong, t]);
+
   useEffect(() => {
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
@@ -979,7 +986,7 @@ export default function TodayScreen() {
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
-          dateLong={dateLong}
+          subtitle={headerSubtitle}
         />
 
         <TrialBanner />
@@ -1004,7 +1011,7 @@ export default function TodayScreen() {
     [
       currentActiveView,
       currentStreak,
-      dateLong,
+      headerSubtitle,
       goToToday,
       handleChangeView,
       reviewReminder,
