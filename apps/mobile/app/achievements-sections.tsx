@@ -4,11 +4,9 @@ import type { Achievement } from '@orbit/shared/types/gamification'
 import { createTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup } from '@/components/ui/settings-group'
-import { useDateFormat } from '@/hooks/use-date-format'
 
 type Tokens = ReturnType<typeof createTokensV2>
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
-type DisplayDateFn = ReturnType<typeof useDateFormat>['displayDate']
 
 export type AchievementCategoryView = {
   key: string
@@ -38,8 +36,6 @@ export function AchievementCategorySection({
   t,
   tokens,
 }: Readonly<AchievementCategorySectionProps>) {
-  const { displayDate } = useDateFormat()
-
   return (
     <>
       <SectionLabel>{t(`gamification.categories.${category.key}`)}</SectionLabel>
@@ -51,7 +47,6 @@ export function AchievementCategorySection({
               achievement={achievement}
               t={t}
               tokens={tokens}
-              displayDate={displayDate}
             />
           ))}
         </SettingsGroup>
@@ -64,24 +59,17 @@ interface AchievementRowProps {
   achievement: Achievement
   t: TranslationFn
   tokens: Tokens
-  displayDate: DisplayDateFn
 }
 
 function AchievementRow({
   achievement,
   t,
   tokens,
-  displayDate,
 }: Readonly<AchievementRowProps>) {
   const earned = achievement.isEarned
   const glyph = rarityGlyph(achievement.rarity)
   const name = t(`gamification.achievements.${achievement.id}.name`)
-  const subtitle =
-    earned && achievement.earnedAtUtc
-      ? t('gamification.page.earnedOn', {
-          date: displayDate(new Date(achievement.earnedAtUtc)),
-        })
-      : t(`gamification.achievements.${achievement.id}.description`)
+  const description = t(`gamification.achievements.${achievement.id}.description`)
 
   return (
     <View style={styles.row}>
@@ -102,16 +90,10 @@ function AchievementRow({
           {name}
         </Text>
         <Text
-          style={[
-            styles.subtitle,
-            {
-              color: tokens.fg3,
-              fontStyle: earned ? 'normal' : 'italic',
-            },
-          ]}
+          style={[styles.subtitle, { color: tokens.fg3 }]}
           numberOfLines={2}
         >
-          {subtitle}
+          {description}
         </Text>
       </View>
       {!earned ? (

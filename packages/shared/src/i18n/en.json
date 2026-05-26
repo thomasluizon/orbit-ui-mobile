@@ -1691,8 +1691,7 @@
       "lockedTitle": "Unlock Achievements",
       "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and unlock achievements.",
       "upgradeButton": "Upgrade to Pro",
-      "emptyEarned": "Complete habits to start earning achievements!",
-      "earnedOn": "Earned {date}"
+      "emptyEarned": "Complete habits to start earning achievements!"
     },
     "streak": {
       "current": "day streak",

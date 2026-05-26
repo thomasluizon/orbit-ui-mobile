@@ -4,7 +4,6 @@ import { Lock } from 'lucide-react'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup } from '@/components/ui/settings-group'
-import { useDateFormat } from '@/hooks/use-date-format'
 
 type AchievementCategoryView = {
   key: string
@@ -60,16 +59,10 @@ interface AchievementRowProps {
 }
 
 function AchievementRow({ achievement, t }: Readonly<AchievementRowProps>) {
-  const { displayDate } = useDateFormat()
   const earned = achievement.isEarned
   const glyph = rarityGlyph(achievement.rarity)
   const name = t(`gamification.achievements.${achievement.id}.name`)
-  const subtitle =
-    earned && achievement.earnedAtUtc
-      ? t('gamification.page.earnedOn', {
-          date: displayDate(new Date(achievement.earnedAtUtc)),
-        })
-      : t(`gamification.achievements.${achievement.id}.description`)
+  const description = t(`gamification.achievements.${achievement.id}.description`)
 
   return (
     <div
@@ -115,10 +108,9 @@ function AchievementRow({ achievement, t }: Readonly<AchievementRowProps>) {
             fontSize: 12,
             lineHeight: '16px',
             color: 'var(--fg-3)',
-            fontStyle: earned ? 'normal' : 'italic',
           }}
         >
-          {subtitle}
+          {description}
         </span>
       </div>
       {!earned ? (

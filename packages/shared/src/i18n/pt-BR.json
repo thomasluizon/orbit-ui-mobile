@@ -1691,8 +1691,7 @@
       "lockedTitle": "Desbloqueie Conquistas",
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
       "upgradeButton": "Assinar Pro",
-      "emptyEarned": "Complete hábitos para começar a ganhar conquistas!",
-      "earnedOn": "Conquistado em {date}"
+      "emptyEarned": "Complete hábitos para começar a ganhar conquistas!"
     },
     "streak": {
       "current": "dias seguidos",
