@@ -2,14 +2,8 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
 import {
-  isToday as isDateToday,
-  isTomorrow,
-  isYesterday,
-} from 'date-fns'
-import {
   ArrowLeft,
   Home,
-  Plus,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -17,7 +11,6 @@ import {
   computeHabitReorderPositions,
   collectVisibleHabitTreeIds,
   formatAPIDate,
-  formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -27,14 +20,20 @@ import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
 import {
-  HabitListDateGroupSection,
+  getEmptyHabitsMessage,
   HabitListEmptyState,
+  HabitListSkeleton,
+} from './habit-list/empty-state'
+import {
+  formatDateGroupLabel,
+  HabitListDateGroupSection,
   type HabitListDateGroup,
-} from './habit-list-sections'
+} from './habit-list/date-group-section'
+import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
+import { HabitListDrillContent } from './habit-list/drill-content'
+import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-parent-overlay'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import { computeHabitCardStatus, computeHabitFrequencyLabel } from '@orbit/shared/utils'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { AppOverlay } from '@/components/ui/app-overlay'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -64,10 +63,9 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 
 interface HabitListProps {
@@ -96,14 +94,6 @@ export interface HabitListHandle {
   checkAndPromptParentLog: (childHabitId: string) => void
 }
 
-interface MoveParentOption {
-  id: string | null
-  label: string
-  depth: number
-  disabled: boolean
-  reason: string | null
-}
-
 interface DragItem {
   id: string
   habit: NormalizedHabit
@@ -114,34 +104,6 @@ interface DragItem {
 }
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
-function formatDateGroupLabel(
-  key: string,
-  locale: string,
-  t: (key: string) => string,
-): string {
-  if (!key) return t('common.unknown')
-
-  const date = new Date(key + 'T00:00:00')
-
-  if (isDateToday(date)) return t('dates.today')
-  if (isTomorrow(date)) return t('dates.tomorrow')
-  if (isYesterday(date)) return t('dates.yesterday')
-
-  return formatLocaleDate(date, locale, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
-}
 
 type HabitView = 'today' | 'all' | 'general'
 
@@ -175,74 +137,6 @@ function buildDragItemsFlat(
   }
 
   return items
-}
-
-function HabitListSkeleton() {
-  return (
-    <div>
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex items-center"
-          style={{
-            padding: '16px 20px',
-            gap: 14,
-            borderBottom: '1px solid var(--hairline)',
-          }}
-        >
-          <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
-            <div
-              className="rounded-sm animate-pulse"
-              style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
-            />
-            <div
-              className="rounded-sm animate-pulse"
-              style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
-            />
-          </div>
-          <div
-            className="rounded-full shrink-0"
-            style={{
-              width: 9,
-              height: 9,
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function SortableHabitItem({
-  id,
-  children,
-}: Readonly<{
-  id: string
-  children: React.ReactNode
-}>) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: isItemDragging,
-  } = useSortable({ id })
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isItemDragging ? 0.5 : 1,
-    position: 'relative' as const,
-    zIndex: isItemDragging ? 50 : 'auto',
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
-    </div>
-  )
 }
 
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
@@ -1122,56 +1016,6 @@ const isPostponeAction = useMemo(() => {
     ))
   }
 
-  function renderDrillContent(): React.ReactNode {
-    if (drill.drillLoading) {
-      return <HabitListSkeleton />
-    }
-
-    if (drill.drillChildren.length > 0) {
-      return (
-        <div>
-          {drill.drillChildren.map((child) =>
-            renderHabitCard(
-              child,
-              0,
-              drill.getDrillChildren(child.id).length > 0,
-              child.hasSubHabits || drill.getDrillChildren(child.id).length > 0,
-              { isDrillCard: true },
-            ),
-          )}
-          <button
-            type="button"
-            className="w-full flex items-center justify-center gap-2 py-3 text-[var(--fg-3)] text-sm hover:text-[var(--primary-pressed)] transition-[color] duration-150"
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              borderTop: '1px solid var(--hairline)',
-            }}
-            onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
-          >
-            <Plus className="size-4" />
-            {t('habits.form.addSubHabit')}
-          </button>
-        </div>
-      )
-    }
-
-    return (
-      <div className="text-center py-8">
-        <p className="text-[var(--fg-3)] text-sm">
-          {t('habits.noSubHabits')}
-        </p>
-        <button
-          className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-[var(--hairline)] text-[var(--fg-3)] text-sm hover:border-[var(--primary)] hover:text-[var(--primary-pressed)] transition-[border-color,color,background-color,transform] duration-150"
-          onClick={() => drill.currentParentId && startAddSubHabit(drill.currentParentId)}
-        >
-          <Plus className="size-4" />
-          {t('habits.form.addSubHabit')}
-        </button>
-      </div>
-    )
-  }
-
   function renderMainContent(): React.ReactNode {
     if (drill.currentParent) {
       return (
@@ -1205,7 +1049,15 @@ const isPostponeAction = useMemo(() => {
             </button>
           )}
 
-          {renderDrillContent()}
+          <HabitListDrillContent
+            t={t}
+            drillLoading={drill.drillLoading}
+            drillChildren={drill.drillChildren}
+            currentParentId={drill.currentParentId}
+            getDrillChildren={drill.getDrillChildren}
+            renderHabitCard={renderHabitCard}
+            onAddSubHabit={startAddSubHabit}
+          />
         </>
       )
     }
@@ -1327,157 +1179,65 @@ const isPostponeAction = useMemo(() => {
         />
       )}
 
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title={t('habits.deleteConfirmTitle')}
-        description={t('habits.deleteConfirmMessage')}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={() => {
+      <HabitListConfirmDialogs
+        t={t}
+        showDeleteConfirm={showDeleteConfirm}
+        onDeleteOpenChange={setShowDeleteConfirm}
+        onConfirmDelete={confirmDelete}
+        onCancelDelete={() => {
           setHabitToDelete(null)
           setShowDeleteConfirm(false)
         }}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        open={showDuplicateConfirm}
-        onOpenChange={(open) => {
+        showDuplicateConfirm={showDuplicateConfirm}
+        onDuplicateOpenChange={(open) => {
           setShowDuplicateConfirm(open)
           if (!open) setHabitToDuplicate(null)
         }}
-        title={t('habits.duplicateConfirmTitle')}
-        description={t('habits.duplicateConfirmMessage', {
-          name: habitToDuplicate?.title ?? '',
-        })}
-        confirmLabel={t('habits.duplicateConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmDuplicate}
-        onCancel={() => {
+        duplicateName={habitToDuplicate?.title ?? ''}
+        onConfirmDuplicate={confirmDuplicate}
+        onCancelDuplicate={() => {
           setHabitToDuplicate(null)
           setShowDuplicateConfirm(false)
         }}
-        variant="success"
-      />
-
-      <ConfirmDialog
-        open={showSkipConfirm}
-        onOpenChange={setShowSkipConfirm}
-        title={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmTitle'
-            : 'habits.skipConfirmTitle',
-        )}
-        description={skipConfirmMessage}
-        confirmLabel={t(
-          isPostponeAction
-            ? 'habits.postponeConfirmButton'
-            : 'habits.skipConfirmButton',
-        )}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmSkip}
-        onCancel={() => {
+        showSkipConfirm={showSkipConfirm}
+        onSkipOpenChange={setShowSkipConfirm}
+        isPostponeAction={isPostponeAction}
+        skipConfirmMessage={skipConfirmMessage}
+        onConfirmSkip={confirmSkip}
+        onCancelSkip={() => {
           setHabitToSkip(null)
           setShowSkipConfirm(false)
         }}
-        variant="warning"
-      />
-
-      <ConfirmDialog
-        open={showForceLogConfirm}
-        onOpenChange={setShowForceLogConfirm}
-        title={t('habits.forceLogTitle')}
-        description={t('habits.forceLogMessage')}
-        confirmLabel={t('habits.forceLogConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmForceLog}
-        onCancel={() => {
+        showForceLogConfirm={showForceLogConfirm}
+        onForceLogOpenChange={setShowForceLogConfirm}
+        onConfirmForceLog={confirmForceLog}
+        onCancelForceLog={() => {
           setForceLogHabitId(null)
           setShowForceLogConfirm(false)
         }}
-        variant="warning"
-      />
-
-      <ConfirmDialog
-        open={showAutoLogParent}
-        onOpenChange={setShowAutoLogParent}
-        title={t('habits.autoLogParentTitle')}
-        description={t('habits.autoLogParentMessage', { name: autoLogParentHabit?.title ?? '' })}
-        confirmLabel={t('habits.autoLogParentConfirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmAutoLogParent}
-        onCancel={() => {
+        showAutoLogParent={showAutoLogParent}
+        onAutoLogParentOpenChange={setShowAutoLogParent}
+        autoLogParentName={autoLogParentHabit?.title ?? ''}
+        onConfirmAutoLogParent={confirmAutoLogParent}
+        onCancelAutoLogParent={() => {
           setAutoLogParentId(null)
           setShowAutoLogParent(false)
         }}
-        variant="success"
       />
 
-      <AppOverlay
+      <MoveParentOverlay
+        t={t}
         open={showMoveParentOverlay}
-        onOpenChange={(open) => {
-          if (!open) closeMoveParentPicker()
-        }}
-        dismissible={!isMovingParent}
-        title={t('habits.moveParent.title')}
-        description={movingHabit ? t('habits.moveParent.description', { name: movingHabit.title }) : undefined}
-        footer={
-          <div className="flex gap-3">
-            <button
-              className="flex-1 py-3 rounded-xl border border-[var(--hairline)] text-[var(--fg-1)] font-bold text-sm hover:bg-[var(--bg-elev)]/80 transition-[background-color,border-color,color,opacity,transform] duration-150 disabled:opacity-50"
-              disabled={isMovingParent}
-              onClick={closeMoveParentPicker}
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              className="flex-1 py-3 rounded-xl bg-[var(--primary)] text-white font-bold text-sm hover:bg-[var(--primary-pressed)] transition-[background-color,opacity,transform] duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!canSubmitMoveParent}
-              onClick={confirmMoveParent}
-            >
-              {isMovingParent ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
-            </button>
-          </div>
-        }
-      >
-        {moveParentOptions.length > 0 ? (
-          <div className="space-y-2">
-            {moveParentOptions.map((option) => (
-              <button
-                key={option.id ?? '__root__'}
-                className={`w-full text-left rounded-lg border px-3 py-2.5 transition-[background-color,border-color,color,opacity] duration-150 ${
-                  option.id === selectedMoveParentId
-                    ? 'border-[var(--primary)] bg-[var(--bg-sunk)]'
-                    : 'border-[var(--hairline)] bg-[var(--bg-elev)] hover:bg-[var(--bg-elev)]/80'
-                } ${option.disabled ? 'opacity-50 cursor-not-allowed hover:bg-[var(--bg-elev)]' : ''}`}
-                style={option.id === null ? undefined : { paddingLeft: `${0.75 + option.depth * 1.1}rem` }}
-                disabled={option.disabled}
-                onClick={() => setSelectedMoveParentId(option.id)}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-[var(--fg-1)] truncate">{option.label}</span>
-                  {option.id === movingHabit?.parentId && (
-                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
-                      {t('habits.moveParent.currentParent')}
-                    </span>
-                  )}
-                </div>
-                {option.reason && (
-                  <p className="text-[10px] text-[var(--fg-3)] mt-1">
-                    {option.reason}
-                  </p>
-                )}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[var(--fg-3)] text-center py-4">
-            {t('habits.moveParent.noOptions')}
-          </p>
-        )}
-      </AppOverlay>
+        isMoving={isMovingParent}
+        movingHabitTitle={movingHabit?.title ?? null}
+        movingHabitParentId={movingHabit?.parentId ?? null}
+        options={moveParentOptions}
+        selectedMoveParentId={selectedMoveParentId}
+        canSubmit={canSubmitMoveParent}
+        onClose={closeMoveParentPicker}
+        onConfirm={confirmMoveParent}
+        onSelectOption={setSelectedMoveParentId}
+      />
     </div>
   )
 })

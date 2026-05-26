@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 const { mockResolveMotionPreset, mockUseReducedMotion } = vi.hoisted(() => ({
   mockUseReducedMotion: vi.fn(() => true),
@@ -142,5 +142,24 @@ describe('LoginPage', () => {
     expect(within(stack).getByRole('button', { name: 'auth.sendCode' })).toBeInTheDocument()
     expect(within(stack).getByText('auth.orContinueWith')).toBeInTheDocument()
     expect(within(stack).getByRole('button', { name: 'auth.signInWithGoogle' })).toBeInTheDocument()
+  })
+
+  it('surfaces a resolved error message when sending a code with an invalid email', async () => {
+    searchParamValues = {
+      email: null,
+      code: null,
+      returnUrl: '/',
+    }
+
+    render(<LoginPage />)
+
+    fireEvent.input(screen.getByLabelText('auth.email'), {
+      target: { value: 'not-an-email' },
+    })
+    fireEvent.submit(screen.getByLabelText('auth.email').closest('form')!)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('auth.errors.invalidEmail')
+    })
   })
 })

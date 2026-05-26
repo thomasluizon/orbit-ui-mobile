@@ -14,74 +14,12 @@ type ThemeRuntime = {
 
 export interface AppColors {
   background: string
-  surfaceGround: string
-  surface: string
   surfaceElevated: string
   surfaceOverlay: string
   border: string
-  borderMuted: string
   borderEmphasis: string
-  textPrimary: string
-  textSecondary: string
-  textMuted: string
-  textFaded: string
-  textInverse: string
   primary: string
-  primary400: string
-  primaryLight: string
-  primaryShadow: string
-  primary_80: string
-  textFaded40: string
-  border50: string
-  borderFaded30: string
-  borderDivider: string
-  success: string
-  warning: string
-  danger: string
   white: string
-  red: string
-  red400: string
-  red500: string
-  redLight: string
-  redBg: string
-  redBorder: string
-  red400_10: string
-  red500_10: string
-  red500_30: string
-  amber: string
-  amber400: string
-  amber500: string
-  amberDark: string
-  green: string
-  green400: string
-  green500: string
-  green500bg: string
-  green500_60: string
-  emerald: string
-  emerald400: string
-  emeraldBg: string
-  emeraldBorder: string
-  emerald400_10: string
-  emerald500_10: string
-  emerald500_20: string
-  emerald500_30: string
-  blue: string
-  blue400: string
-  blue500: string
-  orange500: string
-  orange400: string
-  orange300: string
-  orange500_30: string
-  orange400_10: string
-  handle: string
-  purple: string
-}
-
-export interface AppNav {
-  activeColor: string
-  inactiveColor: string
-  tabBarBg: string
-  tabBarBorder: string
 }
 
 export interface AppRadius {
@@ -116,9 +54,6 @@ export interface AppShadows {
   cardParent: ShadowValue
   cardParentHover: ShadowValue
   cardChild: ShadowValue
-  glow: (color: string) => ShadowValue
-  glowSm: (color: string) => ShadowValue
-  glowLg: (color: string) => ShadowValue
 }
 
 export interface AppSurfaceLayer {
@@ -135,15 +70,8 @@ export interface AppSurfaces {
     ambientStart: string
     ambientEnd: string
   }
-  ground: AppSurfaceLayer
-  card: AppSurfaceLayer
   elevated: AppSurfaceLayer
   overlay: AppSurfaceLayer
-  glow: {
-    subtle: ShadowValue
-    base: ShadowValue
-    strong: ShadowValue
-  }
 }
 
 let runtimeTheme: ThemeRuntime = {
@@ -184,171 +112,31 @@ function withAlpha(color: string, opacity: number, fallback: string): string {
   return fallback
 }
 
-function blendRgbOverHex(
-  rgb: string,
-  opacity: number,
-  backgroundHex: string,
-  fallback: string,
-): string {
-  const channels = rgb
-    .split(',')
-    .map((value) => Number.parseInt(value.trim(), 10))
-  const normalized = backgroundHex.replace('#', '')
-
-  if (channels.length !== 3 || channels.some((value) => Number.isNaN(value))) {
-    return fallback
-  }
-
-  if (normalized.length !== 6) {
-    return fallback
-  }
-
-  const backgroundRed = Number.parseInt(normalized.slice(0, 2), 16)
-  const backgroundGreen = Number.parseInt(normalized.slice(2, 4), 16)
-  const backgroundBlue = Number.parseInt(normalized.slice(4, 6), 16)
-
-  const [foregroundRed, foregroundGreen, foregroundBlue] = channels as [
-    number,
-    number,
-    number,
-  ]
-  const blendChannel = (foreground: number, background: number) =>
-    Math.round(foreground * opacity + background * (1 - opacity))
-
-  return `rgb(${blendChannel(foregroundRed, backgroundRed)}, ${blendChannel(foregroundGreen, backgroundGreen)}, ${blendChannel(foregroundBlue, backgroundBlue)})`
-}
-
 export function createColors(
   colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
 ): AppColors {
   const definition = schemes[colorScheme]
-  const theme = definition[themeMode]
-  // Legacy color tokens (background, surface*, text*, border*) resolve to the
-  // canonical OKLCH values via createTokensV2 so the whole codebase picks up the
-  // shared neutrals without a file-by-file rewrite. Direct callers of
-  // createTokensV2 get the same values. Keep this path until consumers are
-  // removed.
+  // Legacy surface/border tokens resolve to the canonical OKLCH values via
+  // createTokensV2 so createSurfaces keeps emitting the shared neutrals without
+  // a per-field rewrite. Direct callers of createTokensV2 get the same values.
   const v8 = createTokensV2(colorScheme, themeMode)
-  const alpha = (opacity: number) => `rgba(${definition.shadowRgb}, ${opacity})`
-  const isLight = themeMode === 'light'
   const primary =
     themeMode === 'light' ? definition.primaryLight : definition.primary
-  const flattenedTint = (opacity: number, fallback: string) =>
-    blendRgbOverHex(definition.shadowRgb, opacity, theme.background, fallback)
 
   return {
     background: v8.bg,
-    surfaceGround: v8.bgSunk,
-    surface: v8.bgElev,
     surfaceElevated: v8.bgElev,
     surfaceOverlay: v8.bgElev,
-    primary,
-    primary400: definition.scale[400] ?? primary,
-    primaryLight: alpha(0.2),
-    primaryShadow: `rgba(${definition.shadowRgb},`,
-    primary_80: alpha(0.8),
-    textPrimary: v8.fg1,
-    textSecondary: v8.fg2,
-    textMuted: v8.fg3,
-    textFaded: v8.fg3,
-    textFaded40: withAlpha(
-      v8.fg3,
-      0.4,
-      isLight ? 'rgba(122, 116, 144, 0.40)' : 'rgba(165, 156, 186, 0.40)',
-    ),
-    textInverse: v8.fgOnPrimary,
     border: v8.hairline,
-    borderMuted: v8.hairline,
     borderEmphasis: v8.hairlineStrong,
-    border50: withAlpha(
-      theme.textPrimary,
-      isLight ? 0.06 : 0.035,
-      isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.035)',
-    ),
-    borderFaded30: withAlpha(
-      theme.textFaded,
-      0.3,
-      isLight ? 'rgba(122, 116, 144, 0.30)' : 'rgba(165, 156, 186, 0.30)',
-    ),
-    borderDivider: withAlpha(
-      theme.textPrimary,
-      isLight ? 0.05 : 0.02,
-      isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-    ),
-    // Status colors map to status tokens (DESIGN.md ban: no decorative
-    // red/amber/green fills — use hairline + status text instead). Tinted/
-    // backgrounded variants collapse to a neutral surface so existing fill
-    // call sites stop emitting saturated rectangles.
-    success: v8.statusDone,
-    warning: v8.statusOverdue,
-    danger: v8.statusBad,
+    primary,
     white: '#ffffff',
-    red: v8.statusBad,
-    red400: v8.statusBad,
-    red500: v8.statusBad,
-    redLight: v8.statusBad,
-    redBg: v8.bgElev,
-    redBorder: v8.hairlineStrong,
-    red400_10: v8.bgElev,
-    red500_10: v8.bgElev,
-    red500_30: v8.hairlineStrong,
-    amber: v8.statusOverdue,
-    amber400: v8.statusOverdue,
-    amber500: v8.statusOverdue,
-    amberDark: v8.statusOverdue,
-    green: v8.statusDone,
-    green400: v8.statusDone,
-    green500: v8.statusDone,
-    green500bg: v8.bgElev,
-    green500_60: v8.statusDone,
-    emerald: v8.statusDone,
-    emerald400: v8.statusDone,
-    emeraldBg: v8.bgElev,
-    emeraldBorder: v8.hairlineStrong,
-    emerald400_10: v8.bgElev,
-    emerald500_10: v8.bgElev,
-    emerald500_20: v8.bgElev,
-    emerald500_30: v8.hairlineStrong,
-    blue: '#3b82f6',
-    blue400: '#60a5fa',
-    blue500: '#3b82f6',
-    orange500: '#f97316',
-    orange400: '#fb923c',
-    orange300: '#fdba74',
-    orange500_30: 'rgba(249, 115, 22, 0.30)',
-    orange400_10: 'rgba(251, 146, 60, 0.10)',
-    handle: withAlpha(
-      theme.textPrimary,
-      isLight ? 0.12 : 0.15,
-      isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.15)',
-    ),
-    purple: definition.scale[400] ?? definition.primary,
-  }
-}
-
-export function createNav(
-  colorScheme: ColorScheme = runtimeTheme.scheme,
-  themeMode: ThemeMode = runtimeTheme.themeMode,
-): AppNav {
-  const definition = schemes[colorScheme]
-  const theme = definition[themeMode]
-  const primary =
-    themeMode === 'light' ? definition.primaryLight : definition.primary
-  return {
-    activeColor: primary,
-    inactiveColor: theme.textMuted,
-    tabBarBg: theme.navGlassBg,
-    tabBarBorder: theme.navGlassBorder,
   }
 }
 
 export const colors = new Proxy({} as AppColors, {
   get: (_target, prop) => createColors()[prop as keyof AppColors],
-})
-
-export const nav = new Proxy({} as AppNav, {
-  get: (_target, prop) => createNav()[prop as keyof AppNav],
 })
 
 export const radius: AppRadius = {
@@ -424,26 +212,6 @@ export const shadows: AppShadows = {
     shadowOpacity: 0.16,
     shadowRadius: 8,
   },
-  // DESIGN.md bans glow shadows. The glow* signatures stay (callers pass a
-  // color arg) but resolve to subtle neutral lifts.
-  glow: (_color: string) => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-  }),
-  glowSm: (_color: string) => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-  }),
-  glowLg: (_color: string) => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
-  }),
 }
 
 function createLightShadow(radiusValue: number, opacity: number): ShadowValue {
@@ -474,20 +242,6 @@ export function createSurfaces(
       ambientStart: screenAmbient,
       ambientEnd: 'transparent',
     },
-    ground: {
-      backgroundColor: colors.surfaceGround,
-      borderColor: colors.borderMuted,
-      topHighlight,
-      shadow: isLight ? createLightShadow(4, 0.035) : shadows.sm,
-      elevation: isLight ? 0 : 1,
-    },
-    card: {
-      backgroundColor: colors.surface,
-      borderColor: isLight ? colors.border : colors.borderMuted,
-      topHighlight,
-      shadow: isLight ? createLightShadow(8, 0.06) : shadows.cardParent,
-      elevation: isLight ? 1 : 5,
-    },
     elevated: {
       backgroundColor: colors.surfaceElevated,
       borderColor: colors.border,
@@ -501,11 +255,6 @@ export function createSurfaces(
       topHighlight,
       shadow: isLight ? createLightShadow(18, 0.1) : shadows.lg,
       elevation: isLight ? 8 : 16,
-    },
-    glow: {
-      subtle: shadows.glowSm(colors.primary),
-      base: shadows.glow(colors.primary),
-      strong: shadows.glowLg(colors.primary),
     },
   }
 }

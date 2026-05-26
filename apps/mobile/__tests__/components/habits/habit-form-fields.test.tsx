@@ -378,4 +378,35 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(1)
   })
+
+  it('renders all field sections without crashing', async () => {
+    const formHelpers = createMockFormHelpers({ dueTime: '09:00' })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[30]}
+          onReminderTimesChange={vi.fn()}
+          defaultExpanded
+        />,
+      )
+    })
+
+    const hasText = (value: string) =>
+      tree.root.findAll(
+        (node: any) => node.type === 'Text' && node.props.children === value,
+      ).length > 0
+
+    expect(tree.root.findByProps({ accessibilityLabel: 'habits.form.title' })).toBeTruthy()
+    expect(hasText('habits.form.recurring')).toBe(true)
+    expect(hasText('habits.form.reminder')).toBe(true)
+    expect(hasText('habits.form.tags')).toBe(true)
+  })
 })

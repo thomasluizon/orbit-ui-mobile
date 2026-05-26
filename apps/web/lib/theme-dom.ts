@@ -58,23 +58,6 @@ export function applyThemeTokensToDOM(
 
   root.style.setProperty('color-scheme', theme)
 
-  const primary = theme === 'light' ? def.primaryLight : def.primary
-  root.style.setProperty('--color-primary', primary)
-  root.style.setProperty('--color-background', colors.background)
-  root.style.setProperty('--color-surface-ground', colors.surfaceGround)
-  root.style.setProperty('--color-surface', colors.surface)
-  root.style.setProperty('--color-surface-elevated', colors.surfaceElevated)
-  root.style.setProperty('--color-surface-overlay', colors.surfaceOverlay)
-  root.style.setProperty('--color-card', colors.surface)
-  root.style.setProperty('--color-card-border', colors.surfaceElevated)
-  root.style.setProperty('--color-border', colors.border)
-  root.style.setProperty('--color-border-muted', colors.borderMuted)
-  root.style.setProperty('--color-border-emphasis', colors.borderEmphasis)
-  root.style.setProperty('--color-text-[var(--primary)]', colors.textPrimary)
-  root.style.setProperty('--color-text-secondary', colors.textSecondary)
-  root.style.setProperty('--color-text-muted', colors.textMuted)
-  root.style.setProperty('--color-text-faded', colors.textFaded)
-  root.style.setProperty('--color-text-inverse', colors.textInverse)
   root.style.setProperty('--shadow-sm', colors.shadowSm)
   root.style.setProperty('--shadow-md', colors.shadowMd)
   root.style.setProperty('--shadow-lg', colors.shadowLg)
@@ -83,19 +66,6 @@ export function applyThemeTokensToDOM(
   root.style.setProperty('--shadow-glow-lg', colors.shadowGlowLg)
   root.style.setProperty('--nav-glass-bg', colors.navGlassBg)
   root.style.setProperty('--nav-glass-border', colors.navGlassBorder)
-
-  const scale = def.scale
-  root.style.setProperty('--color-primary-50', scale[50] ?? '')
-  root.style.setProperty('--color-primary-100', scale[100] ?? '')
-  root.style.setProperty('--color-primary-200', scale[200] ?? '')
-  root.style.setProperty('--color-primary-300', scale[300] ?? '')
-  root.style.setProperty('--color-primary-400', scale[400] ?? '')
-  root.style.setProperty('--color-primary-500', scale[500] ?? '')
-  root.style.setProperty('--color-primary-600', scale[600] ?? '')
-  root.style.setProperty('--color-primary-700', scale[700] ?? '')
-  root.style.setProperty('--color-primary-800', scale[800] ?? '')
-  root.style.setProperty('--color-primary-900', scale[900] ?? '')
-  root.style.setProperty('--color-primary-950', scale[950] ?? '')
   root.style.setProperty('--primary-shadow', def.shadowRgb)
 
   const tint = theme === 'light'

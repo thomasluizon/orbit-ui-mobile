@@ -1,23 +1,25 @@
 'use client'
 
-import type { ReactNode } from 'react'
-
 interface ProfileActionButtonProps {
-  icon: ReactNode
   label: string
   onClick: () => void
   tone?: 'default' | 'primary' | 'danger'
   compact?: boolean
 }
 
-/** v8 flush row action — `danger` tone colors the label red; `compact` renders smaller italic for quieter destructive actions. */
+/** v8 flush row action — `tone` colors the label (`primary` → accent, `danger` → red); `compact` renders smaller italic for quieter destructive actions. */
 export function ProfileActionButton({
   label,
   onClick,
   tone = 'default',
   compact = false,
 }: Readonly<ProfileActionButtonProps>) {
-  const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
+  const color =
+    tone === 'danger'
+      ? 'var(--status-bad)'
+      : tone === 'primary'
+        ? 'var(--primary)'
+        : 'var(--fg-1)'
   return (
     <button
       type="button"

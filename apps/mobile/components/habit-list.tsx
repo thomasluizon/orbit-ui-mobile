@@ -15,8 +15,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Modal,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
@@ -24,7 +22,6 @@ import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
-import { isToday as isDateToday, isTomorrow, isYesterday } from 'date-fns'
 import { CheckCircle2, ChevronLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -32,7 +29,6 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
-  formatLocaleDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -62,15 +58,25 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useTourTarget } from '@/hooks/use-tour-target'
+import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
-  HabitListDateGroupSection,
+  getEmptyHabitsMessage,
   HabitListEmptyState,
+  SkeletonCard,
+} from './habit-list/empty-state'
+import {
+  formatDateGroupLabel,
+  HabitListDateGroupSection,
   type HabitListDateGroup,
-} from './habit-list-sections'
+} from './habit-list/date-group-section'
+import { DrillFooter, DrillHabitItem } from './habit-list/drill-panel'
+import {
+  MoveParentDialog,
+  type MoveParentOption,
+} from './habit-list/move-parent-dialog'
 
 /**
  * Wraps a HabitRow in a measurable View that registers itself with the tour
@@ -129,35 +135,7 @@ export interface HabitListHandle {
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
-type HabitListStyles = ReturnType<typeof createStyles>
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
-function SkeletonCard({ styles }: { styles: HabitListStyles }) {
-  return (
-    <View style={styles.skeletonCard}>
-      <View style={styles.skeletonCircle} />
-      <View style={styles.skeletonContent}>
-        <View style={styles.skeletonTitle} />
-        <View style={styles.skeletonSubtitle} />
-      </View>
-    </View>
-  )
-}
-
-function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
-}
-
-interface MoveParentOption {
-  id: string | null
-  label: string
-  depth: number
-  disabled: boolean
-  reason: string | null
-}
 
 interface DragItem extends ReorderableHabitItem {
   id: string
@@ -165,27 +143,6 @@ interface DragItem extends ReorderableHabitItem {
   depth: number
   hasChildren: boolean
   hasSubHabits: boolean
-}
-
-function formatDateGroupLabel(
-  key: string,
-  locale: string,
-  t: (key: string) => string,
-): string {
-  if (!key) return t('common.unknown')
-
-  const date = new Date(`${key}T00:00:00`)
-
-  if (isDateToday(date)) return t('dates.today')
-  if (isTomorrow(date)) return t('dates.tomorrow')
-  if (isYesterday(date)) return t('dates.yesterday')
-
-  return formatLocaleDate(date, locale, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
@@ -1498,48 +1455,32 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderDrillItem = useCallback(
-      ({ item: child }: { item: NormalizedHabit }) => {
-        const grandChildren = drill.getDrillChildren(child.id)
-        return (
-          <View style={styles.sectionInset}>
-            {renderHabitCard(
-              child,
-              0,
-              grandChildren.length > 0,
-              child.hasSubHabits || grandChildren.length > 0,
-              { isDrillCard: true },
-            )}
-          </View>
-        )
-      },
-      [drill, renderHabitCard, styles.sectionInset],
+      ({ item: child }: { item: NormalizedHabit }) => (
+        <DrillHabitItem
+          child={child}
+          styles={styles}
+          getDrillChildren={drill.getDrillChildren}
+          renderHabitCard={renderHabitCard}
+        />
+      ),
+      [drill.getDrillChildren, renderHabitCard, styles],
     )
 
     const drillFooter = useMemo(
       () => (
-        <TouchableOpacity
-          style={styles.drillAddBtn}
-          onPress={() => {
+        <DrillFooter
+          styles={styles}
+          label={t('habits.form.addSubHabit')}
+          onAddSubHabit={() => {
             const parent = drill.currentParentId
               ? (habitsById.get(drill.currentParentId) ?? null)
               : null
             setSubHabitParent(parent)
             setShowSubHabitModal(true)
           }}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.drillAddBtnText}>
-            {t('habits.form.addSubHabit')}
-          </Text>
-        </TouchableOpacity>
+        />
       ),
-      [
-        drill.currentParentId,
-        habitsById,
-        styles.drillAddBtn,
-        styles.drillAddBtnText,
-        t,
-      ],
+      [drill.currentParentId, habitsById, styles, t],
     )
 
     const commonOverlays = (
@@ -1554,214 +1495,74 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           parentHabit={subHabitParent}
         />
 
-        <ConfirmDialog
-          open={showDeleteConfirm}
-          onOpenChange={(open) => {
+        <HabitListConfirmDialogs
+          t={t}
+          showDeleteConfirm={showDeleteConfirm}
+          onDeleteOpenChange={(open) => {
             setShowDeleteConfirm(open)
             if (!open) {
               setHabitToDelete(null)
             }
           }}
-          title={t('habits.deleteConfirmTitle')}
-          description={t('habits.deleteConfirmMessage')}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmDelete}
-          onCancel={() => {
+          onConfirmDelete={confirmDelete}
+          onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)
           }}
-          variant="danger"
-        />
-
-        <ConfirmDialog
-          open={showDuplicateConfirm}
-          onOpenChange={(open) => {
+          showDuplicateConfirm={showDuplicateConfirm}
+          onDuplicateOpenChange={(open) => {
             setShowDuplicateConfirm(open)
             if (!open) {
               setHabitToDuplicate(null)
             }
           }}
-          title={t('habits.duplicateConfirmTitle')}
-          description={t('habits.duplicateConfirmMessage', {
-            name: habitToDuplicate?.title ?? '',
-          })}
-          confirmLabel={t('habits.duplicateConfirm')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmDuplicate}
-          onCancel={() => {
+          duplicateName={habitToDuplicate?.title ?? ''}
+          onConfirmDuplicate={confirmDuplicate}
+          onCancelDuplicate={() => {
             setHabitToDuplicate(null)
             setShowDuplicateConfirm(false)
           }}
-          variant="success"
-        />
-
-        <ConfirmDialog
-          open={showSkipConfirm}
-          onOpenChange={setShowSkipConfirm}
-          title={t(
-            isPostponeAction
-              ? 'habits.postponeConfirmTitle'
-              : 'habits.skipConfirmTitle',
-          )}
-          description={skipConfirmMessage}
-          confirmLabel={t(
-            isPostponeAction
-              ? 'habits.postponeConfirmButton'
-              : 'habits.skipConfirmButton',
-          )}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmSkip}
-          onCancel={() => {
+          showSkipConfirm={showSkipConfirm}
+          onSkipOpenChange={setShowSkipConfirm}
+          isPostponeAction={isPostponeAction}
+          skipConfirmMessage={skipConfirmMessage}
+          onConfirmSkip={confirmSkip}
+          onCancelSkip={() => {
             setHabitToSkip(null)
             setShowSkipConfirm(false)
           }}
-          variant="warning"
-        />
-
-        <ConfirmDialog
-          open={showForceLogConfirm}
-          onOpenChange={setShowForceLogConfirm}
-          title={t('habits.forceLogTitle')}
-          description={t('habits.forceLogMessage')}
-          confirmLabel={t('habits.forceLogConfirm')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmForceLog}
-          onCancel={() => {
+          showForceLogConfirm={showForceLogConfirm}
+          onForceLogOpenChange={setShowForceLogConfirm}
+          onConfirmForceLog={confirmForceLog}
+          onCancelForceLog={() => {
             setForceLogHabitId(null)
             setShowForceLogConfirm(false)
           }}
-          variant="warning"
-        />
-
-        <ConfirmDialog
-          open={showAutoLogParent}
-          onOpenChange={setShowAutoLogParent}
-          title={t('habits.autoLogParentTitle')}
-          description={t('habits.autoLogParentMessage', {
-            name: autoLogParentHabit?.title ?? '',
-          })}
-          confirmLabel={t('habits.autoLogParentConfirm')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={confirmAutoLogParent}
-          onCancel={() => {
+          showAutoLogParent={showAutoLogParent}
+          onAutoLogParentOpenChange={setShowAutoLogParent}
+          autoLogParentName={autoLogParentHabit?.title ?? ''}
+          onConfirmAutoLogParent={confirmAutoLogParent}
+          onCancelAutoLogParent={() => {
             setAutoLogParentId(null)
             setShowAutoLogParent(false)
           }}
-          variant="success"
         />
 
-        <Modal
+        <MoveParentDialog
+          t={t}
           visible={showMoveParentDialog}
-          transparent
-          animationType="fade"
-          onRequestClose={closeMoveParentDialog}
-        >
-          <TouchableOpacity
-            style={styles.dialogBackdrop}
-            activeOpacity={1}
-            onPress={closeMoveParentDialog}
-          >
-            <View
-              style={styles.moveDialog}
-              onStartShouldSetResponder={() => true}
-            >
-              <Text style={styles.moveDialogTitle}>
-                {t('habits.moveParent.title')}
-              </Text>
-              {movingHabit ? (
-                <Text style={styles.moveDialogDescription}>
-                  {t('habits.moveParent.description', {
-                    name: movingHabit.title,
-                  })}
-                </Text>
-              ) : null}
-
-              {moveParentOptions.length > 0 ? (
-                <ScrollView
-                  style={styles.moveOptionsList}
-                  contentContainerStyle={styles.moveOptionsContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {moveParentOptions.map((option) => {
-                    const isSelectedOption = option.id === selectedMoveParentId
-                    return (
-                      <TouchableOpacity
-                        key={option.id ?? '__root__'}
-                        style={[
-                          styles.moveOption,
-                          isSelectedOption && styles.moveOptionSelected,
-                          option.disabled && styles.moveOptionDisabled,
-                          option.id !== null
-                            ? { paddingLeft: 12 + option.depth * 18 }
-                            : null,
-                        ]}
-                        disabled={option.disabled}
-                        onPress={() => setSelectedMoveParentId(option.id)}
-                        activeOpacity={0.75}
-                      >
-                        <View style={styles.moveOptionHeader}>
-                          <Text
-                            style={styles.moveOptionLabel}
-                            numberOfLines={1}
-                          >
-                            {option.label}
-                          </Text>
-                          {option.id === movingHabit?.parentId ? (
-                            <Text style={styles.moveOptionCurrent}>
-                              {t('habits.moveParent.currentParent')}
-                            </Text>
-                          ) : null}
-                        </View>
-                        {option.reason ? (
-                          <Text style={styles.moveOptionReason}>
-                            {option.reason}
-                          </Text>
-                        ) : null}
-                      </TouchableOpacity>
-                    )
-                  })}
-                </ScrollView>
-              ) : (
-                <Text style={styles.moveDialogEmpty}>
-                  {t('habits.moveParent.noOptions')}
-                </Text>
-              )}
-
-              <View style={styles.moveDialogActions}>
-                <TouchableOpacity
-                  style={styles.moveDialogCancel}
-                  disabled={moveParentMutation.isPending}
-                  onPress={closeMoveParentDialog}
-                  activeOpacity={0.75}
-                >
-                  <Text style={styles.moveDialogCancelText}>
-                    {t('common.cancel')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.moveDialogConfirm,
-                    !canSubmitMoveParent && styles.moveDialogConfirmDisabled,
-                  ]}
-                  disabled={!canSubmitMoveParent}
-                  onPress={() => {
-                    void confirmMoveParent()
-                  }}
-                  activeOpacity={0.8}
-                >
-                  {moveParentMutation.isPending ? (
-                    <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                  ) : (
-                    <Text style={styles.moveDialogConfirmText}>
-                      {t('habits.moveParent.confirm')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+          isPending={moveParentMutation.isPending}
+          movingHabitTitle={movingHabit?.title ?? null}
+          movingHabitParentId={movingHabit?.parentId ?? null}
+          options={moveParentOptions}
+          selectedMoveParentId={selectedMoveParentId}
+          canSubmit={canSubmitMoveParent}
+          onClose={closeMoveParentDialog}
+          onConfirm={() => {
+            void confirmMoveParent()
+          }}
+          onSelectOption={setSelectedMoveParentId}
+        />
       </>
     )
 
@@ -2209,124 +2010,6 @@ function createStyles(tokens: AppTokens) {
       fontWeight: '700',
       color: tokens.fgOnPrimary,
     },
-    dialogBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 24,
-    },
-    moveDialog: {
-      width: '100%',
-      maxWidth: 380,
-      maxHeight: '75%',
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 20,
-      padding: 20,
-    },
-    moveDialogTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: tokens.fg1,
-    },
-    moveDialogDescription: {
-      fontSize: 14,
-      lineHeight: 20,
-      color: tokens.fg2,
-      marginTop: 8,
-      marginBottom: 16,
-    },
-    moveOptionsList: {
-      flexGrow: 0,
-    },
-    moveOptionsContent: {
-      gap: 10,
-      paddingBottom: 8,
-    },
-    moveOption: {
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-    },
-    moveOptionSelected: {
-      borderColor: tokens.primary,
-      backgroundColor: tokens.bgSunk,
-    },
-    moveOptionDisabled: {
-      opacity: 0.5,
-    },
-    moveOptionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    moveOptionLabel: {
-      flex: 1,
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fg1,
-    },
-    moveOptionCurrent: {
-      fontSize: 10,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      color: tokens.fg3,
-    },
-    moveOptionReason: {
-      fontSize: 11,
-      color: tokens.fg3,
-      marginTop: 6,
-    },
-    moveDialogEmpty: {
-      fontSize: 14,
-      color: tokens.fg3,
-      textAlign: 'center',
-      paddingVertical: 16,
-    },
-    moveDialogActions: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 16,
-    },
-    moveDialogCancel: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingVertical: 12,
-    },
-    moveDialogCancelText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fg2,
-    },
-    moveDialogConfirm: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 14,
-      backgroundColor: tokens.primary,
-      paddingVertical: 12,
-      minHeight: 46,
-    },
-    moveDialogConfirmDisabled: {
-      opacity: 0.5,
-    },
-    moveDialogConfirmText: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: tokens.fgOnPrimary,
-    },
-
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',

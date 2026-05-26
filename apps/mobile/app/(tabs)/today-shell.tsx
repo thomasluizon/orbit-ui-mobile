@@ -31,12 +31,12 @@ export function TodayHeader({
   currentStreak,
   onGoToToday,
   goToTodayLabel,
-  dateLong,
+  subtitle,
 }: Readonly<{
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
-  dateLong: string
+  subtitle: string
 }>) {
   const { t } = useTranslation()
   const streakRef = useRef<View>(null)
@@ -53,7 +53,7 @@ export function TodayHeader({
       <AppBar
         LeadingIcon={SaturnDropcap}
         title={t('common.appName')}
-        subtitle={dateLong}
+        subtitle={subtitle}
         trailing={
           <>
             <ThemeToggle />

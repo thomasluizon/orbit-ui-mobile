@@ -19,6 +19,22 @@ export type TodayTabItem = {
   label: string
 }
 
+export function getTodayTabLabel(
+  view: TodayTabView,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (view) {
+    case 'today':
+      return t('habits.viewToday')
+    case 'all':
+      return t('habits.viewAll')
+    case 'general':
+      return t('habits.viewGeneral')
+    case 'goals':
+      return t('goals.tab')
+  }
+}
+
 interface TodayHeaderProps {
   title: string
   subtitle?: string
@@ -56,9 +72,8 @@ interface TodayTabsProps {
   tabs: TodayTabItem[]
   activeView: TodayTabView
   hasProAccess: boolean
-  onChangeView: (view: TodayTabView) => void
+  onChangeView: (view: TodayTabView) => boolean | void
   viewsLabel: string
-  onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
 }
 
 export function TodayTabs({
@@ -67,13 +82,30 @@ export function TodayTabs({
   hasProAccess,
   onChangeView,
   viewsLabel,
-  onKeyDown,
 }: Readonly<TodayTabsProps>) {
   const tabItems: SectionHeadTabItem<TodayTabView>[] = tabs.map((tab) => ({
     id: tab.view,
     label: tab.label,
     locked: tab.view === 'goals' && !hasProAccess,
   }))
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    const idx = tabs.findIndex((tab) => tab.view === activeView)
+    if (idx === -1) return
+    event.preventDefault()
+    const nextIdx =
+      event.key === 'ArrowRight'
+        ? (idx + 1) % tabs.length
+        : (idx - 1 + tabs.length) % tabs.length
+    const nextView = tabs[nextIdx]?.view
+    if (nextView && onChangeView(nextView) !== false) {
+      // Focus follows selection (a11y): move focus to the newly selected tab.
+      requestAnimationFrame(() => {
+        document.getElementById(`tab-${nextView}`)?.focus()
+      })
+    }
+  }
 
   return (
     <div data-tour="tour-tabs-bar">
@@ -82,7 +114,7 @@ export function TodayTabs({
         active={activeView}
         onChange={onChangeView}
         ariaLabel={viewsLabel}
-        onKeyDown={onKeyDown}
+        onKeyDown={handleKeyDown}
       />
     </div>
   )

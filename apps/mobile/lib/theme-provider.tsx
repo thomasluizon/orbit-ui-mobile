@@ -24,14 +24,11 @@ import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   createColors,
-  createNav,
   createSurfaces,
   getRuntimeTheme,
   radius,
   shadows,
   setRuntimeTheme,
-  type AppColors,
-  type AppNav,
   type AppRadius,
   type AppShadows,
   type AppSurfaces,
@@ -41,8 +38,6 @@ import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 export interface ThemeContextValue {
   currentScheme: ColorScheme
   currentTheme: ThemeMode
-  colors: AppColors
-  nav: AppNav
   surfaces: AppSurfaces
   radius: AppRadius
   shadows: AppShadows
@@ -238,8 +233,6 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const value = useMemo<ThemeContextValue>(() => ({
     currentScheme,
     currentTheme,
-    colors: createColors(currentScheme, currentTheme),
-    nav: createNav(currentScheme, currentTheme),
     surfaces: createSurfaces(currentScheme, currentTheme),
     radius,
     shadows,

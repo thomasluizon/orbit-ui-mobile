@@ -43,35 +43,14 @@ import {
   TodayTabs,
   TodayDateNavigation,
   TodayUtilityRow,
+  getTodayTabLabel,
   type TodayTabItem,
 } from './today-shell'
+import { useFollowTodaySync } from './use-follow-today-sync'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
-
-function getMillisecondsUntilNextLocalMidnight(): number {
-  const now = new Date()
-  const nextMidnight = new Date(now)
-  nextMidnight.setHours(24, 0, 0, 0)
-  return Math.max(nextMidnight.getTime() - now.getTime(), 1_000)
-}
-
-function getTodayTabLabel(
-  view: typeof TAB_VIEWS[number],
-  t: ReturnType<typeof useTranslations>,
-): string {
-  switch (view) {
-    case 'today':
-      return t('habits.viewToday')
-    case 'all':
-      return t('habits.viewAll')
-    case 'general':
-      return t('habits.viewGeneral')
-    case 'goals':
-      return t('goals.tab')
-  }
-}
 
 export default function TodayPage() {
   const t = useTranslations()
@@ -189,44 +168,7 @@ export default function TodayPage() {
     setActiveView('today')
   }, [goToTodayDate, selectedDate, setActiveView])
 
-  useEffect(() => {
-    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
-
-    const resetRolloverTimer = () => {
-      if (rolloverTimer) {
-        globalThis.clearTimeout(rolloverTimer)
-      }
-
-      rolloverTimer = globalThis.setTimeout(() => {
-        syncSelectedDateWithToday()
-        resetRolloverTimer()
-      }, getMillisecondsUntilNextLocalMidnight())
-    }
-
-    const handleVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      syncSelectedDateWithToday()
-      resetRolloverTimer()
-    }
-
-    const handleFocus = () => {
-      syncSelectedDateWithToday()
-      resetRolloverTimer()
-    }
-
-    syncSelectedDateWithToday()
-    resetRolloverTimer()
-    document.addEventListener('visibilitychange', handleVisible)
-    globalThis.addEventListener('focus', handleFocus)
-
-    return () => {
-      if (rolloverTimer) {
-        globalThis.clearTimeout(rolloverTimer)
-      }
-      document.removeEventListener('visibilitychange', handleVisible)
-      globalThis.removeEventListener('focus', handleFocus)
-    }
-  }, [syncSelectedDateWithToday])
+  useFollowTodaySync(syncSelectedDateWithToday)
 
   const toggleControlsMenu = useCallback(() => {
     if (!showControlsMenu) {
@@ -409,27 +351,6 @@ export default function TodayPage() {
     [toggleSelectionCascade, getDescendantIds, isAncestorSelected],
   )
 
-  const handleTabKeydown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      const idx = TAB_VIEWS.indexOf(currentActiveView)
-      if (idx === -1) return
-      e.preventDefault()
-      const nextIdx =
-        e.key === 'ArrowRight'
-          ? (idx + 1) % TAB_VIEWS.length
-          : (idx - 1 + TAB_VIEWS.length) % TAB_VIEWS.length
-      const nextView = TAB_VIEWS[nextIdx]
-      if (nextView && attemptViewChange(nextView)) {
-        // Focus the newly selected tab button (a11y: focus follows selection)
-        requestAnimationFrame(() => {
-          document.getElementById(`tab-${nextView}`)?.focus()
-        })
-      }
-    },
-    [attemptViewChange, currentActiveView],
-  )
-
   useEffect(() => {
     if (!hasProAccess && activeView === 'goals') {
       setActiveView('today')
@@ -493,7 +414,6 @@ export default function TodayPage() {
         hasProAccess={hasProAccess}
         onChangeView={attemptViewChange}
         viewsLabel={t('habits.viewsLabel')}
-        onKeyDown={handleTabKeydown}
       />
 
       {currentActiveView === 'today' && isToday(selectedDate) && (
