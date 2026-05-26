@@ -155,4 +155,66 @@ describe('GoalDetailDrawer', () => {
     expect(sheet.props.title).toBe('Read 12 books (synced)')
     expect(textContent).toContain('"current":6')
   })
+
+  it('renders the progress block with percentage', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    const textContent = collectText(tree.toJSON())
+
+    expect(textContent).toContain('goals.progress')
+    expect(textContent).toContain('goals.progressPercentage:{"pct":25}')
+  })
+
+  it('opens the progress form when the edit affordance is tapped', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    expect(tree.root.findAllByType('BottomSheetAppTextInput')).toHaveLength(0)
+
+    const editButton = tree.root
+      .findAll(
+        (node: any) =>
+          node.props.accessibilityLabel === 'goals.updateProgress' &&
+          typeof node.props.onPress === 'function',
+      )
+      .at(0)
+
+    TestRenderer.act(() => {
+      editButton.props.onPress()
+    })
+
+    expect(
+      tree.root.findAllByType('BottomSheetAppTextInput').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('renders the action footer (status, edit, delete)', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    const labels = tree.root
+      .findAll((node: any) => typeof node.props.accessibilityLabel === 'string')
+      .map((node: any) => node.props.accessibilityLabel)
+
+    expect(labels).toContain('goals.detail.markCompleted')
+    expect(labels).toContain('goals.detail.markAbandoned')
+    expect(labels).toContain('goals.detail.edit')
+    expect(labels).toContain('goals.detail.delete')
+  })
 })
