@@ -91,6 +91,7 @@
     "eyebrow": "Welcome back"
   },
   "common": {
+    "appName": "Orbit",
     "save": "Save",
     "add": "Add",
     "back": "Go back",

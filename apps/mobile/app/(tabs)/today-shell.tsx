@@ -6,6 +6,7 @@ import {
   View,
   type GestureResponderHandlers,
 } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { AppBar } from '@/components/ui/app-bar'
 import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
@@ -37,6 +38,7 @@ export function TodayHeader({
   goToTodayLabel: string
   dateLong: string
 }>) {
+  const { t } = useTranslation()
   const streakRef = useRef<View>(null)
   const bellRef = useRef<View>(null)
   useTourTarget('tour-streak-badge', streakRef)
@@ -50,7 +52,7 @@ export function TodayHeader({
     >
       <AppBar
         LeadingIcon={SaturnDropcap}
-        title="Orbit"
+        title={t('common.appName')}
         subtitle={dateLong}
         trailing={
           <>

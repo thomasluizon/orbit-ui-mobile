@@ -482,7 +482,7 @@ export default function TodayPage() {
   return (
     <div className="relative">
       <TodayHeader
-        title="Orbit"
+        title={t('common.appName')}
         subtitle={headerSubtitle}
         streak={streakInfo?.currentStreak ?? 0}
       />
