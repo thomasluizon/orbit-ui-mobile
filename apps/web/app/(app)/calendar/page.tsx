@@ -141,25 +141,6 @@ export default function CalendarPage() {
         onNextMonth={nextMonth}
       />
 
-      {/* Loading skeleton */}
-      {isLoading && (
-        <div style={{ padding: '16px 20px' }}>
-          <div className="grid grid-cols-7" style={{ gap: 6 }}>
-            {Array.from({ length: 35 }, (_, i) => (
-              <div
-                key={i}
-                className="animate-pulse"
-                style={{
-                  height: 40,
-                  background: 'var(--bg-sunk)',
-                  borderRadius: 6,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Refetch loading bar */}
       <div
         className={`loading-bar w-full transition-opacity duration-300 ${
@@ -167,14 +148,14 @@ export default function CalendarPage() {
         }`}
       />
 
-      {/* Calendar grid */}
-      {!isLoading && (
-        <CalendarGrid
-          currentMonth={currentMonth}
-          dayMap={dayMap}
-          onSelectDay={onSelectDay}
-        />
-      )}
+      {/* Calendar grid — always renders the structure so users see months
+       *  instantly; the loading state only suppresses status dots. */}
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={dayMap}
+        onSelectDay={onSelectDay}
+        isLoading={isLoading}
+      />
 
       <CalendarLegend
         doneLabel={t('calendar.legend.done')}

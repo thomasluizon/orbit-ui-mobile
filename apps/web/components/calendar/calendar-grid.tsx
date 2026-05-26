@@ -21,6 +21,9 @@ interface CalendarGridProps {
   currentMonth: Date
   dayMap: Map<string, CalendarDayEntry[]>
   onSelectDay: (dateStr: string) => void
+  /** When true, suppresses status dots so the grid structure still renders
+   *  while the month's data is loading. */
+  isLoading?: boolean
 }
 
 interface GridDay {
@@ -45,7 +48,12 @@ function dayStatus(cell: GridDay): DayStatus {
   return 'partial'
 }
 
-export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<CalendarGridProps>) {
+export function CalendarGrid({
+  currentMonth,
+  dayMap,
+  onSelectDay,
+  isLoading = false,
+}: Readonly<CalendarGridProps>) {
   const t = useTranslations()
   const { displayWeekdayDate } = useDateFormat()
   const { profile } = useProfile()
@@ -175,7 +183,9 @@ export function CalendarGrid({ currentMonth, dayMap, onSelectDay }: Readonly<Cal
                 {cell.day}
               </span>
               <span aria-hidden="true" style={{ width: 5, height: 5 }}>
-                {renderDot(cell.isToday ? 'today' : status)}
+                {isLoading
+                  ? <span className="block rounded-full" style={{ width: 5, height: 5, background: 'var(--hairline)', opacity: 0.5 }} />
+                  : renderDot(cell.isToday ? 'today' : status)}
               </span>
             </button>
           )

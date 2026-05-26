@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react'
 import {
   Pressable,
   StyleSheet,
@@ -9,7 +9,17 @@ import {
 } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown } from 'lucide-react-native'
+import {
+  ChevronDown,
+  Copy,
+  FolderInput,
+  MoreVertical,
+  Pencil,
+  Plus,
+  SkipForward,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react-native'
 import {
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
@@ -19,6 +29,8 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { AnchoredMenu } from '@/components/ui/anchored-menu'
+import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { ParentRing } from '@/components/ui/parent-ring'
 import { SelectCheck } from '@/components/ui/select-check'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
@@ -132,6 +144,29 @@ export function HabitRow({
 
   const emoji = resolveHabitEmoji(habit.emoji)
 
+  const menuButtonRef = useRef<View>(null)
+  const [menuVisible, setMenuVisible] = useState(false)
+  const [menuAnchorRect, setMenuAnchorRect] = useState<MenuAnchorRect | null>(
+    null,
+  )
+
+  const hasMenuActions =
+    !!actions.onEdit ||
+    !!actions.onDuplicate ||
+    !!actions.onMoveParent ||
+    !!actions.onAddSubHabit ||
+    !!actions.onSkip ||
+    !!actions.onDelete
+
+  const openMenu = useCallback(() => {
+    menuButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setMenuAnchorRect({ x, y, width, height })
+      setMenuVisible(true)
+    })
+  }, [])
+
+  const closeMenu = useCallback(() => setMenuVisible(false), [])
+
   const handlePress = () => {
     if (isSelectMode) {
       actions.onToggleSelection?.()
@@ -182,7 +217,7 @@ export function HabitRow({
             backgroundColor: isSelected
               ? tokens.bgSunk
               : pressed
-                ? tokens.bgSunk
+                ? tokens.bgElevPressed
                 : tokens.bgElev,
             borderRadius: 10,
             marginLeft: 20 + indentPx,
@@ -319,9 +354,143 @@ export function HabitRow({
               {streak}
             </Text>
           ) : null}
+          {!isSelectMode && hasMenuActions ? (
+            <View ref={menuButtonRef} collapsable={false}>
+              <Pressable
+                onPress={openMenu}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('habits.actions.more')}
+                style={({ pressed }) => [
+                  styles.menuButton,
+                  pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+                ]}
+              >
+                <MoreVertical
+                  size={16}
+                  color={tokens.fg3}
+                  strokeWidth={1.5}
+                />
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </Pressable>
+
+      {hasMenuActions ? (
+        <AnchoredMenu
+          visible={menuVisible}
+          anchorRect={menuAnchorRect}
+          onClose={closeMenu}
+          width={200}
+          estimatedHeight={220}
+        >
+          <HabitRowMenuBody
+            actions={actions}
+            close={closeMenu}
+            t={t}
+            tokens={tokens}
+          />
+        </AnchoredMenu>
+      ) : null}
     </Animated.View>
+  )
+}
+
+interface HabitRowMenuBodyProps {
+  actions: HabitRowActions
+  close: () => void
+  t: (key: string) => string
+  tokens: ReturnType<typeof createTokensV2>
+}
+
+function HabitRowMenuBody({
+  actions,
+  close,
+  t,
+  tokens,
+}: Readonly<HabitRowMenuBodyProps>) {
+  const run = (handler?: () => void) => () => {
+    close()
+    handler?.()
+  }
+
+  return (
+    <>
+      {actions.onEdit ? (
+        <MenuItem
+          icon={Pencil}
+          label={t('common.edit')}
+          color={tokens.fg1}
+          onPress={run(actions.onEdit)}
+        />
+      ) : null}
+      {actions.onDuplicate ? (
+        <MenuItem
+          icon={Copy}
+          label={t('common.duplicate')}
+          color={tokens.fg1}
+          onPress={run(actions.onDuplicate)}
+        />
+      ) : null}
+      {actions.onAddSubHabit ? (
+        <MenuItem
+          icon={Plus}
+          label={t('habits.actions.addSubHabit')}
+          color={tokens.fg1}
+          onPress={run(actions.onAddSubHabit)}
+        />
+      ) : null}
+      {actions.onMoveParent ? (
+        <MenuItem
+          icon={FolderInput}
+          label={t('habits.actions.moveParent')}
+          color={tokens.fg1}
+          onPress={run(actions.onMoveParent)}
+        />
+      ) : null}
+      {actions.onSkip ? (
+        <MenuItem
+          icon={SkipForward}
+          label={t('habits.actions.skip')}
+          color={tokens.fg1}
+          onPress={run(actions.onSkip)}
+        />
+      ) : null}
+      {actions.onDelete ? (
+        <MenuItem
+          icon={Trash2}
+          label={t('common.delete')}
+          color={tokens.statusOverdue}
+          onPress={run(actions.onDelete)}
+        />
+      ) : null}
+    </>
+  )
+}
+
+interface MenuItemProps {
+  icon: LucideIcon
+  label: string
+  color: string
+  onPress: () => void
+}
+
+function MenuItem({ icon: Icon, label, color, onPress }: Readonly<MenuItemProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="menuitem"
+      style={({ pressed }) => [
+        styles.menuItem,
+        { backgroundColor: pressed ? tokens.bgElevPressed : 'transparent' },
+      ]}
+    >
+      <Icon size={16} color={color} strokeWidth={1.6} />
+      <Text style={[styles.menuItemLabel, { color }]}>{label}</Text>
+    </Pressable>
   )
 }
 
@@ -373,5 +542,24 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     minWidth: 18,
     textAlign: 'right',
+  },
+  menuButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  menuItemLabel: {
+    fontFamily: 'Geist',
+    fontSize: 14,
   },
 })

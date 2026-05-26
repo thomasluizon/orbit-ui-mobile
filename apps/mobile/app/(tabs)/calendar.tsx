@@ -44,7 +44,6 @@ import type { StatusDotState } from "@/components/ui/status-dot";
 import {
   CalendarHeader,
   CalendarLegend,
-  CalendarLoadingSkeleton,
 } from "./calendar/_components/calendar-shell";
 import { CalendarDayEntryRow } from "./calendar/_components/calendar-day-entry";
 
@@ -154,22 +153,22 @@ export default function CalendarScreen() {
     setShowDayDetail(true);
   }, []);
 
-  // Single-letter weekday headers per v8 spec.
+  // Weekday headers — short localized labels via shared i18n.
   const weekdayHeaders = useMemo(() => {
     const mondayFirst = [
-      { key: "monday", label: "M" },
-      { key: "tuesday", label: "T" },
-      { key: "wednesday", label: "W" },
-      { key: "thursday", label: "T" },
-      { key: "friday", label: "F" },
-      { key: "saturday", label: "S" },
-      { key: "sunday", label: "S" },
+      { key: "monday", label: t("dates.daysShort.monday") },
+      { key: "tuesday", label: t("dates.daysShort.tuesday") },
+      { key: "wednesday", label: t("dates.daysShort.wednesday") },
+      { key: "thursday", label: t("dates.daysShort.thursday") },
+      { key: "friday", label: t("dates.daysShort.friday") },
+      { key: "saturday", label: t("dates.daysShort.saturday") },
+      { key: "sunday", label: t("dates.daysShort.sunday") },
     ];
     if (weekStartsOn === 0) {
       return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)];
     }
     return mondayFirst;
-  }, [weekStartsOn]);
+  }, [t, weekStartsOn]);
 
   const gridDays = useMemo<GridDay[]>(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -273,68 +272,68 @@ export default function CalendarScreen() {
         onScroll={onCalendarTourScroll}
         scrollEventThrottle={16}
       >
-        {isLoading && <CalendarLoadingSkeleton tokens={tokens} />}
+        <View
+          ref={calendarGridRef}
+          collapsable={false}
+          style={styles.calendarGrid}
+          {...swipePanResponder.panHandlers}
+        >
+          <View style={styles.weekDayRow}>
+            {weekdayHeaders.map((d) => (
+              <View key={d.key} style={styles.weekDayCell}>
+                <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
+                  {d.label}
+                </Text>
+              </View>
+            ))}
+          </View>
 
-        {!isLoading && (
-          <View
-            ref={calendarGridRef}
-            collapsable={false}
-            style={styles.calendarGrid}
-            {...swipePanResponder.panHandlers}
-          >
-            <View style={styles.weekDayRow}>
-              {weekdayHeaders.map((d) => (
-                <View key={d.key} style={styles.weekDayCell}>
-                  <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
-                    {d.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
+          <View style={styles.daysGrid}>
+            {gridDays.map((cell) => {
+              const status = dayStatus(cell);
+              const canSelect = cell.isCurrentMonth;
 
-            <View style={styles.daysGrid}>
-              {gridDays.map((cell) => {
-                const status = dayStatus(cell);
-                const canSelect = cell.isCurrentMonth;
-
-                return (
-                  <Pressable
-                    key={cell.dateStr}
-                    ref={cell.isToday ? calendarDayRef : undefined}
-                    onPress={() => canSelect && onSelectDay(cell.dateStr)}
-                    disabled={!canSelect}
-                    hitSlop={4}
-                    style={({ pressed }) => [
-                      styles.dayCell,
-                      pressed && canSelect && {
-                        backgroundColor: tokens.bgElev,
-                        borderRadius: 6,
+              return (
+                <Pressable
+                  key={cell.dateStr}
+                  ref={cell.isToday ? calendarDayRef : undefined}
+                  onPress={() => canSelect && onSelectDay(cell.dateStr)}
+                  disabled={!canSelect}
+                  hitSlop={4}
+                  style={({ pressed }) => [
+                    styles.dayCell,
+                    pressed && canSelect && {
+                      backgroundColor: tokens.bgElev,
+                      borderRadius: 6,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayText,
+                      {
+                        color:
+                          status === "none" && !cell.isToday
+                            ? tokens.fg3
+                            : cell.isCurrentMonth
+                              ? tokens.fg1
+                              : tokens.fg4,
+                        fontWeight: cell.isToday ? "600" : "400",
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        {
-                          color:
-                            status === "none" && !cell.isToday
-                              ? tokens.fg3
-                              : cell.isCurrentMonth
-                                ? tokens.fg1
-                                : tokens.fg4,
-                          fontWeight: cell.isToday ? "600" : "400",
-                        },
-                      ]}
-                    >
-                      {cell.day}
-                    </Text>
+                    {cell.day}
+                  </Text>
+                  {isLoading ? (
+                    <View style={styles.dayDotSkeleton} />
+                  ) : (
                     <DayDot status={status} isToday={cell.isToday} tokens={tokens} />
-                  </Pressable>
-                );
-              })}
-            </View>
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
-        )}
+        </View>
 
         <CalendarLegend
           fullLabel={t("calendar.legend.done")}
@@ -559,6 +558,13 @@ function createStyles(tokens: Tokens) {
       fontFamily: "GeistMono",
       fontSize: 13,
       fontVariant: ["tabular-nums"],
+    },
+    dayDotSkeleton: {
+      width: 5,
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: tokens.hairline,
+      opacity: 0.5,
     },
 
     emptyDay: {

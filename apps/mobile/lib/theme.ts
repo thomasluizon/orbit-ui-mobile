@@ -538,6 +538,9 @@ export function primaryRgba(alpha: number, rgb?: string): string {
 export interface AppTokensV2 {
   bg: string
   bgElev: string
+  /** Subtle lift from `bgElev` for press/active states. Matches web's
+   *  `color-mix(in oklch, var(--bg-elev), var(--fg-1) 4%)`. */
+  bgElevPressed: string
   bgSunk: string
   hairline: string
   hairlineStrong: string
@@ -585,6 +588,7 @@ export function createTokensV2(
     return {
       bg: oklchToHex(0.985, chromaBg, hue),
       bgElev: oklchToHex(0.995, chromaBg, hue),
+      bgElevPressed: oklchToHex(0.963, chromaBg, hue),
       bgSunk: oklchToHex(0.965, chromaBg, hue),
       hairline: oklchToHex(0.905, chromaBg * 1.4, hue),
       hairlineStrong: oklchToHex(0.84, chromaBg * 1.6, hue),
@@ -608,6 +612,7 @@ export function createTokensV2(
   return {
     bg: oklchToHex(0.16, 0.012, hue),
     bgElev: oklchToHex(0.2, 0.014, hue),
+    bgElevPressed: oklchToHex(0.23, 0.014, hue),
     bgSunk: oklchToHex(0.13, 0.01, hue),
     hairline: oklchToRgba(0.965, 0.014, hue, 0.08),
     hairlineStrong: oklchToRgba(0.965, 0.014, hue, 0.16),
