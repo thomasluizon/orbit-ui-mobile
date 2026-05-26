@@ -1406,6 +1406,10 @@ export function HabitFormFields({
               onChange={(nextValue) =>
                 setValue("dueTime", nextValue, { shouldDirty: true })
               }
+              onClear={() => {
+                setValue("dueTime", "", { shouldDirty: true })
+                setValue("dueEndTime", "", { shouldDirty: true })
+              }}
             />
           </View>
         </View>
@@ -1631,6 +1635,9 @@ export function HabitFormFields({
                 accessibilityLabel={t("habits.form.dueEndTime")}
                 onChange={(nextValue) =>
                   setValue("dueEndTime", nextValue, { shouldDirty: true })
+                }
+                onClear={() =>
+                  setValue("dueEndTime", "", { shouldDirty: true })
                 }
               />
             </View>

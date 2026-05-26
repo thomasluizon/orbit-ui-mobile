@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,7 +14,7 @@ import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker'
-import { Clock3 } from 'lucide-react-native'
+import { Clock3, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
 import { createTokensV2, radius, type AppShadows } from '@/lib/theme'
@@ -24,6 +25,9 @@ type AppTokens = ReturnType<typeof createTokensV2>
 interface AppTimePickerProps {
   value: string
   onChange: (value: string) => void
+  /** Optional clear callback. When provided and value is set, a clear (X)
+   *  button replaces the clock icon and tapping it invokes onClear. */
+  onClear?: () => void
   placeholder?: string
   accessibilityLabel?: string
   disabled?: boolean
@@ -50,6 +54,7 @@ function formatApiTime(date: Date): string {
 export function AppTimePicker({
   value,
   onChange,
+  onClear,
   placeholder,
   accessibilityLabel,
   disabled = false,
@@ -91,32 +96,57 @@ export function AppTimePicker({
     setIsOpen(true)
   }, [disabled, is24Hour, onChange, value])
 
+  const canClear = !disabled && !!value && !!onClear
+
   return (
     <>
-      <TouchableOpacity
+      <View
         style={[styles.trigger, containerStyle, disabled && styles.triggerDisabled]}
-        onPress={openPicker}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={
-          accessibilityLabel ??
-          (displayValue
-            ? t('common.selectedTime', { time: displayValue })
-            : placeholder ?? t('common.selectTime'))
-        }
       >
-        <Text
-          style={[
-            styles.triggerText,
-            !displayValue && styles.triggerPlaceholder,
-            disabled && styles.triggerTextDisabled,
-          ]}
-          numberOfLines={1}
+        <Pressable
+          onPress={openPicker}
+          disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={
+            accessibilityLabel ??
+            (displayValue
+              ? t('common.selectedTime', { time: displayValue })
+              : placeholder ?? t('common.selectTime'))
+          }
+          style={styles.triggerTextArea}
         >
-          {displayValue || placeholder || t('common.selectTime')}
-        </Text>
-        <Clock3 size={16} color={disabled ? tokens.fg3 : tokens.fg2} />
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.triggerText,
+              !displayValue && styles.triggerPlaceholder,
+              disabled && styles.triggerTextDisabled,
+            ]}
+            numberOfLines={1}
+          >
+            {displayValue || placeholder || t('common.selectTime')}
+          </Text>
+        </Pressable>
+        {canClear ? (
+          <Pressable
+            onPress={onClear}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.clear')}
+            style={styles.iconButton}
+          >
+            <X size={16} color={tokens.fg2} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={openPicker}
+            disabled={disabled}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            style={styles.iconButton}
+          >
+            <Clock3 size={16} color={disabled ? tokens.fg3 : tokens.fg2} />
+          </Pressable>
+        )}
+      </View>
 
       {Platform.OS === 'ios' ? (
         <Modal
@@ -179,22 +209,29 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
       borderRadius: radius.sm,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
     },
     triggerDisabled: {
       opacity: 0.6,
     },
-    triggerText: {
+    triggerTextArea: {
       flex: 1,
+      paddingVertical: 12,
+      paddingLeft: 16,
+      paddingRight: 8,
+    },
+    iconButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    triggerText: {
       color: tokens.fg1,
       fontSize: 14,
-      marginRight: 8,
     },
     triggerTextDisabled: {
       color: tokens.fg3,

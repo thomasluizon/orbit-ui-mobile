@@ -1139,6 +1139,10 @@ export function HabitFormFields({
               value={watchedDueTime}
               ariaLabel={t('habits.form.dueTime')}
               onChange={(nextValue) => setValue('dueTime', nextValue, { shouldDirty: true })}
+              onClear={() => {
+                setValue('dueTime', '', { shouldDirty: true })
+                setValue('dueEndTime', '', { shouldDirty: true })
+              }}
             />
           </div>
         </div>
@@ -1322,6 +1326,7 @@ export function HabitFormFields({
                 value={watchedDueEndTime}
                 ariaLabel={t('habits.form.dueEndTime')}
                 onChange={(nextValue) => setValue('dueEndTime', nextValue, { shouldDirty: true })}
+                onClear={() => setValue('dueEndTime', '', { shouldDirty: true })}
               />
             </div>
           )}
