@@ -103,6 +103,19 @@ jobs:
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         run: npm install --package-lock=false --prefer-offline --no-audit --fund=false
 
+      - name: Guard react-native-worklets resolves to the pinned version
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=$(node -p "require('./package.json').overrides['react-native-worklets']")
+          ACTUAL=$(node -p "require('react-native-worklets/package.json').version")
+          echo "react-native-worklets: resolved=${ACTUAL} pinned=${EXPECTED}"
+          if [ "${ACTUAL}" != "${EXPECTED}" ]; then
+            echo "::error::react-native-worklets resolved to ${ACTUAL} but the override pins ${EXPECTED}. Reanimated 4.2.1 is built against worklets 0.7.2; a newer worklets silently breaks all @gorhom/bottom-sheet modals on Android. Fix the override in apps/mobile/package.json." >&2
+            exit 1
+          fi
+
       - name: Validate Expo dependency compatibility
         if: ${{ inputs.validate_expo_dependencies }}
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
