@@ -297,7 +297,10 @@ export default function TodayPage() {
       const f: HabitsFilter = {
         dateFrom: dateStr,
         dateTo: dateStr,
-        includeOverdue: isToday(selectedDate),
+        // Overdue habits always surface in the Today view until logged/skipped,
+        // regardless of which date is selected. Backend computes overdue as
+        // DueDate < dateFrom, so it stays consistent across date navigation.
+        includeOverdue: true,
         includeGeneral: showGeneralOnToday || undefined,
       }
       if (searchQueryStore.trim()) f.search = searchQueryStore.trim()

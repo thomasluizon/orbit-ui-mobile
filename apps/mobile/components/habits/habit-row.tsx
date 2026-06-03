@@ -282,6 +282,15 @@ export function HabitRow({
             {habit.title}
           </Text>
 
+          {habit.description?.trim() ? (
+            <Text
+              numberOfLines={1}
+              style={[styles.description, { color: tokens.fg3 }]}
+            >
+              {habit.description}
+            </Text>
+          ) : null}
+
           {metaParts.length > 0 ? (
             <Text
               numberOfLines={1}
@@ -562,6 +571,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
+  },
+  description: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    lineHeight: 17,
   },
   trailing: {
     flexDirection: 'row',

@@ -224,6 +224,19 @@ export function HabitRow({
           color={getTitleColor()}
           strikethrough={isDone}
         />
+        {habit.description?.trim() && (
+          <span
+            className="overflow-hidden whitespace-nowrap text-ellipsis"
+            style={{
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+              lineHeight: 1.3,
+            }}
+          >
+            {habit.description}
+          </span>
+        )}
         {meta.length > 0 && (
           <MetaStrip tokens={meta} />
         )}
