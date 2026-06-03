@@ -248,6 +248,42 @@ describe('HabitList', () => {
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1' })
   })
 
+  it('renders the habit description preview when present', () => {
+    seedHabits([
+      createMockHabit({ id: 'habit-desc', title: 'Meditate', description: 'Ten minutes of breathing' }),
+    ])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const descriptionNodes = tree.root.findAll(
+      (node: any) => node.props?.children === 'Ten minutes of breathing',
+    )
+    expect(descriptionNodes.length).toBeGreaterThan(0)
+  })
+
+  it('omits the description preview when the habit has none', () => {
+    seedHabits([
+      createMockHabit({ id: 'habit-nodesc', title: 'Run', description: null }),
+    ])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const descriptionNodes = tree.root.findAll(
+      (node: any) => node.props?.children === 'Ten minutes of breathing',
+    )
+    expect(descriptionNodes).toHaveLength(0)
+  })
+
   it('shows a postpone confirmation before postponing a one-time task', () => {
     const oneTimeTask = createMockHabit({
       id: 'habit-1',

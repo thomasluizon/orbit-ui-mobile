@@ -50,9 +50,17 @@ interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView>
 }
 
 interface KeyboardAwareBottomSheetScrollViewProps
-  extends ComponentProps<typeof BottomSheetScrollView> {
+  extends Omit<
+    ComponentProps<typeof BottomSheetScrollView>,
+    'onScroll' | 'contentContainerStyle'
+  > {
   children: ReactNode
   keyboardVerticalOffset?: number
+  // This wrapper drives scroll + content inset with plain RN types; narrow the
+  // reanimated-typed onScroll/contentContainerStyle from @gorhom/bottom-sheet so
+  // they stay callable/assignable here.
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  contentContainerStyle?: StyleProp<ViewStyle>
 }
 
 interface KeyboardAwareFlatListProps<ItemT> extends FlatListProps<ItemT> {
