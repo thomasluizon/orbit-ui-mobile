@@ -2087,7 +2087,6 @@
   },
   "deleteAccount": {
     "title": "Excluir Sua Conta",
-    "lastUpdated": "Última atualização: Junho de 2026",
     "intro": {
       "title": "Como Excluir Sua Conta do Orbit",
       "body": "Você pode excluir permanentemente sua conta do Orbit e todos os dados associados a qualquer momento. Não é preciso estar conectado nesta página para saber como — a exclusão está disponível diretamente no aplicativo e por solicitação via e-mail."
@@ -2115,17 +2114,10 @@
     }
   },
   "dataExport": {
-    "title": "Baixar meus dados",
-    "description": "Exporte todos os seus dados do Orbit (hábitos, registros, metas, tags, fatos de memória da IA e configurações) como um arquivo JSON.",
     "button": "Baixar meus dados",
     "preparing": "Preparando sua exportação...",
-    "success": "Sua exportação de dados está pronta.",
     "error": "Não foi possível preparar sua exportação. Tente novamente.",
     "shareTitle": "Exportação de dados do Orbit"
-  },
-  "ageGate": {
-    "confirmLabel": "Confirmo que tenho pelo menos 13 anos",
-    "error": "Você precisa ter pelo menos 13 anos para usar o Orbit."
   },
   "aiDisclosure": {
     "isAiLabel": "IA",

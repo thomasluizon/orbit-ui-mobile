@@ -52,7 +52,7 @@ describe('userDataExportSchema', () => {
   it('parses a full export payload', () => {
     const result = userDataExportSchema.parse(validExport)
     expect(result.account.email).toBe('ada@example.com')
-    expect(result.habits[0].logs[0].value).toBe(1)
+    expect(result.habits[0]?.logs[0]?.value).toBe(1)
   })
 
   it('rejects a payload missing required top-level collections', () => {

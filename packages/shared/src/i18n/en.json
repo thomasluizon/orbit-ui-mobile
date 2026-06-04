@@ -2087,7 +2087,6 @@
   },
   "deleteAccount": {
     "title": "Delete Your Account",
-    "lastUpdated": "Last updated: June 2026",
     "intro": {
       "title": "How to Delete Your Orbit Account",
       "body": "You can permanently delete your Orbit account and all associated data at any time. You do not need to be signed in on this page to learn how — deletion is available directly inside the app and by email request."
@@ -2115,17 +2114,10 @@
     }
   },
   "dataExport": {
-    "title": "Download my data",
-    "description": "Export all your Orbit data (habits, logs, goals, tags, AI memory facts, and settings) as a JSON file.",
     "button": "Download my data",
     "preparing": "Preparing your export...",
-    "success": "Your data export is ready.",
     "error": "We couldn't prepare your export. Please try again.",
     "shareTitle": "Orbit data export"
-  },
-  "ageGate": {
-    "confirmLabel": "I confirm I am at least 13 years old",
-    "error": "You must be at least 13 years old to use Orbit."
   },
   "aiDisclosure": {
     "isAiLabel": "AI",
