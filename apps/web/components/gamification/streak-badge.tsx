@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 
@@ -12,9 +13,11 @@ interface StreakBadgeProps {
  * v8 streak badge — outline flame + tabular streak count in a hairline pill.
  * No orange gradient, no semantic "tiers". Stroke color is status-bad for an
  * active streak, fg-3 otherwise. Frozen state swaps the icon for a snowflake.
+ * Tapping the badge navigates to the streak page.
  */
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const t = useTranslations()
+  const router = useRouter()
 
   if (streak <= 0) return null
 
@@ -26,9 +29,11 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       : 'var(--fg-3)'
 
   return (
-    <output
+    <button
+      type="button"
       aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
-      className="inline-flex items-center"
+      onClick={() => router.push('/streak')}
+      className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
       style={{
         boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
         borderRadius: 6,
@@ -77,6 +82,6 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       >
         {streak}
       </span>
-    </output>
+    </button>
   )
 }

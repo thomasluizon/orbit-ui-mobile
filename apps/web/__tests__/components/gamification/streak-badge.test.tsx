@@ -1,5 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+
+const pushMock = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -15,6 +21,10 @@ vi.mock('@/lib/plural', () => ({
 import { StreakBadge } from '@/components/gamification/streak-badge'
 
 describe('StreakBadge', () => {
+  beforeEach(() => {
+    pushMock.mockClear()
+  })
+
   it('renders nothing when streak is 0', () => {
     const { container } = render(<StreakBadge streak={0} />)
     expect(container.innerHTML).toBe('')
@@ -25,15 +35,20 @@ describe('StreakBadge', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders badge for positive streak', () => {
+  it('renders badge as a button for positive streak', () => {
     render(<StreakBadge streak={3} />)
-    const output = document.querySelector('output')
-    expect(output).toBeInTheDocument()
+    expect(screen.getByRole('button')).toBeInTheDocument()
   })
 
   it('displays streak count', () => {
     render(<StreakBadge streak={5} />)
     expect(document.body.textContent).toContain('5')
+  })
+
+  it('navigates to the streak page when clicked', () => {
+    render(<StreakBadge streak={5} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(pushMock).toHaveBeenCalledWith('/streak')
   })
 
   it('shows frozen icon when isFrozen is true', () => {
@@ -49,7 +64,6 @@ describe('StreakBadge', () => {
 
   it('has accessible aria-label', () => {
     render(<StreakBadge streak={10} />)
-    const output = document.querySelector('output')
-    expect(output).toHaveAttribute('aria-label')
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label')
   })
 })
