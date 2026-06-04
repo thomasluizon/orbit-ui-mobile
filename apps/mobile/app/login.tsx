@@ -353,7 +353,7 @@ export default function LoginScreen() {
   }
 
   function openTerms() {
-    router.push('/terms')
+    Linking.openURL('https://app.useorbit.org/terms')
   }
 
   const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
