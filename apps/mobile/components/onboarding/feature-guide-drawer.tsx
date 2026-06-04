@@ -5,7 +5,6 @@ import {
   Text,
   View,
 } from 'react-native'
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -152,7 +151,7 @@ export function FeatureGuideDrawer({
         </ScrollView>
       </View>
 
-      <BottomSheetScrollView
+      <ScrollView
         style={styles.sectionScroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={withDrawerContentInset(styles.sectionContent)}
@@ -163,7 +162,7 @@ export function FeatureGuideDrawer({
             <Text style={styles.sectionDesc}>{t(item.descKey)}</Text>
           </View>
         ))}
-      </BottomSheetScrollView>
+      </ScrollView>
     </BottomSheetModal>
   )
 }

@@ -208,7 +208,6 @@ export function EditHabitModal({
         onClose={onClose}
         title={t('habits.editHabit')}
         snapPoints={['80%', '95%']}
-        formMode
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}

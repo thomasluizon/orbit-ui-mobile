@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
@@ -169,7 +168,7 @@ export function HabitDetailDrawer({
         snapPoints={['68%', '92%']}
       >
         {habit ? (
-          <BottomSheetScrollView
+          <ScrollView
             style={styles.scroll}
             contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
             showsVerticalScrollIndicator={false}
@@ -327,7 +326,7 @@ export function HabitDetailDrawer({
                 strokeWidth={1.7}
               />
             </TouchableOpacity>
-          </BottomSheetScrollView>
+          </ScrollView>
         ) : null}
       </BottomSheetModal>
     </>

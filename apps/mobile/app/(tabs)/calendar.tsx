@@ -25,7 +25,6 @@ import {
   getDate,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { formatAPIDate, parseAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { plural } from "@/lib/plural";
@@ -378,7 +377,7 @@ export default function CalendarScreen() {
             </Text>
           </View>
         ) : (
-          <BottomSheetScrollView
+          <ScrollView
             style={styles.dayDetailScroll}
             contentContainerStyle={withDrawerContentInset(styles.dayDetailContent)}
             showsVerticalScrollIndicator={false}
@@ -448,7 +447,7 @@ export default function CalendarScreen() {
                 {t("calendar.goToDay")}
               </Text>
             </Pressable>
-          </BottomSheetScrollView>
+          </ScrollView>
         )}
       </BottomSheetModal>
     </SafeAreaView>

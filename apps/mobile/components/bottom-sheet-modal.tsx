@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native'
 import {
-  BottomSheetBackdrop,
-  BottomSheetModal as GorhomBottomSheetModal,
-  type BottomSheetBackdropProps,
-  type BottomSheetBackgroundProps,
-} from '@gorhom/bottom-sheet'
-import { ReduceMotion } from 'react-native-reanimated'
+  Animated,
+  BackHandler,
+  Dimensions,
+  Easing,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
@@ -21,6 +27,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
 type AppTokens = ReturnType<typeof createTokensV2>
+type DismissReason = 'backdrop' | 'close-button' | 'navigation' | 'system-back'
 
 interface BottomSheetModalProps {
   open: boolean
@@ -29,22 +36,30 @@ interface BottomSheetModalProps {
   /** Change this value to force re-present when `open` stays true (e.g. switching content). */
   contentKey?: string
   snapPoints?: (string | number)[]
-  formMode?: boolean
   canDismiss?: boolean
   isDirty?: boolean
-  onAttemptDismiss?: (reason: 'backdrop' | 'close-button' | 'navigation' | 'system-back') => void
+  onAttemptDismiss?: (reason: DismissReason) => void
   children: ReactNode
 }
 
 const DEFAULT_SNAP_POINTS: (string | number)[] = ['50%', '80%']
+const SCREEN_HEIGHT = Dimensions.get('window').height
 
+/**
+ * Bottom-sheet modal built on React Native's core `Modal` + `Animated` rather
+ * than @gorhom/bottom-sheet. gorhom's `present()` relies on a
+ * requestAnimationFrame-gated state flip plus a portal teleport, both of which
+ * silently no-op on the New Architecture (Fabric/Bridgeless) in release builds.
+ * RN's `Modal`/`Animated` are architecture-agnostic, so the sheet opens
+ * reliably. The public props mirror the previous gorhom wrapper so callers are
+ * unchanged.
+ */
 export function BottomSheetModal({
   open,
   onClose,
   title,
   contentKey,
   snapPoints: snapPointsProp,
-  formMode = false,
   canDismiss = true,
   isDirty = false,
   onAttemptDismiss,
@@ -55,77 +70,94 @@ export function BottomSheetModal({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const insets = useSafeAreaInsets()
   const styles = useMemo(() => createStyles(tokens, surfaces), [tokens, surfaces])
-  const bottomSheetRef = useRef<GorhomBottomSheetModal>(null)
-  const isOpenRef = useRef(open)
+  const insets = useSafeAreaInsets()
+  const prefersReducedMotion = usePrefersReducedMotion()
+
+  const snapPoints = snapPointsProp ?? DEFAULT_SNAP_POINTS
+  const sheetHeight = useMemo(() => resolveSheetHeight(snapPoints), [snapPoints])
+
   const overlayStateRef = useRef(createBottomSheetOverlayState())
   // Lazy useState keeps Date.now() / Math.random() out of render (purity rule).
   const [overlayId] = useState(
     () => `sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   )
   const overlayIdRef = useRef(overlayId)
-  const [isPresented, setIsPresented] = useState(false)
 
-  const desiredSnapPoints = snapPointsProp ?? DEFAULT_SNAP_POINTS
-  const snapPointsRef = useRef<(string | number)[]>(desiredSnapPoints)
-  if (snapPointsRef.current.join('|') !== desiredSnapPoints.join('|')) {
-    snapPointsRef.current = desiredSnapPoints
-  }
-  const snapPoints = snapPointsRef.current
+  const [visible, setVisible] = useState(open)
+  const [isPresented, setIsPresented] = useState(false)
+  const isOpenRef = useRef(open)
+
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const backdropOpacity = useRef(new Animated.Value(0)).current
 
   const requestClose = useCallback(
-    (reason: 'backdrop' | 'close-button' | 'navigation' | 'system-back') => {
-      return requestBottomSheetClose(overlayStateRef.current, {
+    (reason: DismissReason) =>
+      requestBottomSheetClose(overlayStateRef.current, {
         canDismiss,
-        dismissSheet: () => {
-          bottomSheetRef.current?.dismiss()
-        },
+        dismissSheet: onClose,
         isDirty,
         onAttemptDismiss,
         reason,
-      })
-    },
-    [canDismiss, isDirty, onAttemptDismiss],
-  )
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.62}
-        pressBehavior={canDismiss && !isDirty ? 'close' : 'none'}
-        onPress={() => {
-          if (isTopOverlay(overlayIdRef.current)) {
-            requestClose('backdrop')
-          }
-        }}
-      />
-    ),
-    [canDismiss, isDirty, requestClose],
-  )
-
-  const renderBackground = useCallback(
-    ({ style }: BottomSheetBackgroundProps) => (
-      <View style={[style, styles.sheetBackground]} />
-    ),
-    [styles.sheetBackground],
+      }),
+    [canDismiss, isDirty, onAttemptDismiss, onClose],
   )
 
   useEffect(() => {
     isOpenRef.current = open
-  }, [open])
+    translateY.stopAnimation()
+    backdropOpacity.stopAnimation()
+
+    if (open) {
+      setVisible(true)
+      const duration = prefersReducedMotion ? 0 : 300
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) setIsPresented(true)
+      })
+    } else {
+      const duration = prefersReducedMotion ? 0 : 240
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: SCREEN_HEIGHT,
+          duration,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setVisible(false)
+          setIsPresented(false)
+        }
+      })
+    }
+  }, [open, contentKey, prefersReducedMotion, translateY, backdropOpacity])
 
   useEffect(() => {
-    if (open) {
-      bottomSheetRef.current?.present()
-    } else {
-      bottomSheetRef.current?.dismiss()
-    }
-  }, [open, contentKey])
+    syncBottomSheetOverlayRegistration(overlayStateRef.current, {
+      isPresented,
+      overlayId: overlayIdRef.current,
+      register: registerOverlay,
+      requestClose,
+      unregister: unregisterOverlay,
+    })
+  }, [isPresented, requestClose])
 
   useEffect(
     () => () => {
@@ -148,78 +180,106 @@ export function BottomSheetModal({
     return () => subscription.remove()
   }, [isPresented, requestClose])
 
-  const handleChange = useCallback(
-    (index: number) => {
-      const nextPresented = index >= 0
-      setIsPresented(nextPresented)
-      syncBottomSheetOverlayRegistration(overlayStateRef.current, {
-        isPresented: nextPresented,
-        overlayId: overlayIdRef.current,
-        register: registerOverlay,
-        requestClose,
-        unregister: unregisterOverlay,
-      })
-    },
-    [requestClose],
-  )
-
-  const handleDismiss = useCallback(() => {
-    setIsPresented(false)
-    teardownBottomSheetOverlay(overlayStateRef.current, {
-      overlayId: overlayIdRef.current,
-      unregister: unregisterOverlay,
-    })
-
-    if (isOpenRef.current) {
-      isOpenRef.current = false
-      onClose()
-    }
-  }, [onClose])
+  if (!visible) return null
 
   return (
-    <GorhomBottomSheetModal
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onChange={handleChange}
-      onDismiss={handleDismiss}
-      backdropComponent={renderBackdrop}
-      backgroundComponent={renderBackground}
-      enablePanDownToClose={canDismiss && !isDirty}
-      enableBlurKeyboardOnGesture={formMode}
-      enableContentPanningGesture
-      keyboardBehavior={formMode ? 'extend' : 'interactive'}
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-      bottomInset={insets.bottom}
-      animateOnMount={!prefersReducedMotion}
-      overrideReduceMotion={prefersReducedMotion ? ReduceMotion.Always : ReduceMotion.Never}
-      handleIndicatorStyle={styles.handleIndicator}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={() => requestClose('system-back')}
     >
-      {title ? (
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => requestClose('close-button')}
-            activeOpacity={0.7}
-          >
-            <X size={18} color={tokens.fg3} />
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <View style={styles.root}>
+        <Animated.View
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+          pointerEvents={isPresented ? 'auto' : 'none'}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              if (canDismiss && !isDirty && isTopOverlay(overlayIdRef.current)) {
+                requestClose('backdrop')
+              }
+            }}
+          />
+        </Animated.View>
 
-      {children}
-    </GorhomBottomSheetModal>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          pointerEvents="box-none"
+        >
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                height: sheetHeight + insets.bottom,
+                paddingBottom: insets.bottom,
+                transform: [{ translateY }],
+              },
+            ]}
+          >
+            <View style={styles.handle} />
+
+            {title ? (
+              <View style={styles.header}>
+                <Text style={styles.title}>{title}</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => requestClose('close-button')}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color={tokens.fg3} />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <View style={styles.content}>{children}</View>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   )
+}
+
+function resolveSheetHeight(snapPoints: (string | number)[]): number {
+  const largest = snapPoints[snapPoints.length - 1] ?? '85%'
+  if (typeof largest === 'number') return largest
+  const percent = Number.parseFloat(largest)
+  const ratio = Number.isFinite(percent) ? percent / 100 : 0.85
+  return SCREEN_HEIGHT * ratio
 }
 
 function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme>['surfaces']) {
   return StyleSheet.create({
-    handleIndicator: {
+    root: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.62)',
+    },
+    keyboardView: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: surfaces.overlay.backgroundColor,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: surfaces.overlay.borderColor,
+      overflow: 'hidden',
+    },
+    handle: {
+      alignSelf: 'center',
       backgroundColor: tokens.hairlineStrong,
       width: 42,
       height: 4,
+      borderRadius: 2,
+      marginTop: 10,
     },
     header: {
       flexDirection: 'row',
@@ -246,15 +306,8 @@ function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sheetBackground: {
-      backgroundColor: surfaces.overlay.backgroundColor,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: surfaces.overlay.borderColor,
-      overflow: 'hidden',
-      ...surfaces.overlay.shadow,
-      elevation: surfaces.overlay.elevation,
+    content: {
+      flex: 1,
     },
   })
 }

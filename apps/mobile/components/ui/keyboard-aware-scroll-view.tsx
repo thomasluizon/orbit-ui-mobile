@@ -29,10 +29,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import {
-  BottomSheetScrollView,
-  type BottomSheetScrollViewMethods,
-} from '@gorhom/bottom-sheet'
 import { withDrawerContentInset } from './drawer-content-inset'
 
 interface KeyboardAwareViewProps {
@@ -50,17 +46,9 @@ interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView>
 }
 
 interface KeyboardAwareBottomSheetScrollViewProps
-  extends Omit<
-    ComponentProps<typeof BottomSheetScrollView>,
-    'onScroll' | 'contentContainerStyle'
-  > {
+  extends ComponentProps<typeof ScrollView> {
   children: ReactNode
   keyboardVerticalOffset?: number
-  // This wrapper drives scroll + content inset with plain RN types; narrow the
-  // reanimated-typed onScroll/contentContainerStyle from @gorhom/bottom-sheet so
-  // they stay callable/assignable here.
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
-  contentContainerStyle?: StyleProp<ViewStyle>
 }
 
 interface KeyboardAwareFlatListProps<ItemT> extends FlatListProps<ItemT> {
@@ -342,7 +330,7 @@ export function KeyboardAwareBottomSheetScrollView({
   keyboardShouldPersistTaps = 'always',
   ...props
 }: Readonly<KeyboardAwareBottomSheetScrollViewProps>) {
-  const scrollRef = useRef<BottomSheetScrollViewMethods>(null)
+  const scrollRef = useRef<ScrollView>(null)
   const keyboardAwareContext = useKeyboardAwareContextValue(
     scrollRef as RefObject<KeyboardAwareScrollable | null>,
     keyboardVerticalOffset,
@@ -361,15 +349,17 @@ export function KeyboardAwareBottomSheetScrollView({
 
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
-      <BottomSheetScrollView
+      <ScrollView
         {...props}
         ref={scrollRef}
+        style={[styles.container, props.style]}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={contentContainerStyle}
         onScroll={handleScroll}
       >
         {children}
-      </BottomSheetScrollView>
+      </ScrollView>
     </KeyboardAwareContext.Provider>
   )
 }

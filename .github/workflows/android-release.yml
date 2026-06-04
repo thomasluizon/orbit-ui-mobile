@@ -115,12 +115,11 @@ jobs:
           node <<'NODE'
           const pkg = require('./package.json')
 
-          // The @gorhom/bottom-sheet modal stack only animates when this exact
-          // set resolves together: Reanimated 4.2.1 is built against worklets
-          // 0.7.2, and the Expo SDK 55.0.12 module set is the one verified to
-          // open modals on Android release. A from-scratch resolve drifts these
-          // to newer patches and present() silently no-ops, shipping a broken
-          // AAB to Google Play. Fail the build here instead.
+          // Keep the verified coherent set together: reanimated 4.2.1 is built
+          // against worklets 0.7.2 (ABI), and the Expo SDK 55.0.12 module set is
+          // the one verified to build the release AAB. A from-scratch resolve can
+          // drift these to newer patches and break reanimated or the build. Fail
+          // here instead of shipping a broken AAB to Google Play.
           const checks = [
             ['react-native-worklets', pkg.overrides['react-native-worklets']],
             ['react-native-reanimated', pkg.dependencies['react-native-reanimated']],
@@ -140,8 +139,8 @@ jobs:
           if (mismatches.length > 0) {
             console.error(
               `::error::Pinned native module versions drifted: ${mismatches.join('; ')}. ` +
-                'This set ships the @gorhom/bottom-sheet modals working on Android; a newer ' +
-                'resolve makes present() silently no-op. Fix the pins/overrides in apps/mobile/package.json.'
+                'This is the verified coherent reanimated + Expo SDK 55.0.12 set; a newer ' +
+                'resolve can break reanimated or the release build. Fix the pins/overrides in apps/mobile/package.json.'
             )
             process.exit(1)
           }

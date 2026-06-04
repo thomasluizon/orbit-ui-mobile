@@ -1,13 +1,13 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   ActivityIndicator,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Check, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
@@ -66,7 +66,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
       title={t('referral.drawer.title')}
       snapPoints={['65%', '85%']}
     >
-      <BottomSheetScrollView
+      <ScrollView
         style={styles.scroll}
         contentContainerStyle={withDrawerContentInset(styles.content)}
         showsVerticalScrollIndicator={false}
@@ -201,7 +201,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
             </Text>
           </>
         ) : null}
-      </BottomSheetScrollView>
+      </ScrollView>
     </BottomSheetModal>
   )
 }

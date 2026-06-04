@@ -48,10 +48,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-native-svg.ts'),
       },
       {
-        find: '@gorhom/bottom-sheet',
-        replacement: path.resolve(__dirname, './test-mocks/gorhom-bottom-sheet.tsx'),
-      },
-      {
         find: '@react-native-async-storage/async-storage',
         replacement: path.resolve(__dirname, './test-mocks/async-storage.ts'),
       },

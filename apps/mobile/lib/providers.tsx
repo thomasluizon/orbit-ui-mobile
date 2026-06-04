@@ -1,7 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { QueryClientProvider } from '@tanstack/react-query'
-import Animated from 'react-native-reanimated'
 import {
   useFonts,
   Geist_300Light,
@@ -125,17 +123,10 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <ThemeProvider>
-      <BottomSheetModalProvider>
-        {/* Always-mounted Animated.View stabilizes the Reanimated worklet graph
-            that @gorhom/bottom-sheet's portal depends on. Without it on Android,
-            BottomSheetModal.present() silently no-ops (PR #71 regression, first
-            patched in PR #75 inside HabitCard). Hosting it at the provider level
-            keeps modals working even on screens with no HabitCard rendered. */}
-        <Animated.View style={{ flex: 1 }}>
-          <OfflineManager />
-          {children}
-        </Animated.View>
-      </BottomSheetModalProvider>
+      <View style={{ flex: 1 }}>
+        <OfflineManager />
+        {children}
+      </View>
     </ThemeProvider>
   )
 }
