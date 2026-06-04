@@ -859,7 +859,7 @@
     },
     "controller": {
       "title": "Quem Controla Seus Dados",
-      "body": "O controlador dos dados é [NOME DA EMPRESA] LTDA (CNPJ [NÚMERO DO CNPJ]), a empresa que opera o Orbit. Para solicitações ou dúvidas sobre privacidade, fale com nosso responsável pela proteção de dados em contact@useorbit.org."
+      "body": "O controlador dos dados é TL SOFTWARE ENGINEERING LTDA (CNPJ [NÚMERO DO CNPJ]), a empresa que opera o Orbit. Para solicitações ou dúvidas sobre privacidade, fale com nosso responsável pela proteção de dados em contact@useorbit.org."
     },
     "dataCollected": {
       "title": "Dados que Armazenamos",
@@ -2035,7 +2035,7 @@
     },
     "provider": {
       "title": "Quem Fornece o Orbit",
-      "body": "O Orbit é fornecido por [NOME DA EMPRESA] LTDA (CNPJ [NÚMERO DO CNPJ]). Ao longo destes termos, \"nós\" e \"Orbit\" se referem a esta empresa."
+      "body": "O Orbit é fornecido por TL SOFTWARE ENGINEERING LTDA (CNPJ [NÚMERO DO CNPJ]). Ao longo destes termos, \"nós\" e \"Orbit\" se referem a esta empresa."
     },
     "eligibility": {
       "title": "Elegibilidade",
