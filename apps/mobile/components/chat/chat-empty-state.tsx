@@ -22,6 +22,9 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
           {t("chat.suggestion.prompt")}
         </Text>
         <SuggestionChips onSelect={onSelectSuggestion} />
+        <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
+          {t("aiDisclosure.notMedicalAdvice")}
+        </Text>
       </View>
     );
   },

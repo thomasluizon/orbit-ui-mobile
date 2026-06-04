@@ -195,7 +195,7 @@
     "refresh": "Refresh",
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
-    "legalPrefix": "By signing in you agree to the",
+    "legalPrefix": "By signing in you confirm you are at least 13 years old and agree to the",
     "legalConjunction": "and",
     "terms": "Terms",
     "privacy": "Privacy",
@@ -852,10 +852,14 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: April 2026",
+    "lastUpdated": "Last updated: June 2026",
     "intro": {
       "title": "Introduction",
-      "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights."
+      "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights under the LGPD (Lei Geral de Proteção de Dados) and equivalent data-protection laws."
+    },
+    "controller": {
+      "title": "Who Controls Your Data",
+      "body": "The data controller is [LEGAL ENTITY NAME] LTDA (CNPJ [CNPJ NUMBER]), the company that operates Orbit. For privacy requests or questions, contact our data protection lead at contact@useorbit.org."
     },
     "dataCollected": {
       "title": "Data We Store",
@@ -886,6 +890,37 @@
     "security": {
       "title": "Data Security",
       "body": "All connections to Orbit use HTTPS encryption. Authentication uses rotating refresh sessions. Payment information is handled entirely by Stripe and never touches our servers."
+    },
+    "retention": {
+      "title": "How Long We Keep Your Data",
+      "intro": "We retain your data only as long as needed to provide the service:",
+      "account": "Account data: kept for as long as your account is active.",
+      "sessions": "Authentication sessions and push tokens: kept while active and removed on logout, token expiry, or device unsubscribe.",
+      "ai": "AI chat history and memory facts: kept while AI features are enabled; deleting your account or clearing AI memory removes them.",
+      "afterDeletion": "After account deletion or the 7-day grace period, your personal data is permanently erased except where the law requires us to retain limited records."
+    },
+    "googleScopes": {
+      "title": "Google Account & Calendar Access",
+      "intro": "If you connect Google, we request only the scopes needed for the features you use:",
+      "auth": "Basic profile and email, to create and identify your account.",
+      "calendar": "Read access to your Google Calendar events, used solely to show events alongside your habits and to suggest imports.",
+      "control": "We never expose raw Google event payloads to the AI, and you can disconnect Google at any time, which deletes the stored access and refresh tokens."
+    },
+    "dataResidency": {
+      "title": "Where Your Data Is Stored",
+      "body": "Orbit's database and application servers are hosted with Supabase and Render. Some subprocessors (such as OpenAI, Stripe, and Google) may process data outside Brazil. International transfers rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
+    },
+    "automatedProcessing": {
+      "title": "AI & Automated Processing",
+      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI memory and AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
+    },
+    "minors": {
+      "title": "Age Requirement",
+      "body": "Orbit is not directed to children. You must be at least 13 years old to create an account. If we learn that we have collected data from a child under 13 without appropriate consent, we will delete it."
+    },
+    "export": {
+      "title": "Your Right to Export Your Data",
+      "body": "You can download a copy of all your Orbit data (habits, logs, goals, tags, AI memory facts, and settings) as a JSON file from the Profile page, in line with your data-portability rights under LGPD Art. 18."
     },
     "deletion": {
       "title": "Data Deletion",
@@ -1990,5 +2025,111 @@
         "description": "Earn XP and level up as you build habits. Unlock achievements for milestones like streak records, completion rates, and more."
       }
     }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: June 2026",
+    "intro": {
+      "title": "Agreement",
+      "body": "These Terms of Service govern your use of Orbit, a personal habit tracking app. By creating an account or using Orbit, you agree to these terms. If you do not agree, do not use the app."
+    },
+    "provider": {
+      "title": "Who Provides Orbit",
+      "body": "Orbit is provided by [LEGAL ENTITY NAME] LTDA (CNPJ [CNPJ NUMBER]). Throughout these terms, \"we\", \"us\", and \"Orbit\" refer to this company."
+    },
+    "eligibility": {
+      "title": "Eligibility",
+      "body": "You must be at least 13 years old to use Orbit. By using the app you represent that you meet this age requirement and that the information you provide is accurate."
+    },
+    "license": {
+      "title": "License & Acceptable Use",
+      "body": "We grant you a personal, non-transferable, revocable license to use Orbit for tracking your own habits. You agree not to misuse the service, reverse engineer it, disrupt it, attempt unauthorized access, or use it to violate any law or the rights of others."
+    },
+    "subscription": {
+      "title": "Subscriptions & Billing",
+      "intro": "Orbit offers a free tier and a paid Pro subscription billed monthly or yearly through Stripe.",
+      "autoRenew": "Paid subscriptions renew automatically at the end of each billing period at the then-current price, unless you cancel before the renewal date.",
+      "cancel": "You can cancel at any time from your subscription settings; cancellation is as easy as signing up and takes effect at the end of the current paid period.",
+      "refunds": "Except where required by applicable consumer-protection law, payments are non-refundable for partial periods. We will honor refund rights granted by Brazilian consumer law (CDC)."
+    },
+    "ai": {
+      "title": "AI Features",
+      "body": "Orbit includes an AI assistant (Astra) powered by third-party providers such as OpenAI. AI output is generated automatically, may be inaccurate or incomplete, and is provided for assistance only. You are responsible for how you act on AI suggestions."
+    },
+    "noMedicalAdvice": {
+      "title": "Not Medical or Professional Advice",
+      "body": "Orbit and its AI features are for informational and self-organization purposes only. Orbit is not a medical device and does not provide medical, psychological, legal, financial, or other professional advice. Always consult a qualified professional for such matters and never disregard professional advice because of something in the app."
+    },
+    "warranty": {
+      "title": "Warranty Disclaimer",
+      "body": "Orbit is provided \"as is\" and \"as available\" without warranties of any kind, express or implied, to the maximum extent permitted by law. We do not warrant that the service will be uninterrupted, error-free, or that data will never be lost."
+    },
+    "liability": {
+      "title": "Limitation of Liability",
+      "body": "To the maximum extent permitted by applicable law, we are not liable for indirect, incidental, or consequential damages arising from your use of Orbit. Nothing in these terms limits rights that cannot be limited under Brazilian consumer law."
+    },
+    "termination": {
+      "title": "Termination",
+      "body": "You may stop using Orbit and delete your account at any time. We may suspend or terminate access if you violate these terms or use the service in a way that harms Orbit or other users."
+    },
+    "governingLaw": {
+      "title": "Governing Law",
+      "body": "These terms are governed by the laws of the Federative Republic of Brazil, without regard to conflict-of-law rules. Disputes are subject to the courts of Brazil, subject to any mandatory consumer-protection venue rules."
+    },
+    "changes": {
+      "title": "Changes to These Terms",
+      "body": "We may update these terms from time to time. Material changes will be communicated in the app or by email. Continued use after changes take effect constitutes acceptance of the updated terms."
+    },
+    "contact": {
+      "title": "Contact",
+      "body": "Questions about these terms? Contact us at contact@useorbit.org."
+    }
+  },
+  "deleteAccount": {
+    "title": "Delete Your Account",
+    "lastUpdated": "Last updated: June 2026",
+    "intro": {
+      "title": "How to Delete Your Orbit Account",
+      "body": "You can permanently delete your Orbit account and all associated data at any time. You do not need to be signed in on this page to learn how — deletion is available directly inside the app and by email request."
+    },
+    "inApp": {
+      "title": "Delete From Inside the App",
+      "intro": "The fastest way to delete your account is from the app:",
+      "step1": "1. Open Orbit and go to the Profile tab.",
+      "step2": "2. Tap \"Delete account\".",
+      "step3": "3. We email you a 6-digit confirmation code.",
+      "step4": "4. Enter the code to confirm. Your account is deactivated immediately."
+    },
+    "grace": {
+      "title": "7-Day Grace Period",
+      "body": "After you confirm deletion, your account is deactivated right away and permanently deleted after a 7-day grace period. Signing in again within those 7 days reactivates your account and cancels the deletion."
+    },
+    "webFallback": {
+      "title": "Request Deletion by Email",
+      "body": "If you can no longer access the app, email contact@useorbit.org from the address associated with your account and ask us to delete it. We will verify your identity and process the request.",
+      "button": "Email a deletion request"
+    },
+    "data": {
+      "title": "What Gets Deleted",
+      "body": "Deletion removes your habits, completion history, goals, tags, AI conversations and memory facts, settings, and account profile. This action is irreversible once the grace period ends."
+    }
+  },
+  "dataExport": {
+    "title": "Download my data",
+    "description": "Export all your Orbit data (habits, logs, goals, tags, AI memory facts, and settings) as a JSON file.",
+    "button": "Download my data",
+    "preparing": "Preparing your export...",
+    "success": "Your data export is ready.",
+    "error": "We couldn't prepare your export. Please try again.",
+    "shareTitle": "Orbit data export"
+  },
+  "ageGate": {
+    "confirmLabel": "I confirm I am at least 13 years old",
+    "error": "You must be at least 13 years old to use Orbit."
+  },
+  "aiDisclosure": {
+    "isAiLabel": "AI",
+    "isAiTooltip": "Astra is an AI assistant. Responses are generated automatically.",
+    "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
   }
 }

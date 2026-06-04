@@ -13,6 +13,7 @@ export default function PrivacyPage() {
 
   const sections: { label: string; body: string }[] = [
     { label: t('privacy.intro.title'), body: t('privacy.intro.body') },
+    { label: t('privacy.controller.title'), body: t('privacy.controller.body') },
     { label: t('privacy.dataCollected.title'), body: [
       t('privacy.dataCollected.account'),
       t('privacy.dataCollected.habits'),
@@ -32,6 +33,23 @@ export default function PrivacyPage() {
       t('privacy.thirdParty.openai'),
       t('privacy.thirdParty.resend'),
     ].join(' ') },
+    { label: t('privacy.retention.title'), body: [
+      t('privacy.retention.intro'),
+      t('privacy.retention.account'),
+      t('privacy.retention.sessions'),
+      t('privacy.retention.ai'),
+      t('privacy.retention.afterDeletion'),
+    ].join(' ') },
+    { label: t('privacy.googleScopes.title'), body: [
+      t('privacy.googleScopes.intro'),
+      t('privacy.googleScopes.auth'),
+      t('privacy.googleScopes.calendar'),
+      t('privacy.googleScopes.control'),
+    ].join(' ') },
+    { label: t('privacy.dataResidency.title'), body: t('privacy.dataResidency.body') },
+    { label: t('privacy.automatedProcessing.title'), body: t('privacy.automatedProcessing.body') },
+    { label: t('privacy.minors.title'), body: t('privacy.minors.body') },
+    { label: t('privacy.export.title'), body: t('privacy.export.body') },
     { label: t('privacy.noSell.title'), body: t('privacy.noSell.body') },
     { label: t('privacy.security.title'), body: t('privacy.security.body') },
     { label: t('privacy.deletion.title'), body: [

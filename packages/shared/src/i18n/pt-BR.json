@@ -195,7 +195,7 @@
     "refresh": "Atualizar",
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
-    "legalPrefix": "Ao entrar, você concorda com os",
+    "legalPrefix": "Ao entrar, você confirma ter pelo menos 13 anos e concorda com os",
     "legalConjunction": "e a",
     "terms": "Termos",
     "privacy": "Privacidade",
@@ -852,10 +852,14 @@
   },
   "privacy": {
     "title": "Política de Privacidade",
-    "lastUpdated": "Última atualização: Abril de 2026",
+    "lastUpdated": "Última atualização: Junho de 2026",
     "intro": {
       "title": "Introdução",
-      "body": "O Orbit é um aplicativo de rastreamento de hábitos pessoais. Levamos sua privacidade a sério e estamos comprometidos em proteger seus dados pessoais. Esta política explica quais dados armazenamos, como os usamos e seus direitos."
+      "body": "O Orbit é um aplicativo de rastreamento de hábitos pessoais. Levamos sua privacidade a sério e estamos comprometidos em proteger seus dados pessoais. Esta política explica quais dados armazenamos, como os usamos e seus direitos sob a LGPD (Lei Geral de Proteção de Dados) e leis equivalentes de proteção de dados."
+    },
+    "controller": {
+      "title": "Quem Controla Seus Dados",
+      "body": "O controlador dos dados é [NOME DA EMPRESA] LTDA (CNPJ [NÚMERO DO CNPJ]), a empresa que opera o Orbit. Para solicitações ou dúvidas sobre privacidade, fale com nosso responsável pela proteção de dados em contact@useorbit.org."
     },
     "dataCollected": {
       "title": "Dados que Armazenamos",
@@ -886,6 +890,37 @@
     "security": {
       "title": "Segurança dos Dados",
       "body": "Todas as conexões com o Orbit usam criptografia HTTPS. A autenticação usa sessões de atualização rotativas. Informações de pagamento são tratadas inteiramente pelo Stripe e nunca passam por nossos servidores."
+    },
+    "retention": {
+      "title": "Por Quanto Tempo Guardamos Seus Dados",
+      "intro": "Mantemos seus dados apenas pelo tempo necessário para fornecer o serviço:",
+      "account": "Dados da conta: mantidos enquanto sua conta estiver ativa.",
+      "sessions": "Sessões de autenticação e tokens de push: mantidos enquanto ativos e removidos ao sair, na expiração do token ou ao cancelar a inscrição do dispositivo.",
+      "ai": "Histórico de chat com IA e fatos de memória: mantidos enquanto os recursos de IA estiverem ativos; excluir sua conta ou limpar a memória da IA os remove.",
+      "afterDeletion": "Após a exclusão da conta ou o período de carência de 7 dias, seus dados pessoais são apagados permanentemente, exceto quando a lei exige a retenção de registros limitados."
+    },
+    "googleScopes": {
+      "title": "Acesso à Conta e ao Google Agenda",
+      "intro": "Se você conectar o Google, solicitamos apenas os escopos necessários para os recursos que você usa:",
+      "auth": "Perfil básico e e-mail, para criar e identificar sua conta.",
+      "calendar": "Acesso de leitura aos eventos do seu Google Agenda, usado apenas para exibir eventos junto aos seus hábitos e sugerir importações.",
+      "control": "Nunca expomos os dados brutos dos eventos do Google à IA, e você pode desconectar o Google a qualquer momento, o que exclui os tokens de acesso e de atualização armazenados."
+    },
+    "dataResidency": {
+      "title": "Onde Seus Dados São Armazenados",
+      "body": "O banco de dados e os servidores do Orbit são hospedados na Supabase e na Render. Alguns suboperadores (como OpenAI, Stripe e Google) podem processar dados fora do Brasil. As transferências internacionais se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
+    },
+    "automatedProcessing": {
+      "title": "IA e Processamento Automatizado",
+      "body": "O assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é apenas assistivo e não toma decisões juridicamente significativas sobre você. Você pode desativar a memória da IA e os resumos da IA a qualquer momento nas Configurações de IA, e pode se opor ao processamento automatizado entrando em contato conosco."
+    },
+    "minors": {
+      "title": "Requisito de Idade",
+      "body": "O Orbit não é direcionado a crianças. Você deve ter pelo menos 13 anos para criar uma conta. Se soubermos que coletamos dados de uma criança menor de 13 anos sem o consentimento apropriado, iremos excluí-los."
+    },
+    "export": {
+      "title": "Seu Direito de Exportar Seus Dados",
+      "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags, fatos de memória da IA e configurações) como um arquivo JSON na página de Perfil, de acordo com seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
     },
     "deletion": {
       "title": "Exclusão de Dados",
@@ -1990,5 +2025,111 @@
         "description": "Ganhe XP e suba de nível conforme constrói hábitos. Desbloqueie conquistas para marcos como recordes de sequência, taxas de conclusão e mais."
       }
     }
+  },
+  "terms": {
+    "title": "Termos de Serviço",
+    "lastUpdated": "Última atualização: Junho de 2026",
+    "intro": {
+      "title": "Acordo",
+      "body": "Estes Termos de Serviço regem o seu uso do Orbit, um aplicativo de rastreamento de hábitos pessoais. Ao criar uma conta ou usar o Orbit, você concorda com estes termos. Se não concordar, não use o aplicativo."
+    },
+    "provider": {
+      "title": "Quem Fornece o Orbit",
+      "body": "O Orbit é fornecido por [NOME DA EMPRESA] LTDA (CNPJ [NÚMERO DO CNPJ]). Ao longo destes termos, \"nós\" e \"Orbit\" se referem a esta empresa."
+    },
+    "eligibility": {
+      "title": "Elegibilidade",
+      "body": "Você deve ter pelo menos 13 anos para usar o Orbit. Ao usar o aplicativo, você declara que atende a esse requisito de idade e que as informações fornecidas são verdadeiras."
+    },
+    "license": {
+      "title": "Licença e Uso Aceitável",
+      "body": "Concedemos a você uma licença pessoal, intransferível e revogável para usar o Orbit no rastreamento dos seus próprios hábitos. Você concorda em não usar o serviço de forma indevida, fazer engenharia reversa, interrompê-lo, tentar acesso não autorizado ou usá-lo para violar qualquer lei ou os direitos de terceiros."
+    },
+    "subscription": {
+      "title": "Assinaturas e Cobrança",
+      "intro": "O Orbit oferece um plano gratuito e uma assinatura Pro paga, cobrada mensal ou anualmente via Stripe.",
+      "autoRenew": "As assinaturas pagas renovam automaticamente ao final de cada período de cobrança, pelo preço vigente, a menos que você cancele antes da data de renovação.",
+      "cancel": "Você pode cancelar a qualquer momento nas configurações de assinatura; cancelar é tão fácil quanto assinar e passa a valer ao final do período pago atual.",
+      "refunds": "Exceto quando exigido pela legislação de proteção ao consumidor aplicável, os pagamentos não são reembolsáveis por períodos parciais. Respeitaremos os direitos de reembolso garantidos pelo Código de Defesa do Consumidor (CDC)."
+    },
+    "ai": {
+      "title": "Recursos de IA",
+      "body": "O Orbit inclui um assistente de IA (Astra) baseado em provedores terceiros como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e são fornecidas apenas como auxílio. Você é responsável por como age com base nas sugestões da IA."
+    },
+    "noMedicalAdvice": {
+      "title": "Não É Aconselhamento Médico ou Profissional",
+      "body": "O Orbit e seus recursos de IA têm finalidade apenas informativa e de auto-organização. O Orbit não é um dispositivo médico e não fornece aconselhamento médico, psicológico, jurídico, financeiro ou outro aconselhamento profissional. Sempre consulte um profissional qualificado para essas questões e nunca ignore o aconselhamento profissional por causa de algo no aplicativo."
+    },
+    "warranty": {
+      "title": "Isenção de Garantias",
+      "body": "O Orbit é fornecido \"como está\" e \"conforme disponível\", sem garantias de qualquer tipo, expressas ou implícitas, na máxima extensão permitida por lei. Não garantimos que o serviço será ininterrupto, livre de erros, nem que os dados nunca serão perdidos."
+    },
+    "liability": {
+      "title": "Limitação de Responsabilidade",
+      "body": "Na máxima extensão permitida pela lei aplicável, não somos responsáveis por danos indiretos, incidentais ou consequenciais decorrentes do seu uso do Orbit. Nada nestes termos limita direitos que não podem ser limitados pela legislação de defesa do consumidor brasileira."
+    },
+    "termination": {
+      "title": "Rescisão",
+      "body": "Você pode parar de usar o Orbit e excluir sua conta a qualquer momento. Podemos suspender ou encerrar o acesso se você violar estes termos ou usar o serviço de forma que prejudique o Orbit ou outros usuários."
+    },
+    "governingLaw": {
+      "title": "Legislação Aplicável",
+      "body": "Estes termos são regidos pelas leis da República Federativa do Brasil, sem considerar regras de conflito de leis. As controvérsias estão sujeitas aos tribunais do Brasil, observadas as regras obrigatórias de foro de defesa do consumidor."
+    },
+    "changes": {
+      "title": "Alterações nestes Termos",
+      "body": "Podemos atualizar estes termos periodicamente. Alterações relevantes serão comunicadas no aplicativo ou por e-mail. O uso contínuo após a entrada em vigor das alterações constitui aceitação dos termos atualizados."
+    },
+    "contact": {
+      "title": "Contato",
+      "body": "Dúvidas sobre estes termos? Entre em contato pelo contact@useorbit.org."
+    }
+  },
+  "deleteAccount": {
+    "title": "Excluir Sua Conta",
+    "lastUpdated": "Última atualização: Junho de 2026",
+    "intro": {
+      "title": "Como Excluir Sua Conta do Orbit",
+      "body": "Você pode excluir permanentemente sua conta do Orbit e todos os dados associados a qualquer momento. Não é preciso estar conectado nesta página para saber como — a exclusão está disponível diretamente no aplicativo e por solicitação via e-mail."
+    },
+    "inApp": {
+      "title": "Excluir Dentro do Aplicativo",
+      "intro": "A forma mais rápida de excluir sua conta é pelo aplicativo:",
+      "step1": "1. Abra o Orbit e vá até a aba Perfil.",
+      "step2": "2. Toque em \"Excluir conta\".",
+      "step3": "3. Enviamos um código de confirmação de 6 dígitos por e-mail.",
+      "step4": "4. Digite o código para confirmar. Sua conta é desativada imediatamente."
+    },
+    "grace": {
+      "title": "Período de Carência de 7 Dias",
+      "body": "Após confirmar a exclusão, sua conta é desativada na hora e excluída permanentemente após um período de carência de 7 dias. Entrar novamente nesses 7 dias reativa sua conta e cancela a exclusão."
+    },
+    "webFallback": {
+      "title": "Solicitar Exclusão por E-mail",
+      "body": "Se você não conseguir mais acessar o aplicativo, envie um e-mail para contact@useorbit.org a partir do endereço associado à sua conta e peça a exclusão. Verificaremos sua identidade e processaremos a solicitação.",
+      "button": "Enviar solicitação de exclusão"
+    },
+    "data": {
+      "title": "O Que É Excluído",
+      "body": "A exclusão remove seus hábitos, histórico de conclusão, metas, tags, conversas e fatos de memória da IA, configurações e o perfil da conta. Esta ação é irreversível após o fim do período de carência."
+    }
+  },
+  "dataExport": {
+    "title": "Baixar meus dados",
+    "description": "Exporte todos os seus dados do Orbit (hábitos, registros, metas, tags, fatos de memória da IA e configurações) como um arquivo JSON.",
+    "button": "Baixar meus dados",
+    "preparing": "Preparando sua exportação...",
+    "success": "Sua exportação de dados está pronta.",
+    "error": "Não foi possível preparar sua exportação. Tente novamente.",
+    "shareTitle": "Exportação de dados do Orbit"
+  },
+  "ageGate": {
+    "confirmLabel": "Confirmo que tenho pelo menos 13 anos",
+    "error": "Você precisa ter pelo menos 13 anos para usar o Orbit."
+  },
+  "aiDisclosure": {
+    "isAiLabel": "IA",
+    "isAiTooltip": "A Astra é um assistente de IA. As respostas são geradas automaticamente.",
+    "notMedicalAdvice": "A Astra é IA e pode errar. Isto não é aconselhamento médico ou profissional."
   }
 }

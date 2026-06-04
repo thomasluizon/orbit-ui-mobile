@@ -8,6 +8,7 @@ import type {
   SetWeekStartDayRequest,
   SetThemePreferenceRequest,
   SetColorSchemeRequest,
+  UserDataExport,
 } from '@orbit/shared'
 import { serverAuthFetch } from '@/lib/server-fetch'
 
@@ -81,6 +82,12 @@ export async function resetTour(): Promise<void> {
 export async function resetAccount(): Promise<void> {
   await serverAuthFetch('/api/profile/reset', {
     method: 'POST',
+  })
+}
+
+export async function exportUserData(): Promise<UserDataExport> {
+  return serverAuthFetch<UserDataExport>('/api/profile/export', {
+    method: 'GET',
   })
 }
 

@@ -201,6 +201,20 @@ export default function ChatPage() {
               {t('chat.suggestion.prompt')}
             </div>
             <SuggestionChips onSelect={(s) => sendMessage(s)} />
+            <div
+              className="text-center"
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 11,
+                color: 'var(--fg-3)',
+                maxWidth: 300,
+                lineHeight: 1.4,
+                fontStyle: 'italic',
+                marginTop: 4,
+              }}
+            >
+              {t('aiDisclosure.notMedicalAdvice')}
+            </div>
           </div>
         )}
 

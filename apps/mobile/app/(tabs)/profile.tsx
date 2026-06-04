@@ -8,8 +8,10 @@ import {
   StyleSheet,
   ScrollView,
   Modal,
+  Share,
   type TextInput,
 } from 'react-native'
+import { File, Paths } from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -17,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { parseISO } from 'date-fns'
 import { API } from '@orbit/shared/api'
+import type { UserDataExport } from '@orbit/shared'
 import { profileKeys } from '@orbit/shared/query'
 import {
   buildFreshStartDeletedItems,
@@ -198,6 +201,34 @@ export default function ProfileScreen() {
       setResetError(msg)
     } finally {
       setResetLoading(false)
+    }
+  }
+
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+
+  async function handleExportData() {
+    if (isExporting) return
+    if (!isOnline) {
+      setExportError(t('calendarSync.notConnected'))
+      return
+    }
+    setIsExporting(true)
+    setExportError('')
+    try {
+      const data = await apiClient<UserDataExport>(API.profile.export)
+      const fileName = `orbit-data-export-${new Date().toISOString().slice(0, 10)}.json`
+      const file = new File(Paths.cache, fileName)
+      file.create({ overwrite: true })
+      file.write(JSON.stringify(data, null, 2))
+      await Share.share({
+        title: t('dataExport.shareTitle'),
+        url: file.uri,
+      })
+    } catch (err: unknown) {
+      setExportError(getErrorMessage(err, t('dataExport.error')))
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -502,6 +533,17 @@ export default function ProfileScreen() {
         </View>
 
         <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+        <ProfileActionButton
+          onPress={() => {
+            void handleExportData()
+          }}
+          label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
+        />
+        {exportError ? (
+          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+            {exportError}
+          </Text>
+        ) : null}
         <ProfileActionButton
           onPress={() => logout()}
           label={t('profile.logout')}

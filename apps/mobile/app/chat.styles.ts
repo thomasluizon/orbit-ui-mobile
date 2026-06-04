@@ -60,6 +60,14 @@ export function createStyles(tokens: Tokens) {
       letterSpacing: -0.2,
       textAlign: "center",
     },
+    aiDisclaimer: {
+      fontFamily: "Geist",
+      fontSize: 11,
+      lineHeight: 15,
+      fontStyle: "italic",
+      textAlign: "center",
+      maxWidth: 300,
+    },
     messageList: {
       paddingVertical: 16,
     },

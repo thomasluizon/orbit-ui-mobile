@@ -16,6 +16,7 @@ import {
   MAX_GOAL_PROGRESS_NOTE_LENGTH,
   MAX_SCHEDULED_REMINDERS,
   MAX_HABIT_LOG_NOTE_LENGTH,
+  MINIMUM_AGE,
 } from '../validation/constants'
 
 describe('validation constants', () => {
@@ -81,6 +82,10 @@ describe('validation constants', () => {
 
   it('has correct habit log note max length', () => {
     expect(MAX_HABIT_LOG_NOTE_LENGTH).toBe(500)
+  })
+
+  it('gates signup to a minimum age of 13', () => {
+    expect(MINIMUM_AGE).toBe(13)
   })
 
   it('all constants are positive numbers', () => {

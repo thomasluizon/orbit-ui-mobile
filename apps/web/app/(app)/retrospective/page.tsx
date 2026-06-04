@@ -304,6 +304,18 @@ export default function RetrospectivePage() {
                     className="[&_strong]:block [&_strong]:mt-4 [&_strong]:font-semibold [&_strong]:text-[var(--fg-1)] [&_strong:first-child]:mt-0"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(retrospective) }}
                   />
+                  <p
+                    style={{
+                      marginTop: 16,
+                      fontFamily: 'var(--font-family-sans)',
+                      fontSize: 11,
+                      lineHeight: 1.4,
+                      fontStyle: 'italic',
+                      color: 'var(--fg-3)',
+                    }}
+                  >
+                    {t('aiDisclosure.notMedicalAdvice')}
+                  </p>
                   {fromCache && (
                     <p
                       style={{

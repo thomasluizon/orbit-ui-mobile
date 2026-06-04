@@ -75,6 +75,9 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const resolved = resolveBody()
   if (!resolved) return null
 
+  const showDisclaimer =
+    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+
   return (
     <button
       type="button"
@@ -114,6 +117,21 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             >
               Astra
             </span>
+            <span
+              aria-label={t('aiDisclosure.isAiTooltip')}
+              style={{
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                color: 'var(--fg-3)',
+                border: '1px solid var(--hairline)',
+                borderRadius: 4,
+                padding: '1px 5px',
+              }}
+            >
+              {t('aiDisclosure.isAiLabel')}
+            </span>
           </div>
           <span
             style={{
@@ -129,6 +147,19 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           >
             {resolved.text}
           </span>
+          {showDisclaimer && (
+            <span
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 11,
+                lineHeight: 1.4,
+                color: 'var(--fg-3)',
+                fontStyle: 'italic',
+              }}
+            >
+              {t('aiDisclosure.notMedicalAdvice')}
+            </span>
+          )}
         </div>
       </div>
     </button>
