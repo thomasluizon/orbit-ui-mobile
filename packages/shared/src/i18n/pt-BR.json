@@ -1693,8 +1693,7 @@
       "celebrationSubtitle": "Sua sequência continua.",
       "eyebrow": "Congelado · {date}",
       "auto": {
-        "chip": "AUTO",
-        "explainer": "Os congelamentos ativam automaticamente. Se você perder um dia, um congelamento guardado mantém sua sequência viva. Nada para tocar."
+        "explainer": "Se você perder um dia, um congelamento guardado é usado automaticamente para manter sua sequência viva."
       },
       "banked": {
         "label": "Guardados"

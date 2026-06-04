@@ -201,15 +201,7 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
         </SettingsGroup>
       </div>
 
-      <SectionLabel
-        trailing={
-          <span className="t-eyebrow" style={{ color: 'var(--status-frozen)' }}>
-            {t('streakDisplay.freeze.auto.chip')}
-          </span>
-        }
-      >
-        {t('streakDisplay.freeze.title')}
-      </SectionLabel>
+      <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
 
       {isPro ? (
         <>

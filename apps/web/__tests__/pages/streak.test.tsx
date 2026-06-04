@@ -166,10 +166,9 @@ describe('StreakPage', () => {
 
   // ---- Auto-freeze section ----
 
-  it('renders freeze title with the AUTO eyebrow chip', () => {
+  it('renders the freeze section title', () => {
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.freeze.title')).toBeInTheDocument()
-    expect(screen.getByText('streakDisplay.freeze.auto.chip')).toBeInTheDocument()
   })
 
   it('renders the auto explainer copy', () => {

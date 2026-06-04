@@ -31,7 +31,6 @@ describe('mobile i18n interpolation', () => {
     expect(plural(i18n.t('streakDisplay.detail.daysUnit', { count: 1 }), 1)).toBe('day')
     expect(plural(i18n.t('streakDisplay.detail.daysUnit', { count: 4 }), 4)).toBe('days')
     expect(i18n.t('streakDisplay.freeze.nextFreeze.inDays', { days: 3 })).toBe('in 3 days')
-    expect(i18n.t('streakDisplay.freeze.auto.chip')).toBe('AUTO')
     expect(plural(i18n.t('habits.frequency.everyNWeeks', { n: 2 }), 2)).toBe('Every 2 weeks')
     expect(plural(i18n.t('habits.breakdown.createdSuccess', { n: 2 }), 2)).toBe('Created 2 habits successfully')
   })

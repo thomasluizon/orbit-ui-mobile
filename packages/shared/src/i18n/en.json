@@ -1693,8 +1693,7 @@
       "celebrationSubtitle": "Your streak holds.",
       "eyebrow": "Frozen · {date}",
       "auto": {
-        "chip": "AUTO",
-        "explainer": "Freezes activate automatically. Miss a day and a banked freeze keeps your streak alive. Nothing to tap."
+        "explainer": "If you miss a day, a banked freeze is used automatically to keep your streak alive."
       },
       "banked": {
         "label": "Banked"

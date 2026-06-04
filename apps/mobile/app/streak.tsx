@@ -236,17 +236,7 @@ export default function StreakScreen() {
               </SettingsGroup>
             </View>
 
-            <SectionLabel
-              trailing={
-                <Text
-                  style={[styles.autoChip, { color: tokens.statusFrozen }]}
-                >
-                  {t('streakDisplay.freeze.auto.chip')}
-                </Text>
-              }
-            >
-              {t('streakDisplay.freeze.title')}
-            </SectionLabel>
+            <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
             <FreezeSection
               t={t}
               tokens={tokens}
@@ -330,12 +320,6 @@ function createStyles(_tokens: Tokens) {
       width: 8,
       height: 8,
       borderRadius: 999,
-    },
-    autoChip: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '500',
-      letterSpacing: 0.66,
     },
   })
 }
