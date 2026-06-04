@@ -14,4 +14,3 @@ export const MAX_GOAL_UNIT_LENGTH = 50
 export const MAX_GOAL_PROGRESS_NOTE_LENGTH = 500
 export const MAX_SCHEDULED_REMINDERS = 5
 export const MAX_HABIT_LOG_NOTE_LENGTH = 500
-export const MINIMUM_AGE = 13
