@@ -358,12 +358,6 @@ export default function ProfilePage() {
         tone="danger"
         compact
       />
-      <ProfileActionButton
-        onClick={() => router.push('/delete-account')}
-        label={t('deleteAccount.title')}
-        tone="danger"
-        compact
-      />
 
       <div style={{ height: 24 }} />
 
