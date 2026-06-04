@@ -1,0 +1,297 @@
+import { StyleSheet } from "react-native";
+import { createTokensV2 } from "@/lib/theme";
+
+export type Tokens = ReturnType<typeof createTokensV2>;
+export type ChatStyles = ReturnType<typeof createStyles>;
+
+export function createStyles(tokens: Tokens) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+    },
+    keyboardAvoid: {
+      flex: 1,
+    },
+    iconBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 24,
+      paddingHorizontal: 24,
+    },
+    sparkleOuter: {
+      width: 132,
+      height: 132,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    orbitRing: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: tokens.primary,
+      opacity: 0.85,
+    },
+    sparkleGlow: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      bottom: 10,
+      left: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairlineStrong,
+    },
+    emptyText: {
+      fontFamily: "Geist",
+      fontSize: 20,
+      fontWeight: "600",
+      letterSpacing: -0.2,
+      textAlign: "center",
+    },
+    messageList: {
+      paddingVertical: 16,
+    },
+    inputArea: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+    },
+    errorText: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+    permissionAction: {
+      alignSelf: "center",
+      marginBottom: 8,
+      paddingVertical: 4,
+    },
+    permissionActionText: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      fontWeight: "500",
+      textDecorationLine: "underline",
+    },
+    imagePreviewRow: {
+      paddingBottom: 8,
+    },
+    imagePreviewCard: {
+      alignSelf: "flex-start",
+      position: "relative",
+    },
+    imagePreview: {
+      width: 64,
+      height: 64,
+      borderRadius: 6,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+    imageRemoveButton: {
+      position: "absolute",
+      top: -4,
+      right: -4,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    quickChipsScroll: {
+      marginBottom: 12,
+    },
+    quickChipsContent: {
+      gap: 8,
+      paddingRight: 16,
+    },
+    offlineNotice: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 8,
+    },
+    offlineText: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      fontStyle: "italic",
+    },
+    inputBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingTop: 10,
+      paddingHorizontal: 4,
+      gap: 6,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    iconButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    languageControl: {
+      position: "relative",
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    languageFlagButton: {
+      paddingVertical: 4,
+      paddingHorizontal: 4,
+      borderRadius: 6,
+    },
+    languageFlagText: {
+      fontSize: 12,
+    },
+    languagePicker: {
+      position: "absolute",
+      left: 0,
+      bottom: 40,
+      minWidth: 148,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      paddingVertical: 6,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.24,
+      shadowRadius: 16,
+      elevation: 8,
+      zIndex: 20,
+    },
+    languageOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    languageOptionFlag: {
+      fontSize: 13,
+    },
+    languageOptionText: {
+      fontFamily: "Geist",
+      fontSize: 12,
+    },
+    textInput: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: "Geist",
+      fontSize: 15,
+      paddingVertical: 8,
+      paddingHorizontal: 8,
+      maxHeight: 120,
+      minHeight: 36,
+    },
+    recordingContent: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 12,
+    },
+    recordingStatus: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    recordingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    recordingTime: {
+      fontFamily: "GeistMono",
+      fontSize: 12,
+      fontWeight: "500",
+      fontVariant: ["tabular-nums"],
+    },
+    visualizer: {
+      flex: 1,
+      minHeight: 24,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    visualizerBar: {
+      width: 3,
+      height: 20,
+      backgroundColor: tokens.fg2,
+      borderRadius: 1,
+    },
+    sendButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sendButtonDisabled: {
+      opacity: 0.4,
+    },
+    stopButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    limitText: {
+      fontFamily: "Geist",
+      fontSize: 11,
+      textAlign: "center",
+      fontWeight: "500",
+    },
+    rewardCard: {
+      marginTop: 8,
+      alignItems: "center",
+      gap: 8,
+    },
+    rewardButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 6,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+    rewardButtonDisabled: {
+      opacity: 0.5,
+    },
+    rewardButtonText: {
+      fontFamily: "Geist",
+      fontSize: 12,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    rewardMeta: {
+      fontFamily: "GeistMono",
+      fontSize: 10,
+      textAlign: "center",
+      fontVariant: ["tabular-nums"],
+    },
+    rewardMessage: {
+      fontFamily: "Geist",
+      fontSize: 11,
+      textAlign: "center",
+      fontWeight: "500",
+    },
+    usageText: {
+      fontFamily: "GeistMono",
+      fontSize: 10,
+      textAlign: "center",
+      marginTop: 8,
+      fontVariant: ["tabular-nums"],
+    },
+  });
+}

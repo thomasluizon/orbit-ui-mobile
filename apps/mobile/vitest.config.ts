@@ -149,6 +149,8 @@ export default defineConfig({
       { find: /^@orbit\/shared\/validation\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/validation/$1') },
       { find: '@orbit/shared/chat', replacement: path.resolve(__dirname, '../../packages/shared/src/chat') },
       { find: /^@orbit\/shared\/chat\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/chat/$1') },
+      { find: '@orbit/shared/hooks', replacement: path.resolve(__dirname, '../../packages/shared/src/hooks') },
+      { find: /^@orbit\/shared\/hooks\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/shared/src/hooks/$1') },
     ],
   },
 })
