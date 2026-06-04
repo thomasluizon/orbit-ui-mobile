@@ -174,7 +174,6 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
         onClose={onClose}
         title={t('goals.detail.edit')}
         snapPoints={['70%', '90%']}
-        formMode
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}

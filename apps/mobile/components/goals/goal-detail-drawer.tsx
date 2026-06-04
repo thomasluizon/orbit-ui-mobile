@@ -365,7 +365,6 @@ export function GoalDetailDrawer({
         onClose={onClose}
         title={goal.title}
         snapPoints={['60%', '90%']}
-        formMode={showProgressForm}
         canDismiss={!isProgressDirty}
         isDirty={isProgressDirty}
         onAttemptDismiss={() => requestProgressDismiss('drawer')}

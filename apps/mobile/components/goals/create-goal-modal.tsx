@@ -185,7 +185,6 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
         onClose={onClose}
         title={t('goals.create')}
         snapPoints={['80%', '95%']}
-        formMode
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}

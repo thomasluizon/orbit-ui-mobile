@@ -336,7 +336,6 @@ export function CreateHabitModal({
           isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')
         }
         snapPoints={['80%', '95%']}
-        formMode
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}

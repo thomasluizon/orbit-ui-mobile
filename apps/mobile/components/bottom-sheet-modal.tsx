@@ -36,7 +36,6 @@ interface BottomSheetModalProps {
   /** Change this value to force re-present when `open` stays true (e.g. switching content). */
   contentKey?: string
   snapPoints?: (string | number)[]
-  formMode?: boolean
   canDismiss?: boolean
   isDirty?: boolean
   onAttemptDismiss?: (reason: DismissReason) => void
