@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { computeHabitCardStatus, formatAPIDate } from '@orbit/shared/utils'
 
 const setSelectedDate = vi.fn((date: string) => {
   uiState.selectedDate = date
@@ -54,6 +54,7 @@ const uiState = {
 }
 
 const bulkLogMutateAsync = vi.fn()
+const bulkSkipMutateAsync = vi.fn()
 const markRecentlyCompleted = vi.fn()
 const checkAndPromptParentLog = vi.fn()
 
@@ -135,7 +136,7 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
   useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
   useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
-  useBulkSkipHabits: () => ({ mutateAsync: vi.fn() }),
+  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
 }))
 
 vi.mock('@/components/habits/habit-list', () => ({
@@ -196,6 +197,7 @@ describe('TodayPage bulk parent prompts', () => {
     mockRouterPush.mockReset()
     mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
     bulkLogMutateAsync.mockReset()
+    bulkSkipMutateAsync.mockReset()
     mockHabitsData.habitsById = new Map()
     mockHabitsData.childrenByParent = new Map()
     mockHabitsData.topLevelHabits = []
@@ -317,5 +319,94 @@ describe('TodayPage bulk parent prompts', () => {
     await vi.advanceTimersByTimeAsync(6_000)
 
     expect(uiState.selectedDate).toBe('2026-04-06')
+  })
+})
+
+describe('TodayPage overdue bulk selection', () => {
+  function seedOverdueHabit(): NormalizedHabit {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      dueDate: '2026-04-01',
+      scheduledDates: [],
+      isCompleted: false,
+    })
+    mockHabitsData.habitsById = new Map([[overdue.id, overdue]])
+    mockHabitsData.topLevelHabits = [overdue]
+    return overdue
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
+    bulkLogMutateAsync.mockReset()
+    bulkSkipMutateAsync.mockReset()
+    mockHabitsData.habitsById = new Map()
+    mockHabitsData.childrenByParent = new Map()
+    mockHabitsData.topLevelHabits = []
+    habitListHandle.allLoadedIds = new Set()
+    uiState.selectedDate = '2026-04-07'
+    uiState.followToday = true
+    uiState.activeView = 'today'
+    uiState.isSelectMode = true
+    uiState.searchQuery = ''
+    uiState.selectedFrequency = null
+    uiState.selectedTagIds = []
+    uiState.showCompleted = false
+    uiState.selectedHabitIds = new Set<string>()
+  })
+
+  it('treats an overdue one-time habit fixture as overdue', () => {
+    const overdue = seedOverdueHabit()
+
+    expect(computeHabitCardStatus(overdue)).toBe('overdue')
+  })
+
+  it('includes the overdue habit when selecting all', () => {
+    const overdue = seedOverdueHabit()
+    habitListHandle.allLoadedIds = new Set([overdue.id])
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByText('common.selectAll'))
+
+    expect(uiState.selectAllHabits).toHaveBeenCalledWith(
+      expect.arrayContaining([overdue.id]),
+    )
+  })
+
+  it('dispatches a bulk log for a selected overdue habit without a date', async () => {
+    const overdue = seedOverdueHabit()
+    uiState.selectedHabitIds = new Set([overdue.id])
+    bulkLogMutateAsync.mockResolvedValue({
+      results: [{ habitId: overdue.id, status: 'Success' }],
+    })
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
+
+    await waitFor(() => {
+      expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])
+    })
+  })
+
+  it('dispatches a bulk skip for a selected overdue habit without a date', async () => {
+    const overdue = seedOverdueHabit()
+    uiState.selectedHabitIds = new Set([overdue.id])
+    bulkSkipMutateAsync.mockResolvedValue({
+      results: [{ habitId: overdue.id, status: 'Success' }],
+    })
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkSkipTitle'))
+
+    await waitFor(() => {
+      expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])
+    })
   })
 })

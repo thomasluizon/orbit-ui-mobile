@@ -21,6 +21,8 @@ const mockHabitsData = {
   topLevelHabits: [] as NormalizedHabit[],
 }
 const logHabitMutateAsync = vi.fn()
+const skipHabitMutateAsync = vi.fn()
+const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
 const getDrillChildrenMock = vi.fn(() => [])
@@ -71,7 +73,7 @@ vi.mock('@/hooks/use-habits', () => ({
     },
   }),
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
-  useSkipHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSkipHabit: () => ({ mutateAsync: skipHabitMutateAsync, isPending: false }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReorderHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -135,15 +137,30 @@ vi.mock('@/components/habits/habit-row', () => ({
     childProgress,
     tourTargetId,
     state,
+    selectMode,
+    selected,
     actions,
   }: {
     habit: NormalizedHabit
     childProgress?: { done: number; total: number }
     tourTargetId?: string
     state?: string
-    actions?: { onForceLogParent?: () => void; onLog?: () => void; onEdit?: () => void }
+    selectMode?: boolean
+    selected?: boolean
+    actions?: {
+      onForceLogParent?: () => void
+      onLog?: () => void
+      onSkip?: () => void
+      onEdit?: () => void
+      onToggleSelection?: () => void
+    }
   }) => (
-    <div data-testid={`habit-card-${habit.id}`} data-tour={tourTargetId}>
+    <div
+      data-testid={`habit-card-${habit.id}`}
+      data-tour={tourTargetId}
+      data-select-mode={selectMode ? 'yes' : 'no'}
+      data-selected={selected ? 'yes' : 'no'}
+    >
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>
         {childProgress?.done ?? 0}/{childProgress?.total ?? 0}
@@ -154,12 +171,23 @@ vi.mock('@/components/habits/habit-row', () => ({
       <button data-testid={`log-${habit.id}`} onClick={actions?.onLog}>
         log
       </button>
+      <button data-testid={`skip-${habit.id}`} onClick={actions?.onSkip}>
+        skip
+      </button>
       <button data-testid={`force-log-${habit.id}`} onClick={actions?.onForceLogParent}>
         force
       </button>
       <button data-testid={`edit-${habit.id}`} onClick={actions?.onEdit}>
         edit
       </button>
+      {selectMode && (
+        <button
+          data-testid={`select-${habit.id}`}
+          onClick={actions?.onToggleSelection}
+        >
+          select
+        </button>
+      )}
     </div>
   ),
 }))
@@ -296,6 +324,8 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = []
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
+    skipHabitMutateAsync.mockReset()
+    toggleSelectionSpy.mockReset()
     logHabitMutateAsync.mockReset()
     logHabitMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
@@ -807,5 +837,70 @@ describe('HabitList', () => {
 
     fireEvent.click(screen.getByTestId('edit-habit-modal-save'))
     expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
+  })
+
+  it('logs an overdue habit directly with no date', () => {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    mockHabitsData.habitsById.set(overdue.id, overdue)
+    mockHabitsData.topLevelHabits = [overdue]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('log-overdue-1'))
+
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+  })
+
+  it('skips an overdue habit with no date after confirmation', () => {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    mockHabitsData.habitsById.set(overdue.id, overdue)
+    mockHabitsData.topLevelHabits = [overdue]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('skip-overdue-1'))
+
+    fireEvent.click(screen.getByTestId('confirm-action-habits.postponeConfirmTitle'))
+
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+  })
+
+  it('renders a selectable checkbox for an overdue row in select mode', () => {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    mockHabitsData.habitsById.set(overdue.id, overdue)
+    mockHabitsData.topLevelHabits = [overdue]
+
+    renderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        isSelectMode
+        selectedHabitIds={new Set()}
+        onToggleSelection={toggleSelectionSpy}
+      />,
+    )
+
+    expect(screen.getByTestId('habit-card-overdue-1')).toHaveAttribute('data-select-mode', 'yes')
+
+    fireEvent.click(screen.getByTestId('select-overdue-1'))
+
+    expect(toggleSelectionSpy).toHaveBeenCalledWith('overdue-1')
   })
 })
