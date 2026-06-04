@@ -97,7 +97,6 @@ export const API = {
     profile: '/api/gamification/profile',
     achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
-    streakFreeze: '/api/gamification/streak/freeze',
   },
 
   chat: {

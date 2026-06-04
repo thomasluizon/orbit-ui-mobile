@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import {
   useGamificationProfile,
   useStreakInfo,
-  useActivateStreakFreeze,
   useStreakFreeze,
 } from '@/hooks/use-gamification'
 import type { GamificationProfile, StreakInfo } from '@orbit/shared/types/gamification'
@@ -22,19 +21,6 @@ vi.mock('@/lib/api-fetch', () => ({
       return res.json()
     }),
   ),
-}))
-
-// Mock the gamification Server Action so activateStreakFreeze doesn't hit Next.js cookies()
-// in the test environment. Delegates to mockFetch so test payloads still flow through.
-vi.mock('@/app/actions/gamification', () => ({
-  activateStreakFreeze: vi.fn(async () => {
-    const res = await fetch('/api/gamification/streak/freeze', { method: 'POST' })
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      throw new Error(body?.error ?? `Request failed with status ${res.status}`)
-    }
-    return res.json()
-  }),
 }))
 
 function createWrapper() {
@@ -321,51 +307,3 @@ describe('useStreakFreeze', () => {
   })
 })
 
-describe('useActivateStreakFreeze', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
-  it('posts to streak freeze endpoint', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          freezesRemainingThisMonth: 1,
-          frozenDate: '2025-01-15',
-          currentStreak: 7,
-        }),
-    })
-
-    const { result } = renderHook(() => useActivateStreakFreeze(), {
-      wrapper: createWrapper(),
-    })
-
-    await act(async () => {
-      await result.current.mutateAsync()
-    })
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('streak/freeze'),
-      expect.objectContaining({ method: 'POST' }),
-    )
-  })
-
-  it('throws on error response', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({ error: 'No freezes available' }),
-    })
-
-    const { result } = renderHook(() => useActivateStreakFreeze(), {
-      wrapper: createWrapper(),
-    })
-
-    await expect(
-      act(async () => {
-        await result.current.mutateAsync()
-      }),
-    ).rejects.toThrow('No freezes available')
-  })
-})

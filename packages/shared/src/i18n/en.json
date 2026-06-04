@@ -1662,8 +1662,7 @@
       "conflict": "This action conflicts with existing data",
       "tooManyRequests": "Too many requests. Please wait a moment.",
       "server": "Something went wrong. Please try again later.",
-      "unknown": "An unexpected error occurred",
-      "activateFreeze": "Failed to activate streak freeze"
+      "unknown": "An unexpected error occurred"
     }
   },
   "streakDisplay": {
@@ -1688,27 +1687,35 @@
       "encouragement365": "A whole year! You are unstoppable!"
     },
     "freeze": {
-      "title": "Streak Freeze",
-      "available": "No freezes available | {count} freeze available | {count} freezes available",
-      "activate": "Activate Freeze",
-      "confirmTitle": "Take a rest day?",
-      "confirmBody": "No worries! Use a streak freeze to keep your {streak}-day streak safe. You have {remaining} freeze left this month -- use it whenever you need! | No worries! Use a streak freeze to keep your {streak}-day streak safe. You have {remaining} freezes left this month -- use them whenever you need!",
+      "title": "Streak freeze",
       "activeToday": "Freeze active today",
-      "success": "Streak freeze activated!",
-      "recentLabel": "Recently used",
-      "completedToday": "You already completed a habit today. No freeze needed!",
       "celebrationTitle": "Streak saved!",
       "celebrationSubtitle": "Your streak holds.",
       "eyebrow": "Frozen · {date}",
-      "progressSubtitle": "1 more day of activity unlocks your next freeze | {days} more days of activity unlock your next freeze",
-      "progressReady": "Your next freeze is ready!",
-      "maxAccumulated": "You've hit the maximum of {max} freezes. Use one before earning more.",
-      "monthlyUsage": "{used} of {max} used this month",
-      "monthlyUsageLabel": "This month",
-      "monthlyLimit": "You've used all {max} freezes this month",
-      "accumulatedLabel": "Freezes banked",
-      "accumulatedShort": "{count}/{max}",
-      "noFreezesAvailable": "Keep going to earn your first freeze"
+      "auto": {
+        "chip": "AUTO",
+        "explainer": "Freezes activate automatically. Miss a day and a banked freeze keeps your streak alive. Nothing to tap."
+      },
+      "banked": {
+        "label": "Banked"
+      },
+      "usedThisMonth": {
+        "label": "Used this month"
+      },
+      "nextFreeze": {
+        "label": "Next freeze",
+        "inDays": "in {days} days",
+        "full": "Banked full"
+      },
+      "protected": {
+        "label": "Protected days",
+        "empty": "No freezes used yet.",
+        "today": "Today",
+        "todayValue": "Protected"
+      },
+      "pro": {
+        "gate": "Streak freezes are part of Pro."
+      }
     },
     "detail": {
       "title": "Streak Details",

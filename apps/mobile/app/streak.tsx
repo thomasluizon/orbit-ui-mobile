@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -6,15 +6,13 @@ import {
   ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { subDays, isToday, format, parseISO } from 'date-fns'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
-import {
-  useStreakFreeze,
-  useActivateStreakFreeze,
-} from '@/hooks/use-gamification'
+import { useStreakFreeze } from '@/hooks/use-gamification'
 import { useDateFormat } from '@/hooks/use-date-format'
 import {
   StreakFreezeCelebration,
@@ -24,7 +22,7 @@ import { plural } from '@/lib/plural'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
-import { ConfirmDialogV2 } from '@/components/ui/confirm-dialog-v2'
+import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { StreakWeekTimeline, FreezeSection } from './streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
@@ -38,30 +36,30 @@ export default function StreakScreen() {
     [currentScheme, currentTheme],
   )
   const goBackOrFallback = useGoBackOrFallback()
+  const router = useRouter()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
+  const isPro = profile?.hasProAccess ?? false
   const { displayDate } = useDateFormat()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const {
     streakQuery,
     streakInfo,
-    freezesAvailable,
     isFrozenToday,
-    hasCompletedToday,
-    canFreeze,
     streakFreezesAccumulated,
     maxStreakFreezesAccumulated,
-    daysUntilNextFreeze,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
-    canEarnMore,
-    hasReachedMonthlyLimit,
   } = useStreakFreeze(profile)
-  const activateFreezeMutation = useActivateStreakFreeze()
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
+  const wasFrozenTodayRef = useRef(isFrozenToday)
 
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [freezeSuccess, setFreezeSuccess] = useState(false)
+  useEffect(() => {
+    if (isFrozenToday && !wasFrozenTodayRef.current) {
+      freezeCelebrationRef.current?.show()
+    }
+    wasFrozenTodayRef.current = isFrozenToday
+  }, [isFrozenToday])
 
   const encouragement = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
@@ -113,18 +111,6 @@ export default function StreakScreen() {
       return { date, dateStr, dayLabel, dayNum, status, isTodayDate }
     })
   }, [streakInfo, streak, isFrozenToday, displayDate])
-
-  async function handleFreeze() {
-    setShowConfirm(false)
-    try {
-      await activateFreezeMutation.mutateAsync()
-      setFreezeSuccess(true)
-      setTimeout(() => setFreezeSuccess(false), 3000)
-      freezeCelebrationRef.current?.show()
-    } catch {
-      // Error handled by mutation
-    }
-  }
 
   const heroEyebrow = isFrozenToday
     ? t('streakDisplay.freeze.activeToday')
@@ -250,69 +236,37 @@ export default function StreakScreen() {
               </SettingsGroup>
             </View>
 
-            <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
+            <SectionLabel
+              trailing={
+                <Text
+                  style={[styles.autoChip, { color: tokens.statusFrozen }]}
+                >
+                  {t('streakDisplay.freeze.auto.chip')}
+                </Text>
+              }
+            >
+              {t('streakDisplay.freeze.title')}
+            </SectionLabel>
             <FreezeSection
               t={t}
               tokens={tokens}
+              isPro={isPro}
               streak={streak}
               freezesUsedThisMonth={freezesUsedThisMonth}
               maxFreezesPerMonth={maxFreezesPerMonth}
               streakFreezesAccumulated={streakFreezesAccumulated}
               maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
-              daysUntilNextFreeze={daysUntilNextFreeze}
               isFrozenToday={isFrozenToday}
-              hasCompletedToday={hasCompletedToday}
-              canFreeze={canFreeze}
-              canEarnMore={canEarnMore}
-              hasReachedMonthlyLimit={hasReachedMonthlyLimit}
-              freezeSuccess={freezeSuccess}
-              errorMessage={activateFreezeMutation.error?.message ?? null}
-              onActivateFreeze={() => setShowConfirm(true)}
+              protectedDates={streakInfo?.recentFreezeDates ?? []}
+              onUpgrade={() => router.push(buildUpgradeHref('/streak'))}
+              displayDate={displayDate}
             />
-
-            {streakInfo?.recentFreezeDates &&
-            streakInfo.recentFreezeDates.length > 0 ? (
-              <>
-                <SectionLabel>
-                  {t('streakDisplay.freeze.recentLabel')}
-                </SectionLabel>
-                <View style={styles.groupWrap}>
-                  <SettingsGroup>
-                    {streakInfo.recentFreezeDates.slice(0, 5).map((date) => (
-                      <SettingsGroupRow
-                        key={date}
-                        label={displayDate(date, {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                        accessory="none"
-                      />
-                    ))}
-                  </SettingsGroup>
-                </View>
-              </>
-            ) : null}
 
             <View style={{ height: 24 }} />
           </>
         )}
       </ScrollView>
 
-      <ConfirmDialogV2
-        open={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        title={t('streakDisplay.freeze.confirmTitle')}
-        body={t('streakDisplay.freeze.confirmBody', {
-          streak,
-          remaining: freezesAvailable,
-          count: freezesAvailable,
-        })}
-        cancelLabel={t('common.cancel')}
-        actionLabel={t('streakDisplay.freeze.activate')}
-        onAction={() => {
-          void handleFreeze()
-        }}
-      />
       <StreakFreezeCelebration ref={freezeCelebrationRef} />
     </SafeAreaView>
   )
@@ -376,6 +330,12 @@ function createStyles(_tokens: Tokens) {
       width: 8,
       height: 8,
       borderRadius: 999,
+    },
+    autoChip: {
+      fontFamily: 'GeistMono',
+      fontSize: 11,
+      fontWeight: '500',
+      letterSpacing: 0.66,
     },
   })
 }

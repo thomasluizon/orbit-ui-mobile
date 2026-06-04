@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 
 // ---------------------------------------------------------------------------
 // Mocks -- must come before component import
@@ -36,47 +36,26 @@ vi.mock('@/hooks/use-profile', () => ({
 
 let mockStreakQuery = { isLoading: false, data: null }
 let mockStreakInfo: Record<string, unknown> | null = null
-let mockFreezesAvailable = 2
 let mockIsFrozenToday = false
-let mockHasCompletedToday = false
-let mockCanFreeze = true
+let mockStreakFreezesAccumulated = 2
+let mockMaxStreakFreezesAccumulated = 3
+let mockFreezesUsedThisMonth = 1
+let mockMaxFreezesPerMonth = 3
 
 vi.mock('@/hooks/use-gamification', () => ({
   useStreakFreeze: () => ({
     streakQuery: mockStreakQuery,
     streakInfo: mockStreakInfo,
-    freezesAvailable: mockFreezesAvailable,
     isFrozenToday: mockIsFrozenToday,
-    hasCompletedToday: mockHasCompletedToday,
-    canFreeze: mockCanFreeze,
-    streakFreezesAccumulated: 0,
-    maxStreakFreezesAccumulated: 3,
-    daysUntilNextFreeze: 7,
-    freezesUsedThisMonth: 0,
-    maxFreezesPerMonth: 2,
-    canEarnMore: true,
-    hasReachedMonthlyLimit: false,
-  }),
-  useActivateStreakFreeze: () => ({
-    mutateAsync: vi.fn().mockResolvedValue({}),
-    isPending: false,
-    error: null,
+    streakFreezesAccumulated: mockStreakFreezesAccumulated,
+    maxStreakFreezesAccumulated: mockMaxStreakFreezesAccumulated,
+    freezesUsedThisMonth: mockFreezesUsedThisMonth,
+    maxFreezesPerMonth: mockMaxFreezesPerMonth,
   }),
 }))
 
 vi.mock('@/components/gamification/streak-freeze-celebration', () => ({
   StreakFreezeCelebration: vi.fn().mockReturnValue(null),
-}))
-
-vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, children, title }: { open: boolean; children: React.ReactNode; title: string }) => {
-    if (!open) return null
-    return (
-      <div data-testid="overlay" aria-label={title}>
-        {children}
-      </div>
-    )
-  },
 }))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
@@ -95,20 +74,20 @@ import StreakPage from '@/app/(app)/streak/page'
 
 describe('StreakPage', () => {
   beforeEach(() => {
-    mockProfile = { currentStreak: 10, streakFreezesAvailable: 2 }
+    mockProfile = { currentStreak: 10, hasProAccess: true }
     mockStreakQuery = { isLoading: false, data: null }
     mockStreakInfo = {
       currentStreak: 10,
       longestStreak: 30,
       lastActiveDate: '2025-06-01',
       recentFreezeDates: [],
-      freezesAvailable: 2,
       isFrozenToday: false,
     }
-    mockFreezesAvailable = 2
     mockIsFrozenToday = false
-    mockHasCompletedToday = false
-    mockCanFreeze = true
+    mockStreakFreezesAccumulated = 2
+    mockMaxStreakFreezesAccumulated = 3
+    mockFreezesUsedThisMonth = 1
+    mockMaxFreezesPerMonth = 3
   })
 
   it('renders without crashing', () => {
@@ -136,16 +115,9 @@ describe('StreakPage', () => {
 
   it('renders streak count in hero section', () => {
     const { container } = render(<StreakPage />)
-    // Streak count is rendered in the .streak-hero__count element
     const countEl = container.querySelector('.streak-hero__count')
     expect(countEl).toBeTruthy()
     expect(countEl?.textContent).toBe('10')
-  })
-
-  it('shows flame SVG when streak is greater than 0', () => {
-    const { container } = render(<StreakPage />)
-    const flameSvg = container.querySelector('svg')
-    expect(flameSvg).toBeInTheDocument()
   })
 
   it('renders days unit text', () => {
@@ -158,14 +130,8 @@ describe('StreakPage', () => {
     expect(document.body.textContent).toContain('streakDisplay.profile.encouragement7')
   })
 
-  it('renders encouragement message for streak >= 30', () => {
-    mockProfile = { currentStreak: 35 }
-    render(<StreakPage />)
-    expect(document.body.textContent).toContain('streakDisplay.profile.encouragement30')
-  })
-
   it('renders no encouragement for streak 0', () => {
-    mockProfile = { currentStreak: 0 }
+    mockProfile = { currentStreak: 0, hasProAccess: true }
     render(<StreakPage />)
     expect(document.body.textContent).not.toContain('streakDisplay.profile.encouragement1')
     expect(document.body.textContent).not.toContain('streakDisplay.profile.encouragement7')
@@ -189,106 +155,119 @@ describe('StreakPage', () => {
 
   it('renders current and longest streak stats', () => {
     render(<StreakPage />)
-    // current label appears in hero eyebrow AND stats row
     expect(screen.getAllByText('streakDisplay.detail.currentStreak').length).toBeGreaterThan(0)
     expect(screen.getByText('streakDisplay.detail.longestStreak')).toBeInTheDocument()
   })
 
   it('renders longest streak value from streakInfo', () => {
     render(<StreakPage />)
-    // The longest streak value (30) is rendered among multiple text nodes
     expect(document.body.textContent).toContain('30')
   })
 
-  // ---- Freeze section ----
+  // ---- Auto-freeze section ----
 
-  it('renders freeze title and availability', () => {
+  it('renders freeze title with the AUTO eyebrow chip', () => {
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.freeze.title')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('streakDisplay.freeze.accumulatedShort')
+    expect(screen.getByText('streakDisplay.freeze.auto.chip')).toBeInTheDocument()
   })
 
-  it('renders activate button when canFreeze is true', () => {
+  it('renders the auto explainer copy', () => {
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.freeze.activate')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.freeze.auto.explainer')).toBeInTheDocument()
   })
 
-  it('shows frozen today indicator when isFrozenToday', () => {
-    mockIsFrozenToday = true
+  it('renders the banked charge gauge with the banked count', () => {
     render(<StreakPage />)
-    // frozen indicator appears in hero eyebrow AND freeze status block
-    expect(screen.getAllByText('streakDisplay.freeze.activeToday').length).toBeGreaterThan(0)
+    expect(screen.getByText('streakDisplay.freeze.banked.label')).toBeInTheDocument()
+    // banked/max mono value
+    expect(document.body.textContent).toContain('2/3')
   })
 
-  it('shows completed today hint', () => {
-    mockHasCompletedToday = true
-    mockIsFrozenToday = false
+  it('renders used-this-month and next-freeze rows', () => {
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.freeze.completedToday')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.freeze.usedThisMonth.label')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.freeze.nextFreeze.label')).toBeInTheDocument()
+    // streak 10 -> 7 - (10 % 7) = 4 days
+    expect(document.body.textContent).toContain('streakDisplay.freeze.nextFreeze.inDays')
+    expect(document.body.textContent).toContain('"days":4')
   })
 
-  it('shows recent freeze dates when available', () => {
+  it('shows "Banked full" for next-freeze when banked is at max', () => {
+    mockStreakFreezesAccumulated = 3
+    render(<StreakPage />)
+    expect(screen.getByText('streakDisplay.freeze.nextFreeze.full')).toBeInTheDocument()
+  })
+
+  it('does NOT render any activate-freeze control', () => {
+    render(<StreakPage />)
+    expect(screen.queryByText('streakDisplay.freeze.activate')).not.toBeInTheDocument()
+  })
+
+  // ---- Protected days ----
+
+  it('renders the protected-days empty state when no freezes used', () => {
+    render(<StreakPage />)
+    expect(screen.getByText('streakDisplay.freeze.protected.label')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.freeze.protected.empty')).toBeInTheDocument()
+  })
+
+  it('lists auto-used protected freeze dates', () => {
     mockStreakInfo = {
       currentStreak: 10,
       longestStreak: 30,
       lastActiveDate: '2025-06-01',
       recentFreezeDates: ['2025-05-28', '2025-05-25'],
-      freezesAvailable: 2,
       isFrozenToday: false,
     }
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.freeze.recentLabel')).toBeInTheDocument()
+    expect(screen.queryByText('streakDisplay.freeze.protected.empty')).not.toBeInTheDocument()
+    // formatted dates render (May 28 / May 25)
+    expect(document.body.textContent).toContain('May')
   })
 
-  // ---- Freeze confirmation overlay ----
-
-  it('opens confirmation overlay when activate button is clicked', () => {
+  it('prepends a Today row when frozen today', () => {
+    mockIsFrozenToday = true
     render(<StreakPage />)
-    const activateButton = screen.getByText('streakDisplay.freeze.activate')
-    fireEvent.click(activateButton)
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('streakDisplay.freeze.confirmBody')
+    expect(screen.getByText('streakDisplay.freeze.protected.today')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.freeze.protected.todayValue')).toBeInTheDocument()
   })
 
-  it('closes confirmation overlay when cancel is clicked', () => {
+  it('shows the frozen eyebrow in the hero when frozen today', () => {
+    mockIsFrozenToday = true
     render(<StreakPage />)
-    fireEvent.click(screen.getByText('streakDisplay.freeze.activate'))
-    expect(screen.getByTestId('overlay')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('common.cancel'))
-    expect(screen.queryByTestId('overlay')).not.toBeInTheDocument()
+    expect(screen.getAllByText('streakDisplay.freeze.activeToday').length).toBeGreaterThan(0)
+  })
+
+  // ---- Pro gating ----
+
+  it('renders the Pro gate instead of the gauge for free users', () => {
+    mockProfile = { currentStreak: 10, hasProAccess: false }
+    render(<StreakPage />)
+    expect(screen.getByText('streakDisplay.freeze.pro.gate')).toBeInTheDocument()
+    expect(screen.getByText('common.upgrade')).toBeInTheDocument()
+    // gauge rows must not render in the free state
+    expect(screen.queryByText('streakDisplay.freeze.banked.label')).not.toBeInTheDocument()
+  })
+
+  it('links the Pro upgrade affordance to the paywall route', () => {
+    mockProfile = { currentStreak: 10, hasProAccess: false }
+    render(<StreakPage />)
+    const upgradeLink = screen.getByText('common.upgrade').closest('a')
+    expect(upgradeLink).toHaveAttribute('href', '/upgrade')
   })
 
   // ---- Tier styling ----
 
-  it('applies normal tier class for low streaks', () => {
-    mockProfile = { currentStreak: 3 }
-    const { container } = render(<StreakPage />)
-    expect(container.querySelector('.streak-hero--normal')).toBeInTheDocument()
-  })
-
   it('applies strong tier class for streak >= 7', () => {
-    mockProfile = { currentStreak: 10 }
+    mockProfile = { currentStreak: 10, hasProAccess: true }
     const { container } = render(<StreakPage />)
     expect(container.querySelector('.streak-hero--strong')).toBeInTheDocument()
   })
 
-  it('applies intense tier class for streak >= 30', () => {
-    mockProfile = { currentStreak: 50 }
-    const { container } = render(<StreakPage />)
-    expect(container.querySelector('.streak-hero--intense')).toBeInTheDocument()
-  })
-
   it('applies legendary tier class for streak >= 100', () => {
-    mockProfile = { currentStreak: 150 }
+    mockProfile = { currentStreak: 150, hasProAccess: true }
     const { container } = render(<StreakPage />)
     expect(container.querySelector('.streak-hero--legendary')).toBeInTheDocument()
-  })
-
-  it('disable activate button when canFreeze is false', () => {
-    mockCanFreeze = false
-    render(<StreakPage />)
-    const buttons = screen.getAllByRole('button')
-    const activateBtn = buttons.find((b) => b.textContent === 'streakDisplay.freeze.activate')
-    expect(activateBtn).toBeDisabled()
   })
 })

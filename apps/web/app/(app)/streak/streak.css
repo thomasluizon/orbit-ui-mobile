@@ -14,3 +14,24 @@
 .streak-hero--normal {
   /* No additional styling at this time; reserved hooks. */
 }
+
+.streak-pip {
+  animation: streak-pip-in 180ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@keyframes streak-pip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-pip {
+    animation: none;
+  }
+}
