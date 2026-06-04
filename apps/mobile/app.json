@@ -53,7 +53,8 @@
         "POST_NOTIFICATIONS",
         "RECORD_AUDIO",
         "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "com.google.android.gms.permission.AD_ID"
       ]
     },
     "web": {
@@ -105,7 +106,15 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
