@@ -163,32 +163,3 @@ export function selectActionInvalidations(
     goals: actions?.some((action) => CHAT_GOAL_ACTION_TYPES.has(action.type)) ?? false,
   }
 }
-
-export interface ComposerState {
-  sendError: string | null
-  showLangPicker: boolean
-}
-
-export type ComposerAction =
-  | { type: 'setSendError'; error: string | null }
-  | { type: 'clearSendError' }
-  | { type: 'setShowLangPicker'; open: boolean }
-  | { type: 'toggleLangPicker' }
-
-export const initialComposerState: ComposerState = {
-  sendError: null,
-  showLangPicker: false,
-}
-
-export function composerReducer(state: ComposerState, action: ComposerAction): ComposerState {
-  switch (action.type) {
-    case 'setSendError':
-      return { ...state, sendError: action.error }
-    case 'clearSendError':
-      return { ...state, sendError: null }
-    case 'setShowLangPicker':
-      return { ...state, showLangPicker: action.open }
-    case 'toggleLangPicker':
-      return { ...state, showLangPicker: !state.showLangPicker }
-  }
-}

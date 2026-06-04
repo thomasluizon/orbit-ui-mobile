@@ -7,9 +7,7 @@ import type {
 import {
   buildAgentExecutionMessage,
   classifySendFailure,
-  composerReducer,
   findPremiumPolicyDenial,
-  initialComposerState,
   selectActionInvalidations,
 } from '../hooks/chat-composer-core'
 
@@ -190,26 +188,5 @@ describe('findPremiumPolicyDenial', () => {
         },
       ]),
     ).toBeUndefined()
-  })
-})
-
-describe('composerReducer', () => {
-  it('sets and clears the send error', () => {
-    const withError = composerReducer(initialComposerState, {
-      type: 'setSendError',
-      error: 'boom',
-    })
-    expect(withError.sendError).toBe('boom')
-
-    const cleared = composerReducer(withError, { type: 'clearSendError' })
-    expect(cleared.sendError).toBeNull()
-  })
-
-  it('toggles and sets the language picker', () => {
-    const opened = composerReducer(initialComposerState, { type: 'toggleLangPicker' })
-    expect(opened.showLangPicker).toBe(true)
-
-    const closed = composerReducer(opened, { type: 'setShowLangPicker', open: false })
-    expect(closed.showLangPicker).toBe(false)
   })
 })
