@@ -375,6 +375,26 @@ jobs:
           echo "OrbitWidgetProvider receiver is missing from the release manifest artifacts." >&2
           exit 1
 
+      - name: Verify AD_ID permission is in release manifest
+        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST_CANDIDATES=(
+            "app/build/intermediates/packaged_manifests/release/processReleaseManifestForPackage/AndroidManifest.xml"
+            "app/build/intermediates/bundle_manifest/release/processApplicationManifestReleaseForBundle/AndroidManifest.xml"
+            "app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
+            "app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml"
+          )
+          for MANIFEST in "${MANIFEST_CANDIDATES[@]}"; do
+            if [ -f "${MANIFEST}" ] && grep -q "com.google.android.gms.permission.AD_ID" "${MANIFEST}"; then
+              echo "AD_ID permission present in release manifest: ${MANIFEST}"
+              exit 0
+            fi
+          done
+          echo "com.google.android.gms.permission.AD_ID is missing from the release manifest artifacts." >&2
+          exit 1
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
