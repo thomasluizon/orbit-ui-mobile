@@ -859,7 +859,7 @@
     },
     "controller": {
       "title": "Who Controls Your Data",
-      "body": "The data controller is TL SOFTWARE ENGINEERING LTDA (CNPJ [CNPJ NUMBER]), the company that operates Orbit. For privacy requests or questions, contact our data protection lead at contact@useorbit.org."
+      "body": "The data controller is TL SOFTWARE ENGINEERING LTDA (CNPJ 58.429.979/0001-06), the company that operates Orbit. For privacy requests or questions, contact our data protection lead at contact@useorbit.org."
     },
     "dataCollected": {
       "title": "Data We Store",
@@ -2035,7 +2035,7 @@
     },
     "provider": {
       "title": "Who Provides Orbit",
-      "body": "Orbit is provided by TL SOFTWARE ENGINEERING LTDA (CNPJ [CNPJ NUMBER]). Throughout these terms, \"we\", \"us\", and \"Orbit\" refer to this company."
+      "body": "Orbit is provided by TL SOFTWARE ENGINEERING LTDA (CNPJ 58.429.979/0001-06). Throughout these terms, \"we\", \"us\", and \"Orbit\" refer to this company."
     },
     "eligibility": {
       "title": "Eligibility",
