@@ -104,15 +104,6 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@gorhom/bottom-sheet', () => ({
-  BottomSheetBackdrop: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('BottomSheetBackdrop', null, children),
-  BottomSheetModal: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('BottomSheetModal', null, children),
-  BottomSheetScrollView: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('BottomSheetScrollView', null, children),
-}))
-
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     currentScheme: 'purple',

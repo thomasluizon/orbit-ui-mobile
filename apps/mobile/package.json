@@ -21,7 +21,6 @@
   "dependencies": {
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo-google-fonts/geist-mono": "^0.4.2",
-    "@gorhom/bottom-sheet": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@orbit/shared": "*",
     "@react-native-async-storage/async-storage": "2.2.0",

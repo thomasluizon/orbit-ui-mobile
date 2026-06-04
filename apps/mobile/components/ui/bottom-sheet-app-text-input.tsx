@@ -6,11 +6,10 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { findNodeHandle } from 'react-native'
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet'
+import { findNodeHandle, TextInput } from 'react-native'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
-type BottomSheetAppTextInputProps = ComponentProps<typeof BottomSheetTextInput>
+type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput>
 
 export const BottomSheetAppTextInput = forwardRef<
   unknown,
@@ -83,7 +82,7 @@ export const BottomSheetAppTextInput = forwardRef<
   )
 
   return (
-    <BottomSheetTextInput
+    <TextInput
       ref={assignRef}
       {...props}
       value={draftValue}

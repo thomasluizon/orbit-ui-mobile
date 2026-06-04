@@ -7,7 +7,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
@@ -75,12 +74,6 @@ interface HabitRowProps {
 
 /**
  * Habit row: emoji · title · inline meta · trailing status dot.
- *
- * IMPORTANT: the root is a bare `Animated.View` from `react-native-reanimated`.
- * Stripping this wrapper regresses `@gorhom/bottom-sheet` modals on Android
- * (their `present()` silently no-ops). See `apps/mobile/lib/providers.tsx`
- * for the provider-level stabilizer; this row-level wrap is the per-card
- * piece of the same workaround. Do not "simplify" it.
  */
 export function HabitRow({
   habit,
@@ -207,9 +200,7 @@ export function HabitRow({
   const indentPx = depth * 16
 
   return (
-    // Bare Animated.View stabilizer for @gorhom/bottom-sheet on Android.
-    // See JSDoc above and memory `project_animated_view_gorhom.md`.
-    <Animated.View style={style}>
+    <View style={style}>
       <Pressable
         onPress={handlePress}
         onLongPress={
@@ -417,7 +408,7 @@ export function HabitRow({
           />
         </AnchoredMenu>
       ) : null}
-    </Animated.View>
+    </View>
   )
 }
 

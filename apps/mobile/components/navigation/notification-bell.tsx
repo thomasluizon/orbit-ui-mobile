@@ -4,9 +4,9 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
 } from 'react-native'
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { Bell, BellOff, Trash2, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { formatNotificationRelativeTime } from '@orbit/shared/utils'
@@ -209,7 +209,7 @@ export function NotificationBell() {
           )}
         </View>
 
-        <BottomSheetScrollView
+        <ScrollView
           style={styles.listScroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
@@ -224,7 +224,7 @@ export function NotificationBell() {
           ) : (
             visibleNotifications.map((item) => renderNotification({ item }))
           )}
-        </BottomSheetScrollView>
+        </ScrollView>
       </BottomSheetModal>
 
       {selectedNotification && (

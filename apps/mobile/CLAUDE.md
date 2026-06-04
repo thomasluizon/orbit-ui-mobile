@@ -28,7 +28,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 ## Platform reality
 
 - **Android only.** No iOS app ships. Don't write iOS-specific branches in new code; if you see one in pre-existing code, leave it unless explicitly tasked with iOS removal.
-- **`@gorhom/bottom-sheet` requires a Reanimated stabilizer wrapper** — bare `Animated.View` must stay mounted at the providers root AND inside HabitCard, otherwise modals' `present()` silently no-ops.
+- **Bottom-sheet modals use RN `Modal` + `Animated`, NOT `@gorhom/bottom-sheet`.** gorhom's `present()` + portal silently no-op on the New Architecture (Fabric/Bridgeless) in release builds (rAF-gated mount never flushes). The shared wrapper is `components/bottom-sheet-modal.tsx`; sheet content uses core `ScrollView`/`TextInput`. Don't reintroduce gorhom.
 - **Android elevation + `overflow: 'hidden'`** is a documented React Native bug: elevated children inside `overflow: 'hidden'` parents disappear on Android. Use `elevation: 0` on the child, or shadow the parent.
 
 ## State management
