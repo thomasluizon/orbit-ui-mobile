@@ -50,13 +50,6 @@ export default function StreakPage() {
     return ''
   }, [streak, t])
 
-  const tier = useMemo(() => {
-    if (streak >= 100) return 'legendary'
-    if (streak >= 30) return 'intense'
-    if (streak >= 7) return 'strong'
-    return 'normal'
-  }, [streak])
-
   const weekDays = useMemo(() => {
     const today = new Date()
     const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
@@ -110,7 +103,7 @@ export default function StreakPage() {
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div
-            className={`streak-hero streak-hero--${tier} flex flex-col items-center text-center`}
+            className="streak-hero flex flex-col items-center text-center"
             style={{
               padding: '32px 20px 28px',
               gap: 10,

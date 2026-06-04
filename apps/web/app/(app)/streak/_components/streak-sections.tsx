@@ -2,6 +2,7 @@
 
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { getStreakTierLabelKey } from '@orbit/shared/utils'
 
 type StreakDayView = {
   dateStr: string
@@ -197,6 +198,15 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
           <SettingsGroupRow
             label={t('streakDisplay.detail.longestStreak')}
             trailing={<StatValue value={longestStreak} />}
+          />
+          <SettingsGroupRow
+            label={t(getStreakTierLabelKey(streak))}
+            trailing={
+              <span
+                className="block rounded-full"
+                style={{ width: 8, height: 8, background: 'var(--primary)' }}
+              />
+            }
           />
         </SettingsGroup>
       </div>

@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { subDays, isToday, format, parseISO } from 'date-fns'
+import { getStreakTierLabelKey } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -116,13 +117,7 @@ export default function StreakScreen() {
     ? t('streakDisplay.freeze.activeToday')
     : t('streakDisplay.detail.currentStreak')
 
-  const tier = useMemo(() => {
-    if (streak >= 365) return t('streakDisplay.profile.encouragement365')
-    if (streak >= 100) return t('streakDisplay.detail.tierLegendary')
-    if (streak >= 30) return t('streakDisplay.detail.tierStrong')
-    if (streak >= 7) return t('streakDisplay.detail.tierSteady')
-    return t('streakDisplay.detail.tierNormal')
-  }, [streak, t])
+  const tier = t(getStreakTierLabelKey(streak))
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>

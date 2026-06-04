@@ -256,17 +256,17 @@ describe('StreakPage', () => {
     expect(upgradeLink).toHaveAttribute('href', '/upgrade')
   })
 
-  // ---- Tier styling ----
+  // ---- Tier ----
 
-  it('applies strong tier class for streak >= 7', () => {
+  it('shows the steady tier in stats for streak >= 7', () => {
     mockProfile = { currentStreak: 10, hasProAccess: true }
-    const { container } = render(<StreakPage />)
-    expect(container.querySelector('.streak-hero--strong')).toBeInTheDocument()
+    render(<StreakPage />)
+    expect(screen.getByText('streakDisplay.detail.tierSteady')).toBeInTheDocument()
   })
 
-  it('applies legendary tier class for streak >= 100', () => {
+  it('shows the legendary tier in stats for streak >= 100', () => {
     mockProfile = { currentStreak: 150, hasProAccess: true }
-    const { container } = render(<StreakPage />)
-    expect(container.querySelector('.streak-hero--legendary')).toBeInTheDocument()
+    render(<StreakPage />)
+    expect(screen.getByText('streakDisplay.detail.tierLegendary')).toBeInTheDocument()
   })
 })
