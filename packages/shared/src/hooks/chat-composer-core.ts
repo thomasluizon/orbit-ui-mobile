@@ -30,7 +30,7 @@ import {
  * decisions both platforms must make identically.
  */
 
-export const CHAT_HABIT_ACTION_TYPES: ReadonlySet<string> = new Set([
+const CHAT_HABIT_ACTION_TYPES: ReadonlySet<string> = new Set([
   'CreateHabit',
   'LogHabit',
   'UpdateHabit',
@@ -75,7 +75,7 @@ export function buildAgentExecutionMessage(response: AgentExecuteOperationRespon
  * apps invalidate the same set; the hook maps each family to
  * `queryClient.invalidateQueries`.
  */
-export const AGENT_INVALIDATION_KEY_FAMILIES: readonly (readonly unknown[])[] = [
+const AGENT_INVALIDATION_KEY_FAMILIES: readonly (readonly unknown[])[] = [
   habitKeys.all,
   goalKeys.all,
   profileKeys.all,
@@ -97,15 +97,15 @@ export async function invalidateAgentQueries(queryClient: QueryClient): Promise<
   )
 }
 
-export type SendFailureKind = 'upgrade' | 'timeout' | 'limit' | 'generic'
+type SendFailureKind = 'upgrade' | 'timeout' | 'limit' | 'generic'
 
-export interface SendFailureInput {
+interface SendFailureInput {
   status?: number | null
   code?: string | null
   reason?: string | null
 }
 
-export interface SendFailureClassification {
+interface SendFailureClassification {
   kind: SendFailureKind
   reason: string
   upgrade: UpgradeEntitlementResolution
@@ -142,7 +142,7 @@ export function findPremiumPolicyDenial(
   return denials?.find((denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade)
 }
 
-export interface ActionInvalidations {
+interface ActionInvalidations {
   habits: boolean
   goals: boolean
 }
