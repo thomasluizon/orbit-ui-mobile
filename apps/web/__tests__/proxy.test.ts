@@ -48,10 +48,12 @@ describe('proxy', () => {
     vi.mocked(setSessionCookies).mockReset()
   })
 
-  it('allows public paths without resolving a session', async () => {
-    const response = await proxy(createRequest('/privacy'))
+  it('allows public legal pages without resolving a session', async () => {
+    for (const path of ['/terms', '/privacy', '/delete-account']) {
+      const response = await proxy(createRequest(path))
 
-    expect(response).toMatchObject({ type: 'next' })
+      expect(response).toMatchObject({ type: 'next' })
+    }
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 

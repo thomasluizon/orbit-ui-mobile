@@ -12,7 +12,9 @@ const PUBLIC_PATHS = [
   '/login',
   '/auth-callback',
   '/r/',
+  '/terms',
   '/privacy',
+  '/delete-account',
   '/.well-known',
   '/app-ads.txt',
 ]
