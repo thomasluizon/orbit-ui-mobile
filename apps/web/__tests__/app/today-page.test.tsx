@@ -5,6 +5,8 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { computeHabitCardStatus, formatAPIDate } from '@orbit/shared/utils'
 
+const { useHabitsMock } = vi.hoisted(() => ({ useHabitsMock: vi.fn() }))
+
 const setSelectedDate = vi.fn((date: string) => {
   uiState.selectedDate = date
   uiState.followToday = false
@@ -122,8 +124,8 @@ vi.mock('@/hooks/use-tags', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-habits', () => ({
-  useHabits: () => ({
+function defaultUseHabitsReturn() {
+  return {
     data: mockHabitsData,
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
@@ -133,7 +135,11 @@ vi.mock('@/hooks/use-habits', () => ({
     },
     isFetching: false,
     dataUpdatedAt: Date.now(),
-  }),
+  }
+}
+
+vi.mock('@/hooks/use-habits', () => ({
+  useHabits: useHabitsMock,
   useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
   useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
   useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
@@ -193,6 +199,7 @@ import TodayPage from '@/app/(app)/page'
 describe('TodayPage bulk parent prompts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
     vi.useRealTimers()
     mockRouterPush.mockReset()
     mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
@@ -340,6 +347,7 @@ describe('TodayPage overdue bulk selection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
     vi.useRealTimers()
     mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
     bulkLogMutateAsync.mockReset()
@@ -408,5 +416,67 @@ describe('TodayPage overdue bulk selection', () => {
     await waitFor(() => {
       expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }])
     })
+  })
+})
+
+describe('TodayPage overdue date gating', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
+    vi.useRealTimers()
+    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
+    mockHabitsData.habitsById = new Map()
+    mockHabitsData.childrenByParent = new Map()
+    mockHabitsData.topLevelHabits = []
+    uiState.followToday = false
+    uiState.activeView = 'today'
+    uiState.isSelectMode = false
+    uiState.searchQuery = ''
+    uiState.selectedFrequency = null
+    uiState.selectedTagIds = []
+    uiState.showCompleted = false
+    uiState.selectedHabitIds = new Set<string>()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function lastFilters() {
+    return useHabitsMock.mock.calls.at(-1)?.[0]
+  }
+
+  it('includes overdue when the selected date is today', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
+    uiState.selectedDate = '2026-04-07'
+
+    render(<TodayPage />)
+
+    expect(lastFilters()).toMatchObject({
+      dateFrom: '2026-04-07',
+      dateTo: '2026-04-07',
+      includeOverdue: true,
+    })
+  })
+
+  it('excludes overdue when the selected date is in the future', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
+    uiState.selectedDate = '2026-04-09'
+
+    render(<TodayPage />)
+
+    expect(lastFilters()).toMatchObject({ includeOverdue: false })
+  })
+
+  it('excludes overdue when the selected date is in the past', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
+    uiState.selectedDate = '2026-04-05'
+
+    render(<TodayPage />)
+
+    expect(lastFilters()).toMatchObject({ includeOverdue: false })
   })
 })
