@@ -5,7 +5,7 @@ import {
   createMockProfile,
 } from "@orbit/shared/__tests__/factories";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
-import { formatAPIDate } from "@orbit/shared/utils";
+import { computeHabitCardStatus, formatAPIDate } from "@orbit/shared/utils";
 
 import TodayScreen, {
   resolveBulkActionBarEnterShift,
@@ -598,5 +598,128 @@ describe("TodayScreen", () => {
     });
 
     expect(uiState.selectedDate).toBe("2026-04-06");
+  });
+});
+
+describe("TodayScreen overdue bulk selection", () => {
+  function seedOverdueHabit(): NormalizedHabit {
+    const overdue = createMockHabit({
+      id: "overdue-1",
+      title: "Overdue task",
+      isOverdue: true,
+      frequencyUnit: null,
+      dueDate: "2026-04-01",
+      scheduledDates: [],
+      isCompleted: false,
+    });
+    mockHabitsData.habitsById = new Map([[overdue.id, overdue]]);
+    mockHabitsData.topLevelHabits = [overdue];
+    return overdue;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    mockProfile = createMockProfile({
+      hasProAccess: false,
+      aiSummaryEnabled: false,
+    });
+    bulkLogMutateAsync.mockReset();
+    bulkSkipMutateAsync.mockReset();
+    mockHabitsData.habitsById = new Map();
+    mockHabitsData.childrenByParent = new Map();
+    mockHabitsData.topLevelHabits = [];
+    habitListHandle.allLoadedIds = new Set();
+    uiState.selectedDate = "2026-04-07";
+    uiState.followToday = true;
+    uiState.activeView = "today";
+    uiState.isSelectMode = true;
+    uiState.searchQuery = "";
+    uiState.selectedFrequency = null;
+    uiState.selectedTagIds = [];
+    uiState.showCompleted = false;
+    uiState.selectedHabitIds = new Set<string>();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("treats an overdue one-time habit fixture as overdue", () => {
+    const overdue = seedOverdueHabit();
+
+    expect(computeHabitCardStatus(overdue)).toBe("overdue");
+  });
+
+  it("includes the overdue habit when selecting all", async () => {
+    const overdue = seedOverdueHabit();
+
+    const tree = await renderTodayScreen();
+
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
+
+    TestRenderer.act(() => {
+      (bulkBar.props.onSelectAll as () => void)();
+    });
+
+    expect(uiState.selectAllHabits).toHaveBeenCalledWith(
+      expect.arrayContaining([overdue.id]),
+    );
+  });
+
+  it("dispatches a bulk log for a selected overdue habit without a date", async () => {
+    const overdue = seedOverdueHabit();
+    uiState.selectedHabitIds = new Set([overdue.id]);
+    bulkLogMutateAsync.mockResolvedValue({
+      results: [{ habitId: overdue.id, status: "Success" }],
+    });
+
+    const tree = await renderTodayScreen();
+
+    const bulkLogDialog = tree.root
+      .findAllByType("ConfirmDialog")
+      .find(
+        (node: { props: { title?: string } }) =>
+          node.props.title === "habits.bulkLogTitle",
+      );
+
+    if (!bulkLogDialog || typeof bulkLogDialog.props.onConfirm !== "function") {
+      throw new Error("Expected bulk log confirm dialog to be rendered");
+    }
+    const onConfirm = bulkLogDialog.props.onConfirm as () => Promise<void>;
+
+    await TestRenderer.act(async () => {
+      await onConfirm();
+    });
+
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
+  });
+
+  it("dispatches a bulk skip for a selected overdue habit without a date", async () => {
+    const overdue = seedOverdueHabit();
+    uiState.selectedHabitIds = new Set([overdue.id]);
+    bulkSkipMutateAsync.mockResolvedValue({
+      results: [{ habitId: overdue.id, status: "Success" }],
+    });
+
+    const tree = await renderTodayScreen();
+
+    const bulkSkipDialog = tree.root
+      .findAllByType("ConfirmDialog")
+      .find(
+        (node: { props: { title?: string } }) =>
+          node.props.title === "habits.bulkSkipTitle",
+      );
+
+    if (!bulkSkipDialog || typeof bulkSkipDialog.props.onConfirm !== "function") {
+      throw new Error("Expected bulk skip confirm dialog to be rendered");
+    }
+    const onConfirm = bulkSkipDialog.props.onConfirm as () => Promise<void>;
+
+    await TestRenderer.act(async () => {
+      await onConfirm();
+    });
+
+    expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
   });
 });

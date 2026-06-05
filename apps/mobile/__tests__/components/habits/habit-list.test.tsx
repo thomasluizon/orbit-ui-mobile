@@ -1099,4 +1099,112 @@ describe('HabitList', () => {
     expect(autoLogDialog).toBeTruthy()
     expect(autoLogDialog?.props.description).toContain('"Grandparent"')
   })
+
+  it('logs an overdue habit directly with no date', async () => {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    seedHabits([overdue])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const overdueCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'overdue-1')
+
+    await TestRenderer.act(async () => {
+      await overdueCard?.props.actions.onLog()
+    })
+
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+  })
+
+  it('skips an overdue habit with no date after confirmation', async () => {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    seedHabits([overdue])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const overdueCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'overdue-1')
+
+    TestRenderer.act(() => {
+      overdueCard?.props.actions.onSkip()
+    })
+
+    const skipDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.postponeConfirmTitle')
+
+    await TestRenderer.act(async () => {
+      await skipDialog.props.onConfirm()
+    })
+
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+  })
+
+  it('renders a selectable overdue row in select mode', () => {
+    const overdue = createMockHabit({
+      id: 'overdue-1',
+      title: 'Overdue task',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+    seedHabits([overdue])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          isSelectMode
+          selectedHabitIds={new Set()}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const overdueCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'overdue-1')
+
+    expect(overdueCard?.props.isSelectMode).toBe(true)
+
+    TestRenderer.act(() => {
+      overdueCard?.props.actions.onToggleSelection()
+    })
+
+    expect(toggleSelectionCascade).toHaveBeenCalledWith(
+      'overdue-1',
+      expect.any(Function),
+      expect.any(Function),
+    )
+  })
 })
