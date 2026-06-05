@@ -655,7 +655,22 @@
       "updatedGoalProgress": "Progresso da meta atualizado: {name}",
       "updatedGoalStatus": "Status da meta atualizado: {name}",
       "linkedGoalHabits": "Hábitos vinculados à meta: {name}",
+      "createdTag": "Tag criada: {name}",
+      "updatedTag": "Tag atualizada: {name}",
+      "deletedTag": "Tag excluída",
+      "reorderedGoals": "Metas reordenadas",
+      "reorderedHabits": "Hábitos reordenados",
       "openEntity": "Abrir detalhes: {name}"
+    },
+    "related": {
+      "title": "Relacionado",
+      "surface": {
+        "today": "Hoje",
+        "gamification": "Conquistas",
+        "notifications": "Notificações",
+        "subscriptions": "Assinar",
+        "aiSettings": "Configurações de IA"
+      }
     },
     "conflict": {
       "title": "Potencial conflito"

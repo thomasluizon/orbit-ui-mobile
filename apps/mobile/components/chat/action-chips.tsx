@@ -37,6 +37,16 @@ const ACTION_LABELS: Record<string, string> = {
   UpdateGoalProgress: "chat.action.updatedGoalProgress",
   UpdateGoalStatus: "chat.action.updatedGoalStatus",
   LinkHabitsToGoal: "chat.action.linkedGoalHabits",
+  create_tag: "chat.action.createdTag",
+  update_tag: "chat.action.updatedTag",
+  delete_tag: "chat.action.deletedTag",
+  reorder_goals: "chat.action.reorderedGoals",
+  reorder_habits: "chat.action.reorderedHabits",
+  CreateTag: "chat.action.createdTag",
+  UpdateTag: "chat.action.updatedTag",
+  DeleteTag: "chat.action.deletedTag",
+  ReorderGoals: "chat.action.reorderedGoals",
+  ReorderHabits: "chat.action.reorderedHabits",
 };
 
 const NON_NAVIGABLE_ACTION_TYPES = new Set([
@@ -47,6 +57,12 @@ const NON_NAVIGABLE_ACTION_TYPES = new Set([
   "DeleteSubHabit",
   "suggest_breakdown",
   "SuggestBreakdown",
+  "create_tag",
+  "CreateTag",
+  "update_tag",
+  "UpdateTag",
+  "delete_tag",
+  "DeleteTag",
 ]);
 
 type ChipStyleEntry = {

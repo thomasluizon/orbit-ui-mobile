@@ -43,6 +43,7 @@ const CHAT_HABIT_ACTION_TYPES: ReadonlySet<string> = new Set([
   'DuplicateHabit',
   'MoveHabit',
   'SuggestBreakdown',
+  'ReorderHabits',
 ])
 
 export const CHAT_GOAL_ACTION_TYPES: ReadonlySet<string> = new Set([
@@ -52,6 +53,15 @@ export const CHAT_GOAL_ACTION_TYPES: ReadonlySet<string> = new Set([
   'UpdateGoalProgress',
   'UpdateGoalStatus',
   'LinkHabitsToGoal',
+  'ReorderGoals',
+])
+
+// Tag mutations refresh the tag list and, because habits carry tag chips, the
+// habit lists too (handled via CHAT_HABIT_ACTION_TYPES membership below).
+const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
+  'CreateTag',
+  'UpdateTag',
+  'DeleteTag',
 ])
 
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
@@ -145,21 +155,26 @@ export function findPremiumPolicyDenial(
 interface ActionInvalidations {
   habits: boolean
   goals: boolean
+  tags: boolean
 }
 
 /**
  * Determines which list caches to invalidate from a chat turn's successful
- * actions. Returns `false` for both when there were no successful actions.
+ * actions. Returns `false` for all when there were no successful actions. Tag
+ * mutations also flag `habits` because habit rows render tag chips.
  */
 export function selectActionInvalidations(
   actions: readonly ActionResult[] | undefined,
 ): ActionInvalidations {
   const hasSuccess = actions?.some((action) => action.status === 'Success') ?? false
   if (!hasSuccess) {
-    return { habits: false, goals: false }
+    return { habits: false, goals: false, tags: false }
   }
+  const tags = actions?.some((action) => CHAT_TAG_ACTION_TYPES.has(action.type)) ?? false
   return {
-    habits: actions?.some((action) => CHAT_HABIT_ACTION_TYPES.has(action.type)) ?? false,
+    habits:
+      tags || (actions?.some((action) => CHAT_HABIT_ACTION_TYPES.has(action.type)) ?? false),
     goals: actions?.some((action) => CHAT_GOAL_ACTION_TYPES.has(action.type)) ?? false,
+    tags,
   }
 }

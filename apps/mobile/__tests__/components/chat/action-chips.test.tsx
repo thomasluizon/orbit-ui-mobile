@@ -148,6 +148,21 @@ describe('ActionChips (mobile)', () => {
     expect(pressables.length).toBe(0)
   })
 
+  it('does not render tag mutation chips as Pressable even with handler', () => {
+    for (const type of ['CreateTag', 'UpdateTag', 'DeleteTag']) {
+      let tree: any
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <ActionChips
+            actions={[makeAction({ type, status: 'Success', entityId: 'tag-1' })]}
+            onChipClick={() => {}}
+          />,
+        )
+      })
+      expect(findPressableByType(tree.root).length).toBe(0)
+    }
+  })
+
   it('does not render DeleteGoal chip as Pressable even with handler', () => {
     let tree: any
     TestRenderer.act(() => {
@@ -187,6 +202,30 @@ describe('ActionChips (mobile)', () => {
       )
     })
     expect(findPressableByType(tree.root).length).toBe(0)
+  })
+
+  it('renders localized labels for the new tag and reorder action types', () => {
+    const cases: Array<[string, string]> = [
+      ['CreateTag', 'chat.action.createdTag'],
+      ['UpdateTag', 'chat.action.updatedTag'],
+      ['DeleteTag', 'chat.action.deletedTag'],
+      ['ReorderGoals', 'chat.action.reorderedGoals'],
+      ['ReorderHabits', 'chat.action.reorderedHabits'],
+    ]
+    for (const [type, labelKey] of cases) {
+      let tree: any
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <ActionChips actions={[makeAction({ type, entityName: 'Work' })]} />,
+        )
+      })
+      const matches = tree.root.findAll(
+        (node: any) =>
+          typeof node.props?.children === 'string' &&
+          node.props.children.startsWith(labelKey),
+      )
+      expect(matches.length).toBeGreaterThan(0)
+    }
   })
 
   it('does not render chip with null entityId as Pressable', () => {

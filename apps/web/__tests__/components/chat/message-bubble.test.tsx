@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
@@ -8,14 +8,20 @@ vi.mock('next-intl', () => ({
       values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 
+const push = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}))
+
+vi.mock('@/components/ui/markdown', () => ({
+  Markdown: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,
+}))
+
 vi.mock('./action-chips', () => ({
   ActionChips: () => <div data-testid="action-chips" />,
 }))
 vi.mock('./breakdown-suggestion', () => ({
   BreakdownSuggestion: () => <div data-testid="breakdown-suggestion" />,
-}))
-vi.mock('./format-chat-message', () => ({
-  formatChatMessage: (text: string) => text,
 }))
 
 vi.mock('@/components/chat/action-chips', () => ({
@@ -23,9 +29,6 @@ vi.mock('@/components/chat/action-chips', () => ({
 }))
 vi.mock('@/components/chat/breakdown-suggestion', () => ({
   BreakdownSuggestion: () => <div data-testid="breakdown-suggestion" />,
-}))
-vi.mock('@/components/chat/format-chat-message', () => ({
-  formatChatMessage: (text: string) => text,
 }))
 vi.mock('@/components/chat/pending-operation-card', () => ({
   PendingOperationCard: () => <div data-testid="pending-operation-card" />,
@@ -46,6 +49,10 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
 }
 
 describe('MessageBubble', () => {
+  beforeEach(() => {
+    push.mockClear()
+  })
+
   it('renders user message with user label', () => {
     render(<MessageBubble message={makeMessage({ role: 'user', content: 'Hello' })} />)
     expect(screen.getByText('chat.senderYou')).toBeInTheDocument()
@@ -175,6 +182,34 @@ describe('MessageBubble', () => {
     )
 
     expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
+  })
+
+  it('renders a related-surfaces footer that deep-links known surfaces', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          content: 'Streaks work like this.',
+          relatedSurfaces: ['gamification', 'mystery'],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('chat.related.title')).toBeInTheDocument()
+    const link = screen.getByRole('button', { name: 'chat.related.surface.gamification' })
+    fireEvent.click(link)
+    expect(push).toHaveBeenCalledWith('/achievements')
+    // unknown surface IDs are dropped
+    expect(screen.queryByText('mystery')).not.toBeInTheDocument()
+  })
+
+  it('does not render a related-surfaces footer for user messages', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({ role: 'user', relatedSurfaces: ['gamification'] })}
+      />,
+    )
+    expect(screen.queryByText('chat.related.title')).not.toBeInTheDocument()
   })
 
   it('renders the trace footer for AI messages with a correlationId', () => {
