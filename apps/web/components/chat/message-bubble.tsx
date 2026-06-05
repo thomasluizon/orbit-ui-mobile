@@ -43,6 +43,17 @@ export function MessageBubble({
 }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
+  const [traceCopied, setTraceCopied] = useState(false)
+
+  async function copyTraceId(correlationId: string) {
+    try {
+      await navigator.clipboard.writeText(correlationId)
+      setTraceCopied(true)
+      setTimeout(() => setTraceCopied(false), 2000)
+    } catch {
+      // Clipboard API unavailable
+    }
+  }
 
   const suggestionActions = useMemo(
     () =>
@@ -118,6 +129,19 @@ export function MessageBubble({
             }}
           />
         </div>
+
+        {!isUser && message.correlationId && (
+          <button
+            type="button"
+            onClick={() => copyTraceId(message.correlationId as string)}
+            aria-label={t('chat.trace.copy')}
+            className="mt-1 px-2 py-1 text-[11px] text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors"
+          >
+            {traceCopied
+              ? t('chat.trace.copied')
+              : t('chat.trace.label', { id: message.correlationId })}
+          </button>
+        )}
 
         {!isUser && nonSuggestionActions.length > 0 && (
           <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />

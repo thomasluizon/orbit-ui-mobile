@@ -335,6 +335,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           operations: response.operations,
           pendingOperations: response.pendingOperations,
           policyDenials: response.policyDenials,
+          correlationId: response.correlationId,
           timestamp: new Date(),
         };
 

@@ -136,6 +136,7 @@ export const chatMessageSchema = z.object({
   pendingOperations: z.array(pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).optional(),
   imageUrl: z.string().nullable().optional(),
+  correlationId: z.string().nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -147,6 +148,7 @@ export const chatResponseSchema = z.object({
   operations: z.array(agentOperationResultSchema).optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).optional(),
+  correlationId: z.string().nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

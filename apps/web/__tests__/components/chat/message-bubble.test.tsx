@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations:
+    () =>
+    (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 
 vi.mock('./action-chips', () => ({
@@ -172,6 +175,54 @@ describe('MessageBubble', () => {
     )
 
     expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
+  })
+
+  it('renders the trace footer for AI messages with a correlationId', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({ role: 'ai', correlationId: 'req-abc-123' })}
+      />,
+    )
+    const footer = screen.getByLabelText('chat.trace.copy')
+    expect(footer).toBeInTheDocument()
+    expect(footer.textContent).toContain('req-abc-123')
+  })
+
+  it('does not render the trace footer for user messages', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({ role: 'user', correlationId: 'req-abc-123' })}
+      />,
+    )
+    expect(screen.queryByLabelText('chat.trace.copy')).not.toBeInTheDocument()
+  })
+
+  it('does not render the trace footer when correlationId is null or undefined', () => {
+    const { rerender } = render(
+      <MessageBubble message={makeMessage({ role: 'ai', correlationId: null })} />,
+    )
+    expect(screen.queryByLabelText('chat.trace.copy')).not.toBeInTheDocument()
+
+    rerender(
+      <MessageBubble message={makeMessage({ role: 'ai', correlationId: undefined })} />,
+    )
+    expect(screen.queryByLabelText('chat.trace.copy')).not.toBeInTheDocument()
+  })
+
+  it('copies the correlationId to the clipboard when the footer is clicked', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+
+    render(
+      <MessageBubble
+        message={makeMessage({ role: 'ai', correlationId: 'req-abc-123' })}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('chat.trace.copy'))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('req-abc-123'))
+    expect(await screen.findByText('chat.trace.copied')).toBeInTheDocument()
   })
 
   it('does not render the raw operation summary card for completed operations', () => {
