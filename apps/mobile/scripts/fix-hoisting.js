@@ -29,6 +29,21 @@ function symlink(targetPkg, intoPkg) {
   fs.symlinkSync(src, dst, "junction");
 }
 
+// @expo/cli is hoisted to the root node_modules, but react-native lives only in
+// mobile/node_modules. The mobile scripts set EXPO_NO_METRO_WORKSPACE_ROOT=1, so
+// Expo's Metro server root becomes the app dir and the root-hoisted CLI resolves
+// react-native from the root — which fails unless react-native is reachable there.
+function symlinkToRoot(targetPkg) {
+  const src = path.join(mobileNodeModules, targetPkg);
+  const dst = path.join(rootNodeModules, targetPkg);
+
+  if (!fs.existsSync(src) || fs.existsSync(dst)) {
+    return;
+  }
+
+  fs.symlinkSync(src, dst, "junction");
+}
+
 // nativewind needs tailwindcss v3 (root has v4)
 symlink("tailwindcss", "nativewind");
 
@@ -38,3 +53,6 @@ symlink("react-native", "nativewind");
 
 // react-native-worklets needs react-native (used by reanimated 4.x)
 symlink("react-native", "react-native-worklets");
+
+// @expo/cli (root-hoisted) resolves react-native from the root during Metro bundling
+symlinkToRoot("react-native");

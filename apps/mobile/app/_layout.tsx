@@ -87,7 +87,8 @@ function AuthGuard() {
       firstSegment === 'login' ||
       firstSegment === 'auth-callback' ||
       firstSegment === 'r' ||
-      firstSegment === 'privacy'
+      firstSegment === 'privacy' ||
+      firstSegment === 'terms'
     const allowAuthCallbackWhileResolving =
       firstSegment === 'auth-callback' &&
       (isPendingGoogleAuthSession || Boolean(pendingGoogleAuthCallbackUrl))
@@ -137,6 +138,7 @@ function RootLayoutNav() {
     topSegment === 'auth-callback' ||
     topSegment === 'chat' ||
     topSegment === 'privacy' ||
+    topSegment === 'terms' ||
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome

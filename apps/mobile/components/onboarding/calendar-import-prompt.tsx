@@ -10,8 +10,8 @@ import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 /**
- * v8 calendar-import prompt: bottom sheet with quiet eyebrow, large title,
- * italic body, primary CTA, italic "Not now" link.
+ * v8 calendar-import prompt: bottom sheet (title supplied by the sheet header)
+ * with body copy, a primary CTA, and a quiet "Not now" link.
  */
 export function CalendarImportPrompt() {
   const { t } = useTranslation()
@@ -76,10 +76,6 @@ export function CalendarImportPrompt() {
       snapPoints={['50%']}
     >
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>{t('common.later')}</Text>
-        <Text style={styles.title}>
-          {t('onboarding.wizard.calendarTitle')}
-        </Text>
         <Text style={styles.description}>
           {t('onboarding.wizard.calendarDescription')}
         </Text>
@@ -119,21 +115,6 @@ function createStyles(tokens: AppTokensV2) {
       paddingHorizontal: 24,
       paddingTop: 10,
       paddingBottom: 8,
-    },
-    eyebrow: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      fontWeight: '600',
-      color: tokens.fg3,
-      textAlign: 'center',
-    },
-    title: {
-      fontFamily: 'Geist',
-      fontSize: 22,
-      fontWeight: '600',
-      letterSpacing: -0.33,
-      lineHeight: 25,
-      color: tokens.fg1,
     },
     description: {
       fontFamily: 'Geist',
